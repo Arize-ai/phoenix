@@ -3,6 +3,11 @@
 import httpx
 from strawberry.relay import GlobalID
 
+from phoenix.db.types.decision_evaluators import (
+    ChoiceProjection,
+    DecisionProjectionPolicy,
+    PredicateProjection,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_saved_decision_mutations import create
 
@@ -86,3 +91,89 @@ async def test_unbound_judge_can_be_deleted(
     evaluator_id = response.json()["data"]["id"]
     assert (await httpx_client.post("v1/evaluators", json=body)).status_code == 409
     assert (await httpx_client.delete(f"v1/evaluators/{evaluator_id}")).status_code == 204
+
+
+async def test_default_projection_policy_keeps_discriminators_in_responses(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    decision = await create(gql_client)
+    expected = DecisionProjectionPolicy(
+        questions={
+            "urgent": PredicateProjection(type="predicate"),
+            "team": ChoiceProjection(type="choice"),
+        }
+    )
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "decision",
+            "name": "native-judge",
+            "decision_version_id": decision["version"]["id"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    evaluator_id = response.json()["data"]["id"]
+    response = await httpx_client.get(f"v1/evaluators/{evaluator_id}")
+    assert response.status_code == 200, response.text
+    policy = response.json()["data"]["projection_policy"]
+    assert {name: question["type"] for name, question in policy["questions"].items()} == {
+        "urgent": "predicate",
+        "team": "choice",
+    }
+    assert DecisionProjectionPolicy.model_validate(policy) == expected
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={
+            "name": "judge",
+            "evaluator_id": evaluator_id,
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
+            "projection_policy": {"questions": {"urgent": {"type": "predicate"}}},
+        },
+    )
+    assert response.status_code == 201, response.text
+    binding = response.json()["data"]
+    response = await httpx_client.get(f"v1/dataset_evaluators/{binding['id']}")
+    assert response.status_code == 200, response.text
+    binding_policy = response.json()["data"]["projection_policy"]
+    assert binding_policy["questions"]["urgent"]["type"] == "predicate"
+    assert DecisionProjectionPolicy.model_validate(binding_policy) == DecisionProjectionPolicy(
+        questions={"urgent": PredicateProjection(type="predicate")}
+    )
+
+
+async def test_binding_output_configs_must_match_the_derived_outputs(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    decision = await create(gql_client)
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "decision",
+            "name": "native-judge",
+            "decision_version_id": decision["version"]["id"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={
+            "name": "judge",
+            "evaluator_id": response.json()["data"]["id"],
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
+            "output_configs": [
+                {
+                    "type": "CONTINUOUS",
+                    "name": "urgent",
+                    "optimization_direction": "NONE",
+                    "lower_bound": 0,
+                    "upper_bound": 5,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 422, response.text
+    assert "Decision outputs are derived from the questions and projection policy" in response.text

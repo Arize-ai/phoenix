@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import httpx
 from phoenix.client.types.prompts import PromptVersion
+from phoenix.client.utils.template_formatters import TemplateFormatterError
 
 from phoenix.experimental.datagen.datasets import DatasetError
 from phoenix.experimental.datagen.workflows import (
@@ -105,7 +106,8 @@ def _same_prompt(saved: PromptVersion, desired: PromptVersion) -> bool:
         return dict(saved.format(variables=variables, sdk="openai")) == dict(
             desired.format(variables=variables, sdk="openai")
         )
-    except ValueError:
+    except (ValueError, TemplateFormatterError):
+        # A user-edited template that no longer formats is not the seeded one.
         return False
 
 

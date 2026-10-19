@@ -56,6 +56,7 @@ class DecisionQuestionProjectionInput:
         """Convert the selected question settings to the stored policy representation."""
         if self.predicate:
             return self.predicate.name, stored.PredicateProjection(
+                type="predicate",
                 threshold=self.predicate.threshold,
                 optimization_direction=self.predicate.optimization_direction,
             )
@@ -66,10 +67,13 @@ class DecisionQuestionProjectionInput:
                     raise BadRequest(f"Duplicate score for choice '{value.choice}'")
                 scores[value.choice] = value.score
             return self.choice.name, stored.ChoiceProjection(
-                scores=scores, optimization_direction=self.choice.optimization_direction
+                type="choice",
+                scores=scores,
+                optimization_direction=self.choice.optimization_direction,
             )
         if self.scale:
             return self.scale.name, stored.ScaleProjection(
+                type="scale",
                 include_label=self.scale.include_label,
                 optimization_direction=self.scale.optimization_direction,
             )

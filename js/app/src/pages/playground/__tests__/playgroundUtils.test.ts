@@ -766,6 +766,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
+  it("should not infer a decision-only provider for a chat span with an unknown provider", () => {
+    const { modelConfig, parsingErrors } = getBaseModelConfigFromAttributes({
+      llm: { model_name: "jev-latest", provider: "unknown" },
+    });
+    expect(parsingErrors).toEqual([]);
+    expect(modelConfig?.provider).toEqual(DEFAULT_MODEL_PROVIDER);
+    expect(modelConfig?.modelName).toEqual("jev-latest");
+  });
+
   it("should return invocation parameters parsing errors if they are malformed", () => {
     const parsedAttributes = {
       llm: {

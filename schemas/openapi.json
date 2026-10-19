@@ -13296,8 +13296,7 @@
           "type": {
             "type": "string",
             "const": "choice",
-            "title": "Type",
-            "default": "choice"
+            "title": "Type"
           },
           "scores": {
             "additionalProperties": {
@@ -13313,6 +13312,9 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "type"
+        ],
         "title": "ChoiceProjection"
       },
       "CodeEvaluatorDefinition": {
@@ -19999,8 +20001,7 @@
           "type": {
             "type": "string",
             "const": "predicate",
-            "title": "Type",
-            "default": "predicate"
+            "title": "Type"
           },
           "threshold": {
             "type": "number",
@@ -20016,6 +20017,9 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "type"
+        ],
         "title": "PredicateProjection"
       },
       "Project": {
@@ -22644,8 +22648,7 @@
           "type": {
             "type": "string",
             "const": "scale",
-            "title": "Type",
-            "default": "scale"
+            "title": "Type"
           },
           "include_label": {
             "type": "boolean",
@@ -22659,6 +22662,9 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "type"
+        ],
         "title": "ScaleProjection"
       },
       "SecretKeyValue": {

@@ -21,13 +21,13 @@ class _ProjectionModel(BaseModel):
 
 
 class PredicateProjection(_ProjectionModel):
-    type: Literal["predicate"] = "predicate"
+    type: Literal["predicate"]
     threshold: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
 
 class ChoiceProjection(_ProjectionModel):
-    type: Literal["choice"] = "choice"
+    type: Literal["choice"]
     scores: dict[str, float] = Field(default_factory=dict)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
@@ -39,7 +39,7 @@ class ChoiceProjection(_ProjectionModel):
 
 
 class ScaleProjection(_ProjectionModel):
-    type: Literal["scale"] = "scale"
+    type: Literal["scale"]
     include_label: bool = False
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
@@ -64,11 +64,11 @@ def resolve_projection_policy(
         projection = policy.questions.get(question.name)
         if projection is None:
             if question.type == "predicate":
-                projection = PredicateProjection()
+                projection = PredicateProjection(type="predicate")
             elif question.type == "choice":
-                projection = ChoiceProjection()
+                projection = ChoiceProjection(type="choice")
             else:
-                projection = ScaleProjection()
+                projection = ScaleProjection(type="scale")
         if projection.type != question.type:
             raise ValueError(f"Projection type for {question.name} must be {question.type}")
         if isinstance(projection, ChoiceProjection) and isinstance(question, ChoiceQuestion):

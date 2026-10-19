@@ -1090,6 +1090,11 @@ bodies and the SDK's generated types freeze whichever shape ships.
   prompt IDs are carried today.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
+- **Retries for LLM judges.** The runner retries a decision judge's returned
+  rate-limit and transient failures; an LLM judge returns failures the same way
+  but is still recorded on the first one. Extending the retries to LLM judges
+  changes existing behavior, so it is a separate change (see
+  [Refusals, Errors, and Metadata](#refusals-errors-and-metadata)).
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need

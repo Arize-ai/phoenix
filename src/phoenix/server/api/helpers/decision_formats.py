@@ -59,6 +59,12 @@ def _text(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _choice_value(name: str, value: Any) -> str:
+    if value is None:
+        raise ValueError(f"Choices for {name!r} need a value")
+    return str(value)
+
+
 def _optional_text(value: Any) -> str | None:
     return None if value is None else _text(value)
 
@@ -156,7 +162,7 @@ def _from_openai(value: Any) -> list[DecisionQuestion]:
                     instructions=instructions,
                     choices=[
                         ChoiceOption(
-                            value=str(choice.get("value")),
+                            value=_choice_value(name, choice.get("value")),
                             description=_optional_text(choice.get("description")),
                         )
                         for choice in _objects(choices, f"Choices for {name!r}")
