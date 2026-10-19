@@ -157,7 +157,7 @@ export function AgentModelMenu({
     [onChange, awsBedrockModelPrefix]
   );
 
-  const { customProviders, data } = useModelMenuData();
+  const { chatModelProviders, customProviders, data } = useModelMenuData();
 
   const curatedBuiltInModels = useMemo(
     () => getCuratedBuiltInModels(data.playgroundModels),
@@ -216,7 +216,7 @@ export function AgentModelMenu({
               curatedBuiltInModels={curatedBuiltInModels}
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
-              modelProviders={data.modelProviders}
+              modelProviders={chatModelProviders}
               onChange={handleModelChange}
             />
           )}

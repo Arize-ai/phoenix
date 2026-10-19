@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b893cd7f961fea14caff0724bb174405>>
+ * @generated SignedSource<<033c0f589089c1dcd0a734777b627c1e>>
  * @lightSyntaxTransform
  */
 
@@ -28,6 +28,7 @@ export type useModelMenuDataQuery$data = {
     readonly credentialsSet: boolean;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
+    readonly modelTypes: ReadonlyArray<ModelType>;
     readonly name: string;
   }>;
   readonly playgroundModels: ReadonlyArray<{
@@ -48,7 +49,14 @@ var v0 = {
   "name": "name",
   "storageKey": null
 },
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelTypes",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": null,
@@ -88,13 +96,7 @@ v1 = [
                 "name": "sdk",
                 "storageKey": null
               },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "modelTypes",
-                "storageKey": null
-              },
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -140,7 +142,8 @@ v1 = [
         "kind": "ScalarField",
         "name": "credentialsSet",
         "storageKey": null
-      }
+      },
+      (v1/*:: as any*/)
     ],
     "storageKey": null
   },
@@ -170,7 +173,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -179,19 +182,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "5a568d1bb4d65f329cbfa36710ac8036",
+    "cacheID": "954cfffcdb640f0d852aec0004b87588",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelTypes\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelTypes\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n    modelTypes\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c8afb9f54dc9249ac4f7b7f71cf69b90";
+(node as any).hash = "5444bb01e699d7f7f7bdadedc29846fd";
 
 export default node;

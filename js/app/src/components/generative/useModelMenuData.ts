@@ -12,6 +12,7 @@ import type {
 
 export type { GenerativeModelSDK, GenerativeProviderKey };
 import {
+  getChatModelProviders,
   getProviderKeyForGenerativeModelSDK,
   isProviderProvisioned,
   isProviderReady,
@@ -142,6 +143,7 @@ export function useModelMenuData({
           name
           dependenciesInstalled
           credentialsSet
+          modelTypes
         }
         playgroundModels {
           name
@@ -239,18 +241,26 @@ export function useModelMenuData({
       ? NO_LOCAL_CREDENTIALS
       : storedLocalCredentials;
 
-  // Every provider annotated with whether it still needs credentials, so
+  // The pickers choose chat models, so built-in providers that serve decision
+  // models only (TypeSafe) are left out, as decision-only custom providers are.
+  // Credentials set for one must not change which chat providers are shown.
+  const chatModelProviders = useMemo(
+    () => getChatModelProviders(data.modelProviders),
+    [data.modelProviders]
+  );
+
+  // Every chat provider annotated with whether it still needs credentials, so
   // menu items can hint at unconfigured providers.
   const providersWithStatus = useMemo<ModelProviderInfo[]>(
     () =>
-      data.modelProviders.map((provider) => ({
+      chatModelProviders.map((provider) => ({
         ...provider,
         needsCredentials: providerNeedsCredentials({
           provider,
           localCredentials,
         }),
       })),
-    [data.modelProviders, localCredentials]
+    [chatModelProviders, localCredentials]
   );
 
   // Providers that are usable right now: dependencies installed and
@@ -269,10 +279,10 @@ export function useModelMenuData({
   const hasProvisionedProvider = useMemo(
     () =>
       customProviders.length > 0 ||
-      data.modelProviders.some((provider) =>
+      chatModelProviders.some((provider) =>
         isProviderProvisioned({ provider, localCredentials })
       ),
-    [customProviders, data.modelProviders, localCredentials]
+    [customProviders, chatModelProviders, localCredentials]
   );
 
   // Providers to list in the picker. Once the user has provisioned a
@@ -293,6 +303,7 @@ export function useModelMenuData({
 
   return {
     availableBuiltinModels,
+    chatModelProviders,
     availableCustomModels,
     customProviders,
     data,

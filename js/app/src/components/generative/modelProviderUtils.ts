@@ -26,6 +26,16 @@ export function getProviderKeyForGenerativeModelSDK(
 }
 
 /**
+ * The providers a chat model picker lists: those that serve chat (LLM) models.
+ * A provider that serves decision models only, such as TypeSafe, is left out.
+ */
+export function getChatModelProviders<
+  Provider extends { readonly modelTypes: readonly string[] },
+>(providers: readonly Provider[]): Provider[] {
+  return providers.filter((provider) => provider.modelTypes.includes("LLM"));
+}
+
+/**
  * Browser-local credential values keyed by provider, then by env var name.
  */
 export type LocalProviderCredentials = CredentialsProps;
