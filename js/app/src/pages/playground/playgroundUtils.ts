@@ -86,7 +86,7 @@ import {
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
-  decisionInstanceFromSpanAttributes,
+  buildDecisionInstanceFromSpanAttributes,
   extractDecisionVariables,
   isDecisionSpanAttributes,
 } from "./decisionUtils";
@@ -1145,7 +1145,7 @@ export function transformSpanAttributesToPlaygroundInstance(
   // A decision span replays as a decision instance: the request body on the
   // span becomes the editable request and the response its first output.
   if (isDecisionSpanAttributes(parsedAttributes)) {
-    return decisionInstanceFromSpanAttributes({
+    return buildDecisionInstanceFromSpanAttributes({
       base: basePlaygroundInstance,
       spanId: span.id,
       attributes: parsedAttributes,
@@ -1375,7 +1375,10 @@ export const getVariablesMapFromInstances = ({
       }),
       ...instances.flatMap((instance) =>
         instance.model.modelType === "DECISION"
-          ? extractDecisionVariables(instance.decisionRequest, templateFormat)
+          ? extractDecisionVariables({
+              draft: instance.decisionRequest,
+              templateFormat,
+            })
           : []
       ),
     ])

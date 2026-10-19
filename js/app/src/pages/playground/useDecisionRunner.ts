@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useRelayEnvironment } from "react-relay";
 import { commitMutation, graphql } from "relay-runtime";
 
-import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { useCredentialsStore } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
@@ -31,21 +31,8 @@ const mutation = graphql`
   }
 `;
 
-function getDecisionNetworkErrorMessage(error: Error): string {
-  // The network layer embeds variables before the final GraphQL errors array.
-  // Search only that array: structured state can itself contain a `message` key.
-  const errorsOffset = error.message.lastIndexOf("': [");
-  const messages =
-    errorsOffset >= 0
-      ? getErrorMessagesFromRelayMutationError({
-          message: error.message.slice(errorsOffset + 3),
-        })
-      : null;
-  return (
-    messages?.join("\n") ??
-    "Could not execute the decision request. Check the connection and provider configuration."
-  );
-}
+const FALLBACK_ERROR_MESSAGE =
+  "Could not execute the decision request. Check the connection and provider configuration.";
 
 /**
  * Runs an instance's decision request against its model whenever
@@ -54,8 +41,10 @@ function getDecisionNetworkErrorMessage(error: Error): string {
  */
 export function useDecisionRunner(instanceId: number) {
   const store = usePlaygroundStore();
+  // The store, not a subscription: credentials are read once when a run
+  // starts, so a key edited mid-run never restarts that run.
+  const credentialsStore = useCredentialsStore();
   const environment = useRelayEnvironment();
-  const credentials = useCredentialsContext((state) => state);
   const runId = usePlaygroundContext(
     (state) =>
       state.instances.find((item) => item.id === instanceId)?.activeRunId
@@ -67,8 +56,8 @@ export function useDecisionRunner(instanceId: number) {
     const snapshot = state.instances.find((item) => item.id === instanceId);
     const decision = snapshot?.decisionRequest;
     if (!snapshot || !decision) return undefined;
-    // Resolve template variables once per run so every repetition sends the
-    // same evidence.
+    // Resolve template variables and credentials once per run so every
+    // repetition sends the same request.
     const { variablesMap } = getVariablesMapFromInstances({
       instances: [
         denormalizePlaygroundInstance(snapshot, state.allInstanceMessages),
@@ -76,6 +65,12 @@ export function useDecisionRunner(instanceId: number) {
       templateFormat: state.templateFormat,
       input: state.input,
     });
+    const providerCredentials =
+      credentialsStore.getState()[snapshot.model.provider] ?? {};
+    const credentials = Object.entries(providerCredentials).flatMap(
+      ([envVarName, value]) =>
+        typeof value === "string" && value ? [{ envVarName, value }] : []
+    );
     let isDisposed = false;
     const disposables: Array<{ dispose(): void }> = [];
     const pendingResolutions = new Set<() => void>();
@@ -93,12 +88,11 @@ export function useDecisionRunner(instanceId: number) {
         const actions = store.getState();
         actions.setRepetitionStatus(instanceId, repetitionNumber, "pending");
         try {
-          const input = buildDecisionInput(decision, {
+          const input = buildDecisionInput({
+            draft: decision,
             templateFormat: state.templateFormat,
             variables: variablesMap,
           });
-          const providerCredentials =
-            credentials[snapshot.model.provider] ?? {};
           await new Promise<void>((resolve, reject) => {
             const complete = () => {
               pendingResolutions.delete(complete);
@@ -114,12 +108,7 @@ export function useDecisionRunner(instanceId: number) {
                     modelName: snapshot.model.modelName ?? "",
                     providerKey: snapshot.model.provider,
                     baseUrl: snapshot.model.baseUrl,
-                    credentials: Object.entries(providerCredentials).flatMap(
-                      ([envVarName, value]) =>
-                        typeof value === "string" && value
-                          ? [{ envVarName, value }]
-                          : []
-                    ),
+                    credentials,
                   },
                 },
                 onCompleted: (response, errors) => {
@@ -157,10 +146,16 @@ export function useDecisionRunner(instanceId: number) {
                   );
                   complete();
                 },
-                // Relay's raw error string embeds request variables, including credentials.
-                // Surface only GraphQL messages, never the raw network error.
+                // Relay's raw error string embeds the request variables,
+                // credentials included. Surface only the GraphQL messages.
                 onError: (error) =>
-                  reject(new Error(getDecisionNetworkErrorMessage(error))),
+                  reject(
+                    new Error(
+                      getErrorMessagesFromRelayMutationError(error)?.join(
+                        "\n"
+                      ) ?? FALLBACK_ERROR_MESSAGE
+                    )
+                  ),
               })
             );
           });
@@ -186,5 +181,5 @@ export function useDecisionRunner(instanceId: number) {
       for (const disposable of disposables) disposable.dispose();
       for (const resolve of pendingResolutions) resolve();
     };
-  }, [runId, instanceId, store, environment, credentials]);
+  }, [runId, instanceId, store, environment, credentialsStore]);
 }

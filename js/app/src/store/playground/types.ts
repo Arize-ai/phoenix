@@ -137,9 +137,10 @@ export type DecisionQuestionDraft = {
 };
 
 /**
- * The decision request shared by every decision instance in the playground.
- * Instances differ only by model, so comparing models means asking the same
- * questions over the same evidence. Text fields may use template variables.
+ * One instance's decision request: the state (evidence) and the typed
+ * questions asked about it. Each decision instance owns its own, like a
+ * prompt, so instances can be compared and mixed with chat instances. Text
+ * fields may use template variables.
  */
 export type DecisionRequestDraft = {
   state: string;
@@ -162,7 +163,8 @@ export type PlaygroundError = {
 };
 
 export type ModelConfig = {
-  modelType?: "LLM" | "DECISION";
+  /** Chat (LLM) or decision model; absent means chat. */
+  modelType?: ModelType;
   provider: ModelProvider;
   modelName: string | null;
   baseUrl?: string | null;
@@ -596,7 +598,7 @@ export type PlaygroundStateByDatasetId = z.infer<
 >;
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
-  defaultModelType?: "LLM" | "DECISION";
+  defaultModelType?: ModelType;
   modelConfigByProvider: ModelConfigByProvider;
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
@@ -856,12 +858,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
-   * Replace one instance's decision request.
+   * Replace one instance's decision request and mark the instance dirty.
    */
-  updateDecisionRequest: (
-    instanceId: number,
-    request: DecisionRequestDraft
-  ) => void;
+  updateDecisionRequest: (params: {
+    instanceId: number;
+    request: DecisionRequestDraft;
+  }) => void;
   /**
    * Set multiple variable values in the input
    */
