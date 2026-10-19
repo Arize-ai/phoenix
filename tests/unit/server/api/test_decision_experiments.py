@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 import httpx
 import httpx2
@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -23,6 +24,11 @@ QUERY = """
       ... on ChatCompletionSubscriptionExperiment { experiment { id name } }
       ... on ChatCompletionSubscriptionResult { experimentRun { id output error } }
       ... on ChatCompletionSubscriptionError { message }
+      ... on EvaluationChunk {
+        evaluatorName
+        error
+        experimentRunEvaluation { name label score }
+      }
     }
   }
 """
@@ -142,17 +148,8 @@ def run_input(target: list[dict[str, Any]], **task: Any) -> dict[str, Any]:
                         "modelName": "tev1:0.8b-mxfp8",
                         "inputs": [{"name": "state"}],
                         "state": {"input": "state"},
-                        "inputMapping": {
-                            "literalMapping": {},
-                            "pathMapping": {"state": "input.state"},
-                        },
-                        "questions": {
-                            "example": {"path": "input.questions", "format": "SYSTEM_ONE"}
-                        },
-                        "references": {
-                            "labelPath": "reference.{question}.label",
-                            "annotatorKind": "LLM",
-                        },
+                        "questionsPath": "questions",
+                        "questionsFormat": "SYSTEM_ONE",
                         **task,
                     }
                 }
@@ -211,8 +208,10 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
         task = await session.get(models.ExperimentDecisionTask, experiment_id)
         assert task is not None
         assert (task.model_provider.value, task.model_name) == ("OLLAMA", "tev1:0.8b-mxfp8")
-        assert task.config.references is not None
-        assert task.config.references.annotator_kind == "LLM"
+        assert (task.config.input_values_path, task.config.questions_path) == (
+            "input",
+            "questions",
+        )
         db_experiment = await session.get(models.Experiment, experiment_id)
         assert db_experiment is not None
         decision_spans = await session.scalar(
@@ -230,10 +229,8 @@ async def test_examples_that_cannot_be_asked_stop_the_run_before_it_starts(
     db: DbSessionFactory,
     benchmark_dataset: list[dict[str, Any]],
 ) -> None:
-    variables = run_input(
-        benchmark_dataset,
-        inputMapping={"literalMapping": {}, "pathMapping": {"state": "input.passage"}},
-    )
+    # The state is in the input, not the metadata, so no example has it.
+    variables = run_input(benchmark_dataset, inputValuesPath="metadata")
     with respx.mock:
         route = respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
         with pytest.raises(Exception, match="2 of 2 examples can't make a decision request"):
@@ -262,3 +259,46 @@ async def test_the_runner_retries_a_rate_limited_request(
     assert len(results) == 2
     assert all(result["experimentRun"]["error"] is None for result in results)
     assert route.call_count == 3
+
+
+async def test_dataset_evaluators_judge_decision_runs_as_they_judge_prompt_runs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    benchmark_dataset: list[dict[str, Any]],
+    assign_exact_match_builtin_evaluator_to_dataset: Callable[
+        ..., Awaitable[models.DatasetEvaluators]
+    ],
+) -> None:
+    """An evaluator reads a decision run's answers as `output` and the example's output
+    as `reference`, the same context a prompt run gives it."""
+    ((ids,),) = (benchmark_dataset,)
+    dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
+        ids["dataset_id"],
+        input_mapping=InputMapping(
+            literal_mapping={},
+            path_mapping={
+                "actual": "$.output.answers.team.choice",
+                "expected": "$.reference.team.label",
+            },
+        ),
+    )
+    evaluator = {
+        "id": str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id))),
+        "name": "exact-match",
+        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+    }
+    with respx.mock:
+        respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
+        payloads = await collect(gql_client, run_input(benchmark_dataset, evaluators=[evaluator]))
+    chunks = [p for p in payloads if p["__typename"] == "EvaluationChunk"]
+    # The team example matches its reference; the other has no team question to judge.
+    judged = [
+        chunk["experimentRunEvaluation"] for chunk in chunks if chunk["experimentRunEvaluation"]
+    ]
+    assert [(e["name"], e["label"], e["score"]) for e in judged] == [("exact-match", "true", 1.0)]
+    assert len(chunks) == 2
+    async with db() as session:
+        linked = await session.scalar(
+            select(func.count(models.ExperimentDatasetEvaluator.experiment_id))
+        )
+        assert linked == 1

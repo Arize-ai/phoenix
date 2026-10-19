@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e39f20b7eaa42d753ccd3b4575d06618>>
+ * @generated SignedSource<<b4512ae58226d5730098a1835aaed77d>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type DecisionQuestionFormat = "OPENAI" | "PHOENIX" | "SYSTEM_ONE";
@@ -356,12 +355,13 @@ export type EvaluatorTaskSourceInput = {
 };
 export type DecisionTaskInput = {
   connection: DecisionConnectionInput;
-  inputMapping: EvaluatorInputMappingInput;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  inputValuesPath?: string | null;
   inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   modelName: string;
-  questions: DecisionQuestionSourceInput;
-  references?: DecisionReferencesInput | null;
-  scoring?: DecisionScoringInput | null;
+  questions?: ReadonlyArray<DecisionQuestionInput>;
+  questionsFormat?: DecisionQuestionFormat;
+  questionsPath?: string | null;
   state: DecisionStateInput;
 };
 export type DecisionConnectionInput = {
@@ -400,13 +400,6 @@ export type DecisionStateInput = {
 export type TextStateInput = {
   template: string;
   templateFormat: DecisionTemplateFormat;
-};
-export type DecisionQuestionSourceInput = {
-  example?: never;
-  fixed: ReadonlyArray<DecisionQuestionInput>;
-} | {
-  example: ExampleQuestionsInput;
-  fixed?: never;
 };
 export type DecisionQuestionInput = {
   choice?: never;
@@ -447,18 +440,6 @@ export type ScaleQuestionInput = {
 export type ScaleLevelInput = {
   description?: string | null;
   label: string;
-};
-export type ExampleQuestionsInput = {
-  format?: DecisionQuestionFormat;
-  path: string;
-};
-export type DecisionReferencesInput = {
-  annotatorKind: AnnotatorKind;
-  distributionPath?: string | null;
-  labelPath?: string | null;
-};
-export type DecisionScoringInput = {
-  predicateThreshold?: number;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ExperimentsOverDatasetInput;

@@ -1263,9 +1263,9 @@ class DecisionTaskWorkItem(ExampleWorkItem):
             # it is recorded as the run's error without calling the model.
             request = build_example_request(
                 self._decision_task.config,
-                dataset_example_eval_context(
-                    input=revision.input, output=revision.output, metadata=revision.metadata_
-                ),
+                input=revision.input,
+                output=revision.output,
+                metadata=revision.metadata_,
             )
         except ValueError as error:
             await self._record_run(

@@ -1,21 +1,13 @@
-"""A decision model run over a dataset as an experiment task."""
+"""A decision run over a dataset as an experiment task, as a prompt task runs a prompt."""
 
 from enum import Enum
 from typing import Optional
 
 import strawberry
 from pydantic import ValidationError
-from strawberry import UNSET
 
-from phoenix.db.types.decisions import (
-    DecisionReferences,
-    DecisionScoring,
-    DecisionTaskConfig,
-    ExampleQuestions,
-    FixedQuestions,
-)
+from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.decision_experiments import validate_reference_template
 from phoenix.server.api.helpers.decision_versions import validate_inputs, validate_questions
 from phoenix.server.api.input_types.DecisionConnectionInput import DecisionConnectionInput
 from phoenix.server.api.input_types.DecisionVersionInput import (
@@ -23,8 +15,7 @@ from phoenix.server.api.input_types.DecisionVersionInput import (
     DecisionQuestionInput,
     DecisionStateInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
 @strawberry.enum(description="How questions stored in a dataset example are written.")
@@ -34,52 +25,10 @@ class DecisionQuestionFormat(Enum):
     OPENAI = "openai"
 
 
-@strawberry.input(description="Each example carries its own questions, as a benchmark does.")
-class ExampleQuestionsInput:
-    path: str = strawberry.field(
-        description="Where the questions are in the example's evaluation context, such as "
-        "`input.questions`."
-    )
-    format: DecisionQuestionFormat = DecisionQuestionFormat.SYSTEM_ONE
-
-
-@strawberry.input(one_of=True, description="Where each example's questions come from.")
-class DecisionQuestionSourceInput:
-    fixed: Optional[list[DecisionQuestionInput]] = strawberry.field(
-        default=UNSET, description="The same questions for every example."
-    )
-    example: Optional[ExampleQuestionsInput] = UNSET
-
-
 @strawberry.input(
-    description=(
-        "Where each question's reference answer is in an example. `{question}` in a path "
-        "stands for the question's name, such as `reference.{question}.label`. A missing or "
-        "unreadable reference is skipped and counted, never scored."
-    )
+    description="A decision asked about every example of a dataset, as a prompt task "
+    "completes a prompt for every example."
 )
-class DecisionReferencesInput:
-    label_path: Optional[str] = strawberry.field(
-        default=None,
-        description="The expected answer: a choice value, true or false, or a level.",
-    )
-    distribution_path: Optional[str] = strawberry.field(
-        default=None, description="A reference distribution over the answers."
-    )
-    annotator_kind: AnnotatorKind = strawberry.field(
-        description="Who wrote the references: accuracy against HUMAN ones, agreement against "
-        "a model's."
-    )
-
-
-@strawberry.input(description="Settings that change scores without changing what was asked.")
-class DecisionScoringInput:
-    predicate_threshold: float = strawberry.field(
-        default=0.5, description="A predicate counts as true at or above this probability."
-    )
-
-
-@strawberry.input(description="A decision model asked about every example of a dataset.")
 class DecisionTaskInput:
     connection: DecisionConnectionInput
     model_name: str
@@ -87,62 +36,60 @@ class DecisionTaskInput:
         description="The named inputs the state is built from."
     )
     state: DecisionStateInput
-    input_mapping: EvaluatorInputMappingInput = strawberry.field(
-        description="Where each input's value is in the example's evaluation context."
+    questions: list[DecisionQuestionInput] = strawberry.field(
+        default_factory=list,
+        description="The questions asked of every example. Leave empty when "
+        "`questionsPath` reads each example's own.",
     )
-    questions: DecisionQuestionSourceInput
-    references: Optional[DecisionReferencesInput] = None
-    scoring: Optional[DecisionScoringInput] = None
+    input_values_path: Optional[str] = strawberry.field(
+        default="input",
+        description="Dot-notation path to the object holding the input values, by input "
+        "name, as `templateVariablesPath` is for a prompt. Default 'input' means input "
+        "`ticket` resolves to input.ticket. Empty string means the whole context, so "
+        "values are read as `input`, `reference`, or `metadata`.",
+    )
+    questions_path: Optional[str] = strawberry.field(
+        default=None,
+        description="Dot-notation path to each example's own questions in its input, as "
+        "`appendedMessagesPath` is for a prompt. For benchmarks whose questions vary per "
+        "example.",
+    )
+    questions_format: DecisionQuestionFormat = strawberry.field(
+        default=DecisionQuestionFormat.SYSTEM_ONE,
+        description="How the questions at `questionsPath` are written.",
+    )
+    evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(
+        default_factory=list,
+        description="Dataset evaluators to run on this decision's runs",
+    )
 
     def to_config(self) -> DecisionTaskConfig:
-        """The config frozen with the experiment.
+        """The config copied into the experiment.
 
         Raises:
-            BadRequest: The inputs, state, questions, or reference paths break a rule.
+            BadRequest: The inputs, state, or questions break a rule, or questions are
+                given both inline and by path.
         """
         try:
             inputs = [definition.to_orm() for definition in self.inputs]
             state = self.state.to_orm()
             validate_inputs(inputs, state)
-            questions: FixedQuestions | ExampleQuestions
-            if self.questions.fixed:
-                fixed = [question.to_orm() for question in self.questions.fixed]
-                validate_questions(fixed)
-                questions = FixedQuestions(type="fixed", questions=fixed)
-            elif self.questions.example:
-                questions = ExampleQuestions(
-                    type="example",
-                    path=self.questions.example.path,
-                    format=self.questions.example.format.value,
-                )
+            questions = [question.to_orm() for question in self.questions]
+            if self.questions_path:
+                if questions:
+                    raise ValueError(
+                        "Give questions or a questionsPath, not both: each example's "
+                        "questions replace the task's"
+                    )
             else:
-                raise ValueError("Questions are required: fixed or example")
-            references = None
-            if self.references:
-                if not (self.references.label_path or self.references.distribution_path):
-                    raise ValueError("References need a labelPath or a distributionPath")
-                for template in (self.references.label_path, self.references.distribution_path):
-                    if template:
-                        validate_reference_template(template)
-                references = DecisionReferences(
-                    label_path=self.references.label_path,
-                    distribution_path=self.references.distribution_path,
-                    annotator_kind=self.references.annotator_kind.value,
-                )
-            scoring = (
-                DecisionScoring(predicate_threshold=self.scoring.predicate_threshold)
-                if self.scoring
-                else DecisionScoring()
-            )
-            if not 0 <= scoring.predicate_threshold <= 1:
-                raise ValueError("predicateThreshold must be from 0 to 1")
+                validate_questions(questions)
             return DecisionTaskConfig(
                 inputs=inputs,
                 state=state,
-                input_mapping=self.input_mapping.to_orm(),
                 questions=questions,
-                references=references,
-                scoring=scoring,
+                input_values_path=self.input_values_path or "",
+                questions_path=self.questions_path or None,
+                questions_format=self.questions_format.value,
             )
         except ValidationError as error:
             raise BadRequest(str(error.errors()[0]["msg"])) from error

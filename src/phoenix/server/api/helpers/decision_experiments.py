@@ -1,59 +1,78 @@
 """Turn dataset examples into decision requests, and answers into experiment run outputs.
 
-A decision experiment freezes a :class:`DecisionTaskConfig`. Each example's state is
-built exactly as a saved decision's is: the input mapping reads values from the
-example's evaluation context and the state renders them. Questions are the config's own,
-or read from the example in a declared format.
+A decision experiment copies a :class:`DecisionTaskConfig` and reads each example the way
+a prompt task does: input values come from ``input_values_path``, as template variables
+come from ``template_variables_path``, and per-example questions from ``questions_path``,
+as appended messages come from ``appended_messages_path``.
 """
 
-import json
-import re
-from typing import Any, Mapping
+from typing import Any
 
 from pydantic import ValidationError
 
-from phoenix.db.types.decisions import DecisionTaskConfig, FixedQuestions
-from phoenix.db.types.evaluators import InputMapping, validate_jsonpath
-from phoenix.server.api.evaluators import apply_input_mapping
+from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
 from phoenix.server.api.helpers.decision_formats import parse_questions
 from phoenix.server.api.helpers.decision_versions import render_state
+from phoenix.server.api.helpers.message_helpers import (
+    build_template_variables,
+    extract_value_from_path,
+)
 
 
 def build_example_request(
-    config: DecisionTaskConfig, context: Mapping[str, Any]
+    config: DecisionTaskConfig,
+    *,
+    input: dict[str, Any],
+    output: Any,
+    metadata: dict[str, Any],
 ) -> DecisionRequest:
-    """The request one example makes, from its evaluation context.
+    """The request one dataset example makes.
+
+    Only the declared inputs are read from the object at ``input_values_path``, so an
+    example may carry other fields (a benchmark's questions, say) beside them.
 
     Raises:
-        ValueError: The example lacks a mapped value, its questions can't be read, or
-            the request breaks a write-time rule. The message says which.
+        ValueError: A path misses, a declared input is missing, the example's questions
+            can't be read, or the request breaks a write-time rule. The message says
+            which.
     """
-    context = dict(context)
-    values = apply_input_mapping(
-        input_schema={}, input_mapping=config.input_mapping, context=context
+    try:
+        source = build_template_variables(
+            input_data=input,
+            output_data=output,
+            metadata=metadata,
+            template_variables_path=config.input_values_path,
+        )
+    except (KeyError, TypeError) as error:
+        raise ValueError(f"Input values: {_reason(error)}") from error
+    if not isinstance(source, dict):
+        raise ValueError(f"Input values at {config.input_values_path!r} are not an object")
+    names = [declared.name for declared in config.inputs]
+    state = render_state(
+        config.inputs, config.state, {name: source[name] for name in names if name in source}
     )
-    state = render_state(config.inputs, config.state, values)
-    if isinstance(config.questions, FixedQuestions):
-        questions = config.questions.questions
-    else:
-        (raw_questions,) = apply_input_mapping(
-            input_schema={},
-            input_mapping=InputMapping(
-                literal_mapping={}, path_mapping={"questions": config.questions.path}
-            ),
-            context=context,
-        ).values()
-        questions = parse_questions(raw_questions, config.questions.format)
+    questions = config.questions
+    if config.questions_path:
+        try:
+            raw_questions = extract_value_from_path(input, config.questions_path)
+        except (KeyError, TypeError) as error:
+            raise ValueError(f"Questions: {_reason(error)}") from error
+        questions = parse_questions(raw_questions, config.questions_format)
     try:
         return DecisionRequest(state=state, questions=questions)
     except ValidationError as error:
         raise ValueError(error.errors()[0]["msg"].removeprefix("Value error, ")) from error
 
 
+def _reason(error: Exception) -> str:
+    # KeyError's str() is the quoted message.
+    return str(error.args[0]) if error.args else str(error)
+
+
 def decision_run_output(response: DecisionResponse) -> dict[str, Any]:
     """An experiment run's output: the answers by question name, with no decision rule
-    applied, so scores can be recomputed under other settings without asking again.
+    applied, so evaluators apply their own (a predicate's threshold, say).
 
     Usage stays on the DECISION span.
     """
@@ -65,28 +84,3 @@ def decision_run_output(response: DecisionResponse) -> dict[str, Any]:
             },
         }
     }
-
-
-QUESTION_PLACEHOLDER = "{question}"
-_PLACEHOLDER_SEGMENT = re.compile(r"\.?\{question\}")
-
-
-def reference_path(template: str, question_name: str) -> str:
-    """The path to one question's reference: ``{question}`` in the template becomes the
-    name as a quoted segment, so any question name is a valid path."""
-    segment = f"[{json.dumps(question_name)}]"
-    return _PLACEHOLDER_SEGMENT.sub(lambda _: segment, template)
-
-
-def validate_reference_template(template: str) -> None:
-    """Check a reference path template before anything runs.
-
-    Raises:
-        ValueError: The template does not name the question, or is not a valid path.
-    """
-    if QUESTION_PLACEHOLDER not in template:
-        raise ValueError(
-            f"A reference path must contain {QUESTION_PLACEHOLDER}, such as "
-            f"reference.{QUESTION_PLACEHOLDER}.label"
-        )
-    validate_jsonpath(reference_path(template, "question"))

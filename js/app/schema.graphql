@@ -1689,29 +1689,6 @@ input DecisionQuestionInput @oneOf {
   scale: ScaleQuestionInput
 }
 
-"""Where each example's questions come from."""
-input DecisionQuestionSourceInput @oneOf {
-  """The same questions for every example."""
-  fixed: [DecisionQuestionInput!]
-  example: ExampleQuestionsInput
-}
-
-"""
-Where each question's reference answer is in an example. `{question}` in a path stands for the question's name, such as `reference.{question}.label`. A missing or unreadable reference is skipped and counted, never scored.
-"""
-input DecisionReferencesInput {
-  """The expected answer: a choice value, true or false, or a level."""
-  labelPath: String = null
-
-  """A reference distribution over the answers."""
-  distributionPath: String = null
-
-  """
-  Who wrote the references: accuracy against HUMAN ones, agreement against a model's.
-  """
-  annotatorKind: AnnotatorKind!
-}
-
 """A successful decision run."""
 type DecisionResult {
   """The model that answered, after alias resolution."""
@@ -1720,12 +1697,6 @@ type DecisionResult {
   """One answer per question, in the order the questions were given."""
   answers: [DecisionAnswer!]!
   usage: DecisionUsage!
-}
-
-"""Settings that change scores without changing what was asked."""
-input DecisionScoringInput {
-  """A predicate counts as true at or above this probability."""
-  predicateThreshold: Float! = 0.5
 }
 
 """
@@ -1739,7 +1710,9 @@ input DecisionStateInput @oneOf {
   input: String
 }
 
-"""A decision model asked about every example of a dataset."""
+"""
+A decision asked about every example of a dataset, as a prompt task completes a prompt for every example.
+"""
 input DecisionTaskInput {
   connection: DecisionConnectionInput!
   modelName: String!
@@ -1748,11 +1721,26 @@ input DecisionTaskInput {
   inputs: [DecisionInputDefinitionInput!]!
   state: DecisionStateInput!
 
-  """Where each input's value is in the example's evaluation context."""
-  inputMapping: EvaluatorInputMappingInput!
-  questions: DecisionQuestionSourceInput!
-  references: DecisionReferencesInput = null
-  scoring: DecisionScoringInput = null
+  """
+  The questions asked of every example. Leave empty when `questionsPath` reads each example's own.
+  """
+  questions: [DecisionQuestionInput!]! = []
+
+  """
+  Dot-notation path to the object holding the input values, by input name, as `templateVariablesPath` is for a prompt. Default 'input' means input `ticket` resolves to input.ticket. Empty string means the whole context, so values are read as `input`, `reference`, or `metadata`.
+  """
+  inputValuesPath: String = "input"
+
+  """
+  Dot-notation path to each example's own questions in its input, as `appendedMessagesPath` is for a prompt. For benchmarks whose questions vary per example.
+  """
+  questionsPath: String = null
+
+  """How the questions at `questionsPath` are written."""
+  questionsFormat: DecisionQuestionFormat! = SYSTEM_ONE
+
+  """Dataset evaluators to run on this decision's runs"""
+  evaluators: [PlaygroundEvaluatorInput!]! = []
 }
 
 enum DecisionTemplateFormat {
@@ -2530,15 +2518,6 @@ input EvaluatorTaskSourceInput {
   promptVersionId: ID = null
   datasetEvaluatorId: ID = null
   projectEvaluatorId: ID = null
-}
-
-"""Each example carries its own questions, as a benchmark does."""
-input ExampleQuestionsInput {
-  """
-  Where the questions are in the example's evaluation context, such as `input.questions`.
-  """
-  path: String!
-  format: DecisionQuestionFormat! = SYSTEM_ONE
 }
 
 interface ExampleRevision {

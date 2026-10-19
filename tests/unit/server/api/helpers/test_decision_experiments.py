@@ -20,19 +20,24 @@ from phoenix.server.api.helpers.decision_experiments import (
 
 
 def benchmark_config(**state: Any) -> DecisionTaskConfig:
-    """Questions and state read from each example, as datagen's benchmarks are seeded."""
+    """Each example carries its state and questions, as datagen's benchmarks are seeded."""
     return DecisionTaskConfig.model_validate(
         {
             "inputs": [{"name": "state"}],
             "state": state or {"type": "input", "name": "state"},
-            "input_mapping": {"literal_mapping": {}, "path_mapping": {"state": "input.state"}},
-            "questions": {"type": "example", "path": "input.questions", "format": "system_one"},
+            "questions": [],
+            "questions_path": "questions",
         }
     )
 
 
-def context(state: Any, questions: dict[str, Any]) -> dict[str, Any]:
-    return {"input": {"state": state, "questions": questions}, "output": {}, "metadata": {}}
+def ask(config: DecisionTaskConfig, input: dict[str, Any], **example: Any) -> Any:
+    return build_example_request(
+        config,
+        input=input,
+        output=example.get("output", {}),
+        metadata=example.get("metadata", {}),
+    )
 
 
 NOUL = {"decision": {"type": "noul", "instructions": "Is the passage about rivers?"}}
@@ -41,7 +46,7 @@ NOUL = {"decision": {"type": "noul", "instructions": "Is the passage about river
 def test_a_structured_state_is_sent_unchanged() -> None:
     """Typed Decisions' states are JSON objects whose keys vary per workflow."""
     state = {"agent": {"autonomy": "checkpointed"}, "constraints": ["Spend under $50"]}
-    request = build_example_request(benchmark_config(), context(state, NOUL))
+    request = ask(benchmark_config(), {"state": state, "questions": NOUL})
     assert request.state == state
     assert request.questions == [
         PredicateQuestion(
@@ -51,46 +56,63 @@ def test_a_structured_state_is_sent_unchanged() -> None:
 
 
 def test_a_text_state_can_still_render_a_template() -> None:
-    request = build_example_request(
+    request = ask(
         benchmark_config(type="text", template="Passage: {{state}}", template_format="MUSTACHE"),
-        context("The Nile is long.", NOUL),
+        {"state": "The Nile is long.", "questions": NOUL},
     )
     assert request.state == "Passage: The Nile is long."
 
 
-def test_fixed_questions_ignore_the_example() -> None:
+TEAM = {
+    "type": "choice",
+    "name": "team",
+    "instructions": "Which team?",
+    "choices": [{"value": "billing"}, {"value": "technical"}],
+}
+
+
+def test_the_task_questions_are_asked_of_every_example() -> None:
+    """Input values are read by input name, as a prompt reads template variables, and
+    other fields of the example are ignored."""
     config = DecisionTaskConfig.model_validate(
         {
             "inputs": [{"name": "ticket"}],
             "state": {"type": "text", "template": "{{ticket}}", "template_format": "MUSTACHE"},
-            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.body"}},
-            "questions": {
-                "type": "fixed",
-                "questions": [
-                    {
-                        "type": "choice",
-                        "name": "team",
-                        "instructions": "Which team?",
-                        "choices": [{"value": "billing"}, {"value": "technical"}],
-                    }
-                ],
-            },
+            "questions": [TEAM],
         }
     )
-    request = build_example_request(config, {"input": {"body": "Refund me"}, "metadata": {}})
+    request = ask(config, {"ticket": "Refund me", "customer": "acme"})
     assert request.state == "Refund me"
     assert isinstance(request.questions[0], ChoiceQuestion)
+
+
+def test_an_empty_path_reads_input_values_from_the_whole_context() -> None:
+    config = DecisionTaskConfig.model_validate(
+        {
+            "inputs": [{"name": "input"}, {"name": "metadata"}],
+            "state": {"type": "object"},
+            "questions": [TEAM],
+            "input_values_path": "",
+        }
+    )
+    request = ask(config, {"ticket": "Refund me"}, metadata={"tier": "pro"})
+    assert request.state == {"input": {"ticket": "Refund me"}, "metadata": {"tier": "pro"}}
 
 
 @pytest.mark.parametrize(
     ("example", "message"),
     [
-        pytest.param({"input": {"questions": NOUL}}, "did not match", id="missing-state"),
-        pytest.param({"input": {"state": "x"}}, "did not match", id="missing-questions"),
-        pytest.param(context("x", {"q": {"type": "box"}}), "unsupported type", id="box"),
-        pytest.param(context("", NOUL), "empty", id="empty-state"),
+        pytest.param({"questions": NOUL}, "Missing inputs: state", id="missing-state"),
+        pytest.param({"state": "x"}, "Key 'questions' not found", id="missing-questions"),
+        pytest.param({"state": "x", "questions": {"q": {"type": "box"}}}, "unsupported", id="box"),
+        pytest.param({"state": "", "questions": NOUL}, "empty", id="empty-state"),
         pytest.param(
-            context("x", {"q": {"type": "choice", "instructions": "?", "criteria": {"a": None}}}),
+            {
+                "state": "x",
+                "questions": {
+                    "q": {"type": "choice", "instructions": "?", "criteria": {"a": None}}
+                },
+            },
             "2 to 255 choices",
             id="one-choice",
         ),
@@ -98,7 +120,14 @@ def test_fixed_questions_ignore_the_example() -> None:
 )
 def test_an_example_that_cannot_be_asked_says_why(example: Any, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        build_example_request(benchmark_config(), example)
+        ask(benchmark_config(), example)
+
+
+def test_input_values_that_are_not_an_object_say_so() -> None:
+    config = benchmark_config()
+    config = config.model_copy(update={"input_values_path": "input.state"})
+    with pytest.raises(ValueError, match="are not an object"):
+        ask(config, {"state": "x", "questions": NOUL})
 
 
 def test_the_run_output_keeps_full_answers_by_question_name() -> None:

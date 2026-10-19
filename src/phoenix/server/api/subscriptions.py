@@ -48,7 +48,6 @@ from phoenix.server.api.evaluators import (
     pin_evaluator_definition,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.decision_experiments import build_example_request
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
@@ -70,6 +69,7 @@ from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     PromptTaskInput,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -397,10 +397,7 @@ async def _resolve_decision_task(
     for revision in revisions:
         try:
             build_example_request(
-                config,
-                dataset_example_eval_context(
-                    input=revision.input, output=revision.output, metadata=revision.metadata_
-                ),
+                config, input=revision.input, output=revision.output, metadata=revision.metadata_
             )
         except ValueError as error:
             failures.append(
@@ -510,6 +507,7 @@ async def _stream_experiments_over_dataset(
                         **resolved_decision_task.columns(),
                     )
                 )
+                _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
             else:
                 assert task.evaluator and resolved_evaluator_task is not None
                 session.add(
@@ -781,7 +779,16 @@ def _add_prompt_task(
             stream_model_output=task.stream_model_output,
         )
     )
-    for evaluator_input in task.evaluators:
+    _attach_dataset_evaluators(session, experiment, task.evaluators)
+
+
+def _attach_dataset_evaluators(
+    session: AsyncSession,
+    experiment: models.Experiment,
+    evaluators: Sequence[PlaygroundEvaluatorInput],
+) -> None:
+    """Attach the dataset evaluators that judge a prompt or decision task's runs."""
+    for evaluator_input in evaluators:
         session.add(
             models.ExperimentDatasetEvaluator(
                 experiment_id=experiment.id,
