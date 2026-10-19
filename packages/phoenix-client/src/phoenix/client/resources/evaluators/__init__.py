@@ -318,8 +318,8 @@ class Evaluators:
             evaluator_id (str): The ID of the evaluator.
 
         Returns:
-            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
-            tell them apart.
+            The LLM, code, built-in, or decision evaluator definition. Inspect
+            ``type`` to tell them apart.
 
         Raises:
             PhoenixAPIError: If the request fails.
@@ -896,8 +896,8 @@ class AsyncEvaluators:
             evaluator_id (str): The ID of the evaluator.
 
         Returns:
-            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
-            tell them apart.
+            The LLM, code, built-in, or decision evaluator definition. Inspect
+            ``type`` to tell them apart.
 
         Raises:
             PhoenixAPIError: If the request fails.
