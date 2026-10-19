@@ -51,7 +51,6 @@ def freeze_decision_evaluator(
     )
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
-        decision_schema_version=version.schema_version,
         name=name if name is not None else evaluator.name.root,
         description=description if description is not None else evaluator.description,
         inputs=version.inputs,

@@ -3752,7 +3752,6 @@ input InlineCodeEvaluatorInput {
 type InlineDecisionEvaluatorDefinition {
   name: String!
   description: String
-  decisionSchemaVersion: Int!
   inputs: [DecisionInputDefinition!]!
   state: DecisionState!
   questions: [DecisionQuestion!]!

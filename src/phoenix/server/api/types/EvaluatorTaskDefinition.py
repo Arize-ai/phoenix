@@ -220,7 +220,6 @@ class InlineDecisionEvaluatorDefinition:
 
     name: str
     description: Optional[str]
-    decision_schema_version: int
     inputs: list[DecisionInputDefinition]
     state: DecisionState
     questions: list[DecisionQuestion]
@@ -238,7 +237,6 @@ class InlineDecisionEvaluatorDefinition:
         return cls(
             name=obj.name,
             description=obj.description,
-            decision_schema_version=obj.decision_schema_version,
             inputs=[to_gql_decision_input(value) for value in obj.inputs],
             state=to_gql_decision_state(obj.state),
             questions=[to_gql_decision_question(value) for value in obj.questions],
