@@ -21,7 +21,7 @@ export function PlaygroundTaskInstance({
   appendedMessagesPath,
   availablePaths,
   supportsDecisionModels,
-  decisionModelsDisabledReason,
+  decisionTabNotice,
 }: {
   instanceId: number;
   datasetId: string | null;
@@ -29,7 +29,7 @@ export function PlaygroundTaskInstance({
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
   supportsDecisionModels?: boolean;
-  decisionModelsDisabledReason?: string;
+  decisionTabNotice?: string;
 }) {
   usePlaygroundInstanceSourceLoader(instanceId);
 
@@ -69,7 +69,7 @@ export function PlaygroundTaskInstance({
       availablePaths={availablePaths}
       taskMenu
       supportsDecisionModels={supportsDecisionModels}
-      decisionModelsDisabledReason={decisionModelsDisabledReason}
+      decisionTabNotice={decisionTabNotice}
     />
   );
 }
