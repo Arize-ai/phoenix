@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f96b44be7c0f0748f515a70e4ec69fd4>>
+ * @generated SignedSource<<6ba2b038a199e5dfdcd5f64d8896fb22>>
  * @lightSyntaxTransform
  */
 
@@ -40,6 +40,9 @@ export type EvaluatorsTable_row$data = {
     }>;
   };
   readonly decisionVersion?: {
+    readonly decision: {
+      readonly name: string;
+    };
     readonly decisionId: string;
     readonly id: string;
     readonly modelName: string;
@@ -88,6 +91,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "dcfd6677551b5a73445a623e4cf407f6";
+(node as any).hash = "5b900671f88e46999070fcd30ffc0fd6";
 
 export default node;

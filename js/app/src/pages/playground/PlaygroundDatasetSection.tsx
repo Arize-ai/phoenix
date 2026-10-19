@@ -29,8 +29,8 @@ import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { getPlaygroundTaskRole } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
-import { getDatasetEvaluatorAnnotationConfigs } from "./datasetEvaluatorAnnotationConfigs";
 import { usePlaygroundExampleEditStore } from "./examplesEditing";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
@@ -257,7 +257,7 @@ export function PlaygroundDatasetSection({
     const selectedEvaluators = datasetEvaluators.filter((datasetEvaluator) =>
       selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
     );
-    return getDatasetEvaluatorAnnotationConfigs(selectedEvaluators);
+    return datasetEvaluatorsToAnnotationConfigs(selectedEvaluators);
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
   const isJudgingRole = usePlaygroundContext(

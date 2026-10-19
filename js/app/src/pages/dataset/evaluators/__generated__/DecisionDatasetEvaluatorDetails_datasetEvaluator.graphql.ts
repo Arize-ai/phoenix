@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8619458e431146571d4e92abea0e3480>>
+ * @generated SignedSource<<8f03af2e12a908b44cc08d998ac0f9b9>>
  * @lightSyntaxTransform
  */
 
@@ -28,6 +28,9 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
     readonly __typename: "DecisionEvaluator";
     readonly decisionVersion: {
+      readonly decision: {
+        readonly name: string;
+      };
       readonly decisionId: string;
       readonly id: string;
       readonly inputs: ReadonlyArray<{
@@ -199,7 +202,10 @@ v3 = [
     "storageKey": null
   }
 ],
-v4 = {
+v4 = [
+  (v1/*:: as any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -278,9 +284,7 @@ return {
               "kind": "LinkedField",
               "name": "decisionVersionTag",
               "plural": false,
-              "selections": [
-                (v1/*:: as any*/)
-              ],
+              "selections": (v4/*:: as any*/),
               "storageKey": null
             },
             {
@@ -297,6 +301,16 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "decisionId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Decision",
+                  "kind": "LinkedField",
+                  "name": "decision",
+                  "plural": false,
+                  "selections": (v4/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -352,7 +366,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/)
+                        (v5/*:: as any*/)
                       ],
                       "type": "DecisionPredicateQuestion",
                       "abstractKey": null
@@ -361,7 +375,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -388,7 +402,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -430,6 +444,6 @@ return {
 };
 })();
 
-(node as any).hash = "db7da09c19b18cbd6dc2a2b28c58ac86";
+(node as any).hash = "78adc103966ada5a7344d33d07a0e4ed";
 
 export default node;

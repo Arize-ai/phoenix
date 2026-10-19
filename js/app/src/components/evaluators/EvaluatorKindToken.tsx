@@ -16,6 +16,8 @@ export function EvaluatorKindToken(props: {
       case "CODE":
       case "BUILTIN":
         return "var(--global-color-blue-500)";
+      case "DECISION":
+        return "var(--global-color-seafoam-500)";
       default:
         return "var(--global-color-gray-300)";
     }

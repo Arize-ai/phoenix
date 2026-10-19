@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4aad85d000e0d3cada9891b47dd55647>>
+ * @generated SignedSource<<ab965b361c826f4d55176e051722d3a7>>
  * @lightSyntaxTransform
  */
 
@@ -53,14 +53,17 @@ v3 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v4 = {
+v4 = [
+  (v2/*:: as any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -243,9 +246,7 @@ return {
                               "kind": "LinkedField",
                               "name": "promptVersionTag",
                               "plural": false,
-                              "selections": [
-                                (v2/*:: as any*/)
-                              ],
+                              "selections": (v4/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -256,8 +257,8 @@ return {
                               "name": "promptVersion",
                               "plural": false,
                               "selections": [
-                                (v4/*:: as any*/),
-                                (v5/*:: as any*/)
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -287,12 +288,22 @@ return {
                                 {
                                   "alias": null,
                                   "args": null,
+                                  "concreteType": "Decision",
+                                  "kind": "LinkedField",
+                                  "name": "decision",
+                                  "plural": false,
+                                  "selections": (v4/*:: as any*/),
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
                                   "kind": "ScalarField",
                                   "name": "sequenceNumber",
                                   "storageKey": null
                                 },
-                                (v4/*:: as any*/),
-                                (v5/*:: as any*/)
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
                               ],
                               "storageKey": null
                             }

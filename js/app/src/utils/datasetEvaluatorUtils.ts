@@ -23,6 +23,8 @@ export type DatasetEvaluatorOutputConfig = {
  */
 export type DatasetEvaluatorForConfig = {
   readonly name: string;
+  /** The evaluator kind; decision bindings name their annotations differently. */
+  readonly kind?: string;
   /** Array of output configurations for multi-output evaluators */
   readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
 };
@@ -78,12 +80,51 @@ function outputConfigToAnnotationConfig(
 }
 
 /**
+ * The annotation name a decision binding's question is stored under: the
+ * binding's name when the judge has one question, otherwise
+ * `{binding}.{question}`. Mirrors the server's `result_annotation_names`.
+ */
+export function getDecisionAnnotationName({
+  bindingName,
+  questionName,
+  questionCount,
+}: {
+  bindingName: string;
+  questionName: string;
+  questionCount: number;
+}): string {
+  return questionCount === 1 ? bindingName : `${bindingName}.${questionName}`;
+}
+
+/**
  * Converts a single dataset evaluator to an array of AnnotationConfigs.
  * Handles the outputConfigs array for multi-output evaluator support.
+ * A decision binding's output configs are named after its questions, so they
+ * are renamed to the annotation names its results are stored under.
  */
 export function datasetEvaluatorToAnnotationConfigs(
   evaluator: DatasetEvaluatorForConfig
 ): AnnotationConfig[] {
+  if (
+    evaluator.kind === "DECISION" &&
+    evaluator.outputConfigs &&
+    evaluator.outputConfigs.length > 0
+  ) {
+    const questionCount = evaluator.outputConfigs.length;
+    return evaluator.outputConfigs.map((config) =>
+      outputConfigToAnnotationConfig(
+        {
+          ...config,
+          name: getDecisionAnnotationName({
+            bindingName: evaluator.name,
+            questionName: config.name ?? "",
+            questionCount,
+          }),
+        },
+        evaluator.name
+      )
+    );
+  }
   if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
     return evaluator.outputConfigs.map((config) =>
       outputConfigToAnnotationConfig(config, evaluator.name)

@@ -238,6 +238,9 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
             decisionVersion {
               id
               decisionId
+              decision {
+                name
+              }
               sequenceNumber
               modelName
               modelProvider
