@@ -257,6 +257,19 @@ The span's `decision.system` is the API family (`openai`, `typesafe`) and
 The catalog suggests model names per model type (`modelNames(modelType:)`); any
 name the endpoint accepts works.
 
+### Ollama
+
+Ollama serves its decision models through System One at `/v1/systemone`, so the
+built-in `OLLAMA` provider runs them with the TypeSafe adapter and serves both
+model types. It is configured the way Ollama chat is: no credentials (a
+placeholder key is sent, since the SDK requires one), and a base URL from the
+run or `OLLAMA_BASE_URL` with no default. That variable names chat's
+OpenAI-compatible root (`http://localhost:11434/v1`), so a trailing `/v1` is
+dropped. The span's `decision.system` is `typesafe` and `decision.provider` is
+`ollama`, a plain string until OpenInference has a value. Ollama's limits are
+tighter than TypeSafe's (2–26 options, 64 KiB bodies, text only); its own error
+reports them. A TypeSafe custom provider pointed at Ollama works too.
+
 Preview flags such as `TypeSafe-Danger-Zone-Images` aren't stored at first. If
 they need to be, they go in an allow-listed per-provider `options` field, never
 as raw headers.

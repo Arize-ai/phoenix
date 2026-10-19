@@ -274,13 +274,19 @@ class DecisionClient(ABC):
 
     provider_key: ClassVar[GenerativeProviderKey]
     system: ClassVar[OpenInferenceDecisionSystemValues]
-    provider: ClassVar[OpenInferenceDecisionProviderValues]
+    provider: ClassVar[str]
+    """The span's ``decision.provider``: who hosts the model, which may differ from the
+    API family in ``system``."""
     model_names: ClassVar[tuple[str, ...]]
     """The decision models offered in the catalog, in order."""
     sdk_import_name: ClassVar[str]
-    default_base_url: ClassVar[str]
+    default_base_url: ClassVar[Optional[str]]
+    """None when there is no sensible default, so a base URL must be configured."""
     base_url_env_var: ClassVar[str]
     api_key_env_var: ClassVar[Optional[str]] = None
+    requires_api_key: ClassVar[bool] = True
+    """False for servers that ignore the key; a placeholder is sent, since the SDK
+    requires one."""
 
     def __init__(self, *, model_name: str, connection: DecisionConnection) -> None:
         self.model_name = model_name
@@ -305,7 +311,7 @@ class DecisionClient(ABC):
         )
 
     @classmethod
-    def resolve_base_url(cls, override: Optional[str]) -> str:
+    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
         return override or getenv(cls.base_url_env_var) or cls.default_base_url
 
     @classmethod
@@ -349,9 +355,7 @@ class DecisionClient(ABC):
             attributes={
                 SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
                 SpanAttributes.DECISION_SYSTEM: self.system.value,
-                SpanAttributes.DECISION_PROVIDER: (
-                    self._connection.provider_name or self.provider.value
-                ),
+                SpanAttributes.DECISION_PROVIDER: (self._connection.provider_name or self.provider),
                 SpanAttributes.DECISION_MODEL_NAME: self.model_name,
                 SpanAttributes.DECISION_REQUEST_MODEL_NAME: self.model_name,
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
@@ -392,7 +396,10 @@ class DecisionClient(ABC):
                 ) from error
 
 
-TYPESAFE_DECISION_MODELS = (
+TYPESAFE_DEFAULT_BASE_URL = "https://api.typesafe.ai"
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+TYPESAFE_DECISION_MODELS: tuple[str, ...] = (
     "jev-latest",
     "jev-1.14.0",
     "jev-1.13.0",
@@ -406,10 +413,10 @@ class TypeSafeDecisionClient(DecisionClient):
 
     provider_key = GenerativeProviderKey.TYPESAFE
     system = OpenInferenceDecisionSystemValues.TYPESAFE
-    provider = OpenInferenceDecisionProviderValues.TYPESAFE
+    provider = OpenInferenceDecisionProviderValues.TYPESAFE.value
     model_names = TYPESAFE_DECISION_MODELS
     sdk_import_name = "typesafe_sdk"
-    default_base_url = "https://api.typesafe.ai"
+    default_base_url: ClassVar[Optional[str]] = TYPESAFE_DEFAULT_BASE_URL
     base_url_env_var = "TYPESAFE_BASE_URL"
 
     def _build_request(self, request: DecisionRequest) -> SystemOneRequest:
@@ -506,7 +513,7 @@ class TypeSafeDecisionClient(DecisionClient):
         raise ValueError(f"Unsupported TypeSafe answer type {answer.type!r}")
 
 
-OPENAI_DECISION_MODELS = ("gpt-6-luna",)
+OPENAI_DECISION_MODELS: tuple[str, ...] = ("gpt-6-luna",)
 
 
 class OpenAIDecisionClient(DecisionClient):
@@ -514,10 +521,10 @@ class OpenAIDecisionClient(DecisionClient):
 
     provider_key = GenerativeProviderKey.OPENAI
     system = OpenInferenceDecisionSystemValues.OPENAI
-    provider = OpenInferenceDecisionProviderValues.OPENAI
+    provider = OpenInferenceDecisionProviderValues.OPENAI.value
     model_names = OPENAI_DECISION_MODELS
     sdk_import_name = "openai"
-    default_base_url = "https://api.openai.com/v1"
+    default_base_url: ClassVar[Optional[str]] = OPENAI_DEFAULT_BASE_URL
     base_url_env_var = "OPENAI_BASE_URL"
 
     def _build_request(self, request: DecisionRequest) -> DecisionCreateParams:
@@ -644,8 +651,47 @@ class OpenAIDecisionClient(DecisionClient):
         )
 
 
+OLLAMA_DECISION_MODELS: tuple[str, ...] = (
+    "tev1",
+    "nimble",
+    "clef-flash",
+    "nimble-v3",
+    "laya",
+    "kev",
+    "pplx-decider",
+    "strands-decider",
+)
+"""Ollama's local decision models. ``clef`` is left out: it runs on Ollama's cloud."""
+
+
+class OllamaDecisionClient(TypeSafeDecisionClient):
+    """Ollama's decision models, which it serves through System One at ``/v1/systemone``.
+
+    Configured the way Ollama chat is: no credentials, and a base URL from the run or
+    ``OLLAMA_BASE_URL`` with no default. That variable names the OpenAI-compatible root
+    (``http://localhost:11434/v1``) for chat, while System One's path starts at the
+    server root, so a trailing ``/v1`` is dropped and one variable serves both.
+    """
+
+    provider_key = GenerativeProviderKey.OLLAMA
+    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    provider = "ollama"  # OpenInference has no Ollama decision provider value yet.
+    model_names = OLLAMA_DECISION_MODELS
+    default_base_url = None
+    base_url_env_var = "OLLAMA_BASE_URL"
+    requires_api_key = False
+
+    @classmethod
+    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
+        base_url = super().resolve_base_url(override)
+        if base_url is None:
+            return None
+        return base_url.rstrip("/").removesuffix("/v1")
+
+
 DECISION_CLIENTS: Mapping[GenerativeProviderKey, type[DecisionClient]] = {
-    client.provider_key: client for client in (TypeSafeDecisionClient, OpenAIDecisionClient)
+    client.provider_key: client
+    for client in (TypeSafeDecisionClient, OpenAIDecisionClient, OllamaDecisionClient)
 }
 """The client for each provider that offers decision models. A provider here and not in
 the playground registry is decision-only, which is what the chat-path guards in
@@ -657,6 +703,10 @@ def allowed_decision_providers(
 ) -> list[GenerativeProviderKey]:
     """The decision providers this deployment permits (see ``PHOENIX_ALLOWED_PROVIDERS``)."""
     return filter_allowed_providers(list(DECISION_CLIENTS), allowed_provider_names)
+
+
+_PLACEHOLDER_API_KEY = "ollama"
+"""Sent to servers that ignore the key, as Ollama chat does."""
 
 
 def _require_model_name(model_name: str) -> None:
@@ -716,7 +766,18 @@ async def get_decision_client(
         raise BadRequest(f"{provider.value} does not offer decision models.")
     _require_model_name(model_name)
     _require_dependencies(client_class)
-    resolved_base_url = _validated_base_url(client_class.resolve_base_url(base_url))
+    configured_base_url = client_class.resolve_base_url(base_url)
+    if configured_base_url is None:
+        raise BadRequest(
+            f"A base URL is required for {provider.value} decision models. "
+            f"Set {client_class.base_url_env_var} or pass a base URL."
+        )
+    resolved_base_url = _validated_base_url(configured_base_url)
+    if not client_class.requires_api_key:
+        return client_class(
+            model_name=model_name,
+            connection=DecisionConnection(api_key=_PLACEHOLDER_API_KEY, base_url=resolved_base_url),
+        )
     env_var_name = client_class.credential_env_var()
     api_key = await resolve_provider_api_key(
         credentials=credentials,
@@ -773,7 +834,7 @@ async def get_custom_provider_decision_client(
         connection = DecisionConnection(
             api_key=config.openai_authentication_method.api_key,
             base_url=_validated_base_url(
-                (openai_kwargs.base_url if openai_kwargs else None) or client_class.default_base_url
+                (openai_kwargs.base_url if openai_kwargs else None) or OPENAI_DEFAULT_BASE_URL
             ),
             headers=openai_kwargs.default_headers if openai_kwargs else None,
             organization=openai_kwargs.organization if openai_kwargs else None,
@@ -787,8 +848,7 @@ async def get_custom_provider_decision_client(
         connection = DecisionConnection(
             api_key=config.typesafe_authentication_method.api_key,
             base_url=_validated_base_url(
-                (typesafe_kwargs.base_url if typesafe_kwargs else None)
-                or client_class.default_base_url
+                (typesafe_kwargs.base_url if typesafe_kwargs else None) or TYPESAFE_DEFAULT_BASE_URL
             ),
             headers=typesafe_kwargs.default_headers if typesafe_kwargs else None,
             provider_name=record.provider,

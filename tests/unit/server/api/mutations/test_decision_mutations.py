@@ -14,6 +14,7 @@ from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
     DecisionConnection,
     DecisionRequest,
+    OllamaDecisionClient,
     OpenAIDecisionClient,
     TypeSafeDecisionClient,
 )
@@ -494,7 +495,11 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
     assert result.data and not result.errors
     assert all(model["modelType"] == "LLM" for model in result.data["llm"])
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
-    assert {model["providerKey"] for model in result.data["decision"]} == {"OPENAI", "TYPESAFE"}
+    assert {model["providerKey"] for model in result.data["decision"]} == {
+        "OPENAI",
+        "TYPESAFE",
+        "OLLAMA",
+    }
     # ``providerKey`` is optional, so omitting it and passing null both work.
     omitted = await gql_client.execute(
         "query { playgroundModels(input: {}) { name } "
@@ -642,6 +647,7 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
     assert DECISION_CLIENTS == {
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
+        GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
     }
     assert TypeSafeDecisionClient.model_names == (
         "jev-latest",
@@ -1252,3 +1258,67 @@ async def test_connection_must_name_exactly_one_target(gql_client: AsyncGraphQLC
         },
     )
     assert result.errors
+
+
+OLLAMA_RESPONSE = {
+    "model": "nimble",
+    "answers": {"urgent": {"type": "noul", "noul": 0.5}},
+    "usage": {"input_tokens": 20, "output_tokens": 0},
+}
+
+
+def ollama_run(**built_in: Any) -> dict[str, Any]:
+    return {
+        "connection": {"builtIn": {"providerKey": "OLLAMA", **built_in}},
+        "modelName": "nimble",
+        **text_state("hello"),
+        "questions": [URGENT],
+    }
+
+
+@pytest.mark.parametrize(
+    "configured",
+    [
+        pytest.param("http://localhost:11434/v1", id="chat-style-root"),
+        pytest.param("http://localhost:11434/", id="server-root"),
+    ],
+)
+async def test_ollama_runs_decisions_with_the_chat_base_url(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    configured: str,
+) -> None:
+    """OLLAMA_BASE_URL names the OpenAI-compatible root for chat; System One's path
+    starts at the server root, so one variable serves both. Ollama needs no key."""
+    monkeypatch.setenv("OLLAMA_BASE_URL", configured)
+    with respx.mock:
+        route = respx.post("http://localhost:11434/v1/systemone").respond(200, json=OLLAMA_RESPONSE)
+        result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    assert route.calls[0].request.headers["authorization"] == "Bearer ollama"
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert span.attributes["decision"]["system"] == "typesafe"
+        assert span.attributes["decision"]["provider"] == "ollama"
+
+
+async def test_ollama_base_url_can_come_from_the_run(gql_client: AsyncGraphQLClient) -> None:
+    with respx.mock:
+        route = respx.post("http://gpu-box:11434/v1/systemone").respond(200, json=OLLAMA_RESPONSE)
+        result = await gql_client.execute(
+            MUTATION, variables={"input": ollama_run(baseUrl="http://gpu-box:11434/v1")}
+        )
+    assert result.data and not result.errors, result.errors
+    assert route.call_count == 1
+
+
+async def test_ollama_requires_a_base_url(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
+    assert result.errors
+    assert "Set OLLAMA_BASE_URL" in result.errors[0].message
