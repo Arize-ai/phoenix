@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   CardCollapsedPreview,
-  CopyToClipboardButton,
   FieldError,
   Flex,
   Icon,
@@ -45,7 +44,6 @@ import {
   MAX_SCORE_LEVELS,
   MIN_CHOICE_OPTIONS,
   MIN_SCORE_LEVELS,
-  toSystemOneQuestion,
 } from "./decisionUtils";
 
 const hiddenLabelCSS = css`
@@ -127,11 +125,6 @@ export function DecisionQuestionEditor({
   onRemove,
 }: Props) {
   const label = question.name.trim() || `question ${index + 1}`;
-  const copyText = JSON.stringify(
-    { [question.name.trim() || "question"]: toSystemOneQuestion({ question }) },
-    null,
-    2
-  );
   const headerError = errors?.name
     ? errors.name === "Required"
       ? "Give the question a name; it keys the answer."
@@ -208,19 +201,13 @@ export function DecisionQuestionEditor({
         </Flex>
       }
       extra={
-        <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton
-            text={copyText}
-            aria-label={`Copy ${label} question as JSON`}
-          />
-          <Button
-            size="S"
-            aria-label={`Delete ${label}`}
-            leadingVisual={<Icon svg={<Icons.Trash />} />}
-            isDisabled={isDisabled || !canRemove}
-            onPress={onRemove}
-          />
-        </Flex>
+        <Button
+          size="S"
+          aria-label={`Delete ${label}`}
+          leadingVisual={<Icon svg={<Icons.Trash />} />}
+          isDisabled={isDisabled || !canRemove}
+          onPress={onRemove}
+        />
       }
     >
       {headerError ? (

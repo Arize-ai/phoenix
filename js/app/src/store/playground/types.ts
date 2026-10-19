@@ -731,7 +731,11 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Add a copy of one instance right after it, with fresh ids and no runs.
    */
-  duplicateInstance: (instanceId: number) => void;
+  /**
+   * Insert a copy of the instance right after it. Returns the copy's id, or
+   * null when no instance has the given id.
+   */
+  duplicateInstance: (instanceId: number) => number | null;
   /**
    * Add a message to a playground instance
    */

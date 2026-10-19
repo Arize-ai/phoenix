@@ -1,6 +1,7 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 
 import {
+  buildChatFromDecisionDraft,
   buildDecisionRequest,
   createChoiceOption,
   createDecisionDraft,
@@ -12,6 +13,7 @@ import {
   maskUntouchedErrors,
   normalizeDecisionResult,
   parseDecisionImport,
+  toDecisionJsonSchema,
   validateDecisionDraft,
 } from "../decisionUtils";
 
@@ -430,5 +432,77 @@ describe("answer normalization", () => {
       expect(score.levels.map((level) => level.label)).toEqual(["0", "1"]);
       expect(score.score).toBe(0.7);
     }
+  });
+});
+
+describe("structured output", () => {
+  const draft = (() => {
+    const base = createDecisionDraft();
+    base.questions.push(
+      createDecisionQuestion({
+        type: "noul",
+        name: "urgent",
+        instructions: "Urgent?",
+        noul: { trueDescription: "Time sensitive", falseDescription: "" },
+      })
+    );
+    base.questions.push(
+      createDecisionQuestion({
+        type: "score",
+        name: "severity",
+        instructions: "Severity?",
+        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+      })
+    );
+    return base;
+  })();
+
+  it("maps each question type to a schema an LLM can fill", () => {
+    const schema = toDecisionJsonSchema(draft.questions);
+    expect(schema).toMatchObject({
+      type: "object",
+      required: ["department", "urgent", "severity"],
+      additionalProperties: false,
+    });
+    expect(schema.properties.department).toEqual({
+      type: "string",
+      enum: ["billing", "technical", "other"],
+      description:
+        "Which department should handle this request?\n" +
+        "- billing: Payments, invoices, and refunds\n" +
+        "- technical: Problems using the product\n" +
+        "- other: Requests outside these categories",
+    });
+    expect(schema.properties.urgent).toEqual({
+      type: "boolean",
+      description: "Urgent?\nTrue when: Time sensitive",
+    });
+    expect(schema.properties.severity).toEqual({
+      type: "integer",
+      enum: [0, 1],
+      description: "Severity?\n0: Low\n1: High",
+    });
+  });
+
+  it("builds a chat template that asks an LLM the same questions", () => {
+    const { messages, responseFormat } = buildChatFromDecisionDraft({ draft });
+    expect(messages.map((message) => message.role)).toEqual(["system", "user"]);
+    expect(messages[1].content).toBe(draft.state);
+    expect(messages[0].content).toContain("## department");
+    expect(messages[0].content).toContain(
+      "- billing: Payments, invoices, and refunds"
+    );
+    expect(messages[0].content).toContain("Answer true or false.");
+    expect(messages[0].content).toContain(
+      "Answer with a level from 0 to 1, low to high:"
+    );
+    expect(responseFormat).toEqual({
+      type: "json_schema",
+      jsonSchema: {
+        name: "decision",
+        strict: true,
+        schema: toDecisionJsonSchema(draft.questions),
+      },
+    });
   });
 });

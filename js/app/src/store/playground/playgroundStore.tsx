@@ -369,7 +369,9 @@ function duplicateInstance(
     instance: {
       ...source,
       template,
-      decisionRequest: source.decisionRequest ? structuredClone(source.decisionRequest) : source.decisionRequest,
+      decisionRequest: source.decisionRequest
+        ? structuredClone(source.decisionRequest)
+        : source.decisionRequest,
       id: generateInstanceId(),
       activeRunId: null,
       experiment: null,
@@ -587,14 +589,28 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     duplicateInstance: (instanceId) => {
       const instances = get().instances;
-      const sourceIndex = instances.findIndex((instance) => instance.id === instanceId);
+      const sourceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
       const source = instances[sourceIndex];
-      if (!source) return;
+      if (!source) return null;
       const created = duplicateInstance(source, get().allInstanceMessages);
-      set({
-        allInstanceMessages: { ...get().allInstanceMessages, ...created.messages },
-        instances: [...instances.slice(0, sourceIndex + 1), created.instance, ...instances.slice(sourceIndex + 1)],
-      }, false, { type: "duplicateInstance" });
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...created.messages,
+          },
+          instances: [
+            ...instances.slice(0, sourceIndex + 1),
+            created.instance,
+            ...instances.slice(sourceIndex + 1),
+          ],
+        },
+        false,
+        { type: "duplicateInstance" }
+      );
+      return created.instance.id;
     },
     replaceInstance: ({ instanceId, source }) => {
       const instances = get().instances;
