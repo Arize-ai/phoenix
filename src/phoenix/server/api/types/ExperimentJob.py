@@ -8,7 +8,7 @@ import strawberry
 from sqlalchemy import select
 from sqlalchemy.orm import with_polymorphic
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.relay.types import Connection
 from strawberry.types import Info
 
@@ -24,6 +24,7 @@ from phoenix.server.api.types.ExperimentTaskConfig import (
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 if TYPE_CHECKING:
+    from .EvaluatorTaskDefinition import InlineDecisionEvaluatorDefinition
     from .Experiment import Experiment
     from .ExperimentLog import ExperimentLog
 
@@ -34,6 +35,25 @@ class ExperimentJobStatus(Enum):
     COMPLETED = "COMPLETED"
     STOPPED = "STOPPED"
     ERROR = "ERROR"
+
+
+@strawberry.type(
+    description="A decision judge frozen into an experiment when it was created. It keeps "
+    "running on resume even if its dataset evaluator binding was later deleted."
+)
+class FrozenDecisionEvaluator:
+    name: str = strawberry.field(description="The binding name at the time the experiment froze.")
+    dataset_evaluator_id: GlobalID = strawberry.field(
+        description="The dataset evaluator binding's ID. The binding may have been deleted, "
+        "so this ID may no longer resolve."
+    )
+    definition: Annotated[
+        "InlineDecisionEvaluatorDefinition",
+        strawberry.lazy(".EvaluatorTaskDefinition"),
+    ] = strawberry.field(description="The frozen judge, with the binding's effective scoring.")
+    annotation_names: list[str] = strawberry.field(
+        description="Names of the annotations this judge writes."
+    )
 
 
 @strawberry.type
@@ -173,3 +193,41 @@ class ExperimentJob(Node):
             )
             data = [DatasetEvaluator(id=row.id, db_record=row) for row in result.all()]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Decision judges frozen into this experiment, with the binding name, scoring, "
+        "and annotation names the runner uses. Unlike datasetEvaluators, these remain after a "
+        "binding is deleted.",
+    )
+    async def frozen_decision_evaluators(
+        self, info: Info[Context, None]
+    ) -> list[FrozenDecisionEvaluator]:
+        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+            DecisionEvaluatorSnapshot,
+        )
+        from phoenix.server.api.types.EvaluatorTaskDefinition import (
+            InlineDecisionEvaluatorDefinition,
+        )
+
+        async with info.context.db.read() as session:
+            values = await session.scalar(
+                select(models.ExperimentJob.decision_evaluator_snapshots).where(
+                    models.ExperimentJob.id == self.id
+                )
+            )
+        result = []
+        for value in values or []:
+            snapshot = DecisionEvaluatorSnapshot.model_validate(value)
+            result.append(
+                FrozenDecisionEvaluator(
+                    name=snapshot.name,
+                    dataset_evaluator_id=GlobalID(
+                        "DatasetEvaluator", str(snapshot.dataset_evaluator_id)
+                    ),
+                    definition=InlineDecisionEvaluatorDefinition.from_orm(
+                        snapshot.definition, snapshot.dataset_evaluator_id
+                    ),
+                    annotation_names=[config.name for config in snapshot.output_configs],
+                )
+            )
+        return result

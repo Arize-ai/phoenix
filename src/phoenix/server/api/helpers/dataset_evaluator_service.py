@@ -1143,7 +1143,10 @@ async def patch_dataset_evaluator(
                             reason="incompatible_override",
                             dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
                         ) from error
-            from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
+            from phoenix.server.api.helpers.decision_evaluator_service import (
+                get_decision_evaluator,
+                validate_decision_input_mapping,
+            )
             from phoenix.server.api.helpers.decision_evaluators import (
                 freeze_decision_evaluator,
                 validate_decision_output_overrides,
@@ -1155,6 +1158,9 @@ async def patch_dataset_evaluator(
             if kind == "DECISION":
                 decision = await get_decision_evaluator(session, row.evaluator_id, lock=True)
                 await session.refresh(row)
+                validate_decision_input_mapping(
+                    decision.selected_version, patch.input_mapping or None
+                )
                 policy = (
                     row.decision_projection_policy
                     if patch.decision_projection_policy is UNSET

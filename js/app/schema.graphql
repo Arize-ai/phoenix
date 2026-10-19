@@ -2946,6 +2946,11 @@ input EvaluatorPreviewItemInput {
   inputMapping: EvaluatorInputMappingInput!
 
   """
+  Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name with the binding's scoring override, as an experiment would. Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to preview the judge on its own, under its own name and policy.
+  """
+  datasetEvaluatorId: ID = null
+
+  """
   Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
   """
   applyOnlineEvaluationLimits: Boolean! = false
@@ -3158,6 +3163,11 @@ type ExperimentJob implements Node {
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+
+  """
+  Decision judges frozen into this experiment, with the binding name, scoring, and annotation names the runner uses. Unlike datasetEvaluators, these remain after a binding is deleted.
+  """
+  frozenDecisionEvaluators: [FrozenDecisionEvaluator!]!
 }
 
 """A connection to a list of items."""
@@ -3495,6 +3505,25 @@ input FreeformAnnotationConfigInput {
   threshold: Float = null
   lowerBound: Float = null
   upperBound: Float = null
+}
+
+"""
+A decision judge frozen into an experiment when it was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
+"""
+type FrozenDecisionEvaluator {
+  """The binding name at the time the experiment froze."""
+  name: String!
+
+  """
+  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
+  """
+  datasetEvaluatorId: ID!
+
+  """The frozen judge, with the binding's effective scoring."""
+  definition: InlineDecisionEvaluatorDefinition!
+
+  """Names of the annotations this judge writes."""
+  annotationNames: [String!]!
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {

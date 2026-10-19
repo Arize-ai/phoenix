@@ -181,42 +181,285 @@ async def test_bound_tag_move_rejects_breaking_questions(
     assert result.errors and "still bound" in result.errors[0].message
 
 
-async def test_detaching_last_binding_releases_owned_pin(
+async def test_detaching_last_binding_keeps_the_standalone_judge(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
     db: DbSessionFactory,
 ) -> None:
     _, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(gql_client, evaluator)
+    result = await gql_client.execute(
+        "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
+        variables={"input": {"datasetEvaluatorIds": [binding_id]}},
+    )
+    assert result.data and not result.errors, result.errors
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    tag_id = int(GlobalID.from_id(evaluator["decisionVersionTag"]["id"]).node_id)
+    async with db() as session:
+        assert await session.get(models.Evaluator, judge_id) is not None
+        assert await session.get(models.DecisionVersionTag, tag_id) is not None
+    result = await gql_client.execute(
+        "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
+        variables={"input": {"evaluatorId": evaluator["id"]}},
+    )
+    assert result.data and not result.errors, result.errors
+    async with db() as session:
+        assert await session.get(models.Evaluator, judge_id) is None
+        assert await session.get(models.DecisionVersionTag, tag_id) is None
+
+
+async def bind(
+    gql_client: AsyncGraphQLClient,
+    evaluator: dict[str, Any],
+    *,
+    name: str = "judge",
+    projection_policy: Any = None,
+) -> str:
     result = await gql_client.execute(
         "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
         variables={
             "input": {
                 "datasetId": str(GlobalID("Dataset", "1")),
                 "evaluatorId": evaluator["id"],
-                "name": "judge",
+                "name": name,
                 "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket"}},
+                **({"projectionPolicy": projection_policy} if projection_policy else {}),
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    return str(result.data["createDatasetDecisionEvaluator"]["evaluator"]["id"])
+
+
+async def test_binding_input_mapping_rejects_undeclared_keys(
+    gql_client: AsyncGraphQLClient, empty_dataset: None
+) -> None:
+    _, evaluator = await saved_evaluator(gql_client)
+    create = "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}"
+    for mapping in (
+        {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket", "tickt": "input.x"}},
+        {"literalMapping": {"nope": 1}, "pathMapping": {"ticket": "input.ticket"}},
+    ):
+        result = await gql_client.execute(
+            create,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "evaluatorId": evaluator["id"],
+                    "name": "bad",
+                    "inputMapping": mapping,
+                }
+            },
+        )
+        assert result.errors
+        message = result.errors[0].message
+        assert "undeclared inputs" in message and "Declared inputs: 'ticket'" in message
+    # Unmapped declared inputs remain valid (auto-filled from context).
+    result = await gql_client.execute(
+        create,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": evaluator["id"],
+                "name": "empty",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
             }
         },
     )
     assert result.data and not result.errors, result.errors
     binding_id = result.data["createDatasetDecisionEvaluator"]["evaluator"]["id"]
+    update = "mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{id}}}"
+    result = await gql_client.execute(
+        update,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding_id,
+                "inputMapping": {"literalMapping": {"ghost": 1}, "pathMapping": {}},
+            }
+        },
+    )
+    assert result.errors and "'ghost'" in result.errors[0].message
+    result = await gql_client.execute(
+        update,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding_id,
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input.t"}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+
+
+async def test_preview_as_binding_uses_binding_name_and_override(
+    gql_client: AsyncGraphQLClient, empty_dataset: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(
+        gql_client,
+        evaluator,
+        name="ticket-urgency",
+        projection_policy={"questions": [{"predicate": {"name": "urgent", "threshold": 0.5}}]},
+    )
+    monkeypatch.setattr(
+        TypeSafeDecisionClient,
+        "invoke",
+        AsyncMock(
+            return_value=DecisionResponse(
+                model="m",
+                answers={"urgent": PredicateAnswer(probability=0.7), "team": RefusalAnswer()},
+                input_tokens=1,
+                output_tokens=1,
+            )
+        ),
+    )
+    query = """
+      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName annotation { name label score } } } }
+    """
+
+    async def preview(**extra: Any) -> list[dict[str, Any]]:
+        result = await gql_client.execute(
+            query,
+            variables={
+                "input": {
+                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
+                    "previews": [
+                        {
+                            "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                            "context": {"input": {"ticket": {"id": 1}}},
+                            "inputMapping": {
+                                "literalMapping": {},
+                                "pathMapping": {"ticket": "input.ticket"},
+                            },
+                            **extra,
+                        }
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        return list(result.data["evaluatorPreviews"]["results"])
+
+    judge_only = await preview()
+    as_binding = await preview(datasetEvaluatorId=binding_id)
+    assert judge_only[0]["annotation"]["label"] == "false"  # threshold 0.8
+    assert as_binding[0]["annotation"]["label"] == "true"  # binding override 0.5
+    assert as_binding[0]["evaluatorName"] != judge_only[0]["evaluatorName"]
+    assert "ticket-urgency" in as_binding[0]["evaluatorName"] + as_binding[0]["annotation"]["name"]
+    assert "ticket-urgency" not in (
+        judge_only[0]["evaluatorName"] + judge_only[0]["annotation"]["name"]
+    )
+    # A binding of another judge, or a missing one, is rejected.
+    result = await gql_client.execute(
+        query,
+        variables={
+            "input": {
+                "previews": [
+                    {
+                        "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                        "context": {},
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
+                    }
+                ]
+            }
+        },
+    )
+    assert result.errors and "not found" in result.errors[0].message
+
+
+async def test_frozen_decision_evaluators_survive_binding_deletion_and_experiment_cleanup(
+    gql_client: AsyncGraphQLClient, empty_dataset: None, db: DbSessionFactory
+) -> None:
+    from sqlalchemy import insert, select
+
+    from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+        freeze_dataset_decision_evaluators,
+    )
+
+    _, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(gql_client, evaluator, name="ticket-urgency")
+    binding_row_id = int(GlobalID.from_id(binding_id).node_id)
+    async with db() as session:
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(dataset_id=1, metadata_={})
+            .returning(models.DatasetVersion.id)
+        )
+        experiment_id = await session.scalar(
+            insert(models.Experiment)
+            .values(
+                dataset_id=1,
+                dataset_version_id=dataset_version_id,
+                name="exp",
+                repetitions=1,
+                metadata_={},
+            )
+            .returning(models.Experiment.id)
+        )
+        await session.execute(
+            insert(models.ExperimentJob).values(id=experiment_id, type="PROMPT", status="STOPPED")
+        )
+        await session.execute(
+            insert(models.ExperimentDatasetEvaluator).values(
+                experiment_id=experiment_id, dataset_evaluator_id=binding_row_id
+            )
+        )
+        await freeze_dataset_decision_evaluators(session, experiment_id)
+        binding_project_id = await session.scalar(
+            select(models.DatasetEvaluators.project_id).where(
+                models.DatasetEvaluators.id == binding_row_id
+            )
+        )
+        # Simulate what the runner does on resume after the binding and its project vanished:
+        # a fallback project recorded only in the snapshot.
+        fallback = models.Project(
+            name="dataset-evaluator-fallback",
+            description=(
+                f"Traces for dataset evaluator: ticket-urgency on dataset: experiment "
+                f"{experiment_id}"
+            ),
+        )
+        session.add(fallback)
+        await session.flush()
+        job = await session.get(models.ExperimentJob, experiment_id)
+        assert job is not None
+        job.decision_evaluator_snapshots = [
+            {**job.decision_evaluator_snapshots[0], "project_id": fallback.id}
+        ]
+        fallback_id = fallback.id
+    assert binding_project_id is not None
     result = await gql_client.execute(
         "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
         variables={"input": {"datasetEvaluatorIds": [binding_id]}},
     )
     assert result.data and not result.errors, result.errors
+
+    job_id = str(GlobalID("ExperimentJob", str(experiment_id)))
+    result = await gql_client.execute(
+        """query($id: ID!) { node(id:$id) { ... on ExperimentJob {
+          datasetEvaluators { edges { node { id } } }
+          frozenDecisionEvaluators { name datasetEvaluatorId annotationNames
+            definition { name projectionPolicy { questions { name } } } }
+        } } }""",
+        variables={"id": job_id},
+    )
+    assert result.data and not result.errors, result.errors
+    job_data = result.data["node"]
+    assert job_data["datasetEvaluators"]["edges"] == []
+    [frozen] = job_data["frozenDecisionEvaluators"]
+    assert frozen["name"] == "ticket-urgency"
+    assert frozen["datasetEvaluatorId"] == binding_id
+    assert frozen["definition"]["name"] == "ticket-urgency"
+    assert frozen["annotationNames"] == ["urgent", "team"]
+
+    result = await gql_client.execute(
+        "mutation($ids: [ID!]!){deleteExperiments(input:{experimentIds:$ids}){experiments{id}}}",
+        variables={"ids": [str(GlobalID("Experiment", str(experiment_id)))]},
+    )
+    assert result.data and not result.errors, result.errors
     async with db() as session:
-        assert (
-            await session.get(models.Evaluator, int(GlobalID.from_id(evaluator["id"]).node_id))
-            is None
-        )
-        assert (
-            await session.get(
-                models.DecisionVersionTag,
-                int(GlobalID.from_id(evaluator["decisionVersionTag"]["id"]).node_id),
-            )
-            is None
-        )
+        assert await session.get(models.Project, fallback_id) is None
 
 
 async def test_typed_projection_variants_and_frozen_definition(

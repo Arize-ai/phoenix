@@ -433,6 +433,9 @@ async def garbage_collect_evaluators(
                 delete(models.Evaluator)
                 .where(
                     models.Evaluator.id.in_(evaluator_ids),
+                    # Decision judges are standalone and may serve several datasets or
+                    # projects; they are deleted explicitly, never garbage-collected.
+                    models.Evaluator.kind != "DECISION",
                     ~select(models.DatasetEvaluators.id)
                     .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
                     .exists(),

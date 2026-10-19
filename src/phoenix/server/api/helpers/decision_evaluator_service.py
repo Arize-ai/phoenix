@@ -292,6 +292,27 @@ async def guard_owned_decision_tag_move(
     await validate_bound_decision_update(session, evaluator, version, evaluator.projection_policy)
 
 
+def validate_decision_input_mapping(
+    version: models.DecisionVersion, input_mapping: Optional[InputMapping]
+) -> None:
+    """Reject mapping keys that are not declared inputs of the judge's pinned version.
+
+    Undeclared keys would otherwise be silently dropped at run time. Unmapped declared inputs
+    stay valid: they are filled from the experiment context.
+    """
+    if input_mapping is None:
+        return
+    declared = [input.name for input in version.inputs]
+    unknown = sorted(
+        (set(input_mapping.path_mapping) | set(input_mapping.literal_mapping)) - set(declared)
+    )
+    if unknown:
+        raise BadRequest(
+            f"Input mapping names undeclared inputs: {', '.join(repr(k) for k in unknown)}. "
+            f"Declared inputs: {', '.join(repr(n) for n in declared) or 'none'}"
+        )
+
+
 @dataclass(kw_only=True)
 class CreateDatasetDecisionBindingInput:
     dataset_id: GlobalID
@@ -324,6 +345,7 @@ async def create_dataset_decision_binding(
                 evaluator, policy_override=input.projection_policy
             )
             validate_decision_output_overrides(definition, input.output_configs)
+            validate_decision_input_mapping(evaluator.selected_version, input.input_mapping)
             binding = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=evaluator.id,
