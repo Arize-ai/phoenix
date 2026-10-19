@@ -59,5 +59,21 @@ describe("pruneBindingOverride", () => {
 
   it("is null when nothing fits", () => {
     expect(pruneBindingOverride(null, questions)).toBeNull();
+    expect(
+      pruneBindingOverride(
+        {
+          questions: [
+            {
+              predicate: {
+                name: "removed",
+                optimizationDirection: "NONE",
+                threshold: 0.7,
+              },
+            },
+          ],
+        },
+        questions
+      )
+    ).toBeNull();
   });
 });

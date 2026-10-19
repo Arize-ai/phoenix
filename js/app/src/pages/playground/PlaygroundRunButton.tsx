@@ -82,7 +82,6 @@ export function PlaygroundRunButton() {
     (isDatasetMode
       ? getDecisionDatasetBlockedReason({ instances, templateFormat })
       : null);
-  const hasInvalidDecision = invalidDecisionReason != null;
 
   const isJudgingRole = usePlaygroundContext(
     (state) => getPlaygroundTaskRole(state.instances) === "judging"
@@ -108,7 +107,6 @@ export function PlaygroundRunButton() {
   const canRun =
     (!isJudgingRole || hasDataset) &&
     !isEditingExamples &&
-    !hasInvalidDecision &&
     blockedReason == null;
 
   const toggleRunning = useCallback(() => {
@@ -174,9 +172,7 @@ export function PlaygroundRunButton() {
             ? EXAMPLES_ARE_BEING_EDITED
             : blockedReason != null
               ? blockedReason
-              : hasInvalidDecision
-                ? "Complete the decision state, questions, and model to run"
-                : EVALUATORS_NEED_A_DATASET
+              : EVALUATORS_NEED_A_DATASET
         }
       >
         {button}

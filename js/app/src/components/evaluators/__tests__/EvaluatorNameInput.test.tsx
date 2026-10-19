@@ -4,10 +4,20 @@ import { createRoot } from "react-dom/client";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import {
+  EvaluatorStoreProvider,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 import { EvaluatorNameInput } from "../EvaluatorNameInput";
+
+function ValidateButton() {
+  const store = useEvaluatorStoreInstance();
+  return (
+    <button onClick={() => void store.getState().validateAll()}>submit</button>
+  );
+}
 
 describe("EvaluatorNameInput", () => {
   let container: HTMLDivElement;
@@ -24,6 +34,7 @@ describe("EvaluatorNameInput", () => {
         >
           <EvaluatorNameInput />
           <button>elsewhere</button>
+          <ValidateButton />
         </EvaluatorStoreProvider>
       );
     });
@@ -33,12 +44,20 @@ describe("EvaluatorNameInput", () => {
     container.remove();
   });
 
-  it("does not report an untouched empty name when focus leaves it", async () => {
+  it("does not report an untouched empty name when focus leaves it, until submit validation runs", async () => {
     const user = userEvent.setup();
+    const [elsewhere, submit] = Array.from(
+      container.querySelectorAll("button")
+    );
     await act(async () => {
-      await user.click(container.querySelector("button")!);
+      await user.click(elsewhere);
     });
     expect(container.textContent).not.toContain("Cannot be empty");
+
+    await act(async () => {
+      await user.click(submit);
+    });
+    expect(container.textContent).toContain("Cannot be empty");
   });
 
   it("reports an emptied name once the user has edited it", async () => {

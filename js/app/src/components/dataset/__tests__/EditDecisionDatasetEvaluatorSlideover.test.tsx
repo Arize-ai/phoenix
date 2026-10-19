@@ -83,11 +83,18 @@ vi.mock(
       inheritedPolicy?: unknown;
       onChange: (value: unknown) => void;
     }) => (
-      <button
-        onClick={() => onChange(inheritedPolicy ? bindingOverride : judgeEdit)}
-      >
-        {inheritedPolicy ? "Override scoring" : "Edit judge scoring"}
-      </button>
+      <>
+        <button
+          onClick={() =>
+            onChange(inheritedPolicy ? bindingOverride : judgeEdit)
+          }
+        >
+          {inheritedPolicy ? "Override scoring" : "Edit judge scoring"}
+        </button>
+        {inheritedPolicy ? (
+          <button onClick={() => onChange(null)}>Reset override</button>
+        ) : null}
+      </>
     ),
   })
 );
@@ -232,6 +239,16 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     expect(calls(BINDING)[0][1].variables.input.projectionPolicy).toEqual(
       bindingOverride
     );
+    await act(async () =>
+      calls(BINDING)[0][1].onCompleted(
+        { updateDatasetDecisionEvaluator: { evaluator: { id: "binding-1" } } },
+        null
+      )
+    );
+
+    await click("Reset override");
+    await click("Update");
+    expect(calls(BINDING)[1][1].variables.input.projectionPolicy).toBeNull();
   });
 
   it("keeps an existing override that the author did not touch", async () => {

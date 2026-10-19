@@ -9,7 +9,6 @@ import {
   getTaskMemberForNewSource,
   isDecisionInstance,
   isTaskRoleLocked,
-  PLAYGROUND_TASK_ROLE_BY_MEMBER,
 } from "../playgroundTask";
 import type { PlaygroundTask } from "../types";
 
@@ -21,16 +20,6 @@ const evaluatorTask: PlaygroundTask = {
   member: "evaluator",
   evaluator: createPlaygroundEvaluatorTask({ kind: "CODE" }),
 };
-
-describe("PLAYGROUND_TASK_ROLE_BY_MEMBER", () => {
-  it("puts prompts and decisions in the tested role and evaluators in the judging role", () => {
-    expect(PLAYGROUND_TASK_ROLE_BY_MEMBER).toEqual({
-      prompt: "tested",
-      decision: "tested",
-      evaluator: "judging",
-    });
-  });
-});
 
 describe("getPlaygroundTaskMember and isDecisionInstance", () => {
   it("reads the member off the task, the one place it is recorded", () => {

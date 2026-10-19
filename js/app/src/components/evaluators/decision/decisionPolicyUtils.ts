@@ -353,27 +353,6 @@ export function questionProjectionsEqual(
   return false;
 }
 
-/**
- * The sparse override that turns `base` into `edited`: only the questions whose
- * settings differ. Returns null (inherit everything) when nothing differs.
- */
-export function computePolicyOverride(
-  base: DecisionProjectionPolicyValue,
-  edited: DecisionProjectionPolicyValue
-): DecisionProjectionPolicyValue | null {
-  const baseByName = new Map(
-    base.questions.map((question) => [
-      getQuestionProjectionName(question),
-      question,
-    ])
-  );
-  const changed = edited.questions.filter((question) => {
-    const baseQuestion = baseByName.get(getQuestionProjectionName(question));
-    return !baseQuestion || !questionProjectionsEqual(baseQuestion, question);
-  });
-  return changed.length > 0 ? { questions: changed } : null;
-}
-
 /** Validation messages by question name; questions without problems are absent. */
 export type DecisionPolicyValidation = Record<string, string[]>;
 

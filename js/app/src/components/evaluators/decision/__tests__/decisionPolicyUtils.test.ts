@@ -6,10 +6,10 @@ import type {
 } from "../decisionPolicyUtils";
 import {
   buildDefaultPolicy,
-  computePolicyOverride,
   mergePolicyOverride,
   normalizePolicy,
   policyOutputToInput,
+  questionProjectionsEqual,
   toDecisionQuestionDefinitions,
   validatePolicy,
 } from "../decisionPolicyUtils";
@@ -188,50 +188,34 @@ describe("decisionPolicyUtils", () => {
     expect(mergePolicyOverride(base, null)).toEqual(base);
   });
 
-  it("computes only the changed questions as the override", () => {
-    const edited: DecisionProjectionPolicyValue = {
-      questions: [
-        base.questions[0],
-        {
-          choice: {
-            name: "tone",
-            scores: [
-              { choice: "bad", score: 0 },
-              { choice: "good", score: 2 },
-            ],
-            optimizationDirection: "MAXIMIZE",
-          },
+  it("treats choice scores as equal regardless of order and detects score changes", () => {
+    expect(
+      questionProjectionsEqual(base.questions[1], {
+        choice: {
+          name: "tone",
+          scores: [
+            { choice: "bad", score: 0 },
+            { choice: "good", score: 1 },
+          ],
+          optimizationDirection: "MAXIMIZE",
         },
-        base.questions[2],
-      ],
-    };
-    expect(computePolicyOverride(base, edited)).toEqual({
-      questions: [edited.questions[1]],
-    });
-    expect(computePolicyOverride(base, base)).toBeNull();
+      })
+    ).toBe(true);
+    expect(
+      questionProjectionsEqual(base.questions[1], {
+        choice: {
+          name: "tone",
+          scores: [
+            { choice: "bad", score: 0 },
+            { choice: "good", score: 2 },
+          ],
+          optimizationDirection: "MAXIMIZE",
+        },
+      })
+    ).toBe(false);
   });
 
-  it("treats choice scores as equal regardless of order", () => {
-    const reordered: DecisionProjectionPolicyValue = {
-      questions: [
-        base.questions[0],
-        {
-          choice: {
-            name: "tone",
-            scores: [
-              { choice: "bad", score: 0 },
-              { choice: "good", score: 1 },
-            ],
-            optimizationDirection: "MAXIMIZE",
-          },
-        },
-        base.questions[2],
-      ],
-    };
-    expect(computePolicyOverride(base, reordered)).toBeNull();
-  });
-
-  it("validates thresholds and scores per question", () => {
+  it("validates thresholds, scores, and duplicates per question", () => {
     expect(validatePolicy(base)).toEqual({});
     const invalid = validatePolicy({
       questions: [
@@ -243,16 +227,32 @@ describe("decisionPolicyUtils", () => {
           },
         },
         {
+          predicate: {
+            name: "accurate",
+            threshold: 0.5,
+            optimizationDirection: "NONE",
+          },
+        },
+        {
           choice: {
             name: "tone",
-            scores: [{ choice: "good", score: Infinity }],
+            scores: [
+              { choice: "good", score: Infinity },
+              { choice: "good", score: 1 },
+            ],
             optimizationDirection: "NONE",
           },
         },
       ],
     });
-    expect(invalid.accurate).toHaveLength(1);
-    expect(invalid.tone).toHaveLength(1);
+    expect(invalid.accurate).toEqual([
+      "Threshold must be a number from 0 to 1.",
+      "Question settings are listed more than once.",
+    ]);
+    expect(invalid.tone).toEqual([
+      'Score for "good" must be a finite number.',
+      'Choice "good" is scored more than once.',
+    ]);
     expect(
       validatePolicy({
         questions: [
