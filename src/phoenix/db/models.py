@@ -3268,20 +3268,6 @@ class DecisionVersion(HasId):
     # decision's version.
     __table_args__ = (UniqueConstraint("decision_id", "id"),)
 
-    def has_identical_content(self, other: Self) -> bool:
-        """Whether two versions ask the same thing of the same model, ignoring ids, authors,
-        and timestamps."""
-        return (
-            self.description == other.description
-            and self.inputs == other.inputs
-            and self.state == other.state
-            and self.questions == other.questions
-            and self.model_provider == other.model_provider
-            and self.model_name == other.model_name
-            and self.custom_provider_id == other.custom_provider_id
-            and self.metadata_ == other.metadata_
-        )
-
 
 class DecisionVersionTag(HasId):
     """A movable name for one of a decision's versions, such as ``production``."""

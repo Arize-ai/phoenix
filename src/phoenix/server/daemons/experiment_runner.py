@@ -3416,6 +3416,15 @@ class ExperimentRunner(DaemonTask):
             experiment_job = decision_task
             llm_client = _NO_OP_LLM_CLIENT
             # The runner retries by failure kind, so the SDK's own retries are off.
+            if decision_task.custom_provider_id is None and (
+                decision_task.config.custom_provider_name is not None
+            ):
+                # The provider was deleted; falling back to a built-in provider would
+                # silently change the host and key the task runs against.
+                raise ValueError(
+                    f"The custom provider '{decision_task.config.custom_provider_name}' "
+                    "this decision task ran on has been deleted"
+                )
             if decision_task.custom_provider_id is not None:
                 decision_client = await get_custom_provider_decision_client(
                     custom_provider_id=decision_task.custom_provider_id,

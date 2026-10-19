@@ -2273,3 +2273,31 @@ class TestLoadEvaluatorTaskConfig:
         assert isinstance(evaluator, CodeEvaluatorRunner)
         assert evaluator.name == "answer-length"
         assert list(evaluator.output_configs) == [_LENGTH_CONFIG]
+
+
+class TestLoadDecisionTaskConfig:
+    async def test_a_task_whose_custom_provider_was_deleted_fails_instead_of_using_a_built_in(
+        self, db: DbSessionFactory
+    ) -> None:
+        decision_task = MagicMock(spec=models.ExperimentDecisionTask)
+        decision_task.custom_provider_id = None
+        decision_task.config = DecisionTaskConfig.model_validate(
+            {
+                "inputs": [{"name": "ticket"}],
+                "state": {"type": "input", "name": "ticket"},
+                "questions": [],
+                "custom_provider_name": "Gone provider",
+            }
+        )
+        session = MagicMock()
+        session.get = AsyncMock(side_effect=[None, decision_task])
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        with pytest.raises(ValueError, match="custom provider 'Gone provider'.*deleted"):
+            await runner._load_experiment_config(session, 1, credentials=None)

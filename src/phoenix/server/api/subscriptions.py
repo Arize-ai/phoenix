@@ -419,6 +419,10 @@ async def _resolve_decision_task(
             f"{len(failures)} of {len(revisions)} examples can't make a decision request. {shown}"
         )
     custom_provider_id = task.connection.custom_provider_id()
+    if custom_provider_id is not None:
+        provider = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
+        if provider is not None:
+            config = config.model_copy(update={"custom_provider_name": provider.name})
     return _ResolvedDecisionTask(
         model_provider=client.provider_key.to_model_provider(),
         model_name=task.model_name,

@@ -26,6 +26,7 @@ from phoenix.db.types.model_provider import (
     GoogleGenAICustomProviderConfig,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
+    sdk_offers_decisions,
 )
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -356,6 +357,24 @@ class GenerativeModelCustomProviderMutationMixin:
                         f"Please create a new provider with the desired SDK instead."
                     )
 
+                if not sdk_offers_decisions(new_sdk) and (
+                    decision_names := (
+                        await session.scalars(
+                            sa.select(models.Decision.name)
+                            .join(models.DecisionVersion)
+                            .where(models.DecisionVersion.custom_provider_id == provider.id)
+                            .distinct()
+                            .order_by(models.Decision.name)
+                        )
+                    ).all()
+                ):
+                    names = ", ".join(str(name) for name in decision_names)
+                    raise BadRequest(
+                        f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
+                        f"by saved decision versions ({names}) and that SDK cannot serve "
+                        "decision models"
+                    )
+
                 if new_sdk != provider.sdk:
                     provider.sdk = new_sdk
                 # Serialize and encrypt the config
@@ -516,6 +535,9 @@ class GenerativeModelCustomProviderMutationMixin:
             models.GenerativeModelCustomProvider.id == provider_id
         )
         async with info.context.db() as session:
+            # TODO: prompt tasks have the same flaw as decision tasks did: a task's
+            # custom_provider_id is cleared (ON DELETE SET NULL) when the provider is
+            # deleted, and a resumed task then silently runs on the built-in provider.
             if await session.scalar(
                 sa.select(models.DecisionVersion.id)
                 .where(models.DecisionVersion.custom_provider_id == provider_id)

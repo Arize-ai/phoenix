@@ -144,3 +144,7 @@ class DecisionTaskConfig(DBBaseModel):
     """A dot path into the example's input to that example's own questions, as a
     benchmark carries them, used instead of ``questions``."""
     questions_format: QuestionFormat = "system_one"
+    custom_provider_name: Optional[str] = None
+    """The custom provider the task runs on, by name when it was created. The task's
+    ``custom_provider_id`` is cleared when the provider is deleted; this lets a resumed
+    task fail by name instead of falling back to a built-in provider."""
