@@ -26,7 +26,10 @@ import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
-import { CodeEvaluatorVersions } from "@phoenix/components/evaluators/CodeEvaluatorVersions";
+import {
+  CodeDatasetEvaluatorVersionsSkeleton,
+  CodeEvaluatorVersions,
+} from "@phoenix/components/evaluators/CodeEvaluatorVersions";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -196,7 +199,7 @@ function DatasetEvaluatorDetailsPageContent({
         </LazyTabPanel>
         {codeEvaluatorId != null && (
           <LazyTabPanel id="versions">
-            <Suspense fallback={<TableSkeleton />}>
+            <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
               <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
             </Suspense>
           </LazyTabPanel>

@@ -1,4 +1,4 @@
-import type { VisibilityState } from "@tanstack/react-table";
+import type { ColumnVisibilityState } from "@tanstack/react-table";
 
 import type { PlaygroundTaskKind } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -91,7 +91,7 @@ export function getExampleColumnVisibility({
   storedVisibility,
 }: {
   hasMetadata: boolean;
-  storedVisibility: VisibilityState;
-}): VisibilityState {
+  storedVisibility: ColumnVisibilityState;
+}): ColumnVisibilityState {
   return { metadata: hasMetadata, ...storedVisibility };
 }

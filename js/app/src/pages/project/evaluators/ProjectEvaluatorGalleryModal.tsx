@@ -34,7 +34,7 @@ import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationSc
 import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
 import {
   getOptimizationBounds,
-  getPositiveOptimization,
+  getOptimizationValue,
 } from "@phoenix/components/annotation/optimizationUtils";
 import {
   PythonBlockWithCopy,
@@ -1045,7 +1045,7 @@ function AnnotationValues({
                   elementType="span"
                   fontFamily="mono"
                   size="XS"
-                  positiveOptimization={getPositiveOptimization({
+                  optimizationValue={getOptimizationValue({
                     score,
                     ...optimizationBounds,
                   })}
@@ -1312,9 +1312,7 @@ function capitalize(value: string): string {
 }
 
 function EvaluatorGallerySkeleton() {
-  return (
-    <Skeleton width="100%" height="100%" borderRadius="none" animation="wave" />
-  );
+  return <Skeleton width="100%" height="100%" style={{ borderRadius: 0 }} />;
 }
 
 function EvaluatorGalleryError() {
@@ -1326,7 +1324,7 @@ function EvaluatorGalleryError() {
 }
 
 function EvaluatorDetailsSkeleton() {
-  return <Skeleton width="100%" height={360} animation="wave" />;
+  return <Skeleton width="100%" height={360} />;
 }
 
 function EvaluatorDetailsError() {
