@@ -99,7 +99,7 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
-import { Flex, PageHeader, View } from "@phoenix/components";
+import { Alert, Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -143,6 +143,8 @@ import {
   EvaluatorPlaygroundEmptySource,
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
+
+import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -897,6 +899,13 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
+            {isDatasetMode && hasDecisionInstance ? (
+              <View paddingBottom="size-200">
+                <Alert variant="danger" title="Run blocked">
+                  {DECISION_DATASET_BLOCKED_REASON}
+                </Alert>
+              </View>
+            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View

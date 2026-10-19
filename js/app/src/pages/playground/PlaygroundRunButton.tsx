@@ -19,6 +19,7 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
+import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
 import { getDecisionValidationError } from "./decisionUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
@@ -37,6 +38,18 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const isDatasetMode = usePlaygroundContext(
+    (state) => state.datasetId != null
+  );
+  const hasDecisionInstance = instances.some(
+    (instance) => instance.model.modelType === "DECISION"
+  );
+  // Decision models have no dataset execution path, so a run that would
+  // include one over a dataset is refused outright rather than half-run.
+  const blockedReason =
+    isDatasetMode && hasDecisionInstance
+      ? DECISION_DATASET_BLOCKED_REASON
+      : null;
   const hasInvalidDecision = instances.some(
     (instance) =>
       instance.model.modelType === "DECISION" &&
@@ -66,15 +79,16 @@ export function PlaygroundRunButton() {
   // Evaluators judge dataset examples; prompts can also run on manual input.
   // Neither runs while the examples are being edited: the server would judge
   // the saved examples, not the ones on screen.
-  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples && !hasInvalidDecision;
+  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples && !hasInvalidDecision && blockedReason == null;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
       cancelPlaygroundRun({ instances, cancelPlaygroundInstances });
-    } else if (canRun) {
+    } else if (canRun && blockedReason == null) {
       runPlaygroundInstances();
     }
   }, [
+    blockedReason,
     isRunning,
     canRun,
     cancelPlaygroundInstances,
@@ -129,6 +143,8 @@ export function PlaygroundRunButton() {
         reason={
           isEditingExamples
             ? EXAMPLES_ARE_BEING_EDITED
+            : blockedReason != null
+              ? blockedReason
             : hasInvalidDecision
               ? "Complete the decision state, questions, and model to run"
               : EVALUATORS_NEED_A_DATASET
