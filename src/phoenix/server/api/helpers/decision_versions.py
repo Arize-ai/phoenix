@@ -20,9 +20,10 @@ from phoenix.db.types.decisions import (
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
 
-# TypeSafe's documented limits (https://docs.typesafe.ai/api); OpenAI documents none. No
-# provider documents a limit on the number of questions, so there is none here: request
-# size and context length are the provider's to enforce.
+# Both providers document 2 to 255 choices (TypeSafe at https://docs.typesafe.ai/api,
+# OpenAI in its SDK's request types). The 2 to 10 levels are TypeSafe's; OpenAI documents
+# no level limit. Neither documents a limit on the number of questions, so there is none
+# here: request size and context length are the provider's to enforce.
 MIN_CHOICES, MAX_CHOICES = 2, 255
 MIN_LEVELS, MAX_LEVELS = 2, 10
 

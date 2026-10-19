@@ -204,10 +204,11 @@ the rules for substituting into JSON never have to exist.
 - **Write-time validation.** Question names are unique within a version, choice
   values are unique within a question, a choice has 2–255 options, and a scale
   has 2–10 levels. A list loses the key uniqueness a JSON object would give, so
-  this is checked explicitly. The size limits are TypeSafe's documented ones;
-  OpenAI documents none. There is no limit on the number of questions: no
-  provider documents one, and request size and context length are the
-  provider's to enforce. These rules run when questions are accepted, by a run
+  this is checked explicitly. Both providers document 2–255 choices (TypeSafe
+  in its API docs, OpenAI in its SDK's request types); the 2–10 levels are
+  TypeSafe's, and OpenAI documents no level limit. There is no limit on the
+  number of questions: neither provider documents one, and request size and
+  context length are the provider's to enforce. These rules run when questions are accepted, by a run
   or a save, never on read: the stored types check structure only, so
   tightening a rule can't make an old version unreadable.
 - **Type names are Phoenix's own.** `predicate` is a statement or yes/no
@@ -231,14 +232,18 @@ the rules for substituting into JSON never have to exist.
   TypeSafe also accepts JSON in these fields, but OpenAI doesn't, and nothing
   shows structured text improves answers. Widening to `str | JSON` later breaks
   no stored data.
-- **Text fields stay plain strings, even with images.** TypeSafe attaches images
-  by find-and-replace on reference strings inside ordinary text. Images only add
-  a version-level `assets: [{ref, asset_id}]` list, so the GraphQL leaf types
-  never change.
+- **Text fields stay plain strings, even with images.** Images are not designed
+  yet, but they usually arrive with each call or example, not with a version,
+  so they belong to the inputs and the state (the `messages` state), not to a
+  version-level list. The providers also differ: TypeSafe replaces placeholder
+  strings with assets anywhere text appears, including question instructions
+  and criteria, while OpenAI accepts images only in `input`. An image inside
+  question text would be TypeSafe-only.
 - **Provider-only types are allowed.** `box` is part of Phoenix's vocabulary.
   The OpenAI SDK has no box question, so its translation rejects it with a
-  clear error. A box answer, a set of regions, is output like any other answer;
-  judging it (overlap with reference regions) is an evaluator's job.
+  clear error. A box answer is a single box (its edges as fractions of the
+  image's size) with an optional confidence. It is output like any other
+  answer; judging it (overlap with a reference box) is an evaluator's job.
 - **Provider-specific options**, if one ever matters, go in an allow-listed
   `options` field on the question, not in free-form JSON.
 
@@ -326,6 +331,9 @@ group production runs by version. Which attribute holds it is an
 Unsaved playground runs and saved versions take the same `DecisionVersionInput`,
 so running and saving share one typed shape.
 
+Steps 1 to 5 are built; step 6 records everything except assets, which aren't
+supported yet, and the version ID, since versions aren't saved yet.
+
 1. Take a decision version (saved, or an unsaved draft) and its inputs.
 2. Validate the inputs and build the state.
 3. **Adapter:** translate and call the provider SDK, rejecting unsupported
@@ -354,10 +362,20 @@ The decision task mirrors `ExperimentPromptTask` field for field:
 | `appendedMessagesPath`: messages from the example, appended | `questionsPath` and `questionsFormat`: questions from the example, used instead of the version's |
 | `evaluators`: dataset evaluators judge each run | `evaluators`: the same |
 
+Only the declared inputs are read from the object at `inputValuesPath`, so an
+example may carry other fields (a benchmark's questions, say) beside them. There
+is no per-input mapping: input names must match the example's field names, as a
+prompt's template variables must.
+
 `questionsPath` is for benchmarks whose questions vary per example, such as the
 datasets `phoenix datagen` seeds. Those questions are read in the format they
 were published in (`system_one`, `openai`, or `phoenix`) and translated to
-Phoenix's types, the inverse of the adapters, round-trip tested against them.
+Phoenix's types. The translation reverses what the adapters write only where the
+adapters lose nothing: the TypeSafe adapter sends a level's description in place
+of its label, and the OpenAI adapter folds predicate criteria into the
+instructions, so neither round-trips. Round-trip tests cover questions without
+those. A System One predicate with criteria but no instructions is rejected,
+since Phoenix requires instructions.
 
 Before anything is stored, the connection must resolve and every example must
 make a request; otherwise the run is refused with a count and the first
@@ -401,9 +419,14 @@ only LLM attributes:
 
 - `should_calculate_span_cost` (`db/insertion/helpers.py`) only prices `LLM`
   spans.
-- Cumulative trace token counts (`tracers.py`) read only `llm.token_count.*`.
-- Experiment runs (`playground_experiment_runs.py`) fill `prompt_token_count`
-  and `completion_token_count` from the LLM keys.
+- Span ingestion (`db/insertion/span.py`) reads token counts, and cumulative
+  trace totals, only for `LLM` spans and `llm.token_count.*`. This is the path
+  app traces take.
+- Cumulative trace token counts for spans recorded by the server
+  (`tracers.py`) read only `llm.token_count.*`.
+- Prompt experiment runs (`playground_experiment_runs.py`) fill
+  `prompt_token_count` and `completion_token_count` from the LLM keys. Decision
+  experiment runs fill neither.
 
 Token counts are in scope: experiment runs and trace totals read the decision
 keys too. Cost is in scope only if a provider publishes per-token prices for
@@ -455,7 +478,7 @@ bindings:
 |---|---|---|
 | Table | `Evaluator` subtype, `kind = 'LLM'` | `Evaluator` subtype, `kind = 'DECISION'` |
 | Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, the same |
-| Version | `prompt_version_tag_id`, optional | A decision version tag; optional too, unless tag moves need validating (see below) |
+| Version | A prompt version tag the evaluator owns, created with it | A decision version tag it owns, the same |
 | Outputs | Stored on the evaluator: `output_configs`, categorical only, turned into the tool the judge calls | Derived from the version's questions; only their defaults are stored |
 | Explanation | The judge may return one | None: decision models return probabilities, not text |
 | Annotator kind | `LLM` | `LLM` |
@@ -471,11 +494,15 @@ the optimization direction) are stored on the decision evaluator, because a
 project binding has no output-config override. A dataset binding can override
 them through its existing `output_configs`, as it can an LLM evaluator's.
 
-If a binding depends on a version's questions (an override names a question, or
-a mapping fills a declared input), moving the tag to a version that drops or
-retypes them would break the binding. Validating tag moves against bindings is
-the case for owning the tag; without that validation, an optional tag like the
-LLM evaluator's is enough.
+The tag is guarded as an LLM evaluator's is. Creating an LLM evaluator creates
+its own prompt version tag (`helpers/evaluator_service.py`). Moving that tag is
+validated against the evaluator's outputs and every dataset binding's overrides,
+and deleting it is refused (`helpers/prompt_version_tags.py`); the column is
+nullable only for evaluators whose pin was removed, which run the latest
+version. A decision evaluator needs the same guard, more so: its outputs are
+derived from the version's questions, so a version that drops or retypes a
+question an override names, or an input a binding maps, would break the
+binding.
 
 ### Integration Points
 
@@ -492,6 +519,10 @@ hand and each needs a `DECISION` entry:
   "unthrottled" and `CODE` for anything that isn't an `LLMEvaluator`.
 - The kind-keyed lookup tables in the REST routers: `routers/v1/evaluators.py`,
   `project_evaluators.py`, and `dataset_evaluators.py`.
+- Polymorphic loads of evaluators elsewhere: the dataset evaluator loader the
+  experiment runner uses (`api/evaluators.py`), the dataset's evaluators in
+  GraphQL (`types/Dataset.py`), and the evaluator data loader
+  (`dataloaders/evaluator_by_id.py`).
 
 Decision evaluators write annotations with `annotator_kind = 'LLM'`. The five
 annotation tables only allow `LLM`, `CODE`, and `HUMAN`, and a decision model
