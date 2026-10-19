@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89a1020e42c855b1a5eb3db588b62d70>>
+ * @generated SignedSource<<da246541ecb8c3b946386f214e00b11b>>
  * @lightSyntaxTransform
  */
 
@@ -102,14 +102,17 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v9 = [
+  (v2/*:: as any*/)
+],
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -354,9 +357,7 @@ return {
                           "kind": "LinkedField",
                           "name": "promptVersionTag",
                           "plural": false,
-                          "selections": [
-                            (v2/*:: as any*/)
-                          ],
+                          "selections": (v9/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -367,8 +368,8 @@ return {
                           "name": "promptVersion",
                           "plural": false,
                           "selections": [
-                            (v9/*:: as any*/),
-                            (v10/*:: as any*/)
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/)
                           ],
                           "storageKey": null
                         },
@@ -399,12 +400,22 @@ return {
                             {
                               "alias": null,
                               "args": null,
+                              "concreteType": "Decision",
+                              "kind": "LinkedField",
+                              "name": "decision",
+                              "plural": false,
+                              "selections": (v9/*:: as any*/),
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
                               "kind": "ScalarField",
                               "name": "sequenceNumber",
                               "storageKey": null
                             },
-                            (v9/*:: as any*/),
-                            (v10/*:: as any*/)
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/)
                           ],
                           "storageKey": null
                         },

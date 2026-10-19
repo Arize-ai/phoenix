@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6d74b7b60f2775db154afd1ba574e6e>>
+ * @generated SignedSource<<7d3f7ebfd0c6579a3cbcb790a299b7ec>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,9 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type DecisionJudgeSummary_evaluator$data = {
   readonly decisionVersion: {
+    readonly decision: {
+      readonly name: string;
+    };
     readonly decisionId: string;
     readonly id: string;
     readonly modelName: string;
@@ -49,7 +52,10 @@ var v0 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v1 = [
+  (v0/*:: as any*/)
+];
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -76,6 +82,16 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "decisionId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "Decision",
+          "kind": "LinkedField",
+          "name": "decision",
+          "plural": false,
+          "selections": (v1/*:: as any*/),
           "storageKey": null
         },
         {
@@ -109,9 +125,7 @@ return {
       "kind": "LinkedField",
       "name": "decisionVersionTag",
       "plural": false,
-      "selections": [
-        (v0/*:: as any*/)
-      ],
+      "selections": (v1/*:: as any*/),
       "storageKey": null
     },
     {
@@ -217,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "691a4a330094b390780f993a7a2d7c9f";
+(node as any).hash = "9d2daca22b750aebf3ef0c5cf3122980";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2a7f17bb3ee7d7e6a4f4c16b42a893ca>>
+ * @generated SignedSource<<2aeeb62b2ec12742321acb03cf7cba49>>
  * @lightSyntaxTransform
  */
 
@@ -105,14 +105,18 @@ v9 = {
   ],
   "storageKey": null
 },
-v10 = {
+v10 = [
+  (v3/*:: as any*/),
+  (v2/*:: as any*/)
+],
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -323,10 +327,7 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v2/*:: as any*/)
-                        ],
+                        "selections": (v10/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -337,8 +338,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v10/*:: as any*/),
                           (v11/*:: as any*/),
+                          (v12/*:: as any*/),
                           (v2/*:: as any*/)
                         ],
                         "storageKey": null
@@ -370,12 +371,22 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "Decision",
+                            "kind": "LinkedField",
+                            "name": "decision",
+                            "plural": false,
+                            "selections": (v10/*:: as any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "kind": "ScalarField",
                             "name": "sequenceNumber",
                             "storageKey": null
                           },
-                          (v10/*:: as any*/),
-                          (v11/*:: as any*/)
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -460,12 +471,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b4e2dce29c1b02fa930fd18652ec1f0",
+    "cacheID": "64643627986d582c69b8eab0e7420494",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on DecisionEvaluator {\n    decisionVersion {\n      id\n      decisionId\n      sequenceNumber\n      modelName\n      modelProvider\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on DecisionEvaluator {\n    decisionVersion {\n      id\n      decisionId\n      decision {\n        name\n        id\n      }\n      sequenceNumber\n      modelName\n      modelProvider\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

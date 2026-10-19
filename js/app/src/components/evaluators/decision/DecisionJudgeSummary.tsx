@@ -21,12 +21,6 @@ export type DecisionJudgeSummaryProps = {
    * the judge's settings for that question). Omit for the judge alone.
    */
   bindingPolicy?: DecisionProjectionPolicyValue | null;
-  /**
-   * The decision's name. A decision version does not expose its decision's
-   * name, so a caller that knows it (for example from the decision picker)
-   * passes it here; otherwise only the version is shown.
-   */
-  decisionName?: string;
 };
 
 /** Describes one question's scoring in a short sentence. */
@@ -63,7 +57,6 @@ export function describeQuestionScoring(
 export function DecisionJudgeSummary({
   evaluator,
   bindingPolicy,
-  decisionName,
 }: DecisionJudgeSummaryProps) {
   const data = useFragment<DecisionJudgeSummary_evaluator$key>(
     graphql`
@@ -71,6 +64,9 @@ export function DecisionJudgeSummary({
         decisionVersion {
           id
           decisionId
+          decision {
+            name
+          }
           sequenceNumber
           modelProvider
           modelName
@@ -120,7 +116,7 @@ export function DecisionJudgeSummary({
         <Link
           to={`/decisions/${decisionVersion.decisionId}/versions/${decisionVersion.id}`}
         >
-          {decisionName ? `${decisionName} · ` : ""}Version{" "}
+          {decisionVersion.decision.name} · Version{" "}
           {decisionVersion.sequenceNumber}
           {data.decisionVersionTag.name
             ? ` (${data.decisionVersionTag.name})`

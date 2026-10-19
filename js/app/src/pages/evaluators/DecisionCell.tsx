@@ -1,42 +1,15 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
-import { useLazyLoadQuery } from "react-relay";
-import { graphql } from "relay-runtime";
 
 import { Flex, Link, Text, Token } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-
-import type { DecisionCellNameQuery } from "./__generated__/DecisionCellNameQuery.graphql";
 
 export type DecisionCellVersion = {
   id: string;
   decisionId: string;
   sequenceNumber: number;
+  /** The decision; select `decision { name }` next to the version. */
+  decision?: { name: string } | null;
 };
-
-/**
- * Looks up the decision's name. A decision version carries only the id of its
- * decision, so the name is read through `node` (and cached by the store).
- */
-function DecisionName({ decisionId }: { decisionId: string }) {
-  const data = useLazyLoadQuery<DecisionCellNameQuery>(
-    graphql`
-      query DecisionCellNameQuery($decisionId: ID!) {
-        decision: node(id: $decisionId) {
-          __typename
-          ... on Decision {
-            name
-          }
-        }
-      }
-    `,
-    { decisionId },
-    { fetchPolicy: "store-or-network" }
-  );
-  const name =
-    data.decision.__typename === "Decision" ? data.decision.name : "";
-  return <>{name || "Decision"}</>;
-}
 
 /**
  * Decision evaluators' counterpart of PromptCell: the decision and the pinned
@@ -55,7 +28,7 @@ export const DecisionCell = ({
   if (!decisionVersion) {
     return null;
   }
-  const { decisionId, id, sequenceNumber } = decisionVersion;
+  const { decisionId, id, sequenceNumber, decision } = decisionVersion;
   return (
     <Link
       to={`/decisions/${decisionId}/versions/${id}`}
@@ -73,9 +46,7 @@ export const DecisionCell = ({
         gap={wrapWidth != null ? "size-50" : undefined}
       >
         <Truncate maxWidth={wrapWidth != null ? "100%" : nameMaxWidth}>
-          <Suspense fallback="Decision">
-            <DecisionName decisionId={decisionId} />
-          </Suspense>
+          {decision?.name || "Decision"}
         </Truncate>
         <Flex alignItems="center">
           <Text color="text-300">{wrapWidth != null ? "@ " : " @ "}</Text>
