@@ -6,7 +6,17 @@ import json
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Mapping, Sequence, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Literal,
+    Mapping,
+    NotRequired,
+    Sequence,
+    TypedDict,
+)
 
 from phoenix.experimental.datagen.fetcher import default_cache_dir, fetch_file
 
@@ -24,6 +34,7 @@ class Example(TypedDict):
     input: dict[str, Any]
     output: dict[str, Any]
     metadata: dict[str, Any]
+    splits: NotRequired[list[str]]
 
 
 Adapter = Callable[[Mapping[str, Any]], Mapping[str, Any]]
@@ -130,6 +141,7 @@ class DatasetSource:
     format: FileFormat
     adapter: Adapter
     license: str
+    split_metadata_key: str | None = None
 
 
 _JEVBENCH_REVISION = "609a664e81f46e03731600bd7bd9f1b7a61257c5"
@@ -156,6 +168,7 @@ DATASET_SOURCES = {
             format="parquet",
             adapter=_typed_decisions,
             license="Apache-2.0",
+            split_metadata_key="workflow",
         ),
         DatasetSource(
             name="boolq",
@@ -241,6 +254,14 @@ def load_source(source: DatasetSource, *, cache_dir: Path | None = None) -> list
     )
     examples = load_dataset(path, format=source.format, adapter=source.adapter)
     for example in examples:
+        if source.split_metadata_key is not None:
+            split = example["metadata"].get(source.split_metadata_key)
+            if not isinstance(split, str) or not split.strip():
+                raise DatasetError(
+                    f"{source.name}: example {example['id']!r}: metadata."
+                    f"{source.split_metadata_key} must be a nonempty string"
+                )
+            example["splits"] = [split]
         example["metadata"].update(
             source_url=source.url,
             source_revision=source.revision,

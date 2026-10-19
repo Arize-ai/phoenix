@@ -156,6 +156,55 @@ def test_seed_loads_cached_sources_with_stable_metadata_and_timeout(tmp_path: Pa
     assert first.kwargs["name"] == "phoenix-datagen-jevbench-hard"
 
 
+def test_seed_assigns_workflow_splits_from_metadata(tmp_path: Path) -> None:
+    workflows = [
+        "agent_trace_observability",
+        "customer_service",
+        "invoice_processing",
+        "security_incidents",
+    ]
+    rows = [
+        {"id": workflow, "input": {}, "output": {}, "metadata": {"workflow": workflow}}
+        for workflow in workflows
+    ]
+    content = "\n".join(map(json.dumps, rows)).encode()
+    checksum = sha256(content).hexdigest()
+    (tmp_path / checksum).write_bytes(content)
+    source = replace(
+        DATASET_SOURCES["typed-decisions"],
+        format="jsonl",
+        checksum=checksum,
+        adapter=lambda row: row,
+    )
+    client = MagicMock()
+    seed_datasets(client, sources=[source], cache_dir=tmp_path)
+    first = client.datasets.create_dataset.call_args
+    examples = first.kwargs["examples"]
+    assert [example["splits"] for example in examples] == [[workflow] for workflow in workflows]
+    assert [example["metadata"]["workflow"] for example in examples] == workflows
+    seed_datasets(client, sources=[source], cache_dir=tmp_path)
+    assert client.datasets.create_dataset.call_args == first
+
+
+@pytest.mark.parametrize("workflow", [None, "", ["customer_service"]])
+def test_invalid_workflow_rejects_import_before_upload(tmp_path: Path, workflow: object) -> None:
+    content = json.dumps(
+        {"id": "one", "input": {}, "output": {}, "metadata": {"workflow": workflow}}
+    ).encode()
+    checksum = sha256(content).hexdigest()
+    (tmp_path / checksum).write_bytes(content)
+    source = replace(
+        DATASET_SOURCES["typed-decisions"],
+        format="jsonl",
+        checksum=checksum,
+        adapter=lambda row: row,
+    )
+    client = MagicMock()
+    with pytest.raises(DatasetError, match="metadata.workflow must be a nonempty string"):
+        seed_datasets(client, sources=[source], cache_dir=tmp_path)
+    client.datasets.create_dataset.assert_not_called()
+
+
 def test_invalid_source_prevents_partial_upload(tmp_path: Path) -> None:
     valid = b'{"id":"one","input":{},"output":{}}\n'
     invalid = b"{}\n"

@@ -140,6 +140,11 @@ connection failures while the Phoenix server starts. No model inference is perfo
 | `phoenix-datagen-typed-decisions` | [Typed Decisions](https://huggingface.co/datasets/LocalLLaMA/typed-decisions), configuration `all`, split `test` | 400, with five questions per example |
 | `phoenix-datagen-boolq` | [BoolQ](https://huggingface.co/datasets/google/boolq), split `validation` | 3,270 |
 
+Typed Decisions examples are assigned to splits using `metadata.workflow`:
+`agent_trace_observability`, `customer_service`, `invoice_processing`, and
+`security_incidents`, with 100 examples in each. Re-seed an existing dataset to
+populate these memberships.
+
 These are datagen-owned fixtures: re-seeding replaces their contents using stable example
 IDs. Identical reimports do not create a dataset version or duplicate examples. Keep
 custom examples in a separate dataset. Reference answers, rationales, and generation
