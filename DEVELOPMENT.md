@@ -131,8 +131,9 @@ Command-line flags take precedence over environment variables.
 
 ### Development datasets
 
-At startup, datagen seeds three datasets before replaying traces. It retries transient
-connection failures while the Phoenix server starts. No model inference is performed.
+At startup, datagen seeds datasets from three benchmark sources before replaying traces.
+It retries transient connection failures while the Phoenix server starts. No model
+inference is performed.
 
 | Dataset | Source | Examples |
 | --- | --- | --- |
@@ -144,6 +145,12 @@ Typed Decisions examples are assigned to splits using `metadata.workflow`:
 `agent_trace_observability`, `customer_service`, `invoice_processing`, and
 `security_incidents`, with 100 examples in each. Re-seed an existing dataset to
 populate these memberships.
+
+Datagen also seeds a separate 100-example dataset for each workflow, appending
+the split name to `phoenix-datagen-typed-decisions`, for example
+`phoenix-datagen-typed-decisions-customer_service`. The combined dataset retains
+all 400 examples and all four splits. Both startup seeding and
+`phoenix datagen seed --source typed-decisions` refresh all five datasets.
 
 These are datagen-owned fixtures: re-seeding replaces their contents using stable example
 IDs. Identical reimports do not create a dataset version or duplicate examples. Keep
