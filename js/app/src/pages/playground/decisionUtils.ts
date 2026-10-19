@@ -732,6 +732,150 @@ function toQuestionInput({
  * Throws on an invalid draft; call {@link validateDecisionDraft} first to
  * show field-level errors.
  */
+/** The definition a decision task copies into an experiment over a dataset. */
+export type DecisionTaskDefinition = {
+  inputs: Array<{ name: string }>;
+  state:
+    | { input: string }
+    | { text: { template: string; templateFormat: DecisionTemplateFormat } };
+  questions: DecisionQuestionInput[];
+};
+
+function questionVariables({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionRequestDraft;
+  templateFormat: TemplateFormat;
+}): string[] {
+  return extractDecisionVariables({
+    draft: { ...draft, state: "" },
+    templateFormat,
+  });
+}
+
+/**
+ * Why a draft can't run over a dataset, or null when it can. Each example
+ * supplies the state's variables, so the state must be a text template over
+ * them; the questions are copied into the experiment as written, so they
+ * can't use variables.
+ */
+export function getDecisionDatasetProblem({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionRequestDraft;
+  templateFormat: TemplateFormat;
+}): string | null {
+  const serverFormat = toServerTemplateFormat(templateFormat);
+  if (draft.stateFormat !== "text" || !serverFormat) {
+    return "Over a dataset, write the state as text with template variables; a state that is only {{variable}} passes the example's value as is.";
+  }
+  const names = getTemplateFormatUtils(templateFormat).extractVariables(
+    draft.state
+  );
+  if (names.length === 0) {
+    return "Over a dataset, the state needs a template variable that each example fills.";
+  }
+  const inQuestions = questionVariables({ draft, templateFormat });
+  if (inQuestions.length > 0) {
+    return `Over a dataset, questions can't use template variables (${inQuestions.join(", ")}); each example asks the same questions.`;
+  }
+  return null;
+}
+
+/**
+ * Why the page's instances can't run over a dataset, or null when they can.
+ * An experiment's tasks are all prompts or all decisions, and each decision
+ * must be one a dataset can fill (see {@link getDecisionDatasetProblem}).
+ */
+export function getDecisionDatasetBlockedReason({
+  instances,
+  templateFormat,
+}: {
+  instances: ReadonlyArray<
+    Pick<PlaygroundInstance, "model" | "decisionRequest">
+  >;
+  templateFormat: TemplateFormat;
+}): string | null {
+  const decisions = instances.filter(
+    (instance) => instance.model.modelType === "DECISION"
+  );
+  if (decisions.length === 0) return null;
+  if (decisions.length !== instances.length) {
+    return "Over a dataset, the instances must all use decision models or all use LLMs.";
+  }
+  for (const [index, instance] of instances.entries()) {
+    if (!instance.decisionRequest) continue;
+    const problem = getDecisionDatasetProblem({
+      draft: instance.decisionRequest,
+      templateFormat,
+    });
+    if (problem) {
+      return `Instance ${String.fromCharCode("A".charCodeAt(0) + index)}: ${problem}`;
+    }
+  }
+  return null;
+}
+
+/** The variable a state template is made of, when it is nothing else. */
+function soleStateVariable({
+  template,
+  templateFormat,
+  names,
+}: {
+  template: string;
+  templateFormat: TemplateFormat;
+  names: string[];
+}): string | null {
+  if (names.length !== 1) return null;
+  const [name] = names;
+  const whole =
+    templateFormat === TemplateFormats.FString ? `{${name}}` : `{{${name}}}`;
+  return template.trim() === whole ? name : null;
+}
+
+/**
+ * The decision task's definition for a dataset run: the state's template
+ * variables are its inputs, read from each example, and the questions are
+ * sent as written. A state that is only one variable passes that input's
+ * value as is, so an object in the dataset reaches the model as an object.
+ *
+ * Throws when {@link getDecisionDatasetProblem} reports a problem.
+ */
+export function buildDecisionTaskDefinition({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionRequestDraft;
+  templateFormat: TemplateFormat;
+}): DecisionTaskDefinition {
+  const validationError = getDecisionValidationError(draft);
+  if (validationError) throw new Error(validationError);
+  const problem = getDecisionDatasetProblem({ draft, templateFormat });
+  if (problem) throw new Error(problem);
+  const serverFormat = toServerTemplateFormat(templateFormat);
+  if (!serverFormat) throw new Error("Unsupported template format");
+  const names = getTemplateFormatUtils(templateFormat).extractVariables(
+    draft.state
+  );
+  const sole = soleStateVariable({
+    template: draft.state,
+    templateFormat,
+    names,
+  });
+  const formatText = createTextFormatter({});
+  return {
+    inputs: names.map((name) => ({ name })),
+    state: sole
+      ? { input: sole }
+      : { text: { template: draft.state, templateFormat: serverFormat } },
+    questions: draft.questions.map((question) =>
+      toQuestionInput({ question, formatText })
+    ),
+  };
+}
+
 /**
  * Where a decision run goes: a custom provider brings its own endpoint and
  * key, so it takes only its id; a built-in provider takes the instance's
@@ -1435,6 +1579,13 @@ export function normalizeDecisionAnswer({
       return normalizeChoiceAnswer({ name, answer, question });
     case "score":
       return normalizeScoreAnswer({ name, answer, question });
+    // An experiment run's output: Phoenix's own answer shape.
+    case "scale":
+      return normalizeScoreAnswer({
+        name,
+        answer: { ...answer, score: answer.expected_level },
+        question,
+      });
     case "noul":
     case "predicate":
       return {

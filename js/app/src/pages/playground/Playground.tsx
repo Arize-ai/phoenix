@@ -99,16 +99,7 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
-import {
-  Alert,
-  Flex,
-  PageHeader,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@phoenix/components";
+import { Alert, Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -146,11 +137,7 @@ import {
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import {
-  DECISION_DATASET_BLOCKED_REASON,
-  DECISION_DATASET_SELECT_DISABLED_REASON,
-  DECISION_MODEL_CLEARS_DATASET_NOTICE,
-} from "./constants";
+import { getDecisionDatasetBlockedReason } from "./decisionUtils";
 import {
   createEvaluatorTaskAgentRegistry,
   EvaluatorPlaygroundEmptySource,
@@ -319,8 +306,12 @@ function PlaygroundContent() {
     getPlaygroundTaskKind(state.instances)
   );
 
-  const hasDecisionInstance = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  // Over a dataset, why the page's decision instances can't run, if they can't.
+  const decisionDatasetBlockedReason = usePlaygroundContext((state) =>
+    getDecisionDatasetBlockedReason({
+      instances: state.instances,
+      templateFormat: state.templateFormat,
+    })
   );
   const decisionInstanceIds = usePlaygroundContext(
     useShallow((state) =>
@@ -873,10 +864,10 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
-            {isDatasetMode && hasDecisionInstance ? (
+            {isDatasetMode && decisionDatasetBlockedReason != null ? (
               <View paddingBottom="size-200">
                 <Alert variant="danger" title="Run blocked">
-                  {DECISION_DATASET_BLOCKED_REASON}
+                  {decisionDatasetBlockedReason}
                 </Alert>
               </View>
             ) : null}
@@ -894,11 +885,6 @@ function PlaygroundContent() {
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                     supportsDecisionModels
-                    decisionTabNotice={
-                      isDatasetMode
-                        ? DECISION_MODEL_CLEARS_DATASET_NOTICE
-                        : undefined
-                    }
                   />
                 </View>
               ))}
@@ -963,21 +949,7 @@ function PlaygroundContent() {
                 headingLevel={2}
                 resizable
                 title="Inputs"
-                extra={
-                  hasDecisionInstance ? (
-                    <TooltipTrigger delay={0}>
-                      <TriggerWrap>
-                        <PlaygroundDatasetSelect isDisabled />
-                      </TriggerWrap>
-                      <Tooltip>
-                        <TooltipArrow />
-                        {DECISION_DATASET_SELECT_DISABLED_REASON}
-                      </Tooltip>
-                    </TooltipTrigger>
-                  ) : (
-                    <PlaygroundDatasetSelect />
-                  )
-                }
+                extra={<PlaygroundDatasetSelect />}
                 panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")

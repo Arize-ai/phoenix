@@ -76,6 +76,8 @@ export type ExampleRunData = {
   span?: Span | null;
   errorMessage?: string | null;
   experimentRunId?: string | null;
+  /** A decision run's answers by question name, as the run's output holds them. */
+  decisionAnswers?: unknown;
 };
 
 export type InstanceResponses = Record<

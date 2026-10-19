@@ -93,6 +93,7 @@ import {
   getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
+import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 import type {
   EditableTableDiff,
   EditableTableStore,
@@ -120,6 +121,7 @@ import type {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { DecisionResult } from "./DecisionResult";
 import {
   getEvaluatorTaskAnnotation,
   PlaygroundEvaluatorColumnHeader,
@@ -388,6 +390,7 @@ function EmptyExampleOutput({
 
 function ExampleOutputContent({
   exampleData,
+  decisionRequest,
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
@@ -399,6 +402,8 @@ function ExampleOutputContent({
   onExpandedChange,
 }: {
   exampleData: ExampleRunData;
+  /** The decision the column runs, for its answers' order and labels. */
+  decisionRequest?: DecisionRequestDraft | null;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
@@ -420,6 +425,7 @@ function ExampleOutputContent({
     errorMessage,
     experimentRunId,
     evaluations,
+    decisionAnswers,
   } = exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
@@ -521,6 +527,14 @@ function ExampleOutputContent({
             {content != null ? (
               <DynamicContent value={content} mode="streaming" key="content" />
             ) : null}
+            {decisionAnswers != null ? (
+              <DecisionResult
+                key="decision"
+                output={JSON.stringify({ answers: decisionAnswers })}
+                request={decisionRequest ?? null}
+                showUsage={false}
+              />
+            ) : null}
             {toolCalls != null && Object.keys(toolCalls).length > 0
               ? Object.values(toolCalls)
                   .filter((tc): tc is PartialOutputToolCall => tc != null)
@@ -607,6 +621,11 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
+  const decisionRequest = usePlaygroundContext(
+    (state) =>
+      state.instances.find((instance) => instance.id === instanceId)
+        ?.decisionRequest
+  );
   const onViewDetails = useCallback(
     () => onViewExperimentRunDetailsPress(exampleIndex),
     [onViewExperimentRunDetailsPress, exampleIndex]
@@ -624,6 +643,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   ) : (
     <ExampleOutputContent
       exampleData={exampleData}
+      decisionRequest={decisionRequest}
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
@@ -1049,11 +1069,21 @@ export function PlaygroundDatasetExamplesTable({
           return;
         case "runCompleted": {
           const { instanceId, exampleId, repetitionNumber, span } = event;
+          // A decision run streams nothing; its answers arrive with the run.
+          const isDecision =
+            playgroundStore
+              .getState()
+              .instances.find((instance) => instance.id === instanceId)?.model
+              .modelType === "DECISION";
           updateExampleData({
             instanceId,
             exampleId,
             repetitionNumber,
-            patch: { span, experimentRunId: event.experimentRunId },
+            patch: {
+              span,
+              experimentRunId: event.experimentRunId,
+              ...(isDecision ? { decisionAnswers: event.output } : {}),
+            },
           });
           handleExperimentRunCost(getExperimentRunCost(instanceId, span));
           incrementRunsCompleted(instanceId);
@@ -2170,6 +2200,7 @@ graphql`
         }
         experimentRun {
           id
+          output
         }
       }
       ... on ChatCompletionSubscriptionError {
