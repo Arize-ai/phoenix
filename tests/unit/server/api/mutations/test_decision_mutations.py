@@ -7,6 +7,7 @@ import httpx2
 import pytest
 import respx
 from sqlalchemy import select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
@@ -1364,3 +1365,121 @@ async def test_failures_are_classified_for_a_retrying_caller(
     assert route.call_count == 1
     assert client.is_rate_limit_error(raised.value) is (error_class is DecisionRateLimitError)
     assert client.is_transient_error(raised.value) is (error_class is DecisionTransientError)
+
+
+SAVE_DECISION = """
+mutation ($input: CreateDecisionInput!) { createDecision(input: $input) { version { id } } }
+"""
+
+RUN_VERSION = """
+mutation ($input: RunDecisionVersionInput!) {
+  runDecisionVersion(input: $input) {
+    result { model answers { name ... on PredicateAnswer { probability } } }
+    error
+    span { id }
+  }
+}
+"""
+
+URGENT_ANSWER = {
+    "model": "jev-latest",
+    "answers": {"urgent": {"type": "noul", "noul": 0.5}},
+    "usage": {"input_tokens": 20, "output_tokens": 0},
+}
+
+
+async def save_version(gql_client: AsyncGraphQLClient, **version: Any) -> str:
+    """Save the urgent question over one `ticket` input, the state being the ticket."""
+    result = await gql_client.execute(
+        SAVE_DECISION,
+        variables={
+            "input": {
+                "name": "triage",
+                "version": {
+                    "inputs": [{"name": "ticket"}],
+                    "state": {"input": "ticket"},
+                    "questions": [URGENT],
+                    "modelProvider": "TYPESAFE",
+                    "modelName": "jev-latest",
+                    **version,
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    return str(result.data["createDecision"]["version"]["id"])
+
+
+async def test_a_saved_version_runs_as_saved(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    """Only the version and its input values are given; the definition and model come
+    from the version, and credentials for a built-in provider from the call."""
+    version_id = await save_version(gql_client)
+    with respx.mock:
+        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(200, json=URGENT_ANSWER)
+        result = await gql_client.execute(
+            RUN_VERSION,
+            variables={
+                "input": {
+                    "decisionVersionId": version_id,
+                    "inputValues": {"ticket": {"subject": "Charged twice"}},
+                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}],
+                }
+            },
+        )
+    assert result.data and not result.errors, result.errors
+    payload = result.data["runDecisionVersion"]
+    assert payload["error"] is None
+    assert payload["result"] == {
+        "model": "jev-latest",
+        "answers": [{"name": "urgent", "probability": 0.5}],
+    }
+    assert payload["span"] is not None
+    sent = route.calls[0].request
+    assert sent.headers["authorization"] == "Bearer request-key"
+    body = json.loads(sent.content)
+    assert body["model"] == "jev-latest"
+    assert body["state"] == {"subject": "Charged twice"}
+    assert list(body["questions"]) == ["urgent"]
+
+
+async def test_a_saved_version_runs_on_its_custom_provider(gql_client: AsyncGraphQLClient) -> None:
+    provider_id = await create_custom_provider(
+        gql_client, "System One proxy", "system-one-proxy", TYPESAFE_PROVIDER_CONFIG
+    )
+    version_id = await save_version(gql_client, customProviderId=provider_id)
+    with respx.mock:
+        route = respx.post("https://system-one.example/v1/systemone").respond(
+            200, json=URGENT_ANSWER
+        )
+        result = await gql_client.execute(
+            RUN_VERSION,
+            variables={"input": {"decisionVersionId": version_id, "inputValues": {"ticket": "hi"}}},
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecisionVersion"]["error"] is None
+    assert route.calls[0].request.headers["authorization"] == "Bearer ts-custom-key"
+
+
+async def test_a_saved_version_checks_its_input_values_before_calling(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    version_id = await save_version(gql_client)
+
+    async def error(input_values: Any, version: str = version_id) -> str:
+        result = await gql_client.execute(
+            RUN_VERSION,
+            variables={"input": {"decisionVersionId": version, "inputValues": input_values}},
+        )
+        assert result.errors, result.data
+        return result.errors[0].message
+
+    with respx.mock:
+        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(200, json=URGENT_ANSWER)
+        assert "keyed by input name" in await error(["hi"])
+        assert "ticket" in await error({})
+        assert "Decision version not found" in await error(
+            {"ticket": "hi"}, str(GlobalID("DecisionVersion", "999"))
+        )
+    assert route.call_count == 0

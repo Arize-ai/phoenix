@@ -333,8 +333,8 @@ Unsaved playground runs and saved versions take the same `DecisionVersionInput`,
 so running and saving share one typed shape.
 
 Steps 1 to 5 are built; step 6 records everything except assets, which aren't
-supported yet, and the version ID, since `runDecision` doesn't take a saved
-version yet.
+supported yet, and the version ID, since which attribute holds it is an
+[open question](#open-questions); `runDecisionVersion` records none yet.
 
 1. Take a decision version (saved, or an unsaved draft) and its inputs.
 2. Validate the inputs and build the state.
@@ -458,8 +458,12 @@ rather than zero.
     `text: {template, templateFormat}`, or `input: name`), `inputValues`, and
     `questions`, returning `result`
     (`model`, `answers`, `usage`), `span`, and `error`. It replaced the ad hoc
-    `createDecision`. Saved versions will add a `versionId` alternative to the
-    inline `inputs`, `state`, and `questions`.
+    `createDecision`.
+  - `runDecisionVersion(input: {decisionVersionId, inputValues, credentials})`
+    (built): runs a saved version as saved, its definition, model, and provider
+    included, so a caller doesn't copy the version into `runDecision`.
+    `credentials` serve a version on a built-in provider; a custom provider
+    brings its own key. It returns the same payload as `runDecision`.
   - `createDecision` (built): a name, a description, metadata, the first
     version as a `DecisionVersionInput`, and tags. A name already in use is a
     conflict.

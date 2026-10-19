@@ -3688,6 +3688,11 @@ type Mutation {
   Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
   """
   runDecision(input: RunDecisionInput!): RunDecisionPayload!
+
+  """
+  Run a saved decision version as saved, with this call's input values, and record the call as a DECISION span in the playground project.
+  """
+  runDecisionVersion(input: RunDecisionVersionInput!): RunDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -5511,6 +5516,23 @@ type RunDecisionPayload {
 
   """Why the provider call failed; null on success."""
   error: String
+}
+
+"""
+A run of a saved decision version: its definition, model, and provider as saved, with this call's input values.
+"""
+input RunDecisionVersionInput {
+  decisionVersionId: ID!
+
+  """
+  An object with one entry per input the version declares, keyed by name. Missing or undeclared names are rejected.
+  """
+  inputValues: JSON!
+
+  """
+  API keys for this request only, for a version on a built-in provider. When omitted, a stored secret is used, then the server environment. A custom provider brings its own key.
+  """
+  credentials: [GenerativeCredentialInput!] = null
 }
 
 type SandboxBackendInfo {
