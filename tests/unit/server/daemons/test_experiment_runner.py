@@ -240,6 +240,8 @@ def _make_eval_work_item(
     retry_count: int = 0,
 ) -> EvalWorkItem:
     evaluator = MagicMock()
+    evaluator.provider_client = None
+    evaluator.annotator_kind = "CODE"
     evaluator.name = "test-evaluator"
     output_configs = []
     for output_name in output_names:
@@ -1729,6 +1731,8 @@ class TestEvaluatorTaskWorkItem:
         evaluator_task.name = Identifier("length")
         evaluator_task.output_configs = [_LENGTH_CONFIG]
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(return_value=[])
         work_item = EvaluatorTaskWorkItem(
             running_experiment=exp,
@@ -1898,6 +1902,8 @@ class TestEvaluatorTaskWorkItem:
             db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
         )
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(side_effect=RuntimeError("sandbox exploded"))
         exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
         receive = exp.subscribe()
@@ -1948,6 +1954,8 @@ class TestEvaluatorTaskWorkItem:
             "end_time": now,
         }
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(return_value=[error_result])
         exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
         receive = exp.subscribe()

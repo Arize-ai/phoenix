@@ -125,7 +125,6 @@ from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParamet
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     EvaluationResult,
-    LLMEvaluator,
     build_evaluator_from_definition,
     code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
@@ -278,6 +277,28 @@ def _output_configs_for_eval_run(
     if dataset_evaluator.output_configs:
         return list(dataset_evaluator.output_configs)
     return list(evaluator.output_configs)
+
+
+async def _raise_retryable_evaluation_error(
+    evaluator: BaseEvaluator,
+    results: Sequence[EvaluationResult],
+    *,
+    tracer: Tracer,
+    project_id: int,
+    db: DbSessionFactory,
+) -> None:
+    """Classify returned model failures through the same client used for scheduling."""
+    client = evaluator.provider_client
+    if client is None:
+        return
+    for result in results:
+        error = result.get("error_exc")
+        if error is not None and (
+            client.is_rate_limit_error(error) or client.is_transient_error(error)
+        ):
+            async with db() as session:
+                session.add_all(tracer.get_db_traces(project_id=project_id))
+            raise error
 
 
 @dataclass(frozen=True)
@@ -909,13 +930,13 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
     @override
     def get_rate_limit_key(self) -> Hashable:
         """LLM evaluators share their client's bucket; code and built-in ones run unthrottled."""
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.get_rate_limit_key()
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.get_rate_limit_key()
         return _NO_OP_TOKEN_BUCKET
 
     @property
     def _annotator_kind(self) -> str:
-        return "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
+        return self._evaluator.annotator_kind
 
     def _build_context(self) -> dict[str, Any]:
         revision = self._dataset_example_revision
@@ -943,6 +964,13 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                     name=self._evaluator_task.name.root,
                     output_configs=self.output_configs,
                     tracer=tracer,
+                )
+                await _raise_retryable_evaluation_error(
+                    self._evaluator,
+                    eval_results,
+                    tracer=tracer,
+                    project_id=self._project_id,
+                    db=self._db,
                 )
 
         except TimeoutError:
@@ -1184,16 +1212,16 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using the evaluator's client."""
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_rate_limit_error(e)
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.is_rate_limit_error(e)
         return False
 
     def _is_transient_error(self, e: Exception) -> bool:
         """Check if exception is a transient/network error using the evaluator's client."""
         if isinstance(e, SQLAlchemyError):
             return True
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_transient_error(e)
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.is_transient_error(e)
         return False
 
 
@@ -1476,8 +1504,8 @@ class EvalWorkItem(WorkItem):
         so they can run without external rate limiting.
         """
 
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.get_rate_limit_key()
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.get_rate_limit_key()
         return _NO_OP_TOKEN_BUCKET
 
     @override
@@ -1506,6 +1534,13 @@ class EvalWorkItem(WorkItem):
                     name=self._name,
                     output_configs=self._output_configs,
                     tracer=tracer,
+                )
+                await _raise_retryable_evaluation_error(
+                    self._evaluator,
+                    eval_results,
+                    tracer=tracer,
+                    project_id=self._project_id,
+                    db=self._db,
                 )
                 logger.debug(
                     f"EvalWorkItem {self.debug_identifier}: evaluator returned "
@@ -1554,7 +1589,7 @@ class EvalWorkItem(WorkItem):
             else:
                 logger.exception(f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}")
                 error_end_time = datetime.now(timezone.utc)
-                annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
+                annotator_kind = self._evaluator.annotator_kind
                 error_annotations: list[models.ExperimentRunAnnotation] = []
                 for annotation_name in self.annotation_names:
                     error_annotations.append(
@@ -1681,8 +1716,8 @@ class EvalWorkItem(WorkItem):
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using evaluator's client."""
 
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_rate_limit_error(e)
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.is_rate_limit_error(e)
         return False
 
     def _is_transient_error(self, e: Exception) -> bool:
@@ -1690,8 +1725,8 @@ class EvalWorkItem(WorkItem):
 
         if isinstance(e, SQLAlchemyError):
             return True
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_transient_error(e)
+        if self._evaluator.provider_client is not None:
+            return self._evaluator.provider_client.is_transient_error(e)
         return False
 
 
@@ -2757,7 +2792,7 @@ class RunningExperiment:
                         work_item._error_annotations(error_msg, now, experiment_run_id=db_run.id)
                     )
             elif isinstance(work_item, EvalWorkItem):
-                annotator_kind = "LLM" if isinstance(work_item._evaluator, LLMEvaluator) else "CODE"
+                annotator_kind = work_item._evaluator.annotator_kind
                 error_annotations = [
                     models.ExperimentRunAnnotation(
                         experiment_run_id=work_item.experiment_run.id,
@@ -3444,7 +3479,18 @@ class ExperimentRunner(DaemonTask):
             )
             .where(models.ExperimentDatasetEvaluator.experiment_id == experiment_id)
         )
-        dataset_evaluators = dataset_evaluators_result.all()
+        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+            DecisionEvaluatorSnapshot,
+        )
+
+        snapshots = [
+            DecisionEvaluatorSnapshot.model_validate(value)
+            for value in experiment_job.decision_evaluator_snapshots
+        ]
+        frozen_ids = {snapshot.dataset_evaluator_id for snapshot in snapshots}
+        dataset_evaluators = [
+            binding for binding in dataset_evaluators_result.all() if binding.id not in frozen_ids
+        ]
 
         evaluator_run_specs: list[EvaluatorRunSpec] = []
         if dataset_evaluators:
@@ -3468,6 +3514,42 @@ class ExperimentRunner(DaemonTask):
                     evaluator_project_id=de.project_id,
                 )
                 for de, ev in zip(dataset_evaluators, evaluators)
+            ]
+
+        for snapshot in snapshots:
+            evaluator = await build_evaluator_from_definition(
+                definition=snapshot.definition,
+                session=session,
+                decrypt=self._decrypt,
+                credentials=credentials,
+            )
+            project_id = snapshot.project_id
+            # TODO: Handle SQLite reusing a deleted trace-project ID before resume.
+            if await session.get(models.Project, project_id) is None:
+                from phoenix.server.api.helpers.evaluator_management import (
+                    get_project_for_dataset_evaluator,
+                )
+
+                project = get_project_for_dataset_evaluator(
+                    dataset_name=f"experiment {experiment_id}", dataset_evaluator_name=snapshot.name
+                )
+                session.add(project)
+                await session.flush()
+                project_id = project.id
+                snapshot.project_id = project_id
+            evaluator_run_specs.append(
+                EvaluatorRunSpec(
+                    dataset_evaluator_id=snapshot.dataset_evaluator_id,
+                    name=snapshot.name,
+                    evaluator=evaluator,
+                    input_mapping=snapshot.input_mapping,
+                    output_configs=snapshot.output_configs,
+                    evaluator_project_id=project_id,
+                )
+            )
+        if snapshots:
+            experiment_job.decision_evaluator_snapshots = [
+                snapshot.model_dump(mode="json") for snapshot in snapshots
             ]
 
         logger.debug(
