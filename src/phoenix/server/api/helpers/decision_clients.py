@@ -5,9 +5,9 @@ offer either or both: OpenAI serves ``gpt-6-luna`` through both its chat and its
 Decisions APIs, while TypeSafe serves decision models only. The registry below is the
 single source of truth for which providers and models support decision execution, and
 each client class declares how it reaches its provider: the OpenInference ``system`` and
-``provider`` values and the ``wire_format`` that name its API shape, the endpoint path,
-the default base URL and its environment override, and the credential it authenticates
-with. Nothing outside this module should special-case a provider.
+``provider`` values, the endpoint path, the default base URL and its environment override,
+and the credential it authenticates with. Nothing outside this module should special-case
+a provider.
 """
 
 import asyncio
@@ -36,7 +36,6 @@ from phoenix.server.api.helpers.playground_registry import (
     filter_allowed_providers,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.tracers import Tracer
 
@@ -135,7 +134,6 @@ class DecisionClient(ABC):
     provider_key: ClassVar[GenerativeProviderKey]
     system: ClassVar[OpenInferenceDecisionSystemValues]
     provider: ClassVar[OpenInferenceDecisionProviderValues]
-    wire_format: ClassVar[DecisionWireFormat]
     path: ClassVar[str]
     default_base_url: ClassVar[str]
     base_url_env_var: ClassVar[str]
@@ -346,7 +344,6 @@ class TypeSafeDecisionClient(DecisionClient):
     provider_key = GenerativeProviderKey.TYPESAFE
     system = OpenInferenceDecisionSystemValues.TYPESAFE
     provider = OpenInferenceDecisionProviderValues.TYPESAFE
-    wire_format = DecisionWireFormat.SYSTEM_ONE
     path = "systemone"
     default_base_url = "https://api.typesafe.ai/v1"
     base_url_env_var = "TYPESAFE_BASE_URL"
@@ -370,7 +367,6 @@ class OpenAIDecisionClient(DecisionClient):
     provider_key = GenerativeProviderKey.OPENAI
     system = OpenInferenceDecisionSystemValues.OPENAI
     provider = OpenInferenceDecisionProviderValues.OPENAI
-    wire_format = DecisionWireFormat.OPENAI_DECISIONS
     path = "decisions"
     default_base_url = "https://api.openai.com/v1"
     base_url_env_var = "OPENAI_BASE_URL"

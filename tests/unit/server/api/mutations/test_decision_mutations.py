@@ -13,7 +13,6 @@ from phoenix.server.api.helpers.decision_clients import (
     DecisionRequest,
     OpenAIDecisionClient,
 )
-from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -383,9 +382,6 @@ def test_decision_registry_declares_capability_credentials_and_endpoints() -> No
     assert typesafe.resolve_base_url(None) == "https://api.typesafe.ai/v1"
     assert typesafe.resolve_base_url("https://proxy.example/v1") == "https://proxy.example/v1"
     assert openai.dependencies_are_installed()
-    # The wire format tells clients which request body to render for the provider.
-    assert typesafe.wire_format is DecisionWireFormat.SYSTEM_ONE
-    assert openai.wire_format is DecisionWireFormat.OPENAI_DECISIONS
 
 
 async def test_decision_only_provider_is_listed_and_installed(
@@ -394,7 +390,7 @@ async def test_decision_only_provider_is_listed_and_installed(
     result = await gql_client.execute(
         """query {
           modelProviders {
-            key dependenciesInstalled modelTypes decisionWireFormat
+            key dependenciesInstalled modelTypes
             credentialRequirements { envVarName }
           }
         }"""
@@ -405,13 +401,10 @@ async def test_decision_only_provider_is_listed_and_installed(
     assert by_key["TYPESAFE"]["credentialRequirements"] == [{"envVarName": "TYPESAFE_API_KEY"}]
     # Listed once even though OpenAI is in both registries.
     assert [provider["key"] for provider in result.data["modelProviders"]].count("OPENAI") == 1
-    # Capability and wire format come from registration, so the UI never names a provider.
+    # Capability comes from registration, so the UI never names a provider.
     assert by_key["TYPESAFE"]["modelTypes"] == ["DECISION"]
-    assert by_key["TYPESAFE"]["decisionWireFormat"] == "SYSTEM_ONE"
     assert by_key["OPENAI"]["modelTypes"] == ["LLM", "DECISION"]
-    assert by_key["OPENAI"]["decisionWireFormat"] == "OPENAI_DECISIONS"
     assert by_key["ANTHROPIC"]["modelTypes"] == ["LLM"]
-    assert by_key["ANTHROPIC"]["decisionWireFormat"] is None
 
 
 async def test_null_usage_does_not_fail_the_run(
