@@ -51,7 +51,10 @@ from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
 )
-from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+from phoenix.server.api.helpers.decision_clients import (
+    DECISION_CLIENTS,
+    allowed_decision_providers,
+)
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
@@ -300,13 +303,11 @@ class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
         # A provider is listed if it offers models of either type; decision-only
-        # providers come from the decision registry.
+        # providers come from the decision clients.
         available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
             info.context.allowed_provider_names
         )
-        for provider_key in DECISION_CLIENT_REGISTRY.list_allowed_providers(
-            info.context.allowed_provider_names
-        ):
+        for provider_key in allowed_decision_providers(info.context.allowed_provider_names):
             if provider_key not in available_providers:
                 available_providers.append(provider_key)
         return [
@@ -437,18 +438,15 @@ class Query:
         self, info: Info[Context, None], input: Optional[ModelsInput] = None
     ) -> list[PlaygroundModel]:
         if input is not None and input.model_type is ModelType.DECISION:
-            allowed = DECISION_CLIENT_REGISTRY.list_allowed_providers(
-                info.context.allowed_provider_names
-            )
             return [
                 PlaygroundModel(
                     name_value=model_name,
                     provider_key_value=provider_key,
                     model_type=ModelType.DECISION,
                 )
-                for provider_key, model_name in DECISION_CLIENT_REGISTRY.list_all_models()
-                if provider_key in allowed
+                for provider_key in allowed_decision_providers(info.context.allowed_provider_names)
                 if input.provider_key is None or input.provider_key is provider_key
+                for model_name in DECISION_CLIENTS[provider_key].model_names
             ]
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)

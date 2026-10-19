@@ -288,6 +288,7 @@ class TestPrompts:
                 )
                 is None
             )
+
     async def test_rest_rejects_decision_provider_on_chat_prompts(
         self,
         httpx_client: httpx.AsyncClient,

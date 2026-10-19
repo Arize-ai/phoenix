@@ -287,7 +287,7 @@ class GenerativeProvider:
 
     @strawberry.field
     async def dependencies_installed(self) -> bool:
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
         from phoenix.server.api.helpers.playground_registry import (
             PLAYGROUND_CLIENT_REGISTRY,
             PROVIDER_DEFAULT,
@@ -297,7 +297,7 @@ class GenerativeProvider:
         if default_client:
             return default_client.dependencies_are_installed()
         # Decision-only providers: their client declares its own dependency check.
-        decision_client = DECISION_CLIENT_REGISTRY.get_client_class(self.key)
+        decision_client = DECISION_CLIENTS.get(self.key)
         if decision_client:
             return decision_client.dependencies_are_installed()
         return False
@@ -305,11 +305,11 @@ class GenerativeProvider:
     @strawberry.field(
         description=(
             "The model types this provider offers: chat (LLM) models, decision models, or both. "
-            "Derived from which clients are registered for the provider, not from its name."
+            "Derived from which clients serve the provider, not from its name."
         )
     )  # type: ignore
     async def model_types(self) -> list[ModelType]:
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
         from phoenix.server.api.helpers.playground_registry import (
             provider_supports_chat_completions,
         )
@@ -317,7 +317,7 @@ class GenerativeProvider:
         model_types: list[ModelType] = []
         if provider_supports_chat_completions(self.key):
             model_types.append(ModelType.LLM)
-        if DECISION_CLIENT_REGISTRY.supports_decisions(self.key):
+        if self.key in DECISION_CLIENTS:
             model_types.append(ModelType.DECISION)
         return model_types
 

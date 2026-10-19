@@ -27,7 +27,7 @@ def filter_allowed_providers(
     """Narrow ``provider_keys`` to the ``PHOENIX_ALLOWED_PROVIDERS`` allow-list.
 
     ``None`` means unrestricted, while an empty set permits nothing. Shared by the
-    chat and decision registries so both apply the allow-list the same way.
+    chat registry and the decision clients so both apply the allow-list the same way.
     """
     if allowed_provider_names is None:
         return list(provider_keys)

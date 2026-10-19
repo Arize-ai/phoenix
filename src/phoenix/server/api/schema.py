@@ -19,6 +19,7 @@ from phoenix.server.api.types.CronExpression import (
     CronExpression,
     cron_expression_scalar_definition,
 )
+from phoenix.server.api.types.DecisionAnswer import DecisionAnswer
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
@@ -57,6 +58,7 @@ def build_graphql_schema(
                 [ExperimentTag],
                 _implementing_types(ChatCompletionSubscriptionPayload),
                 _implementing_types(Evaluator),
+                _implementing_types(DecisionAnswer),
             )
         ),
     )

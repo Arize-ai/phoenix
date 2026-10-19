@@ -1,6 +1,6 @@
 """Permission-protected decision playground execution."""
 
-from typing import Any, Optional
+from typing import Optional
 
 import strawberry
 from pydantic import ValidationError
@@ -11,8 +11,15 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, get_decision_client
+from phoenix.server.api.helpers.decision_versions import render_state, validate_inputs
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
+from phoenix.server.api.input_types.DecisionVersionInput import (
+    DecisionInputDefinitionInput,
+    DecisionQuestionInput,
+    DecisionStateInput,
+)
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decision_result
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
@@ -21,25 +28,32 @@ from phoenix.tracers import Tracer
 
 @strawberry.input(
     description=(
-        "A decision request: the state the questions are asked about, and the named "
-        "questions. Each question is an object with `type`, `instructions`, and `criteria`."
+        "A decision run: the inputs it declares and their values for this call, how the state "
+        "is built from them, and the questions."
     )
 )
-class CreateDecisionInput:
+class RunDecisionInput:
     provider_key: GenerativeProviderKey = strawberry.field(
         description=(
             "The provider whose decision API runs the request; it must offer decision models."
         )
     )
     model_name: str = strawberry.field(description="The decision model to run.")
-    state: JSON = strawberry.field(
-        description="The evidence the questions are asked about: a string, object, or array."
+    inputs: list[DecisionInputDefinitionInput] = strawberry.field(
+        description="The named inputs a caller passes, in order. Names must be unique."
     )
-    questions: JSON = strawberry.field(
+    state: DecisionStateInput = strawberry.field(
+        description="How the state sent to the model is built from the inputs."
+    )
+    input_values: JSON = strawberry.field(
         description=(
-            "Questions keyed by the name their answer is returned under; see the input "
-            "description for the shape of each type."
+            "An object with one entry per declared input: the key is the input's name, and "
+            "the value is any JSON (a string, number, boolean, null, object, or array). "
+            "Missing or undeclared names are rejected."
         )
+    )
+    questions: list[DecisionQuestionInput] = strawberry.field(
+        description="The questions, in order. Names must be unique; answers come back under them."
     )
     base_url: Optional[str] = strawberry.field(
         default=None,
@@ -64,11 +78,12 @@ class CreateDecisionInput:
         "the mutation with a GraphQL error."
     )
 )
-class CreateDecisionPayload:
-    result: Optional[JSON] = strawberry.field(
+class RunDecisionPayload:
+    result: Optional[DecisionResult] = strawberry.field(
         default=None,
         description=(
-            "The provider response with `answers` keyed by question name; null when `error` is set."
+            "The answers, resolved model, and usage; null when `error` is set. The provider's "
+            "own response is on the span."
         ),
     )
     span: Optional[Span] = strawberry.field(
@@ -79,6 +94,29 @@ class CreateDecisionPayload:
         default=None,
         description="Why the provider call failed; null on success.",
     )
+
+
+def to_decision_request(input: RunDecisionInput) -> DecisionRequest:
+    """Validate the typed input, render its state, and build a provider-independent request.
+
+    Raises:
+        BadRequest: The inputs, state, or questions break a write-time rule, or the input
+            values don't match the declared inputs.
+    """
+    if not isinstance(input.input_values, dict):
+        raise BadRequest("inputValues must be an object keyed by input name")
+    try:
+        inputs = [definition.to_orm() for definition in input.inputs]
+        state = input.state.to_orm()
+        validate_inputs(inputs, state)
+        return DecisionRequest(
+            state=render_state(inputs, state, input.input_values),
+            questions=[question.to_orm() for question in input.questions],
+        )
+    except ValidationError as error:
+        raise BadRequest(format_validation_error(error)) from error
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
 
 
 _VALUE_ERROR_PREFIX = "Value error, "
@@ -117,20 +155,15 @@ class DecisionMutationMixin:
             "call as a DECISION span in the playground project."
         ),
     )  # type: ignore
-    async def create_decision(
-        self, info: Info[Context, None], input: CreateDecisionInput
-    ) -> CreateDecisionPayload:
+    async def run_decision(
+        self, info: Info[Context, None], input: RunDecisionInput
+    ) -> RunDecisionPayload:
         if (
             info.context.allowed_provider_names is not None
             and input.provider_key.name not in info.context.allowed_provider_names
         ):
             raise BadRequest("This decision provider is not permitted by the server configuration.")
-        try:
-            request = DecisionRequest.model_validate(
-                {"state": input.state, "questions": input.questions}
-            )
-        except ValidationError as error:
-            raise BadRequest(format_validation_error(error)) from error
+        request = to_decision_request(input)
         async with info.context.db() as session:
             client = await get_decision_client(
                 provider=input.provider_key,
@@ -142,10 +175,11 @@ class DecisionMutationMixin:
             )
             project_id = await get_or_create_playground_project_id(session)
         tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
-        result: Any = None
+        result: DecisionResult | None = None
         error_message: str | None = None
         try:
-            result = await client.create(request=request, tracer=tracer)
+            response = await client.create(request=request, tracer=tracer)
+            result = to_gql_decision_result(request, response)
         except BadRequest as error:
             error_message = str(error)
         traces = tracer.get_db_traces(project_id=project_id)
@@ -154,7 +188,7 @@ class DecisionMutationMixin:
             await session.flush()
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
         span = traces[0].spans[0] if traces and traces[0].spans else None
-        return CreateDecisionPayload(
+        return RunDecisionPayload(
             result=result,
             error=error_message,
             span=Span(id=span.id, db_record=span) if span else None,

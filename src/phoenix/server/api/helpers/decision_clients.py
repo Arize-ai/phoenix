@@ -2,18 +2,33 @@
 
 Decision models are a second model type alongside chat (LLM) models. A provider may
 offer either or both: OpenAI serves ``gpt-6-luna`` through both its chat and its
-Decisions APIs, while TypeSafe serves decision models only. The registry below is the
+Decisions APIs, while TypeSafe serves decision models only. ``DECISION_CLIENTS`` is the
 single source of truth for which providers and models support decision execution, and
 each client class declares how it reaches its provider: the OpenInference ``system`` and
-``provider`` values, the endpoint path, the default base URL and its environment override,
+``provider`` values, the SDK, the default base URL and its environment override,
 and the credential it authenticates with. Nothing outside this module should special-case
 a provider.
 """
 
+from __future__ import annotations
+
 import asyncio
+import importlib.util
 import json
 from abc import ABC, abstractmethod
-from typing import Annotated, Any, Callable, ClassVar, Literal, Optional, Sequence
+from dataclasses import dataclass
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Callable,
+    ClassVar,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    TypedDict,
+)
 
 import httpx
 from openinference.semconv.trace import (
@@ -29,66 +44,165 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import getenv
+from phoenix.db.types.decisions import (
+    ChoiceQuestion,
+    DecisionQuestion,
+    PredicateQuestion,
+    ScaleQuestion,
+)
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.decision_versions import validate_questions
 from phoenix.server.api.helpers.playground_clients import resolve_provider_api_key
 from phoenix.server.api.helpers.playground_registry import (
-    SingletonMeta,
     filter_allowed_providers,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.tracers import Tracer
 
-Description = str | dict[str, Any] | list[Any]
+if TYPE_CHECKING:
+    from openai.types.decision import Answer as OpenAIAnswer
+    from openai.types.decision_create_params import DecisionCreateParams
+    from openai.types.decision_create_params import Question as OpenAIQuestion
+    from typesafe_sdk import Answer as TypeSafeAnswer
+    from typesafe_sdk import Content, NoulCriteria, NoulModel
+    from typesafe_sdk import QuestionModel as TypeSafeQuestion
+
+    class SystemOneRequest(TypedDict):
+        """The arguments ``system_one`` is called with."""
+
+        model: str
+        state: Content
+        questions: dict[str, TypeSafeQuestion]
 
 
-class Question(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    instructions: Description
-
-
-class NoulQuestion(Question):
-    type: Literal["noul"]
-    criteria: dict[Literal["true", "false"], Description] | None = None
-
-
-class ChoiceQuestion(Question):
-    type: Literal["choice"]
-    criteria: dict[str, Description | None] = Field(min_length=2, max_length=255)
-
-
-class ScoreQuestion(Question):
-    type: Literal["score"]
-    criteria: list[Description] = Field(min_length=2, max_length=10)
+JSONValue = str | dict[str, Any] | list[Any]
+"""Text, a JSON object, or an array. Used only where structure is the point."""
 
 
 class DecisionRequest(BaseModel):
-    """Provider-independent System One-shaped decision input."""
+    """One run: the state, and the questions in their stored form and order.
+
+    Each adapter translates it to its provider's request. Write-time rules for the
+    questions run here too (see :func:`validate_questions`), because running accepts
+    questions just as saving does.
+    """
 
     model_config = ConfigDict(extra="forbid")
-    state: Description
-    questions: dict[
-        str,
-        Annotated[NoulQuestion | ChoiceQuestion | ScoreQuestion, Field(discriminator="type")],
-    ] = Field(min_length=1, max_length=255)
+    state: JSONValue
+    questions: list[DecisionQuestion]
 
     @model_validator(mode="after")
-    def validate_names_and_content(self) -> "DecisionRequest":
+    def validate_state_and_questions(self) -> "DecisionRequest":
         if isinstance(self.state, str) and not self.state.strip():
             raise ValueError("State cannot be empty")
-        for name, question in self.questions.items():
-            if not name.strip():
-                raise ValueError("Question names cannot be empty")
-            if isinstance(question.instructions, str) and not question.instructions.strip():
-                raise ValueError(f"Instructions for {name} cannot be empty")
-            if isinstance(question, ChoiceQuestion) and any(
-                not option.strip() for option in question.criteria
-            ):
-                raise ValueError(f"Choice options for {name} cannot be empty")
+        validate_questions(self.questions)
         return self
 
+    def questions_by_name(self) -> dict[str, DecisionQuestion]:
+        return {question.name: question for question in self.questions}
 
-def _as_text(value: Description) -> str:
+
+class _Answer(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class PredicateAnswer(_Answer):
+    type: Literal["predicate"] = "predicate"
+    probability: float
+    """The probability that the statement is true."""
+
+
+class ChoiceAnswer(_Answer):
+    type: Literal["choice"] = "choice"
+    choice: str
+    confidence: float
+    """The model's certainty in ``choice``, from 0 to 1; not a probability."""
+    probabilities: dict[str, float]
+    """Probability per choice value."""
+
+
+class ScaleAnswer(_Answer):
+    type: Literal["scale"] = "scale"
+    expected_level: float
+    """The probability-weighted average of the levels; it can fall between levels."""
+    confidence: float
+    """The model's certainty in ``expected_level``, from 0 to 1; not a probability."""
+    probabilities: dict[int, float]
+    """Probability per level index."""
+
+
+class RefusalAnswer(_Answer):
+    type: Literal["refusal"] = "refusal"
+
+
+DecisionAnswer = Annotated[
+    PredicateAnswer | ChoiceAnswer | ScaleAnswer | RefusalAnswer, Field(discriminator="type")
+]
+
+
+@dataclass(frozen=True)
+class DecisionResponse:
+    """Normalized answers and accounting; the provider's own response goes on the span."""
+
+    model: str
+    answers: dict[str, DecisionAnswer]
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+def validate_answers(request: DecisionRequest, answers: dict[str, DecisionAnswer]) -> None:
+    """Check normalized answers against the questions they answer.
+
+    Raises:
+        ValueError: An answer is missing, extra, of the wrong type, or out of range.
+    """
+    questions = request.questions_by_name()
+    if set(answers) != set(questions):
+        raise ValueError("Provider did not return one answer per question")
+    for name, answer in answers.items():
+        if isinstance(answer, RefusalAnswer):
+            continue
+        question = questions[name]
+        if answer.type != question.type:
+            raise ValueError("Answer type does not match question")
+        if isinstance(answer, PredicateAnswer):
+            probabilities = [answer.probability]
+        else:
+            if not 0 <= answer.confidence <= 1:
+                raise ValueError("Invalid confidence")
+            probabilities = list(answer.probabilities.values())
+        if not all(0 <= probability <= 1 for probability in probabilities):
+            raise ValueError("Invalid probability")
+        if isinstance(answer, ChoiceAnswer) and isinstance(question, ChoiceQuestion):
+            values = {option.value for option in question.choices}
+            if answer.choice not in values or set(answer.probabilities) != values:
+                raise ValueError("Unknown choice")
+        elif isinstance(answer, ScaleAnswer) and isinstance(question, ScaleQuestion):
+            top = len(question.levels) - 1
+            if not 0 <= answer.expected_level <= top or set(answer.probabilities) != set(
+                range(top + 1)
+            ):
+                raise ValueError("Unknown scale level")
+
+
+def _token_count(count: Any) -> int | None:
+    """A provider token count, or None when it is missing or not a non-negative integer."""
+    if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+        return count
+    return None
+
+
+def _record_input(span: OtelSpan, parameters: Mapping[str, Any]) -> None:
+    span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(parameters, ensure_ascii=False))
+
+
+def _record_output(span: OtelSpan, body: Any) -> None:
+    span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+    span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(body, ensure_ascii=False))
+
+
+def _as_text(value: JSONValue) -> str:
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
@@ -134,7 +248,9 @@ class DecisionClient(ABC):
     provider_key: ClassVar[GenerativeProviderKey]
     system: ClassVar[OpenInferenceDecisionSystemValues]
     provider: ClassVar[OpenInferenceDecisionProviderValues]
-    path: ClassVar[str]
+    model_names: ClassVar[tuple[str, ...]]
+    """The decision models offered in the catalog, in order."""
+    sdk_import_name: ClassVar[str]
     default_base_url: ClassVar[str]
     base_url_env_var: ClassVar[str]
     api_key_env_var: ClassVar[Optional[str]] = None
@@ -166,29 +282,39 @@ class DecisionClient(ABC):
 
     @classmethod
     def dependencies_are_installed(cls) -> bool:
-        """Decision clients speak plain HTTP; they need no optional SDK."""
-        return True
+        """Whether the optional provider SDK is available."""
+        try:
+            return importlib.util.find_spec(cls.sdk_import_name) is not None
+        except (ImportError, ValueError):
+            return False
 
     @abstractmethod
-    def build_request(self, request: DecisionRequest) -> dict[str, Any]: ...
+    async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
+        """Translate the request, call the provider SDK, and normalize its answers.
 
-    @abstractmethod
-    def get_answers(self, response: dict[str, Any]) -> dict[str, Any]: ...
+        Implementations record on ``span`` the provider request before calling, so a
+        failed call still shows what was sent, and the provider's raw response after.
+        Checking the answers against the questions is left to :meth:`create`.
 
-    async def create(self, *, request: DecisionRequest, tracer: Tracer) -> dict[str, Any]:
-        """Invoke the provider and trace raw input, output, model, and token usage.
+        Raises:
+            BadRequest: The request uses something this provider can't express, or the
+                provider call failed.
+        """
+        ...
+
+    async def create(self, *, request: DecisionRequest, tracer: Tracer) -> DecisionResponse:
+        """Run the request and trace the provider's request, response, model, and usage.
 
         Args:
             request: Validated state and named questions.
             tracer: Trace collector owned by this execution.
 
         Returns:
-            Provider response, with answers keyed by question name.
+            Validated answers keyed by question name, with the resolved model and usage.
 
         Raises:
             BadRequest: Provider rejected the input or returned an invalid response.
         """
-        body = self.build_request(request)
         with tracer.start_as_current_span(
             "Decision",
             context=OtelContext(),
@@ -199,144 +325,51 @@ class DecisionClient(ABC):
                 SpanAttributes.DECISION_MODEL_NAME: self.model_name,
                 SpanAttributes.DECISION_REQUEST_MODEL_NAME: self.model_name,
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
-                SpanAttributes.INPUT_VALUE: json.dumps(body, ensure_ascii=False),
             },
-            # Status text is set explicitly below so it reads as a user-facing
-            # message rather than ``BadRequest: ...``.
+            # Without this, the SDK replaces the status ``_fail`` sets with
+            # ``BadRequest: ...`` as the exception leaves the block.
             set_status_on_exception=False,
         ) as span:
             try:
-                async with httpx.AsyncClient(timeout=60, follow_redirects=False) as client:
-                    response = await client.post(
-                        f"{self._base_url}/{self.path}",
-                        headers={"Authorization": f"Bearer {self._api_key}"},
-                        json=body,
-                    )
-                if response.is_error or response.is_redirect:
-                    raise _fail(
-                        span,
-                        describe_http_failure(self.provider_key.value, response.status_code),
-                    )
-                result = response.json()
-                if not isinstance(result, dict):
-                    raise ValueError("Expected an object response")
-                answers = self.get_answers(result)
-                if set(answers) != set(request.questions):
-                    raise ValueError("Provider did not return one answer per question")
-                span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
-                span.set_attribute(
-                    SpanAttributes.OUTPUT_VALUE, json.dumps(result, ensure_ascii=False)
-                )
-                # Providers resolve aliases such as ``jev-latest`` to a versioned model.
-                # Per the decision span convention, ``decision.model_name`` is the model
-                # that answered when the provider reports it, else the requested one.
-                response_model = result.get("model")
-                resolved_model = (
-                    response_model
-                    if isinstance(response_model, str) and response_model.strip()
-                    else self.model_name
-                )
+                response = await self.invoke(request, span)
+                validate_answers(request, response.answers)
+                resolved_model = response.model.strip() or self.model_name
                 span.set_attribute(SpanAttributes.DECISION_RESPONSE_MODEL_NAME, resolved_model)
                 span.set_attribute(SpanAttributes.DECISION_MODEL_NAME, resolved_model)
-                # Usage is optional, and a provider may send it as null.
-                usage = result.get("usage")
-                if isinstance(usage, dict):
-                    for key, attribute in (
-                        ("input_tokens", SpanAttributes.DECISION_TOKEN_COUNT_INPUT),
-                        ("output_tokens", SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT),
-                    ):
-                        count = usage.get(key)
-                        if isinstance(count, int) and count >= 0:
-                            span.set_attribute(attribute, count)
+                input_tokens = _token_count(response.input_tokens)
+                output_tokens = _token_count(response.output_tokens)
+                for count, attribute in (
+                    (input_tokens, SpanAttributes.DECISION_TOKEN_COUNT_INPUT),
+                    (output_tokens, SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT),
+                ):
+                    if count is not None:
+                        span.set_attribute(attribute, count)
                 span.set_status(Status(StatusCode.OK))
-                return {**result, "answers": answers}
+                return DecisionResponse(
+                    model=resolved_model,
+                    answers=response.answers,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
             except asyncio.CancelledError:
                 span.set_status(Status(StatusCode.ERROR, "Decision execution cancelled"))
                 raise
-            except BadRequest:
-                raise
-            except httpx.TimeoutException as error:
-                raise _fail(
-                    span, "Decision request timed out. Retry or reduce the input."
-                ) from error
-            except httpx.RequestError as error:
-                raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
+            except BadRequest as error:
+                raise _fail(span, str(error)) from error
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 raise _fail(
                     span, f"{self.provider_key.value} returned an invalid decision response."
                 ) from error
 
 
-class DecisionClientRegistry(metaclass=SingletonMeta):
-    """Which providers offer decision models, and through which client.
-
-    Mirrors ``PlaygroundClientRegistry`` for chat models. A provider registered here
-    and not in the playground registry is decision-only, which is what the chat-path
-    guards in prompts, agents, and the playground check for.
-    """
-
-    def __init__(self) -> None:
-        self._clients: dict[GenerativeProviderKey, type[DecisionClient]] = {}
-        self._models: dict[GenerativeProviderKey, list[str]] = {}
-
-    def register(
-        self,
-        client_class: type[DecisionClient],
-        model_names: Sequence[str],
-    ) -> None:
-        """Bind ``client_class`` to the provider it declares and add its models."""
-        provider_key = client_class.provider_key
-        self._clients[provider_key] = client_class
-        models = self._models.setdefault(provider_key, [])
-        for model_name in model_names:
-            if model_name not in models:
-                models.append(model_name)
-
-    def get_client_class(
-        self, provider_key: GenerativeProviderKey
-    ) -> Optional[type[DecisionClient]]:
-        return self._clients.get(provider_key)
-
-    def supports_decisions(self, provider_key: GenerativeProviderKey) -> bool:
-        return provider_key in self._clients
-
-    def list_all_providers(self) -> list[GenerativeProviderKey]:
-        return list(self._clients)
-
-    def list_allowed_providers(
-        self, allowed_provider_names: Optional[frozenset[str]]
-    ) -> list[GenerativeProviderKey]:
-        """The registered decision providers this deployment permits (see
-        ``PHOENIX_ALLOWED_PROVIDERS``)."""
-        return filter_allowed_providers(self.list_all_providers(), allowed_provider_names)
-
-    def list_models(self, provider_key: GenerativeProviderKey) -> list[str]:
-        return list(self._models.get(provider_key, []))
-
-    def list_all_models(self) -> list[tuple[GenerativeProviderKey, str]]:
-        return [
-            (provider_key, model_name)
-            for provider_key, model_names in self._models.items()
-            for model_name in model_names
-        ]
+TYPESAFE_DECISION_MODELS = (
+    "jev-latest",
+    "jev-1.14.0",
+    "jev-1.13.0",
+    "jev-preview",
+)
 
 
-DECISION_CLIENT_REGISTRY: DecisionClientRegistry = DecisionClientRegistry()
-
-
-def register_decision_client(
-    model_names: Sequence[str],
-) -> Callable[[type[DecisionClient]], type[DecisionClient]]:
-    """Add a client's decision models to the catalog under the provider it declares."""
-
-    def decorator(cls: type[DecisionClient]) -> type[DecisionClient]:
-        DECISION_CLIENT_REGISTRY.register(cls, model_names)
-        return cls
-
-    return decorator
-
-
-@register_decision_client(model_names=["jev-latest", "jev-1.13.0", "jev-preview"])
 class TypeSafeDecisionClient(DecisionClient):
     """TypeSafe System One. Any System One-compatible host (OpenRouter, a LiteLLM
     proxy, self-hosted vLLM Decision models) works through ``TYPESAFE_BASE_URL``."""
@@ -344,71 +377,246 @@ class TypeSafeDecisionClient(DecisionClient):
     provider_key = GenerativeProviderKey.TYPESAFE
     system = OpenInferenceDecisionSystemValues.TYPESAFE
     provider = OpenInferenceDecisionProviderValues.TYPESAFE
-    path = "systemone"
-    default_base_url = "https://api.typesafe.ai/v1"
+    model_names = TYPESAFE_DECISION_MODELS
+    sdk_import_name = "typesafe_sdk"
+    default_base_url = "https://api.typesafe.ai"
     base_url_env_var = "TYPESAFE_BASE_URL"
 
-    def build_request(self, request: DecisionRequest) -> dict[str, Any]:
-        return {"model": self.model_name, **request.model_dump(exclude_none=True)}
+    def _build_request(self, request: DecisionRequest) -> SystemOneRequest:
+        """Translate Phoenix questions into System One's: a predicate is a ``noul``, a
+        scale is a ``score`` whose criteria are the level descriptions."""
+        questions: dict[str, TypeSafeQuestion] = {}
+        for question in request.questions:
+            name = question.name
+            if isinstance(question, PredicateQuestion):
+                noul: NoulModel = {"type": "noul", "instructions": question.instructions}
+                if question.criteria is not None:
+                    criteria: NoulCriteria = {}
+                    if question.criteria.true is not None:
+                        criteria["true"] = question.criteria.true
+                    if question.criteria.false is not None:
+                        criteria["false"] = question.criteria.false
+                    if criteria:
+                        noul["criteria"] = criteria
+                questions[name] = noul
+            elif isinstance(question, ChoiceQuestion):
+                questions[name] = {
+                    "type": "choice",
+                    "instructions": question.instructions,
+                    "criteria": {option.value: option.description for option in question.choices},
+                }
+            else:
+                questions[name] = {
+                    "type": "score",
+                    "instructions": question.instructions,
+                    "criteria": [
+                        level.label if level.description is None else level.description
+                        for level in question.levels
+                    ],
+                }
+        return {"model": self.model_name, "state": request.state, "questions": questions}
 
-    def get_answers(self, response: dict[str, Any]) -> dict[str, Any]:
-        answers = response["answers"]
-        if not isinstance(answers, dict) or not all(
-            isinstance(answer, dict) for answer in answers.values()
-        ):
-            raise ValueError("Expected named answers")
-        return answers
+    async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
+        from typesafe_sdk import (
+            AsyncTypeSafeClient,
+            TypeSafeAPIConnectionError,
+            TypeSafeAPIError,
+            TypeSafeAPIResponseValidationError,
+            TypeSafeAPITimeoutError,
+            TypeSafeError,
+        )
+
+        parameters = self._build_request(request)
+        _record_input(span, parameters)
+        try:
+            async with AsyncTypeSafeClient(
+                api_key=self._api_key, base_url=self._base_url, timeout=60
+            ) as client:
+                response = await client.system_one(**parameters)
+            _record_output(span, response.raw_http_response.json())
+        except TypeSafeAPIResponseValidationError as error:
+            _record_output(span, error.body)
+            raise ValueError("Invalid TypeSafe response") from error
+        except TypeSafeAPITimeoutError as error:
+            raise _fail(span, "Decision request timed out. Retry or reduce the input.") from error
+        except TypeSafeAPIConnectionError as error:
+            raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
+        except TypeSafeAPIError as error:
+            raise _fail(
+                span, describe_http_failure(self.provider_key.value, error.status)
+            ) from error
+        except TypeSafeError as error:
+            raise _fail(span, "Invalid TypeSafe client configuration.") from error
+        return DecisionResponse(
+            model=response.model,
+            answers={name: self._normalize(answer) for name, answer in response.answers.items()},
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+
+    @staticmethod
+    def _normalize(answer: TypeSafeAnswer) -> DecisionAnswer:
+        if answer.type == "noul":
+            return PredicateAnswer(probability=answer.noul)
+        if answer.type == "choice":
+            return ChoiceAnswer(
+                choice=answer.choice,
+                confidence=answer.confidence,
+                probabilities=dict(answer.probabilities),
+            )
+        if answer.type == "score":
+            return ScaleAnswer(
+                expected_level=answer.score,
+                confidence=answer.confidence,
+                probabilities=dict(answer.probabilities),
+            )
+        raise ValueError(f"Unsupported TypeSafe answer type {answer.type!r}")
 
 
-@register_decision_client(model_names=["gpt-6-luna"])
+OPENAI_DECISION_MODELS = ("gpt-6-luna",)
+
+
 class OpenAIDecisionClient(DecisionClient):
     """OpenAI Decisions API. Shares OpenAI's credential and base URL with chat."""
 
     provider_key = GenerativeProviderKey.OPENAI
     system = OpenInferenceDecisionSystemValues.OPENAI
     provider = OpenInferenceDecisionProviderValues.OPENAI
-    path = "decisions"
+    model_names = OPENAI_DECISION_MODELS
+    sdk_import_name = "openai"
     default_base_url = "https://api.openai.com/v1"
     base_url_env_var = "OPENAI_BASE_URL"
 
-    def build_request(self, request: DecisionRequest) -> dict[str, Any]:
-        questions: list[dict[str, Any]] = []
-        for name, question in request.questions.items():
-            output: dict[str, Any] = {
-                "name": name,
-                "instructions": _as_text(question.instructions),
-                "type": "predicate" if question.type == "noul" else question.type,
-            }
+    def _build_request(self, request: DecisionRequest) -> DecisionCreateParams:
+        """Translate Phoenix questions into the SDK's discriminated request types.
+
+        OpenAI's ``input`` is text, so a structured state is sent as JSON, and a
+        predicate's criteria are folded into its instructions since OpenAI has no field
+        for them.
+        """
+        questions: list[OpenAIQuestion] = []
+        for question in request.questions:
+            name = question.name
+            instructions = question.instructions
             if isinstance(question, ChoiceQuestion):
-                output["choices"] = [
+                questions.append(
                     {
-                        "value": option,
-                        **(
-                            {"description": _as_text(description)}
-                            if description is not None
-                            else {}
-                        ),
+                        "name": name,
+                        "type": "choice",
+                        "instructions": instructions,
+                        "choices": [
+                            {"value": option.value}
+                            if option.description is None
+                            else {
+                                "value": option.value,
+                                "description": option.description,
+                            }
+                            for option in question.choices
+                        ],
                     }
-                    for option, description in question.criteria.items()
-                ]
-            elif isinstance(question, ScoreQuestion):
-                output["levels"] = [
-                    {"label": str(index), "description": _as_text(description)}
-                    for index, description in enumerate(question.criteria)
-                ]
-            elif question.criteria:
-                output["instructions"] += "\nCriteria: " + json.dumps(question.criteria)
-            questions.append(output)
+                )
+            elif isinstance(question, ScaleQuestion):
+                questions.append(
+                    {
+                        "name": name,
+                        "type": "score",
+                        "instructions": instructions,
+                        "levels": [
+                            {"label": level.label}
+                            if level.description is None
+                            else {"label": level.label, "description": level.description}
+                            for level in question.levels
+                        ],
+                    }
+                )
+            else:
+                if question.criteria is not None:
+                    for outcome, description in (
+                        ("True", question.criteria.true),
+                        ("False", question.criteria.false),
+                    ):
+                        if description is not None:
+                            instructions += f"\n{outcome} if: {description}"
+                questions.append({"name": name, "type": "predicate", "instructions": instructions})
         return {"model": self.model_name, "input": _as_text(request.state), "questions": questions}
 
-    def get_answers(self, response: dict[str, Any]) -> dict[str, Any]:
-        answers = response["answers"]
-        if not isinstance(answers, list):
-            raise ValueError("Expected an answer array")
-        named = {answer["name"]: answer for answer in answers}
-        if len(named) != len(answers):
-            raise ValueError("Duplicate answer names")
-        return named
+    async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
+        import httpx2
+        from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
+        from openai.types import Decision
+
+        parameters = self._build_request(request)
+        _record_input(span, parameters)
+        try:
+            async with AsyncOpenAI(
+                api_key=self._api_key,
+                base_url=self._base_url,
+                timeout=60,
+                http_client=httpx2.AsyncClient(follow_redirects=False),
+            ) as client:
+                response = await client.decisions.with_raw_response.create(**parameters)
+                raw = response.http_response.json()
+                _record_output(span, raw)
+                decision = Decision.model_validate(raw)
+        except APITimeoutError as error:
+            raise _fail(span, "Decision request timed out. Retry or reduce the input.") from error
+        except APIConnectionError as error:
+            raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
+        except APIStatusError as error:
+            raise _fail(
+                span, describe_http_failure(self.provider_key.value, error.status_code)
+            ) from error
+        answers: dict[str, DecisionAnswer] = {}
+        for answer in decision.answers:
+            if answer.name is None or answer.name in answers:
+                raise ValueError("Missing or duplicate answer name")
+            answers[answer.name] = self._normalize(answer)
+        return DecisionResponse(
+            model=decision.model,
+            answers=answers,
+            input_tokens=decision.usage.input_tokens,
+            output_tokens=decision.usage.output_tokens,
+        )
+
+    @staticmethod
+    def _normalize(answer: OpenAIAnswer) -> DecisionAnswer:
+        if answer.type == "refusal":
+            return RefusalAnswer()
+        if answer.type == "predicate":
+            return PredicateAnswer(probability=answer.probability)
+        if answer.type == "choice":
+            probabilities = {item.value: item.probability for item in answer.probabilities}
+            if len(probabilities) != len(answer.probabilities):
+                raise ValueError("Duplicate choice probability")
+            return ChoiceAnswer.model_validate(
+                {
+                    "choice": answer.choice,
+                    "confidence": answer.confidence,
+                    "probabilities": probabilities,
+                },
+                strict=True,
+            )
+        levels = {item.value: item.probability for item in answer.probabilities}
+        if len(levels) != len(answer.probabilities):
+            raise ValueError("Duplicate level probability")
+        return ScaleAnswer(
+            expected_level=answer.score, confidence=answer.confidence, probabilities=levels
+        )
+
+
+DECISION_CLIENTS: Mapping[GenerativeProviderKey, type[DecisionClient]] = {
+    client.provider_key: client for client in (TypeSafeDecisionClient, OpenAIDecisionClient)
+}
+"""The client for each provider that offers decision models. A provider here and not in
+the playground registry is decision-only, which is what the chat-path guards in
+prompts, agents, and the playground check for."""
+
+
+def allowed_decision_providers(
+    allowed_provider_names: Optional[frozenset[str]],
+) -> list[GenerativeProviderKey]:
+    """The decision providers this deployment permits (see ``PHOENIX_ALLOWED_PROVIDERS``)."""
+    return filter_allowed_providers(list(DECISION_CLIENTS), allowed_provider_names)
 
 
 async def get_decision_client(
@@ -427,15 +635,30 @@ async def get_decision_client(
     endpoint guard in ``resolve_provider_api_key`` still applies: a server-configured
     key is never sent to a caller-supplied base URL.
     """
-    client_class = DECISION_CLIENT_REGISTRY.get_client_class(provider)
+    client_class = DECISION_CLIENTS.get(provider)
     if client_class is None:
         raise BadRequest(f"{provider.value} does not offer decision models.")
     if not model_name.strip():
         raise BadRequest("A decision model name is required.")
-    if base_url:
-        url = httpx.URL(base_url)
-        if url.scheme not in ("http", "https") or not url.host or url.userinfo:
-            raise BadRequest("Base URL must be an HTTP(S) URL without embedded credentials.")
+    if not client_class.dependencies_are_installed():
+        raise BadRequest(
+            f"Install {client_class.sdk_import_name.replace('_', '-')} to run decision models."
+        )
+    resolved_base_url = client_class.resolve_base_url(base_url)
+    try:
+        url = httpx.URL(resolved_base_url)
+    except httpx.InvalidURL as error:
+        raise BadRequest("Base URL must be a valid HTTP(S) URL.") from error
+    if (
+        url.scheme not in ("http", "https")
+        or not url.host
+        or url.userinfo
+        or url.query
+        or url.fragment
+    ):
+        raise BadRequest(
+            "Base URL must be an HTTP(S) URL without embedded credentials, a query, or a fragment."
+        )
     env_var_name = client_class.credential_env_var()
     api_key = await resolve_provider_api_key(
         credentials=credentials,
@@ -452,5 +675,5 @@ async def get_decision_client(
     return client_class(
         model_name=model_name,
         api_key=api_key,
-        base_url=client_class.resolve_base_url(base_url),
+        base_url=resolved_base_url,
     )

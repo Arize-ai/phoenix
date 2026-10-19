@@ -695,6 +695,38 @@ input ChatPromptVersionInput {
   customProviderId: ID = null
 }
 
+type ChoiceAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+  choice: String!
+
+  """
+  The model's certainty in `choice`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per choice value, in the question's order."""
+  probabilities: [ChoiceProbability!]!
+}
+
+input ChoiceOptionInput {
+  value: String!
+  description: String = null
+}
+
+type ChoiceProbability {
+  value: String!
+  probability: Float!
+}
+
+"""One option from a fixed set of 2–255."""
+input ChoiceQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  choices: [ChoiceOptionInput!]!
+}
+
 type ClassificationEvaluatorConfig {
   name: String!
   description: String
@@ -974,55 +1006,6 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
-}
-
-"""
-A decision request: the state the questions are asked about, and the named questions. Each question is an object with `type`, `instructions`, and `criteria`.
-"""
-input CreateDecisionInput {
-  """
-  The provider whose decision API runs the request; it must offer decision models.
-  """
-  providerKey: GenerativeProviderKey!
-
-  """The decision model to run."""
-  modelName: String!
-
-  """
-  The evidence the questions are asked about: a string, object, or array.
-  """
-  state: JSON!
-
-  """
-  Questions keyed by the name their answer is returned under; see the input description for the shape of each type.
-  """
-  questions: JSON!
-
-  """
-  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
-  """
-  baseUrl: String = null
-
-  """
-  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
-  """
-  credentials: [GenerativeCredentialInput!] = null
-}
-
-"""
-Outcome of one decision run. Problems found before the provider is called fail the mutation with a GraphQL error.
-"""
-type CreateDecisionPayload {
-  """
-  The provider response with `answers` keyed by question name; null when `error` is set.
-  """
-  result: JSON
-
-  """The DECISION span recorded for the provider call, successful or not."""
-  span: Span
-
-  """Why the provider call failed; null on success."""
-  error: String
 }
 
 input CreateDocumentAnnotationInput {
@@ -1643,6 +1626,56 @@ input DaytonaDeploymentInput {
 type DbTableStats {
   tableName: String!
   numBytes: Float!
+}
+
+"""One answer, in Phoenix's vocabulary whatever the provider."""
+interface DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
+
+"""One named input a caller passes."""
+input DecisionInputDefinitionInput {
+  name: String!
+  description: String = null
+
+  """Describes the value for the playground form. Not enforced on a run."""
+  jsonSchema: JSON = null
+}
+
+"""One decision question. Exactly one type must be set."""
+input DecisionQuestionInput @oneOf {
+  predicate: PredicateQuestionInput
+  choice: ChoiceQuestionInput
+  scale: ScaleQuestionInput
+}
+
+"""A successful decision run."""
+type DecisionResult {
+  """The model that answered, after alias resolution."""
+  model: String!
+
+  """One answer per question, in the order the questions were given."""
+  answers: [DecisionAnswer!]!
+  usage: DecisionUsage!
+}
+
+"""
+How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template.
+"""
+input DecisionStateInput @oneOf {
+  object: Boolean
+  text: TextStateInput
+}
+
+enum DecisionTemplateFormat {
+  MUSTACHE
+  F_STRING
+}
+
+type DecisionUsage {
+  inputTokens: Int
+  outputTokens: Int
 }
 
 type DecryptedSecret {
@@ -3017,7 +3050,7 @@ type GenerativeProvider {
   dependenciesInstalled: Boolean!
 
   """
-  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients are registered for the provider, not from its name.
+  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients serve the provider, not from its name.
   """
   modelTypes: [ModelType!]!
 
@@ -3194,6 +3227,12 @@ enum Language {
   TYPESCRIPT
 }
 
+type LevelProbability {
+  """The level's position, from zero."""
+  level: Int!
+  probability: Float!
+}
+
 enum MimeType {
   text
   json
@@ -3295,7 +3334,7 @@ type Mutation {
   """
   Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
   """
-  createDecision(input: CreateDecisionInput!): CreateDecisionPayload!
+  runDecision(input: RunDecisionInput!): RunDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -3680,6 +3719,33 @@ type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
   modelType: ModelType!
+}
+
+type PredicateAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """The probability that the statement is true."""
+  probability: Float!
+}
+
+"""What counts as true and as false; either may be omitted."""
+input PredicateCriteriaInput {
+  """What counts as true."""
+  true: String = null
+
+  """What counts as false."""
+  false: String = null
+}
+
+"""
+A statement or yes/no question, answered with the probability that it is true.
+"""
+input PredicateQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  criteria: PredicateCriteriaInput = null
 }
 
 type Project implements Node {
@@ -4974,6 +5040,12 @@ A string encrypted on output and decrypted on input using a key derived from the
 """
 scalar RedactedString
 
+"""The model declined to answer this question."""
+type RefusalAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
+
 type ReinstateExperimentPayload {
   experiment: Experiment!
 }
@@ -5027,6 +5099,61 @@ input RevokeOAuth2GrantInput {
 type RevokeOAuth2GrantMutationPayload {
   grantId: ID!
   query: Query!
+}
+
+"""
+A decision run: the inputs it declares and their values for this call, how the state is built from them, and the questions.
+"""
+input RunDecisionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """The decision model to run."""
+  modelName: String!
+
+  """The named inputs a caller passes, in order. Names must be unique."""
+  inputs: [DecisionInputDefinitionInput!]!
+
+  """How the state sent to the model is built from the inputs."""
+  state: DecisionStateInput!
+
+  """
+  An object with one entry per declared input: the key is the input's name, and the value is any JSON (a string, number, boolean, null, object, or array). Missing or undeclared names are rejected.
+  """
+  inputValues: JSON!
+
+  """
+  The questions, in order. Names must be unique; answers come back under them.
+  """
+  questions: [DecisionQuestionInput!]!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
+"""
+Outcome of one decision run. Problems found before the provider is called fail the mutation with a GraphQL error.
+"""
+type RunDecisionPayload {
+  """
+  The answers, resolved model, and usage; null when `error` is set. The provider's own response is on the span.
+  """
+  result: DecisionResult
+
+  """The DECISION span recorded for the provider call, successful or not."""
+  span: Span
+
+  """Why the provider call failed; null on success."""
+  error: String
 }
 
 type SandboxBackendInfo {
@@ -5154,6 +5281,37 @@ type SandboxProviderCredentialSpec {
   displayName: String!
   description: String!
   isRequired: Boolean!
+}
+
+type ScaleAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """
+  The probability-weighted average of the levels. It can fall between levels and is never a discrete level.
+  """
+  expectedLevel: Float!
+
+  """
+  The model's certainty in `expectedLevel`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per level, from the lowest."""
+  probabilities: [LevelProbability!]!
+}
+
+input ScaleLevelInput {
+  label: String!
+  description: String = null
+}
+
+"""2–10 ordered levels; a level's position, from zero, is its value."""
+input ScaleQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  levels: [ScaleLevelInput!]!
 }
 
 """
@@ -5699,6 +5857,12 @@ type TextContentValue {
 
 input TextContentValueInput {
   text: String!
+}
+
+"""Render a text template over the inputs."""
+input TextStateInput {
+  template: String!
+  templateFormat: DecisionTemplateFormat!
 }
 
 input TimeBinConfig {
