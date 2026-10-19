@@ -43,7 +43,7 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.41",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
   "sqlglot==30.21.0",
@@ -120,7 +120,7 @@ dev = [
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.41",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",

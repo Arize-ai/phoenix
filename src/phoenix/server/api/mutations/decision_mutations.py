@@ -22,12 +22,7 @@ from phoenix.tracers import Tracer
 @strawberry.input(
     description=(
         "A decision request: the state the questions are asked about, and the named "
-        "questions. Each question is an object with `type`, `instructions`, and `criteria`. "
-        "`choice` takes `criteria` as an object of 2 to 255 option values to optional "
-        "descriptions and answers with one option plus probabilities; `noul` is a yes/no "
-        "predicate with optional `criteria` `{true, false}` descriptions and answers with a "
-        "probability; `score` takes `criteria` as an ordered list of 2 to 10 level "
-        "descriptions and answers with a position on that scale. One to 255 questions."
+        "questions. Each question is an object with `type`, `instructions`, and `criteria`."
     )
 )
 class CreateDecisionInput:
@@ -36,9 +31,7 @@ class CreateDecisionInput:
             "The provider whose decision API runs the request; it must offer decision models."
         )
     )
-    model_name: str = strawberry.field(
-        description="The decision model to run, for example `jev-latest`."
-    )
+    model_name: str = strawberry.field(description="The decision model to run.")
     state: JSON = strawberry.field(
         description="The evidence the questions are asked about: a string, object, or array."
     )
@@ -67,10 +60,8 @@ class CreateDecisionInput:
 
 @strawberry.type(
     description=(
-        "Outcome of one decision run. Problems found before the provider is called "
-        "(invalid questions, a provider the server does not permit, missing credentials) "
-        "fail the mutation with a GraphQL error. Once the provider has been called, a "
-        "failure is returned in `error` so the traced `span` is still available."
+        "Outcome of one decision run. Problems found before the provider is called fail "
+        "the mutation with a GraphQL error."
     )
 )
 class CreateDecisionPayload:

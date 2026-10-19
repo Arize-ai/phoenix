@@ -143,7 +143,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         # OpenInference semconv has no `meta` provider value yet; ship a plain
         # string literal until an upstream semconv PR lands.
         GenerativeProviderKey.META: "meta",
-        GenerativeProviderKey.TYPESAFE: "typesafe",
+        GenerativeProviderKey.TYPESAFE: OpenInferenceLLMProviderValues.TYPESAFE.value,
     }
 )
 
@@ -198,6 +198,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
         OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
+        OpenInferenceLLMProviderValues.TYPESAFE.value: GenerativeProviderKey.TYPESAFE,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
