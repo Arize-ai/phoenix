@@ -199,6 +199,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "anthropic",
     "google_genai",
     "aws_bedrock",
+    "typesafe",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[

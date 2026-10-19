@@ -8,7 +8,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.models import GenerativeModelSDK
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import ModelProvider, sdk_offers_chat
 from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
@@ -58,6 +58,8 @@ def model_provider_from_generative_model_sdk(
         return ModelProvider.GOOGLE
     if sdk == "aws_bedrock":
         return ModelProvider.AWS
+    if sdk == "typesafe":
+        return ModelProvider.TYPESAFE
     assert_never(sdk)
 
 
@@ -91,6 +93,19 @@ async def get_custom_provider(
     return provider
 
 
+def require_chat_custom_provider(provider: models.GenerativeModelCustomProvider) -> None:
+    """Reject custom providers whose SDK serves no chat models.
+
+    The built-in guard checks a provider key; a custom provider is checked by its
+    SDK, since an ``openai`` provider may point at any OpenAI-compatible host.
+    """
+    if not sdk_offers_chat(provider.sdk):
+        raise ProviderUnsupportedError(
+            f"Custom provider '{provider.name}' serves decision models only; "
+            "choose a provider with chat models."
+        )
+
+
 def require_chat_model_provider(provider: ModelProvider) -> None:
     """Reject providers with no chat models.
 
@@ -117,6 +132,7 @@ async def resolve_model_routing(
     """
     if isinstance(model, CustomProviderModelSelection):
         provider = await get_custom_provider(session, model.provider_id)
+        require_chat_custom_provider(provider)
         return AgentModelRouting(
             model_provider=model_provider_from_generative_model_sdk(provider.sdk),
             model_name=model.model_name,

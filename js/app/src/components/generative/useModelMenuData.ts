@@ -132,6 +132,7 @@ export function useModelMenuData({
               id
               name
               sdk
+              modelTypes
               modelNames
             }
           }
@@ -171,13 +172,17 @@ export function useModelMenuData({
     return map;
   }, [data.modelProviders]);
 
+  // The pickers choose chat models, so a provider that serves decision models
+  // only (a TypeSafe endpoint) is left out.
   const customProviders = useMemo((): CustomProviderInfo[] => {
-    return data.generativeModelCustomProviders.edges.map((edge) => ({
-      id: edge.node.id,
-      name: edge.node.name,
-      sdk: edge.node.sdk,
-      modelNames: edge.node.modelNames,
-    }));
+    return data.generativeModelCustomProviders.edges
+      .filter((edge) => edge.node.modelTypes.includes("LLM"))
+      .map((edge) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        sdk: edge.node.sdk,
+        modelNames: edge.node.modelNames,
+      }));
   }, [data.generativeModelCustomProviders]);
 
   const installedBuiltInProviders = useMemo(

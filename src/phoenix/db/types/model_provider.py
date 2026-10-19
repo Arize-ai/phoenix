@@ -151,7 +151,8 @@ def is_sdk_compatible_with_model_provider(
     Check if a custom provider's SDK can be used with a prompt's model provider.
 
     This prevents misconfigurations like using an AWS Bedrock custom provider
-    with an OpenAI prompt.
+    with an OpenAI prompt. Prompts are chat templates, so an SDK without chat
+    models (see :func:`sdk_offers_chat`) is compatible with none.
     """
     if sdk == "openai" or sdk == "azure_openai":
         # openai and azure_openai SDKs are compatible with OpenAI-family providers
@@ -177,8 +178,38 @@ def is_sdk_compatible_with_model_provider(
         return model_provider is ModelProvider.GOOGLE
     if sdk == "aws_bedrock":
         return model_provider is ModelProvider.AWS
+    if sdk == "typesafe":
+        return False
     else:
         assert_never(sdk)
+
+
+def sdk_offers_chat(sdk: "GenerativeModelSDK") -> bool:
+    """Whether a custom provider with this SDK can serve chat (LLM) models."""
+    if (
+        sdk == "openai"
+        or sdk == "azure_openai"
+        or sdk == "anthropic"
+        or sdk == "google_genai"
+        or sdk == "aws_bedrock"
+    ):
+        return True
+    if sdk == "typesafe":
+        return False
+    assert_never(sdk)
+
+
+def sdk_offers_decisions(sdk: "GenerativeModelSDK") -> bool:
+    """Whether a custom provider with this SDK can serve decision models.
+
+    An ``openai`` provider runs decisions through the same endpoint and key it uses
+    for chat; the model type chosen decides which API is called.
+    """
+    if sdk == "openai" or sdk == "typesafe":
+        return True
+    if sdk == "azure_openai" or sdk == "anthropic" or sdk == "google_genai" or sdk == "aws_bedrock":
+        return False
+    assert_never(sdk)
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -806,6 +837,43 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         )
 
 
+TypeSafeAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
+
+
+class TypeSafeClientKwargs(BaseModel):
+    model_config = ConfigDict(
+        frozen=True,
+        str_min_length=1,
+        str_strip_whitespace=True,
+    )
+    base_url: str | None = Field(
+        default=None,
+        description="Base URL of a System One-compatible API",
+    )
+    default_headers: Mapping[str, str] | None = Field(
+        default=None,
+        description="HTTP headers",
+    )
+
+
+class TypeSafeCustomProviderConfig(BaseModel):
+    """A System One-compatible endpoint. It serves decision models only."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+    type: Literal["typesafe"] = "typesafe"
+    typesafe_authentication_method: TypeSafeAuthenticationMethod = Field(
+        ...,
+        description="TypeSafe authentication method",
+    )
+    typesafe_client_kwargs: TypeSafeClientKwargs | None = Field(
+        default=None,
+        description="TypeSafe client kwargs",
+    )
+
+
 GenerativeModelCustomerProviderConfigType = Annotated[
     Union[
         OpenAICustomProviderConfig,
@@ -813,6 +881,7 @@ GenerativeModelCustomerProviderConfigType = Annotated[
         AnthropicCustomProviderConfig,
         AWSBedrockCustomProviderConfig,
         GoogleGenAICustomProviderConfig,
+        TypeSafeCustomProviderConfig,
     ],
     Field(discriminator="type"),
 ]

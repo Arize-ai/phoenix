@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e8aa9784af6cd280fa69de1c0dc95a0>>
+ * @generated SignedSource<<b893cd7f961fea14caff0724bb174405>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,9 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type ModelType = "DECISION" | "LLM";
 export type useModelMenuDataQuery$variables = Record<PropertyKey, never>;
 export type useModelMenuDataQuery$data = {
   readonly generativeModelCustomProviders: {
@@ -17,6 +18,7 @@ export type useModelMenuDataQuery$data = {
       readonly node: {
         readonly id: string;
         readonly modelNames: ReadonlyArray<string>;
+        readonly modelTypes: ReadonlyArray<ModelType>;
         readonly name: string;
         readonly sdk: GenerativeModelSDK;
       };
@@ -84,6 +86,13 @@ v1 = [
                 "args": null,
                 "kind": "ScalarField",
                 "name": "sdk",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "modelTypes",
                 "storageKey": null
               },
               {
@@ -173,16 +182,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "700a417c415e5bc889e79dce3bf18e53",
+    "cacheID": "5a568d1bb4d65f329cbfa36710ac8036",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelTypes\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f60d71682e63a12728470a15b4d7daf4";
+(node as any).hash = "c8afb9f54dc9249ac4f7b7f71cf69b90";
 
 export default node;

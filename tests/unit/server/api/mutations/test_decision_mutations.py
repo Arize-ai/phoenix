@@ -8,6 +8,7 @@ import respx
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.db.types import model_provider as mp
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
@@ -603,7 +604,12 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
     }
-    assert TypeSafeDecisionClient.model_names == ("jev-latest", "jev-1.13.0", "jev-preview")
+    assert TypeSafeDecisionClient.model_names == (
+        "jev-latest",
+        "jev-1.14.0",
+        "jev-1.13.0",
+        "jev-preview",
+    )
     typesafe, openai = TypeSafeDecisionClient, OpenAIDecisionClient
     # Credential names come from the provider's declared credential requirements.
     assert typesafe.credential_env_var() == "TYPESAFE_API_KEY"
@@ -925,3 +931,124 @@ async def test_text_state_renders_structured_inputs_for_the_provider(
     assert result.data["runDecision"]["error"] is None
     body = json.loads(route.calls[0].request.content)
     assert body["state"] == 'Plan: pro\nTicket: {"body": "Refund?"}'
+
+
+CREATE_CUSTOM_PROVIDER = """
+mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
+  createGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+
+CUSTOM_PROVIDER_MODELS = """
+query ($id: ID!) {
+  node(id: $id) {
+    ... on GenerativeModelCustomProvider {
+      sdk
+      modelTypes
+      chat: modelNames
+      decision: modelNames(modelType: DECISION)
+      config {
+        __typename
+        ... on TypeSafeCustomProviderConfig {
+          typesafeClientKwargs { baseUrl defaultHeaders }
+        }
+      }
+    }
+  }
+}
+"""
+
+TYPESAFE_PROVIDER_CONFIG = {
+    "typesafe": {
+        "typesafeAuthenticationMethod": {"apiKey": "ts-custom-key"},
+        "typesafeClientKwargs": {
+            "baseUrl": "https://system-one.example",
+            "defaultHeaders": {"X-Team": "decisions"},
+        },
+    }
+}
+
+
+async def create_custom_provider(
+    gql_client: AsyncGraphQLClient, name: str, provider: str, client_config: dict[str, Any]
+) -> str:
+    result = await gql_client.execute(
+        CREATE_CUSTOM_PROVIDER,
+        variables={"input": {"name": name, "provider": provider, "clientConfig": client_config}},
+    )
+    assert result.data and not result.errors, result.errors
+    return str(result.data["createGenerativeModelCustomProvider"]["provider"]["id"])
+
+
+async def test_custom_providers_declare_the_model_types_they_serve(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A TypeSafe provider serves decisions only; an OpenAI one serves both."""
+    typesafe_id = await create_custom_provider(
+        gql_client, "System One proxy", "typesafe", TYPESAFE_PROVIDER_CONFIG
+    )
+    openai_id = await create_custom_provider(
+        gql_client,
+        "OpenAI proxy",
+        "openai",
+        {"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-custom"}}},
+    )
+    result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": typesafe_id})
+    assert result.data and not result.errors, result.errors
+    typesafe = result.data["node"]
+    assert typesafe["sdk"] == "TYPESAFE"
+    assert typesafe["modelTypes"] == ["DECISION"]
+    assert typesafe["chat"] == []
+    assert typesafe["decision"] == list(TypeSafeDecisionClient.model_names)
+    assert typesafe["config"] == {
+        "__typename": "TypeSafeCustomProviderConfig",
+        "typesafeClientKwargs": {
+            "baseUrl": "https://system-one.example",
+            "defaultHeaders": {"X-Team": "decisions"},
+        },
+    }
+    result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": openai_id})
+    assert result.data and not result.errors, result.errors
+    openai = result.data["node"]
+    assert openai["modelTypes"] == ["LLM", "DECISION"]
+    assert openai["chat"] and openai["decision"] == list(OpenAIDecisionClient.model_names)
+
+
+@pytest.mark.parametrize(
+    ("status", "accepted"),
+    [pytest.param(404, True, id="unknown-model"), pytest.param(401, False, id="bad-key")],
+)
+async def test_typesafe_credentials_are_checked_without_running_a_model(
+    gql_client: AsyncGraphQLClient, status: int, accepted: bool
+) -> None:
+    with respx.mock:
+        route = respx.post("https://system-one.example/v1/systemone").respond(
+            status, json={"error": "rejected ts-custom-key"}
+        )
+        result = await gql_client.execute(
+            """mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
+              testGenerativeModelCustomProviderCredentials(input: $input) { error }
+            }""",
+            variables={"input": TYPESAFE_PROVIDER_CONFIG},
+        )
+    assert result.data and not result.errors, result.errors
+    assert route.call_count == 1
+    sent = route.calls[0].request
+    assert sent.headers["x-team"] == "decisions"
+    assert json.loads(sent.content)["model"] == "test-credential-check"
+    error = result.data["testGenerativeModelCustomProviderCredentials"]["error"]
+    if accepted:
+        assert error is None
+    else:
+        assert error and "ts-custom-key" not in error
+
+
+def test_custom_provider_capabilities_come_from_the_sdk() -> None:
+    """Prompts are chat templates, so no prompt provider accepts a TypeSafe provider."""
+    assert not mp.sdk_offers_chat("typesafe") and mp.sdk_offers_decisions("typesafe")
+    assert mp.sdk_offers_chat("openai") and mp.sdk_offers_decisions("openai")
+    assert mp.sdk_offers_chat("anthropic") and not mp.sdk_offers_decisions("anthropic")
+    assert not any(
+        mp.is_sdk_compatible_with_model_provider("typesafe", provider)
+        for provider in mp.ModelProvider
+    )

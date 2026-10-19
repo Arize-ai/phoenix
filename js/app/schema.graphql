@@ -1217,7 +1217,7 @@ input CreateUserInput {
 
 scalar CronExpression
 
-union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
+union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
 
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
@@ -2991,8 +2991,15 @@ type GenerativeModelCustomProvider implements Node {
   """The user that created this provider."""
   user: User
 
-  """The model names available for this provider."""
-  modelNames: [String!]!
+  """
+  The model types this provider can serve: chat (LLM) models, decision models, or both. Derived from its SDK.
+  """
+  modelTypes: [ModelType!]!
+
+  """
+  Suggested model names for this provider and model type; empty when it serves no models of that type. Any model name the endpoint accepts can be used.
+  """
+  modelNames(modelType: ModelType! = LLM): [String!]!
 }
 
 """A connection to a list of items."""
@@ -3019,6 +3026,7 @@ input GenerativeModelCustomerProviderConfigInput @oneOf {
   anthropic: AnthropicCustomProviderConfigInput
   awsBedrock: AWSBedrockCustomProviderConfigInput
   googleGenai: GoogleGenAICustomProviderConfigInput
+  typesafe: TypeSafeCustomProviderConfigInput
 }
 
 """An edge in a connection."""
@@ -3041,6 +3049,7 @@ enum GenerativeModelSDK {
   ANTHROPIC
   AWS_BEDROCK
   GOOGLE_GENAI
+  TYPESAFE
 }
 
 type GenerativeProvider {
@@ -6217,6 +6226,36 @@ input TruncateAgentSessionInput {
 type TruncateAgentSessionMutationPayload {
   agentSession: AgentSession!
   query: Query!
+}
+
+type TypeSafeAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input TypeSafeAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type TypeSafeClientKwargs {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+input TypeSafeClientKwargsInput {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+type TypeSafeCustomProviderConfig {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethod!
+  typesafeClientKwargs: TypeSafeClientKwargs
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+input TypeSafeCustomProviderConfigInput {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput!
+  typesafeClientKwargs: TypeSafeClientKwargsInput
 }
 
 type UnparsableConfig {

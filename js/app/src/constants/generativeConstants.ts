@@ -97,7 +97,8 @@ export type GenerativeModelSDK =
   | "AZURE_OPENAI"
   | "ANTHROPIC"
   | "AWS_BEDROCK"
-  | "GOOGLE_GENAI";
+  | "GOOGLE_GENAI"
+  | "TYPESAFE";
 
 /**
  * Azure authentication method types.
@@ -135,6 +136,7 @@ export const SDK_TO_PROVIDER_MAP: Readonly<
   ANTHROPIC: "ANTHROPIC",
   AWS_BEDROCK: "AWS",
   GOOGLE_GENAI: "GOOGLE",
+  TYPESAFE: "TYPESAFE",
 } as const;
 
 /**
@@ -173,6 +175,7 @@ export const SDK_LABELS: Readonly<Record<GenerativeModelSDK, string>> = {
   ANTHROPIC: "Anthropic",
   AWS_BEDROCK: "AWS Bedrock",
   GOOGLE_GENAI: "Google GenAI",
+  TYPESAFE: "TypeSafe",
 } as const;
 
 /**
@@ -198,6 +201,7 @@ export const SDK_DEFAULT_PROVIDER: Readonly<
   ANTHROPIC: "anthropic",
   AWS_BEDROCK: "aws",
   GOOGLE_GENAI: "google",
+  TYPESAFE: "typesafe",
 } as const;
 
 /**

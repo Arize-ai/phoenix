@@ -125,6 +125,14 @@ const googleGenAISchema = baseProviderSchema.extend({
   google_headers: httpHeadersFieldSchema,
 });
 
+// TypeSafe schema: a System One-compatible endpoint, decision models only
+const typeSafeSchema = baseProviderSchema.extend({
+  sdk: z.literal("TYPESAFE"),
+  typesafe_api_key: z.string().min(1, "API key is required"),
+  typesafe_base_url: urlFieldSchema,
+  typesafe_default_headers: httpHeadersFieldSchema,
+});
+
 // Discriminated union of all provider schemas
 const baseProviderFormSchema = z.discriminatedUnion("sdk", [
   openAISchema,
@@ -132,6 +140,7 @@ const baseProviderFormSchema = z.discriminatedUnion("sdk", [
   anthropicSchema,
   awsBedrockSchema,
   googleGenAISchema,
+  typeSafeSchema,
 ]);
 
 // Add conditional validation for auth methods on top of the discriminated union

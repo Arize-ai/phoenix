@@ -4180,6 +4180,11 @@ async def _get_custom_provider_client(
             model_name=model_name,
             provider=provider,
         )
+    elif cfg.type == "typesafe":
+        raise BadRequest(
+            f"Custom provider '{provider_record.name}' serves decision models only; "
+            "choose a provider with chat models."
+        )
     else:
         assert_never(cfg)
 

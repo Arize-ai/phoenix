@@ -3398,7 +3398,7 @@ export interface components {
              * @description The SDK used to communicate with the custom provider.
              * @enum {string}
              */
-            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock" | "typesafe";
             /**
              * Created At
              * Format: date-time

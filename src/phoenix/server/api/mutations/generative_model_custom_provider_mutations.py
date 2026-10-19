@@ -25,6 +25,7 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     GoogleGenAICustomProviderConfig,
     OpenAICustomProviderConfig,
+    TypeSafeCustomProviderConfig,
 )
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -80,6 +81,8 @@ def _iter_secret_values(
             assert_never(method_aws)
     elif isinstance(root, GoogleGenAICustomProviderConfig):
         yield root.google_genai_authentication_method.api_key
+    elif isinstance(root, TypeSafeCustomProviderConfig):
+        yield root.typesafe_authentication_method.api_key
     else:
         assert_never(root)
 
@@ -118,6 +121,8 @@ def _get_sdk_from_config(
         return "openai"
     if isinstance(config.root, AzureOpenAICustomProviderConfig):
         return "azure_openai"
+    if isinstance(config.root, TypeSafeCustomProviderConfig):
+        return "typesafe"
     assert_never(config.root)
 
 
@@ -145,6 +150,44 @@ def _are_sdks_compatible(
     if old_sdk == new_sdk:
         return True
     return new_sdk in _COMPATIBLE_SDKS.get(old_sdk, ())
+
+
+_CREDENTIAL_CHECK_MODEL = "test-credential-check"
+
+
+async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Exception | None:
+    """Ask a System One endpoint about a model that does not exist.
+
+    The endpoint authenticates before it resolves the model, so anything but a
+    401 or 403 means the key was accepted. No model runs, so nothing is billed.
+    """
+    try:
+        from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy, TypeSafeAPIError
+    except ImportError:
+        return RuntimeError("Install typesafe-sdk to use a TypeSafe provider.")
+    kwargs = config.typesafe_client_kwargs
+    try:
+        with anyio.move_on_after(10) as scope:
+            async with AsyncTypeSafeClient(
+                api_key=config.typesafe_authentication_method.api_key,
+                base_url=kwargs.base_url if kwargs else None,
+                headers=kwargs.default_headers if kwargs else None,
+                retry=RetryPolicy(max_retries=0),
+                timeout=10,
+            ) as client:
+                await client.system_one(
+                    "Credential check",
+                    {"check": {"type": "noul", "instructions": "Is this a credential check?"}},
+                    model=_CREDENTIAL_CHECK_MODEL,
+                )
+        if scope.cancelled_caught:
+            return TimeoutError("Request timed out after 10 seconds")
+    except TypeSafeAPIError as error:
+        if error.status in (401, 403):
+            return error
+    except Exception as error:
+        return error
+    return None
 
 
 @strawberry.input
@@ -443,6 +486,12 @@ class GenerativeModelCustomProviderMutationMixin:
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(
                     error=_redact_provider_error(e, config)
+                )
+        elif config.root.type == "typesafe":
+            error = await _test_typesafe_credentials(config.root)
+            if error is not None:
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(error, config)
                 )
         else:
             raise BadRequest("Invalid input")

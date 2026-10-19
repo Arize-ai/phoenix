@@ -14985,7 +14985,8 @@
               "azure_openai",
               "anthropic",
               "google_genai",
-              "aws_bedrock"
+              "aws_bedrock",
+              "typesafe"
             ],
             "title": "Sdk",
             "description": "The SDK used to communicate with the custom provider."

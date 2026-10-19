@@ -210,7 +210,7 @@ class CustomModelProvider(TypedDict):
     id: str
     name: str
     provider: str
-    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock", "typesafe"]
     created_at: str
     updated_at: str
     description: NotRequired[str]

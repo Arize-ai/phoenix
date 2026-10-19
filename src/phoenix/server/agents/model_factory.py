@@ -32,6 +32,7 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.agent_sessions import (
     get_custom_provider,
+    require_chat_custom_provider,
     require_chat_model_provider,
 )
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
@@ -168,6 +169,7 @@ async def build_model(
     if isinstance(model, CustomProviderModelSelection):
         async with db() as session:
             provider = await get_custom_provider(session, model.provider_id)
+        require_chat_custom_provider(provider)
         pydantic_ai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
             model_name=model.model_name,

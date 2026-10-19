@@ -155,6 +155,7 @@ CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = Ma
         "anthropic": GenerativeProviderKey.ANTHROPIC,
         "aws_bedrock": GenerativeProviderKey.AWS,
         "google_genai": GenerativeProviderKey.GOOGLE,
+        "typesafe": GenerativeProviderKey.TYPESAFE,
     }
 )
 
