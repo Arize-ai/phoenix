@@ -155,6 +155,8 @@ export function useModelMenuData({
               sdk
               modelTypes
               modelNames
+              decisionModelNames: modelNames(modelType: DECISION)
+                @include(if: $includeDecisionModels)
             }
           }
         }
@@ -205,9 +207,9 @@ export function useModelMenuData({
     return map;
   }, [data.modelProviders]);
 
-  // The pickers choose chat models, so a provider that serves decision models
-  // only (a TypeSafe endpoint) is left out.
-  const customProviders = useMemo((): CustomProviderInfo[] => {
+  // Chat pickers choose chat models, so a provider that serves decision
+  // models only (a TypeSafe endpoint) is left out.
+  const chatCustomProviders = useMemo((): CustomProviderInfo[] => {
     return data.generativeModelCustomProviders.edges
       .filter((edge) => edge.node.modelTypes.includes("LLM"))
       .map((edge) => ({
@@ -217,6 +219,22 @@ export function useModelMenuData({
         modelNames: edge.node.modelNames,
       }));
   }, [data.generativeModelCustomProviders]);
+
+  // The Decision tab lists the custom providers that serve decision models,
+  // with their decision model names rather than their chat ones.
+  const decisionCustomProviders = useMemo((): CustomProviderInfo[] => {
+    return data.generativeModelCustomProviders.edges
+      .filter((edge) => edge.node.modelTypes.includes("DECISION"))
+      .map((edge) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        sdk: edge.node.sdk,
+        modelNames: edge.node.decisionModelNames ?? [],
+      }));
+  }, [data.generativeModelCustomProviders]);
+
+  const customProviders =
+    modelType === "DECISION" ? decisionCustomProviders : chatCustomProviders;
 
   const installedBuiltInProviders = useMemo(
     () =>
@@ -243,7 +261,7 @@ export function useModelMenuData({
 
   const availableCustomModels = useMemo<AvailableCustomModel[]>(
     () =>
-      customProviders.flatMap((provider) => {
+      chatCustomProviders.flatMap((provider) => {
         const providerKey = getProviderKeyForGenerativeModelSDK(provider.sdk);
         return provider.modelNames.map((modelName) => ({
           customProviderId: provider.id,
@@ -252,15 +270,15 @@ export function useModelMenuData({
           modelName,
         }));
       }),
-    [customProviders]
+    [chatCustomProviders]
   );
 
   const modelCatalog = useMemo<ModelCatalog>(
     () => ({
       installedBuiltInProviders,
-      customProviders,
+      customProviders: chatCustomProviders,
     }),
-    [customProviders, installedBuiltInProviders]
+    [chatCustomProviders, installedBuiltInProviders]
   );
 
   const storedLocalCredentials: LocalProviderCredentials =
@@ -309,11 +327,11 @@ export function useModelMenuData({
   // providers (e.g. Ollama) are always ready but do not count as provisioned.
   const hasProvisionedProvider = useMemo(
     () =>
-      customProviders.length > 0 ||
+      chatCustomProviders.length > 0 ||
       chatModelProviders.some((provider) =>
         isProviderProvisioned({ provider, localCredentials })
       ),
-    [customProviders, chatModelProviders, localCredentials]
+    [chatCustomProviders, chatModelProviders, localCredentials]
   );
 
   // Providers to list in the picker for the selected model type. For chat,

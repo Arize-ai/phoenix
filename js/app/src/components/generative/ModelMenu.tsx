@@ -264,8 +264,6 @@ export function ModelMenu({
     modelType,
     includeDecisionModels: supportsDecisionModels,
   });
-  const selectableCustomProviders =
-    modelType === "DECISION" ? [] : customProviders;
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that
@@ -308,7 +306,7 @@ export function ModelMenu({
       return [];
     }
 
-    return (modelType === "DECISION" ? [] : customProviders)
+    return customProviders
       .map((provider) => ({
         ...provider,
         modelNames: provider.modelNames.filter((model) =>
@@ -316,7 +314,7 @@ export function ModelMenu({
         ),
       }))
       .filter((provider) => provider.modelNames.length > 0);
-  }, [searchValue, modelType, customProviders, contains]);
+  }, [searchValue, customProviders, contains]);
 
   const isSearching = searchValue.trim().length > 0;
 
@@ -415,7 +413,7 @@ export function ModelMenu({
               key={modelType}
               providers={visibleProviders}
               modelsByProvider={modelsByProvider}
-              customProviders={selectableCustomProviders}
+              customProviders={customProviders}
               onChange={handleModelChange}
               leadingItems={leadingItems}
               onLeadingItemSelect={onLeadingItemSelect}

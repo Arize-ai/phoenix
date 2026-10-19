@@ -2,6 +2,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 
 import {
   buildChatFromDecisionDraft,
+  buildDecisionConnection,
   buildDecisionInput,
   buildDecisionRequest,
   createChoiceOption,
@@ -653,6 +654,49 @@ describe("runDecision output", () => {
     expect(normalized.answers).toContainEqual({
       kind: "refusal",
       name: "spam",
+    });
+  });
+});
+
+describe("buildDecisionConnection", () => {
+  const credentials = [{ envVarName: "TYPESAFE_API_KEY", value: "key" }];
+
+  it("sends only the id of a custom provider, which brings its own key and endpoint", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "TYPESAFE",
+        baseUrl: "http://ignored.example",
+        customProvider: { id: "provider-1" },
+        credentials,
+      })
+    ).toEqual({ customProvider: { id: "provider-1" } });
+  });
+
+  it("sends a built-in provider with its endpoint and credentials", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "OLLAMA",
+        baseUrl: " http://localhost:11434 ",
+        credentials: [],
+      })
+    ).toEqual({
+      builtIn: {
+        providerKey: "OLLAMA",
+        baseUrl: "http://localhost:11434",
+        credentials: [],
+      },
+    });
+  });
+
+  it("leaves a blank endpoint to the provider default", () => {
+    expect(
+      buildDecisionConnection({
+        provider: "TYPESAFE",
+        baseUrl: "  ",
+        credentials,
+      })
+    ).toEqual({
+      builtIn: { providerKey: "TYPESAFE", baseUrl: null, credentials },
     });
   });
 });

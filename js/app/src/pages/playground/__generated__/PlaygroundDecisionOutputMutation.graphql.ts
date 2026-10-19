@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5ad34867050f836ab67e51ab9b03237>>
+ * @generated SignedSource<<d0a475a56997dafef6e4171182ef1593>>
  * @lightSyntaxTransform
  */
 
@@ -11,14 +11,31 @@ import { ConcreteRequest } from 'relay-runtime';
 export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type RunDecisionInput = {
-  baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  connection: DecisionConnectionInput;
   inputValues: any;
   inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   modelName: string;
-  providerKey: GenerativeProviderKey;
   questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
+};
+export type DecisionConnectionInput = {
+  builtIn: BuiltInDecisionConnectionInput;
+  customProvider?: never;
+} | {
+  builtIn?: never;
+  customProvider: CustomProviderDecisionConnectionInput;
+};
+export type BuiltInDecisionConnectionInput = {
+  baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  providerKey: GenerativeProviderKey;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
+};
+export type CustomProviderDecisionConnectionInput = {
+  id: string;
 };
 export type DecisionInputDefinitionInput = {
   description?: string | null;
@@ -26,11 +43,17 @@ export type DecisionInputDefinitionInput = {
   name: string;
 };
 export type DecisionStateInput = {
+  input?: never;
   object: boolean;
   text?: never;
 } | {
+  input?: never;
   object?: never;
   text: TextStateInput;
+} | {
+  input: string;
+  object?: never;
+  text?: never;
 };
 export type TextStateInput = {
   template: string;
@@ -75,10 +98,6 @@ export type ScaleQuestionInput = {
 export type ScaleLevelInput = {
   description?: string | null;
   label: string;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
 };
 export type PlaygroundDecisionOutputMutation$variables = {
   input: RunDecisionInput;

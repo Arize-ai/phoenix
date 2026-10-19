@@ -61,12 +61,12 @@ export function PlaygroundInstanceModelControls({
           supportsDecisionModels={supportsDecisionModels}
           decisionTabNotice={decisionTabNotice}
         />
-        {!isDecision ? (
-          <ModelParametersConfigButton
-            playgroundInstanceId={instanceId}
-            disableEphemeralRouting={disableEphemeralRouting}
-          />
-        ) : null}
+        {/* A decision instance has no sampling parameters, but its model
+            name and endpoint are set here too. */}
+        <ModelParametersConfigButton
+          playgroundInstanceId={instanceId}
+          disableEphemeralRouting={disableEphemeralRouting}
+        />
       </CompositeField>
     </>
   );
