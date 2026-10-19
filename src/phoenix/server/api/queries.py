@@ -234,7 +234,7 @@ def _to_gql_classification_evaluator_config(
 
 @strawberry.input
 class ModelsInput:
-    provider_key: Optional[GenerativeProviderKey]
+    provider_key: Optional[GenerativeProviderKey] = None
     model_name: Optional[str] = None
     openai_api_type: Optional[OpenAIApiType] = None
     model_type: ModelType = ModelType.LLM

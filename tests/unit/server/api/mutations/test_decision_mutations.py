@@ -118,8 +118,18 @@ async def test_decision_execution(
         assert span.status_code == "OK"
 
 
-@pytest.mark.parametrize("status", [401, 422, 429, 500])
-async def test_provider_error_is_traced(gql_client: AsyncGraphQLClient, status: int) -> None:
+@pytest.mark.parametrize(
+    "status,hint",
+    [
+        (401, "Check the API key"),
+        (422, "question configuration"),
+        (429, "rate-limited"),
+        (500, "unavailable"),
+    ],
+)
+async def test_provider_error_is_traced(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory, status: int, hint: str
+) -> None:
     with respx.mock:
         respx.post("https://api.typesafe.ai/v1/systemone").respond(
             status, json={"error": "secret upstream detail"}
@@ -138,10 +148,17 @@ async def test_provider_error_is_traced(gql_client: AsyncGraphQLClient, status: 
         )
     assert result.data and not result.errors
     payload = result.data["createDecision"]
-    assert f"HTTP {status}" in payload["error"]
+    assert payload["error"].startswith(f"TypeSafe decision request failed (HTTP {status}).")
+    assert hint in payload["error"]
     assert "secret upstream detail" not in payload["error"]
     assert payload["span"] is not None
     assert payload["result"] is None
+    # The span's status is the same user-facing message, not ``BadRequest: ...``.
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert span.status_code == "ERROR"
+        assert span.status_message == payload["error"]
 
 
 @pytest.mark.parametrize(
@@ -170,6 +187,42 @@ async def test_invalid_questions_do_not_call_provider(
     assert result.errors
 
 
+@pytest.mark.parametrize(
+    "state,questions,expected",
+    [
+        ("   ", QUESTIONS, "State cannot be empty"),
+        ("hello", {"q": {"type": "noul"}}, "questions.q.instructions: Field required"),
+        (
+            "hello",
+            {"q": {"type": "choice", "instructions": "x", "criteria": {"one": None}}},
+            "questions.q.criteria: Dictionary should have at least 2 items",
+        ),
+    ],
+)
+async def test_validation_messages_read_as_sentences(
+    gql_client: AsyncGraphQLClient, state: Any, questions: Any, expected: str
+) -> None:
+    """Pydantic's report is reshaped: no `Value error,` prefix, no union branch tags in
+    paths, and no leading colon for request-level problems."""
+    result = await gql_client.execute(
+        MUTATION,
+        variables={
+            "input": {
+                "providerKey": "TYPESAFE",
+                "modelName": "jev-latest",
+                "state": state,
+                "questions": questions,
+            }
+        },
+    )
+    assert result.errors
+    message = result.errors[0].message
+    assert expected in message
+    assert "Value error" not in message
+    assert ".noul." not in message and ".choice." not in message
+    assert not message.startswith(":")
+
+
 async def test_custom_endpoint_cannot_exfiltrate_environment_key(
     gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -193,13 +246,22 @@ async def test_custom_endpoint_cannot_exfiltrate_environment_key(
 async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLClient) -> None:
     result = await gql_client.execute("""query {
       llm: playgroundModels { name modelType providerKey }
-      decision: playgroundModels(input: {providerKey: null, modelType: DECISION}) { name modelType providerKey }
+      decision: playgroundModels(input: {modelType: DECISION}) { name modelType providerKey }
       modelProviders { key dependenciesInstalled }
     }""")
     assert result.data and not result.errors
     assert all(model["modelType"] == "LLM" for model in result.data["llm"])
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
     assert {model["providerKey"] for model in result.data["decision"]} == {"OPENAI", "TYPESAFE"}
+    # ``providerKey`` is optional, so omitting it and passing null both work.
+    omitted = await gql_client.execute(
+        "query { playgroundModels(input: {}) { name } "
+        "decision: playgroundModels(input: {providerKey: null, modelType: DECISION}) { name } }"
+    )
+    assert omitted.data and not omitted.errors
+    assert {model["name"] for model in omitted.data["decision"]} == {
+        model["name"] for model in result.data["decision"]
+    }
     assert {
         provider["key"]: provider["dependenciesInstalled"]
         for provider in result.data["modelProviders"]
@@ -247,7 +309,7 @@ async def test_invalid_provider_response_is_traced(
         )
     assert result.data and not result.errors
     assert (
-        result.data["createDecision"]["error"] == "Decision provider returned an invalid response."
+        result.data["createDecision"]["error"] == "TypeSafe returned an invalid decision response."
     )
     assert result.data["createDecision"]["span"] is not None
 

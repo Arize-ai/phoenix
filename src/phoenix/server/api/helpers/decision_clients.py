@@ -18,6 +18,7 @@ from typing import Annotated, Any, Callable, ClassVar, Literal, Optional, Sequen
 import httpx
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.context import Context as OtelContext
+from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,6 +87,35 @@ class DecisionRequest(BaseModel):
 
 def _as_text(value: Description) -> str:
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def describe_http_failure(provider_name: str, status_code: int) -> str:
+    """A user-facing message for a failed provider call, with a hint that fits the status.
+
+    The upstream body is never included: it may echo the request or carry provider
+    internals.
+    """
+    if status_code in (401, 403):
+        hint = "Check the API key and whether it has access to the model."
+    elif status_code == 404:
+        hint = "Check the base URL and the model name."
+    elif status_code == 429:
+        hint = "The provider rate-limited the request. Wait and retry."
+    elif status_code in (400, 422):
+        hint = "Check the state and question configuration."
+    elif 300 <= status_code < 400:
+        hint = "The endpoint redirected; use the final URL as the base URL."
+    elif status_code >= 500:
+        hint = "The provider is unavailable. Retry later."
+    else:
+        hint = "Check the API key, model access, endpoint, and question configuration."
+    return f"{provider_name} decision request failed (HTTP {status_code}). {hint}"
+
+
+def _fail(span: OtelSpan, message: str) -> BadRequest:
+    """Record ``message`` as the span's error status and return the error to raise."""
+    span.set_status(Status(StatusCode.ERROR, message))
+    return BadRequest(message)
 
 
 class DecisionClient(ABC):
@@ -168,6 +198,9 @@ class DecisionClient(ABC):
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
                 SpanAttributes.INPUT_VALUE: json.dumps(body, ensure_ascii=False),
             },
+            # Status text is set explicitly below so it reads as a user-facing
+            # message rather than ``BadRequest: ...``.
+            set_status_on_exception=False,
         ) as span:
             try:
                 async with httpx.AsyncClient(timeout=60, follow_redirects=False) as client:
@@ -177,9 +210,9 @@ class DecisionClient(ABC):
                         json=body,
                     )
                 if response.is_error or response.is_redirect:
-                    raise BadRequest(
-                        f"{self.system} decision request failed (HTTP {response.status_code}). "
-                        "Check the API key, model access, endpoint, and question configuration."
+                    raise _fail(
+                        span,
+                        describe_http_failure(self.provider_key.value, response.status_code),
                     )
                 result = response.json()
                 if not isinstance(result, dict):
@@ -217,14 +250,18 @@ class DecisionClient(ABC):
             except asyncio.CancelledError:
                 span.set_status(Status(StatusCode.ERROR, "Decision execution cancelled"))
                 raise
+            except BadRequest:
+                raise
             except httpx.TimeoutException as error:
-                raise BadRequest(
-                    "Decision request timed out. Retry or reduce the input."
+                raise _fail(
+                    span, "Decision request timed out. Retry or reduce the input."
                 ) from error
             except httpx.RequestError as error:
-                raise BadRequest("Could not connect to the decision provider.") from error
+                raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
             except (ValueError, KeyError, TypeError, AttributeError) as error:
-                raise BadRequest("Decision provider returned an invalid response.") from error
+                raise _fail(
+                    span, f"{self.provider_key.value} returned an invalid decision response."
+                ) from error
 
 
 class DecisionClientRegistry(metaclass=SingletonMeta):
