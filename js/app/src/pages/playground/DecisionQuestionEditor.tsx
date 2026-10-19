@@ -26,6 +26,7 @@ import {
 import {
   TemplateEditor,
   TemplateEditorWrap,
+  TemplateInput,
 } from "@phoenix/components/templateEditor";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
@@ -252,6 +253,7 @@ export function DecisionQuestionEditor({
               question={question}
               errors={errors}
               isDisabled={isDisabled}
+              templateFormat={templateFormat}
               onTouch={onTouch}
               onChange={onChange}
             />
@@ -260,6 +262,7 @@ export function DecisionQuestionEditor({
               question={question}
               errors={errors}
               isDisabled={isDisabled}
+              templateFormat={templateFormat}
               onTouch={onTouch}
               onChange={onChange}
             />
@@ -267,6 +270,7 @@ export function DecisionQuestionEditor({
             <NoulCriteriaEditor
               question={question}
               isDisabled={isDisabled}
+              templateFormat={templateFormat}
               onChange={onChange}
             />
           )}
@@ -278,7 +282,12 @@ export function DecisionQuestionEditor({
 
 type CriteriaProps = Pick<
   Props,
-  "question" | "errors" | "isDisabled" | "onTouch" | "onChange"
+  | "question"
+  | "errors"
+  | "isDisabled"
+  | "templateFormat"
+  | "onTouch"
+  | "onChange"
 >;
 
 function CriteriaHeading({
@@ -307,6 +316,7 @@ function ChoiceCriteriaEditor({
   question,
   errors,
   isDisabled,
+  templateFormat,
   onTouch,
   onChange,
 }: CriteriaProps) {
@@ -364,17 +374,17 @@ function ChoiceCriteriaEditor({
                 <Input placeholder="value" />
                 {optionError ? <FieldError>{optionError}</FieldError> : null}
               </TextField>
-              <TextField
-                size="S"
+              <TemplateInput
+                key={`${option.id}-${templateFormat}`}
                 aria-label={`Option ${optionIndex + 1} description`}
-                value={option.description}
+                templateFormat={templateFormat}
+                defaultValue={option.description}
+                placeholder="when to pick this (optional)"
+                readOnly={isDisabled}
                 onChange={(description) =>
                   updateOption(option.id, { description })
                 }
-                isDisabled={isDisabled}
-              >
-                <Input placeholder="when to pick this (optional)" />
-              </TextField>
+              />
               <Button
                 size="S"
                 aria-label={`Remove option ${optionIndex + 1}`}
@@ -401,6 +411,7 @@ function ScoreCriteriaEditor({
   question,
   errors,
   isDisabled,
+  templateFormat,
   onTouch,
   onChange,
 }: CriteriaProps) {
@@ -443,10 +454,15 @@ function ScoreCriteriaEditor({
               <Text size="S" color="text-700" fontFamily="mono">
                 {levelIndex}
               </Text>
-              <TextField
-                size="S"
+              <TemplateInput
+                key={`${level.id}-${templateFormat}`}
                 aria-label={`Level ${levelIndex} description`}
-                value={level.description}
+                templateFormat={templateFormat}
+                defaultValue={level.description}
+                placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
+                readOnly={isDisabled}
+                isInvalid={!!levelError}
+                errorMessage={levelError}
                 onChange={(description) =>
                   onChange({
                     levels: question.levels.map((candidate) =>
@@ -457,14 +473,7 @@ function ScoreCriteriaEditor({
                   })
                 }
                 onBlur={() => onTouch(decisionFieldId.level(level.id))}
-                isDisabled={isDisabled}
-                isInvalid={!!levelError}
-              >
-                <Input
-                  placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
-                />
-                {levelError ? <FieldError>{levelError}</FieldError> : null}
-              </TextField>
+              />
               <Flex direction="row" gap="size-50">
                 <Button
                   size="S"
@@ -508,34 +517,35 @@ function ScoreCriteriaEditor({
 function NoulCriteriaEditor({
   question,
   isDisabled,
+  templateFormat,
   onChange,
 }: Omit<CriteriaProps, "errors" | "onTouch">) {
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading title="Criteria (optional)" action={null} />
       <div css={twoUpCSS}>
-        <TextField
-          size="S"
+        <TemplateInput
+          key={`${question.id}-true-${templateFormat}`}
           aria-label="True when"
-          value={question.noul.trueDescription}
+          templateFormat={templateFormat}
+          defaultValue={question.noul.trueDescription}
+          placeholder="true when…"
+          readOnly={isDisabled}
           onChange={(trueDescription) =>
             onChange({ noul: { ...question.noul, trueDescription } })
           }
-          isDisabled={isDisabled}
-        >
-          <Input placeholder="true when…" />
-        </TextField>
-        <TextField
-          size="S"
+        />
+        <TemplateInput
+          key={`${question.id}-false-${templateFormat}`}
           aria-label="False when"
-          value={question.noul.falseDescription}
+          templateFormat={templateFormat}
+          defaultValue={question.noul.falseDescription}
+          placeholder="false when…"
+          readOnly={isDisabled}
           onChange={(falseDescription) =>
             onChange({ noul: { ...question.noul, falseDescription } })
           }
-          isDisabled={isDisabled}
-        >
-          <Input placeholder="false when…" />
-        </TextField>
+        />
       </div>
     </Flex>
   );
