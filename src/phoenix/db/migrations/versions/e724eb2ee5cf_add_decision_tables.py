@@ -173,7 +173,8 @@ def upgrade() -> None:
 
     op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
     op.execute(
-        f'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" CHECK ({_JOB_TYPES_AFTER})'
+        'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" '
+        f"CHECK ({_JOB_TYPES_AFTER})"
     )
     op.create_table(
         "experiment_decision_tasks",
@@ -230,7 +231,8 @@ def downgrade() -> None:
         raise ValueError("Cannot restore valid_type while DECISION jobs exist")
     op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
     op.execute(
-        f'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" CHECK ({_JOB_TYPES_BEFORE})'
+        'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" '
+        f"CHECK ({_JOB_TYPES_BEFORE})"
     )
     op.drop_table("experiment_decision_tasks")
     op.drop_table("decisions_decision_labels")
