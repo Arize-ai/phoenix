@@ -687,6 +687,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
       const shouldResetTemplateFormat =
         created.instance.task.member === "evaluator" &&
+        created.instance.task.evaluator.kind === "LLM" &&
         get().templateFormat === TemplateFormats.NONE;
 
       set(

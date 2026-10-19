@@ -1553,8 +1553,14 @@ describe("addInstance", () => {
       source: { type: "new", kind: "decision" },
     });
 
-    store.getState().replaceInstance({
+    const codeId = store.getState().replaceInstance({
       instanceId: decisionId!,
+      source: { type: "new", kind: "CODE" },
+    });
+    expect(store.getState().templateFormat).toBe("NONE");
+
+    store.getState().replaceInstance({
+      instanceId: codeId!,
       source: { type: "new", kind: "LLM" },
     });
 

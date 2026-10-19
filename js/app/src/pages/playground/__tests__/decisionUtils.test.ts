@@ -917,6 +917,36 @@ describe("decision tasks over a dataset", () => {
     ).toEqual(["ticket", "topic"]);
   });
 
+  it("does not treat JSON object braces as f-string variables when stateFormat is json", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "json" as const,
+      state: '{"nested": {"id": 1}}',
+    };
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      })
+    ).toEqual([]);
+    expect(
+      buildDecisionRequest({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      }).state
+    ).toEqual({ nested: { id: 1 } });
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "nested" }],
+      state: { object: true },
+      inputValues: { nested: { id: 1 } },
+    });
+  });
+
   it("explains what a dataset can't fill", () => {
     const draft = createDecisionDraft();
     expect(

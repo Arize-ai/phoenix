@@ -1,4 +1,18 @@
-import { decisionTaskConfigToPlaygroundProps } from "../experimentRehydration";
+import type * as RelayRuntime from "relay-runtime";
+
+const mockFetchQuery = vi.hoisted(() => vi.fn());
+
+vi.mock("relay-runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof RelayRuntime>()),
+  fetchQuery: (...args: unknown[]) => ({
+    toPromise: () => mockFetchQuery(...args),
+  }),
+}));
+
+import {
+  decisionTaskConfigToPlaygroundProps,
+  fetchExperimentPlaygroundProps,
+} from "../experimentRehydration";
 
 type DecisionTaskConfig = Parameters<
   typeof decisionTaskConfigToPlaygroundProps
@@ -76,4 +90,67 @@ it("restores f-string text and a built-in provider's endpoint", () => {
     decisionRequest: { stateFormat: "text", state: "Ticket: {ticket}" },
   });
   expect(result.stateByDatasetId).toEqual({});
+});
+
+it("fetches a fixed-question decision experiment and skips per-example benchmark tasks", async () => {
+  mockFetchQuery.mockResolvedValueOnce({
+    node: {
+      dataset: { id: "dataset-1" },
+      job: {
+        maxConcurrency: 2,
+        datasetEvaluators: { edges: [{ node: { id: "judge-1" } }] },
+        taskConfig: {
+          ...taskConfig,
+          questionsPath: "input.questions",
+        },
+      },
+    },
+  });
+  expect(await fetchExperimentPlaygroundProps("exp-benchmark")).toBeNull();
+
+  mockFetchQuery.mockResolvedValueOnce({
+    node: {
+      dataset: { id: "dataset-1" },
+      job: {
+        maxConcurrency: 2,
+        datasetEvaluators: { edges: [{ node: { id: "judge-1" } }] },
+        taskConfig: {
+          ...taskConfig,
+          state: { __typename: "DecisionInputState", input: "ticket" },
+          questions: [
+            {
+              __typename: "DecisionChoiceQuestion",
+              name: "team",
+              instructions: "Which team?",
+              choices: [
+                { value: "billing", description: "Refunds" },
+                { value: "other", description: null },
+              ],
+            },
+            {
+              __typename: "DecisionScaleQuestion",
+              name: "severity",
+              instructions: "Severity?",
+              levels: [
+                { label: "low", description: null },
+                { label: "high", description: "Outage" },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  });
+  const result = await fetchExperimentPlaygroundProps("exp-fixed");
+  expect(result?.playgroundProps.instances?.[0]).toMatchObject({
+    task: { member: "decision" },
+    decisionRequest: {
+      stateFormat: "text",
+      state: "{{ticket}}",
+      questions: [
+        { type: "choice", name: "team", instructions: "Which team?" },
+        { type: "score", name: "severity", instructions: "Severity?" },
+      ],
+    },
+  });
 });

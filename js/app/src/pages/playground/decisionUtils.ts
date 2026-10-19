@@ -500,7 +500,11 @@ export function buildDecisionRequest({
     draft.stateFormat === "inputs"
       ? inputValuesOf(parseStateInputNames(draft.state), variables)
       : draft.stateFormat === "json"
-        ? parseJsonState(formatText(draft.state))
+        ? parseJsonState(
+            templateFormat === TemplateFormats.Mustache
+              ? formatText(draft.state)
+              : draft.state
+          )
         : formatText(draft.state);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
@@ -700,7 +704,11 @@ function toStateInput({
     };
   }
   if (draft.stateFormat === "json") {
-    const parsed = parseJsonState(formatText(draft.state));
+    const parsed = parseJsonState(
+      templateFormat === TemplateFormats.Mustache
+        ? formatText(draft.state)
+        : draft.state
+    );
     if (
       isStringKeyedObject(parsed) &&
       !Array.isArray(parsed) &&
@@ -1502,7 +1510,10 @@ export function extractDecisionVariables({
     stateTemplateVariables(draft.state, templateFormat).forEach((variable) =>
       found.add(variable)
     );
-  } else if (draft.stateFormat === "json") {
+  } else if (
+    draft.stateFormat === "json" &&
+    templateFormat === TemplateFormats.Mustache
+  ) {
     addVariablesFrom(draft.state);
   }
   for (const question of draft.questions) {

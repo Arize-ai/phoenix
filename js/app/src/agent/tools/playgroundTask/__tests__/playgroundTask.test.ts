@@ -15,8 +15,13 @@ import {
 } from "@phoenix/store/playground";
 
 import { createSelectTaskClientAction } from "../clientActions";
-import { hasInstanceLoaded, waitForInstanceLoad } from "../instanceLoad";
+import {
+  hasInstanceLoaded,
+  settleInstanceSource,
+  waitForInstanceLoad,
+} from "../instanceLoad";
 import { selectTaskInputSchema } from "../schemas";
+import { readTaskSnapshot } from "../taskSnapshot";
 
 installTestStorage();
 
@@ -232,6 +237,45 @@ describe("playground.task.select", () => {
     });
   });
 
+  it("reports NOT_FOUND when a decision fails to load and explains that PXI cannot read decisions yet", async () => {
+    const playgroundStore = createStore();
+    const instanceId = playgroundStore.getState().replaceInstance({
+      instanceId: playgroundStore.getState().instances[0].id,
+      source: { type: "decision", decisionId: "D-gone" },
+    })!;
+
+    const pending = settleInstanceSource({
+      playgroundStore,
+      instanceId,
+      source: { type: "decision", decisionId: "D-gone" },
+    });
+
+    playgroundStore.getState().updateInstance({
+      instanceId,
+      patch: { loadingSource: null },
+      dirty: null,
+    });
+
+    expect(await pending).toMatchObject({
+      ok: false,
+      code: "NOT_FOUND",
+      error: expect.stringContaining("Decision D-gone could not be loaded"),
+    });
+
+    expect(
+      await readTaskSnapshot({
+        playgroundStore,
+        instanceId,
+        waitForEvaluatorHost: vi.fn(),
+      })
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(
+        "holds a decision, which PXI cannot read yet"
+      ),
+    });
+  });
+
   it("lists the instance ids when several instances exist and none is named", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
@@ -320,6 +364,25 @@ describe("instance load helpers", () => {
         type: "prompt",
         promptId: "P1",
         promptVersionId: "V1",
+      })
+    ).toBe(false);
+
+    const decisionInstance = {
+      task: { member: "decision" as const },
+      prompt: null,
+      decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
+    };
+    expect(
+      hasInstanceLoaded(decisionInstance, {
+        type: "decision",
+        decisionId: "D1",
+      })
+    ).toBe(true);
+    expect(
+      hasInstanceLoaded(decisionInstance, {
+        type: "decision",
+        decisionId: "D1",
+        decisionVersionId: "DV2",
       })
     ).toBe(false);
   });

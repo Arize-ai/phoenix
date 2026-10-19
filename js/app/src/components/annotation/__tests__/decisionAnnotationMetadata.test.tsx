@@ -1,6 +1,6 @@
 import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -76,6 +76,8 @@ describe("parseDecisionAnnotationMetadata", () => {
 });
 
 describe("decision annotation rendering", () => {
+  const mounted: Array<{ root: Root; container: HTMLDivElement }> = [];
+
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     Object.defineProperty(window, "matchMedia", {
@@ -88,10 +90,18 @@ describe("decision annotation rendering", () => {
       })),
     });
   });
+  afterEach(() => {
+    while (mounted.length > 0) {
+      const { root, container } = mounted.pop()!;
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
   const render = (node: React.ReactNode) => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
+    mounted.push({ root, container });
     act(() =>
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
