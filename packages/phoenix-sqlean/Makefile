@@ -5,11 +5,11 @@
 
 # The download URL embeds both, so a mismatch 404s at fetch time.
 SQLITE_RELEASE_YEAR := 2026
-SQLITE_VERSION := 3540000
+SQLITE_VERSION := 3540100
 # Recorded by confirming the download against the SHA3-256 in sqlite.org's
 # PRODUCT line, then re-hashing (shasum cannot do SHA3). Release files there
 # are immutable, so a mismatch means different bytes.
-SQLITE_SHA256 := 68e913b0fe8ec6b4e5f391c594a28872884e80d6cd042a1e50c957be46b5aa4d
+SQLITE_SHA256 := 0a9c8e34352dad46006aa82836d5383bff9dc6bc9ce5a60553c05aa30e6ad1f9
 SQLEAN_REPO := https://github.com/nalgeon/sqlean.git
 # The release SQLEAN_COMMIT corresponds to, +<short sha> when the commit sits
 # ahead of it. check-sqlean-pin enforces that, and that setup.py's copy agrees
