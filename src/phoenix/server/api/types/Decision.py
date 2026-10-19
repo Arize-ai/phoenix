@@ -17,6 +17,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.DecisionDefinition import (
     DecisionInputDefinition,
     DecisionQuestion,
@@ -105,6 +106,14 @@ class DecisionVersion(Node):
     @strawberry.field
     def decision_id(self) -> GlobalID:
         return GlobalID(Decision.__name__, str(self.db_record.decision_id))
+
+    @strawberry.field(description="The decision this version belongs to.")  # type: ignore[untyped-decorator]
+    async def decision(self, info: Info[Context, None]) -> "Decision":
+        async with info.context.db.read() as session:
+            decision = await session.get(models.Decision, self.db_record.decision_id)
+        if decision is None:
+            raise NotFound(f"Decision not found: {self.db_record.decision_id}")
+        return Decision(id=decision.id, db_record=decision)
 
     @strawberry.field
     def description(self) -> Optional[str]:

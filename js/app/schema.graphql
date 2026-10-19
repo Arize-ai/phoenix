@@ -2157,6 +2157,9 @@ type DecisionVersion implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   decisionId: ID!
+
+  """The decision this version belongs to."""
+  decision: Decision!
   description: String
   inputs: [DecisionInputDefinition!]!
   state: DecisionState!
