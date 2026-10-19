@@ -14,7 +14,7 @@ from phoenix.db.facilitator import _ensure_enums
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.token_price_customization import ThresholdBasedTokenPriceCustomization
 from phoenix.server.cost_tracking.apply_manifest import (
-    MANIFEST_VERSION_SETTING_KEY,
+    MANIFEST_VERSION_STATE_KEY,
     apply_manifest_if_newer,
     get_applied_manifest_version,
 )
@@ -23,7 +23,6 @@ from phoenix.server.cost_tracking.manifest import (
     ModelCostManifest,
     parse_manifest,
 )
-from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.types import DbSessionFactory
 
 # These tests count the built-in models, so they start from an empty database.
@@ -636,7 +635,7 @@ class TestApplyManifestIfNewer:
     ) -> None:
         await _ensure_enums(db)
         async with db() as session:
-            session.add(models.SystemSetting(key=MANIFEST_VERSION_SETTING_KEY, value=value))
+            session.add(models.SystemState(key=MANIFEST_VERSION_STATE_KEY, value=value, revision=1))
         assert await _apply(db, _manifest("model-a", day=1))
         assert await _active_built_in_prices(db) == {"model-a": 1e-6}
 
@@ -683,16 +682,14 @@ class TestApplyManifestIfNewer:
         assert await _apply(db, _manifest("model-a", "model-b", day=2))
         assert await _built_in_updated_at(db) == updated_at
 
-    async def test_marker_loads_into_system_settings_without_warnings(
-        self,
-        db: DbSessionFactory,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
+    async def test_each_apply_increments_the_marker_revision(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", day=1))
-        with caplog.at_level(logging.WARNING):
-            await SystemSettings(db=db).bootstrap()
-        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert await _apply(db, _manifest("model-a", day=2))
+        async with db() as session:
+            row = await session.get(models.SystemState, MANIFEST_VERSION_STATE_KEY)
+        assert row is not None
+        assert row.revision == 2
 
     async def test_concurrent_applies_apply_once(self, db: DbSessionFactory) -> None:
         if db.dialect is not SupportedSQLDialect.POSTGRESQL:

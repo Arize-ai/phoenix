@@ -157,6 +157,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -363,8 +364,10 @@ class Query:
             "synced from, or null if none has been applied."
         ),
     )  # type: ignore
-    def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
-        if (marker := info.context.settings.model_cost_manifest_version) is None:
+    async def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
+        async with info.context.db.read() as session:
+            marker = await get_applied_manifest_version(session)
+        if marker is None:
             return None
         return to_gql_model_cost_manifest(marker)
 

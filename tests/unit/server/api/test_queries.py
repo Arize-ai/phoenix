@@ -25,10 +25,10 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.cost_tracking.apply_manifest import ManifestSource, ModelCostManifestVersion
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-from phoenix.server.settings.registry import ManifestSource, ModelCostManifestVersionSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -602,7 +602,7 @@ async def model_cost_manifest_marker(
     request: pytest.FixtureRequest,
 ) -> None:
     source: ManifestSource = request.param
-    marker = ModelCostManifestVersionSetting(
+    marker = ModelCostManifestVersion(
         schema_version=1,
         generated_at=datetime(2099, 1, 1, tzinfo=timezone.utc),
         source=source,
@@ -611,9 +611,10 @@ async def model_cost_manifest_marker(
     )
     async with db() as session:
         session.add(
-            models.SystemSetting(
+            models.SystemState(
                 key="cost_tracking.model_cost_manifest",
                 value=marker.model_dump(mode="json"),
+                revision=1,
             )
         )
 
@@ -627,8 +628,6 @@ async def model_cost_manifest_marker(
     indirect=["model_cost_manifest_marker"],
 )
 async def test_model_cost_manifest_returns_the_marker(
-    # Comes before gql_client, so the marker is written before the settings cache reads it
-    # at boot.
     model_cost_manifest_marker: None,
     gql_client: AsyncGraphQLClient,
     expected_source: str,

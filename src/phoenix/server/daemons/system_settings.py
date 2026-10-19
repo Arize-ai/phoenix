@@ -18,7 +18,6 @@ from phoenix.server.settings.registry import (
     AgentGitHubSetting,
     AgentSessionRetentionSetting,
     AgentTraceRecordingSetting,
-    ModelCostManifestVersionSetting,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
@@ -50,10 +49,6 @@ class _SettingsCache:
     ) -> Optional[AgentSessionRetentionSetting]: ...
     @overload
     def get(self, key: Literal["agent.assistant.github"]) -> Optional[AgentGitHubSetting]: ...
-    @overload
-    def get(
-        self, key: Literal["cost_tracking.model_cost_manifest"]
-    ) -> Optional[ModelCostManifestVersionSetting]: ...
     def get(self, key: SystemSettingKey) -> Optional[BaseModel]:
         return self._data.get(key)
 
@@ -131,15 +126,6 @@ class SystemSettings(DaemonTask):
         user_id: Optional[int] = None,
     ) -> None:
         await self._set("agent.assistant.github", value, user_id=user_id)
-
-    @property
-    def model_cost_manifest_version(self) -> Optional[ModelCostManifestVersionSetting]:
-        """The model cost manifest last applied, or None if none has been recorded.
-
-        Written by the cost tracking code rather than through this cache, so it is picked up
-        on the next poll.
-        """
-        return self._cache.get("cost_tracking.model_cost_manifest")
 
     async def _set(
         self,
