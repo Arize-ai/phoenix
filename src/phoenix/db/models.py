@@ -77,7 +77,15 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
 )
-from phoenix.db.types.decisions import DecisionTaskConfig
+from phoenix.db.types.decisions import (
+    DecisionInput,
+    DecisionInputsRootModel,
+    DecisionQuestion,
+    DecisionQuestionsRootModel,
+    DecisionState,
+    DecisionStateRootModel,
+    DecisionTaskConfig,
+)
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
     EvaluatorDefinitionRootModel,
@@ -672,6 +680,60 @@ class _HexColor(TypeDecorator[str]):
         if value is None:
             return None
         return value
+
+
+class _DecisionInputs(TypeDecorator[list[DecisionInput]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[DecisionInput]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            raise ValueError("Decision inputs cannot be None")
+        return [input.model_dump() for input in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[DecisionInput]]:
+        return DecisionInputsRootModel.model_validate(value).root if value is not None else None
+
+
+class _DecisionState(TypeDecorator[DecisionState]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[DecisionState], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            raise ValueError("Decision state cannot be None")
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[DecisionState]:
+        return DecisionStateRootModel.model_validate(value).root if value is not None else None
+
+
+class _DecisionQuestions(TypeDecorator[list[DecisionQuestion]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[DecisionQuestion]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            raise ValueError("Decision questions cannot be None")
+        return [question.model_dump() for question in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[DecisionQuestion]]:
+        return DecisionQuestionsRootModel.model_validate(value).root if value is not None else None
 
 
 class _DecisionTaskConfig(TypeDecorator[DecisionTaskConfig]):
@@ -2200,6 +2262,14 @@ class ExperimentDecisionTask(ExperimentJob):
 
     config: Mapped[DecisionTaskConfig] = mapped_column(_DecisionTaskConfig, nullable=False)
 
+    # The saved version the definition was copied from, if any; the copy keeps running when
+    # the version is deleted.
+    decision_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decision_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     __mapper_args__ = {
         "polymorphic_identity": "DECISION",
     }
@@ -3100,6 +3170,133 @@ class PromptVersionTag(HasId):
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
+
+
+class Decision(HasId):
+    """A saved decision: a named, versioned typed function apps fetch by tag."""
+
+    __tablename__ = "decisions"
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    decision_versions: Mapped[list["DecisionVersion"]] = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+
+class DecisionVersion(HasId):
+    """An immutable version of a decision: its inputs, state, questions, and model."""
+
+    __tablename__ = "decision_versions"
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    """How to read ``inputs``, ``state``, and ``questions``; see ``DECISION_SCHEMA_VERSION``."""
+    inputs: Mapped[list[DecisionInput]] = mapped_column(_DecisionInputs, nullable=False)
+    state: Mapped[DecisionState] = mapped_column(_DecisionState, nullable=False)
+    questions: Mapped[list[DecisionQuestion]] = mapped_column(_DecisionQuestions, nullable=False)
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str]
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    decision: Mapped["Decision"] = relationship("Decision", back_populates="decision_versions")
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+    # The target of the tags' composite foreign key, so a tag can never point at another
+    # decision's version.
+    __table_args__ = (UniqueConstraint("decision_id", "id"),)
+
+    def has_identical_content(self, other: Self) -> bool:
+        """Whether two versions ask the same thing of the same model, ignoring ids, authors,
+        and timestamps."""
+        return (
+            self.description == other.description
+            and self.inputs == other.inputs
+            and self.state == other.state
+            and self.questions == other.questions
+            and self.model_provider == other.model_provider
+            and self.model_name == other.model_name
+            and self.custom_provider_id == other.custom_provider_id
+            and self.metadata_ == other.metadata_
+        )
+
+
+class DecisionVersionTag(HasId):
+    """A movable name for one of a decision's versions, such as ``production``."""
+
+    __tablename__ = "decision_version_tags"
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    decision_version_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    decision: Mapped["Decision"] = relationship(
+        "Decision", back_populates="decision_version_tags", overlaps="decision_version_tags"
+    )
+    decision_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        back_populates="decision_version_tags",
+        overlaps="decision,decision_version_tags",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "decision_id"),
+        ForeignKeyConstraint(
+            ["decision_id", "decision_version_id"],
+            ["decision_versions.decision_id", "decision_versions.id"],
+            ondelete="CASCADE",
+        ),
+    )
 
 
 class AnnotationConfig(HasId):
