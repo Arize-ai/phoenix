@@ -20,12 +20,14 @@ export function PlaygroundTaskInstance({
   splitIds,
   appendedMessagesPath,
   availablePaths,
+  supportsDecisionModels,
 }: {
   instanceId: number;
   datasetId: string | null;
   splitIds?: string[];
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
+  supportsDecisionModels?: boolean;
 }) {
   usePlaygroundInstanceSourceLoader(instanceId);
 
@@ -64,6 +66,7 @@ export function PlaygroundTaskInstance({
       appendedMessagesPath={appendedMessagesPath}
       availablePaths={availablePaths}
       taskMenu
+      supportsDecisionModels={supportsDecisionModels}
     />
   );
 }

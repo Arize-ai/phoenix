@@ -134,6 +134,7 @@ import {
   hasEditableTableUnsavedChanges,
 } from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import {
@@ -156,6 +157,7 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import {
@@ -187,13 +189,19 @@ export function Playground(
     storeDatasetId: props.datasetId ?? null,
   });
 
-  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
+  const { modelProviders, decisionModels } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
         modelProviders {
           name
           dependenciesInstalled
           dependencies
+        }
+        decisionModels: playgroundModels(
+          input: { providerKey: null, modelType: DECISION }
+        ) {
+          name
+          providerKey
         }
       }
     `,
@@ -216,6 +224,33 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
+  const isDecisionMode =
+    searchParams.get("modelType") === "DECISION" && !datasetId;
+  // Resolve the decision default from the server catalog so new decision
+  // providers and models need no frontend change. URL params win when they
+  // name a cataloged provider; otherwise fall back to the first entry.
+  const requestedDecisionProvider = searchParams.get("decisionProvider");
+  const requestedDecisionModel = searchParams.get("decisionModel");
+  const decisionDefault =
+    decisionModels.find(
+      (model) =>
+        model.providerKey === requestedDecisionProvider &&
+        (requestedDecisionModel == null ||
+          model.name === requestedDecisionModel)
+    ) ??
+    decisionModels.find(
+      (model) => model.providerKey === requestedDecisionProvider
+    ) ??
+    decisionModels[0] ??
+    null;
+  const decisionProvider: ModelProvider =
+    decisionDefault && isModelProvider(decisionDefault.providerKey)
+      ? decisionDefault.providerKey
+      : "OPENAI";
+  const decisionModelName =
+    requestedDecisionProvider === decisionProvider && requestedDecisionModel
+      ? requestedDecisionModel
+      : decisionDefault?.name;
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
@@ -226,8 +261,11 @@ export function Playground(
       datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
-      defaultModelProvider={defaultModelProvider}
-      defaultModelName={defaultModelName}
+      defaultModelType={isDecisionMode ? "DECISION" : "LLM"}
+      defaultModelProvider={
+        isDecisionMode ? decisionProvider : defaultModelProvider
+      }
+      defaultModelName={isDecisionMode ? decisionModelName : defaultModelName}
     >
       <PlaygroundExampleEditingProvider>
         <div css={playgroundWrapCSS}>
@@ -304,6 +342,17 @@ function PlaygroundContent() {
     getPlaygroundTaskKind(state.instances)
   );
 
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  );
+  const hasLLMInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType !== "DECISION")
+  );
+  const decisionInstanceIds = usePlaygroundContext((state) =>
+    state.instances
+      .filter((instance) => instance.model.modelType === "DECISION")
+      .map((instance) => instance.id)
+  );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -788,10 +837,18 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning, hasUnsavedExampleChanges]);
 
-  const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskKind }),
-    [isDatasetMode, templateFormat, taskKind]
-  );
+  const panelIds = useMemo(() => {
+    const ids = getPlaygroundPanelIds({
+      isDatasetMode,
+      templateFormat,
+      taskKind,
+    });
+    // A decision-only playground has no prompt inputs panel.
+    if (!hasLLMInstance) {
+      return ids.filter((id) => id !== "input");
+    }
+    return ids;
+  }, [isDatasetMode, templateFormat, taskKind, hasLLMInstance]);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
     panelIds,
@@ -833,10 +890,10 @@ function PlaygroundContent() {
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
+          title={taskKind === "evaluator" ? "Evaluators" : hasDecisionInstance ? "Models & input" : "Prompts"}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              {taskKind === "prompt" ? (
+              {taskKind === "prompt" && hasLLMInstance ? (
                 <TemplateFormatRadioGroup size="S" />
               ) : null}
               <PlaygroundCompareMenu />
@@ -861,6 +918,7 @@ function PlaygroundContent() {
                     splitIds={splitIds}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
+                    supportsDecisionModels={!isDatasetMode}
                   />
                 </View>
               ))}
@@ -919,13 +977,15 @@ function PlaygroundContent() {
           </TitledPanel>
         ) : (
           <>
-            {templateFormat !== TemplateFormats.NONE ? (
+            {templateFormat !== TemplateFormats.NONE && hasLLMInstance ? (
               <TitledPanel
                 ref={inputsPanelRef}
                 headingLevel={2}
                 resizable
                 title="Inputs"
-                extra={<PlaygroundDatasetSelect />}
+                extra={
+                  <PlaygroundDatasetSelect isDisabled={hasDecisionInstance} />
+                }
                 panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
@@ -950,7 +1010,13 @@ function PlaygroundContent() {
                 <Flex direction="row" gap="size-200">
                   {instanceIds.map((instanceId) => (
                     <View key={`${instanceId}-output`} flex="1 1 0px">
-                      <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      {decisionInstanceIds.includes(instanceId) ? (
+                        <PlaygroundDecisionOutput
+                          playgroundInstanceId={instanceId}
+                        />
+                      ) : (
+                        <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      )}
                     </View>
                   ))}
                 </Flex>

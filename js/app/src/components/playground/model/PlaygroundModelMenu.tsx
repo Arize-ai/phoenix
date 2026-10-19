@@ -1,15 +1,18 @@
 import { useCallback } from "react";
+import { useSearchParams } from "react-router";
 
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 
 export type PlaygroundModelMenuProps = {
   /**
    * The playground instance ID to configure
    */
   playgroundInstanceId: number;
+  supportsDecisionModels?: boolean;
 };
 
 /**
@@ -18,6 +21,7 @@ export type PlaygroundModelMenuProps = {
  */
 export function PlaygroundModelMenu({
   playgroundInstanceId,
+  supportsDecisionModels = false,
 }: PlaygroundModelMenuProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
@@ -25,6 +29,8 @@ export function PlaygroundModelMenu({
 
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const [searchParams, setSearchParams] = useSearchParams();
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -33,6 +39,7 @@ export function PlaygroundModelMenu({
     ? {
         provider: instance.model.provider,
         modelName: instance.model.modelName,
+        modelType: instance.model.modelType,
         customProvider: instance.model.customProvider ?? undefined,
       }
     : null;
@@ -41,8 +48,66 @@ export function PlaygroundModelMenu({
     (model: ModelMenuValue) => {
       if (!instance) return;
 
+      if (model.modelType === "DECISION") {
+        updateInstance({
+          instanceId: playgroundInstanceId,
+          dirty: true,
+          patch: {
+            llmModel:
+              instance.model.modelType === "DECISION"
+                ? instance.llmModel
+                : instance.model,
+            model: {
+              provider: model.provider,
+              modelName: model.modelName,
+              modelType: "DECISION",
+              invocationParameters: instance.model.invocationParameters,
+              baseUrl:
+                instance.model.modelType === "DECISION" &&
+                model.provider === instance.model.provider
+                  ? instance.model.baseUrl
+                  : null,
+            },
+            decision: instance.decision ?? createDecisionDraft(),
+            prompt: null,
+            repetitions: {},
+            experiment: null,
+          },
+        });
+        const params = new URLSearchParams(searchParams);
+        params.set("modelType", "DECISION");
+        params.set("decisionProvider", model.provider);
+        params.set("decisionModel", model.modelName);
+        setSearchParams(params, { replace: true });
+        return;
+      }
+      if (instance.model.modelType === "DECISION") {
+        const params = new URLSearchParams(searchParams);
+        params.delete("modelType");
+        params.delete("decisionProvider");
+        params.delete("decisionModel");
+        setSearchParams(params, { replace: true });
+        // Restore the conversation's config before any provider conversion.
+        updateInstance({
+          instanceId: playgroundInstanceId,
+          dirty: true,
+          patch: {
+            model: {
+              ...(instance.llmModel ?? instance.model),
+              provider: instance.llmModel?.provider ?? "OPENAI",
+              modelType: "LLM",
+            },
+            repetitions: {},
+          },
+        });
+      }
+
       // Update provider if it changed
-      if (model.provider !== instance.model.provider) {
+      const previousProvider =
+        instance.model.modelType === "DECISION"
+          ? (instance.llmModel?.provider ?? "OPENAI")
+          : instance.model.provider;
+      if (model.provider !== previousProvider) {
         updateProvider({
           instanceId: playgroundInstanceId,
           provider: model.provider,
@@ -56,6 +121,7 @@ export function PlaygroundModelMenu({
         patch: {
           modelName: model.modelName,
           customProvider: model.customProvider ?? null,
+          modelType: "LLM",
         },
       });
     },
@@ -65,6 +131,9 @@ export function PlaygroundModelMenu({
       updateProvider,
       updateModel,
       modelConfigByProvider,
+      updateInstance,
+      searchParams,
+      setSearchParams,
     ]
   );
 
@@ -72,5 +141,12 @@ export function PlaygroundModelMenu({
     return null;
   }
 
-  return <ModelMenu value={value} onChange={handleChange} />;
+  return (
+    <ModelMenu
+      value={value}
+      onChange={handleChange}
+      supportsDecisionModels={supportsDecisionModels}
+      isDisabled={instance.activeRunId != null}
+    />
+  );
 }

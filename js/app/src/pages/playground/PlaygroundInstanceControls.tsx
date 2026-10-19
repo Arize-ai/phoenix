@@ -23,6 +23,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export function PlaygroundInstanceModelControls({
   instanceId,
   disableEphemeralRouting,
+  supportsDecisionModels,
 }: {
   instanceId: number;
   /**
@@ -30,7 +31,11 @@ export function PlaygroundInstanceModelControls({
    * come from custom providers or environment variables.
    */
   disableEphemeralRouting?: boolean;
+  supportsDecisionModels?: boolean;
 }) {
+  const isDecision = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === instanceId)?.model.modelType === "DECISION"
+  );
   return (
     <>
       <Suspense
@@ -42,14 +47,14 @@ export function PlaygroundInstanceModelControls({
       >
         {/* Keeps instance invocation parameters aligned with the frontend
             spec table when model metadata or saved defaults change. */}
-        <InvocationParameterSpecsSync instanceId={instanceId} />
+        {!isDecision ? <InvocationParameterSpecsSync instanceId={instanceId} /> : null}
       </Suspense>
       <CompositeField>
-        <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-        <ModelParametersConfigButton
+        <PlaygroundModelMenu playgroundInstanceId={instanceId} supportsDecisionModels={supportsDecisionModels} />
+        {!isDecision ? <ModelParametersConfigButton
           playgroundInstanceId={instanceId}
           disableEphemeralRouting={disableEphemeralRouting}
-        />
+        /> : null}
       </CompositeField>
     </>
   );

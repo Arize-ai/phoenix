@@ -19,6 +19,7 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
+import { getDecisionValidationError } from "./decisionUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
@@ -35,6 +36,13 @@ export function PlaygroundRunButton() {
     }));
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
+  );
+  const hasInvalidDecision = instances.some(
+    (instance) =>
+      instance.model.modelType === "DECISION" &&
+      (!instance.decision ||
+        !!getDecisionValidationError(instance.decision) ||
+        !instance.model.modelName?.trim())
   );
 
   const isEvaluatorKind = usePlaygroundContext(
@@ -58,7 +66,7 @@ export function PlaygroundRunButton() {
   // Evaluators judge dataset examples; prompts can also run on manual input.
   // Neither runs while the examples are being edited: the server would judge
   // the saved examples, not the ones on screen.
-  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples;
+  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples && !hasInvalidDecision;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
@@ -73,6 +81,7 @@ export function PlaygroundRunButton() {
     cancelPlaygroundRun,
     runPlaygroundInstances,
     instances,
+    hasInvalidDecision,
   ]);
   useHotkeys(
     "mod+enter",
@@ -120,7 +129,9 @@ export function PlaygroundRunButton() {
         reason={
           isEditingExamples
             ? EXAMPLES_ARE_BEING_EDITED
-            : EVALUATORS_NEED_A_DATASET
+            : hasInvalidDecision
+              ? "Complete the decision state, questions, and model to run"
+              : EVALUATORS_NEED_A_DATASET
         }
       >
         {button}
