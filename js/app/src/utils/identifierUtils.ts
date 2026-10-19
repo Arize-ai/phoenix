@@ -73,6 +73,20 @@ export function validateIdentifier(value: string): ValidateResult {
 }
 
 /**
+ * Collapses each run of whitespace in `value` into a single dash, leaving every
+ * other character (including uppercase and disallowed characters) untouched so
+ * that validation can still flag them. Leading and trailing whitespace become
+ * dashes rather than being trimmed so the caller can keep typing.
+ *
+ * Use this as a controlled-input transformer when only spaces should be
+ * converted; to also lowercase and strip disallowed characters, use
+ * {@link transformIdentifierInput}.
+ */
+export function replaceWhitespaceWithDashes(value: string): string {
+  return value.replace(/\s+/g, "-");
+}
+
+/**
  * Lowercases `value`, collapses whitespace runs into single dashes, and drops
  * any character outside the allowed identifier set. Leading and trailing
  * separators are preserved so the caller can keep typing (e.g. typing
@@ -83,10 +97,10 @@ export function validateIdentifier(value: string): ValidateResult {
  * arbitrary string into a final identifier, use {@link getIdentifier}.
  */
 export function transformIdentifierInput(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
+  return replaceWhitespaceWithDashes(value.toLowerCase()).replace(
+    /[^_a-z0-9-]/g,
+    ""
+  );
 }
 
 /**

@@ -27,7 +27,11 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
+import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export const ClonePromptDialog = ({
@@ -148,16 +152,18 @@ export const ClonePromptDialog = ({
                       field: { onChange, onBlur, value, disabled },
                       fieldState: { error },
                     }) => (
-                      <TextField isInvalid={!!error?.message}>
+                      <TextField
+                        isInvalid={!!error?.message}
+                        isDisabled={disabled}
+                        value={value}
+                        onChange={withInputTransform(
+                          replaceWhitespaceWithDashes,
+                          onChange
+                        )}
+                        onBlur={onBlur}
+                      >
                         <Label>Name</Label>
-                        <Input
-                          name="name"
-                          type="text"
-                          onChange={onChange}
-                          onBlur={onBlur}
-                          value={value}
-                          disabled={disabled}
-                        />
+                        <Input name="name" type="text" />
                         {!error && (
                           <Text slot="description">
                             A name for the cloned prompt.

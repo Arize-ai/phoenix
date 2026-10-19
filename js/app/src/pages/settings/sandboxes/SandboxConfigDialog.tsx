@@ -49,6 +49,7 @@ import {
   transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
+import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 import { validateDependencyPackages } from "@phoenix/utils/packageSpecUtils";
 
 import type { SandboxConfigDialogCreateSandboxConfigMutation } from "./__generated__/SandboxConfigDialogCreateSandboxConfigMutation.graphql";
@@ -547,9 +548,10 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 render={({ field, fieldState }) => (
                   <TextField
                     {...field}
-                    onChange={(value) =>
-                      field.onChange(transformIdentifierInput(value))
-                    }
+                    onChange={withInputTransform(
+                      transformIdentifierInput,
+                      field.onChange
+                    )}
                     isInvalid={fieldState.invalid}
                   >
                     <Label>Name</Label>

@@ -10,23 +10,15 @@ import {
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
   IDENTIFIER_ERROR_MESSAGES,
+  transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
+import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 
 /**
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
-
-/**
- * Transforms an evaluator name by lowercasing, converting spaces to dashes,
- * and stripping disallowed characters.
- */
-const transformEvaluatorName = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/ /g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -92,7 +84,6 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
-  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
   // Register with the evaluator store so the parent can trigger
@@ -127,23 +118,10 @@ export const EvaluatorNameInput = ({
             error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
         const displayedError = shouldShowError ? error.message : undefined;
 
-        const handleChange = (value: string) => {
-          const input = inputRef.current;
-          const selectionStart = input?.selectionStart ?? value.length;
-
-          const transformed = transformEvaluatorName(value);
-
-          // Calculate new cursor position by transforming the text before cursor
-          const beforeCursor = value.slice(0, selectionStart);
-          const newCursorPosition = transformEvaluatorName(beforeCursor).length;
-
-          field.onChange(transformed);
-
-          // Restore cursor position after React updates the DOM
-          requestAnimationFrame(() => {
-            input?.setSelectionRange(newCursorPosition, newCursorPosition);
-          });
-        };
+        const handleChange = withInputTransform(
+          transformIdentifierInput,
+          field.onChange
+        );
 
         const handleFocus = () => {
           // Reset blur state so deferred validation doesn't run while typing
@@ -169,7 +147,7 @@ export const EvaluatorNameInput = ({
             {...props}
           >
             <Label>Name</Label>
-            <Input ref={inputRef} placeholder={placeholder} />
+            <Input placeholder={placeholder} />
             <FieldError>{displayedError}</FieldError>
           </TextField>
         );

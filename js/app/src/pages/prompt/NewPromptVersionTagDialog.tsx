@@ -24,7 +24,11 @@ import {
   View,
 } from "@phoenix/components";
 
-import { validateIdentifier } from "../../utils/identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  validateIdentifier,
+} from "../../utils/identifierUtils";
+import { withInputTransform } from "../../utils/inputTransformUtils";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -120,7 +124,10 @@ export function NewPromptVersionDialog({
                   }) => (
                     <TextField
                       isInvalid={invalid}
-                      onChange={onChange}
+                      onChange={withInputTransform(
+                        replaceWhitespaceWithDashes,
+                        onChange
+                      )}
                       onBlur={onBlur}
                       name={name}
                       value={value}
