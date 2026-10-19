@@ -143,8 +143,13 @@ export type DecisionQuestionDraft = {
  * fields may use template variables.
  */
 export type DecisionRequestDraft = {
+  /**
+   * The state as written: a template (`text`), a JSON value (`json`), or the
+   * comma-separated names of the inputs sent together as one object
+   * (`inputs`).
+   */
   state: string;
-  stateFormat: "text" | "json";
+  stateFormat: "text" | "json" | "inputs";
   questions: DecisionQuestionDraft[];
 };
 

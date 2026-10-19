@@ -68,7 +68,7 @@ export type SavedDecisionVersion = {
         template: string;
         templateFormat: "MUSTACHE" | "F_STRING";
       }
-    | { kind: "object" };
+    | { kind: "object"; inputs: readonly string[] };
   questions: ReadonlyArray<
     | {
         kind: "predicate";
@@ -101,8 +101,8 @@ const TEMPLATE_FORMAT_NAMES: Record<"MUSTACHE" | "F_STRING", TemplateFormat> = {
  * format.
  *
  * Throws when the page's format can't express the version's state: a text
- * state written in the other template format, or an object state, which the
- * editor has no form for.
+ * state written in the other template format, or an input state on a page
+ * without template variables.
  */
 export function savedDecisionVersionToDraft({
   version,
@@ -112,8 +112,7 @@ export function savedDecisionVersionToDraft({
   templateFormat: TemplateFormat;
 }): DecisionRequestDraft {
   return {
-    state: toDraftState({ state: version.state, templateFormat }),
-    stateFormat: "text",
+    ...toDraftState({ state: version.state, templateFormat }),
     questions: version.questions.map(toDraftQuestion),
   };
 }
@@ -124,12 +123,13 @@ function toDraftState({
 }: {
   state: SavedDecisionVersion["state"];
   templateFormat: TemplateFormat;
-}): string {
+}): Pick<DecisionRequestDraft, "state" | "stateFormat"> {
   switch (state.kind) {
     case "input":
-      if (templateFormat === TemplateFormats.FString) return `{${state.input}}`;
+      if (templateFormat === TemplateFormats.FString)
+        return { state: `{${state.input}}`, stateFormat: "text" };
       if (templateFormat === TemplateFormats.Mustache)
-        return `{{${state.input}}}`;
+        return { state: `{{${state.input}}}`, stateFormat: "text" };
       throw new Error(
         "This decision's state is an input. Switch the template format to Mustache or F-String to load it."
       );
@@ -140,12 +140,10 @@ function toDraftState({
           `This decision's state is written in ${format === TemplateFormats.Mustache ? "Mustache" : "F-String"}. Switch the template format to load it.`
         );
       }
-      return state.template;
+      return { state: state.template, stateFormat: "text" };
     }
     case "object":
-      throw new Error(
-        "This decision's state is an object of its inputs, which the editor can't show yet."
-      );
+      return { state: state.inputs.join(", "), stateFormat: "inputs" };
     default:
       return assertUnreachable(state);
   }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddc20fcf2311467a1ce39891d66eddda>>
+ * @generated SignedSource<<bb598ff3c71289a9d6126349fe809eaf>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,9 @@ export type fetchPlaygroundDecisionQuery$data = {
         readonly name: string;
       } | null;
       readonly id: string;
+      readonly inputs: ReadonlyArray<{
+        readonly name: string;
+      }>;
       readonly modelName: string;
       readonly modelProvider: GenerativeProviderKey;
       readonly questions: ReadonlyArray<{
@@ -177,6 +180,18 @@ v9 = {
       "plural": false,
       "selections": [
         (v4/*:: as any*/),
+        (v5/*:: as any*/)
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DecisionInputDefinition",
+      "kind": "LinkedField",
+      "name": "inputs",
+      "plural": true,
+      "selections": [
         (v5/*:: as any*/)
       ],
       "storageKey": null
@@ -404,16 +419,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a28ace64d738032537209f1e702061a6",
+    "cacheID": "3661bc53fe9fa68f784120c022c4b278",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundDecisionQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        state {\n          __typename\n          ... on DecisionInputState {\n            input\n          }\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        inputs {\n          name\n        }\n        state {\n          __typename\n          ... on DecisionInputState {\n            input\n          }\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ae9dfe2e1114b4534131b78ab513fd1b";
+(node as any).hash = "67eb3f36e928334438b3aa63663915e2";
 
 export default node;

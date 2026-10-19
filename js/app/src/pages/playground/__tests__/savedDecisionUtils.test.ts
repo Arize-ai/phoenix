@@ -71,11 +71,13 @@ function toSavedVersion(input: DecisionVersionInput): SavedDecisionVersion {
     state:
       "input" in input.state
         ? { kind: "input", input: input.state.input }
-        : {
-            kind: "text",
-            template: input.state.text.template,
-            templateFormat: input.state.text.templateFormat,
-          },
+        : "object" in input.state
+          ? { kind: "object", inputs: input.inputs.map(({ name }) => name) }
+          : {
+              kind: "text",
+              template: input.state.text.template,
+              templateFormat: input.state.text.templateFormat,
+            },
     questions: input.questions.map((question) => {
       if ("predicate" in question) {
         return { kind: "predicate", ...question.predicate };
@@ -256,13 +258,39 @@ describe("savedDecisionVersionToDraft", () => {
     });
   });
 
-  it("refuses an object state, which the editor has no form for", () => {
-    expect(() =>
-      savedDecisionVersionToDraft({
-        version: { state: { kind: "object" }, questions: [] },
-        templateFormat: mustache,
-      })
-    ).toThrow("object of its inputs");
+  it("loads an object state as its listed inputs, in either template format", () => {
+    for (const templateFormat of [mustache, fString]) {
+      expect(
+        savedDecisionVersionToDraft({
+          version: {
+            state: { kind: "object", inputs: ["reference", "output"] },
+            questions: [],
+          },
+          templateFormat,
+        })
+      ).toMatchObject({ state: "reference, output", stateFormat: "inputs" });
+    }
+  });
+
+  it("round-trips listed inputs as an object state", () => {
+    const draft = {
+      ...makeDraft("reference, output"),
+      stateFormat: "inputs" as const,
+    };
+    const input = toDecisionVersionInput({
+      instance: makeInstance(draft),
+      templateFormat: mustache,
+    });
+    expect(input).toMatchObject({
+      inputs: [{ name: "reference" }, { name: "output" }],
+      state: { object: true },
+    });
+
+    const loaded = savedDecisionVersionToDraft({
+      version: toSavedVersion(input),
+      templateFormat: mustache,
+    });
+    expect(withoutIds(loaded)).toEqual(withoutIds(draft));
   });
 
   it("refuses a text state written in the other template format", () => {

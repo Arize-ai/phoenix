@@ -38,6 +38,9 @@ const decisionVersionQuery = graphql`
             id
             name
           }
+          inputs {
+            name
+          }
           state {
             __typename
             ... on DecisionInputState {
@@ -96,7 +99,10 @@ function toSavedVersion(version: FetchedVersion): SavedDecisionVersion {
             template: version.state.template,
             templateFormat: version.state.templateFormat,
           }
-        : { kind: "object" };
+        : {
+            kind: "object",
+            inputs: version.inputs.map((input) => input.name),
+          };
   const questions = version.questions.flatMap(
     (question): SavedDecisionVersion["questions"][number][] => {
       switch (question.__typename) {

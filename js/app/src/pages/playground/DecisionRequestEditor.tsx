@@ -10,8 +10,13 @@ import {
   Flex,
   Icon,
   Icons,
+  Input,
+  Label,
   SegmentedControl,
   SegmentedControlItem,
+  Text,
+  TextField,
+  View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import {
@@ -24,6 +29,12 @@ import type {
   DecisionQuestionDraft,
   DecisionRequestDraft,
 } from "@phoenix/store/playground/types";
+
+const STATE_FORMATS: ReadonlyArray<DecisionRequestDraft["stateFormat"]> = [
+  "text",
+  "json",
+  "inputs",
+];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
@@ -140,7 +151,10 @@ export function DecisionRequestEditor({
               selectedKey={request.stateFormat}
               isDisabled={isRunning}
               onSelectionChange={(key) =>
-                update({ stateFormat: key === "json" ? "json" : "text" })
+                update({
+                  stateFormat:
+                    STATE_FORMATS.find((format) => format === key) ?? "text",
+                })
               }
             >
               <SegmentedControlItem id="text" aria-label="Text">
@@ -148,6 +162,9 @@ export function DecisionRequestEditor({
               </SegmentedControlItem>
               <SegmentedControlItem id="json" aria-label="JSON">
                 JSON
+              </SegmentedControlItem>
+              <SegmentedControlItem id="inputs" aria-label="Inputs">
+                Inputs
               </SegmentedControlItem>
             </SegmentedControl>
             <CopyToClipboardButton
@@ -162,7 +179,25 @@ export function DecisionRequestEditor({
             {errors.state}
           </Alert>
         ) : null}
-        {request.stateFormat === "json" ? (
+        {request.stateFormat === "inputs" ? (
+          <View padding="size-100">
+            <TextField
+              size="S"
+              value={request.state}
+              onChange={(state) => update({ state })}
+              onBlur={() => touch(decisionFieldId.state())}
+              isDisabled={isRunning}
+              isInvalid={!!errors.state}
+            >
+              <Label>Inputs</Label>
+              <Input placeholder="reference, output" />
+              <Text slot="description">
+                Comma-separated names. The model gets them together as one JSON
+                object; fill them in the Inputs panel.
+              </Text>
+            </TextField>
+          </View>
+        ) : request.stateFormat === "json" ? (
           <div css={jsonEditorCSS}>
             <JSONEditor
               aria-label="Decision state"
