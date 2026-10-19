@@ -147,12 +147,15 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import {
+  DECISION_DATASET_BLOCKED_REASON,
+  DECISION_DATASET_SELECT_DISABLED_REASON,
+  DECISION_MODEL_CLEARS_DATASET_NOTICE,
+} from "./constants";
+import {
   createEvaluatorTaskAgentRegistry,
   EvaluatorPlaygroundEmptySource,
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
-
-import { DECISION_DATASET_BLOCKED_REASON, DECISION_DATASET_SELECT_DISABLED_REASON, DECISION_MODEL_CLEARS_DATASET_NOTICE } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,

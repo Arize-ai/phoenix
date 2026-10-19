@@ -57,8 +57,14 @@ const keymapExtension = keymap.of([
   ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
 ]);
 
-const completionKeymap = Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }]));
-const multiLineExtensions = [EditorView.lineWrapping, completionKeymap, keymapExtension];
+const completionKeymap = Prec.highest(
+  keymap.of([{ key: "Tab", run: acceptCompletion }])
+);
+const multiLineExtensions = [
+  EditorView.lineWrapping,
+  completionKeymap,
+  keymapExtension,
+];
 
 // Any edit that would leave more than one line is dropped, so Enter and
 // pasted newlines do nothing, as in a plain text input.
@@ -124,7 +130,14 @@ export const TemplateEditor = ({
       );
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly, ariaLabel, evaluationContext, singleLine]);
+  }, [
+    templateFormat,
+    availablePaths,
+    readOnly,
+    ariaLabel,
+    evaluationContext,
+    singleLine,
+  ]);
 
   useEffect(() => {
     if (readOnly) {

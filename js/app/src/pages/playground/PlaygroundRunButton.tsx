@@ -17,11 +17,11 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
+import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
+import { getDecisionValidationError } from "./decisionUtils";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
-import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
-import { getDecisionValidationError } from "./decisionUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
@@ -102,7 +102,11 @@ export function PlaygroundRunButton() {
   // Evaluators judge dataset examples; prompts can also run on manual input.
   // Neither runs while the examples are being edited: the server would judge
   // the saved examples, not the ones on screen.
-  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples && !hasInvalidDecision && blockedReason == null;
+  const canRun =
+    (!isEvaluatorKind || hasDataset) &&
+    !isEditingExamples &&
+    !hasInvalidDecision &&
+    blockedReason == null;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
@@ -168,9 +172,9 @@ export function PlaygroundRunButton() {
             ? EXAMPLES_ARE_BEING_EDITED
             : blockedReason != null
               ? blockedReason
-            : hasInvalidDecision
-              ? "Complete the decision state, questions, and model to run"
-              : EVALUATORS_NEED_A_DATASET
+              : hasInvalidDecision
+                ? "Complete the decision state, questions, and model to run"
+                : EVALUATORS_NEED_A_DATASET
         }
       >
         {button}

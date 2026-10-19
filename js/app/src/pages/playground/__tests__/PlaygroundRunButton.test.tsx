@@ -1,6 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
@@ -10,6 +11,7 @@ import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import { DECISION_DATASET_BLOCKED_REASON } from "../constants";
 import { createDecisionDraft } from "../decisionUtils";
+import { PlaygroundExampleEditingProvider } from "../examplesEditing";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
 
 vi.mock("../useCancelPlaygroundRun", () => ({
@@ -63,9 +65,13 @@ describe("PlaygroundRunButton with decision instances", () => {
             setThemeMode: vi.fn(),
           }}
         >
-          <PlaygroundContext.Provider value={store}>
-            <PlaygroundRunButton />
-          </PlaygroundContext.Provider>
+          <MemoryRouter>
+            <PlaygroundContext.Provider value={store}>
+              <PlaygroundExampleEditingProvider>
+                <PlaygroundRunButton />
+              </PlaygroundExampleEditingProvider>
+            </PlaygroundContext.Provider>
+          </MemoryRouter>
         </ThemeContext.Provider>
       )
     );

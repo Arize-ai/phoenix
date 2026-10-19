@@ -18,6 +18,7 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
 import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
+import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import {
@@ -142,6 +143,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             decisionTabNotice={props.decisionTabNotice}
           />
           <DuplicateButton {...props} />
+          {isDecision ? <DuplicateAsChatButton {...props} /> : null}
           {instances.length > 1 ? (
             <PlaygroundInstanceDeleteButton instanceId={instanceId} />
           ) : null}

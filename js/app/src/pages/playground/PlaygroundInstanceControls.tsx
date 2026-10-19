@@ -35,8 +35,10 @@ export function PlaygroundInstanceModelControls({
   supportsDecisionModels?: boolean;
   decisionTabNotice?: string;
 }) {
-  const isDecision = usePlaygroundContext((state) =>
-    state.instances.find((instance) => instance.id === instanceId)?.model.modelType === "DECISION"
+  const isDecision = usePlaygroundContext(
+    (state) =>
+      state.instances.find((instance) => instance.id === instanceId)?.model
+        .modelType === "DECISION"
   );
   return (
     <>
@@ -49,14 +51,22 @@ export function PlaygroundInstanceModelControls({
       >
         {/* Keeps instance invocation parameters aligned with the frontend
             spec table when model metadata or saved defaults change. */}
-        {!isDecision ? <InvocationParameterSpecsSync instanceId={instanceId} /> : null}
+        {!isDecision ? (
+          <InvocationParameterSpecsSync instanceId={instanceId} />
+        ) : null}
       </Suspense>
       <CompositeField>
-        <PlaygroundModelMenu playgroundInstanceId={instanceId} supportsDecisionModels={supportsDecisionModels} decisionTabNotice={decisionTabNotice} />
-        {!isDecision ? <ModelParametersConfigButton
+        <PlaygroundModelMenu
           playgroundInstanceId={instanceId}
-          disableEphemeralRouting={disableEphemeralRouting}
-        /> : null}
+          supportsDecisionModels={supportsDecisionModels}
+          decisionTabNotice={decisionTabNotice}
+        />
+        {!isDecision ? (
+          <ModelParametersConfigButton
+            playgroundInstanceId={instanceId}
+            disableEphemeralRouting={disableEphemeralRouting}
+          />
+        ) : null}
       </CompositeField>
     </>
   );
