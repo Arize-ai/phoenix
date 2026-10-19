@@ -183,23 +183,18 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
     results = [p for p in payloads if p["__typename"] == "ChatCompletionSubscriptionResult"]
     assert len(results) == 2
     outputs = sorted(
-        (result["experimentRun"]["output"] for result in results), key=lambda o: list(o["answers"])
+        (result["experimentRun"]["output"] for result in results), key=lambda o: list(o)
     )
+    # The answers by question name, the shape of the dataset's reference answers.
     assert outputs == [
+        {"decision": {"type": "predicate", "probability": 0.9}},
         {
-            "model": "tev1:0.8b-mxfp8",
-            "answers": {"decision": {"type": "predicate", "probability": 0.9}},
-        },
-        {
-            "model": "tev1:0.8b-mxfp8",
-            "answers": {
-                "team": {
-                    "type": "choice",
-                    "choice": "billing",
-                    "confidence": 0.8,
-                    "probabilities": {"billing": 0.8, "technical": 0.2},
-                }
-            },
+            "team": {
+                "type": "choice",
+                "choice": "billing",
+                "confidence": 0.8,
+                "probabilities": {"billing": 0.8, "technical": 0.2},
+            }
         },
     ]
     # The structured state went out unchanged, not wrapped and not rendered as text.
@@ -361,7 +356,7 @@ async def test_dataset_evaluators_judge_decision_runs_as_they_judge_prompt_runs(
         input_mapping=InputMapping(
             literal_mapping={},
             path_mapping={
-                "actual": "$.output.answers.team.choice",
+                "actual": "$.output.team.choice",
                 "expected": "$.reference.team.label",
             },
         ),

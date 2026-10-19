@@ -390,17 +390,18 @@ as the run's error without calling the model.
 A run's output is the answers by question name, with no decision rule applied:
 
 ```json
-{"task_output": {"model": "tev1:0.8b-mxfp8", "answers": {
+{"task_output": {
   "urgent": {"type": "predicate", "probability": 0.93},
   "team": {"type": "choice", "choice": "billing", "confidence": 0.8,
            "probabilities": {"billing": 0.8, "technical": 0.2}},
   "severity": {"type": "scale", "expected_level": 1.4, "confidence": 0.7,
-               "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5}}}}}
+               "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5}}}}
 ```
 
-Keyed by name so evaluators reach values by path
-(`output.answers.urgent.probability`). Usage stays on the `DECISION` span, which
-goes to the experiment's project.
+Keyed by name so evaluators reach values by path (`output.urgent.probability`),
+the same shape as a dataset's reference answers. The model that answered and
+the usage stay on the `DECISION` span, which goes to the experiment's project,
+as a prompt run's output is the response alone.
 
 Evaluators read a decision run as they read a prompt run: `output` is the run's
 answers and `reference` is the example's output, where a dataset keeps its

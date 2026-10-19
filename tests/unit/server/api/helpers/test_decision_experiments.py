@@ -151,21 +151,18 @@ def test_the_run_output_keeps_full_answers_by_question_name() -> None:
     )
     assert output == {
         "task_output": {
-            "model": "tev1:0.8b-mxfp8",
-            "answers": {
-                "urgent": {"type": "predicate", "probability": 0.93},
-                "team": {
-                    "type": "choice",
-                    "choice": "billing",
-                    "confidence": 0.8,
-                    "probabilities": {"billing": 0.8, "technical": 0.2},
-                },
-                "severity": {
-                    "type": "scale",
-                    "expected_level": 1.4,
-                    "confidence": 0.7,
-                    "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5},
-                },
+            "urgent": {"type": "predicate", "probability": 0.93},
+            "team": {
+                "type": "choice",
+                "choice": "billing",
+                "confidence": 0.8,
+                "probabilities": {"billing": 0.8, "technical": 0.2},
+            },
+            "severity": {
+                "type": "scale",
+                "expected_level": 1.4,
+                "confidence": 0.7,
+                "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5},
             },
         }
     }

@@ -74,13 +74,11 @@ def decision_run_output(response: DecisionResponse) -> dict[str, Any]:
     """An experiment run's output: the answers by question name, with no decision rule
     applied, so evaluators apply their own (a predicate's threshold, say).
 
-    Usage stays on the DECISION span.
+    The model that answered and the usage stay on the DECISION span, so the output has
+    the shape of a dataset's reference answers.
     """
     return {
         "task_output": {
-            "model": response.model,
-            "answers": {
-                name: answer.model_dump(mode="json") for name, answer in response.answers.items()
-            },
+            name: answer.model_dump(mode="json") for name, answer in response.answers.items()
         }
     }
