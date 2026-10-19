@@ -300,13 +300,15 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
-  it("previews the saved judge by id", async () => {
+  it("previews the saved judge as this dataset's evaluator", async () => {
     await render();
     await click("Test");
     expect(calls(PREVIEW)).toHaveLength(1);
-    expect(calls(PREVIEW)[0][1].variables.input.previews[0].evaluator).toEqual({
-      decisionEvaluatorId: "judge-1",
-    });
-    expect(document.body.textContent).toContain("runs the judge as saved");
+    const [item] = calls(PREVIEW)[0][1].variables.input.previews;
+    expect(item.evaluator).toEqual({ decisionEvaluatorId: "judge-1" });
+    expect(item.datasetEvaluatorId).toBe("binding-1");
+    expect(document.body.textContent).toContain(
+      "runs the judge as this dataset's evaluator"
+    );
   });
 });
