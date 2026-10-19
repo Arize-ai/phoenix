@@ -45,3 +45,10 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   // Decision-only: a chat span must never infer it, as it has no chat invocation parameters
   TYPESAFE: [],
 };
+
+/**
+ * Why a run is refused when a decision instance and a dataset are both
+ * loaded. Shown on the Run button and above the prompts.
+ */
+export const DECISION_DATASET_BLOCKED_REASON =
+  "Decision models can't run over a dataset yet. Remove the decision instance or clear the dataset to run.";
