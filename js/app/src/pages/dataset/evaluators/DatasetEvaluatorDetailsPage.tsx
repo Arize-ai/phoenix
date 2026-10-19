@@ -39,6 +39,7 @@ import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/C
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
+import { DecisionDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/DecisionDatasetEvaluatorDetails";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -133,6 +134,7 @@ function DatasetEvaluatorDetailsPageContent({
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
+  const isDecisionEvaluator = evaluator.__typename === "DecisionEvaluator";
   const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
   const versionsCount = isCodeEvaluator ? evaluator.versionCount : 0;
 
@@ -149,13 +151,17 @@ function DatasetEvaluatorDetailsPageContent({
         }
         subTitle={datasetEvaluator.description}
         extra={
-          <Button
-            variant="primary"
-            onPress={() => setIsEditSlideoverOpen(true)}
-            leadingVisual={<Icon svg={<Icons.Edit />} />}
-          >
-            Edit
-          </Button>
+          // Decision evaluators have no edit flow yet; add it by rendering
+          // the decision slideover below and dropping this exclusion.
+          !isDecisionEvaluator && (
+            <Button
+              variant="primary"
+              onPress={() => setIsEditSlideoverOpen(true)}
+              leadingVisual={<Icon svg={<Icons.Edit />} />}
+            >
+              Edit
+            </Button>
+          )
         }
       />
       <Tabs defaultSelectedKey="configuration">
@@ -180,6 +186,11 @@ function DatasetEvaluatorDetailsPageContent({
               >
                 {isLLMEvaluator && (
                   <LLMDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                  />
+                )}
+                {isDecisionEvaluator && (
+                  <DecisionDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
                   />
                 )}

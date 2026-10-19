@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d2ea0d5c0de7069638d31b0f5f2b4f0>>
+ * @generated SignedSource<<4bad7e072bc8662d175ca9ca56d17dc8>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
@@ -17,6 +18,13 @@ export type DatasetEvaluatorsTable_row$data = {
   readonly description: string | null;
   readonly evaluator: {
     readonly createdAt: string;
+    readonly decisionVersion?: {
+      readonly decisionId: string;
+      readonly id: string;
+      readonly modelName: string;
+      readonly modelProvider: GenerativeProviderKey;
+      readonly sequenceNumber: number;
+    };
     readonly id: string;
     readonly kind: EvaluatorKind;
     readonly language?: Language;
@@ -60,6 +68,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "9293ad736f30aa525b9fc37dc9a49802";
+(node as any).hash = "688187bda611549271a6eb6154763bc9";
 
 export default node;

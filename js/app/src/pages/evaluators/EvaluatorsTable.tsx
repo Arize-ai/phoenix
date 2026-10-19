@@ -38,6 +38,7 @@ import type {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
+import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
@@ -131,6 +132,19 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             name
           }
           promptVersion {
+            modelName
+            modelProvider
+          }
+          user {
+            username
+            profilePictureUrl
+          }
+        }
+        ... on DecisionEvaluator {
+          decisionVersion {
+            id
+            decisionId
+            sequenceNumber
             modelName
             modelProvider
           }
@@ -357,11 +371,17 @@ export const EvaluatorsTable = ({
           // TODO: should dataset evaluators have a prompt?
           if (row.original.rowType === "evaluator") {
             return (
-              <PromptCell
-                prompt={row.original.data.prompt}
-                promptVersionTag={row.original.data.promptVersionTag?.name}
-                wrapWidth={200}
-              />
+              <>
+                <PromptCell
+                  prompt={row.original.data.prompt}
+                  promptVersionTag={row.original.data.promptVersionTag?.name}
+                  wrapWidth={200}
+                />
+                <DecisionCell
+                  decisionVersion={row.original.data.decisionVersion}
+                  wrapWidth={200}
+                />
+              </>
             );
           }
           return "--";
@@ -374,7 +394,9 @@ export const EvaluatorsTable = ({
         enableSorting: false,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
-            const promptVersion = row.original.data.promptVersion;
+            const promptVersion =
+              row.original.data.promptVersion ??
+              row.original.data.decisionVersion;
             if (!promptVersion) {
               return "--";
             }

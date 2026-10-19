@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79b4ef9d45182c3189a156b4409e0b89>>
+ * @generated SignedSource<<1341567a625117b841ae7ac34b487fec>>
  * @lightSyntaxTransform
  */
 
@@ -302,13 +302,48 @@ v22 = {
   "storageKey": null
 },
 v23 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DecisionVersion",
+      "kind": "LinkedField",
+      "name": "decisionVersion",
+      "plural": false,
+      "selections": [
+        (v3/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "decisionId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "sequenceNumber",
+          "storageKey": null
+        },
+        (v21/*:: as any*/),
+        (v22/*:: as any*/)
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "DecisionEvaluator",
+  "abstractKey": null
+},
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -449,10 +484,11 @@ return {
                         "type": "LLMEvaluator",
                         "abstractKey": null
                       },
+                      (v23/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v23/*:: as any*/),
+                          (v24/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -471,7 +507,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v24/*:: as any*/)
+                                  (v25/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -577,10 +613,11 @@ return {
                     "type": "LLMEvaluator",
                     "abstractKey": null
                   },
+                  (v23/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v23/*:: as any*/),
+                      (v24/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -599,7 +636,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v24/*:: as any*/),
+                              (v25/*:: as any*/),
                               (v3/*:: as any*/)
                             ],
                             "storageKey": null
@@ -683,12 +720,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "89c8005e07a6af58e2956dfb990de569",
+    "cacheID": "5e062d1d37a497ee807a0b9a618c8b30",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        sequenceNumber\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();
