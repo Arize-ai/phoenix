@@ -9,10 +9,13 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
+  Icon,
+  Icons,
   Heading,
   Text,
   View,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
@@ -94,12 +97,12 @@ export const ProjectLlmEvaluatorFormSections = (
  * it scrolls. Review found the section hard to discover at the end of the
  * scroll, and the mapping is what most often blocks a save.
  *
- * The dock's job is to surface a problem. It opens on its own the moment a
- * variable has nothing to read, and otherwise starts collapsed to one row so
- * two correctly defaulted fields do not cost the prompt editor a third of
- * the pane. Open, it grows with its rows up to half the panel and scrolls
- * past that; it is not dragged to a size. It is drawn as an accordion item,
- * the design system's pattern for a section that collapses.
+ * It starts open and only the author collapses it; a collapsed dock opens
+ * again on its own the moment a variable has nothing to read. Open, it grows
+ * with its rows up to half the panel and scrolls past that; it is not
+ * dragged to a size. With no variables declared it says what the section is
+ * for instead. It is drawn as an accordion item, the design system's pattern
+ * for a section that collapses.
  */
 export const ProjectEvaluatorInputMappingDock = ({
   recordKind,
@@ -115,9 +118,9 @@ export const ProjectEvaluatorInputMappingDock = ({
     variables,
     requiredVariables,
   });
-  const [isExpanded, setIsExpanded] = useState(unboundVariables.length > 0);
-  // Expand when the first unbound variable appears, and leave a dock the
-  // author closed alone until the count goes back to zero and climbs again.
+  const [isExpanded, setIsExpanded] = useState(true);
+  // Reopen a dock the author closed when the first unbound variable appears,
+  // and leave it alone until the count goes back to zero and climbs again.
   const previousUnboundCount = useRef(unboundVariables.length);
   useEffect(() => {
     if (previousUnboundCount.current === 0 && unboundVariables.length > 0) {
@@ -148,16 +151,29 @@ export const ProjectEvaluatorInputMappingDock = ({
           <DisclosurePanel>
             <div className="mapping-dock__body">
               {/* The trigger is a button, so the description lives here rather
-                  than as a help popover inside it: a button cannot hold one. */}
-              <Text size="S" color="text-500">
-                {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
-              </Text>
+                  than as a help popover inside it: a button cannot hold one.
+                  With nothing to map, the empty state says it instead. */}
+              {variables.length > 0 ? (
+                <Text size="S" color="text-500">
+                  {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
+                </Text>
+              ) : null}
               {/* Keyed so the rows rebuild against the new record kind rather than
                   carrying the previous one's paths forward. */}
               <ProjectEvaluatorInputMapping
                 key={recordKind}
                 recordKind={recordKind}
                 requiredVariables={requiredVariables}
+                emptyState={
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.Plus />} />}
+                    description={
+                      evaluatorKind === "prompt"
+                        ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
+                        : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+                    }
+                  />
+                }
               />
             </div>
           </DisclosurePanel>
