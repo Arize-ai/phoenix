@@ -552,6 +552,14 @@ class GenerativeModelCustomProviderMutationMixin:
                 raise BadRequest(
                     "This provider is referenced by saved decision versions and cannot be deleted"
                 )
+            if await session.scalar(
+                sa.select(models.ExperimentDecisionTask.id)
+                .where(models.ExperimentDecisionTask.custom_provider_id == provider_id)
+                .limit(1)
+            ):
+                raise BadRequest(
+                    "This provider is referenced by decision experiment tasks and cannot be deleted"
+                )
             await session.execute(stmt)
 
         return DeleteGenerativeModelCustomProviderMutationPayload(

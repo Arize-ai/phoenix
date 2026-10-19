@@ -144,7 +144,7 @@ def _signature(definition: InlineDecisionEvaluatorDefinition) -> tuple[Any, ...]
                 question.type,
                 frozenset(choice.value for choice in question.choices)
                 if question.type == "choice"
-                else tuple((level.label, level.description) for level in question.levels)
+                else tuple(level.label for level in question.levels)
                 if question.type == "scale"
                 else None,
             )

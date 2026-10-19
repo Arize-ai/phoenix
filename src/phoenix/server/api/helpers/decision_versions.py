@@ -169,13 +169,13 @@ class _JSONScalar:
     def __bool__(self) -> bool:
         return bool(self.__value)
 
-    def unwrap(self) -> Any:
+    def _unwrap(self) -> Any:
         return self.__value
 
 
 def _unwrap(value: Any) -> Any:
     if isinstance(value, _JSONScalar):
-        return value.unwrap()
+        return value._unwrap()
     raise TypeError(f"{type(value).__name__} is not JSON serializable")
 
 
@@ -191,37 +191,44 @@ def _rendered_as_json(value: Any) -> Any:
 
 
 class _JSONView:
-    """A dict or list for F-string templates: paths read into it, and every level
-    renders as JSON. Not a dict subclass, so the formatter leaves it unwrapped."""
+    """A JSON value whose template paths expose only object fields and array items.
+
+    Scalars stay wrapped until formatting so Python attributes and string indexing
+    cannot turn an invalid JSON path into rendered text.
+    """
 
     def __init__(self, data: Any) -> None:
         self._data = data
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_") or not isinstance(self._data, dict) or name not in self._data:
-            raise AttributeError(f"no field '{name}'")
+            raise AttributeError(f"JSON value has no attribute {name!r}")
         return _json_view(self._data[name])
 
     def __getitem__(self, key: Any) -> Any:
+        if not isinstance(self._data, (dict, list)):
+            raise TypeError("JSON scalar is not subscriptable")
+        if isinstance(self._data, dict):
+            key = str(key)
         try:
             return _json_view(self._data[key])
         except (KeyError, IndexError, TypeError):
             raise KeyError(f"no item {key!r}") from None
 
     def __str__(self) -> str:
+        if isinstance(self._data, str):
+            return self._data
         return json.dumps(self._data, ensure_ascii=False)
 
+    def __repr__(self) -> str:
+        return repr(self._data) if isinstance(self._data, str) else str(self)
+
     def __format__(self, spec: str) -> str:
+        if isinstance(self._data, (int, float)) and not isinstance(self._data, bool):
+            return format(self._data, spec)
         return format(str(self), spec)
 
 
 def _json_view(value: Any) -> Any:
-    """Wrap ``value`` so an F-string template renders it as JSON, at any path depth.
-
-    F-strings have no sections, so a boolean or null is simply its JSON literal.
-    """
-    if isinstance(value, (dict, list)):
-        return _JSONView(value)
-    if isinstance(value, bool) or value is None:
-        return json.dumps(value)
-    return value
+    """Wrap every value so path traversal preserves JSON types until rendering."""
+    return _JSONView(value)

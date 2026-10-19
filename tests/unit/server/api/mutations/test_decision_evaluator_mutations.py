@@ -995,3 +995,68 @@ async def test_delete_unbound_decision_evaluator_removes_its_owned_tag(
             )
             is None
         )
+
+
+async def test_null_binding_name_is_a_bad_request(
+    gql_client: AsyncGraphQLClient, empty_dataset: None
+) -> None:
+    _, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(gql_client, evaluator)
+    result = await gql_client.execute(
+        "mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
+        variables={"input": {"datasetEvaluatorId": binding_id, "name": None}},
+    )
+    assert result.errors and "Invalid evaluator name" in result.errors[0].message
+
+
+async def test_bound_scale_description_edits_preserve_the_contract(
+    gql_client: AsyncGraphQLClient, empty_dataset: None
+) -> None:
+    levels = [{"label": "low", "description": "Low severity"}, {"label": "high"}]
+
+    def scale_version(levels: list[dict[str, str]]) -> dict[str, Any]:
+        return version_input(
+            questions=[
+                {
+                    "scale": {
+                        "name": "severity",
+                        "instructions": "How severe?",
+                        "levels": levels,
+                    }
+                }
+            ]
+        )
+
+    decision = await create(gql_client, version=scale_version(levels))
+    result = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "severity-judge",
+                "decisionVersionId": decision["version"]["id"],
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    evaluator = result.data["createDecisionEvaluator"]["evaluator"]
+    await bind(gql_client, evaluator)
+    for changed_levels, compatible in [
+        ([{"label": "low", "description": "Clarified low severity"}, {"label": "high"}], True),
+        ([{"label": "low"}, {"label": "high"}], True),
+        ([{"label": "high"}, {"label": "low"}], False),
+        ([{"label": "minor"}, {"label": "high"}], False),
+    ]:
+        result = await gql_client.execute(
+            CREATE_VERSION,
+            variables={
+                "input": {
+                    "decisionId": decision["id"],
+                    "version": scale_version(changed_levels),
+                    "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
+                }
+            },
+        )
+        if compatible:
+            assert result.data and not result.errors, result.errors
+        else:
+            assert result.errors and "would break dataset evaluators" in result.errors[0].message

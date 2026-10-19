@@ -153,6 +153,8 @@ class CreateDecisionEvaluatorRequest(EvaluatorRequest):
 
 
 class PatchDecisionEvaluatorRequest(EvaluatorRequest):
+    model_config = ConfigDict(json_schema_extra={"minProperties": 2})
+
     type: Literal["decision"]
     name: Identifier = Field(default=UNDEFINED)
     decision_version_id: str = Field(default=UNDEFINED)

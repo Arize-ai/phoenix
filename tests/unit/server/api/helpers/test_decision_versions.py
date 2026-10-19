@@ -247,7 +247,9 @@ def test_f_string_list_indices_render_as_json() -> None:
 @pytest.mark.parametrize(
     ("template", "values", "detail"),
     [
-        pytest.param("{ticket.subject}", {"ticket": {}}, "no field 'subject'", id="missing-field"),
+        pytest.param(
+            "{ticket.subject}", {"ticket": {}}, "has no attribute 'subject'", id="missing-field"
+        ),
         pytest.param("{ticket.subject}", {"ticket": None}, "has no attribute", id="null"),
         pytest.param("{ticket[3]}", {"ticket": [1]}, "no item 3", id="index-out-of-range"),
         pytest.param("{ticket[0]}", {"ticket": 5}, "not subscriptable", id="scalar-index"),
@@ -275,3 +277,45 @@ def test_a_section_over_a_boolean_exposes_no_fields_of_its_own() -> None:
     state = _text("{{#urgent}}{{value}}{{/urgent}}")
     values = {"urgent": True, "value": "Refund my order"}
     assert render_state(_inputs("urgent", "value"), state, values) == "Refund my order"
+
+
+@pytest.mark.parametrize("value", [None, True, False, "abc", 5, 1.5])
+@pytest.mark.parametrize("path", ["[0]", ".title", ".count", ".upper", ".real"])
+def test_f_string_scalar_paths_do_not_expose_python_values(value: Any, path: str) -> None:
+    with pytest.raises(ValueError, match="can't be rendered from these inputs"):
+        render_state(
+            _inputs("ticket"), _text("{ticket" + path + "}", "F_STRING"), {"ticket": value}
+        )
+
+
+def test_f_string_numeric_object_keys_and_array_indices() -> None:
+    assert (
+        render_state(
+            _inputs("ticket"),
+            _text("{ticket[0]} {ticket.items[0].title}", "F_STRING"),
+            {"ticket": {"0": "first", "items": [{"title": "Refund"}]}},
+        )
+        == "first Refund"
+    )
+
+
+def test_f_string_scalars_keep_numeric_formatting_and_plain_text() -> None:
+    assert (
+        render_state(
+            _inputs("count", "text"),
+            _text("{count:.2f} {text:>5}", "F_STRING"),
+            {"count": 1.5, "text": "abc"},
+        )
+        == "1.50   abc"
+    )
+
+
+def test_boolean_section_does_not_shadow_input_named_unwrap() -> None:
+    assert (
+        render_state(
+            _inputs("urgent", "unwrap"),
+            _text("{{#urgent}}{{unwrap}}{{/urgent}}"),
+            {"urgent": True, "unwrap": "hello"},
+        )
+        == "hello"
+    )

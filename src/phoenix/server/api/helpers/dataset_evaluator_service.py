@@ -1108,7 +1108,10 @@ async def patch_dataset_evaluator(
             dataset_rowid = row.dataset_id
             values: dict[str, Any] = {"user_id": context.user_id}
             if patch.name is not UNSET:
-                values["name"] = IdentifierModel.model_validate(patch.name)
+                try:
+                    values["name"] = IdentifierModel.model_validate(patch.name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}") from error
             if patch.input_mapping is not UNSET:
                 if patch.input_mapping is None:
                     raise BadRequest("input_mapping cannot be null for dataset evaluators")

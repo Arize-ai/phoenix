@@ -19342,6 +19342,7 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "minProperties": 2,
         "required": [
           "type"
         ],

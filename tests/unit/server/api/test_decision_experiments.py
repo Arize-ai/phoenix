@@ -451,3 +451,54 @@ async def test_a_decision_cannot_share_a_run_with_an_evaluator(
         await collect(gql_client, variables)
     async with db() as session:
         assert await session.scalar(select(func.count(models.Experiment.id))) == 0
+
+
+async def test_provider_used_only_by_an_unsaved_experiment_cannot_be_deleted(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory, benchmark_dataset: list[dict[str, Any]]
+) -> None:
+    from phoenix.db.types.decisions import DecisionTaskConfig
+    from tests.unit.server.api.mutations.test_decision_mutations import (
+        TYPESAFE_PROVIDER_CONFIG,
+        create_custom_provider,
+    )
+
+    provider_id = await create_custom_provider(
+        gql_client, "experiment-only", "typesafe", TYPESAFE_PROVIDER_CONFIG
+    )
+    provider_row_id = int(GlobalID.from_id(provider_id).node_id)
+    async with db() as session:
+        experiment = models.Experiment(
+            dataset_id=benchmark_dataset[0]["dataset_id"],
+            dataset_version_id=benchmark_dataset[0]["version_id"],
+            name="unsaved-decision",
+            repetitions=1,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+        task = models.ExperimentDecisionTask(
+            id=experiment.id,
+            model_provider=ModelProvider.TYPESAFE,
+            model_name="jev-latest",
+            custom_provider_id=provider_row_id,
+            config=DecisionTaskConfig.model_validate(
+                {
+                    "inputs": [{"name": "state"}],
+                    "state": {"type": "input", "name": "state"},
+                    "questions": [],
+                    "questions_path": "questions",
+                }
+            ),
+        )
+        session.add(task)
+        await session.flush()
+        task_id = task.id
+    result = await gql_client.execute(
+        "mutation($input:DeleteGenerativeModelCustomProviderMutationInput!){deleteGenerativeModelCustomProvider(input:$input){id}}",
+        variables={"input": {"id": provider_id}},
+    )
+    assert result.errors and "decision experiment tasks" in result.errors[0].message
+    async with db() as session:
+        persisted = await session.get(models.ExperimentDecisionTask, task_id)
+        assert persisted is not None and persisted.custom_provider_id == provider_row_id
+        assert await session.get(models.GenerativeModelCustomProvider, provider_row_id) is not None
