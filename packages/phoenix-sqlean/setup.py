@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 PACKAGE_NAME = "sqlean"
 VERSION = "0.2.0"  # x-release-please-version
-SQLEAN_VERSION = "0.28.4+71e7625"
+SQLEAN_VERSION = "0.28.5"
 
 SHORT_DESCRIPTION = "sqlite3 with extensions"
 LONG_DESCRIPTION = Path("README.md").read_text()
