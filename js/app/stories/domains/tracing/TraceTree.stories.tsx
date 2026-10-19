@@ -600,35 +600,35 @@ export const SkeletonShapes: Story = {
           label: "Flat",
           nodes: (
             <>
-              <TraceTreeNodeSkeleton nameWidth={200} />
-              <TraceTreeNodeSkeleton nameWidth={180} />
-              <TraceTreeNodeSkeleton nameWidth={220} />
-              <TraceTreeNodeSkeleton nameWidth={160} />
-              <TraceTreeNodeSkeleton nameWidth={240} />
+              <TraceTreeNodeSkeleton width={230} />
+              <TraceTreeNodeSkeleton width={210} />
+              <TraceTreeNodeSkeleton width={250} />
+              <TraceTreeNodeSkeleton width={190} />
+              <TraceTreeNodeSkeleton width={270} />
             </>
           ),
         },
         {
           label: "Branching",
           nodes: (
-            <TraceTreeNodeSkeleton nameWidth={240}>
-              <TraceTreeNodeSkeleton nameWidth={200}>
-                <TraceTreeNodeSkeleton nameWidth={160} />
-                <TraceTreeNodeSkeleton nameWidth={140} />
+            <TraceTreeNodeSkeleton width={270}>
+              <TraceTreeNodeSkeleton width={230}>
+                <TraceTreeNodeSkeleton width={190} />
+                <TraceTreeNodeSkeleton width={170} />
               </TraceTreeNodeSkeleton>
-              <TraceTreeNodeSkeleton nameWidth={180} />
+              <TraceTreeNodeSkeleton width={210} />
             </TraceTreeNodeSkeleton>
           ),
         },
         {
           label: "Deep",
           nodes: (
-            <TraceTreeNodeSkeleton nameWidth={220}>
-              <TraceTreeNodeSkeleton nameWidth={200}>
-                <TraceTreeNodeSkeleton nameWidth={180}>
-                  <TraceTreeNodeSkeleton nameWidth={160}>
-                    <TraceTreeNodeSkeleton nameWidth={140}>
-                      <TraceTreeNodeSkeleton nameWidth={120} />
+            <TraceTreeNodeSkeleton width={250}>
+              <TraceTreeNodeSkeleton width={160}>
+                <TraceTreeNodeSkeleton width={260}>
+                  <TraceTreeNodeSkeleton width={140}>
+                    <TraceTreeNodeSkeleton width={220}>
+                      <TraceTreeNodeSkeleton width={120} />
                     </TraceTreeNodeSkeleton>
                   </TraceTreeNodeSkeleton>
                 </TraceTreeNodeSkeleton>

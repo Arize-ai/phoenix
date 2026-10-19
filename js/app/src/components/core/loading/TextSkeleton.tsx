@@ -3,7 +3,6 @@ import { css } from "@emotion/react";
 import { classNames } from "@phoenix/utils/classNames";
 
 import type { TextSize } from "../types/sizing";
-import type { AnimationType } from "./Skeleton";
 import { Skeleton } from "./Skeleton";
 
 export interface TextSkeletonProps {
@@ -24,11 +23,6 @@ export interface TextSkeletonProps {
    * @default 'default'
    */
   fontFamily?: "default" | "mono";
-  /**
-   * The animation effect. If false, no animation is applied.
-   * @default 'pulse'
-   */
-  animation?: AnimationType;
   /**
    * Optional className for custom styling
    */
@@ -82,7 +76,6 @@ export function TextSkeleton({
   size = "S",
   width = "100%",
   fontFamily = "default",
-  animation = "pulse",
   className,
 }: TextSkeletonProps) {
   return (
@@ -94,8 +87,7 @@ export function TextSkeleton({
       <Skeleton
         width={width}
         height="var(--text-skeleton-pill-height)"
-        borderRadius="var(--global-rounding-full)"
-        animation={animation}
+        borderRadius="full"
       />
     </span>
   );

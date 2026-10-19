@@ -3,13 +3,14 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -74,7 +75,13 @@ export const ProjectSpansPage = () => {
         >
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SpansFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              }
+            >
               {hasSpansQuery ? (
                 <SpansTabContent
                   queryReference={spansQueryReference}
@@ -83,11 +90,15 @@ export const ProjectSpansPage = () => {
               ) : spansFilterSeed === null ? (
                 // Waiting on validation: the field has to be on screen, because
                 // it is what validates.
-                <PendingSpanFilter onResolved={resolveSpansSeed} />
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <PendingSpanFilter onResolved={resolveSpansSeed} />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Waiting only on the query. Showing the field here would mount
                 // the toolbar, tear it down, and rebuild it inside the table.
-                <Loading />
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>

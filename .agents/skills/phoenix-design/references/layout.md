@@ -4,6 +4,8 @@
 
 Loading states MUST use skeleton loaders so the page does not shift between loading and loaded states.
 
+A skeleton MUST be made of skeleton components only. It MUST NOT draw borders, dividers, separators, backgrounds, card frames, titles or other text; padding and gaps that only place the skeletons are allowed. See the `Skeleton` Docs page in Storybook (`Page Skeleton Composition`).
+
 ## Scroll behavior
 
 Pages SHOULD have only one scrollable region. Scroll traps where the user's scroll gets captured by a nested container MUST be avoided.

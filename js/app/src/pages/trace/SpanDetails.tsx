@@ -15,6 +15,7 @@ import {
   Button,
   Counter,
   DialogTrigger,
+  EdgeFade,
   ErrorBoundary,
   Flex,
   Icon,
@@ -22,6 +23,7 @@ import {
   LazyTabPanel,
   LinkButton,
   Loading,
+  Skeleton,
   Tab,
   TabList,
   Tabs,
@@ -387,5 +389,44 @@ function AddSpanToDatasetButton({
         </ViewportModal>
       </ViewportModalOverlay>
     </DialogTrigger>
+  );
+}
+
+const spanDetailsSkeletonCSS = css`
+  height: 100%;
+  overflow: hidden;
+  padding: var(--global-dimension-size-200);
+  box-sizing: border-box;
+  .span-details-skeleton__blocks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-200);
+    /* Capped so a short panel shrinks the fade band rather than clipping
+       the blocks mid-fade. */
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .span-details-skeleton__blocks > * {
+    flex: none;
+  }
+`;
+
+/**
+ * A loading placeholder for `SpanDetails`: one block for the span header and
+ * tab list, then the cards of the info tab.
+ */
+export function SpanDetailsSkeleton() {
+  return (
+    <div role="status" aria-label="loading" css={spanDetailsSkeletonCSS}>
+      <EdgeFade
+        edge="bottom"
+        className="span-details-skeleton__blocks"
+        aria-hidden
+      >
+        <Skeleton height={96} borderRadius="medium" />
+        <Skeleton height={180} borderRadius="medium" />
+        <Skeleton height={240} borderRadius="medium" />
+      </EdgeFade>
+    </div>
   );
 }
