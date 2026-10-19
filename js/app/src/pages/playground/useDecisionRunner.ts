@@ -10,7 +10,11 @@ import {
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { PlaygroundDecisionOutputMutation } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
-import { buildDecisionInput, toDecisionOutput } from "./decisionUtils";
+import {
+  buildDecisionConnection,
+  buildDecisionInput,
+  toDecisionOutput,
+} from "./decisionUtils";
 import {
   denormalizePlaygroundInstance,
   getVariablesMapFromInstances,
@@ -136,9 +140,12 @@ export function useDecisionRunner(instanceId: number) {
                   input: {
                     ...input,
                     modelName: snapshot.model.modelName ?? "",
-                    providerKey: snapshot.model.provider,
-                    baseUrl: snapshot.model.baseUrl,
-                    credentials,
+                    connection: buildDecisionConnection({
+                      provider: snapshot.model.provider,
+                      baseUrl: snapshot.model.baseUrl,
+                      customProvider: snapshot.model.customProvider,
+                      credentials,
+                    }),
                   },
                 },
                 onCompleted: (response, errors) => {

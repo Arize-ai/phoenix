@@ -175,10 +175,20 @@ export function ModelParametersConfigButton(
               <ModelNameConfigFormField
                 playgroundInstanceId={playgroundInstanceId}
               />
-              <BaseUrlConfigFormField
-                playgroundInstanceId={playgroundInstanceId}
-                description="Blank uses the provider default. Set it to run against a compatible host, such as a System One proxy or a self-hosted decision model."
-              />
+              {customProvider ? (
+                // A custom provider brings its own endpoint and key.
+                <Flex direction="column" gap="size-50">
+                  <Text weight="heavy" size="S" color="text-700">
+                    Custom Provider
+                  </Text>
+                  <Text size="S">{customProvider.name}</Text>
+                </Flex>
+              ) : disableEphemeralRouting ? null : (
+                <BaseUrlConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                  description="Blank uses the provider default, or OLLAMA_BASE_URL for Ollama. Set it to run against a compatible host, such as a System One proxy or a local Ollama."
+                />
+              )}
             </div>
           ) : (
             <div css={formFieldsCSS}>

@@ -65,9 +65,14 @@ export function PlaygroundModelMenu({
             modelName: model.modelName,
             modelType: "DECISION",
             invocationParameters: instance.model.invocationParameters,
-            // A base URL points at one provider's decision endpoint.
+            customProvider: model.customProvider ?? null,
+            // A base URL points at one built-in provider's decision endpoint;
+            // a custom provider brings its own.
             baseUrl:
-              wasDecision && model.provider === instance.model.provider
+              wasDecision &&
+              !model.customProvider &&
+              !instance.model.customProvider &&
+              model.provider === instance.model.provider
                 ? instance.model.baseUrl
                 : null,
           },

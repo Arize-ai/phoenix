@@ -732,6 +732,34 @@ function toQuestionInput({
  * Throws on an invalid draft; call {@link validateDecisionDraft} first to
  * show field-level errors.
  */
+/**
+ * Where a decision run goes: a custom provider brings its own endpoint and
+ * key, so it takes only its id; a built-in provider takes the instance's
+ * endpoint (blank for the provider default) and the browser's credentials.
+ */
+export function buildDecisionConnection({
+  provider,
+  baseUrl,
+  customProvider,
+  credentials,
+}: {
+  provider: ModelProvider;
+  baseUrl?: string | null;
+  customProvider?: { id: string } | null;
+  credentials: ReadonlyArray<{ envVarName: string; value: string }>;
+}) {
+  if (customProvider) {
+    return { customProvider: { id: customProvider.id } };
+  }
+  return {
+    builtIn: {
+      providerKey: provider,
+      baseUrl: baseUrl?.trim() || null,
+      credentials: [...credentials],
+    },
+  };
+}
+
 export function buildDecisionInput({
   draft,
   templateFormat,
