@@ -131,8 +131,8 @@ Command-line flags take precedence over environment variables.
 
 ### Development datasets
 
-At startup, datagen seeds only the Typed Decisions dataset and its workflow prompts
-before replaying traces. It retries transient connection failures while the Phoenix
+At startup, datagen seeds the Typed Decisions dataset, its workflow prompts and
+decisions, and an accuracy dataset evaluator before replaying traces. It retries transient connection failures while the Phoenix
 server starts. No model inference is performed. JevBench and BoolQ are available
 through explicit `--source` selection; `--source all` seeds all three benchmark sources.
 
@@ -149,6 +149,12 @@ populate these memberships.
 
 All 400 examples and all four splits remain in `px-datagen-typed-decisions`;
 datagen does not create separate workflow datasets.
+
+The dataset's `accuracy` evaluator uses TypeSafe `jev-latest`, with state
+`{"reference": <dataset expected output>, "output": <experiment output>}` and one
+noul (predicate) question: "is the output accurate". Its saved decision and
+evaluator are named `px-datagen-typed-decisions-accuracy`. Repeated seeding reuses
+unchanged versions and bindings; no inference or TypeSafe API key is needed to seed.
 
 The four workflows have saved prompts named `px-datagen-typed-decisions-<workflow>`.
 Each prompt uses OpenAI `gpt-6-luna`, one forced strict tool with five required

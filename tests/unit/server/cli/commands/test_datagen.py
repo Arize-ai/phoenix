@@ -156,11 +156,16 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
     prompts = MagicMock(return_value=[])
     decisions = MagicMock(return_value=[])
+    evaluators = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
+    )
     args.func(args)
     prompts.assert_called_once_with(client, [])
     decisions.assert_called_once_with(transport, [])
+    evaluators.assert_called_once_with(transport, [])
     expected = (
         list(DATASET_SOURCES.values())
         if source == "all"
@@ -215,19 +220,24 @@ def test_startup_seeding_does_not_retry_permission_errors(
     seed.assert_called_once()
 
 
-def test_startup_seeds_prompt_and_decision_counterparts(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_startup_seeds_counterparts_and_accuracy_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
     parser = ArgumentParser()
     datagen.register(parser.add_subparsers())
     args = parser.parse_args(["datagen"])
     datasets = [MagicMock()]
     prompts = MagicMock(return_value=[])
     decisions = MagicMock(return_value=[])
+    evaluators = MagicMock(return_value=[])
     monkeypatch.setattr(
         "phoenix.experimental.datagen.datasets.seed_datasets", MagicMock(return_value=datasets)
     )
     monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
+    )
     datagen._seed_when_ready(datagen._resolve_config(args, {}))
     assert prompts.call_args.args[1] is datasets
     assert decisions.call_args.args[1] is datasets
     assert decisions.call_args.args[0] is prompts.call_args.args[0]._client
+    evaluators.assert_called_once_with(decisions.call_args.args[0], datasets)

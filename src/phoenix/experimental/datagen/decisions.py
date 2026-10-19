@@ -1,4 +1,4 @@
-"""Seed native decision counterparts to the Typed Decisions tool-calling prompts."""
+"""Seed saved native decisions and Typed Decisions workflow counterparts idempotently."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 _VERSION_FIELDS = """
   id schemaVersion description metadata modelProvider modelName customProvider { id }
   inputs { name description jsonSchema }
-  state { __typename ... on DecisionInputState { input } }
+  state { __typename ... on DecisionInputState { input } ... on DecisionObjectState { object } }
   questions {
     __typename
     ... on DecisionPredicateQuestion { name instructions criteria { true false } }
@@ -149,7 +149,11 @@ def _find_decision(http: httpx.Client, name: str) -> dict[str, Any] | None:
 def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) -> bool:
     if saved is None or saved["schemaVersion"] != 1:
         return False
-    if saved["state"]["__typename"] != "DecisionInputState":
+    if saved["state"]["__typename"] == "DecisionInputState":
+        state = {"input": saved["state"]["input"]}
+    elif saved["state"]["__typename"] == "DecisionObjectState":
+        state = {"object": saved["state"]["object"]}
+    else:
         return False
     variants = {
         "DecisionPredicateQuestion": "predicate",
@@ -166,7 +170,7 @@ def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) 
         )
     content = {
         "inputs": saved["inputs"],
-        "state": {"input": saved["state"]["input"]},
+        "state": state,
         "questions": questions,
         "modelProvider": saved["modelProvider"],
         "modelName": saved["modelName"],
@@ -196,38 +200,48 @@ def seed_workflow_decisions(
         )
         for definition in load_workflow_definitions(datasets)
     ]
-    results = []
-    for name, desired in definitions:
-        decision = _find_decision(http, name)
-        if decision is None:
-            saved = _graphql(
+    return [
+        (
+            name,
+            seed_decision(
                 http,
-                _CREATE,
-                {
-                    "input": {
-                        "name": name,
-                        "description": desired["description"],
-                        "metadata": {
-                            "workflow": desired["metadata"]["workflow"],
-                            "datagen": True,
-                            "counterpart_prompt_name": name,
-                        },
-                        "version": desired,
-                    }
+                name=name,
+                version=desired,
+                metadata={
+                    "workflow": desired["metadata"]["workflow"],
+                    "datagen": True,
+                    "counterpart_prompt_name": name,
                 },
-            )["createDecision"]
-        elif _same_decision(decision["version"], desired):
-            saved = decision
-        else:
-            saved = _graphql(
-                http,
-                _CREATE_VERSION,
-                {
-                    "input": {
-                        "decisionId": decision["id"],
-                        "version": desired,
-                    }
-                },
-            )["createDecisionVersion"]
-        results.append((name, saved["version"]["id"]))
-    return results
+            ),
+        )
+        for name, desired in definitions
+    ]
+
+
+def seed_decision(
+    http: httpx.Client, *, name: str, version: dict[str, Any], metadata: Mapping[str, Any]
+) -> str:
+    """Save a datagen-owned decision, adding a version only when its content changes."""
+    decision = _find_decision(http, name)
+    if decision is None:
+        saved = _graphql(
+            http,
+            _CREATE,
+            {
+                "input": {
+                    "name": name,
+                    "description": version["description"],
+                    "metadata": metadata,
+                    "version": version,
+                }
+            },
+        )["createDecision"]
+    elif _same_decision(decision["version"], version):
+        saved = decision
+    else:
+        saved = _graphql(
+            http,
+            _CREATE_VERSION,
+            {"input": {"decisionId": decision["id"], "version": version}},
+        )["createDecisionVersion"]
+    return str(saved["version"]["id"])
