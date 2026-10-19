@@ -462,6 +462,9 @@ const benchCSS = css`
     display: flex;
     flex-direction: column;
     min-height: 0;
+    // The resizable panel scrolls if its content outgrows it; like the
+    // regions inside it, it neither bounces nor chains out to the dialog.
+    overscroll-behavior: none;
   }
   .test-bench__loading {
     flex: 1 1 auto;

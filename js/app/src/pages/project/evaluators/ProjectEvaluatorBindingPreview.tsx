@@ -2,18 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 
-import {
-  Alert,
-  Button,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
-  Icon,
-  Icons,
-  Text,
-  Token,
-} from "@phoenix/components";
+import { Alert, Button, Icon, Icons, Text, Token } from "@phoenix/components";
 import {
   JSONViewBody,
   JSONViewProvider,
@@ -29,10 +18,7 @@ import {
   EVALUATOR_SLOT_NAMES,
   type EvaluatorSlotName,
 } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
-import {
-  useEvaluatorStore,
-  useEvaluatorStoreInstance,
-} from "@phoenix/contexts/EvaluatorContext";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { unwrapSingleStringValue } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
@@ -291,10 +277,10 @@ const SOURCE_TOKEN: Partial<
 /**
  * The evaluator's inputs for one record, a row per declared variable: the
  * variable and whether it binds, then where it reads from and what it read.
- * A variable with nothing to read says why in its own row and offers its
- * field in the mapping, so the list doubles as the to-do for the mapping.
- * The record's whole context follows in a disclosure, as the span page's
- * attributes table, for finding a path to map.
+ * A variable that fails the run says why in its own row, and those rows come
+ * first so the mapping's to-do is read before what already works. The
+ * record's whole context follows, always open, as the span page's attributes
+ * table: its keys are the paths a variable can be mapped to.
  *
  * @internal Exported for testing
  */
@@ -305,6 +291,7 @@ export function EvaluatorInputsView({
   requiredVariables,
   isSampleContext,
   heading,
+  contextHeading,
 }: {
   context: unknown;
   /** The kind of record the row holds; the same word its prose uses. */
@@ -312,8 +299,10 @@ export function EvaluatorInputsView({
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
-  /** The section title. */
+  /** The variables section's title. */
   heading?: ReactNode;
+  /** The record data section's title, rendered on its toolbar's row. */
+  contextHeading?: ReactNode;
 }) {
   const declaredVariables = useEvaluatorInputVariables();
   const inputs = getEvaluatorRecordInputs({
@@ -323,98 +312,82 @@ export function EvaluatorInputsView({
     declaredVariables,
     requiredVariables,
   });
-  const bindings = getEvaluatorVariableBindings(inputs);
+  const bindings = sortFailingFirst(getEvaluatorVariableBindings(inputs));
   const readableContext = useMemo(
     () => toReadableContext(context, recordKind),
     [context, recordKind]
   );
-  const setHighlightedMappingVariable = useEvaluatorStore(
-    (state) => state.setHighlightedMappingVariable
-  );
   return (
     <div css={inputsViewCSS} data-testid="evaluator-inputs-view">
-      {heading}
-      {isSampleContext ? (
-        <Alert variant="info" title={`Standard ${recordKind} fields`}>
-          No matching {recordKind} yet; values are empty.
-        </Alert>
-      ) : null}
-      {bindings.length > 0 ? (
-        <ul
-          className="inputs-view__list"
-          onMouseLeave={() => setHighlightedMappingVariable(null)}
+      <section className="inputs-view__section" aria-label="Variables">
+        {heading}
+        {isSampleContext ? (
+          <Alert variant="info" title={`Standard ${recordKind} fields`}>
+            No matching {recordKind} yet; values are empty.
+          </Alert>
+        ) : null}
+        {bindings.length > 0 ? (
+          <ul className="inputs-view__list">
+            {bindings.map((binding) => (
+              <EvaluatorVariableBindingItem
+                key={binding.variable}
+                binding={binding}
+                recordKind={recordKind}
+              />
+            ))}
+          </ul>
+        ) : (
+          <Text size="S" color="text-500">
+            The evaluator declares no variables yet.
+          </Text>
+        )}
+      </section>
+      <JSONViewProvider
+        value={readableContext}
+        defaultMode="table"
+        indexNotation="dot"
+      >
+        <section
+          className="inputs-view__section"
+          aria-label={`${recordKind} data`}
         >
-          {bindings.map((binding) => (
-            <EvaluatorVariableBindingItem
-              key={binding.variable}
-              binding={binding}
-              recordKind={recordKind}
-              onPointAt={setHighlightedMappingVariable}
+          <div className="inputs-view__context-header">
+            {contextHeading}
+            <JSONViewToolbar searchPlaceholder={`Search ${recordKind} data`} />
+          </div>
+          <div className="inputs-view__table">
+            <JSONViewBody
+              emptyMessage={`Nothing recorded on this ${recordKind}`}
+              noResultsMessage="No matching keys"
             />
-          ))}
-        </ul>
-      ) : (
-        <Text size="S" color="text-500">
-          The evaluator declares no variables yet.
-        </Text>
-      )}
-      <DisclosureGroup className="inputs-view__context">
-        <Disclosure id="context" defaultExpanded={false}>
-          <DisclosureTrigger arrowPosition="end">
-            {`All ${recordKind} data`}
-          </DisclosureTrigger>
-          <DisclosurePanel>
-            <JSONViewProvider
-              value={readableContext}
-              defaultMode="table"
-              indexNotation="dot"
-            >
-              <div className="inputs-view__context-body">
-                <div className="inputs-view__context-toolbar">
-                  <Text size="XS" color="text-500">
-                    Every key is a path a variable can be mapped to.
-                  </Text>
-                  <JSONViewToolbar
-                    searchPlaceholder={`Search ${recordKind} data`}
-                  />
-                </div>
-                <div className="inputs-view__table">
-                  <JSONViewBody
-                    emptyMessage={`Nothing recorded on this ${recordKind}`}
-                    noResultsMessage="No matching keys"
-                  />
-                </div>
-              </div>
-            </JSONViewProvider>
-          </DisclosurePanel>
-        </Disclosure>
-      </DisclosureGroup>
+          </div>
+        </section>
+      </JSONViewProvider>
     </div>
   );
+}
+
+/** The variables that fail the run first; otherwise declaration order. */
+function sortFailingFirst(
+  bindings: EvaluatorVariableBinding[]
+): EvaluatorVariableBinding[] {
+  const fails = (binding: EvaluatorVariableBinding) =>
+    binding.status === "missing" ? 0 : 1;
+  return [...bindings].sort((a, b) => fails(a) - fails(b));
 }
 
 function EvaluatorVariableBindingItem({
   binding,
   recordKind,
-  onPointAt,
 }: {
   binding: EvaluatorVariableBinding;
   recordKind: ProjectEvaluatorRecordKind;
-  /** Marks the variable's field in the mapping while this row is pointed at. */
-  onPointAt: (variable: string) => void;
 }) {
-  const requestMappingFocus = useEvaluatorStore(
-    (state) => state.requestMappingFocus
-  );
   const status = getBindingStatus(binding, recordKind);
   const isMissing = binding.status === "missing";
   const token = SOURCE_TOKEN[binding.sourceKind];
   return (
-    <li
-      className="inputs-view__item"
-      data-status={binding.status}
-      onMouseEnter={() => onPointAt(binding.variable)}
-    >
+    <li className="inputs-view__item" data-status={binding.status}>
       <div className="inputs-view__name">
         <code className="inputs-view__variable">{`{{${binding.variable}}}`}</code>
         <span className="inputs-view__status" data-color={status.color}>
@@ -451,15 +424,6 @@ function EvaluatorVariableBindingItem({
           </Text>
         ) : null}
         {binding.hasValue ? <BindingValue value={binding.value} /> : null}
-        {isMissing ? (
-          <Button
-            size="S"
-            leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-            onPress={() => requestMappingFocus(binding.variable)}
-          >
-            Map in form
-          </Button>
-        ) : null}
       </div>
     </li>
   );
@@ -535,8 +499,14 @@ function toReadableContext(
 const inputsViewCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-size-100);
+  gap: var(--global-dimension-size-300);
   min-width: 0;
+  .inputs-view__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    min-width: 0;
+  }
   .inputs-view__list {
     margin: 0;
     padding: 0;
@@ -627,20 +597,7 @@ const inputsViewCSS = css`
       overflow: hidden;
     }
   }
-  .inputs-view__context {
-    margin-top: var(--global-dimension-size-100);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-small);
-    overflow: hidden;
-  }
-  .inputs-view__context-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
-      var(--global-dimension-size-200);
-  }
-  .inputs-view__context-toolbar {
+  .inputs-view__context-header {
     display: flex;
     flex-direction: row;
     align-items: center;

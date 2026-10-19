@@ -1,7 +1,7 @@
 /**
  * The inputs view renders what `materializeEvaluatorContext` produces, so this
  * only checks what reaches the view: a row per variable with its status,
- * source and value, and the record's context under a disclosure. What the materialization binds is pinned
+ * source and value, and the record's context below them. What the materialization binds is pinned
  * where it lives.
  */
 import { act, type ComponentProps } from "react";
@@ -10,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
-import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import {
   EvaluatorInputsView,
@@ -27,10 +26,6 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
-import {
-  DEFAULT_LLM_EVALUATOR_STORE_VALUES,
-  type EvaluatorStoreInstance,
-} from "@phoenix/store/evaluatorStore";
 
 describe("the evaluator inputs", () => {
   let container: HTMLDivElement;
@@ -111,33 +106,21 @@ describe("the evaluator inputs", () => {
     expect(values.context).toBe("PINNED TEXT");
   });
 
-  /** Renders the view in a store of its own, returned so a test can read it. */
   async function renderInputsView({
     variables,
     ...props
   }: Omit<ComponentProps<typeof EvaluatorInputsView>, "isSampleContext"> & {
     variables: string[];
-  }): Promise<EvaluatorStoreInstance> {
-    let store: EvaluatorStoreInstance | undefined;
+  }) {
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <EvaluatorStoreProvider
-            initialState={DEFAULT_LLM_EVALUATOR_STORE_VALUES}
-          >
-            {({ store: created }) => {
-              store = created;
-              return (
-                <EvaluatorInputVariablesContext.Provider value={variables}>
-                  <EvaluatorInputsView {...props} isSampleContext={false} />
-                </EvaluatorInputVariablesContext.Provider>
-              );
-            }}
-          </EvaluatorStoreProvider>
+          <EvaluatorInputVariablesContext.Provider value={variables}>
+            <EvaluatorInputsView {...props} isSampleContext={false} />
+          </EvaluatorInputVariablesContext.Provider>
         </ThemeProvider>
       );
     });
-    return store!;
   }
 
   const items = () => [...container.querySelectorAll(".inputs-view__item")];
@@ -182,10 +165,6 @@ describe("the evaluator inputs", () => {
     expect(itemFor("any_thing")?.textContent).toContain(
       "Nothing on the trace is named any_thing"
     );
-    // Each one offers its field in the mapping.
-    for (const item of items()) {
-      expect(item.textContent).toContain("Map in form");
-    }
   });
 
   it("marks a path only the server can check as checked at run, not as failing", async () => {
@@ -215,14 +194,15 @@ describe("the evaluator inputs", () => {
     );
     expect(itemFor("output")?.getAttribute("data-status")).toBe("missing");
     expect(itemFor("metadata")?.getAttribute("data-status")).toBe("resolved");
-    // Only what fails the run offers the mapping.
-    expect(itemFor("input")?.textContent).not.toContain("Map in form");
-    expect(itemFor("output")?.textContent).toContain("Map in form");
+    // What fails the run leads the list.
+    expect(
+      items()[0]?.querySelector(".inputs-view__variable")?.textContent
+    ).toBe("{{output}}");
     // Nothing here is a banner.
     expect(container.querySelector(".alert__icon-title-wrap")).toBeNull();
   });
 
-  it("shows each variable's source and value, and the whole record under a disclosure", async () => {
+  it("shows each variable's source and value, and the whole record below them", async () => {
     await renderInputsView({
       variables: ["input", "output", "reference"],
       context: {
@@ -249,13 +229,6 @@ describe("the evaluator inputs", () => {
       "world"
     );
 
-    const trigger = container.querySelector<HTMLButtonElement>(
-      '.inputs-view__context [slot="trigger"]'
-    );
-    expect(trigger?.textContent).toContain("All span data");
-    await act(async () => {
-      trigger?.click();
-    });
     const keys = [...container.querySelectorAll(".json-table__key")].map(
       (node) => node.textContent
     );
@@ -269,36 +242,18 @@ describe("the evaluator inputs", () => {
     ]);
   });
 
-  it("points the mapping at a variable: hovering marks its field, Map in form asks for it", async () => {
-    const store = await renderInputsView({
-      variables: ["input", "reference"],
+  it("lists the variables that fail the run first, the rest in declaration order", async () => {
+    await renderInputsView({
+      variables: ["input", "reference", "output", "context"],
       context: getSampleSpanEvaluationContext().context,
       recordKind: "span",
       inputMapping: { pathMapping: {}, literalMapping: {} },
     });
-
-    const reference = itemFor("reference");
-    await act(async () => {
-      reference?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-    });
-    expect(store.getState().highlightedMappingVariable).toBe("reference");
-
-    const mapButton = [...(reference?.querySelectorAll("button") ?? [])].find(
-      (button) => button.textContent?.includes("Map in form")
-    );
-    await act(async () => {
-      mapButton?.click();
-    });
-    expect(store.getState().mappingFocusRequest).toEqual({
-      variable: "reference",
-    });
-
-    await act(async () => {
-      container
-        .querySelector(".inputs-view__list")
-        ?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
-    });
-    expect(store.getState().highlightedMappingVariable).toBeNull();
+    expect(
+      items().map(
+        (item) => item.querySelector(".inputs-view__variable")?.textContent
+      )
+    ).toEqual(["{{reference}}", "{{context}}", "{{input}}", "{{output}}"]);
   });
 
   it("marks a row whose mapping cannot bind, and disables its test button", async () => {

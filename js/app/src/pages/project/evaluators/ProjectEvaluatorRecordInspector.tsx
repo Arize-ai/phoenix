@@ -56,6 +56,12 @@ const INPUTS_DESCRIPTION: Record<ProjectEvaluatorRecordKind, ReactNode> = {
   ),
 };
 
+const CONTEXT_TITLE: Record<ProjectEvaluatorRecordKind, string> = {
+  span: "Span data",
+  trace: "Trace data",
+  session: "Session data",
+};
+
 /**
  * The docked detail of the focused record: what the evaluator returned for
  * it, and what each variable resolved to. It sits in a fixed region so
@@ -165,6 +171,12 @@ export function ProjectEvaluatorRecordInspector({
                 <InspectorSectionTitle
                   title="Evaluator inputs"
                   description={INPUTS_DESCRIPTION[recordKind]}
+                />
+              }
+              contextHeading={
+                <InspectorSectionTitle
+                  title={CONTEXT_TITLE[recordKind]}
+                  description="Every key is a path a variable can be mapped to."
                 />
               }
               context={row.context}
@@ -402,7 +414,8 @@ const inspectorCSS = css`
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    // No bounce at the ends, and no scroll chaining out to the dialog.
+    overscroll-behavior: none;
     padding: var(--global-dimension-size-150) var(--global-dimension-size-200)
       var(--global-dimension-size-200);
   }

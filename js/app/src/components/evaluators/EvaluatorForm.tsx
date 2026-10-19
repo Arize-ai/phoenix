@@ -162,7 +162,8 @@ const dockedLeftCSS = css`
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    // No bounce at the ends, and no scroll chaining out to the dialog.
+    overscroll-behavior: none;
     // Both regions reserve the same scrollbar gutter, so where scrollbars
     // take up space the dock's right edge lines up with the form's above it
     // whether or not either region is scrolling.
@@ -182,7 +183,7 @@ const dockedLeftCSS = css`
     // the configuration above always keeps the other half.
     max-height: 50%;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: none;
     scrollbar-gutter: stable;
     border-top: 1px solid var(--global-border-color-default);
     background-color: var(--global-background-color-default);
@@ -192,9 +193,9 @@ const dockedLeftCSS = css`
 const panelStyle = {
   height: "100%",
   overflowY: "auto",
-  // keep trackpad overscroll from chaining to the dialog and
-  // dragging the header/footer with it
-  overscrollBehavior: "contain",
+  // keep trackpad overscroll from chaining to the dialog and dragging the
+  // header/footer with it, and from bouncing at the ends
+  overscrollBehavior: "none",
 } as const;
 
 /** The docked variant scrolls its own region, not the panel. */
