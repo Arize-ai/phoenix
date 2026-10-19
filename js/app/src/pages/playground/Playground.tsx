@@ -828,9 +828,22 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning, hasUnsavedExampleChanges]);
 
+  const hasDecisionInputState = usePlaygroundContext((state) =>
+    state.instances.some(
+      (instance) =>
+        isDecisionInstance(instance) &&
+        instance.decisionRequest?.stateFormat === "inputs"
+    )
+  );
   const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskRole }),
-    [isDatasetMode, templateFormat, taskRole]
+    () =>
+      getPlaygroundPanelIds({
+        isDatasetMode,
+        templateFormat,
+        taskRole,
+        hasDecisionInputState,
+      }),
+    [isDatasetMode, templateFormat, taskRole, hasDecisionInputState]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -967,7 +980,8 @@ function PlaygroundContent() {
           </TitledPanel>
         ) : (
           <>
-            {templateFormat !== TemplateFormats.NONE ? (
+            {templateFormat !== TemplateFormats.NONE ||
+            hasDecisionInputState ? (
               <TitledPanel
                 ref={inputsPanelRef}
                 headingLevel={2}

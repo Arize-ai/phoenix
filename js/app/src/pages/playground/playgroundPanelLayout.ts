@@ -13,17 +13,19 @@ export function getPlaygroundPanelIds({
   isDatasetMode,
   templateFormat,
   taskRole = "tested",
+  hasDecisionInputState = false,
 }: {
   isDatasetMode: boolean;
   templateFormat: TemplateFormat;
   taskRole?: PlaygroundTaskRole;
+  hasDecisionInputState?: boolean;
 }): string[] {
   // Judging tasks have no manual input, so without a dataset they show the
   // same two panels as a dataset does.
   if (isDatasetMode || taskRole === "judging") {
     return ["prompts", "io"];
   }
-  return templateFormat !== TemplateFormats.NONE
+  return templateFormat !== TemplateFormats.NONE || hasDecisionInputState
     ? ["prompts", "input", "output"]
     : ["prompts", "output"];
 }

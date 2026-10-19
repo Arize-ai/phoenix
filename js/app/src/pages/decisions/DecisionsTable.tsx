@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
-import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useLegacyTable,
-} from "@tanstack/react-table/legacy";
+import type { RowData } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
   useCallback,
@@ -42,6 +37,8 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useViewerCanModify } from "@phoenix/contexts";
@@ -64,7 +61,7 @@ const DECISIONS_POLL_INTERVAL_MS = 60_000;
 const defaultColumnSettings = {
   minSize: 120,
   size: 200,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const decisionsTableCSS = css`
   th,
@@ -91,7 +88,6 @@ type DecisionsTableProps = {
 };
 
 export function DecisionsTable(props: DecisionsTableProps) {
-  "use no memo";
   const { filter, selectedDecisionLabelIds, setSelectedDecisionLabelIds } =
     useDecisionsFilterContext();
   const columnVisibility = useDecisionsTableContext(
@@ -443,8 +439,8 @@ export function DecisionsTable(props: DecisionsTableProps) {
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useLegacyTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -457,8 +453,6 @@ export function DecisionsTable(props: DecisionsTableProps) {
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     // Key rows by decision ID rather than by index. Row cells host overlays
     // (the action menu and its label submenu) that are bound to
     // `row.original.id`; with index-based keys a refetch that re-orders the
@@ -467,22 +461,13 @@ export function DecisionsTable(props: DecisionsTableProps) {
     getRowId: (row) => row.id,
   });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const columnSizeVars = useMemo(() => {
-    const headers = getFlatHeaders();
-    const columnSizes: Record<string, number> = {};
-    for (const header of headers) {
-      columnSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      columnSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return columnSizes;
-    // Disabled lint as per TanStack's performant column resizing example.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  const columnSizeVars: Record<string, number> = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

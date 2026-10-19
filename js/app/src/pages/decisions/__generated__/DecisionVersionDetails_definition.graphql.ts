@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<68638b44998c361f512caf5b830780fc>>
+ * @generated SignedSource<<383905cb1f56ec697b2e2a5d4bbaf6c8>>
  * @lightSyntaxTransform
  */
 
@@ -55,6 +55,9 @@ export type DecisionVersionDetails_definition$data = {
   readonly state: {
     readonly __typename: "DecisionInputState";
     readonly input: string;
+  } | {
+    readonly __typename: "DecisionObjectState";
+    readonly object: boolean;
   } | {
     readonly __typename: "DecisionTextState";
     readonly template: string;
@@ -135,6 +138,20 @@ return {
       "plural": false,
       "selections": [
         (v2/*:: as any*/),
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "object",
+              "storageKey": null
+            }
+          ],
+          "type": "DecisionObjectState",
+          "abstractKey": null
+        },
         {
           "kind": "InlineFragment",
           "selections": [
@@ -314,6 +331,6 @@ return {
 };
 })();
 
-(node as any).hash = "ae655c5462ba7e1bac8450738973d1b6";
+(node as any).hash = "66edbb9f7680328ed9e164c2bac1af3e";
 
 export default node;
