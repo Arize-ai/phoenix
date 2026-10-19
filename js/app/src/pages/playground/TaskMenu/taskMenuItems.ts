@@ -2,14 +2,21 @@ import type {
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
   PlaygroundInstanceSource,
-  PlaygroundTaskKind,
+  PlaygroundTaskMember,
+  PlaygroundTaskRole,
 } from "@phoenix/store/playground";
+import { PLAYGROUND_TASK_ROLE_BY_MEMBER } from "@phoenix/store/playground";
 
 export type TaskMenuPrompt = {
   id: string;
   name: string;
   /** The version a bare prompt selection loads. */
   latestVersionId: string | null;
+};
+
+export type TaskMenuDecision = {
+  id: string;
+  name: string;
 };
 
 export type TaskMenuEvaluator = {
@@ -27,29 +34,34 @@ export type TaskMenuItem = {
 };
 
 export type TaskMenuSection = {
-  id: "duplicate" | "prompts" | "evaluators" | "new";
+  id: "duplicate" | "prompts" | "decisions" | "evaluators" | "new";
   title: string | null;
   items: TaskMenuItem[];
 };
 
-/** One kind of task in the menu: its saved items and its "New" actions. */
+/** One member of the tasks in the menu: its saved items and its "New" actions. */
 export type TaskMenuTab = {
-  kind: PlaygroundTaskKind;
+  member: PlaygroundTaskMember;
   title: string;
   sections: TaskMenuSection[];
 };
 
-const TAB_TITLES: Record<PlaygroundTaskKind, string> = {
+/** The tabs in the order the menu shows them, grouped by role. */
+const TAB_MEMBERS: PlaygroundTaskMember[] = ["prompt", "decision", "evaluator"];
+
+const TAB_TITLES: Record<PlaygroundTaskMember, string> = {
   prompt: "Prompts",
+  decision: "Decisions",
   evaluator: "Evaluators",
 };
 
 /** Shown in the menu while the page holds more than one task. */
 export const TASK_MENU_LOCK_NOTE =
-  "Remove the other tasks to switch between prompts and evaluators.";
+  "Prompts and decisions can share a page; evaluators run alone. Remove the other tasks to switch.";
 
-const NEW_ITEMS: Record<PlaygroundTaskKind, TaskMenuItem[]> = {
+const NEW_ITEMS: Record<PlaygroundTaskMember, TaskMenuItem[]> = {
   prompt: [{ key: "new:prompt", label: "New prompt", isAction: true }],
+  decision: [{ key: "new:decision", label: "New decision", isAction: true }],
   evaluator: [
     {
       key: "new:LLM",
@@ -67,37 +79,42 @@ const NEW_ITEMS: Record<PlaygroundTaskKind, TaskMenuItem[]> = {
 };
 
 /**
- * The tabs a task menu offers, one per kind of task. With the kind unlocked
- * both kinds have a tab; locked, only the page's kind does, so the other kind
- * cannot be mixed in. Each tab lists that kind's saved items, then its "New"
- * actions. Prompts are filtered here; evaluators arrive already filtered by
- * the server.
+ * The tabs a task menu offers, one per member of the tasks. With the role
+ * unlocked every member has a tab, grouped by role: prompts and decisions
+ * (tested), then evaluators (judging). Locked, only the page's role's members
+ * do, so a task of the other role cannot be mixed in; prompts and decisions
+ * mix freely. Each tab lists that member's saved items, then its "New"
+ * actions. Prompts are filtered here; decisions and evaluators arrive already
+ * filtered by the server.
  */
 export function getTaskMenuTabs({
-  kind,
+  role,
   isLocked,
   prompts,
+  decisions,
   evaluators,
   search,
   matches,
 }: {
-  kind: PlaygroundTaskKind;
+  role: PlaygroundTaskRole;
   isLocked: boolean;
   prompts: TaskMenuPrompt[];
+  decisions: TaskMenuDecision[];
   evaluators: TaskMenuEvaluator[];
   search: string;
   matches: (text: string, search: string) => boolean;
 }): TaskMenuTab[] {
-  const kinds: PlaygroundTaskKind[] = isLocked
-    ? [kind]
-    : ["prompt", "evaluator"];
+  const members = TAB_MEMBERS.filter(
+    (member) => !isLocked || PLAYGROUND_TASK_ROLE_BY_MEMBER[member] === role
+  );
 
-  return kinds.map((tabKind) => ({
-    kind: tabKind,
-    title: TAB_TITLES[tabKind],
-    sections: getKindSections({
-      kind: tabKind,
+  return members.map((member) => ({
+    member,
+    title: TAB_TITLES[member],
+    sections: getMemberSections({
+      member,
       prompts,
+      decisions,
       evaluators,
       search,
       matches,
@@ -106,29 +123,42 @@ export function getTaskMenuTabs({
 }
 
 /** A tab's sections: the saved items, if any match, then the "New" actions. */
-function getKindSections({
-  kind,
+function getMemberSections({
+  member,
   prompts,
+  decisions,
   evaluators,
   search,
   matches,
 }: {
-  kind: PlaygroundTaskKind;
+  member: PlaygroundTaskMember;
   prompts: TaskMenuPrompt[];
+  decisions: TaskMenuDecision[];
   evaluators: TaskMenuEvaluator[];
   search: string;
   matches: (text: string, search: string) => boolean;
 }): TaskMenuSection[] {
   const sections: TaskMenuSection[] = [];
 
-  // The tab names the kind, so the saved items need no title of their own.
-  if (kind === "prompt") {
+  // The tab names the member, so the saved items need no title of their own.
+  if (member === "prompt") {
     const items = prompts
       .filter((prompt) => !search || matches(prompt.name, search))
       .map((prompt) => ({ key: `prompt:${prompt.id}`, label: prompt.name }));
 
     if (items.length) {
       sections.push({ id: "prompts", title: null, items });
+    }
+  } else if (member === "decision") {
+    if (decisions.length) {
+      sections.push({
+        id: "decisions",
+        title: null,
+        items: decisions.map((decision) => ({
+          key: `decision:${decision.id}`,
+          label: decision.name,
+        })),
+      });
     }
   } else if (evaluators.length) {
     sections.push({
@@ -142,7 +172,7 @@ function getKindSections({
     });
   }
 
-  sections.push({ id: "new", title: "New", items: NEW_ITEMS[kind] });
+  sections.push({ id: "new", title: "New", items: NEW_ITEMS[member] });
 
   return sections;
 }
@@ -153,6 +183,21 @@ export const DUPLICATE_SECTION: TaskMenuSection = {
   title: null,
   items: [{ key: "duplicate", label: "Duplicate this task", isAction: true }],
 };
+
+/**
+ * Whether choosing `source` for the instance loads it into the same task
+ * rather than replacing the task: another prompt into a prompt task, another
+ * decision into a decision task.
+ */
+export function doesSourceLoadInPlace(
+  member: PlaygroundTaskMember,
+  source: PlaygroundInstanceSource
+): boolean {
+  return (
+    (member === "prompt" && source.type === "prompt") ||
+    (member === "decision" && source.type === "decision")
+  );
+}
 
 /** The instance source a menu key stands for. */
 export function parseTaskMenuKey(
@@ -174,7 +219,10 @@ export function parseTaskMenuKey(
 
   switch (type) {
     case "new":
-      return value === "prompt" || value === "LLM" || value === "CODE"
+      return value === "prompt" ||
+        value === "decision" ||
+        value === "LLM" ||
+        value === "CODE"
         ? { type: "new", kind: value }
         : null;
     case "prompt":
@@ -186,6 +234,14 @@ export function parseTaskMenuKey(
           null,
         tagName: null,
       };
+    case "decision":
+      // A bare decision selection loads its latest version.
+      return {
+        type: "decision",
+        decisionId: value,
+        decisionVersionId: null,
+        tagName: null,
+      };
     case "evaluator":
       return { type: "evaluator", evaluatorId: value };
     default:
@@ -195,10 +251,16 @@ export function parseTaskMenuKey(
 
 /** The menu key the instance's current task answers to, if any. */
 export function getTaskMenuSelectedKey(
-  instance: Pick<PlaygroundInstance, "task" | "prompt">
+  instance: Pick<PlaygroundInstance, "task" | "prompt" | "decision">
 ): string | null {
-  if (instance.task.kind === "prompt") {
+  if (instance.task.member === "prompt") {
     return instance.prompt ? `prompt:${instance.prompt.id}` : null;
+  }
+
+  if (instance.task.member === "decision") {
+    return instance.decision
+      ? `decision:${instance.decision.id}`
+      : "new:decision";
   }
 
   const { evaluatorId } = instance.task.evaluator.source;
@@ -209,19 +271,26 @@ export function getTaskMenuSelectedKey(
 }
 
 /**
- * What the menu's trigger reads: the loaded prompt's name, the evaluator
- * draft's name, or what a nameless draft is; null for a prompt task that
- * has no prompt yet, so the trigger shows its placeholder.
+ * What the menu's trigger reads: the loaded prompt's or decision's name, the
+ * evaluator draft's name, or what a nameless draft is; null for a prompt task
+ * that has no prompt yet, so the trigger shows its placeholder.
  */
 export function getTaskMenuLabel(
-  instance: Pick<PlaygroundInstance, "task" | "prompt" | "loadingSource">
+  instance: Pick<
+    PlaygroundInstance,
+    "task" | "prompt" | "decision" | "loadingSource"
+  >
 ): string | null {
   if (instance.loadingSource) {
     return "Loading…";
   }
 
-  if (instance.task.kind === "prompt") {
+  if (instance.task.member === "prompt") {
     return instance.prompt?.name ?? null;
+  }
+
+  if (instance.task.member === "decision") {
+    return instance.decision?.name ?? "New decision";
   }
 
   const { name, kind } = instance.task.evaluator;

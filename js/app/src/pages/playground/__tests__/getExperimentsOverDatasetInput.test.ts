@@ -1,8 +1,12 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import { getExperimentsOverDatasetInput } from "@phoenix/pages/playground/experimentsOverDatasetInput";
 import { createCredentialsStore, createPlaygroundStore } from "@phoenix/store";
 import type { PlaygroundEvaluatorTaskKind } from "@phoenix/store/playground";
-import { createPlaygroundEvaluatorTask } from "@phoenix/store/playground";
+import {
+  createPlaygroundEvaluatorTask,
+  DEFAULT_INSTANCE_PARAMS,
+} from "@phoenix/store/playground";
 
 installTestStorage();
 
@@ -48,7 +52,7 @@ function addEvaluatorInstance(
       .getState()
       .instances.find((candidate) => candidate.id === instanceId);
 
-    if (instance?.task.kind !== "evaluator") {
+    if (instance?.task.member !== "evaluator") {
       throw new Error("Expected an evaluator instance");
     }
 
@@ -56,7 +60,7 @@ function addEvaluatorInstance(
       instanceId,
       patch: {
         task: {
-          kind: "evaluator",
+          member: "evaluator",
           evaluator: { ...instance.task.evaluator, name },
         },
       },
@@ -166,7 +170,7 @@ describe("getExperimentsOverDatasetInput", () => {
       instanceId,
       patch: {
         task: {
-          kind: "evaluator",
+          member: "evaluator",
           evaluator: createPlaygroundEvaluatorTask({
             kind: "CODE",
             name: "no_sql_in_output",
@@ -230,6 +234,64 @@ describe("getExperimentsOverDatasetInput", () => {
     // The evaluator keeps the name its column gives it even when run alone.
     expect(partial.tasks[0].evaluator?.evaluator.inlineLlmEvaluator?.name).toBe(
       "evaluator_3"
+    );
+  });
+
+  it("sends a prompt and a decision in one run, each as its own task, and records the saved version", () => {
+    const store = createStore();
+    const decisionId = store.playgroundStore
+      .getState()
+      .addInstance({ type: "new", kind: "decision" });
+
+    if (decisionId == null) throw new Error("Could not add a decision");
+
+    store.playgroundStore.getState().updateInstance({
+      instanceId: decisionId,
+      patch: {
+        decisionRequest: {
+          ...createDecisionDraft(),
+          state: "{{ticket}}",
+        },
+        decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
+        model: {
+          provider: "OLLAMA",
+          modelName: "tev1:0.8b-mxfp8",
+          modelType: "DECISION",
+          invocationParameters:
+            DEFAULT_INSTANCE_PARAMS().model.invocationParameters,
+        },
+      },
+      dirty: null,
+    });
+
+    const input = buildInput(store);
+
+    // The prompt's model and the decision's differ, but both are tested tasks
+    // of one run, in page order.
+    expect(input.tasks.map((task) => Object.keys(task)[0])).toEqual([
+      "prompt",
+      "decision",
+    ]);
+    expect(input.tasks[1].decision).toMatchObject({
+      modelName: "tev1:0.8b-mxfp8",
+      decisionVersionId: "DV1",
+      inputValuesPath: "input",
+    });
+  });
+
+  it("sends a prompt that kept a decision reference as a prompt", () => {
+    const store = createStore();
+    const [instance] = store.playgroundStore.getState().instances;
+    store.playgroundStore.getState().updateInstance({
+      instanceId: instance.id,
+      patch: {
+        decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
+      },
+      dirty: null,
+    });
+
+    expect(buildInput(store).tasks.map((task) => Object.keys(task)[0])).toEqual(
+      ["prompt"]
     );
   });
 

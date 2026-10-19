@@ -4,6 +4,7 @@ import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 export type PlaygroundModelMenuProps = {
   /**
@@ -47,12 +48,15 @@ export function PlaygroundModelMenu({
   const handleChange = (model: ModelMenuValue) => {
     if (!instance) return;
 
+    // The picker's Decision tab is a shortcut for the task's member: a
+    // decision model makes the instance a decision, an LLM a prompt.
     if (model.modelType === "DECISION") {
-      const wasDecision = instance.model.modelType === "DECISION";
+      const wasDecision = isDecisionInstance(instance);
       updateInstance({
         instanceId: playgroundInstanceId,
         dirty: true,
         patch: {
+          task: { member: "decision" },
           // Keep a request the instance already had; start one otherwise.
           decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
           // Remember the chat configuration so switching back restores it.
@@ -81,7 +85,8 @@ export function PlaygroundModelMenu({
       return;
     }
 
-    if (instance.model.modelType === "DECISION") {
+    const wasDecision = isDecisionInstance(instance);
+    if (wasDecision) {
       // Restore the chat configuration the instance had before it became a
       // decision instance. Without one, start from a clean chat model: the
       // decision base URL points at a decision endpoint, not a chat one.
@@ -94,6 +99,7 @@ export function PlaygroundModelMenu({
         instanceId: playgroundInstanceId,
         dirty: true,
         patch: {
+          task: { member: "prompt" },
           model: { ...restoredModel, modelType: "LLM" },
           repetitions: {},
         },
@@ -101,10 +107,9 @@ export function PlaygroundModelMenu({
     }
 
     // Update provider if it changed
-    const previousProvider =
-      instance.model.modelType === "DECISION"
-        ? (instance.llmModel?.provider ?? DEFAULT_MODEL_PROVIDER)
-        : instance.model.provider;
+    const previousProvider = wasDecision
+      ? (instance.llmModel?.provider ?? DEFAULT_MODEL_PROVIDER)
+      : instance.model.provider;
     if (model.provider !== previousProvider) {
       updateProvider({
         instanceId: playgroundInstanceId,

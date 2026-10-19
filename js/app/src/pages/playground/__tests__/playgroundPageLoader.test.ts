@@ -1,7 +1,11 @@
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createEvaluatorTaskInstance } from "@phoenix/store/playground";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import {
+  createEvaluatorTaskInstance,
+  createDecisionTaskInstance,
+} from "@phoenix/store/playground";
 
 import type { PlaygroundPageLoaderFetchers } from "../playgroundPageLoader";
 import {
@@ -17,12 +21,16 @@ const fetchEvaluator =
 const fetchPrompt =
   vi.fn<PlaygroundPageLoaderFetchers["fetchPromptAsInstance"]>();
 
+const fetchDecision =
+  vi.fn<PlaygroundPageLoaderFetchers["fetchDecisionAsInstance"]>();
+
 const fetchExperiment =
   vi.fn<PlaygroundPageLoaderFetchers["fetchExperimentProps"]>();
 
 const playgroundPageLoader = createPlaygroundPageLoader({
   fetchEvaluatorAsInstance: fetchEvaluator,
   fetchPromptAsInstance: fetchPrompt,
+  fetchDecisionAsInstance: fetchDecision,
   fetchExperimentProps: fetchExperiment,
 });
 
@@ -41,13 +49,13 @@ function load(search: string) {
 function codeEvaluator(name: string) {
   const instance = createEvaluatorTaskInstance({ kind: "CODE" });
 
-  if (instance.task.kind !== "evaluator") throw new Error("unreachable");
+  if (instance.task.member !== "evaluator") throw new Error("unreachable");
 
   return {
     instance: {
       ...instance,
       task: {
-        kind: "evaluator" as const,
+        member: "evaluator" as const,
         evaluator: { ...instance.task.evaluator, name },
       },
     },
@@ -59,6 +67,7 @@ describe("playgroundPageLoader", () => {
   beforeEach(() => {
     fetchEvaluator.mockReset();
     fetchPrompt.mockReset();
+    fetchDecision.mockReset();
   });
 
   it("returns null with no task params", async () => {
@@ -94,7 +103,7 @@ describe("playgroundPageLoader", () => {
     expect(
       data.instances.map(
         (instance) =>
-          instance.task.kind === "evaluator" && instance.task.evaluator.name
+          instance.task.member === "evaluator" && instance.task.evaluator.name
       )
     ).toEqual(["E0", "DE1"]);
     expect(data.templateFormat).toBe("MUSTACHE");
@@ -119,7 +128,7 @@ describe("playgroundPageLoader", () => {
     if (data?.source !== "evaluator") throw new Error("unreachable");
     expect(data.instances).toHaveLength(1);
     expect(data.instances[0].task).toMatchObject({
-      kind: "evaluator",
+      member: "evaluator",
       evaluator: { kind: "LLM", source: { evaluatorId: null } },
     });
     const props = buildPlaygroundPropsFromLoaderData(data);
@@ -138,5 +147,81 @@ describe("playgroundPageLoader", () => {
       tagName: null,
     });
     expect(fetchEvaluator).not.toHaveBeenCalled();
+  });
+
+  describe("decision params", () => {
+    const decisionInstance = (name: string) => ({
+      instance: {
+        ...createDecisionTaskInstance(),
+        decision: { id: name, name, versionId: `${name}-v`, tag: null },
+      },
+      templateFormat: TemplateFormats.FString,
+    });
+
+    const promptInstance = (name: string) =>
+      ({
+        instance: {
+          ...createDecisionTaskInstance(),
+          task: { member: "prompt" as const },
+          prompt: { id: name, name, version: `${name}-v`, tag: null },
+        },
+        promptVersion: { templateFormat: "MUSTACHE" },
+      }) as never;
+
+    it("loads saved decisions as tested tasks, using the decision's own template format", async () => {
+      fetchDecision.mockResolvedValue(decisionInstance("D1"));
+
+      const data = await load(
+        "decisionId=D1&decisionVersionId=DV1&decisionTagName="
+      );
+
+      expect(fetchDecision).toHaveBeenCalledWith({
+        decisionId: "D1",
+        decisionVersionId: "DV1",
+        tagName: null,
+        templateFormat: null,
+      });
+      expect(fetchPrompt).not.toHaveBeenCalled();
+      if (data?.source !== "tested") throw new Error("unreachable");
+      expect(data.decisionParams).toEqual([
+        { decisionId: "D1", decisionVersionId: "DV1", tagName: null },
+      ]);
+      expect(data.instances.map((i) => i.task.member)).toEqual(["decision"]);
+      expect(data.templateFormat).toBe("F_STRING");
+    });
+
+    it("loads prompts then decisions on the prompts' template format, and a tag wins over the version it resolved to", async () => {
+      fetchPrompt.mockResolvedValue(promptInstance("P1"));
+      fetchDecision.mockResolvedValue(decisionInstance("D1"));
+
+      const data = await load(
+        "promptId=P1&promptVersionId=V1&promptTagName=&decisionId=D1&decisionVersionId=DV1&decisionTagName=prod"
+      );
+
+      expect(fetchDecision).toHaveBeenCalledWith({
+        decisionId: "D1",
+        decisionVersionId: null,
+        tagName: "prod",
+        templateFormat: "MUSTACHE",
+      });
+      if (data?.source !== "tested") throw new Error("unreachable");
+      expect(data.instances.map((i) => i.task.member)).toEqual([
+        "prompt",
+        "decision",
+      ]);
+      expect(data.templateFormat).toBe("MUSTACHE");
+    });
+
+    it("skips a decision that fails to load, and opens the default page when none loads", async () => {
+      fetchDecision.mockRejectedValue(new Error("deleted"));
+
+      expect(await load("decisionId=gone")).toBeNull();
+
+      fetchPrompt.mockResolvedValue(promptInstance("P1"));
+      const data = await load("promptId=P1&decisionId=gone");
+
+      if (data?.source !== "tested") throw new Error("unreachable");
+      expect(data.instances.map((i) => i.task.member)).toEqual(["prompt"]);
+    });
   });
 });

@@ -772,12 +772,19 @@ describe("decision tasks over a dataset", () => {
     ).toThrow("questions can't use template variables");
   });
 
-  it("refuses mixing decision and LLM instances in one dataset run", () => {
+  it("lets decisions and prompts share a dataset run, checking only the decisions", () => {
     const decision = {
-      model: { modelType: "DECISION" },
+      task: { member: "decision" },
       decisionRequest: { ...createDecisionDraft(), state: "{{state}}" },
     } as never;
-    const llm = { model: { modelType: "LLM" }, decisionRequest: null } as never;
+    const unfillable = {
+      task: { member: "decision" },
+      decisionRequest: createDecisionDraft(),
+    } as never;
+    const prompt = {
+      task: { member: "prompt" },
+      decisionRequest: null,
+    } as never;
     expect(
       getDecisionDatasetBlockedReason({
         instances: [decision],
@@ -786,16 +793,23 @@ describe("decision tasks over a dataset", () => {
     ).toBeNull();
     expect(
       getDecisionDatasetBlockedReason({
-        instances: [decision, llm],
-        templateFormat: mustache,
-      })
-    ).toContain("all use decision models or all use LLMs");
-    expect(
-      getDecisionDatasetBlockedReason({
-        instances: [llm],
+        instances: [decision, prompt],
         templateFormat: mustache,
       })
     ).toBeNull();
+    expect(
+      getDecisionDatasetBlockedReason({
+        instances: [prompt],
+        templateFormat: mustache,
+      })
+    ).toBeNull();
+    // The prompt before it still counts as instance A.
+    expect(
+      getDecisionDatasetBlockedReason({
+        instances: [prompt, unfillable],
+        templateFormat: mustache,
+      })
+    ).toMatch(/^Instance B: /);
   });
 });
 

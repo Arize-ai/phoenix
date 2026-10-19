@@ -116,7 +116,7 @@ describe("playground.task.select", () => {
     const [replacement] = playgroundStore.getState().instances;
     expect(replacement.id).not.toBe(instance.id);
     expect(replacement.task).toMatchObject({
-      kind: "evaluator",
+      member: "evaluator",
       evaluator: { kind: "CODE" },
     });
     expect(waitForEvaluatorHost).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe("playground.task.select", () => {
     });
   });
 
-  it("rejects a source of the other kind once the page's kind is locked", async () => {
+  it("rejects a source of the other role once the page's role is locked", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
 
@@ -151,7 +151,7 @@ describe("playground.task.select", () => {
     expect(
       playgroundStore
         .getState()
-        .instances.every((i) => i.task.kind === "prompt")
+        .instances.every((i) => i.task.member === "prompt")
     ).toBe(true);
   });
 
@@ -182,7 +182,9 @@ describe("playground.task.select", () => {
         discardChanges: true,
       })
     ).toMatchObject({ ok: true });
-    expect(playgroundStore.getState().instances[0].task.kind).toBe("evaluator");
+    expect(playgroundStore.getState().instances[0].task.member).toBe(
+      "evaluator"
+    );
   });
 
   it("rejects a change while a run is active", async () => {

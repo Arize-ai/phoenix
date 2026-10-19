@@ -1,10 +1,11 @@
 import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import {
-  getPlaygroundTaskKind,
+  getPlaygroundTaskRole,
   type PlaygroundStore,
 } from "@phoenix/store/playground";
 
+import { describeRole } from "../playgroundTask/selectTask";
 import { parseSetTemplateVariablesPathInput } from "./parsers";
 
 export function createSetTemplateVariablesPathClientAction({
@@ -47,19 +48,19 @@ export function createSetTemplateVariablesPathClientAction({
 
     const templateVariablesPath = parsed.path || null;
     const { instances, setTemplateVariablesPath } = playgroundStore.getState();
-    // Each kind of task keeps its own path; this sets the page's kind.
-    const taskKind = getPlaygroundTaskKind(instances);
-    setTemplateVariablesPath({ templateVariablesPath, datasetId, taskKind });
+    // Each role keeps its own path; this sets the page's role.
+    const taskRole = getPlaygroundTaskRole(instances);
+    setTemplateVariablesPath({ templateVariablesPath, datasetId, taskRole });
 
     return {
       ok: true,
       output: {
         status: "updated",
-        taskKind,
+        taskRole,
         templateVariablesPath,
         message: templateVariablesPath
-          ? `Set the ${taskKind} tasks' template variables path to "${templateVariablesPath}".`
-          : `Set the ${taskKind} tasks' template variables path to the example root.`,
+          ? `Set the ${describeRole(taskRole)}' template variables path to "${templateVariablesPath}".`
+          : `Set the ${describeRole(taskRole)}' template variables path to the example root.`,
       },
     };
   };

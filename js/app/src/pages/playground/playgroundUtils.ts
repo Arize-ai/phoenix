@@ -56,6 +56,7 @@ import {
   generateMessageId,
   generateToolId,
   getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
@@ -1277,7 +1278,7 @@ export const extractVariablesFromInstance = ({
   }
   // A decision instance carries its variables in the request's text fields;
   // its chat template is the one it restores when switched back to an LLM.
-  if (instance.model.modelType === "DECISION") {
+  if (isDecisionInstance(instance)) {
     return extractDecisionVariables({
       draft: instance.decisionRequest,
       templateFormat,
@@ -2371,7 +2372,7 @@ export const getPromptTaskInput = ({
     getTemplateVariablesPath({
       stateByDatasetId,
       datasetId,
-      taskKind: "prompt",
+      taskRole: "tested",
     }) ?? "";
 
   return {

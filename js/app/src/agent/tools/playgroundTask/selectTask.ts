@@ -1,14 +1,16 @@
 import { TASK_MENU_LOCK_NOTE } from "@phoenix/pages/playground/TaskMenu/taskMenuItems";
 import type {
+  PlaygroundInstanceSource,
   PlaygroundNormalizedInstance,
   PlaygroundState,
   PlaygroundStore,
-  PlaygroundTaskKind,
+  PlaygroundTaskRole,
 } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskKind,
-  getTaskKindForNewSource,
-  isTaskKindLocked,
+  getPlaygroundTaskRole,
+  getTaskMemberForNewSource,
+  isTaskRoleLocked,
+  PLAYGROUND_TASK_ROLE_BY_MEMBER,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
@@ -17,15 +19,20 @@ import type { PlaygroundTaskResult } from "./types";
 
 type TaskRejection = Extract<PlaygroundTaskResult<never>, { ok: false }>;
 
-/** The kind of task a source produces. */
-export function getTaskSourceKind(source: TaskSource): PlaygroundTaskKind {
+/** The role a task made from a source plays. */
+export function getTaskSourceRole(
+  source: Exclude<PlaygroundInstanceSource, { type: "duplicate" }>
+): PlaygroundTaskRole {
   switch (source.type) {
     case "new":
-      return getTaskKindForNewSource(source.kind);
+      return PLAYGROUND_TASK_ROLE_BY_MEMBER[
+        getTaskMemberForNewSource(source.kind)
+      ];
     case "prompt":
-      return "prompt";
+    case "decision":
+      return "tested";
     default:
-      return "evaluator";
+      return "judging";
   }
 }
 
@@ -38,12 +45,12 @@ export function doesTaskSourceReplace(
   instance: Pick<PlaygroundNormalizedInstance, "task">,
   source: TaskSource
 ): boolean {
-  return !(instance.task.kind === "prompt" && source.type === "prompt");
+  return !(instance.task.member === "prompt" && source.type === "prompt");
 }
 
 /**
  * Why the task menu would refuse `source` for the instance, or null: a run
- * in progress, a page whose kind is locked to the other kind, or unsaved
+ * in progress, a page whose role is locked to the other role, or unsaved
  * changes the caller has not agreed to discard.
  */
 export function getSelectTaskRejection({
@@ -67,15 +74,15 @@ export function getSelectTaskRejection({
     };
   }
 
-  const pageKind = getPlaygroundTaskKind(state.instances);
+  const pageRole = getPlaygroundTaskRole(state.instances);
 
   if (
-    isTaskKindLocked(state.instances) &&
-    getTaskSourceKind(source) !== pageKind
+    isTaskRoleLocked(state.instances) &&
+    getTaskSourceRole(source) !== pageRole
   ) {
     return {
       ok: false,
-      error: `This page holds ${pageKind} tasks and has more than one instance, so its kind is fixed. ${TASK_MENU_LOCK_NOTE}`,
+      error: `This page holds ${describeRole(pageRole)} and has more than one instance, so its role is fixed. ${TASK_MENU_LOCK_NOTE}`,
     };
   }
 
@@ -91,6 +98,11 @@ export function getSelectTaskRejection({
   }
 
   return null;
+}
+
+/** The role as the agent should say it. */
+export function describeRole(role: PlaygroundTaskRole): string {
+  return role === "tested" ? "prompt and decision tasks" : "evaluator tasks";
 }
 
 /**
@@ -115,7 +127,7 @@ export function applyTaskSource({
     return null;
   }
 
-  if (instance.task.kind === "prompt" && source.type === "prompt") {
+  if (instance.task.member === "prompt" && source.type === "prompt") {
     state.updateInstance({
       instanceId,
       patch: { loadingSource: source },

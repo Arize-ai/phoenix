@@ -14,7 +14,10 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import {
+  getPlaygroundTaskRole,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
 import {
@@ -37,11 +40,11 @@ function getInstanceLabel(index: number): string {
 function getInvalidDecisionReason(
   instances: readonly Pick<
     PlaygroundNormalizedInstance,
-    "model" | "decisionRequest"
+    "model" | "decisionRequest" | "task"
   >[]
 ): string | null {
   for (const [index, instance] of instances.entries()) {
-    if (instance.model.modelType !== "DECISION") continue;
+    if (!isDecisionInstance(instance)) continue;
     const label = getInstanceLabel(index);
     if (!instance.model.modelName?.trim()) {
       return `Instance ${label}: pick a decision model.`;
@@ -81,8 +84,8 @@ export function PlaygroundRunButton() {
       : null);
   const hasInvalidDecision = invalidDecisionReason != null;
 
-  const isEvaluatorKind = usePlaygroundContext(
-    (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  const isJudgingRole = usePlaygroundContext(
+    (state) => getPlaygroundTaskRole(state.instances) === "judging"
   );
 
   const recordExperiments = usePlaygroundContext(
@@ -103,7 +106,7 @@ export function PlaygroundRunButton() {
   // Neither runs while the examples are being edited: the server would judge
   // the saved examples, not the ones on screen.
   const canRun =
-    (!isEvaluatorKind || hasDataset) &&
+    (!isJudgingRole || hasDataset) &&
     !isEditingExamples &&
     !hasInvalidDecision &&
     blockedReason == null;

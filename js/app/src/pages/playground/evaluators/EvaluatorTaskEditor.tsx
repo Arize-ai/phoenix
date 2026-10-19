@@ -375,7 +375,7 @@ function EvaluatorTaskEditorContent({
       ) {
         playgroundStore.getState().updateInstance({
           instanceId,
-          patch: { task: { kind: "evaluator", evaluator: next } },
+          patch: { task: { member: "evaluator", evaluator: next } },
           dirty: isFirstPublish.current ? null : true,
         });
       }

@@ -1,5 +1,5 @@
 import type { PlaygroundInstance } from "@phoenix/store/playground";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import { getPlaygroundTaskRole } from "@phoenix/store/playground";
 
 /**
  * A single prompt selection parsed from URL search params.
@@ -7,6 +7,16 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 export type PromptParam = {
   promptId: string;
   promptVersionId: string | null;
+  tagName: string | null;
+};
+
+/**
+ * A single decision selection parsed from URL search params: the saved
+ * decision, and the version or tag a decision task was loaded at.
+ */
+export type DecisionParam = {
+  decisionId: string;
+  decisionVersionId: string | null;
   tagName: string | null;
 };
 
@@ -28,14 +38,15 @@ const EVALUATOR_PARAM_KEYS = {
 } as const satisfies Record<string, keyof EvaluatorTaskParam>;
 
 /**
- * Every task the page holds, in instance order, as the URL names it. The
- * two kinds never mix, so one family of params is written at a time.
+ * Every task the page holds, in instance order within its member, as the URL
+ * names it. The two roles never mix, so one role's params are written at a
+ * time; a tested page's prompts and decisions are two families of params.
  */
 export type PlaygroundTaskParams =
-  | { kind: "prompt"; prompts: PromptParam[] }
-  | { kind: "evaluator"; evaluators: (EvaluatorTaskParam | null)[] };
+  | { role: "tested"; prompts: PromptParam[]; decisions: DecisionParam[] }
+  | { role: "judging"; evaluators: (EvaluatorTaskParam | null)[] };
 
-/** Marks a page of evaluator tasks; it is what keeps a fresh draft's kind on reload. */
+/** Marks a page of evaluator tasks; it is what keeps a fresh draft's role on reload. */
 export const TASK_KIND_PARAM = "taskKind";
 
 const EVALUATOR_TASK_KIND = "evaluator";
@@ -97,18 +108,20 @@ export function parseEvaluatorTaskParams(
 }
 
 /**
- * The task params the instances stand for. Prompt tasks without a saved
- * prompt are left out, as before; evaluator drafts keep their position as
- * null so the saved tasks around them keep theirs.
+ * The task params the instances stand for. Prompt and decision tasks without
+ * a saved prompt or decision are left out, as before; evaluator drafts keep
+ * their position as null so the saved tasks around them keep theirs.
  */
 export function getPlaygroundTaskParams(
-  instances: ReadonlyArray<Pick<PlaygroundInstance, "task" | "prompt">>
+  instances: ReadonlyArray<
+    Pick<PlaygroundInstance, "task" | "prompt" | "decision">
+  >
 ): PlaygroundTaskParams {
-  if (getPlaygroundTaskKind(instances) === "evaluator") {
+  if (getPlaygroundTaskRole(instances) === "judging") {
     return {
-      kind: "evaluator",
+      role: "judging",
       evaluators: instances.map((instance) => {
-        if (instance.task.kind !== "evaluator") {
+        if (instance.task.member !== "evaluator") {
           return null;
         }
 
@@ -123,14 +136,25 @@ export function getPlaygroundTaskParams(
   }
 
   return {
-    kind: "prompt",
+    role: "tested",
     prompts: instances.flatMap((instance) =>
-      instance.prompt
+      instance.task.member === "prompt" && instance.prompt
         ? [
             {
               promptId: instance.prompt.id,
               promptVersionId: instance.prompt.version,
               tagName: instance.prompt.tag,
+            },
+          ]
+        : []
+    ),
+    decisions: instances.flatMap((instance) =>
+      instance.task.member === "decision" && instance.decision
+        ? [
+            {
+              decisionId: instance.decision.id,
+              decisionVersionId: instance.decision.versionId,
+              tagName: instance.decision.tag,
             },
           ]
         : []
@@ -142,16 +166,24 @@ export function arePlaygroundTaskParamsEqual(
   left: PlaygroundTaskParams,
   right: PlaygroundTaskParams
 ): boolean {
-  if (left.kind === "prompt" || right.kind === "prompt") {
+  if (left.role === "tested" || right.role === "tested") {
     return (
-      left.kind === "prompt" &&
-      right.kind === "prompt" &&
+      left.role === "tested" &&
+      right.role === "tested" &&
       left.prompts.length === right.prompts.length &&
       left.prompts.every(
         (param, index) =>
           param.promptId === right.prompts[index].promptId &&
           param.promptVersionId === right.prompts[index].promptVersionId &&
           param.tagName === right.prompts[index].tagName
+      ) &&
+      left.decisions.length === right.decisions.length &&
+      left.decisions.every(
+        (param, index) =>
+          param.decisionId === right.decisions[index].decisionId &&
+          param.decisionVersionId ===
+            right.decisions[index].decisionVersionId &&
+          param.tagName === right.decisions[index].tagName
       )
     );
   }
@@ -168,8 +200,8 @@ export function arePlaygroundTaskParamsEqual(
 }
 
 /**
- * Writes the page's tasks to the URL: one family of params for the page's
- * kind, the other family removed. Returns whether anything changed.
+ * Writes the page's tasks to the URL: the page's role's params, the other
+ * role's removed. Returns whether anything changed.
  */
 export function setPlaygroundTaskParams({
   searchParams,
@@ -178,20 +210,27 @@ export function setPlaygroundTaskParams({
   searchParams: URLSearchParams;
   tasks: PlaygroundTaskParams;
 }): boolean {
-  if (tasks.kind === "prompt") {
+  if (tasks.role === "tested") {
     const clearedEvaluators = clearEvaluatorTaskParams(searchParams);
+    const setPrompts = setPromptParams({
+      searchParams,
+      prompts: tasks.prompts,
+    });
+    const setDecisions = setDecisionParams({
+      searchParams,
+      decisions: tasks.decisions,
+    });
 
-    return (
-      setPromptParams({ searchParams, prompts: tasks.prompts }) ||
-      clearedEvaluators
-    );
+    return setPrompts || setDecisions || clearedEvaluators;
   }
 
   const clearedPrompts = setPromptParams({ searchParams, prompts: [] });
+  const clearedDecisions = setDecisionParams({ searchParams, decisions: [] });
 
   return (
     setEvaluatorTaskParams({ searchParams, evaluators: tasks.evaluators }) ||
-    clearedPrompts
+    clearedPrompts ||
+    clearedDecisions
   );
 }
 
@@ -311,6 +350,77 @@ export function setPromptParams({
     searchParams.append("promptId", prompt.promptId);
     searchParams.append("promptVersionId", prompt.promptVersionId ?? "");
     searchParams.append("promptTagName", prompt.tagName ?? "");
+  }
+
+  return true;
+}
+
+/**
+ * Parses decision-related search params from a URLSearchParams instance.
+ * The three param arrays (`decisionId`, `decisionVersionId`,
+ * `decisionTagName`) are zipped by position into {@link DecisionParam}
+ * tuples, as the prompt params are.
+ *
+ * Returns an empty array if no `decisionId` params are present.
+ */
+export function parseDecisionParams(
+  searchParams: URLSearchParams
+): DecisionParam[] {
+  const decisionIds = searchParams.getAll("decisionId");
+  const versionIds = searchParams.getAll("decisionVersionId");
+  const tagNames = searchParams.getAll("decisionTagName");
+
+  return decisionIds.map((decisionId, index) => ({
+    decisionId,
+    decisionVersionId: versionIds[index] || null,
+    tagName: tagNames[index] || null,
+  }));
+}
+
+/**
+ * Sets decision-related search params on a URLSearchParams instance,
+ * replacing any existing ones.
+ *
+ * Returns `true` if the params actually changed, `false` if they were
+ * already in sync.
+ */
+export function setDecisionParams({
+  searchParams,
+  decisions,
+}: {
+  searchParams: URLSearchParams;
+  decisions: DecisionParam[];
+}): boolean {
+  const current = {
+    ids: searchParams.getAll("decisionId"),
+    versionIds: searchParams.getAll("decisionVersionId"),
+    tagNames: searchParams.getAll("decisionTagName"),
+  };
+  const next = {
+    ids: decisions.map((decision) => decision.decisionId),
+    versionIds: decisions.map((decision) => decision.decisionVersionId ?? ""),
+    tagNames: decisions.map((decision) => decision.tagName ?? ""),
+  };
+  const isInSync = (left: string[], right: string[]) =>
+    left.length === right.length &&
+    left.every((value, index) => value === right[index]);
+
+  if (
+    isInSync(current.ids, next.ids) &&
+    isInSync(current.versionIds, next.versionIds) &&
+    isInSync(current.tagNames, next.tagNames)
+  ) {
+    return false;
+  }
+
+  searchParams.delete("decisionId");
+  searchParams.delete("decisionVersionId");
+  searchParams.delete("decisionTagName");
+
+  for (const decision of decisions) {
+    searchParams.append("decisionId", decision.decisionId);
+    searchParams.append("decisionVersionId", decision.decisionVersionId ?? "");
+    searchParams.append("decisionTagName", decision.tagName ?? "");
   }
 
   return true;

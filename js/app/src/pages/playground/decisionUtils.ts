@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import { isDecisionInstance } from "@phoenix/store/playground/playgroundTask";
 import type {
   CanonicalResponseFormat,
   DecisionChoiceOptionDraft,
@@ -763,50 +764,53 @@ function questionVariables({
 export function getDecisionDatasetProblem({
   draft,
   templateFormat,
+  purpose = "dataset",
 }: {
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
+  /**
+   * What the definition is for: a dataset run, whose examples fill the
+   * inputs, or a saved version, whose callers do.
+   */
+  purpose?: "dataset" | "save";
 }): string | null {
+  const when = purpose === "dataset" ? "Over a dataset" : "To save";
+  const filler = purpose === "dataset" ? "each example" : "each caller";
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (draft.stateFormat !== "text" || !serverFormat) {
-    return "Over a dataset, write the state as text with template variables; a state that is only {{variable}} passes the example's value as is.";
+    return `${when}, write the state as text with template variables; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
   }
   const names = getTemplateFormatUtils(templateFormat).extractVariables(
     draft.state
   );
   if (names.length === 0) {
-    return "Over a dataset, the state needs a template variable that each example fills.";
+    return `${when}, the state needs a template variable that ${filler} fills.`;
   }
   const inQuestions = questionVariables({ draft, templateFormat });
   if (inQuestions.length > 0) {
-    return `Over a dataset, questions can't use template variables (${inQuestions.join(", ")}); each example asks the same questions.`;
+    return `${when}, questions can't use template variables (${inQuestions.join(", ")}); ${filler} gets the same questions.`;
   }
   return null;
 }
 
 /**
- * Why the page's instances can't run over a dataset, or null when they can.
- * An experiment's tasks are all prompts or all decisions, and each decision
- * must be one a dataset can fill (see {@link getDecisionDatasetProblem}).
+ * Why the page's instances can't run over a dataset, or null when they can:
+ * each decision must be one a dataset can fill (see
+ * {@link getDecisionDatasetProblem}).
  */
 export function getDecisionDatasetBlockedReason({
   instances,
   templateFormat,
 }: {
   instances: ReadonlyArray<
-    Pick<PlaygroundInstance, "model" | "decisionRequest">
+    Pick<PlaygroundInstance, "task" | "decisionRequest">
   >;
   templateFormat: TemplateFormat;
 }): string | null {
-  const decisions = instances.filter(
-    (instance) => instance.model.modelType === "DECISION"
-  );
-  if (decisions.length === 0) return null;
-  if (decisions.length !== instances.length) {
-    return "Over a dataset, the instances must all use decision models or all use LLMs.";
-  }
+  // Prompts and decisions may share a run; only a decision has a request the
+  // examples must be able to fill.
   for (const [index, instance] of instances.entries()) {
-    if (!instance.decisionRequest) continue;
+    if (!isDecisionInstance(instance) || !instance.decisionRequest) continue;
     const problem = getDecisionDatasetProblem({
       draft: instance.decisionRequest,
       templateFormat,
@@ -846,13 +850,19 @@ function soleStateVariable({
 export function buildDecisionTaskDefinition({
   draft,
   templateFormat,
+  purpose = "dataset",
 }: {
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
+  purpose?: "dataset" | "save";
 }): DecisionTaskDefinition {
   const validationError = getDecisionValidationError(draft);
   if (validationError) throw new Error(validationError);
-  const problem = getDecisionDatasetProblem({ draft, templateFormat });
+  const problem = getDecisionDatasetProblem({
+    draft,
+    templateFormat,
+    purpose,
+  });
   if (problem) throw new Error(problem);
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (!serverFormat) throw new Error("Unsupported template format");
@@ -1780,6 +1790,7 @@ export function buildDecisionInstanceFromSpanAttributes({
       ...base,
       // Keep the chat defaults so switching the instance back to an LLM works.
       llmModel: base.model,
+      task: { member: "decision" },
       model: {
         provider: provider ?? base.model.provider,
         modelName,

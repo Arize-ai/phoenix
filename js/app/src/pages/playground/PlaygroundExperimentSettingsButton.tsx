@@ -20,7 +20,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
-  getPlaygroundTaskKind,
+  getPlaygroundTaskRole,
   getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 
@@ -58,16 +58,16 @@ export function PlaygroundExperimentSettingsButton({
     (state) => state.stateByDatasetId[datasetId]?.appendedMessagesPath
   );
 
-  // Each kind of task keeps its own path; the gear edits the page's kind.
-  const taskKind = usePlaygroundContext((state) =>
-    getPlaygroundTaskKind(state.instances)
+  // Each role keeps its own path; the gear edits the page's role.
+  const taskRole = usePlaygroundContext((state) =>
+    getPlaygroundTaskRole(state.instances)
   );
 
   const templateVariablesPath = usePlaygroundContext((state) =>
     getTemplateVariablesPath({
       stateByDatasetId: state.stateByDatasetId,
       datasetId,
-      taskKind: getPlaygroundTaskKind(state.instances),
+      taskRole: getPlaygroundTaskRole(state.instances),
     })
   );
   const experimentName = usePlaygroundContext(
@@ -159,7 +159,7 @@ export function PlaygroundExperimentSettingsButton({
                     setTemplateVariablesPath({
                       templateVariablesPath: key || null,
                       datasetId,
-                      taskKind,
+                      taskRole,
                     });
                   }
                 }}
@@ -167,7 +167,7 @@ export function PlaygroundExperimentSettingsButton({
                   setTemplateVariablesPath({
                     templateVariablesPath: value || null,
                     datasetId,
-                    taskKind,
+                    taskRole,
                   });
                 }}
               >

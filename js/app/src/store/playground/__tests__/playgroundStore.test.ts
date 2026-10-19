@@ -13,9 +13,10 @@ import {
   DEFAULT_MAX_CONCURRENCY,
   getInitialInstances,
 } from "../playgroundStore";
+import { getPlaygroundTaskRole } from "../playgroundTask";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
-  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
   getTemplateVariablesPath,
 } from "../templateVariablesPath";
 import {
@@ -55,6 +56,7 @@ describe("decision instances in the store", () => {
       instanceId,
       patch: {
         llmModel: chatInstance.model,
+        task: { member: "decision" },
         decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,
@@ -1168,8 +1170,7 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value
     expect(store.getState().stateByDatasetId[datasetId]).toEqual({
-      templateVariablesPathByTaskKind:
-        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1194,8 +1195,7 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value for the new dataset
     expect(store.getState().stateByDatasetId[newDatasetId]).toEqual({
-      templateVariablesPathByTaskKind:
-        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1215,21 +1215,20 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: customPath,
       datasetId: datasetId1,
-      taskKind: "prompt",
+      taskRole: "tested",
     });
 
     // verify the custom path is set
     expect(
-      store.getState().stateByDatasetId[datasetId1]
-        .templateVariablesPathByTaskKind.prompt
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByRole
+        .tested
     ).toBe(customPath);
 
     // switch to dataset 2
     store.getState().setDatasetId(datasetId2);
     expect(store.getState().datasetId).toBe(datasetId2);
     expect(store.getState().stateByDatasetId[datasetId2]).toEqual({
-      templateVariablesPathByTaskKind:
-        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
 
@@ -1239,12 +1238,12 @@ describe("dataset-scoped state", () => {
 
     // verify the custom path is still preserved
     expect(
-      store.getState().stateByDatasetId[datasetId1]
-        .templateVariablesPathByTaskKind.prompt
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByRole
+        .tested
     ).toBe(customPath);
   });
 
-  it("keeps a template variables path per kind of task", () => {
+  it("keeps a template variables path per role", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1254,30 +1253,31 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: "output",
       datasetId,
-      taskKind: "evaluator",
+      taskRole: "judging",
     });
 
     const { stateByDatasetId } = store.getState();
-    expect(stateByDatasetId[datasetId].templateVariablesPathByTaskKind).toEqual(
-      { prompt: DEFAULT_TEMPLATE_VARIABLES_PATH, evaluator: "output" }
-    );
+    expect(stateByDatasetId[datasetId].templateVariablesPathByRole).toEqual({
+      tested: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      judging: "output",
+    });
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskKind: "prompt",
+        taskRole: "tested",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskKind: "evaluator",
+        taskRole: "judging",
       })
     ).toBe("output");
   });
 
-  it("starts prompt tasks at input and evaluator tasks at the example root", () => {
+  it("starts tested tasks at input and judging tasks at the example root", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1289,14 +1289,14 @@ describe("dataset-scoped state", () => {
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskKind: "prompt",
+        taskRole: "tested",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskKind: "evaluator",
+        taskRole: "judging",
       })
     ).toBeNull();
     // A dataset without state yet reads the same defaults.
@@ -1304,19 +1304,19 @@ describe("dataset-scoped state", () => {
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId: "unseen",
-        taskKind: "prompt",
+        taskRole: "tested",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId: "unseen",
-        taskKind: "evaluator",
+        taskRole: "judging",
       })
     ).toBeNull();
   });
 
-  it("keeps an explicit example-root choice for prompt tasks", () => {
+  it("keeps an explicit example-root choice for tested tasks", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1326,14 +1326,14 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: null,
       datasetId,
-      taskKind: "prompt",
+      taskRole: "tested",
     });
 
     expect(
       getTemplateVariablesPath({
         stateByDatasetId: store.getState().stateByDatasetId,
         datasetId,
-        taskKind: "prompt",
+        taskRole: "tested",
       })
     ).toBeNull();
   });
@@ -1350,47 +1350,52 @@ describe("dataset-scoped state", () => {
 
     expect(store.getState().stateByDatasetId["dataset-1"]).toEqual({
       appendedMessagesPath: "messages",
-      templateVariablesPathByTaskKind:
-        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
 
-  it("migrates persisted state that held one template variables path", () => {
+  it("migrates persisted state that held one path, or a path per old kind of task", () => {
     expect(
       PlaygroundStateByDatasetIdSchema.parse({
         custom: { templateVariablesPath: "payload.inputs", maxConcurrency: 4 },
         root: { templateVariablesPath: null, maxConcurrency: 10 },
         unset: { maxConcurrency: 10 },
-        current: {
+        // From when paths were kept per kind of task: prompt and evaluator.
+        perKind: {
           templateVariablesPathByTaskKind: {
             prompt: "input",
             evaluator: "output",
           },
+          maxConcurrency: 3,
+        },
+        current: {
+          templateVariablesPathByRole: { tested: "input", judging: "output" },
           maxConcurrency: 2,
         },
       })
     ).toEqual({
       custom: {
-        templateVariablesPathByTaskKind: {
-          prompt: "payload.inputs",
-          evaluator: null,
+        templateVariablesPathByRole: {
+          tested: "payload.inputs",
+          judging: null,
         },
         maxConcurrency: 4,
       },
       root: {
-        templateVariablesPathByTaskKind: { prompt: null, evaluator: null },
+        templateVariablesPathByRole: { tested: null, judging: null },
         maxConcurrency: 10,
       },
       unset: {
-        templateVariablesPathByTaskKind: { prompt: "input", evaluator: null },
+        templateVariablesPathByRole: { tested: "input", judging: null },
         maxConcurrency: 10,
       },
+      perKind: {
+        templateVariablesPathByRole: { tested: "input", judging: "output" },
+        maxConcurrency: 3,
+      },
       current: {
-        templateVariablesPathByTaskKind: {
-          prompt: "input",
-          evaluator: "output",
-        },
+        templateVariablesPathByRole: { tested: "input", judging: "output" },
         maxConcurrency: 2,
       },
     });
@@ -1451,7 +1456,7 @@ describe("addInstance", () => {
     const second = store.getState().instances[1];
 
     expect(id).toBe(second.id);
-    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.task).toEqual({ member: "prompt" });
     expect(second.model).toEqual(first.model);
     expect(second.template).not.toEqual(first.template);
     expect(
@@ -1475,10 +1480,80 @@ describe("addInstance", () => {
     store.getState().addInstance({ type: "new", kind: "prompt" });
     const second = store.getState().instances[1];
 
-    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.task).toEqual({ member: "prompt" });
     expect(second.prompt).toBeUndefined();
     expect(second.loadingSource).toBeUndefined();
     expect(second.model.provider).toBe("ANTHROPIC");
+  });
+
+  it("adds a new decision beside a prompt, keeping the page's chat model to switch back to", () => {
+    const store = createStore();
+    const [prompt] = store.getState().instances;
+    store.getState().addInstance({ type: "new", kind: "decision" });
+    const [first, second] = store.getState().instances;
+
+    expect(first.task).toEqual({ member: "prompt" });
+    expect(second.task).toEqual({ member: "decision" });
+    expect(second.decisionRequest?.questions.length).toBeGreaterThan(0);
+    expect(second.decision).toBeUndefined();
+    expect(second.loadingSource).toBeUndefined();
+    // A decision model still has to be picked; the chat model is kept.
+    expect(second.model).toMatchObject({
+      modelType: "DECISION",
+      modelName: null,
+    });
+    expect(second.llmModel).toEqual(prompt.model);
+    expect(getPlaygroundTaskRole(store.getState().instances)).toBe("tested");
+  });
+
+  it("starts a saved decision as a decision draft that carries its loading source", () => {
+    const store = createStore();
+    const source = {
+      type: "decision" as const,
+      decisionId: "D1",
+      decisionVersionId: "DV1",
+      tagName: null,
+    };
+    store.getState().addInstance(source);
+    const second = store.getState().instances[1];
+
+    expect(second.task).toEqual({ member: "decision" });
+    expect(second.loadingSource).toEqual(source);
+  });
+
+  it("replaces a prompt with a decision and back, as the task menu does", () => {
+    const store = createStore();
+    const { id } = store.getState().instances[0];
+    const decisionId = store.getState().replaceInstance({
+      instanceId: id,
+      source: { type: "new", kind: "decision" },
+    });
+
+    expect(store.getState().instances).toHaveLength(1);
+    expect(store.getState().instances[0].task.member).toBe("decision");
+
+    store.getState().replaceInstance({
+      instanceId: decisionId!,
+      source: { type: "new", kind: "prompt" },
+    });
+
+    expect(store.getState().instances[0].task.member).toBe("prompt");
+  });
+
+  it("keeps a decision's model out of the chat parameter adapters", () => {
+    const store = createStore();
+    store.getState().addInstance({ type: "new", kind: "decision" });
+    const { id } = store.getState().instances[1];
+
+    expect(() =>
+      store.getState().updateModel({
+        instanceId: id,
+        patch: { modelName: "tev1:0.8b-mxfp8" },
+      })
+    ).not.toThrow();
+    expect(store.getState().instances[1].model.modelName).toBe(
+      "tev1:0.8b-mxfp8"
+    );
   });
 
   it("adds a new LLM evaluator draft with the judge prompt as its template", () => {
@@ -1486,9 +1561,9 @@ describe("addInstance", () => {
     store.getState().addInstance({ type: "new", kind: "LLM" });
     const second = store.getState().instances[1];
 
-    expect(second.task.kind).toBe("evaluator");
+    expect(second.task.member).toBe("evaluator");
     expect(
-      second.task.kind === "evaluator" && second.task.evaluator
+      second.task.member === "evaluator" && second.task.evaluator
     ).toMatchObject({ kind: "LLM", code: null });
     expect(second.toolChoice).toEqual({ type: "ONE_OR_MORE" });
     const messageIds = chatMessageIds(second.template);
@@ -1504,7 +1579,7 @@ describe("addInstance", () => {
     const second = store.getState().instances[1];
 
     expect(
-      second.task.kind === "evaluator" && second.task.evaluator.code
+      second.task.member === "evaluator" && second.task.evaluator.code
     ).toMatchObject({ language: "PYTHON", sandboxConfigId: null });
     expect(chatMessageIds(second.template)).toEqual([]);
   });
@@ -1522,7 +1597,7 @@ describe("addInstance", () => {
     store.getState().addInstance(source);
     const second = store.getState().instances[1];
 
-    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.task).toEqual({ member: "prompt" });
     expect(second.loadingSource).toEqual(source);
     expect(second.prompt).toBeUndefined();
   });
@@ -1540,14 +1615,14 @@ describe("addInstance", () => {
       evaluatorId: "E1",
     });
     expect(
-      second.task.kind === "evaluator" && second.task.evaluator.source
+      second.task.member === "evaluator" && second.task.evaluator.source
     ).toEqual({
       evaluatorId: "E1",
       datasetEvaluatorId: null,
       projectEvaluatorId: null,
     });
     expect(
-      third.task.kind === "evaluator" && third.task.evaluator.source
+      third.task.member === "evaluator" && third.task.evaluator.source
     ).toEqual({
       evaluatorId: null,
       datasetEvaluatorId: "DE1",
@@ -1576,7 +1651,7 @@ describe("replaceInstance", () => {
     expect(instances).toHaveLength(2);
     expect(instances[0].id).toBe(replacementId);
     expect(instances[0].id).not.toBe(first.id);
-    expect(instances[0].task.kind).toBe("evaluator");
+    expect(instances[0].task.member).toBe("evaluator");
     expect(instances[1]).toBe(second);
     expect(store.getState().dirtyInstances[first.id]).toBe(false);
     expect(store.getState().dirtyInstances[instances[0].id]).toBe(false);

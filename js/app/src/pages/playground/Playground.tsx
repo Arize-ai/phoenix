@@ -134,7 +134,11 @@ import {
   getEditableTableChangeCount,
   hasEditableTableUnsavedChanges,
 } from "@phoenix/store/editableTableStore";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import type { PlaygroundInstance } from "@phoenix/store/playground";
+import {
+  getPlaygroundTaskRole,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { getDecisionDatasetBlockedReason } from "./decisionUtils";
@@ -276,6 +280,24 @@ const promptsWrapCSS = css`
  */
 const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
 
+/** What the task panel is titled: its members, since prompts and decisions can share it. */
+function getTaskPanelTitle(
+  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
+): string {
+  if (getPlaygroundTaskRole(instances) === "judging") {
+    return "Evaluators";
+  }
+
+  const hasPrompt = instances.some(({ task }) => task.member === "prompt");
+  const hasDecision = instances.some(isDecisionInstance);
+
+  if (hasDecision) {
+    return hasPrompt ? "Prompts and decisions" : "Decisions";
+  }
+
+  return "Prompts";
+}
+
 function PlaygroundContent() {
   const agentStore = useAgentStore();
   const playgroundStore = usePlaygroundStore();
@@ -302,8 +324,12 @@ function PlaygroundContent() {
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
 
-  const taskKind = usePlaygroundContext((state) =>
-    getPlaygroundTaskKind(state.instances)
+  const taskRole = usePlaygroundContext((state) =>
+    getPlaygroundTaskRole(state.instances)
+  );
+
+  const panelTitle = usePlaygroundContext((state) =>
+    getTaskPanelTitle(state.instances)
   );
 
   // Over a dataset, why the page's decision instances can't run, if they can't.
@@ -315,9 +341,7 @@ function PlaygroundContent() {
   );
   const decisionInstanceIds = usePlaygroundContext(
     useShallow((state) =>
-      state.instances
-        .filter((instance) => instance.model.modelType === "DECISION")
-        .map((instance) => instance.id)
+      state.instances.filter(isDecisionInstance).map((instance) => instance.id)
     )
   );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
@@ -392,14 +416,14 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
-        taskKind,
+        taskRole,
         recordExperiments,
         repetitions,
         nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
     [
-      taskKind,
+      taskRole,
       playgroundInstancesForAgent,
       recordExperiments,
       repetitions,
@@ -805,8 +829,8 @@ function PlaygroundContent() {
   }, [isRunning, hasUnsavedExampleChanges]);
 
   const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskKind }),
-    [isDatasetMode, templateFormat, taskKind]
+    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskRole }),
+    [isDatasetMode, templateFormat, taskRole]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -849,10 +873,10 @@ function PlaygroundContent() {
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
+          title={panelTitle}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              {taskKind === "prompt" ? (
+              {taskRole === "tested" ? (
                 <TemplateFormatRadioGroup size="S" />
               ) : null}
               <PlaygroundCompareMenu />
@@ -927,7 +951,7 @@ function PlaygroundContent() {
               }
             />
           </Suspense>
-        ) : taskKind === "evaluator" ? (
+        ) : taskRole === "judging" ? (
           <TitledPanel
             ref={ioPanelRef}
             headingLevel={2}

@@ -158,7 +158,11 @@ export type PlaygroundError = {
 };
 
 export type ModelConfig = {
-  /** Chat (LLM) or decision model; absent means chat. */
+  /**
+   * Chat (LLM) or decision model; absent means chat. It follows the task: a
+   * decision task holds a decision model, and the model picker switches the
+   * two together.
+   */
   modelType?: ModelType;
   provider: ModelProvider;
   modelName: string | null;
@@ -277,7 +281,20 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
-export type PlaygroundTaskKind = "prompt" | "evaluator";
+/**
+ * The part a task plays. Tested tasks are what an experiment tests; judging
+ * tasks evaluate them. A page holds the members of one role.
+ */
+export type PlaygroundTaskRole = "tested" | "judging";
+
+/**
+ * What a task is, one tab of the task menu each. The member decides the
+ * role (see getPlaygroundTaskRole) and what the instance must hold: a
+ * decision member holds a decision request and a decision model. New tested
+ * members, such as a code task that holds no model, are added here and in
+ * the role table.
+ */
+export type PlaygroundTaskMember = "prompt" | "decision" | "evaluator";
 
 export type PlaygroundEvaluatorTaskKind = "LLM" | "CODE";
 
@@ -320,12 +337,14 @@ export type PlaygroundEvaluatorTask = {
 };
 
 /**
- * What a playground instance is: a prompt, or an evaluator judged over the
- * dataset. All instances on a page share one kind; see getPlaygroundTaskKind.
+ * What a playground instance is: a prompt, a decision, or an evaluator
+ * judged over the dataset. The member is the only record of which; every
+ * instance on a page plays one role, see getPlaygroundTaskRole.
  */
 export type PlaygroundTask =
-  | { kind: "prompt" }
-  | { kind: "evaluator"; evaluator: PlaygroundEvaluatorTask };
+  | { member: "prompt" }
+  | { member: "decision" }
+  | { member: "evaluator"; evaluator: PlaygroundEvaluatorTask };
 
 /**
  * Where a new (or replacement) instance comes from. Saved prompts and
@@ -334,11 +353,20 @@ export type PlaygroundTask =
  */
 export type PlaygroundInstanceSource =
   | { type: "duplicate" }
-  | { type: "new"; kind: "prompt" | PlaygroundEvaluatorTaskKind }
+  | {
+      type: "new";
+      kind: "prompt" | "decision" | PlaygroundEvaluatorTaskKind;
+    }
   | {
       type: "prompt";
       promptId: string;
       promptVersionId?: string | null;
+      tagName?: string | null;
+    }
+  | {
+      type: "decision";
+      decisionId: string;
+      decisionVersionId?: string | null;
       tagName?: string | null;
     }
   | { type: "evaluator"; evaluatorId: string }
@@ -408,6 +436,15 @@ export type PlaygroundInstanceExperiment = {
   isEphemeral: boolean;
 };
 
+/** A saved decision version a decision instance is tied to. */
+export type PlaygroundInstanceDecision = {
+  id: string;
+  name: string;
+  versionId: string;
+  /** The tag the version was loaded by or saved with, if any. */
+  tag: string | null;
+};
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -415,11 +452,10 @@ export type PlaygroundInstanceExperiment = {
  * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
-  /** Preserve chat configuration while the decision editor is active. */
+  /** Preserve chat configuration while the instance is a decision. */
   llmModel?: ModelConfig;
   /**
-   * The decision request this instance runs when its model is a decision
-   * model. Each instance owns its own, like a prompt, so instances can be
+   * The decision request this instance runs when its task is a decision. Each instance owns its own, like a prompt, so instances can be
    * compared and mixed with chat instances.
    */
   decisionRequest?: DecisionRequestDraft | null;
@@ -449,6 +485,11 @@ export interface PlaygroundInstance {
    */
   prompt?: PlaygroundInstancePrompt | null;
   /**
+   * The saved decision version the instance's decision request was loaded
+   * from or last saved as, if any
+   */
+  decision?: PlaygroundInstanceDecision | null;
+  /**
    * The selected repetition number for the instance
    */
   selectedRepetitionNumber: number;
@@ -457,7 +498,7 @@ export interface PlaygroundInstance {
    */
   experimentRunProgress?: ExperimentRunProgress | null;
   /**
-   * What the instance holds: a prompt, or an evaluator draft.
+   * What the instance holds: a prompt, a decision, or an evaluator draft.
    */
   task: PlaygroundTask;
   /**
@@ -534,19 +575,20 @@ export interface PlaygroundProps {
 }
 
 /**
- * A dot-notation path prefix for template variables per kind of task, or null
- * for the example root. Prompt tasks start at "input", so {{query}} resolves to
- * input.query of the dataset example; evaluator tasks start at the root, where
- * their input mapping addresses input, output and metadata.
+ * A dot-notation path prefix for template variables per role, or null for the
+ * example root. Tested tasks (prompts and decisions) start at "input", so
+ * {{query}} resolves to input.query of the dataset example; judging tasks
+ * start at the root, where an evaluator's input mapping addresses input,
+ * output and metadata.
  */
-const TemplateVariablesPathByTaskKindSchema = z.object({
-  prompt: z.string().nullable(),
-  evaluator: z.string().nullable(),
+const TemplateVariablesPathByRoleSchema = z.object({
+  tested: z.string().nullable(),
+  judging: z.string().nullable(),
 });
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
   z.string(),
-  // Persisted state from before paths were kept per kind of task is migrated
+  // Persisted state from before paths were kept per role is migrated
   // on the way in.
   z.preprocess(
     migrateTemplateVariablesPath,
@@ -574,10 +616,10 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
        */
       experimentDescription: z.string().nullish(),
       /**
-       * Where each kind of task reads its template variables from when running
-       * over the dataset; see {@link TemplateVariablesPathByTaskKindSchema}.
+       * Where each role reads its template variables from when running
+       * over the dataset; see {@link TemplateVariablesPathByRoleSchema}.
        */
-      templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKindSchema,
+      templateVariablesPathByRole: TemplateVariablesPathByRoleSchema,
       /**
        * Available paths for template variable autocomplete.
        * These are extracted from dataset examples and cached per dataset.
@@ -928,17 +970,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId: string;
   }) => void;
   /**
-   * Set the template variables path one kind of task uses for dataset
-   * experiments; the other kind's path is left alone.
+   * Set the template variables path one role uses for dataset
+   * experiments; the other role's path is left alone.
    */
   setTemplateVariablesPath: ({
     templateVariablesPath,
     datasetId,
-    taskKind,
+    taskRole,
   }: {
     templateVariablesPath: string | null;
     datasetId: string;
-    taskKind: PlaygroundTaskKind;
+    taskRole: PlaygroundTaskRole;
   }) => void;
   /**
    * Set the available paths for template variable autocomplete.

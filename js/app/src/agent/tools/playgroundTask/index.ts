@@ -20,7 +20,8 @@ export {
   applyTaskSource,
   doesTaskSourceReplace,
   getSelectTaskRejection,
-  getTaskSourceKind,
+  describeRole,
+  getTaskSourceRole,
 } from "./selectTask";
 
 export {

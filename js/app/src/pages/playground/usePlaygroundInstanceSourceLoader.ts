@@ -22,6 +22,8 @@ function describeSource(source: PlaygroundInstanceLoadingSource): string {
   switch (source.type) {
     case "prompt":
       return "The prompt could not be loaded. It may have been deleted.";
+    case "decision":
+      return "The decision could not be loaded. It may have been deleted, or that version may no longer exist.";
     case "evaluator":
     case "datasetEvaluator":
     case "projectEvaluator":
@@ -35,7 +37,7 @@ function describeSource(source: PlaygroundInstanceLoadingSource): string {
  * What a failed load leaves behind. An evaluator draft still naming the
  * evaluator it could not fetch would keep it in the URL and read as loaded
  * (PXI checks the task's source ids), so it goes back to a fresh draft of
- * its kind; a prompt task simply keeps whatever prompt it had.
+ * its kind; a prompt or decision task simply keeps whatever it had.
  */
 function getLoadFailurePatch(
   instance: PlaygroundNormalizedInstance | undefined
@@ -46,7 +48,7 @@ function getLoadFailurePatch(
 
   if (evaluator) {
     patch.task = {
-      kind: "evaluator",
+      member: "evaluator",
       evaluator: createPlaygroundEvaluatorTask({ kind: evaluator.kind }),
     };
   }
@@ -85,7 +87,12 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
       notifyError({ title: "Could not load the task", message });
     };
 
-    fetchPlaygroundTaskInstance(loadingSource)
+    const state = playgroundStore.getState();
+
+    fetchPlaygroundTaskInstance(loadingSource, {
+      templateFormat: state.templateFormat,
+      instance: selectPlaygroundInstance(instanceId)(state),
+    })
       .then((loaded) => {
         if (isCancelled) {
           return;

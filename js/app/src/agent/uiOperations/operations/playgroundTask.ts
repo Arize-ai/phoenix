@@ -30,10 +30,10 @@ export const selectTaskOperation = defineUIOperation({
     "dataset. A prompt task given another prompt loads it in place, as the prompt " +
     "menu always has; anything else replaces the instance with a fresh one (the " +
     "result carries the new `instanceId`) and needs `discardChanges: true` when the " +
-    "instance has unsaved changes. The page holds one kind of task: with more than " +
-    "one instance the kind is fixed and a source of the other kind is rejected " +
-    "(remove the other instances first); with one instance any source is allowed " +
-    "and may change the page's kind. Rejected while a run is active. Awaits the " +
+    "instance has unsaved changes. The page holds one role: prompts and decisions may share " +
+    "it, evaluators stay alone. With more than one instance the role is fixed and " +
+    "a source of the other role is rejected (remove the other instances first); " +
+    "with one instance any source is allowed and may change the page's role. Rejected while a run is active. Awaits the " +
     "load (up to 15 s) and returns the instance's snapshot: the " +
     "`playground.prompt.read` shape for a prompt task, the " +
     "`playground.evaluator.read` shape for an evaluator task. A source that cannot " +

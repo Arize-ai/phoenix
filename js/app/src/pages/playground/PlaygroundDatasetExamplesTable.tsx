@@ -89,8 +89,9 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskKind,
+  getPlaygroundTaskRole,
   getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
 import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
@@ -854,7 +855,7 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.instances,
     arePlaygroundInstancesEqualExceptProgress
   );
-  const columnLabels = getExampleColumnLabels(getPlaygroundTaskKind(instances));
+  const columnLabels = getExampleColumnLabels(getPlaygroundTaskRole(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -881,7 +882,7 @@ export function PlaygroundDatasetExamplesTable({
     getTemplateVariablesPath({
       stateByDatasetId: state.stateByDatasetId,
       datasetId,
-      taskKind: getPlaygroundTaskKind(state.instances),
+      taskRole: getPlaygroundTaskRole(state.instances),
     })
   );
   const setAvailablePaths = usePlaygroundContext(
@@ -1070,11 +1071,11 @@ export function PlaygroundDatasetExamplesTable({
         case "runCompleted": {
           const { instanceId, exampleId, repetitionNumber, span } = event;
           // A decision run streams nothing; its answers arrive with the run.
-          const isDecision =
+          const isDecision = isDecisionInstance(
             playgroundStore
               .getState()
-              .instances.find((instance) => instance.id === instanceId)?.model
-              .modelType === "DECISION";
+              .instances.find((instance) => instance.id === instanceId)
+          );
           updateExampleData({
             instanceId,
             exampleId,
@@ -1224,7 +1225,7 @@ export function PlaygroundDatasetExamplesTable({
         // An evaluator task's verdicts are its runs; only a prompt task has
         // dataset evaluators scoring its outputs afterwards.
         totalEvals:
-          instance.task.kind === "evaluator"
+          instance.task.member === "evaluator"
             ? 0
             : runExampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,

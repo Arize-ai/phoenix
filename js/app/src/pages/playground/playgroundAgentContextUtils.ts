@@ -3,7 +3,7 @@ import type {
   ExperimentScaffold,
   PlaygroundInstance,
   PlaygroundTask,
-  PlaygroundTaskKind,
+  PlaygroundTaskRole,
 } from "@phoenix/store/playground";
 
 import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
@@ -49,7 +49,9 @@ function getPlaygroundTaskForAgent(
   task: PlaygroundTask,
   { index, isDirty }: { index: number; isDirty: boolean }
 ): PlaygroundAgentTask {
-  if (task.kind === "prompt") {
+  // The agent's context has no decision member yet: it sees a decision as
+  // the tested task it is.
+  if (task.member !== "evaluator") {
     return { kind: "prompt" };
   }
 
@@ -178,13 +180,13 @@ export function arePlaygroundInstancesForAgentEqual(
 }
 
 export function buildPlaygroundAgentContext({
-  taskKind,
+  taskRole,
   recordExperiments,
   repetitions,
   nextExperimentScaffold,
   instances,
 }: {
-  taskKind: PlaygroundTaskKind;
+  taskRole: PlaygroundTaskRole;
   recordExperiments: boolean;
   repetitions: number;
   nextExperimentScaffold: PlaygroundAgentScaffold | null;
@@ -192,7 +194,8 @@ export function buildPlaygroundAgentContext({
 }): PlaygroundAgentContext {
   return {
     type: "playground",
-    taskKind,
+    // The agent's context speaks of the page's role as its kind of task.
+    taskKind: taskRole === "judging" ? "evaluator" : "prompt",
     recordExperiments,
     repetitions,
     nextExperimentScaffold: nextExperimentScaffold ?? undefined,

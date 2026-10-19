@@ -11,6 +11,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -20,7 +21,7 @@ import {
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import { createPlaygroundEvaluatorTask } from "./playgroundTask";
-import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND } from "./templateVariablesPath";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE } from "./templateVariablesPath";
 import {
   type ChatMessage,
   type ExperimentScaffold,
@@ -38,7 +39,7 @@ import {
   type PlaygroundState,
   type PlaygroundStateByDatasetId,
   PlaygroundStateByDatasetIdSchema,
-  type PlaygroundTaskKind,
+  type PlaygroundTaskRole,
   type PlaygroundTextCompletionTemplate,
 } from "./types";
 
@@ -203,7 +204,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       },
     },
     activeRunId: null,
-    task: { kind: "prompt" },
+    task: { member: "prompt" },
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -251,9 +252,46 @@ export function createEvaluatorTaskInstance({
     toolChoice: kind === "LLM" ? { type: "ONE_OR_MORE" } : params.toolChoice,
     selectedRepetitionNumber: 1,
     task: {
-      kind: "evaluator",
+      member: "evaluator",
       evaluator: createPlaygroundEvaluatorTask({ kind }),
     },
+  };
+}
+
+/**
+ * A fresh decision instance: the default request, and a decision model the
+ * user still has to pick unless the page already holds one. The chat model it
+ * replaces is kept, so the model picker can switch back.
+ */
+export function createDecisionTaskInstance({
+  model,
+  llmModel,
+}: {
+  /** The model the page holds; a decision model is kept, a chat one is not. */
+  model?: ModelConfig;
+  /** The chat model to switch back to; the page's, or the default. */
+  llmModel?: ModelConfig;
+} = {}): Omit<PlaygroundInstance, "id"> {
+  const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
+
+  return {
+    ...params,
+    template: { __type: "chat", messages: [] },
+    llmModel: llmModel ?? chatModel ?? params.model,
+    model:
+      model?.modelType === "DECISION"
+        ? model
+        : {
+            provider: DEFAULT_MODEL_PROVIDER,
+            modelName: null,
+            modelType: "DECISION",
+            invocationParameters: params.model.invocationParameters,
+            baseUrl: null,
+          },
+    decisionRequest: createDecisionDraft(),
+    selectedRepetitionNumber: 1,
+    task: { member: "decision" },
   };
 }
 
@@ -279,6 +317,13 @@ function createInstanceFromSource(
   const model = firstInstance?.model;
 
   if (source.type === "new") {
+    if (source.kind === "decision") {
+      return normalizeInstance(
+        createDecisionTaskInstance({ model }),
+        generateInstanceId()
+      );
+    }
+
     if (source.kind !== "prompt") {
       return normalizeInstance(
         createEvaluatorTaskInstance({ kind: source.kind, model }),
@@ -292,6 +337,13 @@ function createInstanceFromSource(
       instance: { ...instance, model: model ?? instance.model },
       messages: instanceMessages,
     };
+  }
+
+  if (source.type === "decision") {
+    return normalizeInstance(
+      { ...createDecisionTaskInstance({ model }), loadingSource: source },
+      generateInstanceId()
+    );
   }
 
   if (source.type === "prompt") {
@@ -315,7 +367,7 @@ function createInstanceFromSource(
     {
       ...draft,
       task: {
-        kind: "evaluator",
+        member: "evaluator",
         evaluator: {
           ...createPlaygroundEvaluatorTask({ kind: "LLM" }),
           source: {
@@ -883,7 +935,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   // Decision instances carry no chat invocation parameters,
                   // and their providers have no chat adapter to parse them.
                   invocationParameters:
-                    (patch.modelType ?? instance.model.modelType) === "DECISION"
+                    instance.task.member === "decision"
                       ? instance.model.invocationParameters
                       : parseInvocationConfig(
                           instance.model.provider,
@@ -1340,11 +1392,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setTemplateVariablesPath: ({
       templateVariablesPath,
       datasetId,
-      taskKind,
+      taskRole,
     }: {
       templateVariablesPath: string | null;
       datasetId: string;
-      taskKind: PlaygroundTaskKind;
+      taskRole: PlaygroundTaskRole;
     }) => {
       const datasetState =
         get().stateByDatasetId[datasetId] ?? createDatasetState();
@@ -1355,9 +1407,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().stateByDatasetId,
             [datasetId]: {
               ...datasetState,
-              templateVariablesPathByTaskKind: {
-                ...datasetState.templateVariablesPathByTaskKind,
-                [taskKind]: templateVariablesPath,
+              templateVariablesPathByRole: {
+                ...datasetState.templateVariablesPathByRole,
+                [taskRole]: templateVariablesPath,
               },
             },
           },
@@ -1949,8 +2001,8 @@ export const DEFAULT_MAX_CONCURRENCY = 10;
 /** A dataset's settings before anyone changes them. */
 function createDatasetState(): PlaygroundStateByDatasetId[string] {
   return {
-    templateVariablesPathByTaskKind: {
-      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+    templateVariablesPathByRole: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
     },
     maxConcurrency: DEFAULT_MAX_CONCURRENCY,
   };

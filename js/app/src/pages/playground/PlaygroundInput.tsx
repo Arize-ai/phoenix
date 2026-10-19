@@ -1,6 +1,7 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
@@ -13,7 +14,7 @@ export function PlaygroundInput() {
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const isDecision = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.model.modelType === "DECISION")
+    state.instances.some(isDecisionInstance)
   );
   if (variableKeys.length === 0) {
     let templateSyntax = "";

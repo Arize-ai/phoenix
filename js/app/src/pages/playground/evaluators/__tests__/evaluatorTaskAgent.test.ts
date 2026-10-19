@@ -63,7 +63,7 @@ function createHost({
     .getState()
     .instances.find((candidate) => candidate.id === instanceId)!;
 
-  if (instance.task.kind !== "evaluator") throw new Error("not an evaluator");
+  if (instance.task.member !== "evaluator") throw new Error("not an evaluator");
   const evaluator = instance.task.evaluator;
   const store = createEvaluatorStore(createEvaluatorTaskStoreState(evaluator));
 

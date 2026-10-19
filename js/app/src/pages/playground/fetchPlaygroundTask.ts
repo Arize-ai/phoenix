@@ -4,6 +4,7 @@ import type {
   PlaygroundInstanceLoadingSource,
 } from "@phoenix/store/playground";
 
+import { fetchPlaygroundDecisionAsInstance } from "./fetchPlaygroundDecision";
 import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
 import { fetchPlaygroundPromptAsInstance } from "./fetchPlaygroundPrompt";
 
@@ -12,14 +13,34 @@ export type FetchedPlaygroundTask = {
   templateFormat: TemplateFormat | null;
 };
 
+/** What a source is loaded into. */
+export type PlaygroundTaskLoadContext = {
+  /** The page's template format, which a decision's text is written in. */
+  templateFormat: TemplateFormat;
+  /** The instance the content lands in, for what the saved source does not set. */
+  instance: Pick<PlaygroundInstance, "model" | "llmModel"> | undefined;
+};
+
 /**
- * Fetches the saved prompt or evaluator a loading source names, as the
- * instance content to land with `loadInstance`. Null when it cannot be
- * loaded: deleted, built-in, or not a chat prompt.
+ * Fetches the saved prompt, decision or evaluator a loading source names, as
+ * the instance content to land with `loadInstance`. Null when it cannot be
+ * loaded: deleted, built-in, or not a chat prompt. A decision the page's
+ * template format cannot express throws, saying so.
  */
 export async function fetchPlaygroundTaskInstance(
-  source: PlaygroundInstanceLoadingSource
+  source: PlaygroundInstanceLoadingSource,
+  context: PlaygroundTaskLoadContext
 ): Promise<FetchedPlaygroundTask | null> {
+  if (source.type === "decision") {
+    return fetchPlaygroundDecisionAsInstance({
+      decisionId: source.decisionId,
+      decisionVersionId: source.decisionVersionId,
+      tagName: source.tagName,
+      templateFormat: context.templateFormat,
+      base: context.instance,
+    });
+  }
+
   if (source.type !== "prompt") {
     return fetchPlaygroundEvaluatorAsInstance(source);
   }

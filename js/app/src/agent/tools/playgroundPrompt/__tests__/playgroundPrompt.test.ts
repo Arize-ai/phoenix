@@ -123,7 +123,7 @@ describe("playground prompt agent tools", () => {
     const result = await addAction(undefined);
 
     const [, added] = playgroundStore.getState().instances;
-    expect(added.task).toEqual({ kind: "prompt" });
+    expect(added.task).toEqual({ member: "prompt" });
     expect(result).toMatchObject({
       ok: true,
       output: {
@@ -151,7 +151,7 @@ describe("playground prompt agent tools", () => {
 
     const [, added] = playgroundStore.getState().instances;
     expect(added.task).toMatchObject({
-      kind: "evaluator",
+      member: "evaluator",
       evaluator: { kind: "LLM" },
     });
     expect(waitForFakeHost).toHaveBeenCalledWith(added.id, expect.any(Number));
@@ -165,7 +165,7 @@ describe("playground prompt agent tools", () => {
     });
   });
 
-  it("rejects a source of the other kind than the page's", async () => {
+  it("rejects a source of the other role than the page's", async () => {
     const playgroundStore = createStore();
 
     const addAction = createAddPromptInstanceClientAction({
@@ -177,7 +177,7 @@ describe("playground prompt agent tools", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: expect.stringContaining("prompt task"),
+      error: expect.stringContaining("prompt and decision tasks"),
     });
     expect(playgroundStore.getState().instances).toHaveLength(1);
   });

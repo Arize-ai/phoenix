@@ -7,6 +7,7 @@ import {
   DEFAULT_MAX_CONCURRENCY,
   getPlaygroundEvaluatorTask,
   getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 
 import type {
@@ -128,7 +129,7 @@ function getExperimentTaskInput({
 }): ExperimentTaskInput {
   const evaluator = getPlaygroundEvaluatorTask(instance);
 
-  if (instance.model.modelType === "DECISION") {
+  if (isDecisionInstance(instance)) {
     return {
       decision: getDecisionTaskInput({
         playgroundStore,
@@ -217,11 +218,14 @@ function getDecisionTaskInput({
       ),
     }),
     modelName: instance.model.modelName ?? "",
+    // Recorded, not read, as a prompt task's promptVersionId: the definition
+    // above is what runs, edits included.
+    decisionVersionId: instance.decision?.versionId ?? null,
     inputValuesPath:
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskKind: "prompt",
+        taskRole: "tested",
       }) ?? "",
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({
