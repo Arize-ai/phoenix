@@ -339,6 +339,42 @@ def jsonify(obj: Any) -> Any:
         return str(obj)
 
 
+def _evaluation_run_request_body(eval_run: ExperimentEvaluationRun) -> dict[str, Any]:
+    """Build the ``POST v1/experiment_evaluations`` body for an evaluation run.
+
+    Evaluators return ``metadata`` (and ``name``) alongside score/label/explanation,
+    but the endpoint reads ``metadata`` from the top level and ignores any extra keys
+    under ``result``, so the body is assembled field by field rather than from
+    ``eval_run.__dict__``.
+    """
+    result: Any = eval_run.result
+    metadata: dict[str, Any] = dict(eval_run.metadata)
+    if isinstance(result, Mapping):
+        evaluation = cast(Mapping[str, Any], result)
+        result_metadata = evaluation.get("metadata")
+        if isinstance(result_metadata, Mapping):
+            metadata = {**cast(Mapping[str, Any], result_metadata), **metadata}
+        result = {
+            key: evaluation[key] for key in ("score", "label", "explanation") if key in evaluation
+        }
+    return cast(
+        dict[str, Any],
+        jsonify(
+            {
+                "experiment_run_id": eval_run.experiment_run_id,
+                "name": eval_run.name,
+                "annotator_kind": eval_run.annotator_kind,
+                "start_time": eval_run.start_time,
+                "end_time": eval_run.end_time,
+                "result": result,
+                "error": eval_run.error,
+                "metadata": metadata,
+                "trace_id": eval_run.trace_id,
+            }
+        ),
+    )
+
+
 def _str_trace_id(trace_id: Union[int, str]) -> str:
     if isinstance(trace_id, int):
         return hexlify(trace_id.to_bytes(16, "big")).decode()
@@ -2089,7 +2125,7 @@ class Experiments:
                 try:
                     resp = self._client.post(
                         "v1/experiment_evaluations",
-                        json=jsonify(eval_run.__dict__),
+                        json=_evaluation_run_request_body(eval_run),
                         timeout=timeout,
                     )
                     resp.raise_for_status()
@@ -3948,7 +3984,7 @@ class AsyncExperiments:
                 try:
                     resp = await self._client.post(
                         "v1/experiment_evaluations",
-                        json=jsonify(eval_run.__dict__),
+                        json=_evaluation_run_request_body(eval_run),
                         timeout=timeout,
                     )
                     resp.raise_for_status()

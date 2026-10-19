@@ -7,6 +7,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from sqlalchemy import Insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import KeyedColumnElement
 from typing_extensions import TypeAlias, assert_never
@@ -29,6 +30,19 @@ DataManipulation: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataMa
 class OnConflict(Enum):
     DO_NOTHING = auto()
     DO_UPDATE = auto()
+
+
+def get_sqlstate(error: DBAPIError) -> Optional[str]:
+    """Read a driver's SQLSTATE without parsing its error message."""
+    try:
+        driver_error = error.driver_exception
+    except ValueError:
+        # SQLAlchemy's emulated errors can be constructed without a driver error.
+        return None
+    for name in ("sqlstate", "pgcode"):
+        if isinstance(code := getattr(driver_error, name, None), str):
+            return code
+    return None
 
 
 def insert_on_conflict(

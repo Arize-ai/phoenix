@@ -1,10 +1,9 @@
 import json
-from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -13,9 +12,10 @@ from phoenix.db.helpers import get_runs_with_incomplete_evaluations_query
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.routers.v1.datasets import DatasetExample
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
-from phoenix.server.dml_event import ExperimentRunInsertEvent
+from phoenix.server.dml_event import ExperimentRunAnnotationDeleteEvent, ExperimentRunInsertEvent
 
 from .models import V1RoutesBaseModel
 from .utils import PaginatedResponseBody, ResponseBody, add_errors_to_responses
@@ -29,8 +29,8 @@ class ExperimentRunData(V1RoutesBaseModel):
     )
     output: Any = Field(description="The output of the experiment task")
     repetition_number: int = Field(description="The repetition number of the experiment run", gt=0)
-    start_time: datetime = Field(description="The start time of the experiment run")
-    end_time: datetime = Field(description="The end time of the experiment run")
+    start_time: IsoDatetime = Field(description="The start time of the experiment run")
+    end_time: IsoDatetime = Field(description="The end time of the experiment run")
     trace_id: Optional[str] = Field(
         default=None, description="The ID of the corresponding trace (if one exists)"
     )
@@ -120,6 +120,24 @@ async def create_experiment_run(
                     "and cannot be updated"
                 ),
             )
+        if existing_run is not None:
+            # The errored run is replaced in place, keeping its id. Evaluations scored on the
+            # failed output no longer describe the run; remove them so they are re-evaluated
+            # (resume_evaluation treats a run with an annotation as already evaluated). Human
+            # annotations are kept: they are not re-created by a resume, and deleting a person's
+            # work is not this route's call.
+            deleted_annotation_ids = tuple(
+                await session.scalars(
+                    delete(models.ExperimentRunAnnotation)
+                    .where(
+                        models.ExperimentRunAnnotation.experiment_run_id == existing_run.id,
+                        models.ExperimentRunAnnotation.annotator_kind != "HUMAN",
+                    )
+                    .returning(models.ExperimentRunAnnotation.id)
+                )
+            )
+        else:
+            deleted_annotation_ids = ()
         # Either no record exists, or existing record has an error - proceed with upsert
         stmt = insert_on_conflict(
             {
@@ -139,6 +157,8 @@ async def create_experiment_run(
         ).returning(models.ExperimentRun.id)
         id_ = await session.scalar(stmt)
 
+    if deleted_annotation_ids:
+        request.state.event_queue.put(ExperimentRunAnnotationDeleteEvent(deleted_annotation_ids))
     request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))
     run_gid = GlobalID("ExperimentRun", str(id_))
     return CreateExperimentRunResponseBody(

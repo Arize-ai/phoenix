@@ -1,6 +1,197 @@
 [
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > finish-step > preserves active text and reasoning parts across interleaved step boundaries",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "first "
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "thinking "
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "second"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "continued"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-1"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking ",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "done"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > reset-step > removes parts from the current step and accepts retried parts",
     "input": {
@@ -148,7 +339,8 @@
             "state": "input-streaming",
             "input": {
               "path": "partial"
-            }
+            },
+            "rawInput": "{\"path\":\"partial"
           }
         ]
       },
@@ -212,7 +404,8 @@
             "state": "input-streaming",
             "input": {
               "path": "target"
-            }
+            },
+            "rawInput": "{\"path\":\"target\"}"
           }
         ]
       },
@@ -244,7 +437,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > text",
     "input": {
@@ -349,7 +542,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > errors",
     "input": {
@@ -365,7 +558,7 @@
     "writes": []
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-delta is received without text-start",
     "input": {
@@ -400,7 +593,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-delta is received without reasoning-start",
     "input": {
@@ -435,7 +628,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when tool-input-delta is received without tool-input-start",
     "input": {
@@ -470,7 +663,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing text part ids",
     "input": {
@@ -505,7 +698,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing reasoning part ids",
     "input": {
@@ -540,7 +733,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing partial tool call ids",
     "input": {
@@ -575,7 +768,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-end is received without text-start",
     "input": {
@@ -609,7 +802,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-end is received without reasoning-start",
     "input": {
@@ -643,7 +836,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for text-delta without text-start",
     "input": {
@@ -678,7 +871,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for tool-input-delta without tool-input-start",
     "input": {
@@ -713,7 +906,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip",
     "input": {
@@ -899,7 +1092,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with existing assistant message",
     "input": {
@@ -971,33 +1164,14 @@
     },
     "writes": [
       {
-        "role": "assistant",
         "id": "msg-123",
-        "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          }
-        ]
+        "role": "assistant",
+        "parts": []
       },
       {
-        "role": "assistant",
         "id": "msg-123",
+        "role": "assistant",
         "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          },
           {
             "type": "step-start"
           },
@@ -1012,18 +1186,9 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
+        "role": "assistant",
         "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          },
           {
             "type": "step-start"
           },
@@ -1041,18 +1206,9 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
+        "role": "assistant",
         "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          },
           {
             "type": "step-start"
           },
@@ -1078,18 +1234,9 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
+        "role": "assistant",
         "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          },
           {
             "type": "step-start"
           },
@@ -1115,18 +1262,9 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
+        "role": "assistant",
         "parts": [
-          {
-            "type": "tool-tool-name-original",
-            "toolCallId": "tool-call-id-original",
-            "state": "output-available",
-            "input": {},
-            "output": {
-              "location": "Berlin"
-            }
-          },
           {
             "type": "step-start"
           },
@@ -1154,7 +1292,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant texts",
     "input": {
@@ -1477,7 +1615,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning",
     "input": {
@@ -1997,7 +2135,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with output-error",
     "input": {
@@ -2173,7 +2311,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata",
     "input": {
@@ -2381,7 +2519,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata delayed after finish",
     "input": {
@@ -2490,7 +2628,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata with existing assistant lastMessage",
     "input": {
@@ -2539,23 +2677,21 @@
     },
     "writes": [
       {
-        "role": "assistant",
         "id": "msg-123",
         "metadata": {
           "key1": "value-1b",
-          "key3": "value-3a",
           "key2": "value-2b"
         },
+        "role": "assistant",
         "parts": []
       },
       {
-        "role": "assistant",
         "id": "msg-123",
         "metadata": {
           "key1": "value-1b",
-          "key3": "value-3a",
           "key2": "value-2b"
         },
+        "role": "assistant",
         "parts": [
           {
             "type": "step-start"
@@ -2568,13 +2704,12 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
         "metadata": {
           "key1": "value-1b",
-          "key3": "value-3a",
           "key2": "value-2b"
         },
+        "role": "assistant",
         "parts": [
           {
             "type": "step-start"
@@ -2587,13 +2722,12 @@
         ]
       },
       {
-        "role": "assistant",
         "id": "msg-123",
         "metadata": {
           "key1": "value-1b",
-          "key3": "value-3a",
           "key2": "value-2b"
         },
+        "role": "assistant",
         "parts": [
           {
             "type": "step-start"
@@ -2608,7 +2742,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool call streaming",
     "input": {
@@ -2691,7 +2825,8 @@
             "state": "input-streaming",
             "input": {
               "testArg": "t"
-            }
+            },
+            "rawInput": "{\"testArg\":\"t"
           }
         ]
       },
@@ -2708,7 +2843,8 @@
             "state": "input-streaming",
             "input": {
               "testArg": "test-value"
-            }
+            },
+            "rawInput": "{\"testArg\":\"test-value\"}}"
           }
         ]
       },
@@ -2750,7 +2886,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > start with message id",
     "input": {
@@ -2855,7 +2991,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > reasoning",
     "input": {
@@ -3420,7 +3556,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > onToolCall is executed",
     "input": {
@@ -3476,7 +3612,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > sources",
     "input": {
@@ -3588,7 +3724,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > file parts",
     "input": {
@@ -3817,7 +3953,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > file parts with providerMetadata",
     "input": {
@@ -3906,7 +4042,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part)",
     "input": {
@@ -3954,7 +4090,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (transient part)",
     "input": {
@@ -3990,7 +4126,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and replacement update)",
     "input": {
@@ -4059,7 +4195,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and merge update)",
     "input": {
@@ -4140,7 +4276,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools",
     "input": {
@@ -4240,6 +4376,7 @@
             "input": {
               "query": "test"
             },
+            "rawInput": "{ \"query\": \"test\" }",
             "providerExecuted": true
           }
         ]
@@ -4347,7 +4484,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools > should preserve separate call and result provider metadata for static tools",
     "input": {
@@ -4459,7 +4596,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools",
     "input": {
@@ -4566,7 +4703,8 @@
             "input": {
               "query": "test"
             },
-            "providerExecuted": true
+            "providerExecuted": true,
+            "rawInput": "{ \"query\": \"test\" }"
           }
         ]
       },
@@ -4679,7 +4817,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve separate call and result provider metadata for dynamic tools",
     "input": {
@@ -4791,7 +4929,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve tool metadata on dynamic tool parts",
     "input": {
@@ -4887,7 +5025,452 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > should apply output chunk tool metadata to static and dynamic tool parts",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "dynamic-success",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "dynamic": true
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "dynamic-success",
+          "output": {
+            "result": "provider-result"
+          },
+          "dynamic": true,
+          "toolMetadata": {
+            "phase": "dynamic-output-available"
+          }
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "dynamic-error",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "dynamic": true,
+          "toolMetadata": {
+            "phase": "dynamic-input"
+          }
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "dynamic-error",
+          "errorText": "error-text",
+          "dynamic": true,
+          "toolMetadata": {
+            "phase": "dynamic-output-error"
+          }
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "static-success",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "static-success",
+          "output": {
+            "result": "provider-result"
+          },
+          "toolMetadata": {
+            "phase": "static-output-available"
+          }
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "static-error",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "toolMetadata": {
+            "phase": "static-input"
+          }
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "static-error",
+          "errorText": "error-text",
+          "toolMetadata": {
+            "phase": "static-output-error"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-input"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "toolMetadata": {
+              "phase": "dynamic-output-error"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "toolMetadata": {
+              "phase": "dynamic-output-error"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-success",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "toolMetadata": {
+              "phase": "dynamic-output-error"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "static-output-available"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "toolMetadata": {
+              "phase": "dynamic-output-error"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "static-output-available"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-error",
+            "state": "input-available",
+            "toolMetadata": {
+              "phase": "static-input"
+            },
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "dynamic-output-available"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "dynamic-error",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "toolMetadata": {
+              "phase": "dynamic-output-error"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-success",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "phase": "static-output-available"
+            }
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "static-error",
+            "state": "output-error",
+            "toolMetadata": {
+              "phase": "static-output-error"
+            },
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > should call onToolCall for client-executed tools",
     "input": {
@@ -4943,7 +5526,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > dynamic tools",
     "input": {
@@ -5043,7 +5626,8 @@
             "state": "input-streaming",
             "input": {
               "query": "test"
-            }
+            },
+            "rawInput": "{ \"query\": \"test\" }"
           }
         ]
       },
@@ -5156,7 +5740,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata",
     "input": {
@@ -5355,7 +5939,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata during input-streaming",
     "input": {
@@ -5442,6 +6026,7 @@
             "toolCallId": "tool-call-id",
             "state": "input-streaming",
             "input": {},
+            "rawInput": "{\"query\":",
             "callProviderMetadata": {
               "testProvider": {
                 "someKey": "someValue"
@@ -5464,6 +6049,7 @@
             "input": {
               "query": "test"
             },
+            "rawInput": "{\"query\":\"test\"}",
             "callProviderMetadata": {
               "testProvider": {
                 "someKey": "someValue"
@@ -5497,7 +6083,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error",
     "input": {
@@ -5568,7 +6154,8 @@
             "state": "input-streaming",
             "input": {
               "cities": "San Francisco"
-            }
+            },
+            "rawInput": "{ \"cities\": \"San Francisco\" }"
           }
         ]
       },
@@ -5583,7 +6170,7 @@
             "type": "tool-cityAttractions",
             "toolCallId": "call-1",
             "state": "output-error",
-            "rawInput": "{ \"cities\": \"San Francisco\" }",
+            "input": "{ \"cities\": \"San Francisco\" }",
             "errorText": "Invalid input for tool cityAttractions"
           }
         ]
@@ -5599,7 +6186,7 @@
             "type": "tool-cityAttractions",
             "toolCallId": "call-1",
             "state": "output-error",
-            "rawInput": "{ \"cities\": \"San Francisco\" }",
+            "input": "{ \"cities\": \"San Francisco\" }",
             "errorText": "Invalid input for tool cityAttractions"
           }
         ]
@@ -5607,7 +6194,211 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > dynamic tool errors after input streaming > clears raw input on tool input error",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "call-1",
+          "inputTextDelta": "{ \"cities\": [\"San Francisco\"] }"
+        },
+        {
+          "type": "tool-input-error",
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "input": {
+            "cities": [
+              "San Francisco"
+            ]
+          },
+          "errorText": "Invalid input for tool cityAttractions",
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming",
+            "input": {
+              "cities": [
+                "San Francisco"
+              ]
+            },
+            "rawInput": "{ \"cities\": [\"San Francisco\"] }"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "input": {
+              "cities": [
+                "San Francisco"
+              ]
+            },
+            "errorText": "Invalid input for tool cityAttractions"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > dynamic tool errors after input streaming > clears raw input on tool output error",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "call-1",
+          "inputTextDelta": "{ \"cities\": [\"San Francisco\"] }"
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "call-1",
+          "errorText": "Tool execution failed",
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming",
+            "input": {
+              "cities": [
+                "San Francisco"
+              ]
+            },
+            "rawInput": "{ \"cities\": [\"San Francisco\"] }"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "input": {
+              "cities": [
+                "San Francisco"
+              ]
+            },
+            "errorText": "Tool execution failed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error with dynamic flag mismatch",
     "input": {
@@ -5679,7 +6470,8 @@
             "state": "input-streaming",
             "input": {
               "foo": "bar"
-            }
+            },
+            "rawInput": "{ \"foo\": \"bar\" }"
           }
         ]
       },
@@ -5694,7 +6486,7 @@
             "type": "tool-nonExistentTool",
             "toolCallId": "call-1",
             "state": "output-error",
-            "rawInput": "{ \"foo\": \"bar\" }",
+            "input": "{ \"foo\": \"bar\" }",
             "errorText": "Model tried to call unavailable tool 'nonExistentTool'."
           }
         ]
@@ -5710,7 +6502,7 @@
             "type": "tool-nonExistentTool",
             "toolCallId": "call-1",
             "state": "output-error",
-            "rawInput": "{ \"foo\": \"bar\" }",
+            "input": "{ \"foo\": \"bar\" }",
             "errorText": "Model tried to call unavailable tool 'nonExistentTool'."
           }
         ]
@@ -5718,7 +6510,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > preliminary tool results",
     "input": {
@@ -5863,7 +6655,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > static tool with title",
     "input": {
@@ -5945,7 +6737,8 @@
             "title": "Weather Information",
             "input": {
               "location": "Paris"
-            }
+            },
+            "rawInput": "{\"location\":\"Paris\"}"
           }
         ]
       },
@@ -5989,7 +6782,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > dynamic tool with title",
     "input": {
@@ -6080,7 +6873,8 @@
               "a": 5,
               "b": 3
             },
-            "title": "Calculator"
+            "title": "Calculator",
+            "rawInput": "{\"a\":5,\"b\":3}"
           }
         ]
       },
@@ -6130,7 +6924,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > tool with title in error state",
     "input": {
@@ -6233,7 +7027,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (static tool)",
     "input": {
@@ -6308,7 +7102,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (dynamic tool)",
     "input": {
@@ -6386,7 +7180,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request with signature",
     "input": {
@@ -6411,6 +7205,7 @@
           "approvalId": "id-1",
           "toolCallId": "call-1",
           "type": "tool-approval-request",
+          "reason": "requires operator review",
           "signature": "test-sig"
         },
         {
@@ -6455,6 +7250,7 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
               "signature": "test-sig"
             }
           }
@@ -6463,7 +7259,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval response with signature",
     "input": {
@@ -6488,11 +7284,13 @@
           "approvalId": "id-1",
           "toolCallId": "call-1",
           "type": "tool-approval-request",
+          "reason": "requires operator review",
           "signature": "test-sig"
         },
         {
           "approvalId": "id-1",
           "approved": true,
+          "reason": "approved by operator",
           "type": "tool-approval-response"
         },
         {
@@ -6537,6 +7335,7 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
               "signature": "test-sig"
             }
           }
@@ -6558,8 +7357,10 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
+              "signature": "test-sig",
               "approved": true,
-              "signature": "test-sig"
+              "reason": "approved by operator"
             }
           }
         ]
@@ -6567,7 +7368,174 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > preserves approval descriptors through request and response states",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "input": {
+            "userId": "user-123"
+          },
+          "toolCallId": "call-1",
+          "toolName": "deleteAccount",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalDescriptor": {
+            "action": "deleteAccount",
+            "permissions": [
+              "account:delete"
+            ],
+            "risk": "high"
+          },
+          "approvalId": "approval-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "approvalId": "approval-1",
+          "approved": true,
+          "type": "tool-approval-response"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "userId": "user-123"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              },
+              "approved": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
+    "source": "upstream",
+    "name": "processUIMessageStream > preserves an approval descriptor restored from a persisted message",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              }
+            }
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "approvalId": "approval-1",
+          "approved": true,
+          "type": "tool-approval-response"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              },
+              "approved": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request without signature",
     "input": {
@@ -6642,7 +7610,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval denial (static tool)",
     "input": {
@@ -6742,9 +7710,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": false,
-              "reason": "Policy denied execution",
-              "isAutomatic": true
+              "reason": "Policy denied execution"
             }
           }
         ]
@@ -6765,9 +7733,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": false,
-              "reason": "Policy denied execution",
-              "isAutomatic": true
+              "reason": "Policy denied execution"
             }
           }
         ]
@@ -6775,7 +7743,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval with execution (dynamic tool)",
     "input": {
@@ -6880,9 +7848,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": true,
-              "reason": "trusted internal tool",
-              "isAutomatic": true
+              "reason": "trusted internal tool"
             }
           }
         ]
@@ -6905,9 +7873,9 @@
             "output": "result1",
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": true,
-              "reason": "trusted internal tool",
-              "isAutomatic": true
+              "reason": "trusted internal tool"
             }
           }
         ]
@@ -6915,7 +7883,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (static tool)",
     "input": {
@@ -7090,7 +8058,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (dynamic tool)",
     "input": {
@@ -7271,7 +8239,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution with preliminary results after approval (static tool)",
     "input": {
@@ -7504,7 +8472,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (static tool)",
     "input": {
@@ -7674,7 +8642,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (dynamic tool)",
     "input": {
@@ -7849,7 +8817,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "upstream",
     "name": "processUIMessageStream > custom",
     "input": {
@@ -7898,7 +8866,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix custom chunks > durable error part and standard error",
     "input": {
@@ -7942,7 +8910,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix custom chunks > transient session and persistence events",
     "input": {
@@ -7976,7 +8944,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix protocol passthrough > abort and done do not change the message",
     "input": {
@@ -8005,7 +8973,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix protocol coverage > source document",
     "input": {
@@ -8038,7 +9006,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix stream > interleaved preliminary subagent output",
     "input": {
@@ -8267,7 +9235,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix stream > forced skill step before model output",
     "input": {
@@ -8440,7 +9408,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix stream > typed assistant metadata",
     "input": {
@@ -8488,7 +9456,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.137",
     "source": "phoenix",
     "name": "Phoenix stream > client tool continuation",
     "input": {

@@ -5,16 +5,20 @@ import {
   makeMetadataTooltipFilterCondition,
   MetadataTooltip,
 } from "@phoenix/pages/project/MetadataTooltip";
-import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
 
 type MetadataTableCellProps = {
   metadata: unknown;
+  /**
+   * Called with a filter DSL condition when the user presses the label or a "Match" button in the tooltip
+   */
+  onFilterConditionPressed: (condition: string) => void;
 };
 
-export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
-  const { appendFilterCondition } = useSpanFilterActions();
-
+export const MetadataTableCell = ({
+  metadata,
+  onFilterConditionPressed,
+}: MetadataTableCellProps) => {
   // Try to parse the metadata and stringify it
   // This is intended to work with object metadata but will technically work for arrays as well
   const [parsedMetadata, stringifiedMetadata] = useMemo(() => {
@@ -43,7 +47,11 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
 
   return (
     <div style={{ maxWidth: "100%" }}>
-      <MetadataTooltip width="800px" metadata={parsedMetadata}>
+      <MetadataTooltip
+        width="800px"
+        metadata={parsedMetadata}
+        onFilterConditionPressed={onFilterConditionPressed}
+      >
         <MetadataLabel
           metadata={stringifiedMetadata}
           onClick={() => {
@@ -53,7 +61,7 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
               key,
               value
             );
-            appendFilterCondition(filterCondition);
+            onFilterConditionPressed(filterCondition);
           }}
         />
       </MetadataTooltip>

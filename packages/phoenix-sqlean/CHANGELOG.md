@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-sqlean-v0.1.2...arize-phoenix-sqlean-v0.2.0) (2026-10-12)
+
+
+### Features
+
+* **phoenix-sqlean:** bundle SQLite 3.54.0 and support Python 3.15 ([#16936](https://github.com/Arize-ai/phoenix/issues/16936)) ([fff25bc](https://github.com/Arize-ai/phoenix/commit/fff25bcbe99c01a0af9796762f395a9ad89002de))
+
+## [0.1.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-sqlean-v0.1.1...arize-phoenix-sqlean-v0.1.2) (2026-09-12)
+
+
+### Bug Fixes
+
+* **phoenix-sqlean:** fix memory-safety and correctness bugs in the C driver ([#14546](https://github.com/Arize-ai/phoenix/issues/14546)) ([6f2d5e9](https://github.com/Arize-ai/phoenix/commit/6f2d5e9baa43fec74563f09e76b4f92603d73053))
+
 ## [0.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-sqlean-v0.1.0...arize-phoenix-sqlean-v0.1.1) (2026-08-25)
 
 

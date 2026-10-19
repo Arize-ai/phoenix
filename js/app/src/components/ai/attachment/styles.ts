@@ -259,6 +259,7 @@ export const attachmentInfoCSS = css`
     .attachment-info__detail {
       flex: 0 1 auto;
       min-width: 0;
+      margin-left: var(--global-dimension-size-50);
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;

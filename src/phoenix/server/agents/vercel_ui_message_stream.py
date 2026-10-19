@@ -183,12 +183,13 @@ async def process_ui_message_stream(
     write: Callable[[], None] = _noop_write,
     on_error: Callable[[Exception], None] | None = None,
     on_data: Callable[[DataUIPart], None] | None = None,
+    reset_state_on_message_id_change: bool = False,
 ) -> AsyncIterator[BaseChunk]:
     """Reduce UI-message chunks into ``state`` while yielding them unchanged.
 
     Port of ``processUIMessageStream`` and its per-chunk ``switch``:
-    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L78
-    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L386
+    https://github.com/vercel/ai/blob/ai%407.0.85/packages/ai/src/ui/process-ui-message-stream.ts#L82
+    https://github.com/vercel/ai/blob/ai%407.0.85/packages/ai/src/ui/process-ui-message-stream.ts#L426
     """
     async for chunk in stream:
         if isinstance(chunk, TextStartChunk):
@@ -235,6 +236,7 @@ async def process_ui_message_stream(
         elif isinstance(chunk, ReasoningStartChunk):
             reasoning_part = ReasoningUIPart(
                 type="reasoning",
+                id=chunk.id,
                 text="",
                 provider_metadata=chunk.provider_metadata,
                 state="streaming",
@@ -339,6 +341,7 @@ async def process_ui_message_stream(
                 tool_name=partial_tool_call.tool_name,
                 part_state="input-streaming",
                 input_value=_parse_partial_json(partial_tool_call.text),
+                raw_input=partial_tool_call.text,
                 dynamic=partial_tool_call.dynamic,
             )
             write()
@@ -369,8 +372,7 @@ async def process_ui_message_stream(
                 tool_call_id=chunk.tool_call_id,
                 tool_name=chunk.tool_name,
                 part_state="output-error",
-                input_value=chunk.input if is_dynamic else None,
-                raw_input=None if is_dynamic else chunk.input,
+                input_value=chunk.input,
                 error_text=chunk.error_text,
                 provider_executed=chunk.provider_executed,
                 provider_metadata=chunk.provider_metadata,
@@ -407,7 +409,9 @@ async def process_ui_message_stream(
                 part_state="output-error",
                 input_value=tool_part.input,
                 raw_input=(
-                    tool_part.raw_input if isinstance(tool_part, ToolOutputErrorPart) else None
+                    tool_part.raw_input
+                    if isinstance(tool_part, (ToolInputStreamingPart, ToolOutputErrorPart))
+                    else None
                 ),
                 error_text=chunk.error_text,
                 provider_executed=chunk.provider_executed,
@@ -449,9 +453,28 @@ async def process_ui_message_stream(
         elif isinstance(chunk, StartStepChunk):
             state.message.parts.append(StepStartUIPart(type="step-start"))
         elif isinstance(chunk, FinishStepChunk):
-            state.active_text_parts = {}
-            state.active_reasoning_parts = {}
+            # Active parts are closed by their explicit end chunks, not by step
+            # boundaries: a merged stream's step can finish while another
+            # stream's part is still active.
+            pass
         elif isinstance(chunk, StartChunk):
+            # readUIMessageStream sets resetStateOnMessageIdChange. A start chunk
+            # for a different message drops the previous assistant message
+            # instead of continuing it.
+            if (
+                chunk.message_id is not None
+                and reset_state_on_message_id_change
+                and chunk.message_id != state.message.id
+            ):
+                fresh = create_streaming_ui_message_state(
+                    message_id=chunk.message_id,
+                    last_message=None,
+                )
+                state.message = fresh.message
+                state.active_text_parts = fresh.active_text_parts
+                state.active_reasoning_parts = fresh.active_reasoning_parts
+                state.partial_tool_calls = fresh.partial_tool_calls
+                state.finish_reason = None
             if chunk.message_id is not None:
                 state.message.id = chunk.message_id
             _update_message_metadata(
@@ -551,6 +574,7 @@ async def read_ui_message_stream(
             state=state,
             write=write,
             on_error=handle_error,
+            reset_state_on_message_id_change=True,
         ):
             while pending_writes:
                 yield pending_writes.pop(0)
@@ -699,6 +723,7 @@ def _update_tool_part(
                 tool_call_id=tool_call_id,
                 title=resolved_title,
                 input=input_value,
+                raw_input=raw_input,
                 provider_executed=resolved_provider_executed,
                 call_provider_metadata=call_provider_metadata,
                 approval=resolved_approval,
@@ -776,6 +801,7 @@ def _update_tool_part(
             tool_call_id=tool_call_id,
             title=resolved_title,
             input=input_value,
+            raw_input=raw_input,
             provider_executed=resolved_provider_executed,
             call_provider_metadata=call_provider_metadata,
             approval=resolved_approval,

@@ -9,9 +9,7 @@ Some phoenix containers run as nonroot and therefore must be granted explicit wr
 <AccordionGroup>
 <Accordion title="How do I configure Phoenix for air-gapped deployments?">
 
-For air-gapped environments where external network access is restricted, you should disable external resource loading to improve UI performance. This prevents Phoenix from attempting to load external resources like Google Fonts, which can cause UI loading delays (10-20 seconds) in environments without internet access.
-
-Set the `PHOENIX_ALLOW_EXTERNAL_RESOURCES` environment variable to `false`:
+Set `PHOENIX_ALLOW_EXTERNAL_RESOURCES` to `false` so Phoenix makes no public-internet requests of its own. This turns off Google Fonts, telemetry, PXI's documentation lookups and web and GitHub access, the WebAssembly sandbox runtime download, and the web interface's GitHub star count and update check. Without it, blocked requests can delay UI loading by 10-20 seconds. Services you configure yourself, such as LLM providers and hosted sandboxes, aren't affected. To use the WebAssembly sandbox offline, set `PHOENIX_WASM_BINARY_PATH` to a local copy of the runtime.
 
 **Docker Example:**
 ```yaml

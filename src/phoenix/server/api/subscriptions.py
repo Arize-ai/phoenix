@@ -40,7 +40,6 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -57,7 +56,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -226,6 +225,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+            assert playground_project_id is not None
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -378,7 +378,6 @@ class Subscription:
                 )
 
             # === Create experiment (same as chat_completion_over_dataset) ===
-            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -389,7 +388,7 @@ class Subscription:
                 metadata_=input.experiment_metadata or dict(),
                 is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
-                user_id=user_id,
+                user_id=info.context.user_id,
             )
             if resolved_split_ids:
                 experiment.experiment_dataset_splits = [

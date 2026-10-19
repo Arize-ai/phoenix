@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from inspect import Signature, signature
@@ -16,7 +16,6 @@ from openinference.instrumentation import (
 )
 from openinference.semconv.trace import OpenInferenceMimeTypeValues
 from opentelemetry.trace import Status, StatusCode, Tracer
-from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
@@ -52,6 +51,8 @@ from pydantic_ai.output import OutputDataT
 from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 from typing_extensions import assert_never
+
+from phoenix.trace.attributes import AttributeValue
 
 _MODEL_REQUEST_PARTS_ADAPTER: pydantic.TypeAdapter[list[ModelRequestPart]] = pydantic.TypeAdapter(
     list[ModelRequestPart],
@@ -182,7 +183,7 @@ def _get_message_io_attributes(
     *,
     message: ModelMessage,
     role: Literal["input", "output"],
-) -> dict[str, AttributeValue]:
+) -> Mapping[str, AttributeValue]:
     value, mime_type = _get_message_io_value(message)
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)

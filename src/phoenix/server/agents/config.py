@@ -17,9 +17,10 @@ from phoenix.config import (
     get_env_phoenix_agents_collector_endpoint,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_force_tracing,
+    get_env_phoenix_agents_github_enabled,
     get_env_phoenix_agents_web_access_enabled,
 )
-from phoenix.server.settings.registry import AgentTraceRecordingSetting
+from phoenix.server.settings.registry import AgentGitHubSetting, AgentTraceRecordingSetting
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class AgentsEnvConfig:
     force_tracing: bool
     web_access_enabled: bool
     server_bash_enabled: bool
+    github_enabled: bool
 
     @classmethod
     def from_env(cls) -> AgentsEnvConfig:
@@ -46,6 +48,7 @@ class AgentsEnvConfig:
             force_tracing=get_env_phoenix_agents_force_tracing(),
             web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
             server_bash_enabled=not get_env_phoenix_agents_disable_bash(),
+            github_enabled=get_env_phoenix_agents_github_enabled(),
         )
 
     def allows_local_traces(self, trace_recording: AgentTraceRecordingSetting) -> bool:
@@ -55,3 +58,8 @@ class AgentsEnvConfig:
     def allows_remote_export(self, trace_recording: AgentTraceRecordingSetting) -> bool:
         """Whether users may export assistant traces to the collector, given the admin ceiling."""
         return self.force_tracing or trace_recording.allow_remote_export
+
+    def allows_github(self, github: AgentGitHubSetting) -> bool:
+        """Whether the PXI GitHub tools are effectively enabled: the env ceiling
+        allows them and the admin has turned them on."""
+        return self.github_enabled and github.enabled

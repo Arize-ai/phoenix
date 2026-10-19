@@ -22,6 +22,21 @@ Answer (helpful/not_helpful):`,
 });
 ```
 
+## Decision-Only Models
+
+`model` also accepts an AI SDK evaluation model (e.g. TypeSafe's Jev), a cheaper, faster classifier for high-volume labeling:
+
+```typescript
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { typeSafeAi } from "@ai-sdk/typesafe-ai";
+
+const hallucination = createHallucinationEvaluator({
+  model: typeSafeAi.evaluationModel("jev-latest"),
+});
+```
+
+Results have no `explanation`; `metadata` holds per-label `probabilities` and `modelId`. No spans are emitted.
+
 ## Template Variables
 
 Use XML tags: `<question>{{input}}</question>`, `<response>{{output}}</response>`, `<context>{{context}}</context>`

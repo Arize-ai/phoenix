@@ -449,11 +449,8 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
         # The conditional DELETE ... RETURNING below is the authority — the loser's
         # delete matches zero rows and returns invalid_grant before any grant is
         # created. The row lock here makes the loser block early (skipping wasted
-        # PKCE work) rather than racing to that delete. SQLite has no row locks, so
-        # an immediate write transaction stands in for FOR UPDATE; it must be the
-        # first statement in this session, before any implicit read transaction opens.
-        if session.bind is not None and session.bind.dialect.name == "sqlite":
-            await session.execute(sa.text("BEGIN IMMEDIATE"))
+        # PKCE work) rather than racing to that delete. SQLite has no row locks, but
+        # its single write connection already runs redemptions one at a time.
         authorization_code = await session.scalar(
             sa.select(models.OAuth2AuthorizationCode)
             .where(models.OAuth2AuthorizationCode.code_hash == code_hash)

@@ -39,7 +39,7 @@ async def trace_with_mixed_spans(db: DbSessionFactory) -> int:
         project_id = await session.scalar(
             insert(models.Project).values(name="trace_aggregates").returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_aggregates",
@@ -264,7 +264,7 @@ async def trace_with_non_canonical_kinds(db: DbSessionFactory) -> int:
             .values(name="trace_non_canonical_kinds")
             .returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_non_canonical",
@@ -340,7 +340,7 @@ async def trace_with_hierarchy(db: DbSessionFactory) -> int:
         project_id = await session.scalar(
             insert(models.Project).values(name="trace_hierarchy").returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_hierarchy",
@@ -384,22 +384,21 @@ async def trace_with_hierarchy(db: DbSessionFactory) -> int:
     return trace_rowid
 
 
-async def test_spans_filter_with_root_spans_only(
+async def test_spans_filter_scopes_to_root_spans(
     trace_with_hierarchy: int,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Filter must apply to the candidate set before root-span narrowing.
+    """Root-span scoping is a clause of the filter.
 
-    With ``span_kind == 'LLM'`` + ``rootSpansOnly: true`` we expect only
-    the LLM root span — the LLM child should be excluded by the root
-    narrowing, and the TOOL roots should be excluded by the kind filter.
+    With ``span_kind == 'LLM' and parent_id is None`` we expect only the LLM root span: the
+    LLM child is excluded by the root clause, and the TOOL roots by the kind filter.
     """
     trace_gid = str(GlobalID(Trace.__name__, str(trace_with_hierarchy)))
     query = """
         query ($traceId: ID!, $first: Int!, $filter: String) {
             node(id: $traceId) {
                 ... on Trace {
-                    spans(first: $first, rootSpansOnly: true, filterCondition: $filter) {
+                    spans(first: $first, filterCondition: $filter) {
                         edges { node { name } }
                     }
                 }
@@ -408,7 +407,11 @@ async def test_spans_filter_with_root_spans_only(
     """
     response = await gql_client.execute(
         query=query,
-        variables={"traceId": trace_gid, "first": 10, "filter": "span_kind == 'LLM'"},
+        variables={
+            "traceId": trace_gid,
+            "first": 10,
+            "filter": "span_kind == 'LLM' and parent_id is None",
+        },
     )
     assert not response.errors
     assert (data := response.data) is not None

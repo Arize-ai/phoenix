@@ -108,6 +108,11 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
     cached_tokens: int
 
 
+class ChatRequestCredential(TypedDict):
+    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    value: str
+
+
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
@@ -377,6 +382,11 @@ class ListDatasetLabelsForDatasetResponseBody(TypedDict):
     data: Sequence[DatasetLabel]
 
 
+class ListDatasetSplitsResponseBody(TypedDict):
+    data: Sequence[DatasetSplit]
+    next_cursor: Optional[str]
+
+
 class ListDatasetVersionsResponseBody(TypedDict):
     data: Sequence[DatasetVersion]
     next_cursor: Optional[str]
@@ -617,6 +627,19 @@ class PromptGroqInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptMetaInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
 class PromptMoonshotInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -744,6 +767,19 @@ class PromptVersionUIContext(TypedDict):
 
 
 class PromptXAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
+class PromptZAIInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -980,17 +1016,6 @@ class ToolInputAvailablePart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class ToolInputStreamingPart(TypedDict):
-    type: str
-    toolCallId: str
-    title: NotRequired[str]
-    state: NotRequired[Literal["input-streaming"]]
-    input: NotRequired[Any]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
 class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
@@ -1186,6 +1211,19 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
+class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolInputStreamingPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
+    input: NotRequired[Any]
+    rawInput: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
 class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
@@ -1212,6 +1250,18 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(Typ
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesToolInputStreamingPart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
+    input: NotRequired[Any]
+    rawInput: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
@@ -1243,6 +1293,18 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart(TypedDict)
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
+class PydanticAiUiVercelAiRequestTypesDynamicToolInputStreamingPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
 class PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
@@ -1265,6 +1327,17 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
     errorText: str
     title: NotRequired[str]
     state: NotRequired[Literal["output-error"]]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesToolInputStreamingPart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
+    input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1379,8 +1452,11 @@ class BuiltInModelProvider(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
+        "META",
     ]
     name: str
 
@@ -1400,8 +1476,11 @@ class BuiltInProviderModelSelection(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
+        "META",
     ]
     modelName: str
 
@@ -1570,18 +1649,6 @@ class DynamicToolInputAvailablePart(TypedDict):
     input: Any
     title: NotRequired[str]
     state: NotRequired[Literal["input-available"]]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class DynamicToolInputStreamingPart(TypedDict):
-    type: Literal["dynamic-tool"]
-    toolName: str
-    toolCallId: str
-    title: NotRequired[str]
-    state: NotRequired[Literal["input-streaming"]]
-    input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1780,6 +1847,11 @@ class PromptGroqInvocationParameters(TypedDict):
     groq: PromptGroqInvocationParametersContent
 
 
+class PromptMetaInvocationParameters(TypedDict):
+    type: Literal["meta"]
+    meta: PromptMetaInvocationParametersContent
+
+
 class PromptMoonshotInvocationParameters(TypedDict):
     type: Literal["moonshot"]
     moonshot: PromptMoonshotInvocationParametersContent
@@ -1832,6 +1904,11 @@ class PromptTools(TypedDict):
 class PromptXAIInvocationParameters(TypedDict):
     type: Literal["xai"]
     xai: PromptXAIInvocationParametersContent
+
+
+class PromptZAIInvocationParameters(TypedDict):
+    type: Literal["zai"]
+    zai: PromptZAIInvocationParametersContent
 
 
 class ResponseBodyUpsertOrDeleteSecretsResult(TypedDict):
@@ -2025,14 +2102,14 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
         Union[
             TextUIPart,
             ReasoningUIPart,
-            ToolInputStreamingPart,
+            PydanticAiUiVercelAiRequestTypesToolInputStreamingPart,
             ToolInputAvailablePart,
             PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart,
             PydanticAiUiVercelAiRequestTypesToolOutputErrorPart,
             ToolApprovalRequestedPart,
             ToolApprovalRespondedPart,
             ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
+            PydanticAiUiVercelAiRequestTypesDynamicToolInputStreamingPart,
             DynamicToolInputAvailablePart,
             PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart,
             PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart,
@@ -2135,14 +2212,14 @@ class PhoenixUIMessage(TypedDict):
         Union[
             TextUIPart,
             ReasoningUIPart,
-            ToolInputStreamingPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolInputStreamingPart,
             ToolInputAvailablePart,
             PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
             PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
             ToolApprovalRequestedPart,
             ToolApprovalRespondedPart,
             ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolInputStreamingPart,
             DynamicToolInputAvailablePart,
             PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
             PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
@@ -2224,6 +2301,7 @@ class ChatRequestBody(TypedDict):
     ]
     toolApprovals: NotRequired[Sequence[ToolApproval]]
     lastMessageId: NotRequired[str]
+    credentials: NotRequired[Sequence[ChatRequestCredential]]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     instrumentUserId: NotRequired[bool]
@@ -2257,8 +2335,11 @@ class PromptVersionData(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
+        "META",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -2279,8 +2360,11 @@ class PromptVersionData(TypedDict):
         PromptMoonshotInvocationParameters,
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
+        PromptZAIInvocationParameters,
+        PromptMetaInvocationParameters,
     ]
     description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 

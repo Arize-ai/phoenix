@@ -15,7 +15,6 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -32,7 +31,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     key: "subagents.enabled",
     label: "Subagents",
     description:
-      "Lets the assistant delegate work to subagents that run their own tool-using turns. Experimental and may consume large numbers of tokens.",
+      "Lets the assistant delegate work to subagents that run their own tool-using turns. May consume large numbers of tokens.",
     defaultValue: false,
     scope: "global",
   },
@@ -76,13 +75,4 @@ export function getAgentCapabilityDefinition(
   key: AgentCapabilityKey
 ): AgentCapabilityDefinition {
   return AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key];
-}
-
-/** Filters the capability catalog down to one UI control surface. */
-export function getAgentCapabilitiesForControlSurface(
-  controlSurface: NonNullable<AgentCapabilityDefinition["controlSurface"]>
-): AgentCapabilityDefinition[] {
-  return AGENT_CAPABILITY_DEFINITIONS.filter(
-    (definition) => definition.controlSurface === controlSurface
-  );
 }

@@ -52,7 +52,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        uses: anthropics/claude-code-action@ed670b4cf9de2a5a570d130d2f6197b9e543cd64 # v1.0.240
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -78,7 +78,7 @@ jobs:
 
             When done, write a PR body to `.scratch/pr-body.md`. Do not commit,
             push, or open a PR; the workflow handles publishing.
-          claude_args: '--model opus --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(find:*)","Bash(comm:*)","Bash(sort:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(find:*)","Bash(comm:*)","Bash(sort:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
 
       - name: Commit and open pull request
         if: steps.claude.outcome == 'success'
@@ -137,3 +137,11 @@ jobs:
             --head "$BRANCH" \
             --title "docs: Audit and update llms.txt" \
             --body-file "$BODY_FILE"
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
+      - name: Approve pull request
+        if: steps.claude.outcome == 'success'
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ env.BRANCH }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}

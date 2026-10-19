@@ -15,6 +15,7 @@ import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetail
 
 export function ExperimentCompareDetailsDialog({
   selectedExampleId,
+  selectedExampleExternalId,
   selectedExampleIndex,
   datasetId,
   datasetVersionId,
@@ -26,6 +27,7 @@ export function ExperimentCompareDetailsDialog({
   openTraceDialog,
 }: {
   selectedExampleId: string;
+  selectedExampleExternalId?: string | null;
   selectedExampleIndex: number;
   datasetId: string;
   datasetVersionId: string;
@@ -46,7 +48,10 @@ export function ExperimentCompareDetailsDialog({
               exampleIds={exampleIds}
               onExampleChange={onExampleChange}
             />
-            <TitleWithID title="Example" id={selectedExampleId} />
+            <TitleWithID
+              title="Example"
+              id={selectedExampleExternalId ?? selectedExampleId}
+            />
           </Flex>
           <DialogTitleExtra>
             <LinkButton

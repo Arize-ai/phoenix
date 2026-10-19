@@ -21,8 +21,8 @@ from setuptools.command.build_ext import build_ext
 log = logging.getLogger(__name__)
 
 PACKAGE_NAME = "sqlean"
-VERSION = "0.1.1"  # x-release-please-version
-SQLEAN_VERSION = "0.28.4+10a13f9"
+VERSION = "0.2.0"  # x-release-please-version
+SQLEAN_VERSION = "0.28.4+71e7625"
 
 SHORT_DESCRIPTION = "sqlite3 with extensions"
 LONG_DESCRIPTION = Path("README.md").read_text()
@@ -172,7 +172,6 @@ def get_setup_args():
         url="https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-sqlean",
         package_dir={PACKAGE_NAME: PACKAGE_NAME},
         packages=packages,
-        python_requires=">=3.10, <3.15",
         ext_modules=[
             Extension(
                 name=f"{PACKAGE_NAME}._sqlite3",
@@ -196,4 +195,10 @@ def get_setup_args():
 
 
 if __name__ == "__main__":
-    setuptools.setup(**get_setup_args())
+    # The only definition of the supported Python range. Keep it a string
+    # literal in this call: cibuildwheel parses it statically to select
+    # CPythons, and scripts/check-wheelhouse.py expects exactly those.
+    setuptools.setup(
+        python_requires=">=3.11, <3.16",
+        **get_setup_args(),
+    )

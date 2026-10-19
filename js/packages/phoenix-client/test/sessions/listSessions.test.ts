@@ -3,10 +3,12 @@ import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
+import { HttpError } from "../../src/errors";
 import { listSessions } from "../../src/sessions/listSessions";
 import { createTestClient } from "../testUtils";
 
 const http = createHttp();
+const filterExpression = 'any(span.name == "café & search" for span in spans)';
 
 const firstSession: components["schemas"]["SessionData"] = {
   id: "session-1",
@@ -158,5 +160,99 @@ describe("listSessions", () => {
     await expect(
       listSessions({ client: createTestClient(), project: "my-project" })
     ).rejects.toThrow("Failed to list sessions");
+  });
+
+  describe("filter expressions", () => {
+    it("passes the expression unchanged", async () => {
+      let receivedFilter: string | null = null;
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/sessions",
+          ({ query, response }) => {
+            receivedFilter = query.get("filter");
+            return response(200).json({ data: [], next_cursor: null });
+          }
+        )
+      );
+
+      await listSessions({
+        client: createTestClient(),
+        project: "my-project",
+        filter: filterExpression,
+      });
+
+      expect(receivedFilter).toBe(filterExpression);
+    });
+
+    it.each([undefined, null, ""])(
+      "does not send an empty expression (%s)",
+      async (filter) => {
+        let hasFilter: boolean | undefined;
+        server.use(
+          http.get(
+            "/v1/projects/{project_identifier}/sessions",
+            ({ query, response }) => {
+              hasFilter = query.has("filter");
+              return response(200).json({ data: [], next_cursor: null });
+            }
+          )
+        );
+
+        await listSessions({
+          client: createTestClient(),
+          project: "my-project",
+          filter,
+        });
+
+        expect(hasFilter).toBe(false);
+      }
+    );
+
+    it("preserves filter error messages from the server", async () => {
+      server.use(
+        http.get("/v1/projects/{project_identifier}/sessions", ({ response }) =>
+          response(400).text("invalid name `unknown_field`")
+        )
+      );
+
+      const error = await listSessions({
+        client: createTestClient(),
+        project: "my-project",
+        filter: "unknown_field > 0",
+      }).catch((error: unknown) => error);
+
+      expect(error).toBeInstanceOf(HttpError);
+      if (!(error instanceof HttpError))
+        throw new Error("Expected an HTTP error");
+      expect(error.status).toBe(400);
+      expect(await error.response.text()).toBe("invalid name `unknown_field`");
+    });
+
+    it("preserves the filter through automatic pagination", async () => {
+      const cursors: (string | null)[] = [];
+      const filters: (string | null)[] = [];
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/sessions",
+          ({ query, response }) => {
+            cursors.push(query.get("cursor"));
+            filters.push(query.get("filter"));
+            return response(200).json({
+              data: [],
+              next_cursor: cursors.length === 1 ? "second-page" : null,
+            });
+          }
+        )
+      );
+
+      await listSessions({
+        client: createTestClient(),
+        project: "my-project",
+        filter: filterExpression,
+      });
+
+      expect(cursors).toEqual([null, "second-page"]);
+      expect(filters).toEqual([filterExpression, filterExpression]);
+    });
   });
 });

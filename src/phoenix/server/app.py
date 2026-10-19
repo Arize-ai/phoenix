@@ -40,7 +40,6 @@ from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -62,6 +61,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
@@ -83,6 +83,7 @@ from phoenix.config import (
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
+    server_log_export_is_enabled,
     verify_server_environment_variables,
 )
 from phoenix.db import models
@@ -99,6 +100,7 @@ from phoenix.server.api.routers import (
     agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_client_errors_router,
     create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
@@ -118,12 +120,12 @@ from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
@@ -131,7 +133,12 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp.skills import (
+    PXI_SKILLS_ROOTS,
+    load_external_skills,
+    load_skills,
+    merge_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     BearerAuthGuard,
@@ -156,7 +163,10 @@ from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_logger_provider,
+    initialize_opentelemetry_tracer_provider,
+)
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -624,7 +634,9 @@ class CapacityInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if self._indicator.is_full:
             SPAN_QUEUE_REJECTIONS.inc()
-            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            # OTLP clients treat RESOURCE_EXHAUSTED without RetryInfo as non-retryable,
+            # and the spec names UNAVAILABLE as the backpressure signal.
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details("Server is at capacity and cannot process more requests")
             return
 
@@ -639,7 +651,6 @@ def _lifespan(
     trace_data_sweeper: Optional[TraceDataSweeper],
     agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
-    span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
@@ -694,7 +705,6 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
-            await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
@@ -751,13 +761,17 @@ def _lifespan(
                     print(welcome_message(system_settings), flush=True)
                 except Exception:
                     logger.exception("Failed to render the startup banner")
-            yield {
+            lifespan_state: dict[str, Any] = {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
             }
+            # Read by the in-process MCP dispatch, which has no server to copy
+            # the yielded state into its request scopes.
+            app.state.lifespan_state = lifespan_state
+            yield lifespan_state
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -804,7 +818,7 @@ def create_graphql_router(
     """Creates the GraphQL router.
 
     Args:
-        schema (BaseSchema): The GraphQL schema.
+        graphql_schema (strawberry.Schema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
@@ -1021,7 +1035,7 @@ def create_app(
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    span_cost_calculator = SpanCostCalculator(db, generative_model_store)
+    span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
         span_cost_calculator=span_cost_calculator,
@@ -1054,6 +1068,8 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
+    if server_log_export_is_enabled():
+        shutdown_callbacks_list.append(initialize_opentelemetry_logger_provider().shutdown)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
@@ -1109,7 +1125,6 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
-            span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
@@ -1137,6 +1152,7 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
+    app.include_router(create_client_errors_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
         app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
@@ -1205,6 +1221,8 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1216,6 +1234,8 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
+            external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
@@ -1228,27 +1248,35 @@ def create_app(
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
     # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
-    # is enabled.
+    # is enabled for the mount.
     app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
-    # The agent's own instance, independent of the mount and its configuration.
-    # Read-only: mutations belong to the agent's editing tools, which route
-    # approval through the user. Its sandbox takes the ``agent`` admission class,
-    # capped one below the worker pool size: consumers compete for workers and a
-    # loser waits at checkout, but no consumer can hold them all.
+    # The agent's own instance, independent of the mount and its configuration:
+    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
+    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # editing tools, which route approval through the user. Its sandbox takes
+    # the ``agent`` admission class, capped one below the worker pool size:
+    # consumers compete for workers and a loser waits at checkout, but no
+    # consumer can hold them all.
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
-            code_mode=True,
+            code_mode=get_env_agents_mcp_code_mode(),
             monty_consumer="agent",
             read_only=True,
             db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. These tools
+            # stand in only where the bash capability, and the builtin with it,
+            # is off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
             skills_roots=PXI_SKILLS_ROOTS,
+            external_skills=external_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
@@ -1469,12 +1497,10 @@ def _get_build_graphql_context_function(
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
-        request = Request(
-            {
-                "type": "http",
-                "user": user if user is not None else UnauthenticatedUser(),
-            }
-        )
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
         return build_context(
             db=db,
             settings=system_settings,

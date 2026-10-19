@@ -33,6 +33,11 @@ import type {
 } from "./CustomProviderForm";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
+type CustomProviderNode = Extract<
+  NonNullable<ProviderNode>,
+  { readonly __typename: "GenerativeModelCustomProvider" }
+>;
+type ProviderConfig = NonNullable<CustomProviderNode["config"]>;
 
 // =============================================================================
 // Form Default Values
@@ -144,119 +149,148 @@ export function transformConfigToFormValues(
     provider.__typename === "GenerativeModelCustomProvider",
     "Node is not a generative model custom provider"
   );
-  const baseValues = {
+  const customProvider = provider as CustomProviderNode;
+  switch (customProvider.sdk) {
+    case "OPENAI":
+      return transformOpenAIConfig(customProvider);
+    case "AZURE_OPENAI":
+      return transformAzureOpenAIConfig(customProvider);
+    case "ANTHROPIC":
+      return transformAnthropicConfig(customProvider);
+    case "AWS_BEDROCK":
+      return transformAwsBedrockConfig(customProvider);
+    case "GOOGLE_GENAI":
+      return transformGoogleGenAIConfig(customProvider);
+    default:
+      throw new Error("Unknown SDK type received from backend.");
+  }
+}
+
+function getBaseFormValues(provider: CustomProviderNode) {
+  return {
     name: provider.name,
     description: provider.description || "",
     provider: provider.provider,
   };
+}
 
+function transformOpenAIConfig(provider: CustomProviderNode): OpenAIFormData {
   const config = provider.config;
-  const { sdk } = provider;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "OPENAI",
+    openai_api_type:
+      (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
+      "RESPONSES",
+    openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
+    openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
+    openai_organization: config?.openaiClientKwargs?.organization ?? undefined,
+    openai_project: config?.openaiClientKwargs?.project ?? undefined,
+    openai_default_headers: safelyJSONStringify(
+      config?.openaiClientKwargs?.defaultHeaders
+    ),
+  };
+}
 
-  switch (sdk) {
-    case "OPENAI":
-      return {
-        ...baseValues,
-        sdk: "OPENAI",
-        openai_api_type:
-          (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
-          "RESPONSES",
-        openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
-        openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
-        openai_organization:
-          config?.openaiClientKwargs?.organization ?? undefined,
-        openai_project: config?.openaiClientKwargs?.project ?? undefined,
-        openai_default_headers: safelyJSONStringify(
-          config?.openaiClientKwargs?.defaultHeaders
-        ),
-      };
+function transformAzureOpenAIConfig(
+  provider: CustomProviderNode
+): AzureOpenAIFormData {
+  const config = provider.config;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "AZURE_OPENAI",
+    openai_api_type:
+      (config?.openaiApiType as AzureOpenAIFormData["openai_api_type"]) ??
+      "RESPONSES",
+    ...getAzureAuthenticationFormValues(
+      config?.azureOpenaiAuthenticationMethod
+    ),
+    ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
+  };
+}
 
-    case "AZURE_OPENAI": {
-      const authMethod = config?.azureOpenaiAuthenticationMethod;
-      const kwargs = config?.azureOpenaiClientKwargs;
+function getAzureAuthenticationFormValues(
+  authMethod: ProviderConfig["azureOpenaiAuthenticationMethod"]
+): Pick<
+  AzureOpenAIFormData,
+  | "azure_auth_method"
+  | "azure_api_key"
+  | "azure_tenant_id"
+  | "azure_client_id"
+  | "azure_client_secret"
+  | "azure_scope"
+> {
+  const tokenProvider = authMethod?.azureAdTokenProvider;
+  return {
+    azure_auth_method: authMethod?.defaultCredentials
+      ? "default_credentials"
+      : tokenProvider
+        ? "ad_token_provider"
+        : "api_key",
+    azure_api_key: authMethod?.apiKey ?? undefined,
+    azure_tenant_id: tokenProvider?.azureTenantId ?? undefined,
+    azure_client_id: tokenProvider?.azureClientId ?? undefined,
+    azure_client_secret: tokenProvider?.azureClientSecret ?? undefined,
+    azure_scope: tokenProvider?.scope ?? undefined,
+  };
+}
 
-      // Determine auth method based on which credentials are present
-      let authMethodType: AzureOpenAIFormData["azure_auth_method"] = "api_key";
-      if (authMethod?.defaultCredentials) {
-        authMethodType = "default_credentials";
-      } else if (authMethod?.azureAdTokenProvider) {
-        authMethodType = "ad_token_provider";
-      }
+function getAzureClientFormValues(
+  kwargs: ProviderConfig["azureOpenaiClientKwargs"]
+): Pick<AzureOpenAIFormData, "azure_endpoint" | "azure_default_headers"> {
+  return {
+    azure_endpoint: kwargs?.azureEndpoint ?? "",
+    azure_default_headers: safelyJSONStringify(kwargs?.defaultHeaders),
+  };
+}
 
-      return {
-        ...baseValues,
-        sdk: "AZURE_OPENAI",
-        openai_api_type:
-          (config?.openaiApiType as AzureOpenAIFormData["openai_api_type"]) ??
-          "RESPONSES",
-        azure_endpoint: kwargs?.azureEndpoint ?? "",
-        azure_auth_method: authMethodType,
-        azure_api_key: authMethod?.apiKey ?? undefined,
-        azure_tenant_id:
-          authMethod?.azureAdTokenProvider?.azureTenantId ?? undefined,
-        azure_client_id:
-          authMethod?.azureAdTokenProvider?.azureClientId ?? undefined,
-        azure_client_secret:
-          authMethod?.azureAdTokenProvider?.azureClientSecret ?? undefined,
-        azure_scope: authMethod?.azureAdTokenProvider?.scope ?? undefined,
-        azure_default_headers: safelyJSONStringify(kwargs?.defaultHeaders),
-      };
-    }
+function transformAnthropicConfig(
+  provider: CustomProviderNode
+): AnthropicFormData {
+  const config = provider.config;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "ANTHROPIC",
+    anthropic_api_key: config?.anthropicAuthenticationMethod?.apiKey || "",
+    anthropic_base_url: config?.anthropicClientKwargs?.baseUrl ?? undefined,
+    anthropic_default_headers: safelyJSONStringify(
+      config?.anthropicClientKwargs?.defaultHeaders
+    ),
+  };
+}
 
-    case "ANTHROPIC":
-      return {
-        ...baseValues,
-        sdk: "ANTHROPIC",
-        anthropic_api_key: config?.anthropicAuthenticationMethod?.apiKey || "",
-        anthropic_base_url: config?.anthropicClientKwargs?.baseUrl ?? undefined,
-        anthropic_default_headers: safelyJSONStringify(
-          config?.anthropicClientKwargs?.defaultHeaders
-        ),
-      };
+function transformAwsBedrockConfig(
+  provider: CustomProviderNode
+): AWSBedrockFormData {
+  const config = provider.config;
+  const authMethod = config?.awsBedrockAuthenticationMethod;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "AWS_BEDROCK",
+    aws_region: config?.awsBedrockClientKwargs?.regionName || "",
+    aws_auth_method: authMethod?.defaultCredentials
+      ? "default_credentials"
+      : "access_keys",
+    aws_access_key_id: authMethod?.accessKeys?.awsAccessKeyId ?? undefined,
+    aws_secret_access_key:
+      authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
+    aws_session_token: authMethod?.accessKeys?.awsSessionToken ?? undefined,
+    aws_endpoint_url: config?.awsBedrockClientKwargs?.endpointUrl ?? undefined,
+  };
+}
 
-    case "AWS_BEDROCK": {
-      const authMethod = config?.awsBedrockAuthenticationMethod;
-      // Determine auth method based on which fields are present
-      let authMethodType: AWSBedrockFormData["aws_auth_method"] = "access_keys";
-      if (authMethod?.defaultCredentials) {
-        authMethodType = "default_credentials";
-      }
-
-      return {
-        ...baseValues,
-        sdk: "AWS_BEDROCK",
-        aws_region: config?.awsBedrockClientKwargs?.regionName || "",
-        aws_auth_method: authMethodType,
-        aws_access_key_id: authMethod?.accessKeys?.awsAccessKeyId ?? undefined,
-        aws_secret_access_key:
-          authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
-        aws_session_token: authMethod?.accessKeys?.awsSessionToken ?? undefined,
-        aws_endpoint_url:
-          config?.awsBedrockClientKwargs?.endpointUrl ?? undefined,
-      };
-    }
-
-    case "GOOGLE_GENAI": {
-      const httpOptions = config?.googleGenaiClientKwargs?.httpOptions;
-      return {
-        ...baseValues,
-        sdk: "GOOGLE_GENAI",
-        google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
-        google_base_url: httpOptions?.baseUrl ?? undefined,
-        google_headers: safelyJSONStringify(httpOptions?.headers),
-      };
-    }
-
-    default: {
-      const _exhaustive: never = sdk;
-      invariant(
-        false,
-        `Unknown SDK type "${String(_exhaustive)}" received from backend. ` +
-          `The frontend may need to be updated to support this SDK type.`
-      );
-      return _exhaustive;
-    }
-  }
+function transformGoogleGenAIConfig(
+  provider: CustomProviderNode
+): GoogleGenAIFormData {
+  const config = provider.config;
+  const httpOptions = config?.googleGenaiClientKwargs?.httpOptions;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "GOOGLE_GENAI",
+    google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
+    google_base_url: httpOptions?.baseUrl ?? undefined,
+    google_headers: safelyJSONStringify(httpOptions?.headers),
+  };
 }
 
 // =============================================================================
@@ -524,76 +558,51 @@ export function transformToPatchInput(
  * Checks if any SDK-specific configuration fields have changed.
  * Returns true if any field in the config section differs from the original.
  */
+const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
+  OPENAI: [
+    "openai_api_type",
+    "openai_api_key",
+    "openai_base_url",
+    "openai_organization",
+    "openai_project",
+    "openai_default_headers",
+  ],
+  AZURE_OPENAI: [
+    "openai_api_type",
+    "azure_endpoint",
+    "azure_auth_method",
+    "azure_api_key",
+    "azure_tenant_id",
+    "azure_client_id",
+    "azure_client_secret",
+    "azure_scope",
+    "azure_default_headers",
+  ],
+  ANTHROPIC: [
+    "anthropic_api_key",
+    "anthropic_base_url",
+    "anthropic_default_headers",
+  ],
+  AWS_BEDROCK: [
+    "aws_region",
+    "aws_auth_method",
+    "aws_access_key_id",
+    "aws_secret_access_key",
+    "aws_session_token",
+    "aws_endpoint_url",
+  ],
+  GOOGLE_GENAI: ["google_api_key", "google_base_url", "google_headers"],
+};
+
 function hasConfigChanged(
   formData: ProviderFormData,
   originalValues: ProviderFormData
 ): boolean {
-  // If SDK changed, config definitely changed
-  if (formData.sdk !== originalValues.sdk) {
-    return true;
-  }
+  if (formData.sdk !== originalValues.sdk) return true;
 
-  // Compare SDK-specific fields based on the SDK type.
-  // We use invariant to narrow originalValues since TypeScript can't track
-  // the relationship established by the early return above.
-  switch (formData.sdk) {
-    case "OPENAI": {
-      invariant(originalValues.sdk === "OPENAI", "SDK mismatch");
-      return (
-        formData.openai_api_type !== originalValues.openai_api_type ||
-        formData.openai_api_key !== originalValues.openai_api_key ||
-        formData.openai_base_url !== originalValues.openai_base_url ||
-        formData.openai_organization !== originalValues.openai_organization ||
-        formData.openai_project !== originalValues.openai_project ||
-        formData.openai_default_headers !==
-          originalValues.openai_default_headers
-      );
-    }
-    case "AZURE_OPENAI": {
-      invariant(originalValues.sdk === "AZURE_OPENAI", "SDK mismatch");
-      return (
-        formData.openai_api_type !== originalValues.openai_api_type ||
-        formData.azure_endpoint !== originalValues.azure_endpoint ||
-        formData.azure_auth_method !== originalValues.azure_auth_method ||
-        formData.azure_api_key !== originalValues.azure_api_key ||
-        formData.azure_tenant_id !== originalValues.azure_tenant_id ||
-        formData.azure_client_id !== originalValues.azure_client_id ||
-        formData.azure_client_secret !== originalValues.azure_client_secret ||
-        formData.azure_scope !== originalValues.azure_scope ||
-        formData.azure_default_headers !== originalValues.azure_default_headers
-      );
-    }
-    case "ANTHROPIC": {
-      invariant(originalValues.sdk === "ANTHROPIC", "SDK mismatch");
-      return (
-        formData.anthropic_api_key !== originalValues.anthropic_api_key ||
-        formData.anthropic_base_url !== originalValues.anthropic_base_url ||
-        formData.anthropic_default_headers !==
-          originalValues.anthropic_default_headers
-      );
-    }
-    case "AWS_BEDROCK": {
-      invariant(originalValues.sdk === "AWS_BEDROCK", "SDK mismatch");
-      return (
-        formData.aws_region !== originalValues.aws_region ||
-        formData.aws_auth_method !== originalValues.aws_auth_method ||
-        formData.aws_access_key_id !== originalValues.aws_access_key_id ||
-        formData.aws_secret_access_key !==
-          originalValues.aws_secret_access_key ||
-        formData.aws_session_token !== originalValues.aws_session_token ||
-        formData.aws_endpoint_url !== originalValues.aws_endpoint_url
-      );
-    }
-    case "GOOGLE_GENAI": {
-      invariant(originalValues.sdk === "GOOGLE_GENAI", "SDK mismatch");
-      return (
-        formData.google_api_key !== originalValues.google_api_key ||
-        formData.google_base_url !== originalValues.google_base_url ||
-        formData.google_headers !== originalValues.google_headers
-      );
-    }
-    default: {
-      return assertUnreachable(formData);
-    }
-  }
+  const current = formData as unknown as Record<string, unknown>;
+  const original = originalValues as unknown as Record<string, unknown>;
+  return CONFIG_FIELDS_BY_SDK[formData.sdk].some(
+    (field) => current[field] !== original[field]
+  );
 }

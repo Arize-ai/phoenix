@@ -15,15 +15,15 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.111",
     "@ai-sdk/google": "^3.0.119",
-    "@ai-sdk/openai": "^3.0.99",
+    "@ai-sdk/openai": "^3.0.125",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.5",
     "dotenv": "^17.4.2",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   }
 }

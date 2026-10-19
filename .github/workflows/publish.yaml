@@ -56,6 +56,9 @@ jobs:
           NEED_PACKAGES='[]'
           for path in $(jq -r 'keys[]' .release-please-manifest.json); do
             [ -z "$path" ] && continue
+            # sqlean-release decides arize-phoenix-sqlean: after an interrupted
+            # upload a version is on PyPI with only some of its files.
+            [ "$path" = "packages/phoenix-sqlean" ] && continue
             NAME=$(jq -r --arg p "$path" '.packages[$p]["package-name"] // empty' release-please-config.json)
             VERSION=$(jq -r --arg p "$path" '.[$p]' .release-please-manifest.json)
             if [ -z "$NAME" ] || [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
@@ -107,10 +110,11 @@ jobs:
       - name: Build frontend
         working-directory: ./js
         run: pnpm install --frozen-lockfile && pnpm --filter 'phoenix-ui...' run build
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          python-version: "3.10"
-          version: "0.12.5"
+          python-version: "3.11"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -215,11 +219,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check.outputs.needed == 'true'
         with:
-          python-version: "3.10"
-          version: "0.12.5"
+          python-version: "3.11"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -276,24 +281,30 @@ jobs:
 
   # arize-phoenix-sqlean is a vendored C extension (fork of nalgeon/sqlean.py),
   # so it cannot go through the pure-Python `uv build` matrix above: wheels are
-  # compiled per platform and interpreter with cibuildwheel. Source preparation
-  # (downloading the SQLite amalgamation and sqlean extension sources that the
-  # sdist bundles) runs once on Ubuntu and is handed to the build legs as an
-  # artifact, because the Makefile needs make/curl/unzip, which the Windows
-  # runner does not provide.
-  sqlean-sources:
-    name: Prepare arize-phoenix-sqlean sources
+  # compiled per platform and interpreter with cibuildwheel, from the release
+  # tag, by phoenix-sqlean-build.yml.
+  #
+  # Runs on every release: it publishes when the manifest version is tagged and
+  # PyPI lacks any of its distributions, so re-running after an interrupted
+  # upload completes the release.
+  sqlean-release:
+    name: Resolve arize-phoenix-sqlean release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: list-python-packages
-    if: contains(fromJSON(needs.list-python-packages.outputs.package_paths), 'packages/phoenix-sqlean')
     permissions:
       contents: read
     outputs:
-      needed: ${{ steps.ref.outputs.needed }}
+      needed: ${{ steps.pypi.outputs.needed || 'false' }}
+      ref: ${{ steps.ref.outputs.ref }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          sparse-checkout: |
+            .release-please-manifest.json
+            packages/phoenix-sqlean/scripts/check-wheelhouse.py
+          sparse-checkout-cone-mode: false
       - name: Resolve ref from manifest
         id: ref
         run: |
@@ -306,44 +317,61 @@ jobs:
           # Until release-please creates the first release of this package, the
           # manifest version has no tag — skip instead of failing the run.
           if git ls-remote --exit-code origin "refs/tags/${TAG}" > /dev/null 2>&1; then
-            echo "needed=true" >> $GITHUB_OUTPUT
             echo "ref=refs/tags/${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
           else
             echo "Tag ${TAG} does not exist yet; skipping arize-phoenix-sqlean"
-            echo "needed=false" >> $GITHUB_OUTPUT
           fi
+      # A complete release is the tag's python_requires across this commit's
+      # PLATFORMS: the runners that would build it come from this commit too.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        if: steps.ref.outputs.needed == 'true'
+        if: steps.ref.outputs.ref != ''
         with:
           persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
-      - name: Download SQLite and sqlean extension sources
-        if: steps.ref.outputs.needed == 'true'
-        working-directory: packages/phoenix-sqlean
-        run: make prepare-src download-sqlite download-sqlean
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: steps.ref.outputs.needed == 'true'
-        with:
-          name: arize-phoenix-sqlean-sources
-          path: packages/phoenix-sqlean
+          path: release
+          sparse-checkout: packages/phoenix-sqlean/setup.py
+          sparse-checkout-cone-mode: false
+      - name: Check PyPI for every distribution
+        id: pypi
+        if: steps.ref.outputs.ref != ''
+        env:
+          VERSION: ${{ steps.ref.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir on-pypi
+          HTTP=$(curl -sS -o pypi.json -w "%{http_code}" "https://pypi.org/pypi/arize-phoenix-sqlean/${VERSION}/json")
+          case "$HTTP" in
+            200) jq -r '.urls[].filename' pypi.json | while read -r f; do touch "on-pypi/$f"; done ;;
+            404) ;;
+            *) echo "::error::PyPI returned HTTP ${HTTP} for arize-phoenix-sqlean ${VERSION}"; exit 1 ;;
+          esac
+          rc=0
+          python3 packages/phoenix-sqlean/scripts/check-wheelhouse.py \
+            release/packages/phoenix-sqlean/setup.py on-pypi --missing-only || rc=$?
+          case "$rc" in
+            0) echo "arize-phoenix-sqlean ${VERSION} is complete on PyPI, skipping"
+               echo "needed=false" >> "$GITHUB_OUTPUT" ;;
+            3) echo "needed=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
 
-  # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. No
-  # cibw-* overrides here: the shipped matrix is cibuildwheel.toml's business.
+  # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. It
+  # uploads arize-phoenix-sqlean-dist-<runner> and checks the merged set.
   build-sqlean:
     name: Build arize-phoenix-sqlean
-    needs: sqlean-sources
-    if: needs.sqlean-sources.result == 'success' && needs.sqlean-sources.outputs.needed == 'true'
+    needs: sqlean-release
+    if: needs.sqlean-release.result == 'success' && needs.sqlean-release.outputs.needed == 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/phoenix-sqlean-build.yml
     with:
-      sources-artifact: arize-phoenix-sqlean-sources
-      runners: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]'
-      dist-artifact-prefix: arize-phoenix-sqlean-dist
+      ref: ${{ needs.sqlean-release.outputs.ref }}
 
   publish-sqlean:
     name: Publish arize-phoenix-sqlean
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build-sqlean
     if: needs.build-sqlean.result == 'success'
     permissions:
@@ -354,7 +382,10 @@ jobs:
           pattern: arize-phoenix-sqlean-dist-*
           path: dist/
           merge-multiple: true
+      # skip-existing: completing a partial release uploads only what PyPI lacks.
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true
 
   trigger-version-updates:
     name: Trigger dependency updates
@@ -417,7 +448,7 @@ jobs:
       - publish-phoenix
       - build-packages
       - publish-packages
-      - sqlean-sources
+      - sqlean-release
       - build-sqlean
       - publish-sqlean
       - trigger-version-updates
@@ -537,14 +568,15 @@ jobs:
           package_json_file: js/package.json
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0  # zizmor: ignore[cache-poisoning]
         with:
-          node-version: 22
+          node-version: 24
       - name: Build frontend
         working-directory: ./js
         run: pnpm install --frozen-lockfile && pnpm --filter 'phoenix-ui...' run build
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          python-version: "3.10"
-          version: "0.12.5"
+          python-version: "3.11"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -612,11 +644,12 @@ jobs:
           # Pin to the exact commit detected by preview-changes (see preview-phoenix).
           ref: ${{ needs.preview-changes.outputs.sha }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check.outputs.needed == 'true'
         with:
-          python-version: "3.10"
-          version: "0.12.5"
+          python-version: "3.11"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'

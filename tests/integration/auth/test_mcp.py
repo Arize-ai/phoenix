@@ -10,15 +10,15 @@ indicator, and the minted token authorizes real MCP tool calls end to end. The
 resource indicator is also binding: a code or grant authorized for /mcp cannot be
 redeemed or refreshed for a different resource.
 
-These tests run against the package-scoped ``_app`` (which enables the MCP mount —
-see the package ``_env`` fixture), so they execute on the same database backend as
-the rest of the suite (SQLite or PostgreSQL per ``CI_TEST_DB_BACKEND``).
+These tests use the same database backend as the rest of the suite (SQLite or
+PostgreSQL per ``CI_TEST_DB_BACKEND``). Most use the package-scoped ``_app``;
+code-mode tests start a separate server with code mode enabled.
 """
 
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Any, Iterator, cast
+from typing import Any, Iterator, Mapping, cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -37,7 +37,7 @@ from tests.integration._helpers import (
     _server,
 )
 
-from .conftest import _oauth2_app_env, _OAuthPublicClient
+from .conftest import _OAuthPublicClient
 
 
 def _base_url(app: _AppInfo) -> str:
@@ -154,7 +154,7 @@ class TestMcpResourceIndicator:
         )
         async with Client(transport) as mcp_client:
             tool_names = {tool.name for tool in await mcp_client.list_tools()}
-            assert "getProjects" in tool_names  # the default-visible tool group
+            assert "getProjects" in tool_names  # GET /v1/projects
             result = await mcp_client.call_tool("getProjects", {})
         # The tool call dispatched in-process to GET /v1/projects under the granted
         # user's identity; the database contains the "default" project.
@@ -361,12 +361,10 @@ class TestMcpToolAuthorization:
     Every ``/v1`` route is exposed as a tool, and a tool call dispatches in-process to
     ``/v1`` carrying the caller's authenticated principal (``_InternalIdentityDispatch``
     in ``mcp_server.py``). An admin-gated route (``Depends(require_admin)``) must
-    therefore still ``403`` a member reached through its tool. Progressive disclosure
-    hides the admin ``users`` group, but hiding is not authorization: any caller may
-    reveal it with ``enable_tool_group``, so ``require_admin`` on the dispatched
-    principal is the real backstop. A member receiving the user list here would be a
-    confused-deputy privilege escalation through ``/mcp`` — the audit's highest-ranked,
-    previously untested claim.
+    therefore still ``403`` a member reached through its tool: every caller is
+    advertised the whole surface, so ``require_admin`` on the dispatched principal is
+    the only backstop. A member receiving the user list here would be a
+    confused-deputy privilege escalation through ``/mcp``.
     """
 
     @pytest.mark.parametrize(
@@ -383,11 +381,6 @@ class TestMcpToolAuthorization:
     ) -> None:
         token = _mcp_token_for(_app, _get_user, role)
         async with Client(_mcp_transport(_app, token)) as mcp_client:
-            # Reveal the admin ``users`` group the way any caller can. This is a
-            # surface reveal, not an authorization grant — it only makes ``getUsers``
-            # callable so that any denial below must come from ``require_admin`` at
-            # the route, not from the tool being hidden.
-            await mcp_client.call_tool("enable_tool_group", {"group": "users"})
             # getUsers == GET /v1/users, gated by require_admin.
             result = await mcp_client.call_tool("getUsers", {}, raise_on_error=False)
 
@@ -426,7 +419,6 @@ class TestMcpToolAuthorization:
         """
         token = _mcp_token_for(_app, _get_user, role)
         async with Client(_mcp_transport(_app, token)) as mcp_client:
-            await mcp_client.call_tool("enable_tool_group", {"group": "annotation_configs"})
             # A fake id: a viewer is blocked before it is inspected; a member reaches
             # the id-format check and gets 422.
             result = await mcp_client.call_tool(
@@ -446,25 +438,24 @@ class TestMcpToolAuthorization:
 
 @pytest.fixture(scope="module")
 def _app_mcp_code_mode(
+    _env_database: Mapping[str, str],
+    _env_auth: Mapping[str, str],
     _ports: Iterator[int],
-    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
     Code mode replaces the tool surface, so it cannot share the package app.
-    SQLite only: the code-mode surface is request plumbing over the same /v1
-    paths the package app already exercises on both backends.
     """
-    env = _oauth2_app_env(
-        port=next(_ports),
-        grpc_port=next(_ports),
-        database=str(tmp_path_factory.mktemp("oauth2_mcp_code_mode") / "phoenix.db"),
-        extra={
-            "PHOENIX_ENABLE_MCP_SERVER": "true",
-            "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
-            "PHOENIX_DISABLE_RATE_LIMIT": "true",
-        },
-    )
+    env = {
+        **_env_database,
+        **_env_auth,
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
+        "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,http://127.0.0.1,",
+        "PHOENIX_ENABLE_MCP_SERVER": "true",
+        "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
+    }
     with _server(_AppInfo(env)) as app:
         yield app
 
@@ -492,7 +483,17 @@ class TestMcpCodeMode:
         )
         async with Client(transport) as mcp_client:
             tool_names = {tool.name for tool in await mcp_client.list_tools()}
-            assert tool_names == {"search", "get_schema", "tags", "list_tools", "execute"}
+            # Code mode replaces the tool surface with its meta-tools, but the
+            # skill tools stay on tools/list alongside them.
+            assert tool_names == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "load_skill_reference",
+            }
 
             result = await mcp_client.call_tool(
                 "execute",

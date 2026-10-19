@@ -348,24 +348,27 @@ class SandboxSessionManager(DaemonTask):
         Three phases under DaemonTask.stop's 10s ceiling: (1) await
         ``_pending_tasks`` so scheduled close_session calls complete;
         (2) ``_evict_targets`` over every tracked key; (3) cancel sweeper.
+        Phase 3 runs even if the drain is cancelled or raises.
         """
-        pending = self._pending_tasks
-        if pending:
-            # asyncio.wait leaves still-pending tasks running (not cancelled)
-            # so a slow close_session past the grace window completes.
-            _, still_pending = await asyncio.wait(pending, timeout=self.eviction_grace_seconds)
-            if still_pending:
-                logger.warning(
-                    "Pending sandbox eviction tasks did not drain within %.2fs",
-                    self.eviction_grace_seconds,
-                )
-        tracked_keys = list(self._tracked.keys())
-        if tracked_keys:
-            try:
-                await self._evict_targets(tracked_keys)
-            except Exception:
-                logger.exception("Failed to drain tracked sandbox sessions during shutdown")
-        await super().stop()
+        try:
+            pending = self._pending_tasks
+            if pending:
+                # asyncio.wait leaves still-pending tasks running (not cancelled)
+                # so a slow close_session past the grace window completes.
+                _, still_pending = await asyncio.wait(pending, timeout=self.eviction_grace_seconds)
+                if still_pending:
+                    logger.warning(
+                        "Pending sandbox eviction tasks did not drain within %.2fs",
+                        self.eviction_grace_seconds,
+                    )
+            tracked_keys = list(self._tracked.keys())
+            if tracked_keys:
+                try:
+                    await self._evict_targets(tracked_keys)
+                except Exception:
+                    logger.exception("Failed to drain tracked sandbox sessions during shutdown")
+        finally:
+            await super().stop()
 
     # ------------------------------------------------------------------
     # Internals

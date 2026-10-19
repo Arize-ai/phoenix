@@ -1,8 +1,10 @@
 # Validating Evaluators (Python)
 
-Validate LLM evaluators against human-labeled examples. Target >80% TPR/TNR/Accuracy.
+Validate LLM evaluators against human-labeled examples. Target >80% accuracy, >70% TPR/TNR.
 
 ## Calculate Metrics
+
+These snippets use scikit-learn, which no Phoenix package installs: `pip install scikit-learn`.
 
 ```python
 from sklearn.metrics import classification_report, confusion_matrix

@@ -145,8 +145,8 @@ async def test_experiments_api(
             "label": "some label",
             "score": 0.5,
             "explanation": "some explanation",
-            "metadata": {"some": "metadata"},
         },
+        "metadata": {"some": "metadata"},
         "error": "an error message, if applicable",
         "start_time": datetime.now(timezone.utc).isoformat(),
         "end_time": datetime.now(timezone.utc).isoformat(),
@@ -167,7 +167,7 @@ async def test_experiments_api(
     assert annotation.pop("label") == "some label"
     assert annotation.pop("score") == 0.5
     assert annotation.pop("explanation") == "some explanation"
-    assert annotation.pop("metadata") == {}
+    assert annotation.pop("metadata") == {"some": "metadata"}
     assert annotation.pop("annotator_kind") == "LLM"
     assert annotation.pop("trace_id") == "placeholder-id"
     assert annotation.pop("error") == "an error message, if applicable"
@@ -207,13 +207,208 @@ async def test_experiments_api(
     assert row.pop(f"{annotation_prefix}_label") == "some label"
     assert row.pop(f"{annotation_prefix}_score") == 0.5
     assert row.pop(f"{annotation_prefix}_explanation") == "some explanation"
-    assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {}
+    assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {"some": "metadata"}
     assert row.pop(f"{annotation_prefix}_annotator_kind") == "LLM"
     assert row.pop(f"{annotation_prefix}_trace_id") == "placeholder-id"
     assert row.pop(f"{annotation_prefix}_error") == "an error message, if applicable"
     assert isinstance(row.pop(f"{annotation_prefix}_start_time"), str)
     assert isinstance(row.pop(f"{annotation_prefix}_end_time"), str)
     assert not row
+
+
+async def test_experiment_json_and_csv_export_with_errored_run(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """
+    A run that errored before producing a task output is stored with ``output={}``
+    (no ``task_output`` key). The JSON and CSV exports must still succeed for such an
+    experiment rather than raising ``KeyError`` and returning a 500.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    created_experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created_experiment["id"]
+    experiment_rowid = from_global_id_with_expected_type(
+        GlobalID.from_id(experiment_gid), "Experiment"
+    )
+
+    async with db() as session:
+        session.add(
+            models.ExperimentRun(
+                experiment_id=experiment_rowid,
+                dataset_example_id=0,
+                output={},
+                repetition_number=1,
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                error="Missing template variable(s): text",
+            )
+        )
+
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/json")
+    assert response.status_code == 200
+    runs = json.loads(response.text)
+    assert len(runs) == 1
+    assert runs[0]["output"] is None
+    assert runs[0]["error"] == "Missing template variable(s): text"
+
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.text))
+    assert len(df) == 1
+    assert pd.isna(df.iloc[0]["output"])
+    assert df.iloc[0]["error"] == "Missing template variable(s): text"
+
+
+@pytest.mark.parametrize(
+    "extra_payload, expected_metadata",
+    [
+        pytest.param(
+            {"result": {"score": 1.0, "metadata": {"nested": 1}}},
+            {"nested": 1},
+            id="legacy-nested-metadata-is-recovered",
+        ),
+        pytest.param(
+            {
+                "result": {"score": 1.0, "metadata": {"a": "nested", "b": "nested"}},
+                "metadata": {"a": "top"},
+            },
+            {"a": "top", "b": "nested"},
+            id="top-level-metadata-takes-precedence",
+        ),
+        pytest.param(
+            {"result": {"score": 1.0, "metadata": "not-a-dict"}},
+            {},
+            id="non-dict-nested-metadata-is-ignored",
+        ),
+    ],
+)
+async def test_experiment_evaluation_recovers_metadata_nested_under_result(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    extra_payload: dict[str, Any],
+    expected_metadata: dict[str, Any],
+) -> None:
+    """
+    Older clients sent evaluator metadata under ``result.metadata`` instead of at
+    the top level. The server must keep that metadata rather than dropping it.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    experiment_gid = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]["id"]
+    run_id = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment_gid}/runs",
+            json={
+                "dataset_example_id": str(GlobalID("DatasetExample", "0")),
+                "output": "output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]["id"]
+
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_id,
+            "name": "evaluation",
+            "annotator_kind": "CODE",
+            "start_time": datetime.now(timezone.utc).isoformat(),
+            "end_time": datetime.now(timezone.utc).isoformat(),
+            **extra_payload,
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        annotation = await session.scalar(select(models.ExperimentRunAnnotation))
+    assert annotation is not None
+    assert annotation.score == 1.0
+    assert annotation.metadata_ == expected_metadata
+
+
+async def test_replacing_an_errored_run_removes_evaluations_of_the_failed_output(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """
+    ``resume_experiment`` re-runs errored runs by upserting them in place. An evaluation scored on
+    the failed output must not survive as the score of the new output, or ``resume_evaluation``
+    treats the run as already evaluated and the stale score stays.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    experiment_gid = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    run = {
+        "dataset_example_id": str(GlobalID("DatasetExample", "0")),
+        "output": None,
+        "repetition_number": 1,
+        "start_time": now,
+        "end_time": now,
+        "error": "boom",
+    }
+    response = await httpx_client.post(f"v1/experiments/{experiment_gid}/runs", json=run)
+    assert response.status_code == 200
+    run_gid = response.json()["data"]["id"]
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "exact",
+            "annotator_kind": "CODE",
+            "start_time": now,
+            "end_time": now,
+            "result": {"score": 0.0},
+        },
+    )
+    assert response.status_code == 200
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "reviewer note",
+            "annotator_kind": "HUMAN",
+            "start_time": now,
+            "end_time": now,
+            "result": {"label": "flaky"},
+        },
+    )
+    assert response.status_code == 200
+
+    response = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs", json={**run, "output": "B", "error": None}
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == run_gid
+    async with db() as session:
+        annotations = (
+            await session.scalars(
+                select(models.ExperimentRunAnnotation).where(
+                    models.ExperimentRunAnnotation.experiment_run_id
+                    == int(GlobalID.from_id(run_gid).node_id)
+                )
+            )
+        ).all()
+    assert [(a.name, a.annotator_kind) for a in annotations] == [("reviewer note", "HUMAN")]
 
 
 async def test_experiment_404s_with_missing_dataset(

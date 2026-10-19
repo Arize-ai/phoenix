@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Alert, Button, Flex } from "@phoenix/components";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import type { TraceTreeProps } from "@phoenix/components/trace/TraceTree";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 
@@ -10,7 +11,7 @@ import type { ConnectedTraceTreeQuery } from "./__generated__/ConnectedTraceTree
 
 type ConnectedTraceTreeProps = {
   trace: ConnectedTraceTree$key;
-} & Omit<TraceTreeProps, "spans">;
+} & Omit<TraceTreeProps, "spans" | "annotationConfigsByName">;
 
 const PAGE_SIZE = 1000;
 /**
@@ -29,6 +30,9 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
         cursor: { type: "String", defaultValue: null }
       ) {
         numSpans
+        project {
+          ...ProjectAnnotationConfigsByNameFragment
+        }
         spans(first: $count, after: $cursor)
           @connection(key: "ConnectedTraceTree_spans") {
           edges {
@@ -43,17 +47,21 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
               parentId
               latencyMs
               tokenCountTotal
-              spanAnnotationSummaries {
-                labels
+              costSummary {
+                total {
+                  cost
+                }
+              }
+              spanAnnotationSummaries(
+                filter: { exclude: { names: ["note"] } }
+              ) {
+                name
                 count
-                labelCount
+                meanScore
                 labelFractions {
                   fraction
                   label
                 }
-                name
-                scoreCount
-                meanScore
               }
             }
           }
@@ -66,6 +74,9 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
     const gqlSpans = data?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.project
+  );
 
   const totalSpans = data?.numSpans;
   const totalSpansViewing = spansList.length;
@@ -90,7 +101,11 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
           Viewing {totalSpansViewing} of {totalSpans} spans.
         </Alert>
       ) : null}
-      <TraceTree spans={spansList} {...props} />
+      <TraceTree
+        spans={spansList}
+        annotationConfigsByName={annotationConfigsByName}
+        {...props}
+      />
     </Flex>
   );
 }

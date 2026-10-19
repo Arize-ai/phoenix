@@ -1,5 +1,11 @@
-import type { ReactNode } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
+
+import {
+  isRedirectingToLogin,
+  isRedirectingToLoginError,
+} from "@phoenix/authFetch";
+import { reportClientError } from "@phoenix/utils/reportClientError";
 
 import { BugReportErrorBoundaryFallback } from "./BugReportErrorBoundaryFallback";
 import type { ErrorBoundaryFallbackComponent } from "./types";
@@ -25,13 +31,25 @@ export class ErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: unknown, errorInfo: unknown) {
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught error:", error, errorInfo);
+    reportClientError({ error, componentStack: errorInfo.componentStack });
   }
 
   render() {
     if (this.state.hasError) {
+      if (
+        isRedirectingToLoginError(this.state.error) ||
+        isRedirectingToLogin()
+      ) {
+        // The browser is already navigating to the login page; render nothing
+        // rather than an error while the handoff completes. The flag check
+        // also covers errors from fetches interrupted by that navigation,
+        // which some browsers reject with a generic error rather than an
+        // AbortError.
+        return null;
+      }
       const errorMessage: string | null =
         this.state.error instanceof Error ? this.state.error.message : null;
       return typeof this.props.fallback === "function" ? (

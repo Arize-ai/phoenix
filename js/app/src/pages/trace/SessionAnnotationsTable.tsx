@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
@@ -17,6 +12,8 @@ import {
   tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SessionAnnotationDeleteButton } from "@phoenix/components/trace/SessionAnnotationDeleteButton";
@@ -157,17 +154,16 @@ function AnnotationsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: annotations as SessionAnnotation[],
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     state: {
       sorting,
       columnPinning: {
-        right: ["actions"],
+        start: [],
+        end: ["actions"],
       },
     },
   });
@@ -245,7 +241,6 @@ function AnnotationsTable({
  * attached to the session. Mounted only when the annotations tab is selected.
  */
 export function SessionAnnotationsTable({ sessionId }: { sessionId: string }) {
-  "use no memo";
   const queryData = useLazyLoadQuery<SessionAnnotationsTableQuery>(
     graphql`
       query SessionAnnotationsTableQuery($id: ID!) {

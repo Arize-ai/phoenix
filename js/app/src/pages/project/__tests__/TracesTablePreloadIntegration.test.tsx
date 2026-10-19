@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -13,13 +13,15 @@ installTestMatchMedia();
 
 const relayMocks = vi.hoisted(() => ({
   refetch: vi.fn(),
-  useLazyLoadQuery: vi.fn(),
   usePaginationFragment: vi.fn(),
 }));
 
 const fieldMocks = vi.hoisted(() => ({
   props: null as null | {
-    onValidCondition: (condition: string) => void;
+    onValidCondition: (args: {
+      condition: string;
+      isInitialSettlement: boolean;
+    }) => void;
   },
 }));
 
@@ -43,7 +45,6 @@ const timeRangeState = vi.hoisted(() => ({
 
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelayModule>()),
-  useLazyLoadQuery: relayMocks.useLazyLoadQuery,
   usePaginationFragment: relayMocks.usePaginationFragment,
 }));
 
@@ -94,7 +95,7 @@ vi.mock("@phoenix/components/table", async (importOriginal) => ({
 vi.mock("../TraceFilterConditionField", async () => {
   const React = await import("react");
   return {
-    TraceFilterConditionField: (
+    TraceFilterConditionFieldWithVocabulary: (
       props: NonNullable<typeof fieldMocks.props>
     ) => {
       fieldMocks.props = props;
@@ -126,6 +127,8 @@ import type { TracesTable_spans$key } from "../__generated__/TracesTable_spans.g
 import { TraceFiltersProvider } from "../TraceFiltersContext";
 import { TracesTable } from "../TracesTable";
 
+const seed = "num_spans >= 5";
+
 describe("TracesTable preload integration", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -135,10 +138,8 @@ describe("TracesTable preload integration", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     fieldMocks.props = null;
+    probedSearch = "";
     relayMocks.refetch.mockReset();
-    relayMocks.useLazyLoadQuery.mockReturnValue({
-      project: { traceFilterVocabulary: [] },
-    });
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
         id: "project-integration",
@@ -157,31 +158,83 @@ describe("TracesTable preload integration", () => {
     container.remove();
   });
 
-  it("keeps preloaded rows until a filter input changes", async () => {
-    await act(async () => {
+  function renderTable() {
+    return act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
           <MemoryRouter
-            initialEntries={["/projects/project-integration/traces"]}
+            initialEntries={[
+              `/projects/project-integration/traces?traceFilterCondition=${encodeURIComponent(seed)}`,
+            ]}
           >
             <TraceFiltersProvider>
-              <TracesTable project={{} as TracesTable_spans$key} />
+              <TracesTable project={{} as TracesTable_spans$key} seed={seed} />
             </TraceFiltersProvider>
+            <SearchProbe />
           </MemoryRouter>
         </ThemeProvider>
       );
     });
+  }
+
+  it("keeps preloaded rows through the seed's own mount settlement", async () => {
+    // A refetch would briefly swap in unfiltered rows for a condition the
+    // table already holds.
+    await renderTable();
 
     expect(container.querySelector("table")).not.toBeNull();
-    expect(relayMocks.refetch).not.toHaveBeenCalled();
 
     await act(async () => {
-      fieldMocks.props?.onValidCondition("num_spans >= 5");
+      fieldMocks.props?.onValidCondition({
+        condition: seed,
+        isInitialSettlement: true,
+      });
+    });
+
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
+    expect(probedSearch).toBe(
+      `?traceFilterCondition=${encodeURIComponent(seed)}`
+    );
+  });
+
+  it("refetches when the user applies a different condition", async () => {
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "latency_ms > 1000",
+        isInitialSettlement: false,
+      });
     });
 
     expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
     expect(relayMocks.refetch.mock.calls[0]?.[0]).toMatchObject({
-      traceFilterCondition: "num_spans >= 5",
+      traceFilterCondition: "latency_ms > 1000",
     });
+    expect(probedSearch).toContain("traceFilterCondition=latency_ms");
+  });
+
+  it("deletes the URL param when the user clears the condition", async () => {
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "",
+        isInitialSettlement: false,
+      });
+    });
+
+    expect(relayMocks.refetch.mock.calls[0]?.[0]).toMatchObject({
+      traceFilterCondition: null,
+    });
+    expect(probedSearch).not.toContain("traceFilterCondition");
   });
 });
+
+let probedSearch = "";
+/** Records the router's current search so tests can observe param writes. */
+function SearchProbe() {
+  // eslint-disable-next-line react/globals
+  probedSearch = useLocation().search;
+  return null;
+}

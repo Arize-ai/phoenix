@@ -1,6 +1,6 @@
 ---
 name: phoenix-evals
-description: Build and run evaluators for AI/LLM applications using Phoenix.
+description: Build, run, and validate evaluators for AI/LLM applications with Phoenix, in Python or TypeScript (including Vercel AI SDK apps) — code-based checks and LLM-as-a-judge, run over exported traces or dataframes or as Phoenix experiments, gate them in CI, and validate judges against human-labeled data.
 license: Apache-2.0
 compatibility: Requires Phoenix server. Python skills need phoenix and openai packages; TypeScript skills need @arizeai/phoenix-client.
 metadata:
@@ -29,6 +29,8 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Create dataset | [experiments-datasets-python](references/experiments-datasets-python.md), [experiments-datasets-typescript](references/experiments-datasets-typescript.md) |
 | Generate synthetic data | [experiments-synthetic-python](references/experiments-synthetic-python.md), [experiments-synthetic-typescript](references/experiments-synthetic-typescript.md) |
 | Validate evaluator accuracy | [validation](references/validation.md), [validation-evaluators-python](references/validation-evaluators-python.md), [validation-evaluators-typescript](references/validation-evaluators-typescript.md) |
+| Export spans | [observe-tracing-setup](references/observe-tracing-setup.md) |
+| Write a span filter (`SpanQuery().where`) | [filter-expressions](references/filter-expressions.md) |
 | Sample traces for review | [observe-sampling-python](references/observe-sampling-python.md), [observe-sampling-typescript](references/observe-sampling-typescript.md) |
 | Analyze errors | [error-analysis](references/error-analysis.md), [error-analysis-multi-turn](references/error-analysis-multi-turn.md), [axial-coding](references/axial-coding.md) |
 | RAG evals | [evaluators-rag](references/evaluators-rag.md) |
@@ -73,6 +75,6 @@ evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} 
 | Error analysis first | Can't automate what you haven't observed |
 | Custom > generic | Build from your failures |
 | Code first | Deterministic before LLM |
-| Validate judges | >80% TPR/TNR |
+| Validate judges | >80% accuracy, >70% TPR/TNR |
 | Binary > Likert | Pass/fail, not 1-5 |
 | Invariants gate, signals trend | `assert`/`expect` hard invariants (CI red); log LLM-judge quality signals and gate the aggregate (acceptance criteria), not every case |

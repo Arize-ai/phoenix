@@ -186,7 +186,9 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
     <ExternalLink
       href="https://github.com/Arize-ai/phoenix"
       leadingVisual={<Icon svg={<Icons.GitHub />} />}
-      trailingVisual={<GitHubStarCount />}
+      trailingVisual={
+        window.Config.allowExternalResources ? <GitHubStarCount /> : undefined
+      }
       text="Star on GitHub"
       isExpanded={isExpanded}
     />

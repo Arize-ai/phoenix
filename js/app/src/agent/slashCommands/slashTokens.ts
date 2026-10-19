@@ -2,7 +2,7 @@
  * Tokenizing for the prompt input's slash-command affordances.
  *
  * A slash token is the shared grammar behind both skill requests
- * (`/debug-trace`) and local prompt commands (`/clear`): a `/` at the start of
+ * (`/playground`) and local prompt commands (`/clear`): a `/` at the start of
  * the string or after whitespace followed by a slug-shaped name. These helpers
  * only recognize tokens; callers decide what a token means by validating the
  * name against their own catalog.
@@ -11,7 +11,7 @@
 /**
  * Matches a slash-command token: a `/` that begins the string or follows
  * whitespace, then a slug-shaped run (letters, digits, hyphens). Skill and
- * command names are slugs (e.g. `debug-trace`, `clear`), so this is
+ * command names are slugs (e.g. `playground`, `clear`), so this is
  * intentionally conservative.
  *
  * The leading group captures the boundary so we can re-anchor matches without a

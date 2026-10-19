@@ -1,14 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  ColumnDef,
-  OnChangeFn,
-  SortingState,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
 import {
   memo,
@@ -57,6 +49,8 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
@@ -152,7 +146,6 @@ export function ProjectsPageContent({
   timeRangeISOStrings: TimeRangeISOStrings;
   query: ProjectsPageProjectsFragment$key;
 }) {
-  "use no memo";
   const { projectViewMode } = usePreferencesContext((state) => ({
     projectViewMode: state.projectViewMode,
   }));
@@ -775,6 +768,9 @@ function ProjectsTable({
         header: "last updated at",
         accessorKey: "endTime",
         maxSize: 30,
+        // most recently updated first; TanStack's guess at a first direction
+        // depends on which rows come first
+        sortDescFirst: true,
         cell: TimestampCell,
       },
       {
@@ -868,11 +864,10 @@ function ProjectsTable({
     },
     [setProjectSortOrder, sortingRowModel, onSort]
   );
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: projects,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
@@ -881,6 +876,7 @@ function ProjectsTable({
       sorting: sortingRowModel,
     },
     enableSortingRemoval: false,
+    manualSorting: true,
     onSortingChange,
   });
   const rows = table.getRowModel().rows;

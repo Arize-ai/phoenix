@@ -61,6 +61,7 @@ Reference these guidelines when:
 - [span-reranker](references/span-reranker.md) - Document re-ranking
 - [span-guardrail](references/span-guardrail.md) - Safety checks
 - [span-evaluator](references/span-evaluator.md) - LLM evaluation
+- [span-decision](references/span-decision.md) - Decision model calls (routing, classification, scoring) — experimental
 
 ### 4. Organization
 
@@ -127,8 +128,8 @@ references/*-typescript.md      # TypeScript implementations
 
 **Python API Documentation:**
 
-- [Python OTEL Package](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/) - `arize-phoenix-otel` API reference
-- [Python Client Package](https://arize-phoenix.readthedocs.io/projects/client/en/latest/) - `arize-phoenix-client` API reference
+- [Python OTEL Package](https://arize-phoenix.readthedocs.io/projects/otel/) - `arize-phoenix-otel` API reference
+- [Python Client Package](https://arize-phoenix.readthedocs.io/projects/client/) - `arize-phoenix-client` API reference
 
 **TypeScript API Documentation:**
 

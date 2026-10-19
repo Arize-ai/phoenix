@@ -1,15 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  RowSelectionState,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowSelectionState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import React, { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -37,6 +28,11 @@ import {
   tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type {
+  CellContext,
+  ColumnDef,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
@@ -174,7 +170,6 @@ export const AnnotationConfigTable = ({
     }?: { onCompleted?: () => void; onError?: () => void }
   ) => void;
 }) => {
-  "use no memo";
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const data = useFragment(
     graphql`
@@ -221,12 +216,10 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: configs,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
@@ -235,8 +228,8 @@ export const AnnotationConfigTable = ({
       columnPinning: CHECKBOX_COLUMN_PINNING,
     },
   });
-  const isEmpty = table.getRowCount() === 0;
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedConfigs = selectedRows.map((row) => row.original);

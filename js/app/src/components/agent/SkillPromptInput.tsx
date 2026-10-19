@@ -1,11 +1,16 @@
 import { css } from "@emotion/react";
 import { AnimatePresence } from "motion/react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
 import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/PromptInputContext";
 
+import {
+  isCaretOnFirstLine,
+  isCaretOnLastLine,
+  stepPromptHistory,
+} from "./promptHistory";
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
@@ -16,6 +21,8 @@ const wrapperCSS = css`
   position: relative;
   width: 100%;
 `;
+
+export const PROMPT_MAX_ROWS = 12;
 
 // The textarea sits above the highlight overlay with transparent text so the
 // overlay's highlighted runs show through, while the caret stays visible.
@@ -30,6 +37,12 @@ const textareaCSS = css`
   // original height.
   min-height: calc(
     var(--global-line-height-s) * 3 + var(--global-dimension-size-100)
+  );
+  // Bounds the box against the auto-resize below, which writes an unbounded
+  // pixel height inline; the overlay is positioned to this box and follows.
+  max-height: calc(
+    var(--global-line-height-s) * ${PROMPT_MAX_ROWS} +
+      var(--global-dimension-size-100)
   );
   border: none;
   outline: none;
@@ -79,6 +92,11 @@ export type SkillPromptInputProps = {
    * being sent to the agent.
    */
   commands: PromptCommand[];
+  /**
+   * Previously sent prompts, newest first. ArrowUp on an empty input recalls
+   * them in turn; ArrowDown steps back toward an empty input.
+   */
+  promptHistory: string[];
   /** Forwarded to the underlying textarea so callers can focus it. */
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   /** Optional layer outside the prompt surface where the menu can be stacked. */
@@ -100,6 +118,7 @@ export function SkillPromptInput({
   placeholder = "Send a message...",
   skills,
   commands,
+  promptHistory,
   textareaRef: forwardedTextareaRef,
   menuPortalTarget,
 }: SkillPromptInputProps) {
@@ -108,6 +127,11 @@ export function SkillPromptInput({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null);
+  // The key whose keydown recalled a history entry. Its keyup must not resync
+  // the slash menu, or a recalled `/skill` token would open the menu and steal
+  // the next arrow press.
+  const historyKeyRef = useRef<string | null>(null);
 
   // Merge the internal ref (used for auto-resize and caret control) with the
   // optional forwarded ref so callers can also focus the textarea.
@@ -192,6 +216,56 @@ export function SkillPromptInput({
     if (item) commitItem(item, restoreCaret);
   };
 
+  const handleKeyUp = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (historyKeyRef.current === event.key) {
+      historyKeyRef.current = null;
+      return;
+    }
+    refreshActiveQuery();
+  };
+
+  // Recall a previously sent prompt on ArrowUp/ArrowDown.
+  const handleHistoryKey = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ): boolean => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return false;
+    if (
+      event.shiftKey ||
+      event.altKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return false;
+    }
+    const { selectionStart, selectionEnd } = event.currentTarget;
+    const direction = event.key === "ArrowUp" ? "older" : "newer";
+    const isCaretAtEdge =
+      direction === "older"
+        ? isCaretOnFirstLine(value, selectionStart, selectionEnd)
+        : isCaretOnLastLine(value, selectionStart, selectionEnd);
+    if (!isCaretAtEdge) return false;
+    const step = stepPromptHistory({
+      history: promptHistory,
+      index: historyIndex,
+      value,
+      direction,
+    });
+    if (!step) return false;
+    event.preventDefault();
+    historyKeyRef.current = event.key;
+    setHistoryIndex(step.index);
+    setValue(step.value);
+    // Place the caret at the end once React has flushed the recalled value.
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const end = textarea.value.length;
+      textarea.setSelectionRange(end, end);
+    });
+    return true;
+  };
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (skillCommand.isOpen) {
       const lastIndex = skillCommand.filteredItems.length - 1;
@@ -234,6 +308,7 @@ export function SkillPromptInput({
           break;
       }
     }
+    if (handleHistoryKey(event)) return;
     // Default prompt-input behavior: Enter submits, Shift+Enter inserts newline.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -274,7 +349,7 @@ export function SkillPromptInput({
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onKeyUp={refreshActiveQuery}
+        onKeyUp={handleKeyUp}
         onClick={refreshActiveQuery}
         onScroll={syncOverlayScroll}
         placeholder={placeholder}

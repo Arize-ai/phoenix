@@ -49,6 +49,7 @@ from phoenix.server.api.helpers.playground_clients import (
     AzureOpenAIResponsesClient,
     BedrockClient,
     GoogleClient,
+    MiniMaxClient,
     OpenAIChatCompletionsClient,
     OpenAICompatibleClient,
     OpenAIResponsesClient,
@@ -176,7 +177,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -312,7 +313,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -469,7 +470,7 @@ class TestOpenAIBaseStreamingClient:
         event = events[0]
         assert event.name == "exception"
         assert event.attributes is not None
-        event_attrs = dict(event.attributes)
+        event_attrs: dict[str, Any] = dict(event.attributes)
         assert event_attrs.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attrs.pop("exception.message")
         assert isinstance(exception_message, str)
@@ -481,7 +482,7 @@ class TestOpenAIBaseStreamingClient:
         assert not event_attrs
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -1115,10 +1116,8 @@ class TestDefaultApiTypeRouting:
             "gpt-4.1-mini",
             "gpt-4.1-nano",
             "gpt-4o",
-            "chatgpt-4o-latest",
             "gpt-4o-mini",
             "gpt-4-turbo",
-            "gpt-4-turbo-preview",
             "gpt-4",
             "gpt-3.5-turbo",
         }
@@ -1194,6 +1193,40 @@ class TestDefaultApiTypeRouting:
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
 
+class TestCurrentLineupIsOfferedInThePlayground:
+    """The playground's model menu is exactly what the registry lists per provider,
+    so a released model missing here is a model users cannot select.
+    """
+
+    @pytest.mark.parametrize(
+        "provider_key,model_name",
+        [
+            # GPT-6 tiers: Astra, plus the Sol and Luna tiers released 2026-09-22.
+            (GenerativeProviderKey.OPENAI, "gpt-6-astra"),
+            (GenerativeProviderKey.OPENAI, "gpt-6-sol"),
+            (GenerativeProviderKey.OPENAI, "gpt-6-luna"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-astra"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-sol"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-luna"),
+            # GPT-5.6 tiers, including Terra, which has no GPT-6 counterpart.
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-sol"),
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-terra"),
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-luna"),
+            # Claude Opus 5.5, released the same day, under its Claude API and Bedrock IDs.
+            (GenerativeProviderKey.ANTHROPIC, "claude-opus-5-5"),
+            (GenerativeProviderKey.AWS, "anthropic.claude-opus-5-5"),
+            (GenerativeProviderKey.ANTHROPIC, "claude-opus-5"),
+            (GenerativeProviderKey.AWS, "anthropic.claude-opus-5"),
+        ],
+    )
+    def test_model_is_registered_for_its_provider(
+        self,
+        provider_key: GenerativeProviderKey,
+        model_name: str,
+    ) -> None:
+        assert model_name in PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
+
+
 class TestChatCompletionsMessageRoles:
     @pytest.mark.parametrize(
         "client_class",
@@ -1263,6 +1296,52 @@ class TestCustomProviderClientSelection:
 
 def _identity_decrypt(value: bytes) -> bytes:
     return value
+
+
+class TestMiniMaxProvider:
+    def test_registry_includes_target_models(self) -> None:
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M3")
+            is MiniMaxClient
+        )
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M2.7")
+            is MiniMaxClient
+        )
+
+    @pytest.mark.parametrize(
+        ("configured_base_url", "expected_base_url"),
+        [
+            (None, "https://api.minimax.io/v1/"),
+            ("https://api.minimaxi.com/v1", "https://api.minimaxi.com/v1/"),
+        ],
+    )
+    async def test_builtin_client_uses_configured_endpoint(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        configured_base_url: str | None,
+        expected_base_url: str,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        if configured_base_url is None:
+            monkeypatch.delenv("MINIMAX_BASE_URL", raising=False)
+        else:
+            monkeypatch.setenv("MINIMAX_BASE_URL", configured_base_url)
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                ModelProvider.MINIMAX,
+                "MiniMax-M3",
+                None,
+                None,
+                session,
+                _identity_decrypt,
+            )
+
+        assert isinstance(client, OpenAIChatCompletionsClient)
+        assert client.provider == "minimax"
+        async with client._client_factory() as sdk_client:
+            assert str(sdk_client.base_url) == expected_base_url
 
 
 class TestResolveProviderApiKey:

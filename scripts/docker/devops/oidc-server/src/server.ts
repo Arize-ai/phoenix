@@ -96,11 +96,11 @@ async function setupPlugins() {
       root: staticPath,
       prefix: "/",
       decorateReply: false,
-      setHeaders: (res, pathname) => {
+      setHeaders: (reply, pathname) => {
         if (pathname.endsWith(".html")) {
-          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-          res.setHeader("Pragma", "no-cache");
-          res.setHeader("Expires", "0");
+          reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+          reply.header("Pragma", "no-cache");
+          reply.header("Expires", "0");
         }
       },
     });

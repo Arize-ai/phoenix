@@ -4,13 +4,13 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from enum import Enum
 from secrets import token_urlsafe
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, select, tuple_, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND
@@ -24,8 +24,14 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.authorization import (
     is_not_locked,
     prevent_access_in_read_only_mode,
@@ -57,6 +63,7 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
+    is_not_at_capacity,
 )
 
 DEFAULT_SPAN_LIMIT = 1000
@@ -151,8 +158,8 @@ class SpanQuery(V1RoutesBaseModel):
 
 class QuerySpansRequestBody(V1RoutesBaseModel):
     queries: list[SpanQuery]
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: Optional[IsoDatetime] = None
+    end_time: Optional[IsoDatetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
     root_spans_only: Optional[bool] = Field(
         default=None,
@@ -184,7 +191,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
         ),
         deprecated=True,
     )
-    stop_time: Optional[datetime] = Field(
+    stop_time: Optional[IsoDatetime] = Field(
         default=None,
         description=(
             "An upper bound on the time to query for. "
@@ -520,7 +527,7 @@ class SpanContext(V1RoutesBaseModel):
 
 class SpanEvent(V1RoutesBaseModel):
     name: str = Field(description="Name of the event")
-    timestamp: datetime = Field(description="When the event occurred (must be timezone-aware)")
+    timestamp: IsoDatetime = Field(description="When the event occurred (must be timezone-aware)")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
 
     model_config = ConfigDict(
@@ -555,8 +562,8 @@ class Span(V1RoutesBaseModel):
     parent_id: Optional[str] = Field(
         default=None, description="OpenTelemetry span ID of the parent span"
     )
-    start_time: datetime = Field(description="Start time of the span (must be timezone-aware)")
-    end_time: datetime = Field(description="End time of the span (must be timezone-aware)")
+    start_time: IsoDatetime = Field(description="Start time of the span (must be timezone-aware)")
+    end_time: IsoDatetime = Field(description="End time of the span (must be timezone-aware)")
     status_code: str = Field(description="Status code of the span")
     status_message: str = Field(default="", description="Status message")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
@@ -919,6 +926,62 @@ async def span_search_otlpv1(
     return OtlpSpansResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
+SpanSort = Literal["id", "start_time"]
+SortOrder = Literal["asc", "desc"]
+
+
+def _span_sort_columns(sort: SpanSort) -> list[sa.orm.InstrumentedAttribute[Any]]:
+    """Columns that order a span page; ``id`` breaks ties on ``start_time``."""
+    if sort == "start_time":
+        return [models.Span.start_time, models.Span.id]
+    return [models.Span.id]
+
+
+def _span_sort_order(sort: SpanSort, order: SortOrder) -> list[sa.ColumnElement[Any]]:
+    """The sort columns as ORDER BY expressions in the requested direction."""
+    columns = _span_sort_columns(sort)
+    return (
+        [column.asc() for column in columns]
+        if order == "asc"
+        else [column.desc() for column in columns]
+    )
+
+
+def _span_cursor_position(cursor: str, sort: SpanSort) -> tuple[Any, ...]:
+    """Decode a page cursor into the sort-key values of the span it points at."""
+    if sort == "start_time":
+        position = Cursor.from_string(cursor)
+        if (
+            position.sort_column is None
+            or position.sort_column.type is not CursorSortColumnDataType.DATETIME
+            or not isinstance(position.sort_column.value, datetime)
+        ):
+            raise ValueError("cursor carries no start_time")
+        return (normalize_datetime(position.sort_column.value, timezone.utc), position.rowid)
+    return (int(GlobalID.from_id(cursor).node_id),)
+
+
+def _span_page_boundary(cursor: str, sort: SpanSort, order: SortOrder) -> sa.ColumnElement[bool]:
+    """Row-value filter that keeps spans at or beyond the cursor in sort order."""
+    key = tuple_(*_span_sort_columns(sort))
+    bound = _span_cursor_position(cursor, sort)
+    return key >= bound if order == "asc" else key <= bound
+
+
+def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
+    """Encode ``span`` as the cursor a client sends to fetch the following page."""
+    if sort == "start_time":
+        return str(
+            Cursor(
+                rowid=span.id,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME, value=span.start_time
+                ),
+            )
+        )
+    return str(GlobalID("Span", str(span.id)))
+
+
 @router.get(
     "/projects/{project_identifier}/spans",
     operation_id="getSpans",
@@ -935,8 +998,19 @@ async def span_search(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Pagination cursor: the next_cursor of a previous response with the same sort",
+    ),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
+    sort: SpanSort = Query(
+        default="id",
+        description=(
+            "Sort field. 'id' orders by insertion; 'start_time' orders by when the span "
+            "started, breaking ties by id."
+        ),
+    ),
+    order: SortOrder = Query(default="desc", description="Sort direction"),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
     trace_id: Optional[list[str]] = Query(
@@ -959,7 +1033,7 @@ async def span_search(
         default=None,
         description=(
             "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, "
-            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN"
         ),
     ),
     status_code: Optional[list[str]] = Query(
@@ -975,7 +1049,7 @@ async def span_search(
         project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
-    order_by = [models.Span.id.desc()]
+    order_by = _span_sort_order(sort, order)
 
     stmt = (
         select(
@@ -1024,10 +1098,9 @@ async def span_search(
 
     if cursor:
         try:
-            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            stmt = stmt.where(_span_page_boundary(cursor, sort, order))
         except Exception:
             raise HTTPException(status_code=422, detail="Invalid cursor")
-        stmt = stmt.where(models.Span.id <= cursor_rowid)
 
     stmt = stmt.limit(limit + 1)
 
@@ -1041,7 +1114,7 @@ async def span_search(
     if len(rows) == limit + 1:
         *rows, extra = rows  # extra is first item of next page
         span_extra, _ = extra
-        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+        next_cursor = _span_next_cursor(span_extra, sort)
 
     # Convert ORM rows -> Phoenix spans
     result_spans: list[Span] = []
@@ -1189,7 +1262,7 @@ async def annotate_spans(
                 status_code=404,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
             span_annotation_id = await session.scalar(
@@ -1311,7 +1384,7 @@ async def create_span_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,
@@ -1347,14 +1420,16 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 @router.post(
     "/projects/{project_identifier}/spans",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(is_not_locked), Depends(is_not_at_capacity)],
     operation_id="createSpans",
     summary="Create spans",
     description=(
         "Submit spans to be inserted into a project. If any spans are invalid or "
         "duplicates, no spans will be inserted."
     ),
-    responses=add_errors_to_responses([404, 400]),
+    responses=add_errors_to_responses(
+        [404, 400, {"status_code": 503, "description": "Span ingestion queue is at capacity"}]
+    ),
     status_code=202,
 )
 async def create_spans(

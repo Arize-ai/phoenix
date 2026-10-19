@@ -200,7 +200,7 @@ Continuous score in the range `0.0` to `1.0` (matches the choice scores you conf
 | Environment variables | `OPENAI_API_KEY` — set as a **secret reference** to a key in [Settings → Secrets](/docs/phoenix/settings/secrets). |
 
 <Warning>
-`arize-phoenix-evals` pulls in `pydantic`, `httpx`, and the LLM provider SDKs you use. Cold-installing it can take 20–60s on a hosted sandbox — bump the configuration's **Timeout** accordingly, and re-use the same configuration across runs so the provider can warm-cache the environment.
+`arize-phoenix-evals` pulls in `pydantic` and the LLM provider SDKs you use. Cold-installing it can take 20–60s on a hosted sandbox — bump the configuration's **Timeout** accordingly, and re-use the same configuration across runs so the provider can warm-cache the environment.
 </Warning>
 
 ## Variants

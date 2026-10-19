@@ -102,6 +102,25 @@ async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
     assert "c" in result.envelope.columns
 
 
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("validate_only", [False, True])
+async def test_analytics_sql_with_read_only_database_role(
+    analytics_postgres_read_only_db: DbSessionFactory,
+    validate_only: bool,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_read_only_db,
+        ExecuteParams(sql="SELECT name FROM projects", validate_only=validate_only),
+    )
+    assert result.envelope.backend_validated is True
+    if validate_only:
+        assert result.envelope.columns == []
+        assert result.envelope.rows == []
+    else:
+        assert result.envelope.columns == ["name"]
+        assert result.envelope.rows == [["demo"]]
+
+
 async def test_denied_table(analytics_sqlite_db: tuple[DbSessionFactory, str]) -> None:
     db, db_path = analytics_sqlite_db
     with pytest.raises(AnalyticsSqlError) as exc:
@@ -1059,10 +1078,9 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
         return original(*args, **kwargs)
 
     monkeypatch.setattr(execute_module, "parse_sql", blocking)
-    # A private semaphore, so a regression that leaks the width-one permit
-    # fails this test alone instead of stalling every later execute test.
-    semaphore = execute_module.ExecutionSemaphore()
-    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+    # Installed before first use so the test holds the factory's admission controller.
+    controller = execute_module.StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
 
     call = asyncio.create_task(
         execute_analytics_sql(db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path)
@@ -1074,7 +1092,7 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
 
     # SQLite runs one statement at a time, so a second acquire completing here
     # would mean the permit came back while the thread still held it.
-    second = asyncio.create_task(semaphore.acquire("sqlite"))
+    second = asyncio.create_task(controller.acquire())
     try:
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(second), 0.25)
@@ -1086,7 +1104,7 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
         # bury the failure that caused it.
         finish.set()
         if second.done() and not second.cancelled():
-            semaphore.release("sqlite")
+            controller.release()
         else:
             second.cancel()
 
@@ -1117,8 +1135,8 @@ async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_o
         return parse_sql(*args, **kwargs)
 
     monkeypatch.setattr(execute_module, "parse_sql", watched)
-    semaphore = execute_module.ExecutionSemaphore()
-    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+    controller = execute_module.StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
 
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
@@ -1159,8 +1177,8 @@ async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_o
         assert submitted[0].cancelled(), "the queued job was not cancelled"
         # Free while the pool is still occupied, which it could not be if
         # release waited on the queue rather than on started work.
-        await asyncio.wait_for(semaphore.acquire("sqlite"), 1)
-        semaphore.release("sqlite")
+        await asyncio.wait_for(controller.acquire(), 1)
+        controller.release()
     finally:
         release_pool.set()
         pool.shutdown(wait=True)

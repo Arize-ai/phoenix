@@ -42,8 +42,8 @@ import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import {
+  errorRateFormatter,
   formatCost,
-  formatPercent,
   intFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
@@ -388,6 +388,7 @@ function JobErrorsSection({
   );
 }
 
+// oxlint-disable-next-line complexity -- Dialog orchestration coordinates independent experiment sections and loading states.
 function ExperimentDetailsDialogContent({
   experimentId,
 }: {
@@ -586,7 +587,7 @@ function ExperimentDetailsDialogContent({
                 </DetailRow>
                 {experiment.errorRate != null && (
                   <DetailRow label="Error Rate">
-                    {formatPercent(experiment.errorRate * 100)}
+                    {errorRateFormatter(experiment.errorRate)}
                   </DetailRow>
                 )}
                 {experiment.averageRunLatencyMs != null && (

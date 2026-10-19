@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import urllib.request
 from pathlib import Path
 from typing import Optional
 
 from phoenix.config import (
+    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     ENV_PHOENIX_WASM_BINARY_PATH,
     _no_local_storage,
+    get_env_allow_external_resources,
+    get_env_allowed_sandbox_providers,
     get_env_wasm_binary_path,
     get_working_dir,
 )
@@ -45,6 +49,27 @@ _NO_LOCAL_STORAGE_SHORT_FORM = "No-local-storage mode: set PHOENIX_WORKING_DIR t
 def no_local_storage_message(*, short: bool = False) -> str:
     """Canonical user-facing wording for the no-local-storage state."""
     return _NO_LOCAL_STORAGE_SHORT_FORM if short else _NO_LOCAL_STORAGE_LONG_FORM
+
+
+_EXTERNAL_RESOURCES_DISALLOWED_LONG_FORM = (
+    f"WASM sandbox binary unavailable: {ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}=false, "
+    f"so Phoenix does not download the runtime. To enable the WASM provider, set "
+    f"{ENV_PHOENIX_WASM_BINARY_PATH} to a local copy of the CPython WASM binary."
+)
+
+_EXTERNAL_RESOURCES_DISALLOWED_SHORT_FORM = (
+    f"{ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}=false: "
+    f"set {ENV_PHOENIX_WASM_BINARY_PATH} to a local copy to enable WASM."
+)
+
+
+def external_resources_disallowed_message(*, short: bool = False) -> str:
+    """Canonical user-facing wording for when external resources are disallowed."""
+    return (
+        _EXTERNAL_RESOURCES_DISALLOWED_SHORT_FORM
+        if short
+        else _EXTERNAL_RESOURCES_DISALLOWED_LONG_FORM
+    )
 
 
 class WASMBinaryUnavailable(RuntimeError):
@@ -105,32 +130,61 @@ def ensure_wasm_binary(
     dest = resolved_wasm_dir / filename
 
     if dest.exists():
-        if expected_sha256:
-            try:
-                _verify_sha256(dest, expected_sha256)
-            except ValueError:
-                dest.unlink(missing_ok=True)
-                raise
-        return dest
+        if not expected_sha256:
+            return dest
+        try:
+            _verify_sha256(dest, expected_sha256)
+        except FileNotFoundError:
+            # The cache directory is shared across processes, and another one
+            # can remove or replace the file between the existence check and
+            # the read. The file is simply absent; fall through to download.
+            pass
+        except ValueError:
+            dest.unlink(missing_ok=True)
+            raise
+        else:
+            return dest
+
+    if not get_env_allow_external_resources():
+        raise WASMBinaryUnavailable(external_resources_disallowed_message())
 
     resolved_wasm_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Downloading WASM binary from {url} → {dest}")
+    # Downloaded to a process-private file, verified, then moved into place
+    # with an atomic rename, so a concurrent reader of the shared cache sees
+    # either a complete verified binary or none at all -- never a partial
+    # write, and a failed download never disturbs an existing good file.
+    tmp = dest.with_name(f"{dest.name}.{os.getpid()}.tmp")
     try:
         with urllib.request.urlopen(  # noqa: S310
             url, timeout=_WASM_DOWNLOAD_TIMEOUT_SECONDS
         ) as response:
-            dest.write_bytes(response.read())
+            tmp.write_bytes(response.read())
+        if expected_sha256:
+            _verify_sha256(tmp, expected_sha256)
+    except ValueError:
+        tmp.unlink(missing_ok=True)
+        raise
     except Exception as exc:
-        dest.unlink(missing_ok=True)
+        tmp.unlink(missing_ok=True)
         raise RuntimeError(f"Failed to download WASM binary: {exc}") from exc
-
-    if expected_sha256:
+    try:
+        os.replace(tmp, dest)
+    except OSError as exc:
+        # Windows refuses to replace a file another process holds open (files
+        # are opened without FILE_SHARE_DELETE), so losing a concurrent race
+        # surfaces here rather than as the vanished-file case above. The
+        # private download is discarded; the file the winner installed is
+        # used if it verifies.
+        tmp.unlink(missing_ok=True)
         try:
-            _verify_sha256(dest, expected_sha256)
-        except ValueError:
-            dest.unlink(missing_ok=True)
-            raise
+            if expected_sha256:
+                _verify_sha256(dest, expected_sha256)
+            elif not dest.is_file():
+                raise FileNotFoundError(str(dest))
+        except (OSError, ValueError):
+            raise RuntimeError(f"Failed to install WASM binary: {exc}") from exc
 
     logger.info(f"WASM binary saved at {dest}")
     return dest
@@ -138,6 +192,8 @@ def ensure_wasm_binary(
 
 async def prefetch_wasm_binary_if_needed() -> None:
     """Fail-soft server-startup pre-fetch for the CPython WASM binary."""
+    if "WASM" not in get_env_allowed_sandbox_providers() or not get_env_allow_external_resources():
+        return
     try:
         await asyncio.to_thread(ensure_wasm_binary)
     except WASMBinaryUnavailable as exc:
@@ -148,7 +204,10 @@ async def prefetch_wasm_binary_if_needed() -> None:
             logger.warning(f"WASM sandbox binary unavailable: {message}")
     except ValueError as exc:
         logger.warning(f"WASM sandbox binary failed integrity check: {exc}")
-    except RuntimeError as exc:
+    except (OSError, RuntimeError) as exc:
+        # OSError included so a filesystem-level surprise -- a Windows sharing
+        # violation, a permissions change, a full disk -- degrades the sandbox
+        # instead of failing server startup.
         logger.warning(f"WASM sandbox binary pre-fetch failed: {exc}")
 
 

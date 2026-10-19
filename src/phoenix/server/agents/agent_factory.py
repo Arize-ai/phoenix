@@ -16,6 +16,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.config import get_env_agents_mcp_code_mode
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
@@ -25,6 +26,7 @@ from phoenix.server.agents.capabilities import (
     SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
+    build_github_mcp_capability,
 )
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -32,10 +34,14 @@ from phoenix.server.agents.capabilities.tools.external import (
 from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
     GetCurrentDatetimeCapability,
-    WriteSpanNoteCapability,
 )
-from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BASH_TOOL_NAME,
+    BashCapability,
+    get_bash_tool_error,
+)
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
+from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -47,8 +53,6 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanPutItem, DbSessionFactory
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -71,6 +75,7 @@ def build_agent(
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
     phoenix_mcp_server: "FastMCP | None" = None,
+    github_mcp_config: GitHubMCPConfig | None = None,
     principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
@@ -78,8 +83,6 @@ def build_agent(
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
-    db: DbSessionFactory,
-    event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     auth_enabled: bool = False,
     edit_permission: EditPermission = "manual",
@@ -90,23 +93,15 @@ def build_agent(
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> Agent[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
-    user_id = int(principal.identity) if principal is not None else None
     is_viewer = principal.is_viewer if principal is not None else False
     can_approve_mutations = not headless
-    allow_mutations = graphql_mutations_enabled and (
-        edit_permission == "bypass" or can_approve_mutations
-    )
+    # Whether externally-visible writes are possible at all this run: either
+    # they bypass approval, or someone is present to approve them.
+    writes_permitted = edit_permission == "bypass" or can_approve_mutations
+    allow_mutations = graphql_mutations_enabled and writes_permitted and not read_only
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [
-        WriteSpanNoteCapability(
-            db=db,
-            event_queue=event_queue,
-            read_only=read_only,
-            auth_enabled=auth_enabled,
-            user_id=user_id,
-            is_viewer=is_viewer,
-        ),
         GetCurrentDatetimeCapability(),
     ]
     if not headless:
@@ -148,8 +143,25 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                instructions=resolved_prompts.phoenix_mcp_tools,
+                instructions=resolved_prompts.phoenix_mcp_tools.render(
+                    code_mode=get_env_agents_mcp_code_mode()
+                ),
                 initialize_instructions=phoenix_mcp_server.instructions,
+            )
+        )
+    if github_mcp_config is not None:
+        # Per agent: the toolset carries the turn's resolved GitHub token as
+        # transport auth. Writes share `writes_permitted` with GraphQL
+        # mutations: a headless run has nobody to answer an approval request,
+        # so unless edit permission is "bypass" the write tools are filtered
+        # out entirely (subagents therefore get read/search only — duplicate
+        # checking is delegable, filing stays in the main thread).
+        capabilities.append(
+            build_github_mcp_capability(
+                github_mcp_config,
+                instructions=resolved_prompts.github_tools,
+                allow_writes=writes_permitted,
+                require_write_approval=require_mutation_approval,
             )
         )
     if enable_web_access:
@@ -162,14 +174,13 @@ def build_agent(
             name="PXISubagent",
             headless=True,
             model=model,
-            db=db,
-            event_queue=event_queue,
             prompts=resolved_prompts,
             principal=principal,
             schema=schema,
             build_graphql_context=build_graphql_context,
             docs_mcp_server=docs_mcp_server,
             phoenix_mcp_server=phoenix_mcp_server,
+            github_mcp_config=github_mcp_config,
             tracer_provider=tracer_provider,
             read_only=read_only,
             auth_enabled=auth_enabled,
@@ -193,6 +204,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(

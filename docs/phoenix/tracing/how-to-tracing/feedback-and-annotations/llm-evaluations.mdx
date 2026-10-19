@@ -61,7 +61,7 @@ The evaluations dataframe can be sent to Phoenix as follows. In this case we nam
 from phoenix.client import Client
 
 Client().spans.log_document_annotations_dataframe(
-    dataframe=document_relevance_eval_df,
+    dataframe=retrieval_relevance_eval_df,
     annotation_name="Relevance",
     annotator_kind="LLM",
 )
@@ -78,7 +78,7 @@ client.spans.log_span_annotations_dataframe(
     annotator_kind="LLM",
 )
 client.spans.log_document_annotations_dataframe(
-    dataframe=document_relevance_eval_df,
+    dataframe=retrieval_relevance_eval_df,
     annotation_name="Relevance",
     annotator_kind="LLM",
 )

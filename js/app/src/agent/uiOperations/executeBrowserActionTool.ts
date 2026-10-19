@@ -501,9 +501,6 @@ export function parseExecuteBrowserActionRunOutput(
  * state-changing call from a script that did not carry `write_description`
  * is refused by dispatch with `APPROVAL_REQUIRED`, telling the model to
  * re-issue the call with one. Bypass edit mode skips the gate entirely.
- *
- * RFC note: not yet listed in `toolRegistry.ts` — inert until the rollout
- * capability lands.
  */
 export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
   name: EXECUTE_BROWSER_ACTION_TOOL_NAME,
