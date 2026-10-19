@@ -2,12 +2,12 @@
 
 > **Status: draft for discussion.** Built so far, in PR #16875: the stored types for
 > inputs, state, and questions (`db/types/decisions.py`), their write-time rules,
-> the provider adapters, the typed `runDecision` mutation (build order step 1), and
-> custom providers for decisions (`openai` and `typesafe`).
-> Nothing is saved yet. The UI work is PR
-> #16876. This spec
-> assumes apps fetch saved decisions at run time, the way they fetch prompts;
-> that assumption is what justifies a standalone family with tags.
+> the provider adapters, the typed `runDecision` mutation (build order step 1),
+> custom providers for decisions (`openai` and `typesafe`), Ollama, and decision
+> experiments on the server, shaped like prompt tasks (see
+> [Experiments](#experiments)). Decisions aren't saved yet. The UI work is PR
+> #16876. This spec assumes apps fetch saved decisions at run time, the way they
+> fetch prompts; that assumption is what justifies a standalone family with tags.
 
 ## Summary
 
@@ -18,8 +18,27 @@ scale. A decision is a typed function. Its inputs are named, and its questions
 are its output schema.
 
 Phoenix stores and versions decisions. Apps fetch a tagged version and call the
-provider themselves. Phoenix also runs decisions in the playground, as
-evaluators, and as experiment tasks.
+provider themselves. Phoenix also runs decisions in the playground and as
+experiment tasks over datasets, as it does prompts.
+
+## Where Decisions Run
+
+A model plays one of two roles in Phoenix, and a decision model can be the model
+in either:
+
+| | Prompt (chat model) | Decision (decision model) |
+|---|---|---|
+| **Tested**: the regular playground and experiments | Prompt task. Exists. | Decision task. **This spec.** |
+| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [Open idea](#decision-evaluators-open-idea), not planned. |
+
+In the tested role, a decision's answers are the output: what is being
+evaluated, never an evaluation. Evaluators judge them, exactly as they judge a
+prompt's completions. Only in the judging role would answers become evaluations
+(annotations), and that is where problems such as a `box` answer having no
+annotation form belong.
+
+The `phoenix-evals` work on decision models as the judging model
+(`ClassificationEvaluator(llm: LLM | Decision)`) is separate from this spec.
 
 The format is new and changing fast. Jev 1.14 added a `box` question type for
 one model and image inputs behind preview headers, and model versions are
@@ -31,7 +50,8 @@ pushes everything uncertain to additive types or to run time.
 - Save, version, and tag decisions.
 - Let apps fetch a version by tag and get ready-to-send SDK arguments, as
   `phoenix-client` does for prompts.
-- Run decisions in the playground, as evaluators, and as experiment tasks.
+- Run decisions in the playground and as experiment tasks over datasets, as
+  prompts run.
 - Link app traces back to the decision version that produced them.
 - Add question types, input modalities, and providers without migrations.
 - Keep decision models out of every chat code path.
@@ -47,6 +67,10 @@ pushes everything uncertain to additive types or to run time.
 - Compatibility shims with the prompt family.
 - Templated questions. Question instructions and criteria are static. A
   reference answer is an input, not part of a question's criteria.
+- Server-side decision evaluators, for now (see
+  [Decision Evaluators](#decision-evaluators-open-idea)).
+- Built-in scoring of decision answers inside the task. Evaluators score runs,
+  as they do for prompts.
 
 ## Why a New Family, Not Prompts
 
@@ -57,8 +81,9 @@ decision-only TypeSafe provider. Storing decisions as prompt versions would make
 that split permanent: every prompt consumer, including every app that fetches
 prompts, would have to check whether a version is a decision.
 
-A decision's questions are also its outputs. If they lived in a prompt version,
-an evaluator would need a second copy of the same names and choices.
+A decision's questions are also its outputs' schema: names, choices, and levels.
+If they lived in a prompt version, anything reading the answers would need a
+second copy of them.
 
 The family borrows the prompt family's shape (versions, tags, fetch by tag)
 because it has the same consumer: an app that wants "production" at run time.
@@ -93,16 +118,15 @@ that don't apply here.
    reach the user.
 4. **Store references, never bytes.** Images and other assets are referenced by
    ID.
-5. **Versions are immutable; tags move.** Apps and evaluators follow a tag.
-   Experiments snapshot a version.
+5. **Versions are immutable; tags move.** Apps follow a tag. Experiments copy a
+   version, as prompt tasks do.
 6. **No results table.** A run is a `DECISION` span. Evaluator results are
    annotations. Experiments link to spans.
 7. **Version the schema, not just the content.** A `schema_version` on each
    version row, also returned to clients, lets the JSON's meaning change without
    a database migration.
-8. **Say each fact once.** Questions define the outputs. Evaluator output
-   configs are derived from them; only what the questions can't express is
-   stored on the evaluator.
+8. **Say each fact once.** Questions define the outputs' schema; nothing else
+   restates their names, choices, or levels.
 
 ## Data Model
 
@@ -115,7 +139,7 @@ decision_versions                      -- immutable
   schema_version   int                 -- how to read inputs and questions
   inputs           JSON                -- the signature: [{name, description?, json_schema?}]
   state            JSON                -- {type: "object"} | {type: "text", template, template_format}
-                                       --   later {type: "messages"}
+                                       --   | {type: "input", name}; later {type: "messages"}
   questions        JSON                -- ordered list, discriminated by type
   model_provider, model_name (free text)
   custom_provider_id → generative_model_custom_providers  -- see Models
@@ -127,29 +151,21 @@ decision_version_tags
   UNIQUE (decision_id, name)
   FK (decision_id, decision_version_id) → decision_versions (decision_id, id)
 
-decision_evaluators                    -- Evaluator subtype, kind = 'DECISION'
-  decision_id
-  decision_version_tag_id → decision_version_tags  ON DELETE RESTRICT, NOT NULL
-  input_mapping                        -- example or span fields → declared inputs
-  output_overrides JSON                -- per question: direction, choice scores, predicate threshold
+experiment_decision_tasks              -- ExperimentJob subtype, type = 'DECISION'
+  -- see Experiments: a copy of the version's fields, the connection,
+  -- the dataset paths, and an optional decision_version_id
 ```
 
 The tag on `decision_version_tags` uses a composite foreign key so a tag can
 never point at another decision's version. `PromptVersionTag` doesn't do this
 today; it's cheap to add here.
 
-A decision evaluator follows a tag it owns, as LLM evaluators do with prompt
-version tags. Moving that tag is validated against the evaluator's input mapping
-and overrides. A version that drops a mapped input, or renames or retypes a
-question an override refers to, is rejected for that tag.
-
-Experiments get a decision task type that snapshots `decision_version_id`, as
-`ExperimentPromptTask` does for prompts.
 
 ### Inputs and State
 
 A version declares its inputs by name: `[{name, description?, json_schema?}]`.
-Apps pass them by name, and evaluators fill them through `input_mapping`. A call
+Apps pass them by name, and experiments fill them from each dataset example
+(`inputValuesPath`, see [Experiments](#experiments)). A call
 must pass exactly the declared inputs; a missing or undeclared one fails before
 anything reaches the provider. Any JSON value is allowed. `json_schema` only
 describes the value for the playground form and is not enforced on a call.
@@ -163,9 +179,8 @@ The state sent to the model is built from those inputs:
 | `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | Built |
 | `messages` | A message list, for OpenAI's message-style `input` and for images. | With assets |
 
-There is no JSON template. Reshaping data belongs in the app or in the
-evaluator's input mapping, so the rules for substituting into JSON never have to
-exist.
+There is no JSON template. Reshaping data belongs in the app or the dataset, so
+the rules for substituting into JSON never have to exist.
 
 ### Questions
 
@@ -183,9 +198,9 @@ exist.
 ]
 ```
 
-- **Names are identities.** They are answer keys, and evaluator annotations are
-  named after them. Renaming is allowed but flagged, because it breaks
-  continuity with earlier results and with app code that reads answers by name.
+- **Names are identities.** They are answer keys: run outputs and app code read
+  answers by name. Renaming is allowed but flagged, because it breaks continuity
+  with earlier runs and with app code.
 - **Write-time validation.** Question names are unique within a version, choice
   values are unique within a question, a choice has 2–255 options, and a scale
   has 2–10 levels. A list loses the key uniqueness a JSON object would give, so
@@ -222,7 +237,8 @@ exist.
   never change.
 - **Provider-only types are allowed.** `box` is part of Phoenix's vocabulary.
   The OpenAI SDK has no box question, so its translation rejects it with a
-  clear error.
+  clear error. A box answer, a set of regions, is output like any other answer;
+  judging it (overlap with reference regions) is an evaluator's job.
 - **Provider-specific options**, if one ever matters, go in an allow-listed
   `options` field on the question, not in free-form JSON.
 
@@ -320,6 +336,64 @@ so running and saving share one typed shape.
 6. Record a `DECISION` span: input with assets left out, raw response, model,
    usage, and the decision version ID.
 
+## Experiments
+
+A decision task runs a decision over a dataset as an experiment, the way a
+prompt task runs a prompt. The playground's dataset mode creates one experiment
+per decision panel through `experimentsOverDataset`, alongside prompt and
+evaluator tasks; a run holds one example and repetition.
+
+The decision task mirrors `ExperimentPromptTask` field for field:
+
+| Prompt task | Decision task |
+|---|---|
+| A copy of the prompt version (template, tools, response format, parameters) | A copy of the decision version: `inputs`, `state`, `questions` |
+| `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, the same, once versions exist |
+| Model and connection, or a custom provider | Model and `connection`, or a custom provider |
+| `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `inputValuesPath` (default `input`): input `ticket` reads `input.ticket` |
+| `appendedMessagesPath`: messages from the example, appended | `questionsPath` and `questionsFormat`: questions from the example, used instead of the version's |
+| `evaluators`: dataset evaluators judge each run | `evaluators`: the same |
+
+`questionsPath` is for benchmarks whose questions vary per example, such as the
+datasets `phoenix datagen` seeds. Those questions are read in the format they
+were published in (`system_one`, `openai`, or `phoenix`) and translated to
+Phoenix's types, the inverse of the adapters, round-trip tested against them.
+
+Before anything is stored, the connection must resolve and every example must
+make a request; otherwise the run is refused with a count and the first
+reasons. Rate limits and transient failures go through the runner's backoff,
+with the SDK's own retries off. An example that can't make a request is recorded
+as the run's error without calling the model.
+
+### Run Output
+
+A run's output is the answers by question name, with no decision rule applied:
+
+```json
+{"task_output": {"model": "tev1:0.8b-mxfp8", "answers": {
+  "urgent": {"type": "predicate", "probability": 0.93},
+  "team": {"type": "choice", "choice": "billing", "confidence": 0.8,
+           "probabilities": {"billing": 0.8, "technical": 0.2}},
+  "severity": {"type": "scale", "expected_level": 1.4, "confidence": 0.7,
+               "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5}}}}}
+```
+
+Keyed by name so evaluators reach values by path
+(`output.answers.urgent.probability`). Usage stays on the `DECISION` span, which
+goes to the experiment's project.
+
+Evaluators read a decision run as they read a prompt run: `output` is the run's
+answers and `reference` is the example's output, where a dataset keeps its
+reference answers. Thresholds and other decision rules belong to the evaluator,
+so changing one never needs a new model call.
+
+### Not Yet
+
+- **Built-in decision metrics.** Accuracy, Brier score, level error, and
+  distance from a reference distribution, as built-in evaluators, designed with
+  an experiment-level report (calibration, confidence intervals, coverage of
+  refusals and missing references).
+
 ### Tokens and Cost
 
 Decision spans record `decision.token_count.*`, but everything downstream reads
@@ -355,19 +429,53 @@ rather than zero.
 - Mutations:
   - `runDecision(input: RunDecisionInput)` (built): `connection` (a `@oneOf` of
     `builtIn: {providerKey, baseUrl, credentials}` or `customProvider: {id}`),
-    `modelName`, `inputs`, `state` (a `@oneOf` of `object: true` or
-    `text: {template, templateFormat}`), `inputValues`, and `questions`, returning `result`
+    `modelName`, `inputs`, `state` (a `@oneOf` of `object: true`,
+    `text: {template, templateFormat}`, or `input: name`), `inputValues`, and
+    `questions`, returning `result`
     (`model`, `answers`, `usage`), `span`, and `error`. It replaced the ad hoc
     `createDecision`. Saved versions will add a `versionId` alternative to the
     inline `inputs`, `state`, and `questions`.
   - `createDecision`, `patchDecision`, `deleteDecision`.
   - `createDecisionVersion`.
-  - `setDecisionVersionTag`, `deleteDecisionVersionTag`. Moving a tag a decision
-    evaluator owns is validated as described under [Data Model](#data-model).
-  - `createDecisionEvaluator`, `updateDecisionEvaluator`, following the existing
-    evaluator mutations.
+  - `setDecisionVersionTag`, `deleteDecisionVersionTag`.
+- Subscriptions: `experimentsOverDataset` takes a `decision` task beside
+  `prompt` and `evaluator`; see [Experiments](#experiments).
 
-## Evaluators
+## Decision Evaluators (Open Idea)
+
+Not planned and not requested on the server: notes for if decision models are
+ever used as judges there. Nothing in the tested role depends on them.
+
+### Shape
+
+It would mirror the LLM evaluator, which is a definition attached through
+bindings:
+
+| | LLM evaluator | Decision evaluator |
+|---|---|---|
+| Table | `Evaluator` subtype, `kind = 'LLM'` | `Evaluator` subtype, `kind = 'DECISION'` |
+| Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, the same |
+| Version | `prompt_version_tag_id`, optional | A decision version tag; optional too, unless tag moves need validating (see below) |
+| Outputs | Stored on the evaluator: `output_configs`, categorical only, turned into the tool the judge calls | Derived from the version's questions; only their defaults are stored |
+| Explanation | The judge may return one | None: decision models return probabilities, not text |
+| Annotator kind | `LLM` | `LLM` |
+
+Inputs are mapped by the **binding**, never the evaluator, as for LLM evaluators:
+a dataset evaluator (`DatasetEvaluators.input_mapping`, required) or a project
+evaluator (`ProjectEvaluator.input_mapping`, optional) maps example or span
+fields to the declared inputs. One evaluator can then be attached to many
+datasets and projects with different mappings.
+
+Defaults for the derived outputs (a predicate's threshold, each choice's score,
+the optimization direction) are stored on the decision evaluator, because a
+project binding has no output-config override. A dataset binding can override
+them through its existing `output_configs`, as it can an LLM evaluator's.
+
+If a binding depends on a version's questions (an override names a question, or
+a mapping fills a declared input), moving the tag to a version that drops or
+retypes them would break the binding. Validating tag moves against bindings is
+the case for owning the tag; without that validation, an optional tag like the
+LLM evaluator's is enough.
 
 ### Integration Points
 
@@ -393,7 +501,8 @@ is a model judgment, so no migration is needed there.
 
 The rest of the evaluator pipeline works on `output_configs`. A decision
 evaluator doesn't store them: it derives one `OutputConfigType` per question
-from the tagged version's questions, then applies `output_overrides`. Annotation
+from the tagged version's questions, then applies the evaluator's defaults and
+any dataset binding's overrides. Annotation
 names then come from `result_annotation_names`, as for every evaluator: one
 question writes under the evaluator's name, several write under
 `{evaluator}.{question}`. Two evaluators that both ask `urgent` don't collide,
@@ -405,30 +514,76 @@ and dataset-level output-config overrides keep working.
 | `choice` | Categorical, one value per choice | label = chosen value; score = the value's score from the overrides, or none |
 | `scale` | Continuous, 0 to levels − 1 | score = `expected_level`; no label by default, or the most likely level's `label` if overridden |
 | `refusal` | — | no score or label; the explanation records the refusal |
-| `box` | — | not mappable at first |
+| `box` | — | not mappable: a box answer locates something and judges nothing |
 
-Optimization direction defaults to `NONE` and is set in the overrides.
+Optimization direction defaults to `NONE`.
 Confidence and per-option probabilities always go in annotation metadata. Choice
 confidence isn't used as the score: averaging confidence across different
 classes measures how sure the model was, not how good the output is.
 
+## The Complete Parallel Pipeline
+
+Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
+Providers and models are done: built-in TypeSafe, OpenAI, and Ollama; custom
+`openai` and `typesafe` providers with capability checks; credentials; the
+catalog; and decision models kept out of every chat path. The rest, by the
+[two roles](#where-decisions-run):
+
+### Tested
+
+| Stage | Chat today | Decision status | Missing |
+|---|---|---|---|
+| One run in the playground | Chat completion subscription; LLM spans | `runDecision` built | UI: the `connection` input, custom providers and Ollama in the Decision tab, free-text model names |
+| Saved definitions | Prompts, versions, and tags; playground save and load; prompt pages | Stored types only | Tables, GraphQL CRUD, playground save and load, a decisions page |
+| Run over a dataset | Prompt tasks; experiment views and comparison | Built on the server: the task, the runner, evaluators, `DecisionTaskConfig` | UI dataset mode and answer cells |
+| Judging the runs | Dataset evaluators | Dataset evaluators attach to decision tasks (built) | Built-in decision metrics and the experiment report |
+| Apps | `phoenix-client` `prompts.get` and `format`; REST | Nothing | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures |
+| Tokens and cost | LLM token counts and costs everywhere | Spans record `decision.token_count.*`; nothing reads them | Token totals on traces and experiment runs; cost only if providers publish prices |
+
+### Judging
+
+| Stage | Chat today | Decision status | Missing |
+|---|---|---|---|
+| Evaluator definition | `LLMEvaluator`, referring to a prompt and an optional tag | [Open idea](#decision-evaluators-open-idea) | A `DecisionEvaluator` subtype, `DECISION` in every kind CHECK, derived output configs and their defaults |
+| Calibration in the evaluator playground | Evaluator task, inline or saved, compared against expected outputs | Nothing | An inline decision evaluator definition, its rebuild in the runner, its form |
+| Judging experiment runs | Dataset evaluator bindings | Nothing | The evaluation phase running decision evaluators: the decision client's rate limiting, `LLM` annotator kind, binding overrides |
+| Online evals | Project evaluator bindings; the sweeper, producer, and executor | Nothing | Every [integration point](#integration-points) |
+| Library | `phoenix-evals` `ClassificationEvaluator(llm: LLM)` | Separate work (`llm: LLM \| Decision`) | Outside this spec |
+
+### Cross-Cutting
+
+- **Traces.** `DECISION` spans render as decisions, and replay into the
+  playground (built in PR #16876).
+- **The agent.** Its playground and experiment tools understand decision panels
+  and runs.
+- **Decisions that block work:**
+  - [renaming questions](#open-questions) blocks the versions tables;
+  - answer-to-annotation mapping and `box` block the judging role;
+  - assets and images (`messages` state) block image inputs.
+
 ## Build Order
 
-The work is four tables (one an `Evaluator` subtype), one experiment task type,
-the REST and client surface, and GraphQL. The type and adapter layer is partly
-built in PR #16875. The evaluator step is the largest, because of the
-[integration points](#integration-points).
+In dependency order. The tested role, steps 1 to 4, puts decision models on the
+same footing as chat models as the thing being tested. The judging role, step
+6, is about as large as everything before it, because each place that lists
+evaluator kinds by hand changes.
 
-1. Schema types, validation, the inputs signature, and `runDecision` taking
-   `DecisionVersionInput`, replacing the current `JSON` fields.
-2. Tables, versions, and tags.
-3. REST routes and `phoenix-client` `get` and `format` (Python, then
+1. **Runs.** Schema types, validation, the inputs signature, and `runDecision`
+   (built); decision experiments shaped like prompt tasks (built on the server);
+   the UI's playground runs and dataset mode. This completes the regular playground for
+   unsaved decisions.
+2. **Saved decisions.** Tables, versions, and tags; GraphQL CRUD; playground save
+   and load; the decision task gains `decision_version_id`. The judging role
+   depends on this, since evaluators refer to saved definitions as
+   `LLMEvaluator` refers to `prompt_id`.
+3. **Apps.** REST routes and `phoenix-client` `get` and `format` (Python, then
    TypeScript), with the shared translation fixtures.
-4. Decision evaluator: the integration points, derived output configs, and
-   tag-move validation.
-5. Decision experiments, including token counts on experiment runs.
-6. Assets, `messages` state, and `box`, together, once TypeSafe moves them out
+4. **Measurement.** Token counts on traces and experiment runs; built-in decision
+   metrics and the experiment report.
+5. **Assets, `messages` state, and `box`,** together, once TypeSafe moves them out
    of the danger zone.
+6. **Judging, if pursued.** The decision evaluator definition, calibration in
+   the evaluator playground, dataset bindings, then online evals.
 
 ## Open Questions
 
@@ -436,8 +591,11 @@ built in PR #16875. The evaluator step is the largest, because of the
   `decision.version_id`-style attribute, or apps put it in span metadata the way
   prompt IDs are carried today.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
-  the decision and mark earlier annotations as coming from a different question.
-- **Box as an evaluator output.** Deferred until there's a use case.
+  the decision and mark earlier runs as answering a different question.
+- **Evaluator outputs for per-example questions.** An evaluator's output names
+  are fixed, while a benchmark's question names vary per example. A code
+  evaluator can summarize over all answers; whether built-in metrics need
+  per-question names is part of designing them.
 
 ## References
 
