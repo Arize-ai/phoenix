@@ -29,9 +29,6 @@ export const useDerivedPlaygroundVariables = ({
     (state) => state.allInstanceMessages
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const decisionRequest = usePlaygroundContext(
-    (state) => state.decisionRequest
-  );
   const enrichedInstances = useMemo(() => {
     return instances.map((instance) =>
       denormalizePlaygroundInstance(instance, allInstanceMessages)
@@ -42,9 +39,8 @@ export const useDerivedPlaygroundVariables = ({
       instances: enrichedInstances,
       templateFormat,
       input,
-      decisionRequest,
     });
-  }, [input, enrichedInstances, templateFormat, decisionRequest]);
+  }, [input, enrichedInstances, templateFormat]);
 
   return { variableKeys, variablesMap };
 };
