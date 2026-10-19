@@ -640,9 +640,9 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 |---|---|---|---|
 | Questions: ordered list, `name` required | Ordered list, `name` optional | Object keyed by name | Nothing; Python keeps key order |
 | `predicate`: `instructions`, `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, `criteria` | OpenAI: criteria are folded into the instructions |
-| `choice`: `choices: [{value, description?}]`, `value` a string | `choices: [{value, description?}]`, `value` a string or boolean | `criteria: {value: description}` | Nothing sent; Phoenix can't express a boolean value |
+| `choice`: `choices: [{value, description?}]`, `value` a string | `choices: [{value, description?}]`, `value` a string or boolean | `criteria: {value: description}` | Nothing when sending, since Phoenix's values are strings; but a version can't hold OpenAI's boolean values |
 | `scale`: `levels: [{label, description?}]` | `score`: `levels: [{label, description?}]` | `score`: `criteria: [description, ...]` | System One: the label when there is a description |
-| Text fields: strings | Strings | Strings, JSON, or null | Nothing sent; Phoenix can't express JSON text |
+| Text fields: strings | Strings | Strings, JSON, or null | Nothing when sending, since Phoenix's text is a string; but a version can't hold System One's JSON text, such as structured instructions |
 | State: `object`, `text`, or `input` | `input`: text, or messages with images (HTTP or data URLs, at most 128) | `state`: text, object, or array, plus `assets` (multipart parts) | OpenAI: a structured state is serialized as text |
 | `box` (later) | None; refused | `box` | — |
 | — | `safety_identifier` (per call) | — | Not modeled |
