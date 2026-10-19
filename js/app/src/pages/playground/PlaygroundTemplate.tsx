@@ -23,7 +23,6 @@ import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
-import { PlaygroundDecisionTemplate } from "./PlaygroundDecisionTemplate";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
@@ -137,10 +136,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           ) : null}
         </Flex>
       </Flex>
-      <View paddingY="size-100">
-        {isDecision ? (
-          <PlaygroundDecisionTemplate {...props} />
-        ) : instance.template.__type === "chat" ? (
+      {/* Decision instances share one request editor rendered by the page
+          below the instance headers, so the column body is empty. */}
+      <View paddingY="size-100" isHidden={isDecision}>
+        {instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>
