@@ -3172,10 +3172,31 @@ class PromptVersionTag(HasId):
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
 
 
+class DecisionLabel(HasId):
+    __tablename__ = "decision_labels"
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class DecisionDecisionLabel(HasId):
+    __tablename__ = "decisions_decision_labels"
+    decision_label_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_labels.id", ondelete="CASCADE"), nullable=False
+    )
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    __table_args__ = (UniqueConstraint("decision_label_id", "decision_id"),)
+
+
 class Decision(HasId):
     """A saved decision: a named, versioned typed function apps fetch by tag."""
 
     __tablename__ = "decisions"
+    source_decision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decisions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")

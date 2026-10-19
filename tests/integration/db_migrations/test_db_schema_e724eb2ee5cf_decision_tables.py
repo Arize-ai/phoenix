@@ -67,8 +67,16 @@ async def test_decision_tables_schema(
         ),
     )
 
+    await _run_async(_engine, lambda conn: _insert_labels_and_clone(conn, triage, other))
+
     await _down(_engine, _alembic_config, _DOWN, _schema)
-    for table in ("decisions", "decision_versions", "decision_version_tags"):
+    for table in (
+        "decisions",
+        "decision_versions",
+        "decision_version_tags",
+        "decision_labels",
+        "decisions_decision_labels",
+    ):
         assert not await _run_async(_engine, lambda conn: sa.inspect(conn).has_table(table))
     assert not await _run_async(
         _engine, lambda conn: sa.inspect(conn).has_table("experiment_decision_tasks")
@@ -115,3 +123,30 @@ def _insert_tag(conn: Connection, name: str, decision_id: int, version_id: int) 
     except Exception:
         conn.rollback()
         raise
+
+
+def _insert_labels_and_clone(conn: Connection, source_id: int, clone_id: int) -> None:
+    assert "source_decision_id" in {
+        column["name"] for column in sa.inspect(conn).get_columns("decisions")
+    }
+    label_id = conn.execute(
+        text("INSERT INTO decision_labels (name, color) VALUES ('routing', '#123456') RETURNING id")
+    ).scalar_one()
+    conn.execute(
+        text(
+            "INSERT INTO decisions_decision_labels (decision_id, decision_label_id) VALUES (:decision_id, :label_id)"
+        ),
+        {"decision_id": source_id, "label_id": label_id},
+    )
+    conn.execute(
+        text("UPDATE decisions SET source_decision_id = :source_id WHERE id = :clone_id"),
+        {"source_id": source_id, "clone_id": clone_id},
+    )
+    conn.commit()
+    assert (
+        conn.execute(
+            text("SELECT source_decision_id FROM decisions WHERE id = :clone_id"),
+            {"clone_id": clone_id},
+        ).scalar_one()
+        == source_id
+    )

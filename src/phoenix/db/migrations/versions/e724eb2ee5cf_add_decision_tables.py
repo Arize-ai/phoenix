@@ -61,6 +61,13 @@ def upgrade() -> None:
     op.create_table(
         "decisions",
         sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "source_decision_id",
+            _Integer,
+            sa.ForeignKey("decisions.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("name", sa.String, nullable=False, unique=True, index=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("metadata", JSON_, nullable=False),
@@ -135,13 +142,39 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(
-            constraint_name="valid_type",
-            condition=_JOB_TYPES_AFTER,
-        )
+    op.create_table(
+        "decision_labels",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("description", sa.String(), nullable=True),
+        sa.Column("color", sa.String(), nullable=True),
+    )
+    op.create_index("ix_decision_labels_name", "decision_labels", ["name"], unique=True)
+    op.create_table(
+        "decisions_decision_labels",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "decision_label_id",
+            _Integer,
+            sa.ForeignKey("decision_labels.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "decision_id",
+            _Integer,
+            sa.ForeignKey("decisions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.UniqueConstraint("decision_label_id", "decision_id"),
+    )
+    op.create_index(
+        "ix_decisions_decision_labels_decision_id", "decisions_decision_labels", ["decision_id"]
+    )
+
+    op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
+    op.execute(
+        f'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" CHECK ({_JOB_TYPES_AFTER})'
+    )
     op.create_table(
         "experiment_decision_tasks",
         sa.Column(
@@ -190,11 +223,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Refuse a downgrade while decision jobs remain, before dropping any decision data.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(constraint_name="valid_type", condition=_JOB_TYPES_BEFORE)
+    # Refuse before removing the existing constraint or any decision data.
+    if op.get_bind().scalar(
+        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE type = 'DECISION'")
+    ):
+        raise ValueError("Cannot restore valid_type while DECISION jobs exist")
+    op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
+    op.execute(
+        f'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" CHECK ({_JOB_TYPES_BEFORE})'
+    )
     op.drop_table("experiment_decision_tasks")
+    op.drop_table("decisions_decision_labels")
+    op.drop_table("decision_labels")
     op.drop_table("decision_version_tags")
     op.drop_table("decision_versions")
     op.drop_table("decisions")

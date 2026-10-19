@@ -83,10 +83,6 @@ async def test_experiment_decision_tasks_schema(
     with pytest.raises(Exception, match="valid_type"):
         await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _count_decision_tasks) == 1
-    # SQLite batch mode copies the table through a temporary one, and the test connection
-    # commits that DDL before the failing copy, so the leftover has to go before retrying.
-    await _run_async(_engine, _drop_batch_leftover)
-
     # Without DECISION jobs it succeeds, drops the table and narrows the CHECK again.
     await _run_async(_engine, lambda conn: _delete_job(conn, decision_experiment_id))
     await _down(_engine, _alembic_config, _DOWN, _schema)
@@ -189,11 +185,6 @@ def _insert_custom_provider(conn: Connection) -> int:
     conn.commit()
     assert isinstance(provider_id, int)
     return provider_id
-
-
-def _drop_batch_leftover(conn: Connection) -> None:
-    conn.execute(text("DROP TABLE IF EXISTS _alembic_tmp_experiment_jobs"))
-    conn.commit()
 
 
 def _count_decision_tasks(conn: Connection) -> int:
