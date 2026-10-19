@@ -21,6 +21,11 @@ import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/E
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
+import {
+  InspectorVariantBody,
+  InspectorVariantSwitcher,
+  useInspectorVariant,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorInspectorVariants";
 import { getRowTestBlocker } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
   type RecordedRunEntry,
@@ -89,6 +94,22 @@ export function ProjectEvaluatorRecordInspector({
     isRunnable,
     runBlocker,
   });
+  const [variant, setVariant] = useInspectorVariant();
+  const resultSection = (
+    <section className="record-inspector__result" aria-label="Result">
+      <div className="record-inspector__section-header">
+        <InspectorSectionTitle title="Result" />
+        <TestButton
+          recordKind={recordKind}
+          isRunning={resultState.kind === "running"}
+          isRetest={hasResult}
+          blocker={testBlocker}
+          onRun={onRun}
+        />
+      </div>
+      <RecordedRunDetail entry={entry} />
+    </section>
+  );
   return (
     <section
       css={inspectorCSS}
@@ -134,6 +155,7 @@ export function ProjectEvaluatorRecordInspector({
             )}
           </span>
         </Flex>
+        <InspectorVariantSwitcher variant={variant} onChange={setVariant} />
         {row.href ? (
           <ExternalLink href={row.href}>Open {recordKind}</ExternalLink>
         ) : null}
@@ -143,21 +165,18 @@ export function ProjectEvaluatorRecordInspector({
           <Alert variant="warning" title="No evaluation context">
             {row.unavailableReason}
           </Alert>
+        ) : variant !== "current" ? (
+          <InspectorVariantBody
+            variant={variant}
+            result={resultSection}
+            context={row.context}
+            recordKind={recordKind}
+            inputMapping={inputMapping}
+            requiredVariables={requiredVariables}
+          />
         ) : (
           <div className="record-inspector__sections">
-            <section className="record-inspector__result" aria-label="Result">
-              <div className="record-inspector__section-header">
-                <InspectorSectionTitle title="Result" />
-                <TestButton
-                  recordKind={recordKind}
-                  isRunning={resultState.kind === "running"}
-                  isRetest={hasResult}
-                  blocker={testBlocker}
-                  onRun={onRun}
-                />
-              </div>
-              <RecordedRunDetail entry={entry} />
-            </section>
+            {resultSection}
             <EvaluatorInputsView
               heading={
                 <InspectorSectionTitle

@@ -18,6 +18,7 @@ import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluator
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
+import { useMappingRequests } from "@phoenix/pages/project/evaluators/projectEvaluatorMappingBridge";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import { useUnboundRequiredVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type {
@@ -125,6 +126,12 @@ export const ProjectEvaluatorInputMappingDock = ({
     }
     previousUnboundCount.current = unboundVariables.length;
   }, [unboundVariables.length]);
+  // A request from the test bench for a variable's field opens the dock.
+  useMappingRequests((request) => {
+    if (request.kind !== "hover") {
+      setIsExpanded(true);
+    }
+  });
   const title =
     evaluatorKind === "prompt" ? "Map Prompt Variables" : "Input Mapping";
   return (
