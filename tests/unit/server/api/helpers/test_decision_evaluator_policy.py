@@ -6,9 +6,12 @@ import pytest
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
 from phoenix.db.types.decision_evaluators import (
+    ChoiceProjection,
     DecisionProjectionPolicy,
     PredicateProjection,
+    ScaleProjection,
     derive_decision_output_configs,
+    effective_decision_policy,
     resolve_projection_policy,
 )
 from phoenix.db.types.decisions import (
@@ -56,16 +59,70 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
 
 
 @pytest.mark.parametrize(
-    "policy",
+    "policy, message",
     [
-        {"questions": {"correct": {"type": "predicate", "threshold": 2}}},
-        {"questions": {"correct": {"type": "predicate", "threshold": float("nan")}}},
-        {"questions": {"route": {"type": "choice", "scores": {"accept": float("inf")}}}},
-        {"questions": {"unknown": {"type": "scale"}}},
-        {"questions": {"route": {"type": "scale"}}},
-        {"questions": {"route": {"type": "choice", "scores": {"missing": 1}}}},
+        pytest.param(
+            {"questions": {"correct": {"type": "predicate", "threshold": 2}}},
+            "less than or equal to 1",
+            id="threshold-out-of-range",
+        ),
+        pytest.param(
+            {"questions": {"correct": {"type": "predicate", "threshold": float("nan")}}},
+            "finite number",
+            id="threshold-nan",
+        ),
+        pytest.param(
+            {"questions": {"route": {"type": "choice", "scores": {"accept": float("inf")}}}},
+            "Choice scores must be finite",
+            id="score-infinite",
+        ),
+        pytest.param(
+            {"questions": {"unknown": {"type": "scale"}}},
+            "Unknown projection questions: unknown",
+            id="unknown-question",
+        ),
+        pytest.param(
+            {"questions": {"route": {"type": "scale"}}},
+            "Projection type for route must be choice",
+            id="type-mismatch",
+        ),
+        pytest.param(
+            {"questions": {"route": {"type": "choice", "scores": {"missing": 1}}}},
+            "Unknown scored choices for route: missing",
+            id="unknown-choice",
+        ),
     ],
 )
-def test_invalid_policies(policy: dict[str, Any]) -> None:
-    with pytest.raises(ValueError):
+def test_invalid_policies(policy: dict[str, Any], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
         resolve_projection_policy(questions(), DecisionProjectionPolicy.model_validate(policy))
+
+
+def test_effective_policy_override_replaces_only_named_questions() -> None:
+    policy = {
+        "questions": {
+            "correct": {"type": "predicate", "threshold": 0.9},
+            "route": {"type": "choice", "scores": {"accept": 1}},
+        }
+    }
+    override = {"questions": {"correct": {"type": "predicate", "threshold": 0.2}}}
+    effective = effective_decision_policy(questions(), policy, override)
+    assert effective.questions["correct"] == PredicateProjection(type="predicate", threshold=0.2)
+    assert effective.questions["route"] == ChoiceProjection(type="choice", scores={"accept": 1})
+    assert effective.questions["quality"] == ScaleProjection(type="scale")
+
+
+def test_effective_policy_without_override_inherits_all() -> None:
+    policy = {"questions": {"correct": {"type": "predicate", "threshold": 0.9}}}
+    assert effective_decision_policy(questions(), policy, None) == resolve_projection_policy(
+        questions(), DecisionProjectionPolicy.model_validate(policy)
+    )
+    assert effective_decision_policy(questions(), policy).questions["correct"] == (
+        PredicateProjection(type="predicate", threshold=0.9)
+    )
+
+
+def test_effective_policy_rejects_unknown_override_question() -> None:
+    override = {"questions": {"unknown": {"type": "scale"}}}
+    with pytest.raises(ValueError, match="Unknown projection questions: unknown"):
+        effective_decision_policy(questions(), {"questions": {}}, override)

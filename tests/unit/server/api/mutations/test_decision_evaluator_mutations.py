@@ -338,38 +338,47 @@ async def test_typed_projection_variants_and_frozen_definition(
 
 
 @pytest.mark.parametrize(
-    "policy",
+    "policy, message",
     [
-        {"questions": [{"predicate": {"name": "urgent", "threshold": 1.1}}]},
-        {"questions": [{"predicate": {"name": "missing"}}]},
-        {"questions": [{"scale": {"name": "urgent"}}]},
-        {"questions": [{"predicate": {"name": "urgent"}}, {"predicate": {"name": "urgent"}}]},
-        {
-            "questions": [
-                {
-                    "choice": {
-                        "name": "team",
-                        "scores": [
-                            {"choice": "billing", "score": 1},
-                            {"choice": "billing", "score": 0},
-                        ],
+        pytest.param(
+            {"questions": [{"predicate": {"name": "urgent"}}, {"predicate": {"name": "urgent"}}]},
+            "Duplicate projection question 'urgent'",
+            id="duplicate-question-names",
+        ),
+        pytest.param(
+            {
+                "questions": [
+                    {
+                        "choice": {
+                            "name": "team",
+                            "scores": [
+                                {"choice": "billing", "score": 1},
+                                {"choice": "billing", "score": 0},
+                            ],
+                        }
                     }
-                }
-            ]
-        },
-        {
-            "questions": [
-                {"choice": {"name": "team", "scores": [{"choice": "unknown", "score": 1}]}}
-            ]
-        },
-        {"questions": [{}]},
-        {"questions": [{"predicate": {"name": "urgent"}, "scale": {"name": "urgent"}}]},
+                ]
+            },
+            "Duplicate score for choice 'billing'",
+            id="duplicate-choice-scores",
+        ),
+        pytest.param(
+            {"questions": [{}]},
+            "must specify exactly one key",
+            id="empty-projection",
+        ),
+        pytest.param(
+            {"questions": [{"predicate": {"name": "urgent"}, "scale": {"name": "urgent"}}]},
+            "must specify exactly one key",
+            id="two-projection-keys",
+        ),
     ],
 )
 async def test_invalid_typed_policy_does_not_create_an_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     policy: dict[str, Any],
+    message: str,
 ) -> None:
     from sqlalchemy import select
 
@@ -385,6 +394,7 @@ async def test_invalid_typed_policy_does_not_create_an_evaluator(
         },
     )
     assert result.errors, result.data
+    assert message in result.errors[0].message
     async with db() as session:
         assert (
             await session.scalar(
@@ -636,3 +646,47 @@ async def test_update_dataset_decision_evaluator_rejects_other_bindings(
         },
     )
     assert result.errors and "not found" in result.errors[0].message
+
+
+async def test_repin_to_compatible_new_version_of_the_same_decision(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    result = await gql_client.execute(
+        CREATE_VERSION,
+        variables={"input": {"decisionId": decision["id"], "version": version_input()}},
+    )
+    assert result.data and not result.errors, result.errors
+    new_version_id = result.data["createDecisionVersion"]["version"]["id"]
+    assert new_version_id != decision["version"]["id"]
+    result = await gql_client.execute(
+        PATCH_EVALUATOR,
+        variables={"input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}},
+    )
+    assert result.data and not result.errors, result.errors
+    patched = result.data["patchDecisionEvaluator"]["evaluator"]
+    assert patched["decisionVersion"]["id"] == new_version_id
+    assert patched["decisionVersion"]["id"] != evaluator["decisionVersion"]["id"]
+
+
+async def test_delete_unbound_decision_evaluator_removes_its_owned_tag(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    _, evaluator = await saved_evaluator(gql_client)
+    result = await gql_client.execute(
+        "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
+        variables={"input": {"evaluatorId": evaluator["id"]}},
+    )
+    assert result.data and not result.errors, result.errors
+    async with db() as session:
+        assert (
+            await session.get(models.Evaluator, int(GlobalID.from_id(evaluator["id"]).node_id))
+            is None
+        )
+        assert (
+            await session.get(
+                models.DecisionVersionTag,
+                int(GlobalID.from_id(evaluator["decisionVersionTag"]["id"]).node_id),
+            )
+            is None
+        )

@@ -2,6 +2,7 @@ import json
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
+from typing import Mapping
 from unittest.mock import MagicMock
 
 import pyarrow as pa
@@ -11,6 +12,8 @@ import pytest
 from phoenix.experimental.datagen.datasets import (
     DATASET_SOURCES,
     DatasetError,
+    _jevbench,
+    _validate_questions,
     load_dataset,
     load_source,
     seed_datasets,
@@ -100,6 +103,73 @@ def test_jevbench_boolean_labels_are_normalized_without_leaking_rationale(
     assert example["metadata"]["provenance"] == row["provenance"]
     assert set(example["input"]) == {"state", "questions"}
     assert "secret reference" not in json.dumps(example["input"])
+
+
+def _jevbench_row(question: Mapping[str, object], expected: object) -> dict[str, object]:
+    return {"id": "case-1", "state": "state", "question": question, "expected": expected}
+
+
+_CHOICE = {"type": "choice", "instructions": "Pick.", "criteria": {"a": "A.", "b": "B."}}
+_SCORE = {"type": "score", "instructions": "Rate.", "criteria": ["Low", "Mid", "High"]}
+
+
+def test_jevbench_normalizes_choice_and_score_answers() -> None:
+    choice = _jevbench(_jevbench_row(_CHOICE, "b"))
+    assert choice["output"] == {"decision": {"type": "choice", "label": "b", "choice": "b"}}
+    score = _jevbench(_jevbench_row(_SCORE, 2))
+    assert score["output"] == {"decision": {"type": "score", "label": 2, "score": 2}}
+    assert score["id"] == "jevbench-hard:case-1"
+
+
+@pytest.mark.parametrize(
+    "question, expected, message",
+    [
+        ({"type": "noul", "instructions": "Q?"}, "maybe", "must be 'yes' or 'no'"),
+        (_CHOICE, "c", "missing from criteria"),
+        (_SCORE, 3, "must be a rubric level"),
+        (_SCORE, -1, "must be a rubric level"),
+        (_SCORE, True, "must be a rubric level"),
+        (_SCORE, "1", "must be a rubric level"),
+    ],
+)
+def test_jevbench_rejects_expected_answers_outside_the_question(
+    question: Mapping[str, object], expected: object, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _jevbench(_jevbench_row(question, expected))
+
+
+@pytest.mark.parametrize(
+    "questions",
+    [
+        None,
+        [],
+        {},
+        {"": {"type": "noul"}},
+        {"decision": "noul"},
+        {"decision": {"type": "unknown"}},
+        {"decision": {"type": "choice", "criteria": {"only": "one"}}},
+        {"decision": {"type": "choice", "criteria": ["a", "b"]}},
+        {"decision": {"type": "noul", "criteria": {"maybe": "unsupported"}}},
+        {"decision": {"type": "noul", "criteria": ["true", "false"]}},
+        {"decision": {"type": "score", "criteria": ["only"]}},
+        {"decision": {"type": "score", "criteria": {"0": "a", "1": "b"}}},
+    ],
+)
+def test_validate_questions_rejects_malformed_questions(questions: object) -> None:
+    with pytest.raises(ValueError, match="question"):
+        _validate_questions(questions)
+
+
+def test_validate_questions_accepts_each_question_type() -> None:
+    _validate_questions(
+        {
+            "choice": _CHOICE,
+            "predicate": {"type": "noul", "instructions": "Q?"},
+            "described": {"type": "noul", "criteria": {"true": "Yes.", "false": "No."}},
+            "score": _SCORE,
+        }
+    )
 
 
 def test_parquet_adapter_preserves_multiple_questions_and_soft_references(tmp_path: Path) -> None:

@@ -139,6 +139,12 @@ def test_structured_system_one_text_becomes_json_text() -> None:
             "must be objects",
             id="openai-bare-choice",
         ),
+        pytest.param(
+            [{"name": "q", "type": "choice", "choices": [{"description": "no value"}]}],
+            "openai",
+            "Choices for 'q' need a value",
+            id="openai-choice-without-value",
+        ),
         pytest.param([{"type": "noul"}], "phoenix", "Not Phoenix questions", id="phoenix"),
     ],
 )

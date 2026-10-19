@@ -3,13 +3,23 @@ from typing import Any
 import pytest
 
 from phoenix.db.types.decisions import (
+    ChoiceOption,
+    ChoiceQuestion,
     DecisionInput,
+    DecisionQuestion,
     DecisionState,
     InputState,
     ObjectState,
+    PredicateQuestion,
+    ScaleLevel,
+    ScaleQuestion,
     TextState,
 )
-from phoenix.server.api.helpers.decision_versions import render_state, validate_inputs
+from phoenix.server.api.helpers.decision_versions import (
+    render_state,
+    validate_inputs,
+    validate_questions,
+)
 
 
 def _inputs(*names: str) -> list[DecisionInput]:
@@ -98,3 +108,79 @@ def test_input_state_is_one_value_unchanged() -> None:
 
 def test_declared_inputs_need_not_all_appear_in_the_template() -> None:
     validate_inputs(_inputs("a", "unused"), _text("{{a}}"))
+
+
+def _choice(*values: str, name: str = "q") -> ChoiceQuestion:
+    return ChoiceQuestion(
+        type="choice",
+        name=name,
+        instructions="Which?",
+        choices=[ChoiceOption(value=value) for value in values],
+    )
+
+
+def _scale(levels: int, name: str = "q") -> ScaleQuestion:
+    return ScaleQuestion(
+        type="scale",
+        name=name,
+        instructions="How much?",
+        levels=[ScaleLevel(label=str(level)) for level in range(levels)],
+    )
+
+
+def test_valid_questions_are_accepted() -> None:
+    validate_questions(
+        [
+            PredicateQuestion(type="predicate", name="p", instructions="Is it?"),
+            _choice("a", "b", name="c"),
+            _scale(2, name="s"),
+            _scale(10, name="t"),
+            _choice(*map(str, range(255)), name="m"),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("questions", "message"),
+    [
+        pytest.param([], "At least one question is required", id="none"),
+        pytest.param(
+            [PredicateQuestion(type="predicate", name=" ", instructions="Is it?")],
+            "Question names cannot be empty",
+            id="empty-name",
+        ),
+        pytest.param(
+            [_choice("a", "b"), _scale(3)],
+            "Question names must be unique: 'q' is repeated",
+            id="duplicate-name",
+        ),
+        pytest.param(
+            [PredicateQuestion(type="predicate", name="q", instructions=" ")],
+            "Instructions for q cannot be empty",
+            id="empty-instructions",
+        ),
+        pytest.param([_choice("a", " ")], "Choice values for q cannot be empty", id="empty-choice"),
+        pytest.param([_choice("a", "a")], "Choice values for q must be unique", id="same-choice"),
+        pytest.param([_choice("a")], "q needs 2 to 255 choices", id="one-choice"),
+        pytest.param(
+            [_choice(*map(str, range(256)))], "q needs 2 to 255 choices", id="too-many-choices"
+        ),
+        pytest.param([_scale(1)], "q needs 2 to 10 levels", id="one-level"),
+        pytest.param([_scale(11)], "q needs 2 to 10 levels", id="too-many-levels"),
+        pytest.param(
+            [
+                ScaleQuestion(
+                    type="scale",
+                    name="q",
+                    instructions="How much?",
+                    levels=[ScaleLevel(label="a"), ScaleLevel(label=" ")],
+                )
+            ],
+            "Level labels for q cannot be empty",
+            id="empty-level-label",
+        ),
+    ],
+)
+def test_invalid_questions_are_rejected(questions: list[DecisionQuestion], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        validate_questions(questions)

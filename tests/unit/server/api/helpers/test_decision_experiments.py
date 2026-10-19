@@ -11,6 +11,7 @@ from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
     DecisionResponse,
     PredicateAnswer,
+    RefusalAnswer,
     ScaleAnswer,
 )
 from phoenix.server.api.helpers.decision_experiments import (
@@ -123,6 +124,14 @@ def test_an_example_that_cannot_be_asked_says_why(example: Any, message: str) ->
         ask(benchmark_config(), example)
 
 
+def test_a_missing_input_values_path_says_so() -> None:
+    config = benchmark_config().model_copy(update={"input_values_path": "input.nope.deeper"})
+    with pytest.raises(ValueError, match=r"^Input values: ") as excinfo:
+        ask(config, {"state": "x", "questions": NOUL})
+    assert "nope" in str(excinfo.value)
+    assert isinstance(excinfo.value.__cause__, (KeyError, TypeError))
+
+
 def test_input_values_that_are_not_an_object_say_so() -> None:
     config = benchmark_config()
     config = config.model_copy(update={"input_values_path": "input.state"})
@@ -144,6 +153,7 @@ def test_the_run_output_keeps_full_answers_by_question_name() -> None:
                 "severity": ScaleAnswer(
                     expected_level=1.4, confidence=0.7, probabilities={0: 0.1, 1: 0.4, 2: 0.5}
                 ),
+                "other": RefusalAnswer(),
             },
             input_tokens=10,
             output_tokens=1,
@@ -164,5 +174,6 @@ def test_the_run_output_keeps_full_answers_by_question_name() -> None:
                 "confidence": 0.7,
                 "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5},
             },
+            "other": {"type": "refusal"},
         }
     }

@@ -1,6 +1,7 @@
 """Native judges preserve typed values, scoring semantics, and evaluator tracing."""
 
 import asyncio
+from datetime import datetime, timezone
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -24,6 +25,7 @@ from phoenix.server.api.helpers.decision_clients import (
     ScaleAnswer,
     TypeSafeDecisionClient,
 )
+from phoenix.server.api.helpers.decision_evaluators import project_decision_response
 from phoenix.tracers import Tracer
 
 from .test_decision_evaluator_policy import questions
@@ -106,6 +108,71 @@ async def test_scoring_and_nested_trace(
     assert spans["DECISION"].parent_id == spans["EVALUATOR"].span_id
     assert spans["EVALUATOR"].parent_id is None
     assert {result["trace_id"] for result in results} == {traces[0].trace_id}
+
+
+def project(
+    definition: InlineDecisionEvaluatorDefinition, decision_response: DecisionResponse
+) -> dict[str, dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    results = project_decision_response(
+        definition,
+        decision_response,
+        name="binding",
+        trace_id=None,
+        start_time=now,
+        end_time=now,
+    )
+    return {result["metadata"]["decision"]["question"]["name"]: result for result in results}
+
+
+def test_scale_label_is_the_most_probable_level_not_the_first(
+    definition: InlineDecisionEvaluatorDefinition,
+) -> None:
+    decision_response = response()
+    decision_response.answers["quality"] = ScaleAnswer(
+        expected_level=0.8, confidence=0.7, probabilities={0: 0.2, 1: 0.8}
+    )
+    quality = project(definition, decision_response)["quality"]
+    assert quality["label"] == "high"
+    assert quality["score"] == 0.8
+
+
+def test_scale_label_is_omitted_unless_requested(
+    definition: InlineDecisionEvaluatorDefinition,
+) -> None:
+    definition = definition.model_copy(
+        update={
+            "projection_policy": DecisionProjectionPolicy.model_validate(
+                {"questions": {"quality": {"type": "scale", "include_label": False}}}
+            )
+        }
+    )
+    decision_response = response()
+    decision_response.answers["quality"] = ScaleAnswer(
+        expected_level=0.8, confidence=0.7, probabilities={0: 0.2, 1: 0.8}
+    )
+    quality = project(definition, decision_response)["quality"]
+    assert quality["label"] is None
+    assert quality["score"] == 0.8
+
+
+def test_unscored_choice_has_a_label_and_no_score(
+    definition: InlineDecisionEvaluatorDefinition,
+) -> None:
+    definition = definition.model_copy(
+        update={
+            "projection_policy": DecisionProjectionPolicy.model_validate(
+                {"questions": {"route": {"type": "choice", "scores": {"accept": 1}}}}
+            )
+        }
+    )
+    decision_response = response()
+    decision_response.answers["route"] = ChoiceAnswer(
+        choice="review", confidence=0.9, probabilities={"accept": 0.1, "review": 0.9}
+    )
+    route = project(definition, decision_response)["route"]
+    assert route["label"] == "review"
+    assert route["score"] is None
 
 
 async def test_refusal_is_terminal_and_keeps_siblings(

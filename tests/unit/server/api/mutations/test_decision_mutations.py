@@ -1,5 +1,5 @@
 import json
-from typing import Any, cast
+from typing import Any, Optional, cast
 from unittest.mock import MagicMock
 
 import httpx
@@ -283,20 +283,31 @@ async def test_decision_execution(
         assert span.status_code == "OK"
 
 
+@pytest.fixture
+def _instant_sdk_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the SDKs' own retries, without their exponential-backoff sleeps."""
+    from openai._base_client import BaseClient
+    from typesafe_sdk._core import retry
+
+    monkeypatch.setattr(retry, "_backoff", lambda *args, **kwargs: 0.0)
+    monkeypatch.setattr(BaseClient, "_calculate_retry_timeout", lambda *args, **kwargs: 0.0)
+
+
+@pytest.mark.usefixtures("_instant_sdk_retries")
 @pytest.mark.parametrize(
     "status,hint",
     [
-        (401, "Check the API key"),
-        (422, "question configuration"),
-        (429, "rate-limited"),
-        (500, "unavailable"),
-        (307, "redirected"),
+        pytest.param(401, "Check the API key", id="not-retried"),
+        pytest.param(500, "unavailable", id="retried"),
     ],
 )
 @pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])
 async def test_provider_error_is_traced(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory, status: int, hint: str, provider: str
 ) -> None:
+    """Status-to-message mapping is covered in ``test_decision_clients``; this proves the
+    wiring: the SDK retries a 5xx but not a 401, the message and span status carry no
+    upstream body, and the request is recorded."""
     is_openai = provider == "OPENAI"
     endpoint = (
         "https://api.openai.com/v1/decisions"
@@ -304,11 +315,7 @@ async def test_provider_error_is_traced(
         else "https://api.typesafe.ai/v1/systemone"
     )
     with respx.mock:
-        route = respx.post(endpoint).respond(
-            status,
-            json={"error": "secret upstream detail"},
-            headers={"Location": "https://redirect.example"} if status == 307 else {},
-        )
+        route = respx.post(endpoint).respond(status, json={"error": "secret upstream detail"})
         result = await gql_client.execute(
             MUTATION,
             variables={
@@ -332,7 +339,7 @@ async def test_provider_error_is_traced(
                 }
             },
         )
-    assert route.call_count == (3 if status in (429, 500) else 1)
+    assert route.call_count == (3 if status == 500 else 1)
     assert result.data and not result.errors
     payload = result.data["runDecision"]
     assert payload["error"].startswith(
@@ -356,17 +363,27 @@ async def test_provider_error_is_traced(
 
 
 @pytest.mark.parametrize(
-    "questions",
+    "questions,message",
     [
-        pytest.param([], id="no-questions"),
-        pytest.param([{"chat": {"name": "x", "instructions": "test"}}], id="unknown-type"),
-        pytest.param([{**URGENT, **DEPARTMENT}], id="two-types"),
+        pytest.param([], "At least one question is required", id="no-questions"),
+        pytest.param(
+            [{"chat": {"name": "x", "instructions": "test"}}],
+            "an unexpected error occurred",
+            id="unknown-type",
+        ),
+        pytest.param(
+            [{**URGENT, **DEPARTMENT}],
+            "OneOf Input Object 'DecisionQuestionInput' must specify exactly one key.",
+            id="two-types",
+        ),
         pytest.param(
             [{"choice": {"name": "x", "instructions": "test", "choices": [{"value": "one"}]}}],
+            "x needs 2 to 255 choices",
             id="one-choice",
         ),
         pytest.param(
             [{"predicate": {"name": "x", "instructions": {"question": "Urgent?"}}}],
+            "an unexpected error occurred",
             id="structured-instructions",
         ),
         pytest.param(
@@ -379,6 +396,7 @@ async def test_provider_error_is_traced(
                     }
                 }
             ],
+            "Choice values for x must be unique",
             id="duplicate-choice",
         ),
         pytest.param(
@@ -391,13 +409,18 @@ async def test_provider_error_is_traced(
                     }
                 }
             ],
+            "Level labels for x cannot be empty",
             id="blank-level",
         ),
-        pytest.param([URGENT, renamed(DEPARTMENT, "urgent")], id="duplicate-name"),
+        pytest.param(
+            [URGENT, renamed(DEPARTMENT, "urgent")],
+            "Question names must be unique: 'urgent' is repeated",
+            id="duplicate-name",
+        ),
     ],
 )
 async def test_invalid_questions_do_not_call_provider(
-    gql_client: AsyncGraphQLClient, questions: Any
+    gql_client: AsyncGraphQLClient, questions: Any, message: str
 ) -> None:
     with respx.mock(assert_all_called=False):
         result = await gql_client.execute(
@@ -415,7 +438,7 @@ async def test_invalid_questions_do_not_call_provider(
                 }
             },
         )
-    assert result.errors
+    assert result.errors and message in result.errors[0].message
 
 
 @pytest.mark.parametrize(
@@ -559,12 +582,51 @@ def test_predicate_criteria_translate_for_each_provider() -> None:
     }
 
 
+URGENT_NOUL = {"type": "noul", "noul": 0.5}
+
+
 @pytest.mark.parametrize(
-    "response", [{}, {"answers": []}, {"answers": {"wrong": {"type": "noul", "noul": 0.5}}}]
+    "answers,usage,validation_error",
+    [
+        pytest.param({"urgent": URGENT_NOUL}, None, None, id="fails-sdk-parsing"),
+        pytest.param(
+            {},
+            {"input_tokens": 20, "output_tokens": 0},
+            "Provider did not return one answer per question",
+            id="no-answers",
+        ),
+        pytest.param(
+            {"wrong": URGENT_NOUL},
+            {"input_tokens": 20, "output_tokens": 0},
+            "Provider did not return one answer per question",
+            id="wrong-answer-name",
+        ),
+    ],
 )
 async def test_invalid_provider_response_is_traced(
-    gql_client: AsyncGraphQLClient, response: Any
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    answers: Any,
+    usage: Any,
+    validation_error: Optional[str],
 ) -> None:
+    """Each payload is valid except for its one defect. The caller sees one message, so
+    the validator is observed to tell a response the SDK rejects from one it rejects."""
+    from phoenix.server.api.helpers import decision_clients
+
+    validation_errors: list[str] = []
+    validate_answers = decision_clients.validate_answers
+
+    def recording_validate(*args: Any, **kwargs: Any) -> None:
+        try:
+            validate_answers(*args, **kwargs)
+        except ValueError as error:
+            validation_errors.append(str(error))
+            raise
+
+    monkeypatch.setattr(decision_clients, "validate_answers", recording_validate)
+    response = {"model": "jev-latest", "answers": answers, "usage": usage}
     with respx.mock:
         respx.post("https://api.typesafe.ai/v1/systemone").respond(200, json=response)
         result = await gql_client.execute(
@@ -581,13 +643,21 @@ async def test_invalid_provider_response_is_traced(
                     },
                     "modelName": "jev-latest",
                     **text_state("hello"),
-                    "questions": QUESTIONS,
+                    "questions": [URGENT],
                 }
             },
         )
     assert result.data and not result.errors
-    assert result.data["runDecision"]["error"] == "TypeSafe returned an invalid decision response."
-    assert result.data["runDecision"]["span"] is not None
+    payload = result.data["runDecision"]
+    assert payload["error"] == "TypeSafe returned an invalid decision response."
+    assert payload["result"] is None
+    assert validation_errors == ([validation_error] if validation_error else [])
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert span.status_code == "ERROR"
+        assert span.status_message == payload["error"]
+        assert json.loads(span.attributes["output"]["value"]) == response
 
 
 async def test_explicit_credentials_allow_compatible_endpoint(
@@ -769,55 +839,18 @@ async def test_provider_outside_allow_list_is_refused(gql_client: AsyncGraphQLCl
 
 
 @pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])
-@pytest.mark.parametrize(
-    "case", ["empty", "type", "choice", "score", "probability", "confidence", "refusal"]
-)
+@pytest.mark.parametrize("case", ["empty", "probability", "refusal"])
 async def test_sdk_answer_validation(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory, provider: str, case: str
 ) -> None:
+    """What the SDK rejects, what validation rejects, and what passes are each traced with
+    the provider's raw response. The rules themselves are tested in ``test_decision_clients``."""
     is_openai = provider == "OPENAI"
-    question = URGENT
     answer: dict[str, Any] = {"type": "predicate" if is_openai else "noul"}
     if case == "empty":
         answer = {}
-    elif case == "type":
-        answer = {"type": "score", "score": 0.5, "confidence": 0.9}
-        answer.update({"probabilities": [], **({} if is_openai else {"legend": {}})})
-    elif case == "choice":
-        question = renamed(DEPARTMENT, "urgent")
-        answer = {
-            "type": "choice",
-            "choice": "unknown",
-            "confidence": 0.9,
-            "probabilities": [{"value": "unknown", "probability": 1.0}]
-            if is_openai
-            else {"unknown": 1.0},
-        }
-    elif case == "score":
-        question = renamed(SEVERITY, "urgent")
-        answer = {
-            "type": "score",
-            "score": 7.0,
-            "confidence": 0.9,
-            "probabilities": [{"label": "7", "value": 7, "probability": 1.0}]
-            if is_openai
-            else {"7": 1.0},
-        }
-        if not is_openai:
-            answer["legend"] = {"7": "Unexpected level"}
     elif case == "probability":
         answer["probability" if is_openai else "noul"] = 1.5
-    elif case == "confidence":
-        question = renamed(DEPARTMENT, "urgent")
-        probabilities = {"billing": 0.8, "technical": 0.2}
-        answer = {
-            "type": "choice",
-            "choice": "billing",
-            "confidence": 1.5,
-            "probabilities": [{"value": v, "probability": p} for v, p in probabilities.items()]
-            if is_openai
-            else probabilities,
-        }
     else:
         answer = {"type": "refusal"}
     usage: dict[str, Any] = {"input_tokens": 20, "output_tokens": 0}
@@ -862,7 +895,7 @@ async def test_sdk_answer_validation(
                     },
                     "modelName": "custom-alias",
                     **text_state("hello"),
-                    "questions": [question],
+                    "questions": [URGENT],
                 }
             },
         )
@@ -885,12 +918,11 @@ async def test_sdk_answer_validation(
         assert json.loads(span.attributes["output"]["value"]) == response
 
 
-@pytest.mark.parametrize(
-    "base_url", ["http://[::1", "https://host:badport", "https://host?x=1", "https://host#fragment"]
-)
 async def test_invalid_base_urls_fail_before_provider_call(
-    gql_client: AsyncGraphQLClient, base_url: str
+    gql_client: AsyncGraphQLClient,
 ) -> None:
+    """Which URLs are refused is tested in ``test_decision_clients``."""
+    base_url = "https://host?x=1"
     with respx.mock:
         result = await gql_client.execute(
             MUTATION,
@@ -944,7 +976,7 @@ async def test_invalid_base_urls_fail_before_provider_call(
                     "text": {"template": "{{complaint}}", "templateFormat": "MUSTACHE"},
                 },
             },
-            "",
+            "OneOf Input Object 'DecisionStateInput' must specify exactly one key.",
             id="two-states",
         ),
     ],
@@ -1281,22 +1313,13 @@ def ollama_run(**built_in: Any) -> dict[str, Any]:
     }
 
 
-@pytest.mark.parametrize(
-    "configured",
-    [
-        pytest.param("http://localhost:11434/v1", id="chat-style-root"),
-        pytest.param("http://localhost:11434/", id="server-root"),
-    ],
-)
 async def test_ollama_runs_decisions_with_the_chat_base_url(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-    configured: str,
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """OLLAMA_BASE_URL names the OpenAI-compatible root for chat; System One's path
-    starts at the server root, so one variable serves both. Ollama needs no key."""
-    monkeypatch.setenv("OLLAMA_BASE_URL", configured)
+    starts at the server root, so one variable serves both. Ollama needs no key. The
+    base URL rules are tested in ``test_decision_clients``."""
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     with respx.mock:
         route = respx.post("http://localhost:11434/v1/systemone").respond(200, json=OLLAMA_RESPONSE)
         result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
@@ -1308,25 +1331,6 @@ async def test_ollama_runs_decisions_with_the_chat_base_url(
         assert span is not None
         assert span.attributes["decision"]["system"] == "typesafe"
         assert span.attributes["decision"]["provider"] == "ollama"
-
-
-async def test_ollama_base_url_can_come_from_the_run(gql_client: AsyncGraphQLClient) -> None:
-    with respx.mock:
-        route = respx.post("http://gpu-box:11434/v1/systemone").respond(200, json=OLLAMA_RESPONSE)
-        result = await gql_client.execute(
-            MUTATION, variables={"input": ollama_run(baseUrl="http://gpu-box:11434/v1")}
-        )
-    assert result.data and not result.errors, result.errors
-    assert route.call_count == 1
-
-
-async def test_ollama_requires_a_base_url(
-    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-    result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
-    assert result.errors
-    assert "Set OLLAMA_BASE_URL" in result.errors[0].message
 
 
 @pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])

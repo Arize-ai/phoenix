@@ -1,5 +1,5 @@
 import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -174,6 +174,63 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     seed.assert_called_once_with(client, sources=expected)
     assert http.call_args.kwargs["base_url"] == "http://local/"
     assert http.call_args.kwargs["headers"]["authorization"] == "Bearer key"
+
+
+def _seed_args(*flags: str) -> Namespace:
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    return parser.parse_args(["datagen", "seed", *flags])
+
+
+@pytest.mark.parametrize("flags", [["--file", "examples.jsonl"], ["--name", "my-dataset"]])
+def test_seed_command_requires_file_and_name_together(flags: list[str]) -> None:
+    with pytest.raises(ValueError, match="--file and --name must be provided together"):
+        datagen.seed(_seed_args(*flags))
+
+
+def test_seed_command_rejects_file_with_source() -> None:
+    with pytest.raises(SystemExit):
+        _seed_args("--file", "examples.jsonl", "--name", "my-dataset", "--source", "boolq")
+
+
+@pytest.mark.parametrize("format", [None, "parquet"])
+def test_seed_command_uploads_a_local_file_without_workflow_seeding(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    format: str | None,
+) -> None:
+    args = _seed_args(
+        "--file",
+        str(tmp_path / "examples"),
+        "--name",
+        "my-dataset",
+        *(["--format", format] if format else []),
+    )
+    transport = MagicMock()
+    transport.__enter__.return_value = transport
+    monkeypatch.setattr(httpx, "Client", MagicMock(return_value=transport))
+    dataset = MagicMock(version_id="v1")
+    dataset.name = "my-dataset"
+    dataset.__len__.return_value = 2
+    client = MagicMock()
+    client.datasets.create_dataset.return_value = dataset
+    monkeypatch.setattr("phoenix.client.Client", MagicMock(return_value=client))
+    examples = [{"id": "one"}]
+    load = MagicMock(return_value=examples)
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.load_dataset", load)
+    seed_datasets = MagicMock()
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed_datasets)
+    prompts = MagicMock()
+    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
+    args.func(args)
+    load.assert_called_once_with(tmp_path / "examples", format=format or "jsonl")
+    client.datasets.create_dataset.assert_called_once_with(
+        name="my-dataset", examples=examples, timeout=120
+    )
+    seed_datasets.assert_not_called()
+    prompts.assert_not_called()
+    assert capsys.readouterr().out == "Seeded my-dataset: 2 examples (version v1)\n"
 
 
 def test_startup_seeding_retries_until_server_is_ready(monkeypatch: pytest.MonkeyPatch) -> None:

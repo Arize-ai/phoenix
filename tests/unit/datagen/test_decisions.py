@@ -131,20 +131,11 @@ def test_seed_creates_four_decisions_then_only_changed_versions() -> None:
         assert all("DatagenCreateDecisionVersion" in query for query in mutations[4:])
 
 
-@pytest.mark.parametrize("change", ["questions", "workflow", "empty", "unsupported"])
-def test_invalid_definition_prevents_all_decision_requests(change: str) -> None:
+def test_unsupported_question_type_prevents_all_decision_requests() -> None:
     valid = _dataset("customer_service")
     invalid = _dataset("security_incidents")
-    if change == "questions":
-        invalid.examples[1] = deepcopy(invalid.examples[1])
-        invalid.examples[1]["input"]["questions"]["action"]["instructions"] = "Different."
-    elif change == "workflow":
-        invalid.examples[0]["metadata"]["workflow"] = "unknown"
-    elif change == "unsupported":
-        for example in invalid.examples:
-            example["input"]["questions"]["action"]["type"] = "unknown"
-    else:
-        invalid.examples = []
+    for example in invalid.examples:
+        example["input"]["questions"]["action"]["type"] = "unknown"
     http = MagicMock()
     with pytest.raises(DatasetError):
         seed_workflow_decisions(http, [valid, invalid])

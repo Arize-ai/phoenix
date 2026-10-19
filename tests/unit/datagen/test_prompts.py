@@ -8,7 +8,11 @@ import pytest
 from phoenix.client.types.prompts import PromptVersion
 
 from phoenix.experimental.datagen.datasets import DatasetError
-from phoenix.experimental.datagen.prompts import build_workflow_prompt, seed_workflow_prompts
+from phoenix.experimental.datagen.prompts import (
+    _same_prompt,
+    build_workflow_prompt,
+    seed_workflow_prompts,
+)
 from phoenix.utilities.template_formatters import FStringTemplateFormatter
 
 
@@ -143,3 +147,42 @@ def test_prompt_read_errors_are_not_mistaken_for_missing_prompts() -> None:
     with pytest.raises(ValueError, match="Invalid prompt response"):
         seed_workflow_prompts(client, [_dataset("customer_service")])
     client.prompts.create.assert_not_called()
+
+
+def _edited_template(version: PromptVersion, content: str) -> PromptVersion:
+    request: Any = dict(version.format(variables={"state": "{}"}, sdk="openai"))
+    request["messages"] = [request["messages"][0], {"role": "user", "content": content}]
+    return PromptVersion.from_openai(
+        request,
+        model_provider="OPENAI",
+        template_format="F_STRING",
+        metadata=version.metadata,
+    )
+
+
+def test_prompt_with_matching_metadata_but_edited_template_is_not_the_same() -> None:
+    desired = build_workflow_prompt("customer_service", _questions(), source_metadata={})
+    assert _same_prompt(desired, desired)
+    edited = _edited_template(desired, "A user-edited template.\n{state}")
+    assert edited.metadata == desired.metadata
+    assert not _same_prompt(edited, desired)
+
+
+def test_seed_adds_a_version_when_the_saved_template_was_edited() -> None:
+    dataset = _dataset("customer_service")
+    desired = build_workflow_prompt(
+        "customer_service",
+        _questions(),
+        source_metadata={"source_revision": "pinned"},
+    )
+    client = MagicMock()
+    client.prompts.get.return_value = _edited_template(desired, "A user-edited template.\n{state}")
+    seed_workflow_prompts(client, [dataset])
+    client.prompts.create.assert_called_once()
+    assert client.prompts.create.call_args.kwargs["version"].metadata == desired.metadata
+
+
+def test_prompt_that_cannot_be_formatted_is_not_the_same() -> None:
+    desired = build_workflow_prompt("customer_service", _questions(), source_metadata={})
+    saved = _edited_template(desired, "{state} and a variable the seeder never sends: {other}")
+    assert not _same_prompt(saved, desired)

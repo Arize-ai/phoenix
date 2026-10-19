@@ -7,6 +7,11 @@ from sqlalchemy import Connection, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up, _verify_clean_state
+from .test_db_schema_a7f1c3e9d2b4_experiment_evaluator_tasks import (
+    _insert_evaluator_task,
+    _insert_experiment,
+    _insert_job,
+)
 from .test_db_schema_e724eb2ee5cf_decision_tables import (
     _insert_decision,
     _insert_tag,
@@ -73,6 +78,40 @@ async def test_decision_evaluator_schema(
         conn.commit()
 
     await _run_async(_engine, delete_judge)
+    assert await _run_async(
+        _engine,
+        lambda conn: (
+            "decision_evaluator_snapshots"
+            in {column["name"] for column in sa.inspect(conn).get_columns("experiment_jobs")}
+        ),
+    )
+    experiment_id = await _run_async(_engine, lambda conn: _insert_experiment(conn, "snapshots"))
+    await _run_async(_engine, lambda conn: _insert_job(conn, experiment_id, job_type="EVALUATOR"))
+    await _run_async(
+        _engine,
+        lambda conn: _insert_evaluator_task(conn, experiment_id, evaluator_kind="DECISION"),
+    )
+
+    def set_snapshots(conn: Connection, value: str) -> None:
+        conn.execute(
+            text("UPDATE experiment_jobs SET decision_evaluator_snapshots = :value WHERE id = :id"),
+            {"value": value, "id": experiment_id},
+        )
+        conn.commit()
+
+    def delete_task(conn: Connection) -> None:
+        conn.execute(
+            text("DELETE FROM experiment_evaluator_tasks WHERE id = :id"), {"id": experiment_id}
+        )
+        conn.commit()
+
+    with pytest.raises(ValueError, match="decision evaluators exist"):
+        await _down(_engine, _alembic_config, "e724eb2ee5cf", _schema)
+    await _run_async(_engine, delete_task)
+    await _run_async(_engine, lambda conn: set_snapshots(conn, '[{"evaluator": "judge"}]'))
+    with pytest.raises(ValueError, match="decision evaluator snapshots exist"):
+        await _down(_engine, _alembic_config, "e724eb2ee5cf", _schema)
+    await _run_async(_engine, lambda conn: set_snapshots(conn, "[]"))
     await _down(_engine, _alembic_config, "e724eb2ee5cf", _schema)
     assert not await _run_async(
         _engine, lambda conn: sa.inspect(conn).has_table("decision_evaluators")

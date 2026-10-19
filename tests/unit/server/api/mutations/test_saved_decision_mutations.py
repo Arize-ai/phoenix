@@ -350,6 +350,33 @@ async def test_a_custom_provider_must_speak_the_versions_api(
     assert "Custom provider not found" in message
 
 
+async def test_a_custom_provider_must_serve_decision_models(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    result = await gql_client.execute(
+        CREATE_CUSTOM_PROVIDER,
+        variables={
+            "input": {
+                "name": "Chat only",
+                "provider": "anthropic",
+                "clientConfig": {
+                    "anthropic": {
+                        "anthropicAuthenticationMethod": {"apiKey": "sk-ant-test-key"},
+                    }
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    provider_id = result.data["createGenerativeModelCustomProvider"]["provider"]["id"]
+    message = await error_of(
+        gql_client,
+        CREATE,
+        {"name": "other", "version": version_input(customProviderId=provider_id)},
+    )
+    assert "Custom provider 'Chat only' does not serve decision models." in message
+
+
 async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLClient) -> None:
     source = await create(
         gql_client,
@@ -384,6 +411,8 @@ async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLCl
     assert clone["metadata"] == {"team": "support"}
     assert clone["versionCount"] == 2
     assert clone["versionTags"] == []
+    assert clone["createdBy"] is None
+    assert clone["updatedBy"] is None
     latest, first = [edge["node"] for edge in clone["versions"]["edges"]]
     assert latest["sequenceNumber"] == 2
     assert latest["modelName"] == "tev2"
