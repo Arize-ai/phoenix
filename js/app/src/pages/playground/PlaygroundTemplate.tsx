@@ -138,6 +138,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             instanceId={instanceId}
             disableEphemeralRouting={props.disableEphemeralRouting}
             supportsDecisionModels={props.supportsDecisionModels}
+            decisionModelsDisabledReason={props.decisionModelsDisabledReason}
           />
           <DuplicateButton {...props} />
           {instances.length > 1 ? (
