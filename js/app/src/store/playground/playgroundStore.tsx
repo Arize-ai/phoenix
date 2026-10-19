@@ -370,6 +370,7 @@ function duplicateInstance(
     instance: {
       ...source,
       template,
+      decisionRequest: source.decisionRequest ? structuredClone(source.decisionRequest) : source.decisionRequest,
       id: generateInstanceId(),
       activeRunId: null,
       experiment: null,
@@ -419,6 +420,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     // The page resolves the provider and model from the decision catalog;
     // the store does not know which providers offer decision models.
     instance.llmModel = instance.model;
+    instance.decisionRequest = createDecisionDraft();
     instance.model = {
       ...instance.model,
       modelType: "DECISION",
@@ -499,14 +501,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    // The decision request is shared by every decision instance. It exists
-    // from the start when the playground opens in decision mode and is
-    // created on first use otherwise.
-    decisionRequest:
-      props.decisionRequest ??
-      (props.defaultModelType === "DECISION" ? createDecisionDraft() : null),
-    setDecisionRequest: (decisionRequest) => {
-      set({ decisionRequest }, false, { type: "setDecisionRequest" });
+    updateDecisionRequest: (instanceId, decisionRequest) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, decisionRequest }
+              : instance
+          ),
+        },
+        false,
+        { type: "updateDecisionRequest" }
+      );
     },
     ...props,
     instances,
@@ -603,6 +610,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       );
 
       return created.instance.id;
+    },
+    duplicateInstance: (instanceId) => {
+      const instances = get().instances;
+      const sourceIndex = instances.findIndex((instance) => instance.id === instanceId);
+      const source = instances[sourceIndex];
+      if (!source) return;
+      const created = duplicateInstance(source, get().allInstanceMessages);
+      set({
+        allInstanceMessages: { ...get().allInstanceMessages, ...created.messages },
+        instances: [...instances.slice(0, sourceIndex + 1), created.instance, ...instances.slice(sourceIndex + 1)],
+      }, false, { type: "duplicateInstance" });
     },
     replaceInstance: ({ instanceId, source }) => {
       const instances = get().instances;

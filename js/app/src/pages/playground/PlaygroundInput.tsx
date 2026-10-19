@@ -38,9 +38,9 @@ export function PlaygroundInput() {
           <Text color="text-700">
             {isDecision ? (
               <>
-                Add variables to the state or a question&rsquo;s instructions
-                using <Text color="text-900">{templateSyntax}</Text> to fill
-                them in here.
+                Add variables to your prompts or decision requests using{" "}
+                <Text color="text-900">{templateSyntax}</Text> to fill them in
+                here.
               </>
             ) : (
               <>

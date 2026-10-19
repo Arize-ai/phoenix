@@ -143,10 +143,6 @@ import {
   EvaluatorPlaygroundEmptySource,
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
-import {
-  DecisionRequestActions,
-  DecisionRequestEditor,
-} from "./DecisionRequestEditor";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -162,7 +158,6 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
-import { PlaygroundDecisionComparison } from "./PlaygroundDecisionComparison";
 import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
@@ -351,20 +346,13 @@ function PlaygroundContent() {
   const hasDecisionInstance = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.model.modelType === "DECISION")
   );
-  const hasLLMInstance = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.model.modelType !== "DECISION")
-  );
-  const decisionInstances = usePlaygroundContext(
+  const decisionInstanceIds = usePlaygroundContext(
     useShallow((state) =>
-      state.instances.filter(
-        (instance) => instance.model.modelType === "DECISION"
-      )
+      state.instances
+        .filter((instance) => instance.model.modelType === "DECISION")
+        .map((instance) => instance.id)
     )
   );
-  const decisionInstanceIds = decisionInstances.map((instance) => instance.id);
-  // When every instance is a decision model, output is one comparison grid
-  // (same question across models) instead of one card per instance.
-  const showDecisionComparison = hasDecisionInstance && !hasLLMInstance;
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -894,7 +882,7 @@ function PlaygroundContent() {
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title={taskKind === "evaluator" ? "Evaluators" : hasDecisionInstance ? "Models & input" : "Prompts"}
+          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
               {taskKind === "prompt" ? (
@@ -903,43 +891,18 @@ function PlaygroundContent() {
               <PlaygroundCompareMenu />
             </Flex>
           }
-          panelProps={{
-            id: "prompts",
-            minSize: "15%",
-            // The request editor is the work surface in decision mode, so it
-            // opens taller the first time; a saved layout still wins.
-            defaultSize: hasDecisionInstance ? "55%" : undefined,
-          }}
+          panelProps={{ id: "prompts", minSize: "15%" }}
           onCollapseChange={(collapsed) =>
             handleSectionCollapse(collapsed, "prompts")
           }
         >
           <div css={promptsWrapCSS}>
-            <Flex
-              direction="row"
-              // Decision headers sit side by side, so a wider gap keeps each
-              // model's controls reading as one group.
-              gap={hasDecisionInstance ? "size-400" : "size-200"}
-              maxWidth="100%"
-              // Decision columns hold only a model header, so let them wrap
-              // rather than forcing a horizontal scroll to reach instance B.
-              wrap={hasDecisionInstance}
-            >
+            <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View
-                  // A decision column is only its model header, so it takes
-                  // the width of that header and sits beside the next one.
-                  flex={
-                    decisionInstanceIds.includes(instanceId)
-                      ? "none"
-                      : "1 1 0px"
-                  }
+                  flex="1 1 0px"
                   key={`${instanceId}-task`}
-                  minWidth={
-                    hasDecisionInstance
-                      ? undefined
-                      : PLAYGROUND_PROMPT_PANEL_MIN_WIDTH
-                  }
+                  minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                 >
                   <PlaygroundTaskInstance
                     instanceId={instanceId}
@@ -951,13 +914,7 @@ function PlaygroundContent() {
                   />
                 </View>
               ))}
-              {hasDecisionInstance ? (
-                <View flex="none" marginStart="auto">
-                  <DecisionRequestActions />
-                </View>
-              ) : null}
             </Flex>
-            {hasDecisionInstance ? <DecisionRequestEditor /> : null}
           </div>
         </TitledPanel>
         {isDatasetMode ? (
@@ -1021,11 +978,7 @@ function PlaygroundContent() {
                 extra={
                   <PlaygroundDatasetSelect isDisabled={hasDecisionInstance} />
                 }
-                panelProps={{
-                  id: "input",
-                  minSize: "10%",
-                  defaultSize: hasDecisionInstance ? "15%" : undefined,
-                }}
+                panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
                 }
@@ -1046,23 +999,19 @@ function PlaygroundContent() {
               }
             >
               <View padding="size-200" height="100%" overflow="auto">
-                {showDecisionComparison ? (
-                  <PlaygroundDecisionComparison instances={decisionInstances} />
-                ) : (
-                  <Flex direction="row" gap="size-200">
-                    {instanceIds.map((instanceId) => (
-                      <View key={`${instanceId}-output`} flex="1 1 0px">
-                        {decisionInstanceIds.includes(instanceId) ? (
-                          <PlaygroundDecisionOutput
-                            playgroundInstanceId={instanceId}
-                          />
-                        ) : (
-                          <PlaygroundOutput playgroundInstanceId={instanceId} />
-                        )}
-                      </View>
-                    ))}
-                  </Flex>
-                )}
+                <Flex direction="row" gap="size-200">
+                  {instanceIds.map((instanceId) => (
+                    <View key={`${instanceId}-output`} flex="1 1 0px">
+                      {decisionInstanceIds.includes(instanceId) ? (
+                        <PlaygroundDecisionOutput
+                          playgroundInstanceId={instanceId}
+                        />
+                      ) : (
+                        <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      )}
+                    </View>
+                  ))}
+                </Flex>
               </View>
             </TitledPanel>
           </>
