@@ -122,7 +122,6 @@ export function PlaygroundRunButton() {
     cancelPlaygroundRun,
     runPlaygroundInstances,
     instances,
-    hasInvalidDecision,
   ]);
   useHotkeys(
     "mod+enter",
