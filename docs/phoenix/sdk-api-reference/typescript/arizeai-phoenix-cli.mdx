@@ -678,6 +678,35 @@ px dataset get query_response --format raw | jq '.examples[].input'
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px dataset split create|update|delete`
+
+Create, update, or delete a split on an existing dataset. The dataset is given by name or ID and the split by its GlobalID. Example IDs accept GlobalIDs or user-provided IDs. The CLI cannot list a dataset's splits yet; see [#12090](https://github.com/Arize-ai/phoenix/issues/12090).
+
+```bash
+px dataset split create query_response --name train                       # Create an empty split
+px dataset split create query_response --name smoke --example-id <example-id> --example-id <example-id>
+px dataset split create query_response --name train --format raw --no-progress | jq -r '.id'
+px dataset split update query_response <split-id> --name train-v2         # Rename
+px dataset split update query_response <split-id> --add-example <example-id> --remove-example <example-id>
+px dataset split delete query_response <split-id> --yes                   # Requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true
+```
+
+| Option | Command | Description | Default |
+|--------|---------|-------------|---------|
+| `--name <name>` | `create` (required), `update` | Unique split name | — |
+| `--description <text>` | `create`, `update` | Split description; `''` clears it on update | — |
+| `--metadata <json>` | `create`, `update` | JSON object; replaces the split's metadata on update | — |
+| `--example-id <id>` | `create` | Example to add (can be used repeatedly) | — |
+| `--add-example <id>` | `update` | Example to add (can be used repeatedly) | — |
+| `--remove-example <id>` | `update` | Example to remove (can be used repeatedly); removal wins over add | — |
+| `-y, --yes` | `delete` | Skip confirmation prompt | — |
+| `--format <format>` | all | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | all | Phoenix API endpoint | From env |
+| `--api-key <key>` | all | Phoenix API key | From env |
+| `--no-progress` | all | Disable progress indicators | — |
+
+`create` and `update` print the split, including its `id`. `update` sends only the flags you pass and requires at least one. `delete` removes the split and its example memberships from every dataset that uses it, but does not delete the examples.
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset, optionally exporting full data to files.
