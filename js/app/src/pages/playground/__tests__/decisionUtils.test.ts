@@ -1,7 +1,10 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
+import type { PlaygroundInstance } from "@phoenix/store/playground/types";
 
 import {
   buildChatFromDecisionDraft,
+  buildDecisionInstanceFromSpanAttributes,
   buildDecisionConnection,
   buildDecisionInput,
   buildDecisionTaskDefinition,
@@ -439,6 +442,54 @@ describe("answer normalization", () => {
       expect(score.levels.map((level) => level.label)).toEqual(["0", "1"]);
       expect(score.score).toBe(0.7);
     }
+  });
+});
+
+describe("span replay", () => {
+  const base = {
+    ...DEFAULT_INSTANCE_PARAMS(),
+    id: 1,
+    template: { __type: "chat", messages: [] },
+    selectedRepetitionNumber: 1,
+  } as PlaygroundInstance;
+
+  it("reads OpenAI's answer list by each answer's name", () => {
+    const result = normalizeDecisionResult({
+      result: {
+        model: "gpt-decision",
+        answers: [
+          { name: "urgent", type: "predicate", probability: 0.9 },
+          { name: "team", type: "refusal" },
+        ],
+      },
+    });
+    expect(result.answers).toEqual([
+      { kind: "noul", name: "urgent", probability: 0.9 },
+      { kind: "refusal", name: "team" },
+    ]);
+  });
+
+  it("replays a custom provider's span on the built-in provider of its SDK", () => {
+    const { playgroundInstance, parsingErrors } =
+      buildDecisionInstanceFromSpanAttributes({
+        base,
+        spanId: "span",
+        attributes: {
+          openinference: { span: { kind: "DECISION" } },
+          decision: {
+            system: "openai",
+            provider: "openrouter",
+            request: { model_name: "gpt-decision" },
+          },
+        },
+      });
+    expect(playgroundInstance.model.provider).toBe("OPENAI");
+    expect(parsingErrors.join("\n")).toContain(
+      'ran on the custom provider "openrouter"'
+    );
+    expect(parsingErrors.join("\n")).not.toContain(
+      "Could not determine the decision provider"
+    );
   });
 });
 

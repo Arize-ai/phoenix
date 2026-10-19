@@ -232,7 +232,7 @@ function questionKind(
  * is replaced by the default, and choice scores keep declared choice order and
  * drop undeclared choices.
  */
-function fitQuestionProjection(
+export function fitQuestionProjection(
   definition: DecisionQuestionDefinition,
   setting: DecisionQuestionProjectionValue | undefined
 ): DecisionQuestionProjectionValue {

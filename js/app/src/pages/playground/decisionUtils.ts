@@ -1685,6 +1685,23 @@ export function normalizeDecisionAnswer({
   }
 }
 
+/**
+ * A response's answers keyed by question name: TypeSafe and Phoenix key them
+ * already, while OpenAI's Decisions API lists them with a `name` each.
+ */
+function readAnswersByName(answers: unknown): Record<string, unknown> {
+  if (Array.isArray(answers)) {
+    const byName: Record<string, unknown> = Object.create(null);
+    for (const answer of answers) {
+      if (isStringKeyedObject(answer) && typeof answer.name === "string") {
+        byName[answer.name] = answer;
+      }
+    }
+    return byName;
+  }
+  return isStringKeyedObject(answers) ? answers : {};
+}
+
 export type NormalizedDecisionResult = {
   model: string | null;
   answers: NormalizedDecisionAnswer[];
@@ -1709,10 +1726,9 @@ export function normalizeDecisionResult({
       (question) => [question.name.trim(), question] as const
     )
   );
-  const rawAnswers =
-    isStringKeyedObject(result) && isStringKeyedObject(result.answers)
-      ? result.answers
-      : {};
+  const rawAnswers = readAnswersByName(
+    isStringKeyedObject(result) ? result.answers : undefined
+  );
   const names = new Set<string>([
     ...(draft?.questions.map((question) => question.name.trim()) ?? []),
     ...Object.keys(rawAnswers),
@@ -1773,20 +1789,37 @@ function readAttributeValueText(container: unknown): string | null {
   return value == null ? null : JSON.stringify(value);
 }
 
-/** The provider key and model a decision span was asked to run. */
+/** The built-in provider for each `decision.system`, the SDK a span called. */
+const PROVIDER_BY_DECISION_SYSTEM: Partial<Record<string, ModelProvider>> = {
+  openai: "OPENAI",
+  typesafe: "TYPESAFE",
+};
+
+/**
+ * The provider key and model a decision span was asked to run. A custom
+ * provider records its own name as `decision.provider`, so the span's
+ * `decision.system` picks the built-in provider of the same SDK, and
+ * `customProviderName` says which provider actually ran it.
+ */
 function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
   provider: ModelProvider | null;
+  customProviderName: string | null;
   modelName: string | null;
 } {
-  const providerName = readStringAttribute(
-    decisionAttributes.provider
-  )?.toUpperCase();
+  const providerName = readStringAttribute(decisionAttributes.provider);
+  const providerKey = providerName?.toUpperCase();
+  const isBuiltIn = providerKey != null && isModelProvider(providerKey);
+  const system = readStringAttribute(decisionAttributes.system)?.toLowerCase();
   const request = isStringKeyedObject(decisionAttributes.request)
     ? decisionAttributes.request
     : {};
   return {
-    provider:
-      providerName && isModelProvider(providerName) ? providerName : null,
+    provider: isBuiltIn
+      ? providerKey
+      : system
+        ? (PROVIDER_BY_DECISION_SYSTEM[system] ?? null)
+        : null,
+    customProviderName: isBuiltIn ? null : providerName,
     modelName:
       readStringAttribute(request.model_name) ??
       readStringAttribute(decisionAttributes.model_name),
@@ -1845,10 +1878,15 @@ export function buildDecisionInstanceFromSpanAttributes({
     : {};
   const parsingErrors: string[] = [];
 
-  const { provider, modelName } = readDecisionTarget(decisionAttributes);
+  const { provider, customProviderName, modelName } =
+    readDecisionTarget(decisionAttributes);
   if (!provider) {
     parsingErrors.push(
       "Could not determine the decision provider from the span; pick one from the model menu."
+    );
+  } else if (customProviderName) {
+    parsingErrors.push(
+      `The span ran on the custom provider "${customProviderName}"; pick it from the model menu to replay it there.`
     );
   }
   if (!modelName) {

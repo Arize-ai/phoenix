@@ -15,6 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { DeleteDecisionDialogMutation } from "./__generated__/DeleteDecisionDialogMutation.graphql";
 
@@ -57,7 +58,9 @@ export function DeleteDecisionDialog({
         onDeleted();
       },
       onError: (error) => {
-        setError(error.message);
+        setError(
+          getErrorMessagesFromRelayMutationError(error)?.[0] ?? error.message
+        );
       },
     });
   }, [commit, notifySuccess, onDeleted, decisionId]);
