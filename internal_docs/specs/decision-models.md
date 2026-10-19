@@ -1094,6 +1094,24 @@ bodies and the SDK's generated types freeze whichever shape ships.
   but is still recorded on the first one. Extending the retries to LLM judges
   changes existing behavior, so it is a separate change (see
   [Refusals, Errors, and Metadata](#refusals-errors-and-metadata)).
+- **A deleted custom provider.** Deleting one sets `custom_provider_id` to null
+  on its versions, so a saved version, and a judge pinned to one, then runs on
+  the built-in provider of the same kind, with the server's key and default
+  endpoint. Prompts behave the same. Experiment tasks record the provider's
+  name and fail instead. The choice is to refuse to run such a version, or to
+  block deleting a provider that versions use; [Runtime and Integration
+  Points](#runtime-and-integration-points) rules out the fallback for judges.
+- **A default Ollama address.** Phoenix refuses to run Ollama without
+  `OLLAMA_BASE_URL` or a run's `baseUrl`, in chat, the agent, and decisions,
+  although Ollama listens on `http://localhost:11434`. A default would need to
+  change all three together, so the chat and decision tabs agree. The error
+  would then name the variable when the default can't be reached, so Docker
+  and remote deployments still learn what to set. Ollama also reports
+  `credentialsSet: true` with no address, so a picker offers a model whose
+  first run fails.
+- **Whether a version stores its endpoint.** A version stores no endpoint, as
+  a prompt doesn't, so every run of a saved Ollama version must pass `baseUrl`
+  unless the server sets `OLLAMA_BASE_URL`.
 - **The playground's state modes.** The state editor has three modes. Text is
   a template and saves as `text`, or as `input` when it is a single variable.
   JSON is a fixed value, sent as `object` when it is a non-empty object and
