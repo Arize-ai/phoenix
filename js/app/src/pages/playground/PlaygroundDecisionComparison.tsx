@@ -3,9 +3,6 @@ import { Suspense, useMemo } from "react";
 
 import {
   Alert,
-  Disclosure,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
   ParagraphSkeleton,
   Text,
@@ -22,10 +19,9 @@ import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/Experime
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
 import {
-  answerConfidence,
-  answerHeadline,
+  AnswerMeta,
+  answerValue,
   DecisionAnswerView,
-  formatPercent,
   formatUsage,
 } from "./DecisionResult";
 import { normalizeDecisionResult } from "./decisionUtils";
@@ -201,47 +197,15 @@ export function PlaygroundDecisionComparison({
                 </th>
                 {columns.map(({ instance, result }) => {
                   const answer = result?.answers.find((a) => a.name === name);
-                  const headline = answerHeadline(answer);
-                  const confidence = answerConfidence(answer);
                   return (
                     <td key={`${name}-${instance.id}`}>
                       {answer ? (
                         <Flex direction="column" gap="size-75">
-                          {headline != null || confidence != null ? (
-                            <Flex
-                              direction="row"
-                              justifyContent={
-                                headline != null ? "space-between" : "end"
-                              }
-                              alignItems="baseline"
-                              gap="size-100"
-                            >
-                              {headline != null ? (
-                                <Text
-                                  weight="heavy"
-                                  data-testid={`answer-${name}`}
-                                >
-                                  {headline}
-                                </Text>
-                              ) : (
-                                <span data-testid={`answer-${name}`} hidden>
-                                  {answer.kind === "choice"
-                                    ? answer.choice
-                                    : ""}
-                                </span>
-                              )}
-                              {confidence != null ? (
-                                <Text size="XS" color="text-700">
-                                  confidence {formatPercent(confidence)}
-                                </Text>
-                              ) : null}
-                            </Flex>
-                          ) : (
-                            <span data-testid={`answer-${name}`} hidden>
-                              {answer.kind === "choice" ? answer.choice : ""}
-                            </span>
-                          )}
+                          <span data-testid={`answer-${name}`} hidden>
+                            {answerValue(answer)}
+                          </span>
                           <DecisionAnswerView answer={answer} />
+                          <AnswerMeta answer={answer} />
                         </Flex>
                       ) : instance.activeRunId != null ? (
                         <ParagraphSkeleton lines={Math.max(1, skeletonLines)} />
@@ -293,21 +257,6 @@ export function PlaygroundDecisionComparison({
           </tr>
         </tbody>
       </table>
-      <Disclosure
-        id="decision-comparison-help"
-        size="S"
-        defaultExpanded={false}
-      >
-        <DisclosureTrigger>How to read this</DisclosureTrigger>
-        <DisclosurePanel>
-          <Text size="XS" color="text-700">
-            Bars show the probability the model assigned to each option or
-            level. Scores are the provider&rsquo;s weighted position on your
-            scale; the nearest level is emphasized. Confidence is the
-            provider&rsquo;s own measure of how peaked the distribution is.
-          </Text>
-        </DisclosurePanel>
-      </Disclosure>
     </Flex>
   );
 }

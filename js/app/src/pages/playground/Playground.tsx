@@ -143,7 +143,10 @@ import {
   EvaluatorPlaygroundEmptySource,
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
-import { DecisionRequestEditor } from "./DecisionRequestEditor";
+import {
+  DecisionRequestActions,
+  DecisionRequestEditor,
+} from "./DecisionRequestEditor";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -900,7 +903,13 @@ function PlaygroundContent() {
               <PlaygroundCompareMenu />
             </Flex>
           }
-          panelProps={{ id: "prompts", minSize: "15%" }}
+          panelProps={{
+            id: "prompts",
+            minSize: "15%",
+            // The request editor is the work surface in decision mode, so it
+            // opens taller the first time; a saved layout still wins.
+            defaultSize: hasDecisionInstance ? "55%" : undefined,
+          }}
           onCollapseChange={(collapsed) =>
             handleSectionCollapse(collapsed, "prompts")
           }
@@ -908,7 +917,9 @@ function PlaygroundContent() {
           <div css={promptsWrapCSS}>
             <Flex
               direction="row"
-              gap="size-200"
+              // Decision headers sit side by side, so a wider gap keeps each
+              // model's controls reading as one group.
+              gap={hasDecisionInstance ? "size-400" : "size-200"}
               maxWidth="100%"
               // Decision columns hold only a model header, so let them wrap
               // rather than forcing a horizontal scroll to reach instance B.
@@ -916,7 +927,13 @@ function PlaygroundContent() {
             >
               {instanceIds.map((instanceId) => (
                 <View
-                  flex="1 1 0px"
+                  // A decision column is only its model header, so it takes
+                  // the width of that header and sits beside the next one.
+                  flex={
+                    decisionInstanceIds.includes(instanceId)
+                      ? "none"
+                      : "1 1 0px"
+                  }
                   key={`${instanceId}-task`}
                   minWidth={
                     hasDecisionInstance
@@ -934,6 +951,11 @@ function PlaygroundContent() {
                   />
                 </View>
               ))}
+              {hasDecisionInstance ? (
+                <View flex="none" marginStart="auto">
+                  <DecisionRequestActions />
+                </View>
+              ) : null}
             </Flex>
             {hasDecisionInstance ? <DecisionRequestEditor /> : null}
           </div>
@@ -999,7 +1021,11 @@ function PlaygroundContent() {
                 extra={
                   <PlaygroundDatasetSelect isDisabled={hasDecisionInstance} />
                 }
-                panelProps={{ id: "input", minSize: "10%" }}
+                panelProps={{
+                  id: "input",
+                  minSize: "10%",
+                  defaultSize: hasDecisionInstance ? "15%" : undefined,
+                }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
                 }

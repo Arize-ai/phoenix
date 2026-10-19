@@ -1,15 +1,17 @@
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import {
   Alert,
   Button,
   Card,
+  CardCollapsedPreview,
+  CopyToClipboardButton,
   FieldError,
   Flex,
   Icon,
   Icons,
   Input,
-  Label,
   ListBox,
   Popover,
   Select,
@@ -17,10 +19,14 @@ import {
   SelectItem,
   SelectValue,
   Text,
-  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
+import {
+  TemplateEditor,
+  TemplateEditorWrap,
+} from "@phoenix/components/templateEditor";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   DecisionQuestionDraft,
   DecisionQuestionType,
@@ -32,27 +38,42 @@ import {
   createScoreLevel,
   DECISION_QUESTION_TYPES,
   type DecisionQuestionErrors,
+  questionDraftToSystemOne,
 } from "./decisionUtils";
 
-const fieldRowCSS = css`
+const hiddenLabelCSS = css`
+  .field__label {
+    display: none;
+  }
+`;
+
+const nameFieldCSS = css`
+  width: 14em;
+  min-width: 6em;
+`;
+
+const criteriaCSS = css`
+  border-top: 1px solid var(--global-card-border-color);
+`;
+
+const optionRowCSS = css`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
   gap: var(--global-dimension-size-100);
   align-items: start;
 `;
 
-const criteriaRowCSS = css`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
-  gap: var(--global-dimension-size-100);
-  align-items: end;
-`;
-
 const levelRowCSS = css`
   display: grid;
-  grid-template-columns: 2ch minmax(0, 1fr) auto auto auto;
-  gap: var(--global-dimension-size-75);
+  grid-template-columns: 2ch minmax(0, 1fr) auto;
+  gap: var(--global-dimension-size-100);
   align-items: center;
+`;
+
+const twoUpCSS = css`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--global-dimension-size-100);
 `;
 
 const listCSS = css`
@@ -61,7 +82,7 @@ const listCSS = css`
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-size-75);
+  gap: var(--global-dimension-size-100);
 `;
 
 type Props = {
@@ -70,6 +91,9 @@ type Props = {
   errors: DecisionQuestionErrors | undefined;
   isDisabled: boolean;
   canRemove: boolean;
+  templateFormat: TemplateFormat;
+  /** Bumped when the request is replaced from outside (import). */
+  revision: number;
   onChange: (patch: Partial<DecisionQuestionDraft>) => void;
   onRemove: () => void;
 };
@@ -79,9 +103,10 @@ function isQuestionType(key: unknown): key is DecisionQuestionType {
 }
 
 /**
- * One typed question as a card, following the per-tool card in the chat
- * playground. The criteria editor matches the question type, so the user
- * never hand-writes the System One or OpenAI JSON for options or levels.
+ * One question, laid out like a chat message card: the type picker stands in
+ * for the role, the name sits beside it, and the instructions are the body.
+ * Criteria for the type follow under a rule, so nobody hand-writes the
+ * System One or OpenAI JSON for options or levels.
  */
 export function DecisionQuestionEditor({
   question,
@@ -89,109 +114,129 @@ export function DecisionQuestionEditor({
   errors,
   isDisabled,
   canRemove,
+  templateFormat,
+  revision,
   onChange,
   onRemove,
 }: Props) {
-  const typeInfo = DECISION_QUESTION_TYPES.find((t) => t.id === question.type);
-  const title = question.name.trim() || `Question ${index + 1}`;
+  const label = question.name.trim() || `question ${index + 1}`;
+  const copyText = useMemo(
+    () =>
+      JSON.stringify(
+        {
+          [question.name.trim() || "question"]:
+            questionDraftToSystemOne(question),
+        },
+        null,
+        2
+      ),
+    [question]
+  );
+  const headerError = errors?.name
+    ? errors.name === "Required"
+      ? "Give the question a name; it keys the answer."
+      : "Another question already has this name."
+    : null;
   return (
     <Card
       collapsible
-      defaultOpen
+      interactiveTitle
+      collapseButtonLabel={`${label} question`}
       testId={`decision-question-${index}`}
+      headerContent={
+        <CardCollapsedPreview>{question.instructions}</CardCollapsedPreview>
+      }
       title={
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text>{title}</Text>
-          <Text size="S" color="text-700">
-            {typeInfo?.label}
-          </Text>
+          <Select
+            size="S"
+            css={hiddenLabelCSS}
+            aria-label="Question type"
+            selectedKey={question.type}
+            isDisabled={isDisabled}
+            onSelectionChange={(key) => {
+              if (!isQuestionType(key) || key === question.type) return;
+              // Seed criteria for the new type so the card never opens on a
+              // validation error.
+              const fresh = createDecisionQuestion(key);
+              onChange({
+                type: key,
+                choices: question.choices.length
+                  ? question.choices
+                  : fresh.choices,
+                levels: question.levels.length ? question.levels : fresh.levels,
+              });
+            }}
+          >
+            <Button size="S">
+              <SelectValue>{({ selectedText }) => selectedText}</SelectValue>
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover placement="bottom start" offset={4}>
+              <ListBox>
+                {DECISION_QUESTION_TYPES.map((t) => (
+                  <SelectItem key={t.id} id={t.id} textValue={t.label}>
+                    <Flex direction="column">
+                      <Text>{t.label}</Text>
+                      <Text size="XS" color="text-700">
+                        {t.description}
+                      </Text>
+                    </Flex>
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
+          <TextField
+            size="S"
+            css={nameFieldCSS}
+            aria-label="Question name"
+            value={question.name}
+            onChange={(name) => onChange({ name })}
+            isDisabled={isDisabled}
+            isInvalid={!!errors?.name}
+          >
+            <Input placeholder="name" />
+          </TextField>
         </Flex>
       }
       extra={
-        <Button
-          size="S"
-          aria-label={`Remove question ${index + 1}`}
-          leadingVisual={<Icon svg={<Icons.Trash />} />}
-          isDisabled={isDisabled || !canRemove}
-          onPress={onRemove}
-        />
+        <Flex direction="row" gap="size-100">
+          <CopyToClipboardButton text={copyText} />
+          <Button
+            size="S"
+            aria-label={`Delete ${label}`}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
+            isDisabled={isDisabled || !canRemove}
+            onPress={onRemove}
+          />
+        </Flex>
       }
     >
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          <div css={fieldRowCSS}>
-            <TextField
-              size="S"
-              value={question.name}
-              onChange={(name) => onChange({ name })}
-              isDisabled={isDisabled}
-              isInvalid={!!errors?.name}
-              isRequired
-            >
-              <Label>Name</Label>
-              <Input placeholder="e.g. department" />
-              {errors?.name ? (
-                <FieldError>{errors.name}</FieldError>
-              ) : (
-                <Text slot="description">Returned with the answer.</Text>
-              )}
-            </TextField>
-            <Select
-              size="S"
-              selectedKey={question.type}
-              onSelectionChange={(key) => {
-                if (!isQuestionType(key) || key === question.type) return;
-                // Seed empty criteria for the new type so the editor never
-                // opens on a validation error.
-                const fresh = createDecisionQuestion(key);
-                onChange({
-                  type: key,
-                  choices: question.choices.length
-                    ? question.choices
-                    : fresh.choices,
-                  levels: question.levels.length
-                    ? question.levels
-                    : fresh.levels,
-                });
-              }}
-              isDisabled={isDisabled}
-            >
-              <Label>Type</Label>
-              <Button size="S">
-                <SelectValue>{({ selectedText }) => selectedText}</SelectValue>
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Text slot="description">{typeInfo?.description}</Text>
-              <Popover>
-                <ListBox>
-                  {DECISION_QUESTION_TYPES.map((t) => (
-                    <SelectItem key={t.id} id={t.id} textValue={t.label}>
-                      <Flex direction="column">
-                        <Text>{t.label}</Text>
-                        <Text size="XS" color="text-700">
-                          {t.description}
-                        </Text>
-                      </Flex>
-                    </SelectItem>
-                  ))}
-                </ListBox>
-              </Popover>
-            </Select>
-          </div>
-          <TextField
-            size="S"
-            value={question.instructions}
-            onChange={(instructions) => onChange({ instructions })}
-            isDisabled={isDisabled}
-            isInvalid={!!errors?.instructions}
-            isRequired
-          >
-            <Label>Instructions</Label>
-            <TextArea rows={2} placeholder="What should the model decide?" />
-            {errors?.instructions ? (
-              <FieldError>{errors.instructions}</FieldError>
-            ) : null}
-          </TextField>
+      {headerError ? (
+        <Alert variant="danger" banner>
+          {headerError}
+        </Alert>
+      ) : null}
+      {errors?.instructions ? (
+        <Alert variant="danger" banner>
+          Say what the model should decide.
+        </Alert>
+      ) : null}
+      <TemplateEditorWrap readOnly={isDisabled}>
+        <TemplateEditor
+          // Uncontrolled: remount on format change or import.
+          key={`${question.id}-${templateFormat}-${revision}`}
+          aria-label={`Instructions for ${label}`}
+          templateFormat={templateFormat}
+          defaultValue={question.instructions}
+          placeholder="What should the model decide about the state?"
+          onChange={(instructions) => onChange({ instructions })}
+          readOnly={isDisabled}
+        />
+      </TemplateEditorWrap>
+      <div css={criteriaCSS}>
+        <View paddingX="size-200" paddingY="size-150">
           {question.type === "choice" ? (
             <ChoiceCriteriaEditor
               question={question}
@@ -213,8 +258,8 @@ export function DecisionQuestionEditor({
               onChange={onChange}
             />
           )}
-        </Flex>
-      </View>
+        </View>
+      </div>
     </Card>
   );
 }
@@ -224,21 +269,24 @@ type CriteriaProps = Pick<
   "question" | "errors" | "isDisabled" | "onChange"
 >;
 
-function SectionHeading({
+function CriteriaHeading({
   title,
-  description,
+  action,
 }: {
   title: string;
-  description: string;
+  action: React.ReactNode;
 }) {
   return (
-    <Flex direction="column" gap="size-25">
-      <Text size="S" weight="heavy">
+    <Flex
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      gap="size-100"
+    >
+      <Text size="S" weight="heavy" color="text-700">
         {title}
       </Text>
-      <Text size="XS" color="text-700">
-        {description}
-      </Text>
+      {action}
     </Flex>
   );
 }
@@ -260,9 +308,23 @@ function ChoiceCriteriaEditor({
     });
   return (
     <Flex direction="column" gap="size-100">
-      <SectionHeading
+      <CriteriaHeading
         title="Options"
-        description="The model picks one and returns a probability for each. Add an “other” option when the list may not cover every input."
+        action={
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.Plus />} />}
+            isDisabled={isDisabled || question.choices.length >= 255}
+            onPress={() =>
+              onChange({
+                choices: [...question.choices, createChoiceOption()],
+              })
+            }
+          >
+            Option
+          </Button>
+        }
       />
       {errors?.choices ? (
         <Alert variant="danger">{errors.choices}</Alert>
@@ -271,7 +333,7 @@ function ChoiceCriteriaEditor({
         {question.choices.map((option, i) => {
           const optionError = errors?.choiceOptions?.[option.id];
           return (
-            <li key={option.id} css={criteriaRowCSS}>
+            <li key={option.id} css={optionRowCSS}>
               <TextField
                 size="S"
                 aria-label={`Option ${i + 1} value`}
@@ -292,7 +354,7 @@ function ChoiceCriteriaEditor({
                 }
                 isDisabled={isDisabled}
               >
-                <Input placeholder="description (optional)" />
+                <Input placeholder="when to pick this (optional)" />
               </TextField>
               <Button
                 size="S"
@@ -309,19 +371,6 @@ function ChoiceCriteriaEditor({
           );
         })}
       </ul>
-      <div>
-        <Button
-          size="S"
-          variant="quiet"
-          leadingVisual={<Icon svg={<Icons.Plus />} />}
-          isDisabled={isDisabled || question.choices.length >= 255}
-          onPress={() =>
-            onChange({ choices: [...question.choices, createChoiceOption()] })
-          }
-        >
-          Add option
-        </Button>
-      </div>
     </Flex>
   );
 }
@@ -341,9 +390,21 @@ function ScoreCriteriaEditor({
   };
   return (
     <Flex direction="column" gap="size-100">
-      <SectionHeading
-        title="Levels, lowest to highest"
-        description="2 to 10 ordered levels. The score is a probability-weighted position on this scale."
+      <CriteriaHeading
+        title="Levels, low to high"
+        action={
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.Plus />} />}
+            isDisabled={isDisabled || question.levels.length >= 10}
+            onPress={() =>
+              onChange({ levels: [...question.levels, createScoreLevel()] })
+            }
+          >
+            Level
+          </Button>
+        }
       />
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
       <ol css={listCSS} aria-label="Score levels">
@@ -368,47 +429,36 @@ function ScoreCriteriaEditor({
             >
               <Input placeholder={i === 0 ? "e.g. Low" : "e.g. High"} />
             </TextField>
-            <Button
-              size="S"
-              aria-label={`Move level ${i} up`}
-              leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-              isDisabled={isDisabled || i === 0}
-              onPress={() => move(i, i - 1)}
-            />
-            <Button
-              size="S"
-              aria-label={`Move level ${i} down`}
-              leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
-              isDisabled={isDisabled || i === question.levels.length - 1}
-              onPress={() => move(i, i + 1)}
-            />
-            <Button
-              size="S"
-              aria-label={`Remove level ${i}`}
-              leadingVisual={<Icon svg={<Icons.Trash />} />}
-              isDisabled={isDisabled || question.levels.length <= 2}
-              onPress={() =>
-                onChange({
-                  levels: question.levels.filter((l) => l.id !== level.id),
-                })
-              }
-            />
+            <Flex direction="row" gap="size-50">
+              <Button
+                size="S"
+                aria-label={`Move level ${i} up`}
+                leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
+                isDisabled={isDisabled || i === 0}
+                onPress={() => move(i, i - 1)}
+              />
+              <Button
+                size="S"
+                aria-label={`Move level ${i} down`}
+                leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+                isDisabled={isDisabled || i === question.levels.length - 1}
+                onPress={() => move(i, i + 1)}
+              />
+              <Button
+                size="S"
+                aria-label={`Remove level ${i}`}
+                leadingVisual={<Icon svg={<Icons.Trash />} />}
+                isDisabled={isDisabled || question.levels.length <= 2}
+                onPress={() =>
+                  onChange({
+                    levels: question.levels.filter((l) => l.id !== level.id),
+                  })
+                }
+              />
+            </Flex>
           </li>
         ))}
       </ol>
-      <div>
-        <Button
-          size="S"
-          variant="quiet"
-          leadingVisual={<Icon svg={<Icons.Plus />} />}
-          isDisabled={isDisabled || question.levels.length >= 10}
-          onPress={() =>
-            onChange({ levels: [...question.levels, createScoreLevel()] })
-          }
-        >
-          Add level
-        </Button>
-      </div>
     </Flex>
   );
 }
@@ -420,32 +470,29 @@ function NoulCriteriaEditor({
 }: Omit<CriteriaProps, "errors">) {
   return (
     <Flex direction="column" gap="size-100">
-      <SectionHeading
-        title="Criteria (optional)"
-        description="Describe what makes the answer true or false. OpenAI calls this question type a predicate."
-      />
-      <div css={fieldRowCSS}>
+      <CriteriaHeading title="Criteria (optional)" action={null} />
+      <div css={twoUpCSS}>
         <TextField
           size="S"
+          aria-label="True when"
           value={question.noul.trueDescription}
           onChange={(trueDescription) =>
             onChange({ noul: { ...question.noul, trueDescription } })
           }
           isDisabled={isDisabled}
         >
-          <Label>True when</Label>
-          <Input placeholder="e.g. the customer asks for a refund" />
+          <Input placeholder="true when…" />
         </TextField>
         <TextField
           size="S"
+          aria-label="False when"
           value={question.noul.falseDescription}
           onChange={(falseDescription) =>
             onChange({ noul: { ...question.noul, falseDescription } })
           }
           isDisabled={isDisabled}
         >
-          <Label>False when</Label>
-          <Input placeholder="e.g. no money is involved" />
+          <Input placeholder="false when…" />
         </TextField>
       </div>
     </Flex>
