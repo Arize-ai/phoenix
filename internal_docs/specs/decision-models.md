@@ -1128,6 +1128,16 @@ bodies and the SDK's generated types freeze whichever shape ships.
     where a dataset run sends real JSON values. Each input's `json_schema`
     could type the panel's fields. Saving also drops each input's
     `description` and `json_schema`, as Text mode does.
+- **What an input's `json_schema` is for.** A run doesn't check values against
+  it, and the playground neither shows nor saves it. Its only reader is a
+  decision evaluator's `inputSchema`, which copies it into each input's
+  property. So a client can write it, but nothing acts on it. Options: check
+  values against it on a run (a loose schema written only to describe the
+  input would then fail dataset runs), use it to type the Inputs panel and to
+  check Mustache section names, or drop it until one of those is built. The
+  JSON scalars around it stay JSON whichever is chosen: `inputValues` is keyed
+  by each version's own input names, `metadata` by the user's, and
+  `inputSchema` matches the other evaluator types.
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need
