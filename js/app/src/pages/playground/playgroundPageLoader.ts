@@ -19,6 +19,7 @@ import type {
   PlaygroundStateByDatasetId,
 } from "@phoenix/store";
 import {
+  createDecisionTaskInstance,
   createEvaluatorTaskInstance,
   createNormalizedPlaygroundInstance,
 } from "@phoenix/store";
@@ -262,6 +263,15 @@ export function createPlaygroundPageLoader(
     const decisionParams = parseDecisionParams(url.searchParams);
 
     if (!promptParams.length && !decisionParams.length) {
+      if (url.searchParams.get("newDecision") === "true") {
+        return {
+          source: "tested",
+          promptParams: [],
+          decisionParams: [],
+          instances: [createDecisionTaskInstance()],
+          templateFormat: TemplateFormats.Mustache,
+        };
+      }
       return null;
     }
 
