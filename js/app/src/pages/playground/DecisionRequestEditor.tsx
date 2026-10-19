@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import {
   Alert,
@@ -29,6 +29,8 @@ import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
   createDecisionDraft,
   createDecisionQuestion,
+  decisionFieldId,
+  maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
   validateDecisionDraft,
 } from "./decisionUtils";
@@ -74,8 +76,20 @@ export function DecisionRequestEditor({
   // keyboard users are not dropped to the document body.
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
   const request = instance?.decisionRequest ?? createDecisionDraft();
-  const errors = validateDecisionDraft(request);
-  const revision = request.revision ?? 0;
+  // Fields the user has left. Empty required fields are reported only once
+  // the user has been there, so a new question or option does not open in
+  // an error state; see maskUntouchedErrors.
+  const [touchedFields, setTouchedFields] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const touch = (fieldId: string) =>
+    setTouchedFields((previous) =>
+      previous.has(fieldId) ? previous : new Set(previous).add(fieldId)
+    );
+  const errors = maskUntouchedErrors({
+    errors: validateDecisionDraft(request),
+    touched: touchedFields,
+  });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
   const update = (patch: Partial<DecisionRequestDraft>) =>
@@ -151,24 +165,24 @@ export function DecisionRequestEditor({
         {request.stateFormat === "json" ? (
           <div css={jsonEditorCSS}>
             <JSONEditor
-              key={`json-${revision}`}
               aria-label="Decision state"
               value={request.state}
               onChange={(state) => update({ state })}
+              onBlur={() => touch(decisionFieldId.state())}
               readOnly={isRunning}
             />
           </div>
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor
-              // Uncontrolled: remount when the format toggles or a request
-              // is imported (revision).
-              key={`text-${templateFormat}-${revision}`}
+              // Uncontrolled: remount when the template format toggles.
+              key={`text-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}
               placeholder="The evidence the questions are asked about"
               onChange={(state) => update({ state })}
+              onBlur={() => touch(decisionFieldId.state())}
               readOnly={isRunning}
             />
           </TemplateEditorWrap>
@@ -188,7 +202,7 @@ export function DecisionRequestEditor({
               isDisabled={isRunning}
               canRemove={request.questions.length > 1}
               templateFormat={templateFormat}
-              revision={revision}
+              onTouch={touch}
               onChange={(patch) => updateQuestion(question.id, patch)}
               onRemove={() => {
                 update({

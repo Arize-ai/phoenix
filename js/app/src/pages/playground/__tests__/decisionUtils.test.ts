@@ -6,8 +6,10 @@ import {
   createDecisionDraft,
   createDecisionQuestion,
   createScoreLevel,
+  decisionFieldId,
   extractDecisionVariables,
   getDecisionValidationError,
+  maskUntouchedErrors,
   normalizeDecisionResult,
   parseDecisionImport,
   validateDecisionDraft,
@@ -52,6 +54,73 @@ describe("decision request draft", () => {
     expect(
       questionErrors?.choiceOptions?.[draft.questions[0].choices[1].id]
     ).toBe("Duplicate");
+  });
+
+  it("reports an empty level per level", () => {
+    const draft = createDecisionDraft();
+    const score = createDecisionQuestion({
+      type: "score",
+      name: "severity",
+      instructions: "Severity?",
+      levels: [createScoreLevel("Low"), createScoreLevel("")],
+    });
+    draft.questions.push(score);
+    const errors = validateDecisionDraft(draft);
+    expect(errors.byQuestionId[score.id]).toEqual({
+      levelDescriptions: { [score.levels[1].id]: "Required" },
+    });
+    expect(getDecisionValidationError(draft)).toBe(
+      "severity: every level needs a description"
+    );
+  });
+
+  it("holds back empty required fields until the user has left them", () => {
+    const draft = createDecisionDraft();
+    draft.state = "";
+    draft.questions[0].name = "";
+    draft.questions[0].instructions = "";
+    const [choice] = draft.questions;
+    choice.choices[0].value = "";
+    const errors = validateDecisionDraft(draft);
+    const untouched = maskUntouchedErrors({ errors, touched: new Set() });
+    expect(untouched.state).toBeUndefined();
+    expect(untouched.byQuestionId[choice.id]).toBeUndefined();
+    const visited = maskUntouchedErrors({
+      errors,
+      touched: new Set([
+        decisionFieldId.state(),
+        decisionFieldId.name(choice.id),
+        decisionFieldId.option(choice.choices[0].id),
+      ]),
+    });
+    expect(visited.state).toBe("State cannot be empty");
+    expect(visited.byQuestionId[choice.id]).toEqual({
+      name: "Required",
+      choiceOptions: { [choice.choices[0].id]: "Required" },
+    });
+    // Run still refuses the request while anything is hidden.
+    expect(getDecisionValidationError(draft)).not.toBeNull();
+  });
+
+  it("shows duplicate and count errors without waiting", () => {
+    const draft = createDecisionDraft();
+    const [choice] = draft.questions;
+    choice.choices[1].value = "billing";
+    draft.questions.push({ ...choice, id: "copy" });
+    const masked = maskUntouchedErrors({
+      errors: validateDecisionDraft(draft),
+      touched: new Set(),
+    });
+    expect(masked.byQuestionId.copy?.name).toBe("Duplicate name");
+    expect(masked.byQuestionId[choice.id]?.choiceOptions).toEqual({
+      [choice.choices[1].id]: "Duplicate",
+    });
+    expect(
+      maskUntouchedErrors({
+        errors: validateDecisionDraft({ ...draft, questions: [] }),
+        touched: new Set(),
+      }).questions
+    ).toBe("Add at least one question");
   });
 
   it("rejects malformed JSON state, empty questions, and duplicate names", () => {
