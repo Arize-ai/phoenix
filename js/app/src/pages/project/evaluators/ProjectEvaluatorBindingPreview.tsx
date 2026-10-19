@@ -1,8 +1,19 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useEffect, useEffectEvent, useMemo } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 
-import { Alert, Icon, Icons } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Icon,
+  Icons,
+  Text,
+  Token,
+} from "@phoenix/components";
 import {
   JSONViewBody,
   JSONViewProvider,
@@ -18,7 +29,10 @@ import {
   EVALUATOR_SLOT_NAMES,
   type EvaluatorSlotName,
 } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { unwrapSingleStringValue } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
@@ -98,16 +112,6 @@ export type EvaluatorRecordInputs = {
 const LEADING_SLOT_NAMES: readonly EvaluatorSlotName[] = ["input", "output"];
 
 /**
- * A variable with something to say where its value would be: an error when
- * the path names nothing on this record, a warning when nothing here can say.
- */
-type InputDiagnosticMessage = {
-  variant: "error" | "warning";
-  variable: string;
-  message: string;
-};
-
-/**
  * Resolves the evaluator's inputs against one record the way a run would:
  * the slot fallbacks, the `metadata` key, and the path resolver all come from
  * the shared materialization rather than being re-derived here.
@@ -184,12 +188,113 @@ export function getEvaluatorRecordInputs({
   return { values, diagnostics };
 }
 
+/** One declared variable: where it reads from, and what it read here. */
+export type EvaluatorVariableBinding = {
+  variable: string;
+  status: ProjectEvaluatorMappingDiagnostic["status"];
+  /**
+   * `default` is a slot reading the record field of its own name, `same-name`
+   * an authored variable doing the same, `mapped` a path the author wrote,
+   * `text` saved text, and `unmapped` nothing at all.
+   */
+  sourceKind: "default" | "same-name" | "mapped" | "text" | "unmapped";
+  /** The path read on the record; null for text and for nothing. */
+  path: string | null;
+  /** The value as a run would send it; absent when nothing was read. */
+  value?: unknown;
+  hasValue: boolean;
+  /** What the binding check said, for the shared wording of a failure. */
+  diagnostic: ProjectEvaluatorMappingDiagnostic;
+};
+
 /**
- * The evaluator's inputs for one record, as the same searchable key/value
- * table the span page uses for attributes. Every row's key is the path that
- * reads it, so a key copied from here can be pasted into the mapping on the
- * left. A variable the mapping cannot bind is listed above the table rather
- * than as a row, since there is no value to put in one.
+ * Each declared variable against one record, in declaration order: the
+ * diagnostics say whether it binds, the record inputs say to what.
+ */
+export function getEvaluatorVariableBindings(
+  inputs: EvaluatorRecordInputs
+): EvaluatorVariableBinding[] {
+  const { values, diagnostics } = inputs;
+  return diagnostics.map((diagnostic): EvaluatorVariableBinding => {
+    const { variable, status, source } = diagnostic;
+    const hasValue = Object.hasOwn(values, variable);
+    const value = values[variable];
+    const shared = { variable, status, value, hasValue, diagnostic };
+    if (source === "literal") {
+      return { ...shared, sourceKind: "text", path: null };
+    }
+    if (source === "path") {
+      return { ...shared, sourceKind: "mapped", path: diagnostic.path };
+    }
+    const isUnmapped = status === "missing" || status === "optional-missing";
+    return {
+      ...shared,
+      sourceKind: EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
+        ? "default"
+        : isUnmapped
+          ? "unmapped"
+          : "same-name",
+      path: isUnmapped ? null : variable,
+    };
+  });
+}
+
+type BindingStatus = {
+  label: string;
+  icon: ReactNode;
+  color: "success" | "danger" | "warning" | "default";
+};
+
+function getBindingStatus(
+  binding: EvaluatorVariableBinding,
+  recordKind: ProjectEvaluatorRecordKind
+): BindingStatus {
+  if (binding.status === "missing") {
+    return {
+      label:
+        binding.sourceKind === "mapped"
+          ? `Not on this ${recordKind}`
+          : "Not mapped",
+      icon: <Icons.CloseCircle />,
+      color: "danger",
+    };
+  }
+  if (binding.status === "optional-missing") {
+    return {
+      label: "Empty, optional",
+      icon: <Icons.AlertCircle />,
+      color: "default",
+    };
+  }
+  if (binding.status === "unverified") {
+    return {
+      label: "Checked at run",
+      icon: <Icons.AlertTriangle />,
+      color: "warning",
+    };
+  }
+  return {
+    label: "Resolved",
+    icon: <Icons.CheckmarkCircle />,
+    color: "success",
+  };
+}
+
+const SOURCE_TOKEN: Partial<
+  Record<EvaluatorVariableBinding["sourceKind"], string>
+> = {
+  default: "default",
+  "same-name": "same name",
+  text: "text",
+};
+
+/**
+ * The evaluator's inputs for one record, a row per declared variable: the
+ * variable and whether it binds, then where it reads from and what it read.
+ * A variable with nothing to read says why in its own row and offers its
+ * field in the mapping, so the list doubles as the to-do for the mapping.
+ * The record's whole context follows in a disclosure, as the span page's
+ * attributes table, for finding a path to map.
  *
  * @internal Exported for testing
  */
@@ -207,88 +312,224 @@ export function EvaluatorInputsView({
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
-  /** The section title, rendered on the toolbar's row. */
+  /** The section title. */
   heading?: ReactNode;
 }) {
   const declaredVariables = useEvaluatorInputVariables();
-  const { values, diagnostics } = getEvaluatorRecordInputs({
+  const inputs = getEvaluatorRecordInputs({
     context,
     recordKind,
     inputMapping,
     declaredVariables,
     requiredVariables,
   });
-  const messages: InputDiagnosticMessage[] = diagnostics.flatMap(
-    (diagnostic): InputDiagnosticMessage[] => {
-      if (diagnostic.status === "missing") {
-        return [
-          {
-            variant: "error",
-            variable: diagnostic.variable,
-            message: formatMissingBindingMessage(diagnostic, recordKind),
-          },
-        ];
-      }
-      if (diagnostic.status === "unverified") {
-        return [
-          {
-            variant: "warning",
-            variable: diagnostic.variable,
-            // Only paths reach `unverified`, so this is always a real
-            // authored path rather than a bare variable name.
-            message: `${diagnostic.path} is checked when the evaluator runs`,
-          },
-        ];
-      }
-      return [];
-    }
+  const bindings = getEvaluatorVariableBindings(inputs);
+  const readableContext = useMemo(
+    () => toReadableContext(context, recordKind),
+    [context, recordKind]
+  );
+  const setHighlightedMappingVariable = useEvaluatorStore(
+    (state) => state.setHighlightedMappingVariable
   );
   return (
-    <JSONViewProvider value={values} defaultMode="table" indexNotation="dot">
-      <div css={inputsViewCSS} data-testid="evaluator-inputs-view">
-        <div className="inputs-view__header">
-          {heading}
-          <JSONViewToolbar searchPlaceholder="Search inputs" />
-        </div>
-        {isSampleContext ? (
-          <Alert variant="info" title={`Standard ${recordKind} fields`}>
-            No matching {recordKind} yet; values are empty.
-          </Alert>
-        ) : null}
-        {messages.length > 0 ? (
-          <ul className="inputs-view__diagnostics">
-            {messages.map(({ variant, variable, message }) => (
-              <li
-                key={variable}
-                className="inputs-view__diagnostic"
-                data-variant={variant}
-              >
-                <Icon
-                  svg={
-                    variant === "error" ? (
-                      <Icons.CloseCircle />
-                    ) : (
-                      <Icons.AlertTriangle />
-                    )
-                  }
-                  color={variant === "error" ? "danger" : "warning"}
-                  aria-label={variant}
-                />
-                <code>{variable}</code>
-                <span>{message}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="inputs-view__table">
-          <JSONViewBody
-            emptyMessage={`Nothing on this ${recordKind} is bound`}
-            noResultsMessage="No matching inputs"
-          />
-        </div>
-      </div>
-    </JSONViewProvider>
+    <div css={inputsViewCSS} data-testid="evaluator-inputs-view">
+      {heading}
+      {isSampleContext ? (
+        <Alert variant="info" title={`Standard ${recordKind} fields`}>
+          No matching {recordKind} yet; values are empty.
+        </Alert>
+      ) : null}
+      {bindings.length > 0 ? (
+        <ul
+          className="inputs-view__list"
+          onMouseLeave={() => setHighlightedMappingVariable(null)}
+        >
+          {bindings.map((binding) => (
+            <EvaluatorVariableBindingItem
+              key={binding.variable}
+              binding={binding}
+              recordKind={recordKind}
+              onPointAt={setHighlightedMappingVariable}
+            />
+          ))}
+        </ul>
+      ) : (
+        <Text size="S" color="text-500">
+          The evaluator declares no variables yet.
+        </Text>
+      )}
+      <DisclosureGroup className="inputs-view__context">
+        <Disclosure id="context" defaultExpanded={false}>
+          <DisclosureTrigger arrowPosition="end">
+            {`All ${recordKind} data`}
+          </DisclosureTrigger>
+          <DisclosurePanel>
+            <JSONViewProvider
+              value={readableContext}
+              defaultMode="table"
+              indexNotation="dot"
+            >
+              <div className="inputs-view__context-body">
+                <div className="inputs-view__context-toolbar">
+                  <Text size="XS" color="text-500">
+                    Every key is a path a variable can be mapped to.
+                  </Text>
+                  <JSONViewToolbar
+                    searchPlaceholder={`Search ${recordKind} data`}
+                  />
+                </div>
+                <div className="inputs-view__table">
+                  <JSONViewBody
+                    emptyMessage={`Nothing recorded on this ${recordKind}`}
+                    noResultsMessage="No matching keys"
+                  />
+                </div>
+              </div>
+            </JSONViewProvider>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </div>
   );
+}
+
+function EvaluatorVariableBindingItem({
+  binding,
+  recordKind,
+  onPointAt,
+}: {
+  binding: EvaluatorVariableBinding;
+  recordKind: ProjectEvaluatorRecordKind;
+  /** Marks the variable's field in the mapping while this row is pointed at. */
+  onPointAt: (variable: string) => void;
+}) {
+  const requestMappingFocus = useEvaluatorStore(
+    (state) => state.requestMappingFocus
+  );
+  const status = getBindingStatus(binding, recordKind);
+  const isMissing = binding.status === "missing";
+  const token = SOURCE_TOKEN[binding.sourceKind];
+  return (
+    <li
+      className="inputs-view__item"
+      data-status={binding.status}
+      onMouseEnter={() => onPointAt(binding.variable)}
+    >
+      <div className="inputs-view__name">
+        <code className="inputs-view__variable">{`{{${binding.variable}}}`}</code>
+        <span className="inputs-view__status" data-color={status.color}>
+          <Icon svg={status.icon} />
+          {status.label}
+        </span>
+      </div>
+      <div className="inputs-view__detail">
+        {binding.sourceKind === "unmapped" ? (
+          <Text size="XS" color="text-500">
+            {`Nothing on the ${recordKind} is named ${binding.variable}`}
+          </Text>
+        ) : (
+          <span className="inputs-view__source">
+            {binding.path != null ? (
+              <>
+                <span>from</span>
+                <code>{binding.path}</code>
+              </>
+            ) : (
+              <span>saved text</span>
+            )}
+            {token ? <Token size="S">{token}</Token> : null}
+          </span>
+        )}
+        {isMissing && binding.sourceKind === "mapped" ? (
+          <Text size="XS" color="danger">
+            {formatMissingBindingMessage(binding.diagnostic, recordKind)}
+          </Text>
+        ) : null}
+        {binding.status === "unverified" ? (
+          <Text size="XS" color="text-500">
+            {`${binding.path} is checked when the evaluator runs`}
+          </Text>
+        ) : null}
+        {binding.hasValue ? <BindingValue value={binding.value} /> : null}
+        {isMissing ? (
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.Edit2 />} />}
+            onPress={() => requestMappingFocus(binding.variable)}
+          >
+            Map in form
+          </Button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+/** Past this many characters or lines a value starts folded. */
+const FOLDED_VALUE_MAX_CHARACTERS = 280;
+const FOLDED_VALUE_MAX_LINES = 4;
+
+/**
+ * A variable's value: text as it reads, anything with structure as indented
+ * JSON. A long one starts folded to a few lines so one variable cannot push
+ * the rest out of the inspector.
+ */
+function BindingValue({ value }: { value: unknown }) {
+  const isText = typeof value === "string";
+  const text = isText
+    ? value
+    : (JSON.stringify(value, null, 2) ?? String(value));
+  const isLong =
+    text.length > FOLDED_VALUE_MAX_CHARACTERS ||
+    text.split("\n").length > FOLDED_VALUE_MAX_LINES;
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className="inputs-view__value-wrap">
+      <p
+        className="inputs-view__value"
+        data-format={isText ? "text" : "json"}
+        data-folded={isLong && !isExpanded}
+      >
+        {text}
+      </p>
+      {isLong ? (
+        <Button
+          size="S"
+          variant="quiet"
+          onPress={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? "Show less" : "Show all"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The record's context as the mapping reads it: a plain-text input or output
+ * the server wrapped as `{ "input": "…" }` shown as its text, since the path
+ * that reads that text is the slot's own name, and metadata in reading order.
+ */
+function toReadableContext(
+  context: unknown,
+  recordKind: ProjectEvaluatorRecordKind
+): unknown {
+  if (!isStringKeyedObject(context)) {
+    return context;
+  }
+  const readable: Record<string, unknown> = { ...context };
+  for (const slot of LEADING_SLOT_NAMES) {
+    if (Object.hasOwn(readable, slot)) {
+      readable[slot] = unwrapSingleStringValue(readable[slot]);
+    }
+  }
+  if (Object.hasOwn(readable, EVALUATOR_METADATA_SLOT)) {
+    readable[EVALUATOR_METADATA_SLOT] = orderMetadataForReading(
+      readable[EVALUATOR_METADATA_SLOT],
+      recordKind
+    );
+  }
+  return readable;
 }
 
 const inputsViewCSS = css`
@@ -296,40 +537,116 @@ const inputsViewCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-100);
   min-width: 0;
-  .inputs-view__header {
+  .inputs-view__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+  }
+  .inputs-view__item {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr);
+    gap: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--global-border-color-default);
+    }
+    // A variable that fails the run is marked at the edge of its row, so the
+    // rows that need the author read apart at a glance.
+    &[data-status="missing"] {
+      box-shadow: inset 2px 0 0 var(--global-color-danger);
+    }
+  }
+  .inputs-view__name,
+  .inputs-view__detail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-75);
+    min-width: 0;
+  }
+  .inputs-view__variable,
+  .inputs-view__source code {
+    font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-900);
+    overflow-wrap: anywhere;
+  }
+  .inputs-view__variable {
+    font-weight: 600;
+  }
+  .inputs-view__status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+    &[data-color="success"] {
+      color: var(--global-color-success);
+    }
+    &[data-color="danger"] {
+      color: var(--global-color-danger);
+    }
+    &[data-color="warning"] {
+      color: var(--global-color-warning);
+    }
+  }
+  .inputs-view__source {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-75);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+  }
+  .inputs-view__value-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-50);
+    width: 100%;
+    min-width: 0;
+  }
+  .inputs-view__value {
+    margin: 0;
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    color: var(--global-text-color-900);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    &[data-format="json"] {
+      font-family: var(--global-font-family-code, monospace);
+      font-size: var(--global-font-size-xs);
+      line-height: var(--global-line-height-xs);
+    }
+    &[data-folded="true"] {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: ${FOLDED_VALUE_MAX_LINES};
+      overflow: hidden;
+    }
+  }
+  .inputs-view__context {
+    margin-top: var(--global-dimension-size-100);
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+    overflow: hidden;
+  }
+  .inputs-view__context-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
+      var(--global-dimension-size-200);
+  }
+  .inputs-view__context-toolbar {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: var(--global-dimension-size-200);
     flex-wrap: wrap;
-  }
-  .inputs-view__diagnostics {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
-  }
-  .inputs-view__diagnostic {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
-    code {
-      font-family: var(--global-font-family-code, monospace);
-      font-weight: 600;
-      color: var(--global-text-color-900);
-    }
-    &[data-variant="error"] span {
-      color: var(--global-color-danger);
-    }
-    &[data-variant="warning"] span {
-      color: var(--global-color-warning);
-    }
   }
   .inputs-view__table {
     border: 1px solid var(--global-border-color-default);

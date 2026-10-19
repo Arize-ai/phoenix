@@ -21,11 +21,6 @@ import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/E
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
-import {
-  InspectorVariantBody,
-  InspectorVariantSwitcher,
-  useInspectorVariant,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorInspectorVariants";
 import { getRowTestBlocker } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
   type RecordedRunEntry,
@@ -66,7 +61,9 @@ const INPUTS_DESCRIPTION: Record<ProjectEvaluatorRecordKind, ReactNode> = {
  * it, and what each variable resolved to. It sits in a fixed region so
  * arrowing through records reads each in the same place. The Test button
  * lives with the result it produces, under the Result title, so the control
- * and its outcome are read together here as they are in the table.
+ * and its outcome are read together here as they are in the table. The
+ * result and the inputs stack rather than sit side by side: before a run the
+ * result is one line, and beside it the inputs left a column mostly empty.
  */
 export function ProjectEvaluatorRecordInspector({
   entry,
@@ -94,22 +91,6 @@ export function ProjectEvaluatorRecordInspector({
     isRunnable,
     runBlocker,
   });
-  const [variant, setVariant] = useInspectorVariant();
-  const resultSection = (
-    <section className="record-inspector__result" aria-label="Result">
-      <div className="record-inspector__section-header">
-        <InspectorSectionTitle title="Result" />
-        <TestButton
-          recordKind={recordKind}
-          isRunning={resultState.kind === "running"}
-          isRetest={hasResult}
-          blocker={testBlocker}
-          onRun={onRun}
-        />
-      </div>
-      <RecordedRunDetail entry={entry} />
-    </section>
-  );
   return (
     <section
       css={inspectorCSS}
@@ -155,7 +136,6 @@ export function ProjectEvaluatorRecordInspector({
             )}
           </span>
         </Flex>
-        <InspectorVariantSwitcher variant={variant} onChange={setVariant} />
         {row.href ? (
           <ExternalLink href={row.href}>Open {recordKind}</ExternalLink>
         ) : null}
@@ -165,18 +145,21 @@ export function ProjectEvaluatorRecordInspector({
           <Alert variant="warning" title="No evaluation context">
             {row.unavailableReason}
           </Alert>
-        ) : variant !== "current" ? (
-          <InspectorVariantBody
-            variant={variant}
-            result={resultSection}
-            context={row.context}
-            recordKind={recordKind}
-            inputMapping={inputMapping}
-            requiredVariables={requiredVariables}
-          />
         ) : (
           <div className="record-inspector__sections">
-            {resultSection}
+            <section className="record-inspector__result" aria-label="Result">
+              <div className="record-inspector__section-header">
+                <InspectorSectionTitle title="Result" />
+                <TestButton
+                  recordKind={recordKind}
+                  isRunning={resultState.kind === "running"}
+                  isRetest={hasResult}
+                  blocker={testBlocker}
+                  onRun={onRun}
+                />
+              </div>
+              <RecordedRunDetail entry={entry} />
+            </section>
             <EvaluatorInputsView
               heading={
                 <InspectorSectionTitle
@@ -374,9 +357,6 @@ const verdictCSS = css`
   }
 `;
 
-/** Past this inspector width the result and the inputs sit side by side. */
-const TWO_COLUMN_MIN_WIDTH = "900px";
-
 const inspectorCSS = css`
   display: flex;
   flex-direction: column;
@@ -425,22 +405,11 @@ const inspectorCSS = css`
     overscroll-behavior: contain;
     padding: var(--global-dimension-size-150) var(--global-dimension-size-200)
       var(--global-dimension-size-200);
-    // The layout below answers to the inspector's own width, not the
-    // viewport's: the dialog's panes are resizable.
-    container-type: inline-size;
   }
   .record-inspector__sections {
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-300);
-  }
-  @container (min-width: ${TWO_COLUMN_MIN_WIDTH}) {
-    .record-inspector__sections {
-      display: grid;
-      grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
-      align-items: start;
-      gap: var(--global-dimension-size-400);
-    }
   }
   .record-inspector__result {
     display: flex;
@@ -454,8 +423,6 @@ const inspectorCSS = css`
     align-items: center;
     justify-content: space-between;
     gap: var(--global-dimension-size-200);
-    // The inputs section's header holds a size-S toolbar; this one matches
-    // its height so the two titles sit on one line in the two-column layout.
     min-height: var(--global-button-height-s);
   }
   // The same register as the table header above: one heading style for the
