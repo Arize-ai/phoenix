@@ -492,7 +492,10 @@ describe("structured output", () => {
   });
 
   it("builds a chat template that asks an LLM the same questions", () => {
-    const { messages, responseFormat } = buildChatFromDecisionDraft({ draft });
+    const { messages, responseFormat } = buildChatFromDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
     expect(messages.map((message) => message.role)).toEqual(["system", "user"]);
     expect(messages[1].content).toBe(draft.state);
     expect(messages[0].content).toContain("## department");
@@ -511,6 +514,20 @@ describe("structured output", () => {
         schema: toDecisionJsonSchema(draft.questions),
       },
     });
+  });
+
+  it("writes listed inputs as one variable per line in the chat", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "inputs" as const,
+      state: "reference, output",
+    };
+    expect(
+      buildChatFromDecisionDraft({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      }).messages[1].content
+    ).toBe("reference: {reference}\noutput: {output}");
   });
 });
 
@@ -555,6 +572,67 @@ describe("runDecision input", () => {
     expect(input.inputs).toEqual([{ name: "plan" }, { name: "events" }]);
     expect(input.state).toEqual({ object: true });
     expect(input.inputValues).toEqual({ plan: "pro", events: ["refund"] });
+  });
+
+  it("sends listed inputs as an object state, valued from the variables", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "inputs" as const,
+      state: " reference ,output, ",
+    };
+    const input = buildDecisionInput({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+      variables: { reference: "billing" },
+    });
+    expect(input.inputs).toEqual([{ name: "reference" }, { name: "output" }]);
+    expect(input.state).toEqual({ object: true });
+    expect(input.inputValues).toEqual({ reference: "billing", output: "" });
+    expect(
+      buildDecisionRequest({ draft, variables: { reference: "billing" } }).state
+    ).toEqual({ reference: "billing", output: "" });
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toEqual(["reference", "output"]);
+  });
+
+  it("runs listed inputs over a dataset as an object state", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "inputs" as const,
+      state: "reference, output",
+    };
+    expect(
+      getDecisionDatasetProblem({
+        draft,
+        templateFormat: TemplateFormats.NONE,
+      })
+    ).toBeNull();
+    expect(
+      buildDecisionTaskDefinition({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "reference" }, { name: "output" }],
+      state: { object: true },
+    });
+  });
+
+  it("requires listed inputs to be named once each", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "inputs" as const,
+    };
+    expect(validateDecisionDraft({ ...draft, state: " , " }).state).toBe(
+      "State cannot be empty"
+    );
+    expect(validateDecisionDraft({ ...draft, state: "a, b, a" }).state).toBe(
+      'Input "a" is listed twice'
+    );
   });
 
   it("sends a JSON array whole", () => {

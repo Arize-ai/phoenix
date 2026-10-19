@@ -243,8 +243,24 @@ function getQuestionErrors({
   return errors;
 }
 
+/** The input names an `inputs` state lists, in order. */
+export function parseStateInputNames(state: string): string[] {
+  return state
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function getStateError(draft: DecisionRequestDraft): string | undefined {
   if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
+  if (draft.stateFormat === "inputs") {
+    const names = parseStateInputNames(draft.state);
+    if (names.length === 0) return STATE_REQUIRED_ERROR;
+    const duplicate = names.find(
+      (name, index) => names.indexOf(name) !== index
+    );
+    return duplicate ? `Input "${duplicate}" is listed twice` : undefined;
+  }
   if (draft.stateFormat !== "json") return undefined;
   try {
     const parsed: unknown = JSON.parse(draft.state);
@@ -480,9 +496,12 @@ export function buildDecisionRequest({
   const error = getDecisionValidationError(draft);
   if (error) throw new Error(error);
   const formatText = createTextFormatter({ templateFormat, variables });
-  const stateText = formatText(draft.state);
   const state: unknown =
-    draft.stateFormat === "json" ? parseJsonState(stateText) : stateText;
+    draft.stateFormat === "inputs"
+      ? inputValuesOf(parseStateInputNames(draft.state), variables)
+      : draft.stateFormat === "json"
+        ? parseJsonState(formatText(draft.state))
+        : formatText(draft.state);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
   const questions: Record<string, SystemOneQuestion> = Object.create(null);
@@ -493,6 +512,16 @@ export function buildDecisionRequest({
     });
   }
   return { state, questions };
+}
+
+/** Each input's value from the template variables; a missing one is blank. */
+function inputValuesOf(
+  names: readonly string[],
+  variables: Record<string, string | undefined> | undefined
+): Record<string, string> {
+  return Object.fromEntries(
+    names.map((name) => [name, variables?.[name] ?? ""])
+  );
 }
 
 /** JSON state after variables are filled in, with a cause when it no longer parses. */
@@ -623,8 +652,9 @@ function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
 /**
  * How the state reaches the server. A text state with template variables is
  * sent as a template over those variables, so the server renders it. A JSON
- * object is sent as an object state, one input per key. Anything else (plain
- * text, a JSON array or string, `{}`) is sent whole.
+ * object is sent as an object state, one input per key, and so are listed
+ * inputs, with their values from the variables. Anything else (plain text, a
+ * JSON array or string, `{}`) is sent whole.
  */
 function toStateInput({
   draft,
@@ -635,6 +665,14 @@ function toStateInput({
   draft: DecisionRequestDraft;
   formatText: TextFormatter;
 }): Omit<DecisionRunInput, "questions"> {
+  if (draft.stateFormat === "inputs") {
+    const names = parseStateInputNames(draft.state);
+    return {
+      inputs: names.map((name) => ({ name })),
+      state: { object: true },
+      inputValues: inputValuesOf(names, variables),
+    };
+  }
   if (draft.stateFormat === "json") {
     const parsed = parseJsonState(formatText(draft.state));
     if (
@@ -737,6 +775,7 @@ function toQuestionInput({
 export type DecisionTaskDefinition = {
   inputs: Array<{ name: string }>;
   state:
+    | { object: true }
     | { input: string }
     | { text: { template: string; templateFormat: DecisionTemplateFormat } };
   questions: DecisionQuestionInput[];
@@ -758,8 +797,8 @@ function questionVariables({
 /**
  * Why a draft can't run over a dataset, or null when it can. Each example
  * supplies the state's variables, so the state must be a text template over
- * them; the questions are copied into the experiment as written, so they
- * can't use variables.
+ * them or a list of inputs; the questions are copied into the experiment as
+ * written, so they can't use variables.
  */
 export function getDecisionDatasetProblem({
   draft,
@@ -776,15 +815,17 @@ export function getDecisionDatasetProblem({
 }): string | null {
   const when = purpose === "dataset" ? "Over a dataset" : "To save";
   const filler = purpose === "dataset" ? "each example" : "each caller";
-  const serverFormat = toServerTemplateFormat(templateFormat);
-  if (draft.stateFormat !== "text" || !serverFormat) {
-    return `${when}, write the state as text with template variables; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
-  }
-  const names = getTemplateFormatUtils(templateFormat).extractVariables(
-    draft.state
-  );
-  if (names.length === 0) {
-    return `${when}, the state needs a template variable that ${filler} fills.`;
+  if (draft.stateFormat !== "inputs") {
+    const serverFormat = toServerTemplateFormat(templateFormat);
+    if (draft.stateFormat !== "text" || !serverFormat) {
+      return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
+    }
+    const names = getTemplateFormatUtils(templateFormat).extractVariables(
+      draft.state
+    );
+    if (names.length === 0) {
+      return `${when}, the state needs a template variable that ${filler} fills.`;
+    }
   }
   const inQuestions = questionVariables({ draft, templateFormat });
   if (inQuestions.length > 0) {
@@ -844,6 +885,7 @@ function soleStateVariable({
  * variables are its inputs, read from each example, and the questions are
  * sent as written. A state that is only one variable passes that input's
  * value as is, so an object in the dataset reaches the model as an object.
+ * Listed inputs are sent together as an object state.
  *
  * Throws when {@link getDecisionDatasetProblem} reports a problem.
  */
@@ -864,6 +906,17 @@ export function buildDecisionTaskDefinition({
     purpose,
   });
   if (problem) throw new Error(problem);
+  const formatText = createTextFormatter({});
+  const questions = draft.questions.map((question) =>
+    toQuestionInput({ question, formatText })
+  );
+  if (draft.stateFormat === "inputs") {
+    return {
+      inputs: parseStateInputNames(draft.state).map((name) => ({ name })),
+      state: { object: true },
+      questions,
+    };
+  }
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (!serverFormat) throw new Error("Unsupported template format");
   const names = getTemplateFormatUtils(templateFormat).extractVariables(
@@ -874,15 +927,12 @@ export function buildDecisionTaskDefinition({
     templateFormat,
     names,
   });
-  const formatText = createTextFormatter({});
   return {
     inputs: names.map((name) => ({ name })),
     state: sole
       ? { input: sole }
       : { text: { template: draft.state, templateFormat: serverFormat } },
-    questions: draft.questions.map((question) =>
-      toQuestionInput({ question, formatText })
-    ),
+    questions,
   };
 }
 
@@ -1344,16 +1394,38 @@ function describeQuestionForPrompt(question: DecisionQuestionDraft): string {
   return lines.filter(Boolean).join("\n");
 }
 
+function chatStateContent({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionRequestDraft;
+  templateFormat: TemplateFormat;
+}): string {
+  if (draft.stateFormat !== "inputs") return draft.state;
+  const variable = (name: string) =>
+    templateFormat === TemplateFormats.FString
+      ? `{${name}}`
+      : templateFormat === TemplateFormats.Mustache
+        ? `{{${name}}}`
+        : "";
+  return parseStateInputNames(draft.state)
+    .map((name) => `${name}: ${variable(name)}`.trimEnd())
+    .join("\n");
+}
+
 /**
  * A chat template that asks an LLM the draft's questions: a system message
  * with the questions and their criteria, a user message carrying the state,
  * and a response format whose schema is {@link toDecisionJsonSchema}.
- * Template variables in the text are kept, so the Inputs panel still applies.
+ * Template variables in the text are kept, so the Inputs panel still applies;
+ * listed inputs become one variable per line, in `templateFormat`.
  */
 export function buildChatFromDecisionDraft({
   draft,
+  templateFormat,
 }: {
   draft: DecisionRequestDraft;
+  templateFormat: TemplateFormat;
 }): {
   messages: DecisionChatMessage[];
   responseFormat: CanonicalResponseFormat;
@@ -1365,7 +1437,7 @@ export function buildChatFromDecisionDraft({
   return {
     messages: [
       { role: "system", content },
-      { role: "user", content: draft.state },
+      { role: "user", content: chatStateContent({ draft, templateFormat }) },
     ],
     responseFormat: {
       type: "json_schema",
@@ -1399,7 +1471,11 @@ export function extractDecisionVariables({
   const found = new Set<string>();
   const addVariablesFrom = (text: string) =>
     extractVariables(text).forEach((variable) => found.add(variable));
-  addVariablesFrom(draft.state);
+  if (draft.stateFormat === "inputs") {
+    parseStateInputNames(draft.state).forEach((name) => found.add(name));
+  } else {
+    addVariablesFrom(draft.state);
+  }
   for (const question of draft.questions) {
     addVariablesFrom(question.instructions);
     question.choices.forEach((option) => addVariablesFrom(option.description));
