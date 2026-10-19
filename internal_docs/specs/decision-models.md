@@ -2,7 +2,8 @@
 
 > **Status: draft for discussion.** Built so far, in PR #16875: the stored types for
 > inputs, state, and questions (`db/types/decisions.py`), their write-time rules,
-> the provider adapters, and the typed `runDecision` mutation (build order step 1).
+> the provider adapters, the typed `runDecision` mutation (build order step 1), and
+> custom providers for decisions (`openai` and `typesafe`).
 > Nothing is saved yet. The UI work is PR
 > #16876. This spec
 > assumes apps fetch saved decisions at run time, the way they fetch prompts;
@@ -232,10 +233,29 @@ gets whatever model that version names. A deprecated model shows up as the
 provider's error at run time, so the UI warns when a tagged version names a
 model the provider no longer lists.
 
-`custom_provider_id` is reserved, but no decision provider supports custom
-providers yet: there is no TypeSafe custom provider config, and
-`get_decision_client` doesn't resolve one. Until that exists, writes reject a
-non-null value.
+### Custom Providers
+
+A run reaches either a built-in provider or a custom provider, and a version's
+`custom_provider_id` names the second. What a custom provider can serve comes
+from its SDK (`sdk_offers_chat`, `sdk_offers_decisions`), not its name:
+
+- An `openai` provider serves both. The same endpoint, key, organization,
+  project, and headers run chat or OpenAI's Decisions API; the model type chosen
+  decides which. `openai_api_type` stays a choice between chat surfaces.
+- A `typesafe` provider is any System One-compatible endpoint (API key, base
+  URL, headers). It serves decision models only, so every chat path refuses it:
+  prompts (no prompt provider is compatible with it), the playground, agents,
+  and online evals through their prompts.
+- Other SDKs serve chat only, and `runDecision` refuses them.
+
+A custom provider brings its own connection. Neither the server's environment
+nor its stored secrets are consulted, and the OpenAI SDK is kept from reading
+`OPENAI_*` variables, so the server's organization never reaches another host.
+The span's `decision.system` is the API family (`openai`, `typesafe`) and
+`decision.provider` is the custom provider's own `provider` name, the host.
+
+The catalog suggests model names per model type (`modelNames(modelType:)`); any
+name the endpoint accepts works.
 
 Preview flags such as `TypeSafe-Danger-Zone-Images` aren't stored at first. If
 they need to be, they go in an allow-listed per-provider `options` field, never
@@ -319,9 +339,10 @@ rather than zero.
   The provider's raw response is only on the span. An answer the server can't
   validate fails the run.
 - Mutations:
-  - `runDecision(input: RunDecisionInput)` (built): provider, model, `inputs`,
-    `state` (a `@oneOf` of `object: true` or `text: {template, templateFormat}`),
-    `inputValues`, `questions`, `baseUrl`, and `credentials`, returning `result`
+  - `runDecision(input: RunDecisionInput)` (built): `connection` (a `@oneOf` of
+    `builtIn: {providerKey, baseUrl, credentials}` or `customProvider: {id}`),
+    `modelName`, `inputs`, `state` (a `@oneOf` of `object: true` or
+    `text: {template, templateFormat}`), `inputValues`, and `questions`, returning `result`
     (`model`, `answers`, `usage`), `span`, and `error`. It replaced the ad hoc
     `createDecision`. Saved versions will add a `versionId` alternative to the
     inline `inputs`, `state`, and `questions`.

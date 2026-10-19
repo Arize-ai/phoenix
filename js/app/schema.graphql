@@ -572,6 +572,24 @@ type BranchAgentSessionMutationPayload {
   query: Query!
 }
 
+"""A built-in provider, reached with its own or given credentials."""
+input BuiltInDecisionConnectionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1219,6 +1237,14 @@ scalar CronExpression
 
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
 
+"""
+A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System One.
+"""
+input CustomProviderDecisionConnectionInput {
+  """The custom provider's ID."""
+  id: ID!
+}
+
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1632,6 +1658,12 @@ type DbTableStats {
 interface DecisionAnswer {
   """The name of the question this answers."""
   name: String!
+}
+
+"""Where a decision runs."""
+input DecisionConnectionInput @oneOf {
+  builtIn: BuiltInDecisionConnectionInput
+  customProvider: CustomProviderDecisionConnectionInput
 }
 
 """One named input a caller passes."""
@@ -5111,15 +5143,14 @@ type RevokeOAuth2GrantMutationPayload {
 }
 
 """
-A decision run: the inputs it declares and their values for this call, how the state is built from them, and the questions.
+A decision run: where it runs, the inputs it declares and their values for this call, how the state is built from them, and the questions.
 """
 input RunDecisionInput {
-  """
-  The provider whose decision API runs the request; it must offer decision models.
-  """
-  providerKey: GenerativeProviderKey!
+  connection: DecisionConnectionInput!
 
-  """The decision model to run."""
+  """
+  The decision model to run. Any name the endpoint accepts works; the catalog only suggests names.
+  """
   modelName: String!
 
   """The named inputs a caller passes, in order. Names must be unique."""
@@ -5137,16 +5168,6 @@ input RunDecisionInput {
   The questions, in order. Names must be unique; answers come back under them.
   """
   questions: [DecisionQuestionInput!]!
-
-  """
-  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
-  """
-  baseUrl: String = null
-
-  """
-  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
-  """
-  credentials: [GenerativeCredentialInput!] = null
 }
 
 """

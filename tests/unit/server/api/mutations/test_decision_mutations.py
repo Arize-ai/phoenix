@@ -12,6 +12,7 @@ from phoenix.db.types import model_provider as mp
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
+    DecisionConnection,
     DecisionRequest,
     OpenAIDecisionClient,
     TypeSafeDecisionClient,
@@ -227,16 +228,22 @@ async def test_decision_execution(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": provider,
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": provider,
+                            "credentials": [
+                                {
+                                    "envVarName": "OPENAI_API_KEY"
+                                    if is_openai
+                                    else "TYPESAFE_API_KEY",
+                                    "value": "test-key",
+                                }
+                            ],
+                        }
+                    },
                     "modelName": model,
                     **OBJECT_STATE,
                     "questions": QUESTIONS,
-                    "credentials": [
-                        {
-                            "envVarName": "OPENAI_API_KEY" if is_openai else "TYPESAFE_API_KEY",
-                            "value": "test-key",
-                        }
-                    ],
                 }
             },
         )
@@ -300,16 +307,22 @@ async def test_provider_error_is_traced(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": provider,
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": provider,
+                            "credentials": [
+                                {
+                                    "envVarName": "OPENAI_API_KEY"
+                                    if is_openai
+                                    else "TYPESAFE_API_KEY",
+                                    "value": "test-key",
+                                }
+                            ],
+                        }
+                    },
                     "modelName": "gpt-6-luna" if is_openai else "jev-latest",
                     **text_state("hello"),
                     "questions": QUESTIONS,
-                    "credentials": [
-                        {
-                            "envVarName": "OPENAI_API_KEY" if is_openai else "TYPESAFE_API_KEY",
-                            "value": "test-key",
-                        }
-                    ],
                 }
             },
         )
@@ -385,7 +398,11 @@ async def test_invalid_questions_do_not_call_provider(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": questions,
@@ -425,7 +442,11 @@ async def test_validation_messages_read_as_sentences(
         MUTATION,
         variables={
             "input": {
-                "providerKey": "TYPESAFE",
+                "connection": {
+                    "builtIn": {
+                        "providerKey": "TYPESAFE",
+                    }
+                },
                 "modelName": "jev-latest",
                 **text_state(state),
                 "questions": questions,
@@ -449,11 +470,15 @@ async def test_custom_endpoint_cannot_exfiltrate_environment_key(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "baseUrl": "https://untrusted.example/v1",
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": QUESTIONS,
-                    "baseUrl": "https://untrusted.example/v1",
                 }
             },
         )
@@ -503,14 +528,16 @@ def test_predicate_criteria_translate_for_each_provider() -> None:
         }
     )
     openai_body = OpenAIDecisionClient(
-        model_name="gpt-6-luna", api_key="test", base_url="https://api.openai.com/v1"
+        model_name="gpt-6-luna",
+        connection=DecisionConnection(api_key="test", base_url="https://api.openai.com/v1"),
     )._build_request(request)
     urgent, spam = list(openai_body["questions"])
     assert urgent["type"] == "predicate"
     assert urgent["instructions"] == ("Urgent?\nTrue if: Time sensitive\nFalse if: Routine")
     assert spam["instructions"] == "Spam?"
     typesafe_body = TypeSafeDecisionClient(
-        model_name="jev-latest", api_key="test", base_url="https://api.typesafe.ai"
+        model_name="jev-latest",
+        connection=DecisionConnection(api_key="test", base_url="https://api.typesafe.ai"),
     )._build_request(request)
     assert typesafe_body["questions"] == {
         "urgent": {
@@ -534,11 +561,17 @@ async def test_invalid_provider_response_is_traced(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": QUESTIONS,
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
                 }
             },
         )
@@ -563,12 +596,18 @@ async def test_explicit_credentials_allow_compatible_endpoint(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "baseUrl": "https://compatible.example",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}
+                            ],
+                        }
+                    },
                     "modelName": "custom-decision-model",
                     **text_state("hello"),
                     "questions": [URGENT],
-                    "baseUrl": "https://compatible.example",
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}],
                 }
             },
         )
@@ -659,11 +698,17 @@ async def test_null_usage_is_an_invalid_provider_response(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": [URGENT],
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
                 }
             },
         )
@@ -690,11 +735,17 @@ async def test_provider_outside_allow_list_is_refused(gql_client: AsyncGraphQLCl
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": QUESTIONS,
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
                 }
             },
         )
@@ -785,16 +836,22 @@ async def test_sdk_answer_validation(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": provider,
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": provider,
+                            "credentials": [
+                                {
+                                    "envVarName": "OPENAI_API_KEY"
+                                    if is_openai
+                                    else "TYPESAFE_API_KEY",
+                                    "value": "request-key",
+                                }
+                            ],
+                        }
+                    },
                     "modelName": "custom-alias",
                     **text_state("hello"),
                     "questions": [question],
-                    "credentials": [
-                        {
-                            "envVarName": "OPENAI_API_KEY" if is_openai else "TYPESAFE_API_KEY",
-                            "value": "request-key",
-                        }
-                    ],
                 }
             },
         )
@@ -828,12 +885,18 @@ async def test_invalid_base_urls_fail_before_provider_call(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "baseUrl": base_url,
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     **text_state("hello"),
                     "questions": QUESTIONS,
-                    "baseUrl": base_url,
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}],
                 }
             },
         )
@@ -884,11 +947,17 @@ async def test_invalid_inputs_fail_before_provider_call(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     **fields,
                     "questions": [URGENT],
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
                 }
             },
         )
@@ -912,7 +981,14 @@ async def test_text_state_renders_structured_inputs_for_the_provider(
             MUTATION,
             variables={
                 "input": {
-                    "providerKey": "TYPESAFE",
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
                     "modelName": "jev-latest",
                     "inputs": [{"name": "ticket"}, {"name": "plan"}],
                     "state": {
@@ -923,7 +999,6 @@ async def test_text_state_renders_structured_inputs_for_the_provider(
                     },
                     "inputValues": {"ticket": {"body": "Refund?"}, "plan": "pro"},
                     "questions": [URGENT],
-                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
                 }
             },
         )
@@ -1052,3 +1127,128 @@ def test_custom_provider_capabilities_come_from_the_sdk() -> None:
         mp.is_sdk_compatible_with_model_provider("typesafe", provider)
         for provider in mp.ModelProvider
     )
+
+
+def custom_provider_run(provider_id: str) -> dict[str, Any]:
+    """Run fields for the urgent question over one message, on a custom provider."""
+    return {
+        "connection": {"customProvider": {"id": provider_id}},
+        "modelName": "jev-latest",
+        **text_state("hello"),
+        "questions": [URGENT],
+    }
+
+
+async def test_typesafe_custom_provider_runs_with_its_own_connection(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stored key, endpoint, and headers are used; the server's key never is."""
+    monkeypatch.setenv("TYPESAFE_API_KEY", "server-key")
+    provider_id = await create_custom_provider(
+        gql_client, "System One proxy", "system-one-proxy", TYPESAFE_PROVIDER_CONFIG
+    )
+    with respx.mock:
+        route = respx.post("https://system-one.example/v1/systemone").respond(
+            200,
+            json={
+                "model": "jev-latest",
+                "answers": {"urgent": {"type": "noul", "noul": 0.5}},
+                "usage": {"input_tokens": 20, "output_tokens": 0},
+            },
+        )
+        result = await gql_client.execute(
+            MUTATION, variables={"input": custom_provider_run(provider_id)}
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    sent = route.calls[0].request
+    assert sent.headers["authorization"] == "Bearer ts-custom-key"
+    assert sent.headers["x-team"] == "decisions"
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert span.attributes["decision"]["system"] == "typesafe"
+        # Who hosts it: the custom provider's own provider name.
+        assert span.attributes["decision"]["provider"] == "system-one-proxy"
+
+
+async def test_openai_custom_provider_runs_the_decisions_api(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A chat-capable OpenAI provider also runs decisions, without the server's
+    organization leaking to its host."""
+    monkeypatch.setenv("OPENAI_ORG_ID", "server-org")
+    provider_id = await create_custom_provider(
+        gql_client,
+        "OpenAI proxy",
+        "openai-proxy",
+        {
+            "openai": {
+                "openaiAuthenticationMethod": {"apiKey": "sk-custom"},
+                "openaiClientKwargs": {
+                    "baseUrl": "https://openai-proxy.example/v1",
+                    "project": "proj-decisions",
+                    "defaultHeaders": {"X-Team": "decisions"},
+                },
+            }
+        },
+    )
+    with respx.mock:
+        route = respx.post("https://openai-proxy.example/v1/decisions").respond(
+            200,
+            json={
+                "model": "gpt-6-luna",
+                "answers": [{"name": "urgent", "type": "predicate", "probability": 0.5}],
+                "usage": {
+                    "input_tokens": 20,
+                    "output_tokens": 0,
+                    "total_tokens": 20,
+                    "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+                    "output_tokens_details": {"reasoning_tokens": 0},
+                },
+            },
+        )
+        result = await gql_client.execute(
+            MUTATION,
+            variables={"input": {**custom_provider_run(provider_id), "modelName": "gpt-6-luna"}},
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    sent = route.calls[0].request
+    assert sent.headers["authorization"] == "Bearer sk-custom"
+    assert sent.headers["openai-project"] == "proj-decisions"
+    assert sent.headers["x-team"] == "decisions"
+    assert "openai-organization" not in sent.headers
+
+
+async def test_custom_provider_without_decision_models_is_refused(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    provider_id = await create_custom_provider(
+        gql_client,
+        "Anthropic proxy",
+        "anthropic",
+        {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": "sk-ant"}}},
+    )
+    with respx.mock:
+        result = await gql_client.execute(
+            MUTATION, variables={"input": custom_provider_run(provider_id)}
+        )
+    assert result.errors
+    assert "does not serve decision models" in result.errors[0].message
+
+
+async def test_connection_must_name_exactly_one_target(gql_client: AsyncGraphQLClient) -> None:
+    result = await gql_client.execute(
+        MUTATION,
+        variables={
+            "input": {
+                **custom_provider_run("not-an-id"),
+                "connection": {
+                    "builtIn": {"providerKey": "TYPESAFE"},
+                    "customProvider": {"id": "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ=="},
+                },
+            }
+        },
+    )
+    assert result.errors

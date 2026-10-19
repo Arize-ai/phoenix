@@ -4,13 +4,21 @@ from typing import Optional
 
 import strawberry
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.decision_clients import DecisionRequest, get_decision_client
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionClient,
+    DecisionRequest,
+    get_custom_provider_decision_client,
+    get_decision_client,
+)
 from phoenix.server.api.helpers.decision_versions import render_state, validate_inputs
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.DecisionVersionInput import (
@@ -20,40 +28,20 @@ from phoenix.server.api.input_types.DecisionVersionInput import (
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decision_result
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.tracers import Tracer
 
 
-@strawberry.input(
-    description=(
-        "A decision run: the inputs it declares and their values for this call, how the state "
-        "is built from them, and the questions."
-    )
-)
-class RunDecisionInput:
+@strawberry.input(description="A built-in provider, reached with its own or given credentials.")
+class BuiltInDecisionConnectionInput:
     provider_key: GenerativeProviderKey = strawberry.field(
         description=(
             "The provider whose decision API runs the request; it must offer decision models."
         )
-    )
-    model_name: str = strawberry.field(description="The decision model to run.")
-    inputs: list[DecisionInputDefinitionInput] = strawberry.field(
-        description="The named inputs a caller passes, in order. Names must be unique."
-    )
-    state: DecisionStateInput = strawberry.field(
-        description="How the state sent to the model is built from the inputs."
-    )
-    input_values: JSON = strawberry.field(
-        description=(
-            "An object with one entry per declared input: the key is the input's name, and "
-            "the value is any JSON (a string, number, boolean, null, object, or array). "
-            "Missing or undeclared names are rejected."
-        )
-    )
-    questions: list[DecisionQuestionInput] = strawberry.field(
-        description="The questions, in order. Names must be unique; answers come back under them."
     )
     base_url: Optional[str] = strawberry.field(
         default=None,
@@ -69,6 +57,55 @@ class RunDecisionInput:
             "API keys for this request only, by environment variable name. When omitted, a "
             "stored secret is used, then the server environment."
         ),
+    )
+
+
+@strawberry.input(
+    description=(
+        "A custom provider, reached with its stored key, endpoint, and headers. Its SDK must "
+        "serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System "
+        "One."
+    )
+)
+class CustomProviderDecisionConnectionInput:
+    id: GlobalID = strawberry.field(description="The custom provider's ID.")
+
+
+@strawberry.input(one_of=True, description="Where a decision runs.")
+class DecisionConnectionInput:
+    built_in: Optional[BuiltInDecisionConnectionInput] = UNSET
+    custom_provider: Optional[CustomProviderDecisionConnectionInput] = UNSET
+
+
+@strawberry.input(
+    description=(
+        "A decision run: where it runs, the inputs it declares and their values for this "
+        "call, how the state is built from them, and the questions."
+    )
+)
+class RunDecisionInput:
+    connection: DecisionConnectionInput
+    model_name: str = strawberry.field(
+        description=(
+            "The decision model to run. Any name the endpoint accepts works; the catalog "
+            "only suggests names."
+        )
+    )
+    inputs: list[DecisionInputDefinitionInput] = strawberry.field(
+        description="The named inputs a caller passes, in order. Names must be unique."
+    )
+    state: DecisionStateInput = strawberry.field(
+        description="How the state sent to the model is built from the inputs."
+    )
+    input_values: JSON = strawberry.field(
+        description=(
+            "An object with one entry per declared input: the key is the input's name, and "
+            "the value is any JSON (a string, number, boolean, null, object, or array). "
+            "Missing or undeclared names are rejected."
+        )
+    )
+    questions: list[DecisionQuestionInput] = strawberry.field(
+        description="The questions, in order. Names must be unique; answers come back under them."
     )
 
 
@@ -146,6 +183,44 @@ def format_validation_error(error: ValidationError) -> str:
     return "; ".join(messages)
 
 
+async def resolve_decision_client(
+    info: Info[Context, None], input: RunDecisionInput, session: AsyncSession
+) -> DecisionClient:
+    """The client for the run's connection: a built-in provider or a custom provider."""
+    connection = input.connection
+    if connection.custom_provider:
+        try:
+            custom_provider_id = from_global_id_with_expected_type(
+                connection.custom_provider.id, GenerativeModelCustomProvider.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(
+                f"Invalid custom provider ID: {connection.custom_provider.id}"
+            ) from error
+        return await get_custom_provider_decision_client(
+            custom_provider_id=custom_provider_id,
+            model_name=input.model_name,
+            session=session,
+            decrypt=info.context.decrypt,
+        )
+    built_in = connection.built_in
+    if not built_in:
+        raise BadRequest("A connection is required: builtIn or customProvider.")
+    if (
+        info.context.allowed_provider_names is not None
+        and built_in.provider_key.name not in info.context.allowed_provider_names
+    ):
+        raise BadRequest("This decision provider is not permitted by the server configuration.")
+    return await get_decision_client(
+        provider=built_in.provider_key,
+        model_name=input.model_name,
+        base_url=built_in.base_url,
+        credentials=built_in.credentials,
+        session=session,
+        decrypt=info.context.decrypt,
+    )
+
+
 @strawberry.type
 class DecisionMutationMixin:
     @strawberry.mutation(
@@ -158,21 +233,9 @@ class DecisionMutationMixin:
     async def run_decision(
         self, info: Info[Context, None], input: RunDecisionInput
     ) -> RunDecisionPayload:
-        if (
-            info.context.allowed_provider_names is not None
-            and input.provider_key.name not in info.context.allowed_provider_names
-        ):
-            raise BadRequest("This decision provider is not permitted by the server configuration.")
         request = to_decision_request(input)
         async with info.context.db() as session:
-            client = await get_decision_client(
-                provider=input.provider_key,
-                model_name=input.model_name,
-                base_url=input.base_url,
-                credentials=input.credentials,
-                session=session,
-                decrypt=info.context.decrypt,
-            )
+            client = await resolve_decision_client(info, input, session)
             project_id = await get_or_create_playground_project_id(session)
         tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
         result: DecisionResult | None = None
