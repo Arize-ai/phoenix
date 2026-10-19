@@ -156,7 +156,27 @@ def test_seed_loads_cached_sources_with_stable_metadata_and_timeout(tmp_path: Pa
     assert first.kwargs["name"] == "px-datagen-jevbench-hard"
 
 
-def test_seed_creates_combined_and_workflow_datasets(tmp_path: Path) -> None:
+def test_startup_default_loads_only_typed_decisions(monkeypatch: pytest.MonkeyPatch) -> None:
+    loader = MagicMock(
+        return_value=[
+            {
+                "id": "one",
+                "input": {},
+                "output": {},
+                "metadata": {"workflow": "customer_service"},
+            }
+        ]
+    )
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.load_source", loader)
+    client = MagicMock()
+    seed_datasets(client)
+    loader.assert_called_once_with(DATASET_SOURCES["typed-decisions"], cache_dir=None)
+    assert {call.kwargs["name"] for call in client.datasets.create_dataset.call_args_list} == {
+        "px-datagen-typed-decisions",
+    }
+
+
+def test_seed_creates_one_dataset_with_workflow_splits(tmp_path: Path) -> None:
     workflows = [
         "agent_trace_observability",
         "customer_service",
@@ -180,7 +200,7 @@ def test_seed_creates_combined_and_workflow_datasets(tmp_path: Path) -> None:
     client = MagicMock()
     seed_datasets(client, sources=[source], cache_dir=tmp_path)
     first = list(client.datasets.create_dataset.call_args_list)
-    assert len(first) == 5
+    assert len(first) == 1
     datasets = {call.kwargs["name"]: call.kwargs["examples"] for call in first}
     name = "px-datagen-typed-decisions"
     examples = datasets[name]
@@ -188,13 +208,9 @@ def test_seed_creates_combined_and_workflow_datasets(tmp_path: Path) -> None:
     assert [example["splits"] for example in examples] == [
         [workflow] for workflow in [*workflows, workflows[0]]
     ]
-    assert set(datasets) == {name, *(f"{name}-{workflow}" for workflow in workflows)}
-    for workflow in workflows:
-        assert datasets[f"{name}-{workflow}"] == [
-            example for example in examples if example["metadata"]["workflow"] == workflow
-        ]
+    assert set(datasets) == {name}
     seed_datasets(client, sources=[source], cache_dir=tmp_path)
-    assert client.datasets.create_dataset.call_args_list[5:] == first
+    assert client.datasets.create_dataset.call_args_list[1:] == first
 
 
 @pytest.mark.parametrize("workflow", [None, "", ["customer_service"]])

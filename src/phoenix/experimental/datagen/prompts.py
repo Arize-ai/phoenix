@@ -1,4 +1,4 @@
-"""Seed workflow-specific tool-calling baselines for the Typed Decisions datasets."""
+"""Seed workflow-specific tool-calling baselines for the Typed Decisions dataset."""
 
 from __future__ import annotations
 
@@ -15,7 +15,13 @@ if TYPE_CHECKING:
     from phoenix.client import Client
     from phoenix.client.resources.datasets import Dataset
 
-_DATASET_PREFIX = "px-datagen-typed-decisions-"
+_DATASET_NAME = "px-datagen-typed-decisions"
+_WORKFLOWS = {
+    "agent_trace_observability",
+    "customer_service",
+    "invoice_processing",
+    "security_incidents",
+}
 _MODEL = "gpt-6-luna"
 _TOOL_NAME = "record_decisions"
 _SYSTEM = """Evaluate the supplied state against every question defined by the tool.
@@ -59,7 +65,7 @@ def build_workflow_prompt(
     }
     metadata = {
         "workflow": workflow,
-        "dataset_name": f"{_DATASET_PREFIX}{workflow}",
+        "dataset_name": _DATASET_NAME,
         **{key: value for key, value in source_metadata.items() if key.startswith("source_")},
     }
     request: Any = {
@@ -109,31 +115,37 @@ def _same_prompt(saved: PromptVersion, desired: PromptVersion) -> bool:
 def seed_workflow_prompts(
     client: Client, datasets: Sequence[Dataset]
 ) -> list[tuple[str, PromptVersion]]:
-    """Seed four workflow prompts, skipping unchanged versions and the combined dataset.
+    """Seed four workflow prompts from the combined dataset, skipping unchanged versions.
 
-    Each workflow dataset must have the same questions in every example. All
+    Each workflow split must have the same questions in every example. All
     definitions are validated before saving any prompt. Seeding never calls OpenAI.
     """
     definitions = []
     for dataset in datasets:
-        if not dataset.name.startswith(_DATASET_PREFIX):
+        if dataset.name != _DATASET_NAME:
             continue
-        workflow = dataset.name.removeprefix(_DATASET_PREFIX)
         examples = dataset.examples
         if not examples:
             raise DatasetError(f"{dataset.name}: cannot build a prompt from an empty dataset")
-        questions = examples[0]["input"]["questions"]
+        groups: dict[str, list[Any]] = {}
         for example in examples:
-            if example["metadata"].get("workflow") != workflow:
-                raise DatasetError(f"{dataset.name}: workflow metadata does not match the dataset")
-            if example["input"]["questions"] != questions:
-                raise DatasetError(f"{dataset.name}: examples must share the same questions")
-        definitions.append(
-            (
-                dataset.name,
-                build_workflow_prompt(workflow, questions, source_metadata=examples[0]["metadata"]),
+            workflow = example["metadata"].get("workflow")
+            if not isinstance(workflow, str) or workflow not in _WORKFLOWS:
+                raise DatasetError(f"{dataset.name}: invalid workflow metadata {workflow!r}")
+            groups.setdefault(workflow, []).append(example)
+        for workflow, group in sorted(groups.items()):
+            questions = group[0]["input"]["questions"]
+            for example in group:
+                if example["input"]["questions"] != questions:
+                    raise DatasetError(f"{workflow}: examples must share the same questions")
+            definitions.append(
+                (
+                    f"{_DATASET_NAME}-{workflow}",
+                    build_workflow_prompt(
+                        workflow, questions, source_metadata=group[0]["metadata"]
+                    ),
+                )
             )
-        )
     results = []
     for name, desired in definitions:
         try:

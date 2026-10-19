@@ -127,8 +127,9 @@ def test_datagen_pull_prints_the_cached_corpus_path(
     assert capsys.readouterr().out == f"{cached_path}\n"
 
 
-def test_seed_command_selects_one_source_and_accepts_connection_flags(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("source", [None, "typed-decisions", "all", "boolq"])
+def test_seed_command_selects_sources_and_accepts_connection_flags(
+    monkeypatch: pytest.MonkeyPatch, source: str | None
 ) -> None:
     from phoenix.experimental.datagen.datasets import DATASET_SOURCES
 
@@ -138,8 +139,7 @@ def test_seed_command_selects_one_source_and_accepts_connection_flags(
         [
             "datagen",
             "seed",
-            "--source",
-            "typed-decisions",
+            *(["--source", source] if source is not None else []),
             "--endpoint",
             "http://local",
             "--api-key",
@@ -155,7 +155,12 @@ def test_seed_command_selects_one_source_and_accepts_connection_flags(
     seed = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
     args.func(args)
-    seed.assert_called_once_with(client, sources=[DATASET_SOURCES["typed-decisions"]])
+    expected = (
+        list(DATASET_SOURCES.values())
+        if source == "all"
+        else [DATASET_SOURCES[source or "typed-decisions"]]
+    )
+    seed.assert_called_once_with(client, sources=expected)
     assert http.call_args.kwargs["base_url"] == "http://local/"
     assert http.call_args.kwargs["headers"]["authorization"] == "Bearer key"
 

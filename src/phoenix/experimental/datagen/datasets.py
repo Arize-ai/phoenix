@@ -281,30 +281,22 @@ def seed_datasets(
 
     All sources are validated before the first upload. Uploads use stable example
     IDs and a 120-second timeout to accommodate the full BoolQ validation split.
-    Sources with a split metadata key seed both the combined dataset and one
-    dataset per split, with the split name appended to the combined name.
+    Workflow splits remain within each source's dataset.
+    Only Typed Decisions is seeded unless sources are explicitly supplied.
     """
     loaded = [
         (source, load_source(source, cache_dir=cache_dir))
-        for source in (sources if sources is not None else list(DATASET_SOURCES.values()))
+        for source in (sources if sources is not None else [DATASET_SOURCES["typed-decisions"]])
     ]
-    datasets = []
-    for source, examples in loaded:
-        groups = {"": examples}
-        if source.split_metadata_key is not None:
-            for example in examples:
-                split = example["metadata"][source.split_metadata_key]
-                groups.setdefault(f"-{split}", []).append(example)
-        for suffix, subset in sorted(groups.items()):
-            datasets.append(
-                client.datasets.create_dataset(
-                    name=f"px-datagen-{source.name}{suffix}",
-                    examples=subset,
-                    dataset_description=(
-                        f"Datagen-owned development fixture. Source: {source.url} "
-                        f"License: {source.license}. Re-seeding replaces the dataset contents."
-                    ),
-                    timeout=120,
-                )
-            )
-    return datasets
+    return [
+        client.datasets.create_dataset(
+            name=f"px-datagen-{source.name}",
+            examples=examples,
+            dataset_description=(
+                f"Datagen-owned development fixture. Source: {source.url} "
+                f"License: {source.license}. Re-seeding replaces the dataset contents."
+            ),
+            timeout=120,
+        )
+        for source, examples in loaded
+    ]

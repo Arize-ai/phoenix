@@ -49,8 +49,8 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     sources.add_argument(
         "--source",
         choices=("all", "jevbench-hard", "typed-decisions", "boolq"),
-        default="all",
-        help="Pinned source to seed (default: all three).",
+        default="typed-decisions",
+        help="Pinned source to seed (default: typed-decisions).",
     )
     sources.add_argument("--file", help="Local file of canonical Phoenix examples.")
     seed_parser.add_argument("--name", help="Dataset name (required with --file).")
@@ -118,7 +118,11 @@ def seed(args: Namespace) -> None:
             )
             datasets = [dataset]
         else:
-            sources = None if args.source == "all" else [DATASET_SOURCES[args.source]]
+            sources = (
+                list(DATASET_SOURCES.values())
+                if args.source == "all"
+                else [DATASET_SOURCES[args.source]]
+            )
             datasets = seed_datasets(client, sources=sources)
             for name, version in seed_workflow_prompts(client, datasets):
                 print(f"Seeded prompt {name} (version {version.id})")

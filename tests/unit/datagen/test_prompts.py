@@ -31,14 +31,15 @@ def _questions() -> dict[str, Any]:
     }
 
 
-def _dataset(workflow: str) -> MagicMock:
+def _dataset(*workflows: str) -> MagicMock:
     dataset = MagicMock()
-    dataset.name = f"px-datagen-typed-decisions-{workflow}"
+    dataset.name = "px-datagen-typed-decisions"
     dataset.examples = [
         {
             "input": {"state": {"id": index}, "questions": _questions()},
             "metadata": {"workflow": workflow, "source_revision": "pinned"},
         }
+        for workflow in workflows
         for index in range(2)
     ]
     return dataset
@@ -83,9 +84,7 @@ def test_seed_creates_only_workflow_prompts_and_skips_unchanged_versions() -> No
         "invoice_processing",
         "security_incidents",
     ]
-    datasets = [_dataset(workflow) for workflow in workflows]
-    combined = MagicMock()
-    combined.name = "px-datagen-typed-decisions"
+    combined = _dataset(*workflows)
     unrelated = MagicMock()
     unrelated.name = "px-datagen-boolq"
     stored: dict[str, PromptVersion] = {}
@@ -105,14 +104,18 @@ def test_seed_creates_only_workflow_prompts_and_skips_unchanged_versions() -> No
     client = MagicMock()
     client.prompts.get.side_effect = get
     client.prompts.create.side_effect = create
-    results = seed_workflow_prompts(client, [combined, *datasets, unrelated])
-    assert [name for name, _ in results] == [dataset.name for dataset in datasets]
+    results = seed_workflow_prompts(client, [combined, unrelated])
+    assert [name for name, _ in results] == [
+        f"px-datagen-typed-decisions-{workflow}" for workflow in workflows
+    ]
+    assert all(version.metadata["dataset_name"] == combined.name for _, version in results)
     assert client.prompts.create.call_count == 4
-    seed_workflow_prompts(client, datasets)
+    seed_workflow_prompts(client, [combined])
     assert client.prompts.create.call_count == 4
-    for example in datasets[0].examples:
-        example["input"]["questions"]["action"]["instructions"] = "A revised question."
-    seed_workflow_prompts(client, datasets)
+    for example in combined.examples:
+        if example["metadata"]["workflow"] == workflows[0]:
+            example["input"]["questions"]["action"]["instructions"] = "A revised question."
+    seed_workflow_prompts(client, [combined])
     assert client.prompts.create.call_count == 5
 
 
