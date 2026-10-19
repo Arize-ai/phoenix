@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2288ff37da0e0649ae83e0940da130f>>
+ * @generated SignedSource<<1742253b03bdc603ac9d4c76b2d88976>>
  * @lightSyntaxTransform
  */
 
@@ -18,10 +18,15 @@ export type DecisionPage_versions$data = {
         readonly description: string | null;
         readonly id: string;
         readonly modelName: string;
+        readonly sequenceNumber: number;
         readonly tags: ReadonlyArray<{
           readonly id: string;
           readonly name: string;
         }>;
+        readonly user: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
       };
     }>;
   };
@@ -118,6 +123,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "sequenceNumber",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
                 },
@@ -133,6 +145,31 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "modelName",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "user",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "username",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "profilePictureUrl",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -209,6 +246,6 @@ return {
 };
 })();
 
-(node as any).hash = "b38d5427b0bf96c7f805d49320a161d6";
+(node as any).hash = "65d07cf9b6d7f8c94480e6d48ee33b94";
 
 export default node;

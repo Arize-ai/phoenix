@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffba965d7f8f386c1292f902aa1f257e>>
+ * @generated SignedSource<<cf57d39932aa6cef5feeb7ad74369bd4>>
  * @lightSyntaxTransform
  */
 
@@ -150,6 +150,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "sequenceNumber",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "createdAt",
                             "storageKey": null
                           },
@@ -165,6 +172,32 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "modelName",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "username",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "profilePictureUrl",
+                                "storageKey": null
+                              },
+                              (v4/*:: as any*/)
+                            ],
                             "storageKey": null
                           },
                           {
@@ -247,16 +280,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f30e6fc522a02441cc673ba8e91189dc",
+    "cacheID": "cba7fa9d3f398e790afc3fab1ef81b9d",
     "id": null,
     "metadata": {},
     "name": "DecisionPageVersionsQuery",
     "operationKind": "query",
-    "text": "query DecisionPageVersionsQuery(\n  $after: String\n  $first: Int = 20\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DecisionPage_versions_2HEEH6\n    id\n  }\n}\n\nfragment DecisionPage_versions_2HEEH6 on Decision {\n  versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        createdAt\n        description\n        modelName\n        tags {\n          id\n          name\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DecisionPageVersionsQuery(\n  $after: String\n  $first: Int = 20\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DecisionPage_versions_2HEEH6\n    id\n  }\n}\n\nfragment DecisionPage_versions_2HEEH6 on Decision {\n  versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        sequenceNumber\n        createdAt\n        description\n        modelName\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        tags {\n          id\n          name\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b38d5427b0bf96c7f805d49320a161d6";
+(node as any).hash = "65d07cf9b6d7f8c94480e6d48ee33b94";
 
 export default node;
