@@ -1084,6 +1084,25 @@ bodies and the SDK's generated types freeze whichever shape ships.
 - **Span attribute for the version ID.** Whether OpenInference gets a
   `decision.version_id`-style attribute, or apps put it in span metadata the way
   prompt IDs are carried today.
+- **What loading a DECISION span recovers.** The playground loads a DECISION
+  span as it does an LLM span: it reads the questions and the state from the
+  provider body in `input.value`, the model from `decision.request.model_name`,
+  the provider from `decision.provider` (or `decision.system`), and shows the
+  recorded output. Four things are lost:
+  - The template and inputs. An LLM span carries `llm.prompt_template.*`, so
+    loading it restores the template's variables. A DECISION span holds only
+    the rendered state, so the playground opens on the final text or JSON, not
+    the version's template and inputs. It can't run over a dataset, and saving
+    it wouldn't reproduce the version. Recording the state template and input
+    values on the span would fix this, as OpenInference does for prompts.
+  - The saved version, until the span records its ID (the question above).
+  - Spans in other formats. Only OpenAI and TypeSafe bodies parse, so a span an
+    app instruments for another provider doesn't load.
+  - The custom provider. The span records its name, not its ID, so the user
+    picks it from the model menu.
+
+  The first and third are part of [Span Contents](#span-contents), and are
+  decided by the same deadline, since older traces keep whatever spans hold.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
 - **Retries for LLM judges.** The runner retries a decision judge's returned
