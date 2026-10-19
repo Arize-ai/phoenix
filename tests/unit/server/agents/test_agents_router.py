@@ -3727,6 +3727,23 @@ async def test_create_session_route_rejects_long_title(
     assert response.status_code == 422
 
 
+async def test_create_session_route_rejects_a_decision_only_provider(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "/v1/agent_sessions",
+        json=_create_session_body(
+            model={"providerType": "builtin", "provider": "TYPESAFE", "modelName": "jev"}
+        ),
+    )
+
+    assert response.status_code == 400
+    assert "offers decision models only" in response.text
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
+
+
 async def test_create_session_route_yields_a_chattable_session(
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,

@@ -9,12 +9,15 @@ from typing_extensions import assert_never
 from phoenix.db import models
 from phoenix.db.models import GenerativeModelSDK
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.agents.exceptions import ProviderNotFoundError
+from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 TURN_LOCK_STALENESS = timedelta(seconds=60)
@@ -88,6 +91,20 @@ async def get_custom_provider(
     return provider
 
 
+def require_chat_model_provider(provider: ModelProvider) -> None:
+    """Reject providers with no chat models.
+
+    Agent sessions are chat sessions, so a decision-only provider is unsupported
+    independent of which provider it is. The guard's GraphQL-flavoured
+    ``BadRequest`` is translated to the agents domain so REST callers get a 400
+    rather than an unhandled error.
+    """
+    try:
+        require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
+    except BadRequest as exc:
+        raise ProviderUnsupportedError(str(exc)) from exc
+
+
 async def resolve_model_routing(
     session: AsyncSession,
     model: AgentModelSelection,
@@ -95,7 +112,8 @@ async def resolve_model_routing(
     """Resolve a request's model selection into routing column values.
 
     Raises ``ProviderNotFoundError`` when a custom selection references a
-    provider that does not exist.
+    provider that does not exist, and ``ProviderUnsupportedError`` when a
+    built-in selection names a provider with no chat models.
     """
     if isinstance(model, CustomProviderModelSelection):
         provider = await get_custom_provider(session, model.provider_id)
@@ -105,6 +123,7 @@ async def resolve_model_routing(
             custom_provider_id=provider.id,
         )
     if isinstance(model, BuiltInProviderModelSelection):
+        require_chat_model_provider(model.provider)
         return AgentModelRouting(
             model_provider=model.provider,
             model_name=model.model_name,
