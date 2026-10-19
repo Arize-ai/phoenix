@@ -432,7 +432,7 @@ export type AnnotationMetricsChartGroup = {
    * when the chart draws one shared score axis.
    */
   readonly scoreAxisProps?: YAxisProps;
-  readonly getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  readonly getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
 };
 
 type AnnotationMetricsGroupedChartProps = {
@@ -598,9 +598,9 @@ function AnnotationMetricsGroupedTooltip({
               value={
                 value?.meanScore == null ? (
                   "--"
-                ) : group.getMeanScoreOptimization ? (
+                ) : group.getMeanScoreOptimizationValue ? (
                   <AnnotationScoreText
-                    positiveOptimization={group.getMeanScoreOptimization(
+                    optimizationValue={group.getMeanScoreOptimizationValue(
                       value.meanScore
                     )}
                   >

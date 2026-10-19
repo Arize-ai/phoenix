@@ -1,15 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  ColumnDef,
-  OnChangeFn,
-  RowSelectionState,
-} from "@tanstack/react-table";
-import {
-  functionalUpdate,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import { functionalUpdate, flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
   useCallback,
@@ -58,6 +49,8 @@ import {
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
@@ -778,13 +771,14 @@ export function ProjectEvaluatorsTable({
     // The pinned columns keep their places on the table's outer edges.
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID, "enabled", ACTIONS_COLUMN_ID],
   });
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
       columnPinning: {
-        left: [...CHECKBOX_COLUMN_PINNING.left, "enabled"],
-        right: [ACTIONS_COLUMN_ID],
+        start: [...CHECKBOX_COLUMN_PINNING.start, "enabled"],
+        end: [ACTIONS_COLUMN_ID],
       },
       columnSizing,
       columnVisibility,
@@ -796,10 +790,9 @@ export function ProjectEvaluatorsTable({
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: handleRowSelectionChange,
     enableRowSelection: true,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
   });
-  const { columnSizingInfo } = table.getState();
+  const { columnResizing } = table.state;
   const getFlatHeaders = table.getFlatHeaders;
   /**
    * Calculate all column sizes at once at the root table level
@@ -819,7 +812,7 @@ export function ProjectEvaluatorsTable({
     // Disabled lint as per tanstack docs linked above
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizing]);
+  }, [getFlatHeaders, columnResizing, columnSizing]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   const isFiltered = trimmedFilter.length > 0;

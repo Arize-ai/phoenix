@@ -8,7 +8,7 @@ import {
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { getPositiveOptimizationFromConfig } from "../optimizationUtils";
+import { getOptimizationValueFromConfig } from "../optimizationUtils";
 import { useProjectAnnotationConfigsByName } from "../useProjectAnnotationConfigsByName";
 import type { useProjectAnnotationConfigsByNameTestQuery } from "./__generated__/useProjectAnnotationConfigsByNameTestQuery.graphql";
 
@@ -33,7 +33,7 @@ function ConfigScores({ names }: { names: string[] }) {
   return names.map((name) => (
     <div key={name} data-name={name}>
       {String(
-        getPositiveOptimizationFromConfig({
+        getOptimizationValueFromConfig({
           config: configs.get(name),
           score: 1,
         })
@@ -159,7 +159,7 @@ describe("project annotation display configs", () => {
         }),
       ],
     });
-    expect(scores()).toEqual(["true"]);
+    expect(scores()).toEqual(["1"]);
 
     await act(async () => {
       environment.commitUpdate((store) => {
@@ -168,7 +168,7 @@ describe("project annotation display configs", () => {
           .setValue("MINIMIZE", "optimizationDirection");
       });
     });
-    expect(scores()).toEqual(["false"]);
+    expect(scores()).toEqual(["-1"]);
   });
 
   it("maps each multi-output result and keeps undirected or missing configs neutral", async () => {
@@ -188,7 +188,7 @@ describe("project annotation display configs", () => {
         }),
       ],
     });
-    expect(scores()).toEqual(["true", "false", "null", "null"]);
+    expect(scores()).toEqual(["1", "-1", "null", "null"]);
   });
 
   it("preserves explicit project configs when an evaluator has the same annotation name", async () => {
@@ -208,6 +208,6 @@ describe("project annotation display configs", () => {
         }),
       ],
     });
-    expect(scores()).toEqual(["false"]);
+    expect(scores()).toEqual(["-1"]);
   });
 });
