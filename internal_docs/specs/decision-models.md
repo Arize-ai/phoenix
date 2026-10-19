@@ -1094,6 +1094,25 @@ bodies and the SDK's generated types freeze whichever shape ships.
   but is still recorded on the first one. Extending the retries to LLM judges
   changes existing behavior, so it is a separate change (see
   [Refusals, Errors, and Metadata](#refusals-errors-and-metadata)).
+- **The playground's state modes.** The state editor has three modes. Text is
+  a template and saves as `text`, or as `input` when it is a single variable.
+  JSON is a fixed value, sent as `object` when it is a non-empty object and
+  whole otherwise; it can't be saved or run over a dataset. Inputs lists input
+  names, sends their values from the Inputs panel as `object`, and is how a
+  saved `object` state loads. Three things are unsettled:
+  - JSON and Inputs overlap: in Mustache, `{"a": "{{a}}"}` runs about the same
+    as Inputs `a`. Merging them would mean JSON saves as `object` when every
+    value is exactly its own variable, a rule the editor wouldn't show, and
+    F-string can't express it, because the braces would have to be doubled and
+    the state would no longer parse as JSON.
+  - JSON mode fills template variables into the JSON text before parsing it,
+    which is the client-side JSON template that
+    [Inputs and State](#inputs-and-state) rules out on the server. It is never
+    saved, but it is the substitution behavior the rule was meant to avoid.
+  - Inputs-panel values are always text, so a playground run sends strings
+    where a dataset run sends real JSON values. Each input's `json_schema`
+    could type the panel's fields. Saving also drops each input's
+    `description` and `json_schema`, as Text mode does.
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need
