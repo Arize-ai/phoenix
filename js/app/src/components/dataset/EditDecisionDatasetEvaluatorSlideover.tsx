@@ -33,6 +33,7 @@ import type { EditDecisionDatasetEvaluatorSlideover_versionQuery } from "@phoeni
 import {
   commitAsync,
   getMutationErrorMessage,
+  overrideSummary,
   policiesEqual,
   pruneBindingOverride,
   toBindingPolicyInput,
@@ -43,6 +44,7 @@ import type {
   DecisionQuestionDefinition,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
+  buildDefaultPolicy,
   isPolicyValid,
   normalizePolicy,
   policyOutputToInput,
@@ -50,6 +52,7 @@ import {
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { DecisionProjectionPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor";
+import { DecisionScoringDisclosure } from "@phoenix/components/evaluators/decision/DecisionScoringDisclosure";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -571,11 +574,13 @@ const EditDecisionEvaluatorDialogContent = ({
         </Flex>
       </section>
       <section aria-label="Scoring for this dataset">
-        <Flex direction="column" gap="size-150">
-          <EvaluatorSectionHeader
-            title="Scoring for this dataset"
-            description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
-          />
+        <DecisionScoringDisclosure
+          id="decision-binding-scoring"
+          title="Scoring for this dataset"
+          description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
+          summary={overrideSummary(bindingOverride)}
+          defaultExpanded={(bindingOverride?.questions.length ?? 0) > 0}
+        >
           <DecisionProjectionPolicyEditor
             questions={pinned.questions}
             value={bindingOverride}
@@ -583,7 +588,7 @@ const EditDecisionEvaluatorDialogContent = ({
             onChange={(next) => setBindingOverride(toBindingPolicyInput(next))}
             isDisabled={isSubmitting}
           />
-        </Flex>
+        </DecisionScoringDisclosure>
       </section>
       <section aria-label="Decision judge">
         <Flex direction="column" gap="size-150">
@@ -607,6 +612,7 @@ const EditDecisionEvaluatorDialogContent = ({
           <Flex direction="row" gap="size-100" alignItems="center" wrap>
             <Text>Version</Text>
             <DecisionVersionSelector
+              sequenceNumber={pinned.sequenceNumber}
               decision={{
                 id: judge.decisionVersion.decision.id,
                 name: decisionName,
@@ -622,13 +628,25 @@ const EditDecisionEvaluatorDialogContent = ({
               </Text>
             ) : null}
           </Flex>
-          <Text weight="heavy">Judge scoring</Text>
-          <DecisionProjectionPolicyEditor
-            questions={pinned.questions}
-            value={effectiveJudgePolicy}
-            onChange={setJudgePolicy}
-            isDisabled={isSubmitting}
-          />
+          <DecisionScoringDisclosure
+            id="decision-judge-scoring"
+            title="Judge scoring"
+            summary={
+              policiesEqual(
+                effectiveJudgePolicy,
+                buildDefaultPolicy(pinned.questions)
+              )
+                ? "Defaults"
+                : "Customized"
+            }
+          >
+            <DecisionProjectionPolicyEditor
+              questions={pinned.questions}
+              value={effectiveJudgePolicy}
+              onChange={setJudgePolicy}
+              isDisabled={isSubmitting}
+            />
+          </DecisionScoringDisclosure>
         </Flex>
       </section>
     </Flex>

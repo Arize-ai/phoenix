@@ -34,6 +34,8 @@ import type { DecisionJudgeData } from "@phoenix/components/dataset/decisionData
 import {
   commitAsync,
   getMutationErrorMessage,
+  judgePolicySummary,
+  overrideSummary,
   pruneBindingOverride,
   toBindingPolicyInput,
   toDecisionJudgeView,
@@ -49,6 +51,7 @@ import {
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { DecisionProjectionPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor";
+import { DecisionScoringDisclosure } from "@phoenix/components/evaluators/decision/DecisionScoringDisclosure";
 import type { DecisionVersionSelection } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
@@ -537,13 +540,15 @@ const CreateDecisionEvaluatorDialogContent = ({
                 }}
               />
               {selection && !isJudgeLocked ? (
-                <Flex direction="column" gap="size-100">
-                  <Text weight="heavy">Judge scoring (optional)</Text>
-                  <Text size="S" color="text-700">
-                    How the judge&apos;s answers become scores. Leave the
-                    defaults to score every question as the decision defines it.
-                    Datasets can override this for themselves below.
-                  </Text>
+                <DecisionScoringDisclosure
+                  id="decision-judge-scoring"
+                  title="Judge scoring (optional)"
+                  description="How the judge's answers become scores. Datasets can override this for themselves."
+                  summary={judgePolicySummary(
+                    selection.questions,
+                    judgePolicyDraft
+                  )}
+                >
                   <DecisionProjectionPolicyEditor
                     questions={selection.questions}
                     value={
@@ -553,7 +558,7 @@ const CreateDecisionEvaluatorDialogContent = ({
                     onChange={setJudgePolicyDraft}
                     isDisabled={isSubmitting}
                   />
-                </Flex>
+                </DecisionScoringDisclosure>
               ) : null}
             </Flex>
           )}
@@ -571,11 +576,12 @@ const CreateDecisionEvaluatorDialogContent = ({
             </Flex>
           </section>
           <section aria-label="Scoring for this dataset">
-            <Flex direction="column" gap="size-150">
-              <EvaluatorSectionHeader
-                title="Scoring for this dataset"
-                description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
-              />
+            <DecisionScoringDisclosure
+              id="decision-binding-scoring"
+              title="Scoring for this dataset"
+              description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
+              summary={overrideSummary(bindingOverride)}
+            >
               <DecisionProjectionPolicyEditor
                 questions={view.questions}
                 value={bindingOverride}
@@ -585,7 +591,7 @@ const CreateDecisionEvaluatorDialogContent = ({
                 }
                 isDisabled={isSubmitting}
               />
-            </Flex>
+            </DecisionScoringDisclosure>
           </section>
         </>
       ) : (

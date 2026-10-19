@@ -25,17 +25,20 @@ export type DecisionJudgeSummaryProps = {
 
 /** Describes one question's scoring in a short sentence. */
 export function describeQuestionScoring(
-  question: DecisionQuestionProjectionValue
+  question: DecisionQuestionProjectionValue,
+  { includeDirection = true }: { includeDirection?: boolean } = {}
 ): string {
   const direction = (value: string) =>
-    value === "MAXIMIZE"
-      ? "higher is better"
-      : value === "MINIMIZE"
-        ? "lower is better"
-        : "no optimization direction";
+    !includeDirection
+      ? ""
+      : value === "MAXIMIZE"
+        ? "; higher is better"
+        : value === "MINIMIZE"
+          ? "; lower is better"
+          : "; no optimization direction";
   if ("predicate" in question) {
     const { threshold, optimizationDirection } = question.predicate;
-    return `Predicate: true at probability >= ${threshold}; ${direction(optimizationDirection)}`;
+    return `Predicate: true at probability >= ${threshold}${direction(optimizationDirection)}`;
   }
   if ("choice" in question) {
     const { scores, optimizationDirection } = question.choice;
@@ -43,10 +46,10 @@ export function describeQuestionScoring(
       scores.length > 0
         ? scores.map(({ choice, score }) => `${choice} = ${score}`).join(", ")
         : "no choice scores";
-    return `Choice: ${scored}; ${direction(optimizationDirection)}`;
+    return `Choice: ${scored}${direction(optimizationDirection)}`;
   }
   const { includeLabel, optimizationDirection } = question.scale;
-  return `Scale: ${includeLabel ? "labeled with the most probable level" : "score only"}; ${direction(optimizationDirection)}`;
+  return `Scale: ${includeLabel ? "labeled with the most probable level" : "score only"}${direction(optimizationDirection)}`;
 }
 
 /**

@@ -73,9 +73,6 @@ export function DecisionDatasetEvaluatorDetails({
                 }
               }
             }
-            decisionVersionTag {
-              name
-            }
             decisionVersion {
               id
               decisionId
@@ -143,11 +140,7 @@ export function DecisionDatasetEvaluatorDetails({
         <Flex justifyContent="space-between" alignItems="center">
           <Flex alignItems="center" gap="size-100">
             <DecisionCell decisionVersion={version} nameMaxWidth="24rem" />
-            {evaluator.decisionVersionTag?.name && (
-              <Token size="S" color="var(--global-color-gray-700)">
-                {evaluator.decisionVersionTag.name}
-              </Token>
-            )}
+            {/* The judge's version tag is an internal pin, so only the version is shown. */}
           </Flex>
           <Flex alignItems="center" gap="size-50">
             <GenerativeProviderIcon
@@ -212,7 +205,9 @@ export function DecisionDatasetEvaluatorDetails({
                   <>
                     <Text size="S">
                       <Text weight="heavy">Scoring:</Text>{" "}
-                      {describeQuestionScoring(scoring)}
+                      {describeQuestionScoring(scoring, {
+                        includeDirection: false,
+                      })}
                     </Text>
                     <Text size="S">
                       <Text weight="heavy">Optimization Direction:</Text>{" "}
