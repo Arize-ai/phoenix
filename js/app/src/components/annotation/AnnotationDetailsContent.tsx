@@ -5,7 +5,80 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationScoreText } from "./AnnotationScoreText";
+import {
+  type DecisionAnnotationSummary,
+  parseDecisionAnnotationMetadata,
+} from "./decisionAnnotationMetadata";
 import type { Annotation } from "./types";
+
+function DecisionRow({ name, value }: { name: string; value: string }) {
+  return (
+    <Flex direction="row" justifyContent="space-between" gap="size-100">
+      <Text weight="heavy" color="inherit">
+        {name}
+      </Text>
+      <Text color="inherit" fontFamily="mono">
+        {value}
+      </Text>
+    </Flex>
+  );
+}
+
+/**
+ * Status, uncertainty and provenance for a decision evaluator's annotation.
+ */
+function DecisionDetails({
+  decision,
+}: {
+  decision: DecisionAnnotationSummary;
+}) {
+  const model = decision.resolvedModel ?? decision.requestedModel;
+  return (
+    <View paddingTop="size-50" data-testid="decision-details">
+      <Flex direction="column">
+        <DecisionRow
+          name="decision status"
+          value={decision.status === "refused" ? "Refused" : decision.status}
+        />
+        {decision.question ? (
+          <DecisionRow
+            name="question"
+            value={`${decision.question.name} (${decision.question.type})`}
+          />
+        ) : null}
+        {decision.probability != null ? (
+          <DecisionRow
+            name="probability"
+            value={floatFormatter(decision.probability)}
+          />
+        ) : null}
+        {decision.expectedLevel != null ? (
+          <DecisionRow
+            name="expected level"
+            value={floatFormatter(decision.expectedLevel)}
+          />
+        ) : null}
+        {decision.confidence != null ? (
+          <DecisionRow
+            name="confidence"
+            value={floatFormatter(decision.confidence)}
+          />
+        ) : null}
+        {decision.probabilities.map(({ key, probability }) => (
+          <DecisionRow
+            key={key}
+            name={`p(${key})`}
+            value={floatFormatter(probability)}
+          />
+        ))}
+        {model ? <DecisionRow name="model" value={model} /> : null}
+        {decision.provider ? (
+          <DecisionRow name="provider" value={decision.provider} />
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
 
 /**
  * A component that displays the details of a particular annotation
@@ -15,6 +88,7 @@ export function AnnotationDetailsContent({
 }: {
   annotation: Annotation;
 }) {
+  const decision = parseDecisionAnnotationMetadata(annotation.metadata);
   return (
     <Flex
       direction="column"
@@ -55,6 +129,7 @@ export function AnnotationDetailsContent({
             </Flex>
           ) : null}
         </View>
+        {decision ? <DecisionDetails decision={decision} /> : null}
         {annotation.explanation ? (
           <View paddingTop="size-50">
             <Flex direction="column">

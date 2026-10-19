@@ -1,0 +1,133 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+
+import { AnnotationDetailsContent } from "../AnnotationDetailsContent";
+import { AnnotationNameAndValue } from "../AnnotationNameAndValue";
+import {
+  countDecisionStatuses,
+  isRefusedDecisionAnnotation,
+  parseDecisionAnnotationMetadata,
+} from "../decisionAnnotationMetadata";
+
+const refused = {
+  decision: {
+    status: "refused",
+    question: { name: "q", type: "predicate" },
+  },
+};
+const answered = {
+  decision: {
+    status: "answered",
+    question: { name: "q", type: "choice" },
+    answer: {
+      choice: "a",
+      confidence: 0.9,
+      probabilities: { a: 0.9, b: 0.1 },
+    },
+    resolved_model: "gpt-x",
+    provider: "openai",
+  },
+};
+
+describe("parseDecisionAnnotationMetadata", () => {
+  it("returns null for missing or unknown input", () => {
+    expect(parseDecisionAnnotationMetadata(undefined)).toBeNull();
+    expect(parseDecisionAnnotationMetadata({})).toBeNull();
+    expect(parseDecisionAnnotationMetadata({ decision: "x" })).toBeNull();
+    expect(
+      parseDecisionAnnotationMetadata({ decision: { status: "weird" } })
+    ).toBeNull();
+  });
+  it("parses answered choice metadata", () => {
+    const s = parseDecisionAnnotationMetadata(answered)!;
+    expect(s.status).toBe("answered");
+    expect(s.confidence).toBe(0.9);
+    expect(s.probabilities).toEqual([
+      { key: "a", probability: 0.9 },
+      { key: "b", probability: 0.1 },
+    ]);
+    expect(s.resolvedModel).toBe("gpt-x");
+  });
+  it("parses predicate and tolerates a bad answer", () => {
+    const s = parseDecisionAnnotationMetadata({
+      decision: { status: "answered", answer: { probability: 0.3 } },
+    })!;
+    expect(s.probability).toBe(0.3);
+    expect(
+      parseDecisionAnnotationMetadata({
+        decision: { status: "answered", answer: 5 },
+      })!.confidence
+    ).toBeNull();
+  });
+  it("detects refusals and counts statuses", () => {
+    expect(isRefusedDecisionAnnotation({ metadata: refused })).toBe(true);
+    expect(isRefusedDecisionAnnotation({ metadata: answered })).toBe(false);
+    expect(
+      countDecisionStatuses([
+        { metadata: refused },
+        { metadata: answered },
+        { metadata: {} },
+      ])
+    ).toEqual({ answered: 1, refused: 1, error: 0 });
+  });
+});
+
+describe("decision annotation rendering", () => {
+  beforeEach(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: "",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+  });
+  const render = (node: React.ReactNode) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() =>
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          {node}
+        </ThemeProvider>
+      )
+    );
+    return container;
+  };
+  it("shows Refused instead of n/a", () => {
+    const c = render(
+      <AnnotationNameAndValue
+        annotation={{ name: "judge", metadata: refused }}
+        displayPreference="score-and-label"
+      />
+    );
+    expect(c.textContent).toContain("Refused");
+    expect(c.textContent).not.toContain("n/a");
+  });
+  it("still shows n/a for non-decision empty annotations", () => {
+    const c = render(
+      <AnnotationNameAndValue
+        annotation={{ name: "judge" }}
+        displayPreference="score-and-label"
+      />
+    );
+    expect(c.textContent).toContain("n/a");
+  });
+  it("shows confidence and probabilities in details", () => {
+    const c = render(
+      <AnnotationDetailsContent
+        annotation={{ name: "judge", label: "a", metadata: answered }}
+      />
+    );
+    const text = c.querySelector("[data-testid=decision-details]")?.textContent;
+    expect(text).toContain("confidence");
+    expect(text).toContain("p(b)");
+  });
+});
