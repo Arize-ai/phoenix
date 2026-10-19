@@ -7,7 +7,7 @@ import { Card, ColorSwatch, Text } from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
   toAnnotationOptimizationConfig,
 } from "@phoenix/components/annotation";
 import {
@@ -468,8 +468,8 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                     orientation: index === 0 ? "left" : "right",
                   }),
                 },
-                getMeanScoreOptimization: (meanScore) =>
-                  getPositiveOptimizationFromConfig({
+                getMeanScoreOptimizationValue: (meanScore) =>
+                  getOptimizationValueFromConfig({
                     config: group.config,
                     score: meanScore,
                   }),

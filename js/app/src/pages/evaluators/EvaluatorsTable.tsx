@@ -526,7 +526,7 @@ export const EvaluatorsTable = ({
       sorting,
       expanded,
       columnSizing,
-      columnPinning: { right: [ACTIONS_COLUMN_ID] },
+      columnPinning: { start: [], end: [ACTIONS_COLUMN_ID] },
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
