@@ -28,7 +28,7 @@ import {
 import {
   AnnotationScoreText,
   type AnnotationOptimizationConfig,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
   toAnnotationOptimizationConfig,
 } from "@phoenix/components/annotation";
 import {
@@ -632,7 +632,7 @@ function DistributionChart({
             <Text color="text-700">
               {"Mean score "}
               <AnnotationScoreText
-                positiveOptimization={getPositiveOptimizationFromConfig({
+                optimizationValue={getOptimizationValueFromConfig({
                   config: optimizationConfig,
                   score: meanScore,
                 })}

@@ -47,11 +47,11 @@ export const Default: StoryFn = () => (
     <Flex direction="column">
       <ExperimentAnnotationButton
         annotation={failingAnnotation}
-        positiveOptimization={false}
+        optimizationValue={-1}
       />
       <ExperimentAnnotationButton
         annotation={passingAnnotation}
-        positiveOptimization
+        optimizationValue={1}
       />
     </Flex>
   </View>
@@ -62,12 +62,12 @@ export const Compact: StoryFn = () => (
   <Flex direction="column" gap="size-100" alignItems="start">
     <ExperimentAnnotationButton
       annotation={failingAnnotation}
-      positiveOptimization={false}
+      optimizationValue={-1}
       compact
     />
     <ExperimentAnnotationButton
       annotation={passingAnnotation}
-      positiveOptimization
+      optimizationValue={1}
       compact
     />
     <ExperimentAnnotationButton annotation={longNameAnnotation} compact />
@@ -88,7 +88,7 @@ export const InCardHeader: StoryFn = () => (
         <Flex direction="row" alignItems="center" gap="size-100">
           <ExperimentAnnotationButton
             annotation={failingAnnotation}
-            positiveOptimization={false}
+            optimizationValue={-1}
             compact
           />
           <Button
