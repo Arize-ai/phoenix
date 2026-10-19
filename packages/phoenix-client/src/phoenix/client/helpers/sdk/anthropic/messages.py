@@ -249,6 +249,7 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptMistralInvocationParameters,
             v1.PromptZAIInvocationParameters,
             v1.PromptMetaInvocationParameters,
         ],
@@ -417,6 +418,15 @@ class _InvocationParametersConversion:
                 sampling["temperature"] = together_params["temperature"]
             if "top_p" in together_params:
                 sampling["top_p"] = together_params["top_p"]
+        elif obj["type"] == "mistral":
+            mistral_params: v1.PromptMistralInvocationParametersContent
+            mistral_params = obj["mistral"]
+            if "max_tokens" in mistral_params:
+                ans["max_tokens"] = mistral_params["max_tokens"]
+            if "temperature" in mistral_params:
+                sampling["temperature"] = mistral_params["temperature"]
+            if "top_p" in mistral_params:
+                sampling["top_p"] = mistral_params["top_p"]
         elif obj["type"] == "zai":
             zai_params: v1.PromptZAIInvocationParametersContent
             zai_params = obj["zai"]

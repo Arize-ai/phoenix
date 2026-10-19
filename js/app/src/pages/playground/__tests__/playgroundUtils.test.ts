@@ -931,6 +931,7 @@ describe("processAttributeToolCalls", () => {
     MINIMAX: ["MINIMAX", testSpanToolCall, expectedTestOpenAIToolCall],
     PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
+    MISTRAL: ["MISTRAL", testSpanToolCall, expectedTestOpenAIToolCall],
     ZAI: ["ZAI", testSpanToolCall, expectedTestOpenAIToolCall],
     META: ["META", testSpanToolCall, expectedTestOpenAIToolCall],
   };
@@ -1537,6 +1538,7 @@ describe("getToolsFromAttributes", () => {
     MINIMAX: ["MINIMAX", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    MISTRAL: ["MISTRAL", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     ZAI: ["ZAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     META: ["META", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };

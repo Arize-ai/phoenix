@@ -284,8 +284,6 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.AWS
     if semconv_provider == OpenInferenceLLMProviderValues.COHERE:
         return None  # TODO
-    if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
-        return None  # TODO
     if semconv_provider == OpenInferenceLLMProviderValues.GROQ:
         return GenerativeProviderKey.GROQ
     if semconv_provider == OpenInferenceLLMProviderValues.FIREWORKS:
@@ -300,6 +298,8 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.TOGETHER
     if semconv_provider == OpenInferenceLLMProviderValues.OLLAMA:
         return GenerativeProviderKey.OLLAMA
+    if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
+        return GenerativeProviderKey.MISTRAL
     if semconv_provider == OpenInferenceLLMProviderValues.META:
         return GenerativeProviderKey.META
     if semconv_provider == OpenInferenceLLMProviderValues.ZAI:

@@ -23,6 +23,7 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "MINIMAX" ||
     provider === "PERPLEXITY" ||
     provider === "TOGETHER" ||
+    provider === "MISTRAL" ||
     provider === "ZAI" ||
     provider === "META"
   );
@@ -69,6 +70,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Perplexity";
     case "TOGETHER":
       return "Together";
+    case "MISTRAL":
+      return "Mistral AI";
     case "ZAI":
       return "Z.ai";
     case "META":
@@ -115,6 +118,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "perplexity"; // TODO: Add support for Perplexity to semantic conventions
     case "TOGETHER":
       return "together"; // TODO: Add support for Together to semantic conventions
+    case "MISTRAL":
+      return "mistralai";
     case "ZAI":
       return "zai"; // TODO: Add support for Z.ai to semantic conventions
     case "META":
