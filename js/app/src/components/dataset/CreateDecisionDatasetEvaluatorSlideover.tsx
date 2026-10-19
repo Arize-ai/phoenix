@@ -395,8 +395,14 @@ const CreateDecisionEvaluatorDialogContent = ({
     if (!createdJudge && judgeMode === "new" && judgeNameValidation !== true) {
       return { touchJudgeName: true };
     }
+    const isJudgeScoringValid =
+      createdJudge || judgeMode !== "new"
+        ? true
+        : isPolicyValid(
+            judgePolicyDraft ? validatePolicy(judgePolicyDraft) : {}
+          );
     const isScoringValid =
-      isPolicyValid(judgePolicyDraft ? validatePolicy(judgePolicyDraft) : {}) &&
+      isJudgeScoringValid &&
       isPolicyValid(bindingOverride ? validatePolicy(bindingOverride) : {});
     return isScoringValid
       ? undefined
@@ -409,6 +415,13 @@ const CreateDecisionEvaluatorDialogContent = ({
     setError(undefined);
     const isValid = await store.getState().validateAll();
     if (!isValid) {
+      if (
+        !createdJudge &&
+        judgeMode === "new" &&
+        judgeNameValidation !== true
+      ) {
+        setIsJudgeNameTouched(true);
+      }
       setShowValidationError(true);
       return;
     }

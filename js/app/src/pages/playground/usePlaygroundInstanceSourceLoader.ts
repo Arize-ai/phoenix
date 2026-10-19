@@ -88,9 +88,15 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
     };
 
     const state = playgroundStore.getState();
+    const hasOtherTemplatedInstance = state.instances.some(
+      (candidate) =>
+        candidate.id !== instanceId &&
+        (candidate.task.member !== "evaluator" ||
+          candidate.task.evaluator.kind === "LLM")
+    );
 
     fetchPlaygroundTaskInstance(loadingSource, {
-      templateFormat: state.templateFormat,
+      templateFormat: hasOtherTemplatedInstance ? state.templateFormat : null,
       instance: selectPlaygroundInstance(instanceId)(state),
     })
       .then((loaded) => {
@@ -99,9 +105,17 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
         }
 
         if (loaded) {
-          playgroundStore
-            .getState()
-            .loadInstance({ instanceId, instance: loaded.instance });
+          const current = playgroundStore.getState();
+          const stillAloneOrCodeOnly = !current.instances.some(
+            (candidate) =>
+              candidate.id !== instanceId &&
+              (candidate.task.member !== "evaluator" ||
+                candidate.task.evaluator.kind === "LLM")
+          );
+          if (stillAloneOrCodeOnly && loaded.templateFormat != null) {
+            current.setTemplateFormat(loaded.templateFormat);
+          }
+          current.loadInstance({ instanceId, instance: loaded.instance });
         } else {
           fail(describeSource(loadingSource));
         }

@@ -1521,8 +1521,9 @@ describe("addInstance", () => {
     expect(second.loadingSource).toEqual(source);
   });
 
-  it("replaces a prompt with a decision and back, as the task menu does", () => {
+  it("replaces a prompt with a decision and back, restoring the chat model rather than keeping the decision model", () => {
     const store = createStore();
+    const initialModel = store.getState().instances[0].model;
     const { id } = store.getState().instances[0];
     const decisionId = store.getState().replaceInstance({
       instanceId: id,
@@ -1531,6 +1532,8 @@ describe("addInstance", () => {
 
     expect(store.getState().instances).toHaveLength(1);
     expect(store.getState().instances[0].task.member).toBe("decision");
+    expect(store.getState().instances[0].model.modelType).toBe("DECISION");
+    expect(store.getState().instances[0].llmModel).toEqual(initialModel);
 
     store.getState().replaceInstance({
       instanceId: decisionId!,
@@ -1538,6 +1541,26 @@ describe("addInstance", () => {
     });
 
     expect(store.getState().instances[0].task.member).toBe("prompt");
+    expect(store.getState().instances[0].model).toEqual(initialModel);
+  });
+
+  it("replaces a decision with an LLM evaluator using the chat model and Mustache template format", () => {
+    const store = createStore();
+    const initialModel = store.getState().instances[0].model;
+    store.getState().setTemplateFormat("NONE");
+    const decisionId = store.getState().replaceInstance({
+      instanceId: store.getState().instances[0].id,
+      source: { type: "new", kind: "decision" },
+    });
+
+    store.getState().replaceInstance({
+      instanceId: decisionId!,
+      source: { type: "new", kind: "LLM" },
+    });
+
+    expect(store.getState().instances[0].task.member).toBe("evaluator");
+    expect(store.getState().instances[0].model).toEqual(initialModel);
+    expect(store.getState().templateFormat).toBe("MUSTACHE");
   });
 
   it("keeps a decision's model out of the chat parameter adapters", () => {

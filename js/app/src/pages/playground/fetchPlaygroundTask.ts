@@ -15,8 +15,11 @@ export type FetchedPlaygroundTask = {
 
 /** What a source is loaded into. */
 export type PlaygroundTaskLoadContext = {
-  /** The page's template format, which a decision's text is written in. */
-  templateFormat: TemplateFormat;
+  /**
+   * The page's template format, when another task on the page already fixes
+   * it; null when the loaded task may set the page's format.
+   */
+  templateFormat: TemplateFormat | null;
   /** The instance the content lands in, for what the saved source does not set. */
   instance: Pick<PlaygroundInstance, "model" | "llmModel"> | undefined;
 };
