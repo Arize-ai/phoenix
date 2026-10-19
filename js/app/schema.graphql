@@ -1686,8 +1686,10 @@ type Decision implements Node {
   updatedAt: DateTime!
   user: User
 
-  """A version by ID or by tag; the latest version when neither is given."""
-  version(versionId: ID = null, tagName: Identifier = null): DecisionVersion!
+  """
+  A version by ID or by tag; the latest version when neither is given. Null when there is no such version, so asking for one tag never loses the rest of the query.
+  """
+  version(versionId: ID = null, tagName: Identifier = null): DecisionVersion
   versionCount: Int!
   versionTags: [DecisionVersionTag!]!
 
@@ -1735,6 +1737,16 @@ type DecisionEdge {
 
   """The item at the end of the edge"""
   node: Decision!
+}
+
+"""The filter key and value for decision connections"""
+input DecisionFilter {
+  col: DecisionFilterColumn!
+  value: String!
+}
+
+enum DecisionFilterColumn {
+  name
 }
 
 """One named input a decision's state is built from."""
@@ -5320,7 +5332,7 @@ type Query {
   viewer: User
 
   """Saved decisions, newest first."""
-  decisions(first: Int = 50, last: Int, after: String, before: String): DecisionConnection!
+  decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter): DecisionConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
 
   """

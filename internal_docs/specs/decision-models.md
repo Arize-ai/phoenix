@@ -470,9 +470,11 @@ rather than zero.
     version; `deleteDecisionVersionTag` (built).
   - A version is checked against the rules a run uses. A custom provider must
     serve decisions through the API the version names (`OPENAI` or `TYPESAFE`).
-- Queries (built): `decisions`, newest first; `node` for `Decision`,
-  `DecisionVersion`, and `DecisionVersionTag`; and `Decision.version(versionId,
-  tagName)`, the latest version when neither is given.
+- Queries (built): `decisions`, newest first and filtered by name as `prompts`
+  is; `node` for `Decision`, `DecisionVersion`, and `DecisionVersionTag`; and
+  `Decision.version(versionId, tagName)`, the latest version when neither is
+  given. Unlike `Prompt.version` it is null when there is no such version, so
+  asking for a missing tag doesn't null the rest of the query.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
   `prompt` and `evaluator`; see [Experiments](#experiments).
 

@@ -17,7 +17,6 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.DecisionDefinition import (
     DecisionInputDefinition,
     DecisionQuestion,
@@ -187,14 +186,16 @@ class Decision(Node):
         return _user(self.db_record.user_id)
 
     @strawberry.field(
-        description="A version by ID or by tag; the latest version when neither is given."
+        description="A version by ID or by tag; the latest version when neither is given. "
+        "Null when there is no such version, so asking for one tag never loses the rest of "
+        "the query."
     )  # type: ignore
     async def version(
         self,
         info: Info[Context, None],
         version_id: Optional[GlobalID] = None,
         tag_name: Optional[Identifier] = None,
-    ) -> DecisionVersion:
+    ) -> Optional[DecisionVersion]:
         stmt = select(models.DecisionVersion).where(models.DecisionVersion.decision_id == self.id)
         if version_id:
             stmt = stmt.where(
@@ -211,13 +212,7 @@ class Decision(Node):
         async with info.context.db.read() as session:
             version = await session.scalar(stmt)
         if version is None:
-            raise NotFound(
-                f"Decision version not found: {version_id}"
-                if version_id
-                else f"This decision has no version tagged {tag_name}"
-                if tag_name
-                else "This decision has no versions"
-            )
+            return None
         return DecisionVersion(id=version.id, db_record=version)
 
     @strawberry.field

@@ -213,10 +213,15 @@ async def test_a_new_version_takes_tags_from_the_old_one(gql_client: AsyncGraphQ
         second["id"],
         first["version"]["id"],
     ]
+    # A missing tag is null, so the rest of the query survives.
     result = await gql_client.execute(
-        VERSION_BY, variables={"id": first["id"], "tagName": "canary"}
+        """query ($id: ID!) { node(id: $id) { ... on Decision {
+          production: version(tagName: "production") { modelName }
+          canary: version(tagName: "canary") { modelName } } } }""",
+        variables={"id": first["id"]},
     )
-    assert result.errors and "no version tagged canary" in result.errors[0].message
+    assert result.data and not result.errors, result.errors
+    assert result.data["node"] == {"production": {"modelName": "tev1"}, "canary": None}
 
 
 async def test_tags_are_set_moved_and_deleted(gql_client: AsyncGraphQLClient) -> None:
@@ -270,6 +275,24 @@ async def test_a_decision_is_patched_and_deleted(gql_client: AsyncGraphQLClient)
     assert result.data["deleteDecision"]["query"]["decisions"]["edges"] == []
     message = await error_of(gql_client, DELETE, {"decisionId": decision["id"]})
     assert "Decision not found" in message
+
+
+async def test_decisions_are_found_by_name(gql_client: AsyncGraphQLClient) -> None:
+    await create(gql_client)
+    await create(gql_client, name="spam-filter")
+
+    async def names(value: str) -> list[str]:
+        result = await gql_client.execute(
+            """query ($filter: DecisionFilter) {
+              decisions(filter: $filter) { edges { node { name } } } }""",
+            variables={"filter": {"col": "name", "value": value}},
+        )
+        assert result.data and not result.errors, result.errors
+        return [edge["node"]["name"] for edge in result.data["decisions"]["edges"]]
+
+    assert await names("triage") == ["triage"]
+    assert await names("SPAM") == ["spam-filter"]
+    assert await names("missing") == []
 
 
 async def test_a_name_is_used_once(gql_client: AsyncGraphQLClient) -> None:

@@ -67,6 +67,7 @@ from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REG
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.DecisionFilter import DecisionFilter
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
 from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -1249,6 +1250,7 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter: Optional[DecisionFilter] = UNSET,
     ) -> Connection[Decision]:
         args = ConnectionArgs(
             first=first,
@@ -1256,14 +1258,14 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.Decision).order_by(
+            models.Decision.created_at.desc(), models.Decision.id.desc()
+        )
+        if filter:
+            # Cast the Identifier column to String for ilike, as prompts do
+            stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{filter.value}%"))
         async with info.context.db.read() as session:
-            decisions = (
-                await session.scalars(
-                    select(models.Decision).order_by(
-                        models.Decision.created_at.desc(), models.Decision.id.desc()
-                    )
-                )
-            ).all()
+            decisions = (await session.scalars(stmt)).all()
         return connection_from_list(
             data=[Decision(id=decision.id, db_record=decision) for decision in decisions],
             args=args,
