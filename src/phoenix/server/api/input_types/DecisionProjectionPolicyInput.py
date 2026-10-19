@@ -9,6 +9,7 @@ from strawberry import UNSET
 from phoenix.db.types import decision_evaluators as stored
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.decision_versions import format_validation_error
 
 
 @strawberry.input(description="The score for one of a choice question's declared choices.")
@@ -93,8 +94,6 @@ class DecisionProjectionPolicyInput:
         """Validate typed settings without silently dropping duplicate question names."""
         # TODO: policies are validated several times per request (to_orm -> model_dump ->
         # model_validate). Harmless; tidy when touching this.
-        from phoenix.server.api.mutations.decision_mutations import format_validation_error
-
         questions: dict[str, stored.DecisionQuestionProjection] = {}
         for value in self.questions:
             settings = (value.predicate, value.choice, value.scale)

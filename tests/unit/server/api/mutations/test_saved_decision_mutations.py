@@ -1,9 +1,13 @@
 """Saving decisions as prompts are saved: versions are immutable, tags move between them."""
 
+from secrets import token_hex
 from typing import Any
 
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 DECISION_FIELDS = """
@@ -379,7 +383,9 @@ async def test_a_custom_provider_must_serve_decision_models(
     assert "Custom provider 'Chat only' does not serve decision models." in message
 
 
-async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLClient) -> None:
+async def test_clone_preserves_history_and_provenance(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
     source = await create(
         gql_client,
         description="Original",
@@ -393,6 +399,28 @@ async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLCl
         },
     )
     assert second.data and not second.errors, second.errors
+    second_version_id = int(
+        GlobalID.from_id(second.data["createDecisionVersion"]["version"]["id"]).node_id
+    )
+    async with db() as session:
+        user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
+        assert user_role_id is not None
+        owner = models.User(
+            user_role_id=user_role_id,
+            username=f"decision-author-{token_hex(4)}",
+            email=f"{token_hex(4)}@test.com",
+            password_hash=b"hash",
+            password_salt=b"salt",
+            reset_password=False,
+            auth_method="LOCAL",
+        )
+        session.add(owner)
+        await session.flush()
+        version_row = await session.get(models.DecisionVersion, second_version_id)
+        assert version_row is not None
+        version_row.user_id = owner.id
+        owner_gid = str(GlobalID("User", str(owner.id)))
+
     result = await gql_client.execute(
         """
       mutation ($input: CloneDecisionInput!) {
@@ -414,7 +442,7 @@ async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLCl
     assert clone["versionCount"] == 2
     assert clone["versionTags"] == []
     assert clone["createdBy"] is None
-    assert clone["updatedBy"] is None
+    assert clone["updatedBy"] == {"id": owner_gid}
     latest, first = [edge["node"] for edge in clone["versions"]["edges"]]
     assert latest["sequenceNumber"] == 2
     assert latest["modelName"] == "tev2"

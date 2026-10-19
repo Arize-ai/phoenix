@@ -17,7 +17,11 @@ from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
     DecisionRequest,
 )
-from phoenix.server.api.helpers.decision_versions import render_state, validate_inputs
+from phoenix.server.api.helpers.decision_versions import (
+    format_validation_error,
+    render_state,
+    validate_inputs,
+)
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.DecisionConnectionInput import (
     BuiltInDecisionConnectionInput,
@@ -170,33 +174,6 @@ def version_decision_request(
         raise BadRequest(format_validation_error(error)) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
-
-
-_VALUE_ERROR_PREFIX = "Value error, "
-
-
-def format_validation_error(error: ValidationError) -> str:
-    """Pydantic's report as one readable line.
-
-    Union branch tags (the question ``type`` discriminator, the ``state`` alternatives) are
-    dropped from paths since callers never wrote them, custom-validator messages lose the
-    ``Value error,`` boilerplate, and duplicate lines collapse.
-    """
-    messages: list[str] = []
-    for item in error.errors(include_input=False):
-        location = [str(part) for part in item["loc"]]
-        if location and location[0] == "state":
-            location = ["state"]
-        elif len(location) >= 3 and location[0] == "questions":
-            location = location[:2] + location[3:]
-        message = str(item["msg"])
-        if message.startswith(_VALUE_ERROR_PREFIX):
-            message = message[len(_VALUE_ERROR_PREFIX) :]
-        path = ".".join(location)
-        line = f"{path}: {message}" if path else message
-        if line not in messages:
-            messages.append(line)
-    return "; ".join(messages)
 
 
 @strawberry.type

@@ -129,6 +129,8 @@ class PromptLabelMutationMixin:
                 from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
                 for prompt_label_id in input.prompt_label_ids
             ]
+            # TODO: check deleted_ids against input.prompt_label_ids and raise NotFound on
+            # missing IDs, matching delete_decision_labels.
             stmt = delete(models.PromptLabel).where(models.PromptLabel.id.in_(label_ids))
             await session.execute(stmt)
 

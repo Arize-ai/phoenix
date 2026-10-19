@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Optional
 
 import strawberry
-from pydantic import ValidationError
 from strawberry.relay import GlobalID
 
 from phoenix.db.types.decisions import DecisionTaskConfig
@@ -97,7 +96,5 @@ class DecisionTaskInput:
                 questions_path=self.questions_path or None,
                 questions_format=self.questions_format.value,
             )
-        except ValidationError as error:
-            raise BadRequest(str(error.errors()[0]["msg"])) from error
         except ValueError as error:
             raise BadRequest(str(error)) from error

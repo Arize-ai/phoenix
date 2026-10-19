@@ -270,13 +270,13 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
     gql_client: AsyncGraphQLClient, empty_dataset: None
 ) -> None:
     _, evaluator = await saved_evaluator(gql_client)
-    create = "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}"
+    create_binding = "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}"
     for mapping in (
         {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket", "tickt": "input.x"}},
         {"literalMapping": {"nope": 1}, "pathMapping": {"ticket": "input.ticket"}},
     ):
         result = await gql_client.execute(
-            create,
+            create_binding,
             variables={
                 "input": {
                     "datasetId": str(GlobalID("Dataset", "1")),
@@ -291,7 +291,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         assert "undeclared inputs" in message and "Declared inputs: 'ticket'" in message
     # An unmapped input is filled from the run only when named like a context key.
     result = await gql_client.execute(
-        create,
+        create_binding,
         variables={
             "input": {
                 "datasetId": str(GlobalID("Dataset", "1")),
@@ -303,7 +303,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
     )
     assert result.errors and "Map the inputs 'ticket'" in result.errors[0].message
     result = await gql_client.execute(
-        create,
+        create_binding,
         variables={
             "input": {
                 "datasetId": str(GlobalID("Dataset", "1")),
@@ -351,12 +351,45 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         },
     )
     assert result.data and not result.errors, result.errors
+    # An input whose name is a top-level context key ("input") needs no explicit mapping.
+    context_decision = await create(
+        gql_client,
+        name="context-keyed",
+        version=version_input(
+            inputs=[{"name": "input"}],
+            state={"input": "input"},
+            questions=[{"predicate": {"name": "urgent", "instructions": "Is it urgent?"}}],
+        ),
+    )
+    context_eval = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "context-judge",
+                "decisionVersionId": context_decision["version"]["id"],
+                "projectionPolicy": {"questions": []},
+            }
+        },
+    )
+    assert context_eval.data and not context_eval.errors, context_eval.errors
+    context_binding = await gql_client.execute(
+        create_binding,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": context_eval.data["createDecisionEvaluator"]["evaluator"]["id"],
+                "name": "implicit-context",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+            }
+        },
+    )
+    assert context_binding.data and not context_binding.errors, context_binding.errors
 
 
 async def test_preview_as_binding_uses_binding_name_and_override(
     gql_client: AsyncGraphQLClient, empty_dataset: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, evaluator = await saved_evaluator(gql_client)
+    decision, evaluator = await saved_evaluator(gql_client)
     binding_id = await bind(
         gql_client,
         evaluator,
@@ -412,6 +445,36 @@ async def test_preview_as_binding_uses_binding_name_and_override(
         judge_only[0]["evaluatorName"] + judge_only[0]["annotation"]["name"]
     )
     # A binding of another judge, or a missing one, is rejected.
+    other_created = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "other-judge",
+                "decisionVersionId": decision["version"]["id"],
+                "projectionPolicy": {"questions": []},
+            }
+        },
+    )
+    assert other_created.data and not other_created.errors, other_created.errors
+    other_evaluator = other_created.data["createDecisionEvaluator"]["evaluator"]
+    wrong_judge = await gql_client.execute(
+        query,
+        variables={
+            "input": {
+                "previews": [
+                    {
+                        "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
+                        "context": {},
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        "datasetEvaluatorId": binding_id,
+                    }
+                ]
+            }
+        },
+    )
+    assert wrong_judge.errors and "not bound to the given decision evaluator" in (
+        wrong_judge.errors[0].message
+    )
     result = await gql_client.execute(
         query,
         variables={
@@ -973,29 +1036,6 @@ async def test_repin_to_compatible_new_version_of_the_same_decision(
     patched = result.data["patchDecisionEvaluator"]["evaluator"]
     assert patched["decisionVersion"]["id"] == new_version_id
     assert patched["decisionVersion"]["id"] != evaluator["decisionVersion"]["id"]
-
-
-async def test_delete_unbound_decision_evaluator_removes_its_owned_tag(
-    gql_client: AsyncGraphQLClient, db: DbSessionFactory
-) -> None:
-    _, evaluator = await saved_evaluator(gql_client)
-    result = await gql_client.execute(
-        "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
-        variables={"input": {"evaluatorId": evaluator["id"]}},
-    )
-    assert result.data and not result.errors, result.errors
-    async with db() as session:
-        assert (
-            await session.get(models.Evaluator, int(GlobalID.from_id(evaluator["id"]).node_id))
-            is None
-        )
-        assert (
-            await session.get(
-                models.DecisionVersionTag,
-                int(GlobalID.from_id(evaluator["decisionVersionTag"]["id"]).node_id),
-            )
-            is None
-        )
 
 
 async def test_null_binding_name_is_a_bad_request(

@@ -227,9 +227,10 @@ def test_seed_loads_cached_sources_with_stable_metadata_and_timeout(tmp_path: Pa
     source = replace(DATASET_SOURCES["jevbench-hard"], checksum=checksum, adapter=lambda row: row)
     client = MagicMock()
     seed_datasets(client, sources=[source], cache_dir=tmp_path)
-    first = client.datasets.create_dataset.call_args
     seed_datasets(client, sources=[source], cache_dir=tmp_path)
-    assert first == client.datasets.create_dataset.call_args
+    assert client.datasets.create_dataset.call_count == 2
+    first, second = client.datasets.create_dataset.call_args_list
+    assert first == second
     assert first.kwargs["timeout"] == 120
     assert first.kwargs["examples"][0]["metadata"]["source_revision"] == source.revision
     assert first.kwargs["name"] == "px-datagen-jevbench-hard"

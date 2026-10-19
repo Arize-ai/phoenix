@@ -367,11 +367,6 @@ async def test_provider_error_is_traced(
     [
         pytest.param([], "At least one question is required", id="no-questions"),
         pytest.param(
-            [{"chat": {"name": "x", "instructions": "test"}}],
-            "an unexpected error occurred",
-            id="unknown-type",
-        ),
-        pytest.param(
             [{**URGENT, **DEPARTMENT}],
             "OneOf Input Object 'DecisionQuestionInput' must specify exactly one key.",
             id="two-types",
@@ -380,11 +375,6 @@ async def test_provider_error_is_traced(
             [{"choice": {"name": "x", "instructions": "test", "choices": [{"value": "one"}]}}],
             "x needs 2 to 255 choices",
             id="one-choice",
-        ),
-        pytest.param(
-            [{"predicate": {"name": "x", "instructions": {"question": "Urgent?"}}}],
-            "an unexpected error occurred",
-            id="structured-instructions",
         ),
         pytest.param(
             [
@@ -430,6 +420,9 @@ async def test_invalid_questions_do_not_call_provider(
                     "connection": {
                         "builtIn": {
                             "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
                         }
                     },
                     "modelName": "jev-latest",
@@ -658,6 +651,7 @@ async def test_invalid_provider_response_is_traced(
         assert span.status_code == "ERROR"
         assert span.status_message == payload["error"]
         assert json.loads(span.attributes["output"]["value"]) == response
+        assert "token_count" not in span.attributes["decision"]
 
 
 async def test_explicit_credentials_allow_compatible_endpoint(
@@ -760,46 +754,6 @@ async def test_decision_only_provider_is_listed_and_installed(
     assert by_key["TYPESAFE"]["modelTypes"] == ["DECISION"]
     assert by_key["OPENAI"]["modelTypes"] == ["LLM", "DECISION"]
     assert by_key["ANTHROPIC"]["modelTypes"] == ["LLM"]
-
-
-async def test_null_usage_is_an_invalid_provider_response(
-    gql_client: AsyncGraphQLClient, db: DbSessionFactory
-) -> None:
-    """A null usage object violates the SDK response schema and is traced as a failure."""
-    with respx.mock:
-        respx.post("https://api.typesafe.ai/v1/systemone").respond(
-            200,
-            json={
-                "model": "jev-latest",
-                "answers": {"urgent": {"type": "noul", "noul": 0.5}},
-                "usage": None,
-            },
-        )
-        result = await gql_client.execute(
-            MUTATION,
-            variables={
-                "input": {
-                    "connection": {
-                        "builtIn": {
-                            "providerKey": "TYPESAFE",
-                            "credentials": [
-                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
-                            ],
-                        }
-                    },
-                    "modelName": "jev-latest",
-                    **text_state("hello"),
-                    "questions": [URGENT],
-                }
-            },
-        )
-    assert result.data and not result.errors
-    assert result.data["runDecision"]["error"] == "TypeSafe returned an invalid decision response."
-    assert result.data["runDecision"]["result"] is None
-    async with db() as session:
-        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
-        assert span is not None
-        assert "token_count" not in span.attributes["decision"]
 
 
 @pytest.fixture

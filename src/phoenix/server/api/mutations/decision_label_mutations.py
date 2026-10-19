@@ -128,8 +128,18 @@ class DecisionLabelMutationMixin:
                 from_global_id_with_expected_type(decision_label_id, DecisionLabel.__name__)
                 for decision_label_id in input.decision_label_ids
             ]
-            stmt = delete(models.DecisionLabel).where(models.DecisionLabel.id.in_(label_ids))
-            await session.execute(stmt)
+            stmt = (
+                delete(models.DecisionLabel)
+                .where(models.DecisionLabel.id.in_(set(label_ids)))
+                .returning(models.DecisionLabel.id)
+            )
+            deleted_ids = set(await session.scalars(stmt))
+            if missing := [
+                gid
+                for gid, label_id in zip(input.decision_label_ids, label_ids)
+                if label_id not in deleted_ids
+            ]:
+                raise NotFound(f"DecisionLabel with ID {missing[0]} not found")
 
             await session.commit()
 

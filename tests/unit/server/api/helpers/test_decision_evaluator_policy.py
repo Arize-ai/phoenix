@@ -12,6 +12,7 @@ from phoenix.db.types.decision_evaluators import (
     ScaleProjection,
     derive_decision_output_configs,
     effective_decision_policy,
+    fit_projection_policy,
     resolve_projection_policy,
 )
 from phoenix.db.types.decisions import (
@@ -37,7 +38,11 @@ def questions() -> list[DecisionQuestion]:
             type="scale",
             name="quality",
             instructions="Rate quality",
-            levels=[ScaleLevel(label="low"), ScaleLevel(label="high")],
+            levels=[
+                ScaleLevel(label="low"),
+                ScaleLevel(label="medium"),
+                ScaleLevel(label="high"),
+            ],
         ),
     ]
 
@@ -55,7 +60,7 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
     assert isinstance(configs[2], ContinuousOutputConfig)
     assert configs[0].lower_bound == 0 and configs[0].upper_bound == 1
     assert [value.label for value in configs[1].values] == ["accept", "review"]
-    assert configs[2].lower_bound == 0 and configs[2].upper_bound == 1
+    assert configs[2].lower_bound == 0 and configs[2].upper_bound == 2
 
 
 @pytest.mark.parametrize(
@@ -126,3 +131,42 @@ def test_effective_policy_rejects_unknown_override_question() -> None:
     override = {"questions": {"unknown": {"type": "scale"}}}
     with pytest.raises(ValueError, match="Unknown projection questions: unknown"):
         effective_decision_policy(questions(), {"questions": {}}, override)
+
+
+def test_fit_projection_policy_adapts_policy_to_updated_questions() -> None:
+    prior = DecisionProjectionPolicy.model_validate(
+        {
+            "questions": {
+                "correct": {"type": "predicate", "threshold": 0.8},
+                "route": {
+                    "type": "choice",
+                    "scores": {"accept": 1.0, "review": 0.5, "legacy": -1.0},
+                },
+                "quality": {"type": "scale", "include_label": True},
+                "removed": {"type": "predicate", "threshold": 0.2},
+            }
+        }
+    )
+    updated_questions: list[DecisionQuestion] = [
+        PredicateQuestion(type="predicate", name="correct", instructions="Is it correct?"),
+        ChoiceQuestion(
+            type="choice",
+            name="route",
+            instructions="Pick a route",
+            choices=[ChoiceOption(value="accept"), ChoiceOption(value="escalate")],
+        ),
+        # Type changed from scale -> predicate; old scale projection is replaced by default.
+        PredicateQuestion(type="predicate", name="quality", instructions="Pass quality?"),
+        ScaleQuestion(
+            type="scale",
+            name="fresh",
+            instructions="New scale",
+            levels=[ScaleLevel(label="a"), ScaleLevel(label="b")],
+        ),
+    ]
+    fitted = fit_projection_policy(updated_questions, prior)
+    assert set(fitted.questions) == {"correct", "route", "quality", "fresh"}
+    assert fitted.questions["correct"] == PredicateProjection(type="predicate", threshold=0.8)
+    assert fitted.questions["route"] == ChoiceProjection(type="choice", scores={"accept": 1.0})
+    assert fitted.questions["quality"] == PredicateProjection(type="predicate", threshold=0.5)
+    assert fitted.questions["fresh"] == ScaleProjection(type="scale", include_label=False)

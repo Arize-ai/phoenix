@@ -8,6 +8,8 @@ run or a save, and can change without making stored rows unreadable.
 import json
 from typing import Any, Mapping, Sequence
 
+from pydantic import ValidationError
+
 from phoenix.db.types.decisions import (
     ChoiceQuestion,
     DecisionInput,
@@ -235,3 +237,30 @@ class _JSONView:
 def _json_view(value: Any) -> Any:
     """Wrap every value so path traversal preserves JSON types until rendering."""
     return _JSONView(value)
+
+
+_VALUE_ERROR_PREFIX = "Value error, "
+
+
+def format_validation_error(error: ValidationError) -> str:
+    """Pydantic's report as one readable line.
+
+    Union branch tags (the question ``type`` discriminator, the ``state`` alternatives) are
+    dropped from paths since callers never wrote them, custom-validator messages lose the
+    ``Value error,`` boilerplate, and duplicate lines collapse.
+    """
+    messages: list[str] = []
+    for item in error.errors(include_input=False):
+        location = [str(part) for part in item["loc"]]
+        if location and location[0] == "state":
+            location = ["state"]
+        elif len(location) >= 3 and location[0] == "questions":
+            location = location[:2] + location[3:]
+        message = str(item["msg"])
+        if message.startswith(_VALUE_ERROR_PREFIX):
+            message = message[len(_VALUE_ERROR_PREFIX) :]
+        path = ".".join(location)
+        line = f"{path}: {message}" if path else message
+        if line not in messages:
+            messages.append(line)
+    return "; ".join(messages)

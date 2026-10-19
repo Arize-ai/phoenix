@@ -324,3 +324,37 @@ async def test_timeouts_and_connection_failures_are_transient(
         )
     assert str(raised.value) == message.format(provider=client_class.provider_key.value)
     assert client.is_transient_error(raised.value)
+
+
+def test_openai_normalize_rejects_duplicate_probabilities() -> None:
+    from openai.types.decision import AnswerAnswerResourceChoice, AnswerAnswerResourceScore
+
+    choice_answer = AnswerAnswerResourceChoice.model_validate(
+        {
+            "type": "choice",
+            "name": "route",
+            "choice": "a",
+            "confidence": 0.9,
+            "probabilities": [
+                {"value": "a", "probability": 0.5},
+                {"value": "a", "probability": 0.5},
+            ],
+        }
+    )
+    with pytest.raises(ValueError, match="Duplicate choice probability"):
+        OpenAIDecisionClient._normalize(choice_answer)
+
+    scale_answer = AnswerAnswerResourceScore.model_validate(
+        {
+            "type": "score",
+            "name": "quality",
+            "score": 0.5,
+            "confidence": 0.9,
+            "probabilities": [
+                {"value": 0, "label": "low", "probability": 0.5},
+                {"value": 0, "label": "low", "probability": 0.5},
+            ],
+        }
+    )
+    with pytest.raises(ValueError, match="Duplicate level probability"):
+        OpenAIDecisionClient._normalize(scale_answer)

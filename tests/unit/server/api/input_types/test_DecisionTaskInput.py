@@ -7,6 +7,8 @@ from phoenix.server.api.input_types.DecisionConnectionInput import (
 )
 from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
 from phoenix.server.api.input_types.DecisionVersionInput import (
+    ChoiceOptionInput,
+    ChoiceQuestionInput,
     DecisionInputDefinitionInput,
     DecisionQuestionInput,
     DecisionStateInput,
@@ -61,3 +63,18 @@ def test_questions_and_a_questions_path_together_are_rejected() -> None:
 def test_neither_questions_nor_a_questions_path_is_rejected() -> None:
     with pytest.raises(BadRequest, match="At least one question is required"):
         _task(questions=[]).to_config()
+
+
+def test_invalid_inline_question_is_rejected() -> None:
+    with pytest.raises(BadRequest, match="route needs 2 to 255 choices"):
+        _task(
+            questions=[
+                DecisionQuestionInput(
+                    choice=ChoiceQuestionInput(
+                        name="route",
+                        instructions="Route it",
+                        choices=[ChoiceOptionInput(value="only-one")],
+                    )
+                )
+            ]
+        ).to_config()
