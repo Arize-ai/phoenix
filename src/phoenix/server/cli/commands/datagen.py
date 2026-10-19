@@ -58,7 +58,9 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     seed_parser.add_argument("--endpoint", default=SUPPRESS)
     seed_parser.add_argument("--api-key", default=SUPPRESS)
     parser.add_argument(
-        "--no-datasets", action="store_true", help="Skip dataset seeding before trace replay."
+        "--no-datasets",
+        action="store_true",
+        help="Skip dataset and prompt seeding before trace replay.",
     )
     parser.add_argument(
         "--endpoint",
@@ -101,6 +103,7 @@ def seed(args: Namespace) -> None:
 
     from phoenix.client import Client
     from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset, seed_datasets
+    from phoenix.experimental.datagen.prompts import seed_workflow_prompts
 
     if bool(args.file) != bool(args.name):
         raise ValueError("--file and --name must be provided together")
@@ -117,6 +120,8 @@ def seed(args: Namespace) -> None:
         else:
             sources = None if args.source == "all" else [DATASET_SOURCES[args.source]]
             datasets = seed_datasets(client, sources=sources)
+            for name, version in seed_workflow_prompts(client, datasets):
+                print(f"Seeded prompt {name} (version {version.id})")
         for dataset in datasets:
             print(f"Seeded {dataset.name}: {len(dataset)} examples (version {dataset.version_id})")
 
@@ -134,12 +139,15 @@ def _seed_when_ready(config: _Config) -> None:
     from phoenix.client import Client
     from phoenix.client.resources.datasets import DatasetUploadError
     from phoenix.experimental.datagen.datasets import seed_datasets
+    from phoenix.experimental.datagen.prompts import seed_workflow_prompts
 
     with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
         client = Client(http_client=http)
         while True:
             try:
                 datasets = seed_datasets(client)
+                for name, version in seed_workflow_prompts(client, datasets):
+                    print(f"Seeded prompt {name} (version {version.id})", file=sys.stderr)
                 for dataset in datasets:
                     print(f"Seeded {dataset.name}: {len(dataset)} examples", file=sys.stderr)
                 return

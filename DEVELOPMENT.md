@@ -126,7 +126,7 @@ Command-line flags take precedence over environment variables.
 | `--burstiness` | — | `0.5` | Variability of the time between traces. `0` is perfectly uniform; higher values make traffic burstier. |
 | `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
 | `--corpus` | — | published corpus | Path to a local corpus archive to replay instead of the published one. |
-| `--no-datasets` | — | false | Skip dataset seeding and only replay traces. |
+| `--no-datasets` | — | false | Skip dataset and prompt seeding and only replay traces. |
 | — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
 
 ### Development datasets
@@ -151,6 +151,16 @@ the split name to `phoenix-datagen-typed-decisions`, for example
 `phoenix-datagen-typed-decisions-customer_service`. The combined dataset retains
 all 400 examples and all four splits. Both startup seeding and
 `phoenix datagen seed --source typed-decisions` refresh all five datasets.
+
+The four workflow datasets also have matching saved prompts with the same names.
+Each prompt uses OpenAI `gpt-6-luna`, one forced strict tool with five required
+fields, and the workflow's exact question instructions and criteria. The combined
+dataset has no matching prompt. Prompts render the dataset's `state` input using
+Phoenix's JSON-aware f-string formatter; SDK callers should serialize structured
+states with `json.dumps` before formatting. Reasoning effort is set to `none` and
+parallel tool calls are disabled. Seeding saves definitions without calling
+OpenAI or requiring an OpenAI API key. Repeated seeding skips unchanged prompt
+versions; changes to the generated definitions create a new version.
 
 These are datagen-owned fixtures: re-seeding replaces their contents using stable example
 IDs. Identical reimports do not create a dataset version or duplicate examples. Keep
