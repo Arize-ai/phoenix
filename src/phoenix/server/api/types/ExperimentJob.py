@@ -16,6 +16,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.ExperimentTaskConfig import (
+    DecisionTaskConfig,
     EvaluatorTaskConfig,
     ExperimentTaskConfig,
     PromptTaskConfig,
@@ -117,7 +118,8 @@ class ExperimentJob(Node):
         return val
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Snapshot of the task this experiment ran, a prompt or an evaluator. "
+        description="Snapshot of the task this experiment ran: a prompt, a decision, or an "
+        "evaluator. "
         "Use to rehydrate the playground with the exact settings used for this experiment. "
         "Null for eval-only experiments.",
     )
@@ -127,6 +129,9 @@ class ExperimentJob(Node):
         if isinstance(record, models.ExperimentEvalOnlyConfig):
             return None
         async with info.context.db.read() as session:
+            if isinstance(record, models.ExperimentDecisionTask) or record is None:
+                if decision_task := await session.get(models.ExperimentDecisionTask, self.id):
+                    return DecisionTaskConfig.from_orm(decision_task)
             if not isinstance(record, models.ExperimentEvaluatorTask) and (
                 prompt_task := await session.get(models.ExperimentPromptTask, self.id)
             ):

@@ -1660,10 +1660,31 @@ interface DecisionAnswer {
   name: String!
 }
 
+type DecisionChoiceOption {
+  value: String!
+  description: String
+}
+
+"""One option from a fixed set."""
+type DecisionChoiceQuestion {
+  name: String!
+  instructions: String!
+  choices: [DecisionChoiceOption!]!
+}
+
 """Where a decision runs."""
 input DecisionConnectionInput @oneOf {
   builtIn: BuiltInDecisionConnectionInput
   customProvider: CustomProviderDecisionConnectionInput
+}
+
+"""One named input a decision's state is built from."""
+type DecisionInputDefinition {
+  name: String!
+  description: String
+
+  """Describes the value for the playground form. Not enforced on a run."""
+  jsonSchema: JSON
 }
 
 """One named input a caller passes."""
@@ -1674,6 +1695,30 @@ input DecisionInputDefinitionInput {
   """Describes the value for the playground form. Not enforced on a run."""
   jsonSchema: JSON = null
 }
+
+"""The state is one input's value, unchanged."""
+type DecisionInputState {
+  input: String!
+}
+
+"""The state is the declared inputs, as a JSON object."""
+type DecisionObjectState {
+  object: Boolean!
+}
+
+type DecisionPredicateCriteria {
+  true: String
+  false: String
+}
+
+"""A statement answered with the probability that it is true."""
+type DecisionPredicateQuestion {
+  name: String!
+  instructions: String!
+  criteria: DecisionPredicateCriteria
+}
+
+union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
 
 """How questions stored in a dataset example are written."""
 enum DecisionQuestionFormat {
@@ -1699,6 +1744,20 @@ type DecisionResult {
   usage: DecisionUsage!
 }
 
+type DecisionScaleLevel {
+  label: String!
+  description: String
+}
+
+"""Ordered levels; a level's position, from zero, is its value."""
+type DecisionScaleQuestion {
+  name: String!
+  instructions: String!
+  levels: [DecisionScaleLevel!]!
+}
+
+union DecisionState = DecisionObjectState | DecisionTextState | DecisionInputState
+
 """
 How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged.
 """
@@ -1708,6 +1767,37 @@ input DecisionStateInput @oneOf {
 
   """The name of the input whose value is the state."""
   input: String
+}
+
+type DecisionTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """The endpoint a built-in provider was reached at, when not its default."""
+  baseUrl: String
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+
+  """
+  The questions asked of every example; empty when `questionsPath` read each example's own.
+  """
+  questions: [DecisionQuestion!]!
+
+  """
+  Where input values were read, as a prompt task's templateVariablesPath.
+  """
+  inputValuesPath: String!
+
+  """
+  Where each example's own questions were read, as a prompt task's appendedMessagesPath.
+  """
+  questionsPath: String
+  questionsFormat: DecisionQuestionFormat!
+
+  """The custom provider this experiment ran on, if any."""
+  customProvider: GenerativeModelCustomProvider
 }
 
 """
@@ -1746,6 +1836,12 @@ input DecisionTaskInput {
 enum DecisionTemplateFormat {
   MUSTACHE
   F_STRING
+}
+
+"""The state is a text template rendered over the inputs."""
+type DecisionTextState {
+  template: String!
+  templateFormat: DecisionTemplateFormat!
 }
 
 type DecisionUsage {
@@ -2643,7 +2739,7 @@ type ExperimentJob implements Node {
   maxConcurrency: Int!
 
   """
-  Snapshot of the task this experiment ran, a prompt or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
+  Snapshot of the task this experiment ran: a prompt, a decision, or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
   """
   taskConfig: ExperimentTaskConfig
 
@@ -2903,7 +2999,7 @@ type ExperimentTag implements Node {
   description: String
 }
 
-union ExperimentTaskConfig = PromptTaskConfig | EvaluatorTaskConfig
+union ExperimentTaskConfig = PromptTaskConfig | DecisionTaskConfig | EvaluatorTaskConfig
 
 input ExperimentTaskInput @oneOf {
   prompt: PromptTaskInput

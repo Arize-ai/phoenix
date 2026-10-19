@@ -203,6 +203,40 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
     sent_states = [json.loads(call.request.content)["state"] for call in route.calls]
     assert {"ticket": "I was charged twice.", "plan": "pro"} in sent_states
 
+    # The playground reopens the experiment from its task config.
+    config = await gql_client.execute(
+        """query ($id: ID!) {
+          node(id: $id) {
+            ... on Experiment {
+              job {
+                taskConfig {
+                  __typename
+                  ... on DecisionTaskConfig {
+                    modelProvider modelName inputValuesPath questionsPath questionsFormat
+                    inputs { name }
+                    state { __typename ... on DecisionInputState { input } }
+                    questions { __typename }
+                  }
+                }
+              }
+            }
+          }
+        }""",
+        variables={"id": experiment["experimentId"]},
+    )
+    assert config.data and not config.errors, config.errors
+    assert config.data["node"]["job"]["taskConfig"] == {
+        "__typename": "DecisionTaskConfig",
+        "modelProvider": "OLLAMA",
+        "modelName": "tev1:0.8b-mxfp8",
+        "inputValuesPath": "input",
+        "questionsPath": "questions",
+        "questionsFormat": "SYSTEM_ONE",
+        "inputs": [{"name": "state"}],
+        "state": {"__typename": "DecisionInputState", "input": "state"},
+        "questions": [],
+    }
+
     experiment_id = int(GlobalID.from_id(experiment["experimentId"]).node_id)
     async with db() as session:
         task = await session.get(models.ExperimentDecisionTask, experiment_id)
