@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { Suspense, useState } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Alert,
@@ -13,6 +14,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Loading,
   Modal,
   ModalOverlay,
   SegmentedControl,
@@ -23,14 +25,23 @@ import {
 import { JSONBlockWithCopy } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+import type { DecisionExportDialogQuery } from "./__generated__/DecisionExportDialogQuery.graphql";
 import {
   buildDecisionRequest,
+  type DecisionWireFormat,
   getDecisionValidationError,
-  getDecisionWireFormat,
   toProviderBody,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
+
+type ExportMode = "sent" | "template";
+
+const WIRE_FORMAT_DESCRIPTIONS: Record<DecisionWireFormat, string> = {
+  SYSTEM_ONE:
+    "Body for POST /v1/systemone (TypeSafe System One and compatible hosts).",
+  OPENAI_DECISIONS: "Body for POST /v1/decisions (OpenAI Decisions API).",
+};
 
 /**
  * Show the exact JSON body this instance sends, so it can be pasted into
@@ -40,37 +51,7 @@ import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 export function DecisionExportDialog({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((item) => item.id === instanceId)
-  );
-  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const { variablesMap } = useDerivedPlaygroundVariables();
-  const [mode, setMode] = useState<"sent" | "template">("sent");
-
-  const draft = instance?.decisionRequest ?? null;
-  const validationError = draft
-    ? getDecisionValidationError(draft)
-    : "No request";
-
-  const body = useMemo(() => {
-    if (!instance || !draft || validationError) return null;
-    const request = buildDecisionRequest(draft, {
-      templateFormat,
-      variables: mode === "sent" ? variablesMap : undefined,
-    });
-    return {
-      format: getDecisionWireFormat(instance.model.provider),
-      json: JSON.stringify(
-        toProviderBody(
-          request,
-          instance.model.provider,
-          instance.model.modelName
-        ),
-        null,
-        2
-      ),
-    };
-  }, [instance, draft, validationError, templateFormat, mode, variablesMap]);
+  const [mode, setMode] = useState<ExportMode>("sent");
 
   return (
     <DialogTrigger>
@@ -103,36 +84,108 @@ export function DecisionExportDialog({
                     <DialogCloseButton close={close} />
                   </DialogTitleExtra>
                 </DialogHeader>
-                {validationError || !body ? (
-                  <View
-                    paddingX="size-200"
-                    paddingTop="size-100"
-                    paddingBottom="size-200"
-                  >
-                    <Alert variant="warning" banner>
-                      Fix the request before exporting: {validationError}
-                    </Alert>
-                  </View>
-                ) : (
-                  <View padding="size-200">
-                    <Flex direction="column" gap="size-100">
-                      <Text size="S" color="text-700">
-                        {body.format === "openai"
-                          ? "Body for POST /v1/decisions (OpenAI Decisions API)."
-                          : "Body for POST /v1/systemone (TypeSafe System One and compatible hosts)."}{" "}
-                        {mode === "sent"
-                          ? "Variables are filled from the Inputs panel."
-                          : "Variable placeholders are kept for your own data."}
-                      </Text>
-                      <JSONBlockWithCopy value={body.json} />
-                    </Flex>
-                  </View>
-                )}
+                <Suspense
+                  fallback={
+                    <View padding="size-200">
+                      <Loading />
+                    </View>
+                  }
+                >
+                  <DecisionExportBody instanceId={instanceId} mode={mode} />
+                </Suspense>
               </DialogContent>
             )}
           </Dialog>
         </Modal>
       </ModalOverlay>
     </DialogTrigger>
+  );
+}
+
+function ExportProblem({ children }: { children: string }) {
+  return (
+    <View paddingX="size-200" paddingTop="size-100" paddingBottom="size-200">
+      <Alert variant="warning" banner>
+        {children}
+      </Alert>
+    </View>
+  );
+}
+
+/**
+ * The body itself. The provider's wire format comes from the server, which
+ * knows each decision client's API shape, so this never names a provider.
+ */
+function DecisionExportBody({
+  instanceId,
+  mode,
+}: {
+  instanceId: number;
+  mode: ExportMode;
+}) {
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((item) => item.id === instanceId)
+  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const { variablesMap } = useDerivedPlaygroundVariables();
+  const { modelProviders } = useLazyLoadQuery<DecisionExportDialogQuery>(
+    graphql`
+      query DecisionExportDialogQuery {
+        modelProviders {
+          key
+          decisionWireFormat
+        }
+      }
+    `,
+    {},
+    { fetchPolicy: "store-or-network" }
+  );
+
+  if (!instance) {
+    return <ExportProblem>This instance no longer exists.</ExportProblem>;
+  }
+  const draft = instance.decisionRequest;
+  const validationError = draft
+    ? getDecisionValidationError(draft)
+    : "No request";
+  if (!draft || validationError) {
+    return (
+      <ExportProblem>
+        {`Fix the request before exporting: ${validationError}`}
+      </ExportProblem>
+    );
+  }
+  const wireFormat =
+    modelProviders.find((provider) => provider.key === instance.model.provider)
+      ?.decisionWireFormat ?? null;
+  if (!wireFormat) {
+    return (
+      <ExportProblem>
+        {`${instance.model.provider} offers no decision API on this server. Pick a decision model from the model menu.`}
+      </ExportProblem>
+    );
+  }
+  const request = buildDecisionRequest({
+    draft,
+    templateFormat,
+    variables: mode === "sent" ? variablesMap : undefined,
+  });
+  const json = JSON.stringify(
+    toProviderBody({ request, wireFormat, model: instance.model.modelName }),
+    null,
+    2
+  );
+  return (
+    <View padding="size-200">
+      <Flex direction="column" gap="size-100">
+        <Text size="S" color="text-700">
+          {WIRE_FORMAT_DESCRIPTIONS[wireFormat]}{" "}
+          {mode === "sent"
+            ? "Variables are filled from the Inputs panel."
+            : "Variable placeholders are kept for your own data."}
+        </Text>
+        <JSONBlockWithCopy value={json} />
+      </Flex>
+    </View>
   );
 }

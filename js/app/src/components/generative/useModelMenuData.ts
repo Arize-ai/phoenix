@@ -9,9 +9,6 @@ import type {
   GenerativeProviderKey,
   useModelMenuDataQuery,
 } from "./__generated__/useModelMenuDataQuery.graphql";
-
-export type { GenerativeModelSDK, GenerativeProviderKey };
-export type ModelType = "LLM" | "DECISION";
 import {
   getChatModelProviders,
   getProviderKeyForGenerativeModelSDK,
@@ -20,6 +17,8 @@ import {
   type LocalProviderCredentials,
   providerNeedsCredentials,
 } from "./modelProviderUtils";
+
+export type { GenerativeModelSDK, GenerativeProviderKey };
 
 export type CustomProviderInfo = {
   id: string;
@@ -51,6 +50,11 @@ export type ModelProviderInfo = {
   readonly dependenciesInstalled: boolean;
   readonly credentialsSet: boolean;
   /**
+   * The model types the provider offers, as the server derives them from its
+   * registered clients: chat (LLM), decision, or both.
+   */
+  readonly modelTypes: readonly ModelType[];
+  /**
    * True when the provider requires credentials and none are explicitly set
    * on the server or in the browser. Drives the "Needs credentials" hint.
    */
@@ -69,11 +73,17 @@ const FALLBACK_PROVIDER_KEYS: readonly GenerativeProviderKey[] = [
   "GOOGLE",
 ];
 
+type CatalogModel = {
+  readonly name: string;
+  readonly providerKey: string;
+};
+
+// Stable empty catalog so an omitted decision list does not invalidate the
+// memoized grouping on every render.
+const NO_CATALOG_MODELS: readonly CatalogModel[] = [];
+
 export function getModelsByProvider(
-  playgroundModels: readonly {
-    readonly name: string;
-    readonly providerKey: string;
-  }[]
+  playgroundModels: readonly CatalogModel[]
 ): Map<string, string[]> {
   const grouped = new Map<string, string[]>();
   for (const model of playgroundModels) {
@@ -115,21 +125,28 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
  *   to reuse its response instead of issuing a duplicate network fetch.
  * @param params.credentialSource - which credential store the surface's
  *   execution path can actually use; see {@link ModelCredentialSource}.
+ * @param params.modelType - which catalog `modelsByProvider` and
+ *   `visibleProviders` describe. Defaults to chat (LLM) models.
+ * @param params.includeDecisionModels - also fetch the decision catalog.
+ *   Only surfaces with a decision execution path need it; the flag is a
+ *   query variable, so toggling `modelType` never refetches.
  */
 export function useModelMenuData({
   fetchPolicy,
   credentialSource = "any",
   modelType = "LLM",
+  includeDecisionModels = false,
 }: {
   fetchPolicy?: FetchPolicy;
   credentialSource?: ModelCredentialSource;
   modelType?: ModelType;
+  includeDecisionModels?: boolean;
 } = {}) {
   const defaultFetchPolicy = useContext(ModelMenuFetchPolicyContext);
 
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
-      query useModelMenuDataQuery {
+      query useModelMenuDataQuery($includeDecisionModels: Boolean!) {
         generativeModelCustomProviders {
           edges {
             node {
@@ -155,20 +172,24 @@ export function useModelMenuData({
         }
         decisionModels: playgroundModels(
           input: { providerKey: null, modelType: DECISION }
-        ) {
+        ) @include(if: $includeDecisionModels) {
           name
           providerKey
           modelType
         }
       }
     `,
-    {},
+    { includeDecisionModels },
     { fetchPolicy: fetchPolicy ?? defaultFetchPolicy }
   );
 
+  const decisionModels = data.decisionModels ?? NO_CATALOG_MODELS;
   const catalogModels =
-    modelType === "DECISION" ? data.decisionModels : data.playgroundModels;
-  const modelsByProvider = getModelsByProvider(catalogModels);
+    modelType === "DECISION" ? decisionModels : data.playgroundModels;
+  const modelsByProvider = useMemo(
+    () => getModelsByProvider(catalogModels),
+    [catalogModels]
+  );
 
   const providerInfoMap = useMemo(() => {
     const map = new Map<
@@ -295,20 +316,19 @@ export function useModelMenuData({
     [customProviders, chatModelProviders, localCredentials]
   );
 
-  // Providers to list in the picker. Once the user has provisioned a
-  // provider, only ready providers are shown; before that, fall back to the
-  // flagship providers so the picker is not empty. Fallback providers with
-  // missing server dependencies render disabled.
+  // Providers to list in the picker for the selected model type. For chat,
+  // once the user has provisioned a provider only ready chat providers are
+  // shown; before that, fall back to the flagship providers so the picker is
+  // not empty. Fallback providers with missing server dependencies render
+  // disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
     if (modelType === "DECISION") {
-      // Every provider with decision models, including decision-only ones
-      // (TypeSafe) that the chat lists leave out.
+      // Decision clients speak plain HTTP, so a provider whose chat SDK is
+      // missing can still run decisions; the server reports installation per
+      // provider, not per model type. Decision-only providers (TypeSafe), which
+      // the chat lists leave out, are included.
       return data.modelProviders
-        .filter((provider) =>
-          data.decisionModels.some(
-            (model) => model.providerKey === provider.key
-          )
-        )
+        .filter((provider) => provider.modelTypes.includes("DECISION"))
         .map((provider) => ({
           ...provider,
           dependenciesInstalled: true,
@@ -320,7 +340,7 @@ export function useModelMenuData({
     }
     if (hasProvisionedProvider) {
       return readyProviders.filter((provider) =>
-        modelsByProvider.has(provider.key)
+        provider.modelTypes.includes("LLM")
       );
     }
     const providersByKey = new Map(
@@ -335,9 +355,7 @@ export function useModelMenuData({
     providersWithStatus,
     modelType,
     data.modelProviders,
-    data.decisionModels,
     localCredentials,
-    modelsByProvider,
   ]);
 
   return {

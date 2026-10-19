@@ -105,7 +105,7 @@ export function RunMetadataFooter({
   const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
-      query RunMetadataFooterQuery($spanId: ID!) {
+      query RunMetadataFooterQuery($spanId: ID!, $includeAttributes: Boolean!) {
         span: node(id: $spanId) {
           id
           ... on Span {
@@ -119,7 +119,9 @@ export function RunMetadataFooter({
             }
             tokenCountTotal
             latencyMs
-            attributes
+            # Only decision spans read their token counts from attributes;
+            # chat footers must not pay for the full attribute payload.
+            attributes @include(if: $includeAttributes)
             costSummary {
               total {
                 cost
@@ -129,7 +131,7 @@ export function RunMetadataFooter({
         }
       }
     `,
-    { spanId },
+    { spanId, includeAttributes: tokenSource === "decision" },
     {
       fetchPolicy: "store-and-network",
     }

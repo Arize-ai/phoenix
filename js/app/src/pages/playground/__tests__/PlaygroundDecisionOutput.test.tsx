@@ -12,12 +12,18 @@ import { createPlaygroundStore } from "@phoenix/store/playground";
 import type { PlaygroundDecisionOutputMutation } from "../__generated__/PlaygroundDecisionOutputMutation.graphql";
 import { PlaygroundDecisionOutput } from "../PlaygroundDecisionOutput";
 
-const mocks = vi.hoisted(() => ({
-  commitMutation: vi.fn(),
-  dispose: vi.fn(),
-  credentials: {},
-  environment: {},
-}));
+const mocks = vi.hoisted(() => {
+  const credentials = {};
+  return {
+    commitMutation: vi.fn(),
+    dispose: vi.fn(),
+    credentials,
+    // One stable store object, as the context provides in production; a
+    // fresh object per render would re-run the runner effect every render.
+    credentialsStore: { getState: () => credentials },
+    environment: {},
+  };
+});
 vi.mock("relay-runtime", async (importOriginal) => ({
   ...(await importOriginal<typeof RelayRuntime>()),
   commitMutation: mocks.commitMutation,
@@ -27,10 +33,12 @@ vi.mock("react-relay", async (importOriginal) => ({
   useRelayEnvironment: () => mocks.environment,
 }));
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
-  useCredentialsContext: () => mocks.credentials,
+  useCredentialsStore: () => mocks.credentialsStore,
 }));
 vi.mock("../RunMetadataFooter", () => ({
-  RunMetadataFooter: () => <div>View Trace</div>,
+  RunMetadataFooter: ({ spanId }: { spanId: string }) => (
+    <div data-testid="run-footer">{spanId}</div>
+  ),
 }));
 
 installTestStorage();
@@ -144,7 +152,13 @@ describe("decision execution", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Provider rejected"
     );
-    expect(container.textContent).toContain("View Trace");
+    // The failed call still has a span, so the footer is mounted for it.
+    expect(
+      container.querySelector('[data-testid="run-footer"]')?.textContent
+    ).toBe("span-node");
+    expect(store.getState().instances[0].repetitions[1]?.spanId).toBe(
+      "span-node"
+    );
   });
 
   it("ignores late responses after cancellation", async () => {

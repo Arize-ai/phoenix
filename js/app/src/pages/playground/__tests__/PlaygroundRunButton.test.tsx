@@ -1,6 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { userEvent } from "storybook/test";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -72,15 +73,26 @@ describe("PlaygroundRunButton with decision instances", () => {
     expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses the whole run and explains why when a dataset is loaded", () => {
+  it("refuses the whole run and explains why when a dataset is loaded", async () => {
     const { runPlaygroundInstances } = mount("RGF0YXNldDox");
     const button = runButton();
     expect(button?.disabled).toBe(true);
     act(() => button?.click());
     expect(runPlaygroundInstances).not.toHaveBeenCalled();
-    // The reason is wired to the button as a tooltip; the wrap carries the
-    // trigger so a disabled button still shows it on hover.
-    expect(button?.closest("[data-testid]")?.parentElement).not.toBeNull();
-    expect(DECISION_DATASET_BLOCKED_REASON).toContain("dataset");
+    // The reason is a tooltip on a wrap around the disabled button, since a
+    // disabled button receives no pointer events of its own.
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    const triggerWrap = button?.parentElement;
+    expect(triggerWrap).not.toBeNull();
+    const user = userEvent.setup();
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
+    );
+    await act(async () => user.hover(triggerWrap!));
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        DECISION_DATASET_BLOCKED_REASON
+      );
+    });
   });
 });

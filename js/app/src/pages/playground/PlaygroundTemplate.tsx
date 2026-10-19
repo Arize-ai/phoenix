@@ -40,6 +40,10 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
    * new drafts) instead of the prompt-only menu the evaluator dialogs use.
    */
   taskMenu?: boolean;
+  /** Enable the Decision tab in this instance's model menu. */
+  supportsDecisionModels?: boolean;
+  /** Why decision models cannot be chosen right now, shown on the disabled tab. */
+  decisionModelsDisabledReason?: string;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
