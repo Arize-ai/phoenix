@@ -40,7 +40,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.trace import Span as OtelSpan
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +66,6 @@ from phoenix.server.api.helpers.playground_registry import (
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.tracers import Tracer
 from phoenix.utilities.env_vars import without_env_vars
 
 if TYPE_CHECKING:
@@ -371,12 +370,19 @@ class DecisionClient(ABC):
         """
         ...
 
-    async def create(self, *, request: DecisionRequest, tracer: Tracer) -> DecisionResponse:
+    async def create(
+        self,
+        *,
+        request: DecisionRequest,
+        tracer: Tracer,
+        otel_context: Optional[OtelContext] = None,
+    ) -> DecisionResponse:
         """Run the request and trace the provider's request, response, model, and usage.
 
         Args:
             request: Validated state and named questions.
             tracer: Trace collector owned by this execution.
+            otel_context: Explicit span parent; None inherits the active context.
 
         Returns:
             Validated answers keyed by question name, with the resolved model and usage.
@@ -386,7 +392,7 @@ class DecisionClient(ABC):
         """
         with tracer.start_as_current_span(
             "Decision",
-            context=OtelContext(),
+            context=otel_context,
             attributes={
                 SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
                 SpanAttributes.DECISION_SYSTEM: self.system.value,

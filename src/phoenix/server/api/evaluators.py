@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
+from typing import Any, Callable, Hashable, Optional, Protocol, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
 from jsonpath_ng.parser import JsonPathParser
@@ -214,6 +214,12 @@ class EvaluationResult(TypedDict):
     error_exc: NotRequired[Optional[Exception]]
 
 
+class EvaluatorProviderClient(Protocol):
+    def get_rate_limit_key(self) -> Hashable: ...
+    def is_rate_limit_error(self, error: Exception) -> bool: ...
+    def is_transient_error(self, error: Exception) -> bool: ...
+
+
 class BaseEvaluator(ABC):
     """
     Base interface for all evaluators that attach annotations to tasks.
@@ -221,6 +227,14 @@ class BaseEvaluator(ABC):
     This is the unified ABC that both LLMEvaluator (instance-based) and
     BuiltInEvaluator (class-based with registry) implement.
     """
+
+    @property
+    def provider_client(self) -> Optional[EvaluatorProviderClient]:
+        return None
+
+    @property
+    def annotator_kind(self) -> str:
+        return "CODE"
 
     @property
     @abstractmethod
@@ -305,6 +319,14 @@ class LLMEvaluator(BaseEvaluator):
         self._output_configs = output_configs
         self._prompt_name = prompt_name
         self._max_message_bytes = max_message_bytes
+
+    @property
+    def provider_client(self) -> EvaluatorProviderClient:
+        return self._llm_client
+
+    @property
+    def annotator_kind(self) -> str:
+        return "LLM"
 
     @property
     def name(self) -> str:

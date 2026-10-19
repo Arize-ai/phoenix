@@ -3,6 +3,7 @@
 from typing import Optional
 
 import strawberry
+from opentelemetry.context import Context as OtelContext
 from pydantic import ValidationError
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
@@ -290,7 +291,7 @@ async def _run(
     result: DecisionResult | None = None
     error_message: str | None = None
     try:
-        response = await client.create(request=request, tracer=tracer)
+        response = await client.create(request=request, tracer=tracer, otel_context=OtelContext())
         result = to_gql_decision_result(request, response)
     except BadRequest as error:
         error_message = str(error)

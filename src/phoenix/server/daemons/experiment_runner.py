@@ -1277,7 +1277,9 @@ class DecisionTaskWorkItem(ExampleWorkItem):
             return
         try:
             with anyio.fail_after(self._timeout):
-                response = await self._decision_client.create(request=request, tracer=tracer)
+                response = await self._decision_client.create(
+                    request=request, tracer=tracer, otel_context=OtelContext()
+                )
         except TimeoutError:
             logger.warning(f"DecisionTaskWorkItem {self.debug_identifier} timed out")
             await self._running_experiment.on_timeout(self)
