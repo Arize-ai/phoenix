@@ -116,7 +116,7 @@ class DecisionLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_decision_labels(
         self, info: Info[Context, None], input: DeleteDecisionLabelsInput
     ) -> DecisionLabelDeleteMutationPayload:
@@ -167,7 +167,7 @@ class DecisionLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def unset_decision_labels(
         self, info: Info[Context, None], input: UnsetDecisionLabelsInput
     ) -> DecisionLabelAssociationMutationPayload:

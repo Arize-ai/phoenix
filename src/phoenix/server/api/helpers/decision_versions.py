@@ -147,6 +147,9 @@ class _JSONDict(dict[str, Any]):
 
 
 class _JSONList(list[Any]):
+    def __getattribute__(self, name: str) -> Any:
+        raise AttributeError(name)
+
     def __str__(self) -> str:
         return json.dumps(self, default=_unwrap, ensure_ascii=False)
 
@@ -154,7 +157,7 @@ class _JSONList(list[Any]):
 class _JSONScalar:
     """A boolean or null that renders as JSON but keeps its truthiness for sections.
 
-    It has no public attributes: a Mustache section pushes it onto the context stack,
+    It has no attributes: a Mustache section pushes it onto the context stack,
     so a name inside the section must fall through to the inputs.
     """
 
@@ -163,19 +166,19 @@ class _JSONScalar:
     def __init__(self, value: Any) -> None:
         self.__value = value
 
+    def __getattribute__(self, name: str) -> Any:
+        raise AttributeError(name)
+
     def __str__(self) -> str:
-        return json.dumps(self.__value)
+        return json.dumps(object.__getattribute__(self, "_JSONScalar__value"))
 
     def __bool__(self) -> bool:
-        return bool(self.__value)
-
-    def _unwrap(self) -> Any:
-        return self.__value
+        return bool(object.__getattribute__(self, "_JSONScalar__value"))
 
 
 def _unwrap(value: Any) -> Any:
     if isinstance(value, _JSONScalar):
-        return value._unwrap()
+        return object.__getattribute__(value, "_JSONScalar__value")
     raise TypeError(f"{type(value).__name__} is not JSON serializable")
 
 

@@ -313,9 +313,31 @@ def test_f_string_scalars_keep_numeric_formatting_and_plain_text() -> None:
 def test_boolean_section_does_not_shadow_input_named_unwrap() -> None:
     assert (
         render_state(
-            _inputs("urgent", "unwrap"),
-            _text("{{#urgent}}{{unwrap}}{{/urgent}}"),
-            {"urgent": True, "unwrap": "hello"},
+            _inputs("urgent", "unwrap", "_unwrap"),
+            _text("{{#urgent}}{{unwrap}} {{_unwrap}}{{/urgent}}"),
+            {"urgent": True, "unwrap": "hello", "_unwrap": "world"},
         )
-        == "hello"
+        == "hello world"
+    )
+
+
+def test_mustache_lists_do_not_expose_list_methods() -> None:
+    assert (
+        render_state(
+            _inputs("items", "empty", "nested", "pop"),
+            _text("{{items.pop}}{{empty.pop}}{{items}} {{#nested}}{{pop}}{{/nested}}"),
+            {"items": ["a", "b"], "empty": [], "nested": [["x"]], "pop": "outer"},
+        )
+        == '["a", "b"] outer'
+    )
+
+
+def test_f_string_numeric_input_name_renders() -> None:
+    assert (
+        render_state(
+            _inputs("0"),
+            _text("{0} {0.title}", "F_STRING"),
+            {"0": {"title": "Refund"}},
+        )
+        == '{"title": "Refund"} Refund'
     )
