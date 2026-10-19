@@ -3554,7 +3554,7 @@ class DecisionEvaluator(Evaluator):
         )
 
     __mapper_args__ = {"polymorphic_identity": "DECISION"}
-    __table_args__ = (
+    __table_args__ = (  # type: ignore[assignment]
         ForeignKeyConstraint(
             ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
         ),

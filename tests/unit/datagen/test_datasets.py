@@ -27,12 +27,21 @@ def test_cache_reuses_verified_files_and_repairs_corrupt_entries(tmp_path: Path)
         calls.append(url)
         destination.write_bytes(content)
 
-    arguments = dict(cache_dir=tmp_path, downloader=download)
-    first = fetch_file("https://example.com/data", checksum, **arguments)
-    assert fetch_file("https://example.com/data", checksum, **arguments) == first
+    first = fetch_file(
+        "https://example.com/data", checksum, cache_dir=tmp_path, downloader=download
+    )
+    assert (
+        fetch_file("https://example.com/data", checksum, cache_dir=tmp_path, downloader=download)
+        == first
+    )
     assert len(calls) == 1
     first.write_bytes(b"corrupt")
-    assert fetch_file("https://example.com/data", checksum, **arguments).read_bytes() == content
+    assert (
+        fetch_file(
+            "https://example.com/data", checksum, cache_dir=tmp_path, downloader=download
+        ).read_bytes()
+        == content
+    )
     assert len(calls) == 2
     assert list(tmp_path.iterdir()) == [first]
 

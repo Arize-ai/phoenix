@@ -27,6 +27,7 @@ async def test_decision_evaluator_schema(
             )
         ).scalar_one()
         conn.commit()
+        assert isinstance(row_id, int)
         return row_id
 
     existing_id = await _run_async(_engine, create_existing)
@@ -52,6 +53,7 @@ async def test_decision_evaluator_schema(
             {"id": row_id, "decision": decision_id, "tag": tag_id},
         )
         conn.commit()
+        assert isinstance(row_id, int)
         return row_id
 
     evaluator_id = await _run_async(_engine, create_judge)

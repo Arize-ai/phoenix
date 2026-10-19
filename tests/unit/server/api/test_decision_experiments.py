@@ -324,9 +324,7 @@ async def test_the_runner_retries_a_rate_limited_request(
     benchmark_dataset: list[dict[str, Any]],
 ) -> None:
     """The SDK's own retries are off, so the runner's backoff is the only retrying."""
-    responses = iter(
-        [httpx.Response(429, json={"error": "slow down"})] + [None] * 10  # type: ignore[list-item]
-    )
+    responses = iter([httpx.Response(429, json={"error": "slow down"})] + [None] * 10)
 
     def rate_limit_once(request: httpx.Request) -> httpx.Response:
         return next(responses) or answers_for(request)
