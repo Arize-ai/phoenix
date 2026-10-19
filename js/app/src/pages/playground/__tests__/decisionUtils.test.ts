@@ -10,9 +10,6 @@ import {
   getDecisionValidationError,
   normalizeDecisionResult,
   parseDecisionImport,
-  toOpenAIDecisionsBody,
-  toProviderBody,
-  toSystemOneBody,
   validateDecisionDraft,
 } from "../decisionUtils";
 
@@ -179,7 +176,7 @@ describe("template variables", () => {
   });
 });
 
-describe("provider wire formats", () => {
+describe("request import", () => {
   const draft = (() => {
     const base = createDecisionDraft();
     base.questions.push(
@@ -201,76 +198,14 @@ describe("provider wire formats", () => {
     return base;
   })();
 
-  it("exports the System One body with the model", () => {
-    const body = toSystemOneBody({
-      request: buildDecisionRequest({ draft }),
-      model: "jev-latest",
-    });
-    expect(body.model).toBe("jev-latest");
-    expect(body.questions.urgent).toEqual({
-      type: "noul",
-      instructions: "Urgent?",
-      criteria: { true: "Time sensitive" },
-    });
-  });
-
-  it("exports the OpenAI Decisions body the same way the server converts it", () => {
-    const body = toOpenAIDecisionsBody({
-      request: buildDecisionRequest({ draft }),
-      model: "gpt-6-luna",
-    });
-    expect(body.model).toBe("gpt-6-luna");
-    expect(body.input).toBe(draft.state);
-    expect(body.questions[0]).toMatchObject({
-      type: "choice",
-      name: "department",
-      choices: [
-        { value: "billing", description: "Payments, invoices, and refunds" },
-        { value: "technical", description: "Problems using the product" },
-        { value: "other", description: "Requests outside these categories" },
-      ],
-    });
-    expect(body.questions[1]).toEqual({
-      type: "predicate",
-      name: "urgent",
-      instructions: 'Urgent?\nCriteria: {"true":"Time sensitive"}',
-    });
-    expect(body.questions[2]).toEqual({
-      type: "score",
-      name: "severity",
-      instructions: "Severity?",
-      levels: [
-        { label: "0", description: "Low" },
-        { label: "1", description: "High" },
-      ],
-    });
-  });
-
-  it("picks the body shape from the wire format the server reports", () => {
-    const request = buildDecisionRequest({ draft });
-    expect(
-      toProviderBody({ request, wireFormat: "SYSTEM_ONE", model: "m" })
-    ).toHaveProperty("state");
-    expect(
-      toProviderBody({ request, wireFormat: "OPENAI_DECISIONS", model: "m" })
-    ).toHaveProperty("input");
-  });
-
   it("imports a System One body and round-trips it", () => {
-    const original = toSystemOneBody({
-      request: buildDecisionRequest({ draft }),
-      model: "jev-latest",
-    });
-    const imported = parseDecisionImport(JSON.stringify(original));
-    expect(imported.format).toBe("SYSTEM_ONE");
+    const original = buildDecisionRequest({ draft });
+    const imported = parseDecisionImport(
+      JSON.stringify({ model: "jev-latest", ...original })
+    );
     expect(imported.model).toBe("jev-latest");
     expect(getDecisionValidationError(imported.draft)).toBeNull();
-    const { model: _roundTrippedModel, ...roundTripped } = toSystemOneBody({
-      request: buildDecisionRequest({ draft: imported.draft }),
-      model: null,
-    });
-    const { model: _originalModel, ...expected } = original;
-    expect(roundTripped).toEqual(expected);
+    expect(buildDecisionRequest({ draft: imported.draft })).toEqual(original);
   });
 
   it("imports an OpenAI Decisions body", () => {
@@ -301,7 +236,6 @@ describe("provider wire formats", () => {
         ],
       })
     );
-    expect(imported.format).toBe("OPENAI_DECISIONS");
     expect(imported.draft.stateFormat).toBe("text");
     const request = buildDecisionRequest({ draft: imported.draft });
     expect(request.questions.department).toEqual({

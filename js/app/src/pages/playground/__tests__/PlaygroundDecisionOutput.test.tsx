@@ -10,6 +10,7 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import type { PlaygroundDecisionOutputMutation } from "../__generated__/PlaygroundDecisionOutputMutation.graphql";
+import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundDecisionOutput } from "../PlaygroundDecisionOutput";
 
 const mocks = vi.hoisted(() => {
@@ -59,11 +60,20 @@ describe("decision execution", () => {
   });
 
   function mountRunningInstance() {
-    const store = createPlaygroundStore({
-      modelConfigByProvider: {},
-      defaultModelType: "DECISION",
-    });
-    const instance = store.getState().instances[0];
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const chatInstance = store.getState().instances[0];
+    // A decision instance as the model menu creates one from a chat instance.
+    const instance = {
+      ...chatInstance,
+      llmModel: chatInstance.model,
+      decisionRequest: createDecisionDraft(),
+      model: {
+        ...chatInstance.model,
+        modelType: "DECISION" as const,
+        provider: "TYPESAFE" as const,
+        modelName: "jev-latest",
+      },
+    };
     store.setState({
       instances: [
         {

@@ -14,17 +14,12 @@ import type {
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type { DecisionWireFormat } from "./__generated__/DecisionExportDialogQuery.graphql";
-
-export type { DecisionWireFormat };
-
 /*
  * The playground edits a provider-independent draft and converts at the
  * boundary. The canonical wire shape is TypeSafe System One, which is also
  * what the server validates; OpenAI's Decisions API is a lossless rename of
  * it (predicate ↔ noul, choices array ↔ criteria map, levels ↔ ordered
- * criteria). Import accepts either shape; export emits the exact body the
- * provider receives, chosen by the wire format the server reports for it.
+ * criteria). Span replay reads either shape back into a draft.
  */
 
 export type DecisionDraft = DecisionRequestDraft;
@@ -38,7 +33,6 @@ export const MAX_DECISION_QUESTIONS = 255;
 
 /** A System One request body, the canonical shape the server accepts. */
 export type SystemOneRequest = {
-  model?: string;
   state: unknown;
   questions: Record<string, SystemOneQuestion>;
 };
@@ -51,27 +45,6 @@ export type SystemOneQuestion =
       instructions: unknown;
       criteria?: { true?: unknown; false?: unknown };
     };
-
-/** An OpenAI Decisions API request body. */
-export type OpenAIDecisionsRequest = {
-  model?: string;
-  input: unknown;
-  questions: Array<
-    | {
-        type: "choice";
-        name: string;
-        instructions: string;
-        choices: Array<{ value: string | boolean; description?: string }>;
-      }
-    | {
-        type: "score";
-        name: string;
-        instructions: string;
-        levels: Array<{ label: string; description?: string }>;
-      }
-    | { type: "predicate"; name: string; instructions: string }
-  >;
-};
 
 export const DECISION_QUESTION_TYPES: ReadonlyArray<{
   id: DecisionQuestionType;
@@ -460,95 +433,6 @@ function toText(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value);
 }
 
-/** The body TypeSafe (and any System One-compatible host) receives. */
-export function toSystemOneBody({
-  request,
-  model,
-}: {
-  request: SystemOneRequest;
-  model: string | null | undefined;
-}): SystemOneRequest {
-  return { model: model ?? undefined, ...request };
-}
-
-/**
- * The body OpenAI's `POST /v1/decisions` receives. Mirrors the server-side
- * conversion in `OpenAIDecisionClient.build_request` so the export matches
- * what the trace shows.
- */
-export function toOpenAIDecisionsBody({
-  request,
-  model,
-}: {
-  request: SystemOneRequest;
-  model: string | null | undefined;
-}): OpenAIDecisionsRequest {
-  const questions: OpenAIDecisionsRequest["questions"] = Object.entries(
-    request.questions
-  ).map(([name, question]) => {
-    const instructions = toText(question.instructions);
-    if (question.type === "choice") {
-      return {
-        type: "choice",
-        name,
-        instructions,
-        choices: Object.entries(question.criteria).map(
-          ([value, description]) => ({
-            value,
-            ...(description != null
-              ? { description: toText(description) }
-              : {}),
-          })
-        ),
-      };
-    }
-    if (question.type === "score") {
-      return {
-        type: "score",
-        name,
-        instructions,
-        levels: question.criteria.map((description, index) => ({
-          label: String(index),
-          description: toText(description),
-        })),
-      };
-    }
-    const criteria = question.criteria;
-    const hasCriteria =
-      criteria != null && (criteria.true != null || criteria.false != null);
-    return {
-      type: "predicate",
-      name,
-      instructions: hasCriteria
-        ? `${instructions}\nCriteria: ${JSON.stringify(criteria)}`
-        : instructions,
-    };
-  });
-  return {
-    model: model ?? undefined,
-    input: toText(request.state),
-    questions,
-  };
-}
-
-/**
- * The exact body a provider receives, in the wire format the server reports
- * for it (`GenerativeProvider.decisionWireFormat`).
- */
-export function toProviderBody({
-  request,
-  wireFormat,
-  model,
-}: {
-  request: SystemOneRequest;
-  wireFormat: DecisionWireFormat;
-  model: string | null | undefined;
-}): SystemOneRequest | OpenAIDecisionsRequest {
-  return wireFormat === "OPENAI_DECISIONS"
-    ? toOpenAIDecisionsBody({ request, model })
-    : toSystemOneBody({ request, model });
-}
-
 // ---------------------------------------------------------------------------
 // Import: wire bodies → draft
 // ---------------------------------------------------------------------------
@@ -631,7 +515,6 @@ function describeImportIssue(issue: z.ZodIssue | undefined): string {
 
 export type DecisionImportResult = {
   draft: DecisionRequestDraft;
-  format: DecisionWireFormat;
   /** The `model` field of the imported body, if any. */
   model: string | null;
 };
@@ -754,7 +637,6 @@ export function parseDecisionImport(text: string): DecisionImportResult {
       );
     }
     return {
-      format: "OPENAI_DECISIONS",
       model: parsed.data.model ?? null,
       draft: toDraftFromOpenAIDecisions(parsed.data),
     };
@@ -766,7 +648,6 @@ export function parseDecisionImport(text: string): DecisionImportResult {
     );
   }
   return {
-    format: "SYSTEM_ONE",
     model: parsed.data.model ?? null,
     draft: toDraftFromSystemOne(parsed.data),
   };
@@ -1055,44 +936,6 @@ export function normalizeDecisionResult({
     },
     raw: result,
   };
-}
-
-// ---------------------------------------------------------------------------
-// URL state
-// ---------------------------------------------------------------------------
-
-/** The search params that put the playground in decision mode on load. */
-export const DECISION_SEARCH_PARAMS = [
-  "modelType",
-  "decisionProvider",
-  "decisionModel",
-] as const;
-
-/**
- * Write the first instance's decision target to the URL, or clear it. The
- * URL recreates one instance on load, so only that instance is encoded.
- * @param params.searchParams - the params to mutate
- * @param params.target - the first instance's provider and model when it is a
- *   decision instance, else null
- */
-export function setDecisionSearchParams({
-  searchParams,
-  target,
-}: {
-  searchParams: URLSearchParams;
-  target: { provider: string; modelName: string | null } | null;
-}): void {
-  if (!target) {
-    DECISION_SEARCH_PARAMS.forEach((key) => searchParams.delete(key));
-    return;
-  }
-  searchParams.set("modelType", "DECISION");
-  searchParams.set("decisionProvider", target.provider);
-  if (target.modelName) {
-    searchParams.set("decisionModel", target.modelName);
-  } else {
-    searchParams.delete("decisionModel");
-  }
 }
 
 // ---------------------------------------------------------------------------

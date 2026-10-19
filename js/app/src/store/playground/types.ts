@@ -598,7 +598,6 @@ export type PlaygroundStateByDatasetId = z.infer<
 >;
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
-  defaultModelType?: ModelType;
   modelConfigByProvider: ModelConfigByProvider;
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
