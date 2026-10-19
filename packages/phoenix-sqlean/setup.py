@@ -21,7 +21,7 @@ from setuptools.command.build_ext import build_ext
 log = logging.getLogger(__name__)
 
 PACKAGE_NAME = "sqlean"
-VERSION = "0.2.0"  # x-release-please-version
+VERSION = "0.2.1"  # x-release-please-version
 SQLEAN_VERSION = "0.28.5"
 
 SHORT_DESCRIPTION = "sqlite3 with extensions"
