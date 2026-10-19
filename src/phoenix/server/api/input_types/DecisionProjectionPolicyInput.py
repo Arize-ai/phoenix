@@ -91,6 +91,8 @@ class DecisionProjectionPolicyInput:
 
     def to_orm(self) -> stored.DecisionProjectionPolicy:
         """Validate typed settings without silently dropping duplicate question names."""
+        # TODO: policies are validated several times per request (to_orm -> model_dump ->
+        # model_validate). Harmless; tidy when touching this.
         from phoenix.server.api.mutations.decision_mutations import format_validation_error
 
         questions: dict[str, stored.DecisionQuestionProjection] = {}

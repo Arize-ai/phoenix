@@ -171,6 +171,9 @@ async def validate_bound_decision_update(
     candidate = original.model_copy(
         update={"inputs": version.inputs, "state": version.state, "questions": version.questions}
     )
+    # TODO: a judge with a single binding still can't change its inputs or questions from that
+    # binding's editor. Allowing it needs one mutation that moves the version and rewrites that
+    # binding's input mapping and policy override together.
     if bindings and _signature(original) != _signature(candidate):
         names = ", ".join(sorted(f"'{binding.name.root}'" for binding in bindings))
         raise Conflict(

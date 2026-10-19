@@ -118,6 +118,8 @@ class EvaluatorDefinitionInput:
 
     def to_definition(self) -> EvaluatorDefinition:
         """The evaluator this input names or drafts, as previews and experiments build it."""
+        # TODO: milestone-2 calibration is reachable early: this runs a decision judge as an
+        # evaluator task, and the runner has no test for it.
         if self.decision_evaluator_id:
             return StoredDecisionEvaluatorDefinition(
                 type="decision_evaluator",

@@ -1690,6 +1690,9 @@ class EvalWorkItem(WorkItem):
 
         Annotation objects are updated in-place with their generated IDs.
         """
+        # TODO: crash consistency. Traces and annotations are written in separate transactions,
+        # and no test covers a crash between them or between a provider response and the
+        # result commit.
 
         async def _persist_traces() -> None:
             if db_traces:
