@@ -850,7 +850,7 @@ CREATE TABLE experiment_jobs (
     CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
         CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
     CONSTRAINT "ck_experiment_jobs_`valid_type`"
-        CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')),
+        CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
         REFERENCES experiments (id)
@@ -1216,6 +1216,35 @@ CREATE TABLE agent_session_snapshots (
         REFERENCES agent_sessions (id)
         ON DELETE CASCADE
 );
+
+
+-- Table: experiment_decision_tasks
+-- --------------------------------
+CREATE TABLE experiment_decision_tasks (
+    id INTEGER NOT NULL,
+    type VARCHAR DEFAULT 'DECISION' NOT NULL
+        CONSTRAINT "ck_experiment_decision_tasks_`valid_type`"
+        CHECK (type = 'DECISION'),
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id INTEGER,
+    base_url VARCHAR,
+    config JSONB NOT NULL,
+    CONSTRAINT pk_experiment_decision_tasks PRIMARY KEY (id),
+    CONSTRAINT "ck_experiment_decision_tasks_`custom_provider_or_base_url`"
+        CHECK (NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)),
+    CONSTRAINT fk_experiment_decision_tasks_custom_provider_id_generative_model_custom_providers
+        FOREIGN KEY (custom_provider_id)
+        REFERENCES generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_experiment_decision_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_experiment_decision_tasks_custom_provider_id ON experiment_decision_tasks
+    (custom_provider_id);
 
 
 -- Table: oauth2_authorization_codes

@@ -12,7 +12,7 @@ request is built.
 """
 
 import json
-from typing import Any, Literal, Mapping, Sequence, get_args
+from typing import Any, Mapping, Sequence, get_args
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -22,11 +22,11 @@ from phoenix.db.types.decisions import (
     DecisionQuestion,
     PredicateCriteria,
     PredicateQuestion,
+    QuestionFormat,
     ScaleLevel,
     ScaleQuestion,
 )
 
-QuestionFormat = Literal["phoenix", "system_one", "openai"]
 QUESTION_FORMATS: tuple[QuestionFormat, ...] = get_args(QuestionFormat)
 
 _PHOENIX_QUESTIONS: TypeAdapter[list[DecisionQuestion]] = TypeAdapter(list[DecisionQuestion])

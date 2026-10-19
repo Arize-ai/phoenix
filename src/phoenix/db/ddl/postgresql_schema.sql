@@ -907,7 +907,8 @@ CREATE TABLE public.experiment_jobs (
         CHECK (((type)::text = ANY ((ARRAY[
             'PROMPT'::character varying,
             'EVAL_ONLY'::character varying,
-            'EVALUATOR'::character varying
+            'EVALUATOR'::character varying,
+            'DECISION'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
@@ -1293,6 +1294,33 @@ CREATE TABLE public.agent_session_snapshots (
         REFERENCES public.agent_sessions (id)
         ON DELETE CASCADE
 );
+
+
+-- Table: experiment_decision_tasks
+-- --------------------------------
+CREATE TABLE public.experiment_decision_tasks (
+    id BIGINT NOT NULL,
+    type VARCHAR NOT NULL DEFAULT 'DECISION'::character varying,
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id BIGINT,
+    base_url VARCHAR,
+    config JSONB NOT NULL,
+    CONSTRAINT pk_experiment_decision_tasks PRIMARY KEY (id),
+    CONSTRAINT "ck_experiment_decision_tasks_`custom_provider_or_base_url`" CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (base_url IS NOT NULL)))),
+    CONSTRAINT "ck_experiment_decision_tasks_`valid_type`" CHECK (((type)::text = 'DECISION'::text)),
+    CONSTRAINT fk_experiment_decision_tasks_custom_provider_id_generat_4f71
+        FOREIGN KEY (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_experiment_decision_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES public.experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_experiment_decision_tasks_custom_provider_id ON public.experiment_decision_tasks
+    USING btree (custom_provider_id);
 
 
 -- Table: oauth2_authorization_codes

@@ -77,6 +77,7 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
 )
+from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
     EvaluatorDefinitionRootModel,
@@ -671,6 +672,25 @@ class _HexColor(TypeDecorator[str]):
         if value is None:
             return None
         return value
+
+
+class _DecisionTaskConfig(TypeDecorator[DecisionTaskConfig]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[DecisionTaskConfig], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            raise ValueError("Decision task config cannot be None")
+        # The version is always written, even when it was left at its default.
+        return {"schema_version": value.schema_version, **value.model_dump()}
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[DecisionTaskConfig]:
+        return DecisionTaskConfig.model_validate(value) if value is not None else None
 
 
 class _InputMapping(TypeDecorator[InputMapping]):
@@ -2013,7 +2033,7 @@ class ExperimentJob(HasId):
     )
     type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')",
+            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')",
             name="valid_type",
         ),
         nullable=False,
@@ -2147,6 +2167,53 @@ class ExperimentEvalOnlyConfig(ExperimentJob):
     __mapper_args__ = {
         "polymorphic_identity": "EVAL_ONLY",
     }
+
+
+class ExperimentDecisionTask(ExperimentJob):
+    """Decision task configuration for an experiment.
+
+    Each dataset example becomes one decision request, and its answers are the run's
+    output. The connection is stored as columns, as a prompt task's is; how examples
+    become requests and how answers are scored is frozen in ``config``, so a resumed
+    experiment asks and scores exactly as it started.
+    """
+
+    __tablename__ = "experiment_decision_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("type = 'DECISION'", name="valid_type"),
+        server_default="DECISION",
+        nullable=False,
+    )
+
+    # Model identity
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str] = mapped_column(String)
+
+    # Provider routing: a custom provider, or a built-in one with an optional endpoint
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    base_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    config: Mapped[DecisionTaskConfig] = mapped_column(_DecisionTaskConfig, nullable=False)
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DECISION",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)",
+            name="custom_provider_or_base_url",
+        ),
+    )
 
 
 class ExperimentEvaluatorTask(ExperimentJob):
