@@ -543,7 +543,8 @@ const resultCellCSS = css`
 const tableScrollCSS = css`
   height: 100%;
   overflow: auto;
-  overscroll-behavior: contain;
+  // No bounce at the ends, and no scroll chaining out to the dialog.
+  overscroll-behavior: none;
 `;
 
 const recordTableCSS = css(

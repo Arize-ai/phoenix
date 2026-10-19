@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { useEffect, useRef } from "react";
 
 import { Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -61,43 +60,6 @@ export const ProjectEvaluatorInputMapping = ({
   const setFocusedMappingVariable = useEvaluatorStore(
     (state) => state.setFocusedMappingVariable
   );
-  const rowsRef = useRef<HTMLDivElement>(null);
-  const highlightedVariable = useEvaluatorStore(
-    (state) => state.highlightedMappingVariable ?? null
-  );
-  // The test bench asks for a variable's field from the other panel. The
-  // dock expands on the same request, so the field may not be laid out yet:
-  // it is tried on each frame until it can take focus, then the request is
-  // answered.
-  const focusRequest = useEvaluatorStore(
-    (state) => state.mappingFocusRequest ?? null
-  );
-  const clearMappingFocusRequest = useEvaluatorStore(
-    (state) => state.clearMappingFocusRequest
-  );
-  useEffect(() => {
-    let frame = 0;
-    let attempts = 0;
-    const tryFocus = (variable: string) => {
-      const row = rowsRef.current?.querySelector<HTMLElement>(
-        `[data-mapping-variable="${CSS.escape(variable)}"]`
-      );
-      const field = row?.querySelector<HTMLElement>("[contenteditable]");
-      if (row != null && field != null && row.offsetParent != null) {
-        row.scrollIntoView({ block: "nearest" });
-        field.focus();
-        clearMappingFocusRequest();
-      } else if (++attempts < MAX_FOCUS_ATTEMPTS) {
-        frame = requestAnimationFrame(() => tryFocus(variable));
-      } else {
-        clearMappingFocusRequest();
-      }
-    };
-    if (focusRequest != null) {
-      frame = requestAnimationFrame(() => tryFocus(focusRequest.variable));
-    }
-    return () => cancelAnimationFrame(frame);
-  }, [focusRequest, clearMappingFocusRequest]);
   if (variables.length === 0) {
     return (
       <Text color="text-500" size="S">
@@ -107,17 +69,11 @@ export const ProjectEvaluatorInputMapping = ({
   }
   return (
     <div
-      ref={rowsRef}
       css={mappingRowsCSS}
       data-columns={variables.length >= TWO_COLUMN_MIN_VARIABLES ? "2" : "1"}
     >
       {variables.map((variable) => (
-        <div
-          key={variable}
-          className="mapping-row"
-          data-mapping-variable={variable}
-          data-highlighted={highlightedVariable === variable || undefined}
-        >
+        <div key={variable} className="mapping-row">
           {/* The path field is a CodeMirror editor and takes its accessible
               name from the control itself, so this is a visual label only. */}
           <code className="mapping-row__name" aria-hidden title={variable}>
@@ -169,9 +125,6 @@ export const ProjectEvaluatorInputMapping = ({
   );
 };
 
-/** Frames to wait for a requested field to be laid out before giving up. */
-const MAX_FOCUS_ATTEMPTS = 10;
-
 /** From this many variables the rows may take a second column. */
 const TWO_COLUMN_MIN_VARIABLES = 5;
 
@@ -191,13 +144,6 @@ const mappingRowsCSS = css`
     grid-template-columns: minmax(72px, 160px) minmax(0, 1fr);
     align-items: center;
     gap: var(--global-dimension-size-150);
-    border-radius: var(--global-rounding-small);
-    // Marked from the test bench while it points at this variable. An
-    // outline, so the mark costs the row no layout.
-    &[data-highlighted] {
-      outline: 2px solid var(--global-color-primary);
-      outline-offset: var(--global-dimension-size-50);
-    }
   }
   .mapping-row__name {
     font-family: var(--global-font-family-code, monospace);
