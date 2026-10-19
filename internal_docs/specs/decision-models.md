@@ -102,8 +102,13 @@ core typed and pushes everything uncertain to additive types or to run time:
 | Named inputs and a named set of questions | Question types, such as `box` |
 | One model from one provider answers | Answer shapes |
 | One typed answer per question | Images, assets, and multipart uploads |
-| Versions, and tags that apps follow | Wire formats and model names |
+| Versions, and tags that apps follow | Wire formats and model names ([Provider Wire Formats](#provider-wire-formats)) |
 | | Preview flags such as danger-zone headers; which providers exist |
+
+"One typed answer per question" is a bet, not a fact: both providers agree on
+it today. A multi-select choice, several boxes for one question, or questions
+asked about different parts of the state would each break it, and would need a
+new answer type or a change to the stable core.
 
 ## Decisions Before Release
 
@@ -621,6 +626,47 @@ image input:
   answer; judging it (overlap with a reference box) is an evaluator's job.
 - **Provider-specific options**, if one ever matters, go in an allow-listed
   `options` field on the question, not in free-form JSON.
+
+### Provider Wire Formats
+
+Every translation in one place, from the installed SDKs (`openai`'s
+`decision_create_params` and `decision`, `typesafe_sdk`'s `SystemOneRequest`
+and `SystemOneResponse`). These are what the shared translation fixtures in the
+[Apps step](#build-order) must pin down.
+
+**Requests**, from Phoenix to each provider:
+
+| Phoenix | OpenAI Decisions | System One | Lost |
+|---|---|---|---|
+| Questions: ordered list, `name` required | Ordered list, `name` optional | Object keyed by name | Nothing; Python keeps key order |
+| `predicate`: `instructions`, `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, `criteria` | OpenAI: criteria are folded into the instructions |
+| `choice`: `choices: [{value, description?}]`, `value` a string | `choices: [{value, description?}]`, `value` a string or boolean | `criteria: {value: description}` | Nothing sent; Phoenix can't express a boolean value |
+| `scale`: `levels: [{label, description?}]` | `score`: `levels: [{label, description?}]` | `score`: `criteria: [description, ...]` | System One: the label when there is a description |
+| Text fields: strings | Strings | Strings, JSON, or null | Nothing sent; Phoenix can't express JSON text |
+| State: `object`, `text`, or `input` | `input`: text, or messages with images (HTTP or data URLs, at most 128) | `state`: text, object, or array, plus `assets` (multipart parts) | OpenAI: a structured state is serialized as text |
+| `box` (later) | None; refused | `box` | — |
+| — | `safety_identifier` (per call) | — | Not modeled |
+| — | — | Preview headers (danger zone) | Not stored ([Models and Preview Flags](#models-and-preview-flags)) |
+
+**Responses**, from each provider to Phoenix:
+
+| Phoenix | OpenAI Decisions | System One | Lost |
+|---|---|---|---|
+| Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
+| `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
+| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing, while values are strings |
+| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the version |
+| `refusal` | `refusal`, with no reason | None | Nothing |
+| `box` (later): edges as fractions, optional `confidence` | None | The same | — |
+| Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's token details, except on the span |
+| Resolved model | `model` | `model` | Nothing |
+
+**Imports** through `questionsPath` read System One and OpenAI questions back
+(`decision_formats.py`), and lose more than the adapters: JSON text is
+serialized to a string, a System One question without instructions is refused
+(Phoenix requires them, so these questions can't be run), and an
+OpenAI boolean choice value becomes the string `"True"` or `"False"` (see
+[Open Questions](#open-questions)).
 
 ### Models and Preview Flags
 
@@ -1162,6 +1208,20 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   JSON scalars around it stay JSON whichever is chosen: `inputValues` is keyed
   by each version's own input names, `metadata` by the user's, and
   `inputSchema` matches the other evaluator types.
+- **Boolean choice values.** OpenAI's choice values may be booleans, and
+  `true` and `"true"` are different choices. Phoenix stores a value as a
+  string, so it can't send a boolean, and importing OpenAI questions turns
+  `true` into `"True"`, which no longer matches a reference answer of `true`
+  and reaches OpenAI as a different choice. Options: allow `string | boolean`
+  values (answers, maps, and annotation labels then need typed keys), refuse
+  booleans on import, or convert them to `"true"` and `"false"`. Refusing or
+  converting stays open to widening later; allowing them first doesn't.
+- **Per-call request options.** OpenAI takes `safety_identifier` with each
+  call, and System One takes `assets`. Neither belongs on a version. The
+  question `options` field is per question, and `assets` waits on the
+  `messages` state, so per-call options (an end-user ID, a provider flag) have
+  no place yet: a run's input, the connection, or `format()`'s arguments for
+  apps.
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need
