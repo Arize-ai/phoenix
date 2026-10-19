@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<94f3dccda87d11e50121716dda07cedb>>
+ * @generated SignedSource<<f96b44be7c0f0748f515a70e4ec69fd4>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorsTable_row$data = {
@@ -37,6 +38,13 @@ export type EvaluatorsTable_row$data = {
         readonly name: string;
       };
     }>;
+  };
+  readonly decisionVersion?: {
+    readonly decisionId: string;
+    readonly id: string;
+    readonly modelName: string;
+    readonly modelProvider: GenerativeProviderKey;
+    readonly sequenceNumber: number;
   };
   readonly description: string | null;
   readonly id: string;
@@ -80,6 +88,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "f354a35aaba4addcc82ffe1329768138";
+(node as any).hash = "dcfd6677551b5a73445a623e4cf407f6";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4228aba3e3fdaafff656ab35b78ff90f>>
+ * @generated SignedSource<<8619458e431146571d4e92abea0e3480>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
@@ -27,7 +26,8 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
     }>;
   } | null;
   readonly evaluator: {
-    readonly decisionVersion?: {
+    readonly __typename: "DecisionEvaluator";
+    readonly decisionVersion: {
       readonly decisionId: string;
       readonly id: string;
       readonly inputs: ReadonlyArray<{
@@ -61,11 +61,10 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
       }>;
       readonly sequenceNumber: number;
     };
-    readonly decisionVersionTag?: {
+    readonly decisionVersionTag: {
       readonly name: string;
     };
-    readonly kind: EvaluatorKind;
-    readonly projectionPolicy?: {
+    readonly projectionPolicy: {
       readonly questions: ReadonlyArray<{
         readonly __typename: string;
         readonly includeLabel?: boolean;
@@ -78,6 +77,10 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
         readonly threshold?: number;
       }>;
     };
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   };
   readonly id: string;
   readonly inputMapping: {
@@ -254,13 +257,7 @@ return {
       "name": "evaluator",
       "plural": false,
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "kind",
-          "storageKey": null
-        },
+        (v2/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -433,6 +430,6 @@ return {
 };
 })();
 
-(node as any).hash = "b615a5f0dc2596bf5f028673d66a1394";
+(node as any).hash = "db7da09c19b18cbd6dc2a2b28c58ac86";
 
 export default node;

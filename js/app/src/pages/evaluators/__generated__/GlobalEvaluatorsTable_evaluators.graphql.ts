@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<73e75f8a22d681863bfcc1c065bcd97e>>
+ * @generated SignedSource<<89a1020e42c855b1a5eb3db588b62d70>>
  * @lightSyntaxTransform
  */
 
@@ -100,6 +100,20 @@ v8 = {
       "storageKey": null
     }
   ],
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -353,26 +367,50 @@ return {
                           "name": "promptVersion",
                           "plural": false,
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "modelName",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "modelProvider",
-                              "storageKey": null
-                            }
+                            (v9/*:: as any*/),
+                            (v10/*:: as any*/)
                           ],
                           "storageKey": null
                         },
                         (v8/*:: as any*/)
                       ],
                       "type": "LLMEvaluator",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "DecisionVersion",
+                          "kind": "LinkedField",
+                          "name": "decisionVersion",
+                          "plural": false,
+                          "selections": [
+                            (v1/*:: as any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "decisionId",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "sequenceNumber",
+                              "storageKey": null
+                            },
+                            (v9/*:: as any*/),
+                            (v10/*:: as any*/)
+                          ],
+                          "storageKey": null
+                        },
+                        (v8/*:: as any*/)
+                      ],
+                      "type": "DecisionEvaluator",
                       "abstractKey": null
                     },
                     {

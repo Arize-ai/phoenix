@@ -49,6 +49,7 @@ import type {
   EvaluatorKind,
 } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
+import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -233,6 +234,15 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               modelProvider
             }
           }
+          ... on DecisionEvaluator {
+            decisionVersion {
+              id
+              decisionId
+              sequenceNumber
+              modelName
+              modelProvider
+            }
+          }
           ... on CodeEvaluator {
             language
             sandboxConfig {
@@ -400,11 +410,17 @@ export const DatasetEvaluatorsTable = ({
         size: 180,
         enableSorting: false,
         cell: ({ row }) => (
-          <PromptCell
-            prompt={row.original.evaluator.prompt}
-            promptVersionTag={row.original.evaluator.promptVersionTag?.name}
-            wrapWidth={200}
-          />
+          <>
+            <PromptCell
+              prompt={row.original.evaluator.prompt}
+              promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+              wrapWidth={200}
+            />
+            <DecisionCell
+              decisionVersion={row.original.evaluator.decisionVersion}
+              wrapWidth={200}
+            />
+          </>
         ),
       },
       {
@@ -413,7 +429,9 @@ export const DatasetEvaluatorsTable = ({
         size: 180,
         enableSorting: false,
         cell: ({ row }) => {
-          const promptVersion = row.original.evaluator.promptVersion;
+          const promptVersion =
+            row.original.evaluator.promptVersion ??
+            row.original.evaluator.decisionVersion;
           if (!promptVersion) {
             return <Text color="text-700">—</Text>;
           }

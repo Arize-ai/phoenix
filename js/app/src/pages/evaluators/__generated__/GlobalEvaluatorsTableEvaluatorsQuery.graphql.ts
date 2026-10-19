@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d31c08fdf65880c79ee988f45b178f11>>
+ * @generated SignedSource<<12a1764d36b2aa2557cbe6703f544237>>
  * @lightSyntaxTransform
  */
 
@@ -156,6 +156,20 @@ v10 = {
     },
     (v3/*:: as any*/)
   ],
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -376,20 +390,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "modelName",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "modelProvider",
-                            "storageKey": null
-                          },
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/),
                           (v3/*:: as any*/)
                         ],
                         "storageKey": null
@@ -397,6 +399,42 @@ return {
                       (v10/*:: as any*/)
                     ],
                     "type": "LLMEvaluator",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DecisionVersion",
+                        "kind": "LinkedField",
+                        "name": "decisionVersion",
+                        "plural": false,
+                        "selections": [
+                          (v3/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "decisionId",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "sequenceNumber",
+                            "storageKey": null
+                          },
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      (v10/*:: as any*/)
+                    ],
+                    "type": "DecisionEvaluator",
                     "abstractKey": null
                   },
                   {
@@ -475,12 +513,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c89ce945181bb8a521b17aafbc836c2c",
+    "cacheID": "471467e59b9927cc1a7ce1b9d0c5de76",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on DecisionEvaluator {\n    decisionVersion {\n      id\n      decisionId\n      sequenceNumber\n      modelName\n      modelProvider\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

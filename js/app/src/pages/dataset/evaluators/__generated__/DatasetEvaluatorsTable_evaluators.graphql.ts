@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edf5bc42e18a71ee1a4d597806936ffe>>
+ * @generated SignedSource<<4aad85d000e0d3cada9891b47dd55647>>
  * @lightSyntaxTransform
  */
 
@@ -51,6 +51,20 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -242,25 +256,48 @@ return {
                               "name": "promptVersion",
                               "plural": false,
                               "selections": [
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "LLMEvaluator",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "DecisionVersion",
+                              "kind": "LinkedField",
+                              "name": "decisionVersion",
+                              "plural": false,
+                              "selections": [
+                                (v1/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
                                   "kind": "ScalarField",
-                                  "name": "modelName",
+                                  "name": "decisionId",
                                   "storageKey": null
                                 },
                                 {
                                   "alias": null,
                                   "args": null,
                                   "kind": "ScalarField",
-                                  "name": "modelProvider",
+                                  "name": "sequenceNumber",
                                   "storageKey": null
-                                }
+                                },
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/)
                               ],
                               "storageKey": null
                             }
                           ],
-                          "type": "LLMEvaluator",
+                          "type": "DecisionEvaluator",
                           "abstractKey": null
                         },
                         {
