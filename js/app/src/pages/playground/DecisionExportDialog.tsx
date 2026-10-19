@@ -10,6 +10,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  EmptyState,
+  EmptyStateGraphic,
   Flex,
   Icon,
   Icons,
@@ -115,17 +117,21 @@ export function DecisionExportDialog() {
                   </DialogTitleExtra>
                 </DialogHeader>
                 {validationError ? (
-                  <View padding="size-200">
-                    <Alert variant="warning">
+                  <View
+                    paddingX="size-200"
+                    paddingTop="size-100"
+                    paddingBottom="size-200"
+                  >
+                    <Alert variant="warning" banner>
                       Fix the request before exporting: {validationError}
                     </Alert>
                   </View>
                 ) : bodies.length === 0 ? (
                   <View padding="size-200">
-                    <Text color="text-700">
-                      Select a decision model on an instance to export its
-                      request.
-                    </Text>
+                    <EmptyState
+                      graphic={<EmptyStateGraphic variant="genericAdd" />}
+                      description="Select a decision model on an instance to export its request."
+                    />
                   </View>
                 ) : (
                   <Tabs defaultSelectedKey={bodies[0].id}>

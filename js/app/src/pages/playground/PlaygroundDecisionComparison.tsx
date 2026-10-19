@@ -1,70 +1,68 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo } from "react";
 
-import { Alert, Button, Flex, Loading, Text, View } from "@phoenix/components";
+import {
+  Alert,
+  Disclosure,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  ParagraphSkeleton,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
-import { DecisionAnswerView } from "./DecisionResult";
 import {
-  type NormalizedDecisionAnswer,
-  normalizeDecisionResult,
-} from "./decisionUtils";
+  answerConfidence,
+  answerHeadline,
+  DecisionAnswerView,
+  formatPercent,
+  formatUsage,
+} from "./DecisionResult";
+import { normalizeDecisionResult } from "./decisionUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { useDecisionRunner } from "./useDecisionRunner";
 
-const gridCSS = css`
-  display: grid;
-  gap: 0;
+const comparisonTableCSS = css`
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
   overflow: hidden;
-  > * {
-    min-width: 0;
+  table-layout: fixed;
+  th,
+  td {
+    vertical-align: top;
     padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-    border-bottom: 1px solid var(--global-border-color-default);
+    text-align: left;
   }
-  > [data-row-end="true"] {
-    border-right: none;
+  th.comparison__question-column {
+    width: 16em;
   }
-  > [data-last-row="true"] {
+  td.comparison__footer {
+    // RunMetadataFooter owns its padding and top border.
+    padding: 0;
+  }
+  tbody tr:last-of-type > td {
     border-bottom: none;
   }
-  > [data-column-divider="true"] {
-    border-left: 1px solid var(--global-border-color-default);
-  }
-  > [data-header="true"] {
-    background: var(--global-background-color-light);
-  }
+`;
+
+const wrapAnywhereCSS = css`
+  overflow-wrap: anywhere;
 `;
 
 /** Runs one instance's request without rendering anything. */
 function DecisionRunner({ instanceId }: { instanceId: number }) {
   useDecisionRunner(instanceId);
   return null;
-}
-
-function headline(answer: NormalizedDecisionAnswer | undefined): string {
-  if (!answer) return "–";
-  switch (answer.kind) {
-    case "choice":
-      return answer.choice ?? "–";
-    case "score":
-      return answer.score == null ? "–" : answer.score.toFixed(2);
-    case "noul":
-      return answer.probability == null
-        ? "–"
-        : `${Math.round(answer.probability * 100)}%`;
-    case "refusal":
-      return "Refused";
-    default:
-      return "–";
-  }
 }
 
 /**
@@ -79,9 +77,10 @@ export function PlaygroundDecisionComparison({
 }) {
   const store = usePlaygroundStore();
   const request = usePlaygroundContext((state) => state.decisionRequest);
+  const questions = useMemo(() => request?.questions ?? [], [request]);
   const questionNames = useMemo(
-    () => (request?.questions ?? []).map((q) => q.name.trim()).filter(Boolean),
-    [request]
+    () => questions.map((q) => q.name.trim()).filter(Boolean),
+    [questions]
   );
   const columns = useMemo(
     () =>
@@ -114,187 +113,201 @@ export function PlaygroundDecisionComparison({
     return Array.from(names);
   }, [columns, questionNames]);
   const rows = [...questionNames, ...extraNames];
-  const columnCount = columns.length;
-  const style = {
-    gridTemplateColumns: `minmax(10em, 0.8fr) repeat(${columnCount}, minmax(0, 1fr))`,
-  };
 
   return (
-    <>
+    <Flex direction="column" gap="size-100">
       {instances.map((instance) => (
         <DecisionRunner key={instance.id} instanceId={instance.id} />
       ))}
-      <div
-        css={gridCSS}
-        style={style}
-        role="table"
+      <table
+        css={css(tableCSS, borderedTableCSS, comparisonTableCSS)}
         aria-label="Decision comparison"
       >
-        <div role="columnheader" data-header="true">
-          <Text size="S" color="text-700">
-            Question
-          </Text>
-        </div>
-        {columns.map(({ instance, selected }, i) => (
-          <div
-            key={instance.id}
-            role="columnheader"
-            data-header="true"
-            data-column-divider="true"
-            data-row-end={i === columnCount - 1}
-          >
-            <Flex direction="column" gap="size-75">
-              <Flex
-                direction="row"
-                gap="size-100"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <AlphabeticIndexIcon index={i} />
-                  <GenerativeProviderIcon
-                    provider={instance.model.provider}
-                    height={16}
-                  />
-                  <Text weight="heavy">
-                    {instance.model.modelName ?? "model"}
-                  </Text>
-                </Flex>
-                {instance.activeRunId != null ? <Loading size="S" /> : null}
-              </Flex>
-              {Object.keys(instance.repetitions).length > 1 ? (
-                <Flex direction="row" gap="size-50" wrap>
-                  {Object.keys(instance.repetitions).map((number) => (
-                    <Button
-                      key={number}
-                      size="S"
-                      variant={
-                        Number(number) === instance.selectedRepetitionNumber
-                          ? "primary"
-                          : "default"
-                      }
-                      onPress={() =>
-                        store
-                          .getState()
-                          .setSelectedRepetitionNumber(
-                            instance.id,
-                            Number(number)
-                          )
-                      }
+        <thead>
+          <tr>
+            <th scope="col" className="comparison__question-column">
+              <Text size="S" color="text-700">
+                Question
+              </Text>
+            </th>
+            {columns.map(({ instance, selected }, i) => (
+              <th scope="col" key={instance.id}>
+                <Flex direction="column" gap="size-75">
+                  <Flex
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Flex
+                      direction="row"
+                      gap="size-100"
+                      alignItems="center"
+                      minWidth={0}
                     >
-                      Run {number}
-                    </Button>
-                  ))}
-                </Flex>
-              ) : null}
-              {selected?.error ? (
-                <div role="alert">
-                  <Alert variant="danger">{selected.error.message}</Alert>
-                </div>
-              ) : null}
-            </Flex>
-          </div>
-        ))}
-        {rows.map((name, rowIndex) => {
-          const isLast = rowIndex === rows.length - 1;
-          return [
-            <div key={`${name}-label`} role="rowheader" data-last-row={isLast}>
-              <Text
-                weight="heavy"
-                css={css`
-                  overflow-wrap: anywhere;
-                `}
-              >
-                {name}
-              </Text>
-            </div>,
-            ...columns.map(({ instance, result }, i) => {
-              const answer = result?.answers.find((a) => a.name === name);
-              const confidence =
-                answer && (answer.kind === "choice" || answer.kind === "score")
-                  ? answer.confidence
-                  : null;
-              return (
-                <div
-                  key={`${name}-${instance.id}`}
-                  role="cell"
-                  data-column-divider="true"
-                  data-row-end={i === columnCount - 1}
-                  data-last-row={isLast}
-                >
-                  {answer ? (
-                    <Flex direction="column" gap="size-75">
-                      <Flex
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="baseline"
-                        gap="size-100"
-                      >
-                        <Text weight="heavy" data-testid={`answer-${name}`}>
-                          {headline(answer)}
-                        </Text>
-                        {confidence != null ? (
-                          <Text size="XS" color="text-700">
-                            confidence {Math.round(confidence * 100)}%
-                          </Text>
-                        ) : null}
-                      </Flex>
-                      <DecisionAnswerView answer={answer} />
+                      <AlphabeticIndexIcon index={i} />
+                      <GenerativeProviderIcon
+                        provider={instance.model.provider}
+                        height={16}
+                      />
+                      <Text weight="heavy" css={wrapAnywhereCSS}>
+                        {instance.model.modelName ?? "model"}
+                      </Text>
                     </Flex>
-                  ) : (
-                    <Text size="S" color="text-700">
-                      {instance.activeRunId != null ? "Running…" : "–"}
-                    </Text>
-                  )}
-                </div>
-              );
-            }),
-          ];
-        })}
-        <div role="cell" data-last-row="true">
-          <Text size="XS" color="text-700">
-            Usage
-          </Text>
-        </div>
-        {columns.map(({ instance, selected, result }, i) => (
-          <div
-            key={`${instance.id}-footer`}
-            role="cell"
-            data-column-divider="true"
-            data-row-end={i === columnCount - 1}
-            data-last-row="true"
-          >
-            <Flex direction="column" gap="size-75">
-              <Text
-                size="XS"
-                color="text-700"
-                css={css`
-                  font-variant-numeric: tabular-nums;
-                `}
-              >
-                {result
-                  ? `${result.model ?? instance.model.modelName ?? ""} · ${result.usage.input ?? "?"} in · ${result.usage.output ?? "?"} out`
-                  : "–"}
+                    {Object.keys(instance.repetitions).length > 1 ? (
+                      <ExperimentRepetitionSelector
+                        repetitionNumber={instance.selectedRepetitionNumber}
+                        totalRepetitions={
+                          Object.keys(instance.repetitions).length
+                        }
+                        setRepetitionNumber={(next) =>
+                          store
+                            .getState()
+                            .setSelectedRepetitionNumber(
+                              instance.id,
+                              typeof next === "function"
+                                ? next(instance.selectedRepetitionNumber)
+                                : next
+                            )
+                        }
+                      />
+                    ) : null}
+                  </Flex>
+                  {selected?.error ? (
+                    <div role="alert">
+                      <Alert variant="danger">{selected.error.message}</Alert>
+                    </div>
+                  ) : null}
+                </Flex>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((name) => {
+            const question = questions.find((q) => q.name.trim() === name);
+            const skeletonLines =
+              question?.type === "choice"
+                ? question.choices.length
+                : question?.type === "score"
+                  ? question.levels.length
+                  : 1;
+            return (
+              <tr key={name}>
+                <th scope="row">
+                  <Text weight="heavy" css={wrapAnywhereCSS}>
+                    {name}
+                  </Text>
+                </th>
+                {columns.map(({ instance, result }) => {
+                  const answer = result?.answers.find((a) => a.name === name);
+                  const headline = answerHeadline(answer);
+                  const confidence = answerConfidence(answer);
+                  return (
+                    <td key={`${name}-${instance.id}`}>
+                      {answer ? (
+                        <Flex direction="column" gap="size-75">
+                          {headline != null || confidence != null ? (
+                            <Flex
+                              direction="row"
+                              justifyContent={
+                                headline != null ? "space-between" : "end"
+                              }
+                              alignItems="baseline"
+                              gap="size-100"
+                            >
+                              {headline != null ? (
+                                <Text
+                                  weight="heavy"
+                                  data-testid={`answer-${name}`}
+                                >
+                                  {headline}
+                                </Text>
+                              ) : (
+                                <span data-testid={`answer-${name}`} hidden>
+                                  {answer.kind === "choice"
+                                    ? answer.choice
+                                    : ""}
+                                </span>
+                              )}
+                              {confidence != null ? (
+                                <Text size="XS" color="text-700">
+                                  confidence {formatPercent(confidence)}
+                                </Text>
+                              ) : null}
+                            </Flex>
+                          ) : (
+                            <span data-testid={`answer-${name}`} hidden>
+                              {answer.kind === "choice" ? answer.choice : ""}
+                            </span>
+                          )}
+                          <DecisionAnswerView answer={answer} />
+                        </Flex>
+                      ) : instance.activeRunId != null ? (
+                        <ParagraphSkeleton lines={Math.max(1, skeletonLines)} />
+                      ) : (
+                        <Text size="S" color="text-700">
+                          –
+                        </Text>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+          <tr>
+            <th scope="row">
+              <Text size="XS" color="text-700">
+                Usage
               </Text>
-              {selected?.spanId ? (
-                <Suspense>
-                  <RunMetadataFooter
-                    spanId={selected.spanId}
-                    hideTokenMetrics
-                  />
-                </Suspense>
-              ) : null}
-            </Flex>
-          </div>
-        ))}
-      </div>
-      <View paddingTop="size-100">
-        <Text size="XS" color="text-700">
-          Bars show the probability the model assigned to each option or level.
-          Scores are the provider&rsquo;s weighted position on your scale; the
-          nearest level is emphasized.
-        </Text>
-      </View>
-    </>
+            </th>
+            {columns.map(({ instance, selected, result }) => (
+              <td key={`${instance.id}-footer`} className="comparison__footer">
+                <View padding="size-150" paddingX="size-200">
+                  <Text
+                    size="XS"
+                    color="text-700"
+                    css={css`
+                      font-variant-numeric: tabular-nums;
+                    `}
+                  >
+                    {result
+                      ? formatUsage(
+                          result.model ?? instance.model.modelName,
+                          result.usage
+                        )
+                      : "–"}
+                  </Text>
+                </View>
+                {selected?.spanId ? (
+                  <Suspense>
+                    <RunMetadataFooter
+                      spanId={selected.spanId}
+                      hideTokenMetrics
+                    />
+                  </Suspense>
+                ) : null}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      <Disclosure
+        id="decision-comparison-help"
+        size="S"
+        defaultExpanded={false}
+      >
+        <DisclosureTrigger>How to read this</DisclosureTrigger>
+        <DisclosurePanel>
+          <Text size="XS" color="text-700">
+            Bars show the probability the model assigned to each option or
+            level. Scores are the provider&rsquo;s weighted position on your
+            scale; the nearest level is emphasized. Confidence is the
+            provider&rsquo;s own measure of how peaked the distribution is.
+          </Text>
+        </DisclosurePanel>
+      </Disclosure>
+    </Flex>
   );
 }
