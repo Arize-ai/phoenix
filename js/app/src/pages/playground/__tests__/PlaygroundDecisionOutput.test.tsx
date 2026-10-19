@@ -10,6 +10,7 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import type { PlaygroundDecisionOutputMutation } from "../__generated__/PlaygroundDecisionOutputMutation.graphql";
+import type { DecisionRunResult } from "../decisionUtils";
 import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundDecisionOutput } from "../PlaygroundDecisionOutput";
 
@@ -110,6 +111,14 @@ describe("decision execution", () => {
     return { store, instanceId: instance.id };
   }
 
+  function result(answers: DecisionRunResult["answers"]): DecisionRunResult {
+    return {
+      model: "jev-latest",
+      answers,
+      usage: { inputTokens: 10, outputTokens: 0 },
+    };
+  }
+
   function getMutation(index = 0) {
     return mocks.commitMutation.mock.calls[
       index
@@ -119,17 +128,22 @@ describe("decision execution", () => {
   it("executes run ID zero and completes with structured output", async () => {
     const { store } = mountRunningInstance();
     expect(mocks.commitMutation).toHaveBeenCalledTimes(1);
-    expect(getMutation().variables.input.questions.department.type).toBe(
-      "choice"
-    );
+    expect(getMutation().variables.input.questions[0]).toMatchObject({
+      choice: { name: "department" },
+    });
     await act(async () =>
       getMutation().onCompleted?.(
         {
-          createDecision: {
-            result: {
-              answers: { department: { type: "choice", choice: "billing" } },
-              usage: { output_tokens: 0 },
-            },
+          runDecision: {
+            result: result([
+              {
+                __typename: "ChoiceAnswer",
+                name: "department",
+                choice: "billing",
+                confidence: 0.9,
+                choiceProbabilities: [{ value: "billing", probability: 0.9 }],
+              },
+            ]),
             error: null,
             span: null,
           },
@@ -149,7 +163,7 @@ describe("decision execution", () => {
     await act(async () =>
       getMutation().onCompleted?.(
         {
-          createDecision: {
+          runDecision: {
             result: null,
             error: "Provider rejected the request",
             span: { id: "span-node", trace: { traceId: "trace-id" } },
@@ -179,8 +193,14 @@ describe("decision execution", () => {
     await act(async () =>
       originalMutation.onCompleted?.(
         {
-          createDecision: {
-            result: { answers: "stale" },
+          runDecision: {
+            result: result([
+              {
+                __typename: "PredicateAnswer",
+                name: "stale",
+                probability: 0.5,
+              },
+            ]),
             error: null,
             span: null,
           },
@@ -197,7 +217,7 @@ describe("decision execution", () => {
     await act(async () =>
       getMutation().onCompleted?.(
         {
-          createDecision: { result: { answers: {} }, error: null, span: null },
+          runDecision: { result: result([]), error: null, span: null },
         },
         null
       )
@@ -211,8 +231,10 @@ describe("decision execution", () => {
     await act(async () =>
       getMutation().onCompleted?.(
         {
-          createDecision: {
-            result: { answers: { run: 1 } },
+          runDecision: {
+            result: result([
+              { __typename: "PredicateAnswer", name: "run1", probability: 0.5 },
+            ]),
             error: null,
             span: null,
           },
@@ -225,8 +247,10 @@ describe("decision execution", () => {
     await act(async () =>
       getMutation(1).onCompleted?.(
         {
-          createDecision: {
-            result: { answers: { run: 2 } },
+          runDecision: {
+            result: result([
+              { __typename: "PredicateAnswer", name: "run2", probability: 0.5 },
+            ]),
             error: null,
             span: null,
           },
@@ -236,10 +260,10 @@ describe("decision execution", () => {
     );
     expect(store.getState().instances[0].activeRunId).toBeNull();
     expect(store.getState().instances[0].repetitions[1]?.output).toContain(
-      '"run": 1'
+      '"run1"'
     );
     expect(store.getState().instances[0].repetitions[2]?.output).toContain(
-      '"run": 2'
+      '"run2"'
     );
     act(() => store.getState().setSelectedRepetitionNumber(instanceId, 2));
     expect(store.getState().instances[0].selectedRepetitionNumber).toBe(2);

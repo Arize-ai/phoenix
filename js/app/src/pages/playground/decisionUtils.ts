@@ -15,6 +15,8 @@ import type {
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
+import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
+
 /*
  * The playground edits a provider-independent draft and converts at the
  * boundary. The canonical wire shape is TypeSafe System One, which is also
@@ -552,12 +554,264 @@ export function toSystemOneQuestion({
   };
 }
 
-/** The mutation input: the server takes `state` and `questions`. */
-export function buildDecisionInput(
-  params: TemplateOptions & { draft: DecisionRequestDraft }
-): { state: unknown; questions: Record<string, SystemOneQuestion> } {
-  const { state, questions } = buildDecisionRequest(params);
-  return { state, questions };
+// ---------------------------------------------------------------------------
+// Draft → runDecision input
+// ---------------------------------------------------------------------------
+
+/** Server template syntaxes for a text state. */
+type DecisionTemplateFormat = "MUSTACHE" | "F_STRING";
+
+export type DecisionQuestionInput =
+  | {
+      predicate: {
+        name: string;
+        instructions: string;
+        criteria: { true: string | null; false: string | null } | null;
+      };
+    }
+  | {
+      choice: {
+        name: string;
+        instructions: string;
+        choices: Array<{ value: string; description: string | null }>;
+      };
+    }
+  | {
+      scale: {
+        name: string;
+        instructions: string;
+        levels: Array<{ label: string; description: string | null }>;
+      };
+    };
+
+/** The `runDecision` fields built from a draft; the caller adds the model. */
+export type DecisionRunInput = {
+  inputs: Array<{ name: string }>;
+  state:
+    | { object: true }
+    | { text: { template: string; templateFormat: DecisionTemplateFormat } };
+  inputValues: Record<string, unknown>;
+  questions: DecisionQuestionInput[];
+};
+
+/** The single input used when the state is sent whole rather than templated. */
+const WHOLE_STATE_INPUT = "state";
+
+function toServerTemplateFormat(
+  templateFormat: TemplateFormat | undefined
+): DecisionTemplateFormat | null {
+  if (templateFormat === TemplateFormats.Mustache) return "MUSTACHE";
+  if (templateFormat === TemplateFormats.FString) return "F_STRING";
+  return null;
+}
+
+/** Send `value` as the whole state, through one input rendered on its own. */
+function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
+  return {
+    inputs: [{ name: WHOLE_STATE_INPUT }],
+    state: {
+      text: {
+        template: `{{${WHOLE_STATE_INPUT}}}`,
+        templateFormat: "MUSTACHE",
+      },
+    },
+    inputValues: { [WHOLE_STATE_INPUT]: value },
+  };
+}
+
+/**
+ * How the state reaches the server. A text state with template variables is
+ * sent as a template over those variables, so the server renders it. A JSON
+ * object is sent as an object state, one input per key. Anything else (plain
+ * text, a JSON array or string, `{}`) is sent whole.
+ */
+function toStateInput({
+  draft,
+  templateFormat,
+  variables,
+  formatText,
+}: TemplateOptions & {
+  draft: DecisionRequestDraft;
+  formatText: TextFormatter;
+}): Omit<DecisionRunInput, "questions"> {
+  if (draft.stateFormat === "json") {
+    const parsed = parseJsonState(formatText(draft.state));
+    if (
+      isStringKeyedObject(parsed) &&
+      !Array.isArray(parsed) &&
+      Object.keys(parsed).length > 0
+    ) {
+      return {
+        inputs: Object.keys(parsed).map((name) => ({ name })),
+        state: { object: true },
+        inputValues: parsed,
+      };
+    }
+    return wholeStateInput(parsed);
+  }
+  const serverFormat = toServerTemplateFormat(templateFormat);
+  const names =
+    serverFormat && templateFormat
+      ? getTemplateFormatUtils(templateFormat).extractVariables(draft.state)
+      : [];
+  if (!serverFormat || names.length === 0) {
+    return wholeStateInput(draft.state);
+  }
+  return {
+    inputs: names.map((name) => ({ name })),
+    state: { text: { template: draft.state, templateFormat: serverFormat } },
+    inputValues: Object.fromEntries(
+      names.map((name) => [name, variables?.[name] ?? ""])
+    ),
+  };
+}
+
+function optionalText(text: string, formatText: TextFormatter): string | null {
+  return text.trim() ? formatText(text) : null;
+}
+
+/** One question as the `@oneOf` input `runDecision` takes. */
+function toQuestionInput({
+  question,
+  formatText,
+}: {
+  question: DecisionQuestionDraft;
+  formatText: TextFormatter;
+}): DecisionQuestionInput {
+  const name = question.name.trim();
+  const instructions = formatText(question.instructions);
+  switch (question.type) {
+    case "choice":
+      return {
+        choice: {
+          name,
+          instructions,
+          choices: question.choices.map((option) => ({
+            value: option.value.trim(),
+            description: optionalText(option.description, formatText),
+          })),
+        },
+      };
+    case "score":
+      return {
+        scale: {
+          name,
+          instructions,
+          levels: question.levels.map((level) => ({
+            label: formatText(level.description),
+            description: null,
+          })),
+        },
+      };
+    case "noul": {
+      const trueText = optionalText(question.noul.trueDescription, formatText);
+      const falseText = optionalText(
+        question.noul.falseDescription,
+        formatText
+      );
+      return {
+        predicate: {
+          name,
+          instructions,
+          criteria:
+            trueText == null && falseText == null
+              ? null
+              : { true: trueText, false: falseText },
+        },
+      };
+    }
+    default:
+      return assertUnreachable(question.type);
+  }
+}
+
+/**
+ * The `runDecision` input for a draft, with template variables applied to the
+ * question text and passed to the server for the state.
+ *
+ * Throws on an invalid draft; call {@link validateDecisionDraft} first to
+ * show field-level errors.
+ */
+export function buildDecisionInput({
+  draft,
+  templateFormat,
+  variables,
+}: TemplateOptions & { draft: DecisionRequestDraft }): DecisionRunInput {
+  const error = getDecisionValidationError(draft);
+  if (error) throw new Error(error);
+  const formatText = createTextFormatter({ templateFormat, variables });
+  return {
+    ...toStateInput({ draft, templateFormat, variables, formatText }),
+    questions: draft.questions.map((question) =>
+      toQuestionInput({ question, formatText })
+    ),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// runDecision result → stored output
+// ---------------------------------------------------------------------------
+
+/** The `runDecision` result fields the playground selects. */
+export type DecisionRunResult = NonNullable<
+  PlaygroundDecisionOutputMutation$data["runDecision"]["result"]
+>;
+
+/** One typed answer in the provider response shape the display reads. */
+function toOutputAnswer(
+  answer: DecisionRunResult["answers"][number]
+): Record<string, unknown> {
+  switch (answer.__typename) {
+    case "PredicateAnswer":
+      return { type: "predicate", probability: answer.probability };
+    case "ChoiceAnswer":
+      return {
+        type: "choice",
+        choice: answer.choice,
+        confidence: answer.confidence,
+        probabilities: (answer.choiceProbabilities ?? []).map(
+          ({ value, probability }) => ({ value, probability })
+        ),
+      };
+    case "ScaleAnswer":
+      return {
+        type: "score",
+        score: answer.expectedLevel,
+        confidence: answer.confidence,
+        probabilities: (answer.levelProbabilities ?? []).map(
+          ({ level, probability }) => ({ value: level, probability })
+        ),
+      };
+    case "RefusalAnswer":
+      return { type: "refusal" };
+    default:
+      return { type: "unknown" };
+  }
+}
+
+/**
+ * The run's output as stored on the repetition: answers keyed by question
+ * name, in the response shape {@link normalizeDecisionResult} reads, so live
+ * runs and replayed spans display the same way.
+ */
+export function toDecisionOutput(result: DecisionRunResult): {
+  model: string;
+  answers: Record<string, unknown>;
+  usage: { input_tokens: number | null; output_tokens: number | null };
+} {
+  // Null-prototype, as in buildDecisionRequest.
+  const answers: Record<string, unknown> = Object.create(null);
+  for (const answer of result.answers) {
+    answers[answer.name] = toOutputAnswer(answer);
+  }
+  return {
+    model: result.model,
+    answers,
+    usage: {
+      input_tokens: result.usage.inputTokens,
+      output_tokens: result.usage.outputTokens,
+    },
+  };
 }
 
 function toText(value: unknown): string {

@@ -10,16 +10,46 @@ import {
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { PlaygroundDecisionOutputMutation } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
-import { buildDecisionInput } from "./decisionUtils";
+import { buildDecisionInput, toDecisionOutput } from "./decisionUtils";
 import {
   denormalizePlaygroundInstance,
   getVariablesMapFromInstances,
 } from "./playgroundUtils";
 
 const mutation = graphql`
-  mutation PlaygroundDecisionOutputMutation($input: CreateDecisionInput!) {
-    createDecision(input: $input) {
-      result
+  mutation PlaygroundDecisionOutputMutation($input: RunDecisionInput!) {
+    runDecision(input: $input) {
+      result {
+        model
+        answers {
+          __typename
+          name
+          ... on PredicateAnswer {
+            probability
+          }
+          # Aliased so Relay keeps the two probability shapes apart.
+          ... on ChoiceAnswer {
+            choice
+            confidence
+            choiceProbabilities: probabilities {
+              value
+              probability
+            }
+          }
+          ... on ScaleAnswer {
+            expectedLevel
+            confidence
+            levelProbabilities: probabilities {
+              level
+              probability
+            }
+          }
+        }
+        usage {
+          inputTokens
+          outputTokens
+        }
+      }
       error
       span {
         id
@@ -116,7 +146,7 @@ export function useDecisionRunner(instanceId: number) {
                     complete();
                     return;
                   }
-                  const payload = response.createDecision;
+                  const payload = response.runDecision;
                   if (errors?.length) {
                     reject(
                       new Error(errors.map((error) => error.message).join("\n"))
@@ -135,14 +165,18 @@ export function useDecisionRunner(instanceId: number) {
                       payload.span.trace.traceId
                     );
                   }
-                  if (payload.error) {
-                    reject(new Error(payload.error));
+                  if (payload.error || !payload.result) {
+                    reject(
+                      new Error(
+                        payload.error ?? "The decision returned no result."
+                      )
+                    );
                     return;
                   }
                   actions.appendRepetitionOutput(
                     instanceId,
                     repetitionNumber,
-                    JSON.stringify(payload.result, null, 2)
+                    JSON.stringify(toDecisionOutput(payload.result), null, 2)
                   );
                   complete();
                 },
