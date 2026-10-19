@@ -58,6 +58,7 @@ export const convertMessageToolCallsToProvider = ({
       }
       // TODO(apowell): #5348 Add Google tool call
       case "GOOGLE":
+      case "TYPESAFE":
         return toolCall;
       default:
         return assertUnreachable(provider);

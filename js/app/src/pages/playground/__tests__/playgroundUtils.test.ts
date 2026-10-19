@@ -909,7 +909,7 @@ describe("processAttributeToolCalls", () => {
   ];
 
   type ProviderToolCallTestMap = {
-    [P in ModelProvider]: ProviderToolCallTuple<P>;
+    [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolCallTuple<P>;
   };
 
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
@@ -1511,7 +1511,7 @@ type ProviderToolTestTuple<T extends ModelProvider> = [
 ];
 
 type ProviderToolTestMap = {
-  [P in ModelProvider]: ProviderToolTestTuple<P>;
+  [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolTestTuple<P>;
 };
 
 describe("getToolsFromAttributes", () => {

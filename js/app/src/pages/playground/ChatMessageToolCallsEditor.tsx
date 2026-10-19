@@ -110,6 +110,7 @@ export function ChatMessageToolCallsEditor({
         return awsToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":
+      case "TYPESAFE":
         return null;
       default:
         return assertUnreachable(instance.model.provider);

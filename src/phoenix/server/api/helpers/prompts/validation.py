@@ -15,11 +15,16 @@ from phoenix.db.types.prompts import (
     PromptInvocationParameters,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
 
 
 def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
+    require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
+    if provider is ModelProvider.TYPESAFE:
+        raise AssertionError("decision-only provider reached invocation-family lookup")
     if provider is ModelProvider.ANTHROPIC:
         return "anthropic"
     if provider is ModelProvider.GOOGLE:

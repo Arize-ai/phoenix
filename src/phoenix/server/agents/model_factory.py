@@ -32,6 +32,8 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.agent_sessions import get_custom_provider
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -100,6 +102,9 @@ def _first_credential(credentials: Mapping[str, str | None], *keys: str) -> str 
 def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str, ...]:
     """Env-var names whose values are resolved (secrets first, then environment)
     before building a model for a built-in provider."""
+    # Agents are chat sessions. Any provider without chat models (decision-only
+    # providers) is rejected here, independent of which provider it is.
+    require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
     if provider is ModelProvider.OPENAI:
         return ("OPENAI_API_KEY",)
     if provider is ModelProvider.AZURE_OPENAI:
@@ -134,6 +139,9 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("ZAI_API_KEY",)
     if provider is ModelProvider.META:
         return ("META_API_KEY",)
+    if provider is ModelProvider.TYPESAFE:
+        # Decision-only; unreachable after require_chat_provider, kept for exhaustiveness.
+        return ()
     assert_never(provider)
 
 
