@@ -5,6 +5,7 @@ import type {
   DecisionVersionQuestionsOutput,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
+  buildDefaultPolicy,
   getQuestionProjectionName,
   normalizePolicy,
   policyOutputToInput,
@@ -156,4 +157,27 @@ export function commitAsync<TResponse, TVariables>(
       onError: reject,
     });
   });
+}
+
+/** A one-line summary of a binding's override, e.g. "2 questions overridden". */
+export function overrideSummary(
+  override: DecisionProjectionPolicyValue | null | undefined
+): string {
+  const count = override?.questions.length ?? 0;
+  if (count === 0) return "Inherits the judge's settings";
+  return `${count} ${count === 1 ? "question" : "questions"} overridden`;
+}
+
+/** "Defaults" while a judge's policy matches the defaults, else "Customized". */
+export function judgePolicySummary(
+  questions: readonly DecisionQuestionDefinition[],
+  policy: DecisionProjectionPolicyValue | null | undefined
+): string {
+  return !policy ||
+    policiesEqual(
+      normalizePolicy(questions, policy),
+      buildDefaultPolicy(questions)
+    )
+    ? "Defaults"
+    : "Customized";
 }

@@ -495,7 +495,9 @@ export const DatasetEvaluatorsTable = ({
             justifyContent="end"
             width="100%"
           >
-            {row.original.evaluator.kind !== "BUILTIN" ? (
+            {/* TODO: support opening a decision judge as a playground evaluator task. */}
+            {row.original.evaluator.kind !== "BUILTIN" &&
+            row.original.evaluator.kind !== "DECISION" ? (
               <StopPropagation>
                 <LinkButton
                   leadingVisual={<Icon svg={<Icons.PlayCircle />} />}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
 import { FieldError, Input, Label, Text } from "@phoenix/components";
@@ -109,11 +109,16 @@ export const EvaluatorNameInput = ({
   const { control, trigger } = form;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
+  // An untouched empty name is not an error until the user edits it or tries
+  // to submit; the placeholder says what belongs there.
+  const hasChangedRef = useRef(false);
+  const [hasSubmitAttempt, setHasSubmitAttempt] = useState(false);
 
   // Register with the evaluator store so the parent can trigger
   // validation on submit. Also forces deferred (blur-only) errors to display.
   const triggerValidation = useCallback(async () => {
     hasBlurredRef.current = true;
+    setHasSubmitAttempt(true);
     return trigger(FIELD_NAME);
   }, [trigger]);
   useEffect(() => {
@@ -138,6 +143,7 @@ export const EvaluatorNameInput = ({
         // Only show blur-specific errors after the field has been blurred
         const shouldShowError =
           error?.message &&
+          (hasChangedRef.current || hasSubmitAttempt) &&
           (hasBlurredRef.current ||
             error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
         const displayedError = shouldShowError ? error.message : undefined;
@@ -148,6 +154,7 @@ export const EvaluatorNameInput = ({
 
           const transformed = transformEvaluatorName(value);
           onValueChange?.();
+          hasChangedRef.current = true;
 
           // Calculate new cursor position by transforming the text before cursor
           const beforeCursor = value.slice(0, selectionStart);

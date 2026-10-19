@@ -29,10 +29,13 @@ import { IdTruncate } from "./PromptMenu";
  */
 export function DecisionVersionSelector({
   decision,
+  sequenceNumber,
   onSelectVersion,
   onSelectTag,
 }: {
   decision: PlaygroundInstanceDecision;
+  /** The selected version's number; shown as "v{n}" instead of the raw id. */
+  sequenceNumber?: number | null;
   onSelectVersion: (versionId: string) => void;
   onSelectTag: (tagName: string) => void;
 }) {
@@ -47,13 +50,14 @@ export function DecisionVersionSelector({
           flex-shrink: 0;
         `}
       >
+        {sequenceNumber != null ? <Text>v{sequenceNumber}</Text> : null}
         {decision.tag ? (
           <TagVersionLabel size="S" maxWidth="10ch">
             {decision.tag}
           </TagVersionLabel>
-        ) : (
+        ) : sequenceNumber == null ? (
           <IdTruncate id={decision.versionId} />
-        )}
+        ) : null}
         <SelectChevronUpDownIcon />
       </Button>
       <MenuContainer placement="bottom start" minHeight={0}>
@@ -96,6 +100,7 @@ function DecisionVersionList({
               edges {
                 version: node {
                   id
+                  sequenceNumber
                   description
                   modelName
                   createdAt
@@ -145,7 +150,7 @@ function DecisionVersionList({
           const versionTags = tags
             .filter((tag) => tag.decisionVersionId === version.id)
             .map((tag) => tag.name);
-          const label = `${index === 0 ? "Latest · " : ""}${fullTimeFormatter(new Date(version.createdAt))}`;
+          const label = `v${version.sequenceNumber}${index === 0 ? " (latest)" : ""}`;
 
           return (
             <MenuItem
@@ -156,7 +161,12 @@ function DecisionVersionList({
               <Flex direction="column">
                 <Text>{label}</Text>
                 <Text size="XS" color="text-700">
-                  {[version.modelName, ...versionTags, version.description]
+                  {[
+                    ...versionTags,
+                    fullTimeFormatter(new Date(version.createdAt)),
+                    version.modelName,
+                    version.description,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </Text>

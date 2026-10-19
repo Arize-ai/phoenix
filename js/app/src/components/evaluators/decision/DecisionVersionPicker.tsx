@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import {
   fetchQuery,
@@ -37,6 +38,8 @@ export type DecisionVersionSelection = {
   decisionId: string;
   decisionName: string;
   versionId: string;
+  /** The version's number within its decision, shown as "v{n}". */
+  sequenceNumber: number;
   /** The tag the version was picked by, if any. */
   tagName: string | null;
   /** The version's questions, in declared order. */
@@ -68,6 +71,7 @@ const versionQuery = graphql`
         name
         version(versionId: $versionId, tagName: $tagName) {
           id
+          sequenceNumber
           inputs {
             name
             description
@@ -134,6 +138,7 @@ export function DecisionVersionPicker({
         decisionId: decision.id,
         decisionName: decision.name,
         versionId: decision.version.id,
+        sequenceNumber: decision.version.sequenceNumber,
         tagName: version.tagName ?? null,
         questions: toDecisionQuestionDefinitions(decision.version.questions),
         inputs: decision.version.inputs.map(({ name, description }) => ({
@@ -149,7 +154,7 @@ export function DecisionVersionPicker({
   return (
     <Flex direction="column" gap="size-100">
       {error ? <Alert variant="danger">{error}</Alert> : null}
-      <Flex direction="row" gap="size-100" alignItems="end" wrap>
+      <Flex direction="row" gap="size-100" alignItems="end">
         <Suspense fallback={<Loading />}>
           <DecisionSelect
             selectedDecisionId={value?.decisionId ?? null}
@@ -159,6 +164,7 @@ export function DecisionVersionPicker({
         </Suspense>
         {value && !isDisabled ? (
           <DecisionVersionSelector
+            sequenceNumber={value.sequenceNumber}
             decision={{
               id: value.decisionId,
               name: value.decisionName,
@@ -213,6 +219,10 @@ function DecisionSelect({
         }
       }}
       data-testid="decision-version-picker-decision-select"
+      css={css`
+        flex: 1 1 auto;
+        min-width: 0;
+      `}
     >
       <Label>Decision</Label>
       <Button>

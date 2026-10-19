@@ -56,6 +56,7 @@ const selection: DecisionVersionSelection = {
   decisionId: "decision-1",
   decisionName: "answer_quality",
   versionId: "version-1",
+  sequenceNumber: 1,
   tagName: null,
   questions: [{ type: "predicate", name: "accurate" }],
   inputs: [{ name: "question", description: null }],

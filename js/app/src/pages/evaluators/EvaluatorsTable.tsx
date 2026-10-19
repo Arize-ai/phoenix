@@ -511,7 +511,8 @@ export const EvaluatorsTable = ({
               ? row.original.data.kind
               : row.original.data.evaluator.kind;
 
-          if (kind === "BUILTIN") return null;
+          // TODO: support opening a decision judge as a playground evaluator task.
+          if (kind === "BUILTIN" || kind === "DECISION") return null;
           const params = new URLSearchParams();
 
           if (row.original.rowType === "datasetEvaluator") {
