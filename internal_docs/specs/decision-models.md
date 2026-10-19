@@ -5,8 +5,9 @@
 > the provider adapters, the typed `runDecision` mutation (build order step 1),
 > custom providers for decisions (`openai` and `typesafe`), Ollama, and decision
 > experiments on the server, shaped like prompt tasks (see
-> [Experiments](#experiments)). Decisions aren't saved yet. The UI work is PR
-> #16876. This spec assumes apps fetch saved decisions at run time, the way they
+> [Experiments](#experiments)), and saved decisions on the server: tables,
+> versions, tags, and their GraphQL (build order step 2, without the UI). The UI
+> work is PR #16876. This spec assumes apps fetch saved decisions at run time, the way they
 > fetch prompts; that assumption is what justifies a standalone family with tags.
 
 ## Summary
@@ -143,7 +144,7 @@ decision_versions                      -- immutable
   questions        JSON                -- ordered list, discriminated by type
   model_provider, model_name (free text)
   custom_provider_id → generative_model_custom_providers  -- see Models
-  description, user_id, created_at
+  description, metadata, user_id, created_at
   -- duplicates detected with has_identical_content, as prompts do
 
 decision_version_tags
@@ -332,7 +333,8 @@ Unsaved playground runs and saved versions take the same `DecisionVersionInput`,
 so running and saving share one typed shape.
 
 Steps 1 to 5 are built; step 6 records everything except assets, which aren't
-supported yet, and the version ID, since versions aren't saved yet.
+supported yet, and the version ID, since `runDecision` doesn't take a saved
+version yet.
 
 1. Take a decision version (saved, or an unsaved draft) and its inputs.
 2. Validate the inputs and build the state.
@@ -356,7 +358,7 @@ The decision task mirrors `ExperimentPromptTask` field for field:
 | Prompt task | Decision task |
 |---|---|
 | A copy of the prompt version (template, tools, response format, parameters) | A copy of the decision version: `inputs`, `state`, `questions` |
-| `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, the same, once versions exist |
+| `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, the same (`decisionVersionId` on the input; recorded, not read) |
 | Model and connection, or a custom provider | Model and `connection`, or a custom provider |
 | `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `inputValuesPath` (default `input`): input `ticket` reads `input.ticket` |
 | `appendedMessagesPath`: messages from the example, appended | `questionsPath` and `questionsFormat`: questions from the example, used instead of the version's |
@@ -458,9 +460,19 @@ rather than zero.
     (`model`, `answers`, `usage`), `span`, and `error`. It replaced the ad hoc
     `createDecision`. Saved versions will add a `versionId` alternative to the
     inline `inputs`, `state`, and `questions`.
-  - `createDecision`, `patchDecision`, `deleteDecision`.
-  - `createDecisionVersion`.
-  - `setDecisionVersionTag`, `deleteDecisionVersionTag`.
+  - `createDecision` (built): a name, a description, metadata, the first
+    version as a `DecisionVersionInput`, and tags. A name already in use is a
+    conflict.
+  - `patchDecision` (description, metadata) and `deleteDecision` (built).
+  - `createDecisionVersion` (built): a new version, optionally taking tags from
+    older ones.
+  - `setDecisionVersionTag` (built) creates a tag or moves it to the given
+    version; `deleteDecisionVersionTag` (built).
+  - A version is checked against the rules a run uses. A custom provider must
+    serve decisions through the API the version names (`OPENAI` or `TYPESAFE`).
+- Queries (built): `decisions`, newest first; `node` for `Decision`,
+  `DecisionVersion`, and `DecisionVersionTag`; and `Decision.version(versionId,
+  tagName)`, the latest version when neither is given.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
   `prompt` and `evaluator`; see [Experiments](#experiments).
 
@@ -565,7 +577,7 @@ catalog; and decision models kept out of every chat path. The rest, by the
 | Stage | Chat today | Decision status | Missing |
 |---|---|---|---|
 | One run in the playground | Chat completion subscription; LLM spans | `runDecision` built | UI: the `connection` input, custom providers and Ollama in the Decision tab, free-text model names |
-| Saved definitions | Prompts, versions, and tags; playground save and load; prompt pages | Stored types only | Tables, GraphQL CRUD, playground save and load, a decisions page |
+| Saved definitions | Prompts, versions, and tags; playground save and load; prompt pages | Built on the server: tables, versions, tags, GraphQL CRUD; decision tasks record their version | UI: playground save and load, a decisions page |
 | Run over a dataset | Prompt tasks; experiment views and comparison | Built on the server: the task, the runner, evaluators, `DecisionTaskConfig` | UI dataset mode and answer cells |
 | Judging the runs | Dataset evaluators | Dataset evaluators attach to decision tasks (built) | Built-in decision metrics and the experiment report |
 | Apps | `phoenix-client` `prompts.get` and `format`; REST | Nothing | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures |
@@ -588,7 +600,8 @@ catalog; and decision models kept out of every chat path. The rest, by the
 - **The agent.** Its playground and experiment tools understand decision panels
   and runs.
 - **Decisions that block work:**
-  - [renaming questions](#open-questions) blocks the versions tables;
+  - [renaming questions](#open-questions) decides how the UI flags a rename;
+    the tables don't depend on it, since a rename is a new version;
   - answer-to-annotation mapping and `box` block the judging role;
   - assets and images (`messages` state) block image inputs.
 
@@ -603,8 +616,9 @@ evaluator kinds by hand changes.
    (built); decision experiments shaped like prompt tasks (built on the server);
    the UI's playground runs and dataset mode. This completes the regular playground for
    unsaved decisions.
-2. **Saved decisions.** Tables, versions, and tags; GraphQL CRUD; playground save
-   and load; the decision task gains `decision_version_id`. The judging role
+2. **Saved decisions.** Tables, versions, and tags; GraphQL CRUD; the decision
+   task gains `decision_version_id` (all built on the server); playground save
+   and load. The judging role
    depends on this, since evaluators refer to saved definitions as
    `LLMEvaluator` refers to `prompt_id`.
 3. **Apps.** REST routes and `phoenix-client` `get` and `format` (Python, then
