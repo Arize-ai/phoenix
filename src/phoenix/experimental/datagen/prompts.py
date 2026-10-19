@@ -10,18 +10,15 @@ import httpx
 from phoenix.client.types.prompts import PromptVersion
 
 from phoenix.experimental.datagen.datasets import DatasetError
+from phoenix.experimental.datagen.workflows import (
+    TYPED_DECISIONS_DATASET_NAME,
+    load_workflow_definitions,
+)
 
 if TYPE_CHECKING:
     from phoenix.client import Client
     from phoenix.client.resources.datasets import Dataset
 
-_DATASET_NAME = "px-datagen-typed-decisions"
-_WORKFLOWS = {
-    "agent_trace_observability",
-    "customer_service",
-    "invoice_processing",
-    "security_incidents",
-}
 _MODEL = "gpt-6-luna"
 _TOOL_NAME = "record_decisions"
 _SYSTEM = """Evaluate the supplied state against every question defined by the tool.
@@ -65,7 +62,7 @@ def build_workflow_prompt(
     }
     metadata = {
         "workflow": workflow,
-        "dataset_name": _DATASET_NAME,
+        "dataset_name": TYPED_DECISIONS_DATASET_NAME,
         **{key: value for key, value in source_metadata.items() if key.startswith("source_")},
     }
     request: Any = {
@@ -120,32 +117,17 @@ def seed_workflow_prompts(
     Each workflow split must have the same questions in every example. All
     definitions are validated before saving any prompt. Seeding never calls OpenAI.
     """
-    definitions = []
-    for dataset in datasets:
-        if dataset.name != _DATASET_NAME:
-            continue
-        examples = dataset.examples
-        if not examples:
-            raise DatasetError(f"{dataset.name}: cannot build a prompt from an empty dataset")
-        groups: dict[str, list[Any]] = {}
-        for example in examples:
-            workflow = example["metadata"].get("workflow")
-            if not isinstance(workflow, str) or workflow not in _WORKFLOWS:
-                raise DatasetError(f"{dataset.name}: invalid workflow metadata {workflow!r}")
-            groups.setdefault(workflow, []).append(example)
-        for workflow, group in sorted(groups.items()):
-            questions = group[0]["input"]["questions"]
-            for example in group:
-                if example["input"]["questions"] != questions:
-                    raise DatasetError(f"{workflow}: examples must share the same questions")
-            definitions.append(
-                (
-                    f"{_DATASET_NAME}-{workflow}",
-                    build_workflow_prompt(
-                        workflow, questions, source_metadata=group[0]["metadata"]
-                    ),
-                )
-            )
+    definitions = [
+        (
+            definition.name,
+            build_workflow_prompt(
+                definition.workflow,
+                definition.questions,
+                source_metadata=definition.source_metadata,
+            ),
+        )
+        for definition in load_workflow_definitions(datasets)
+    ]
     results = []
     for name, desired in definitions:
         try:
