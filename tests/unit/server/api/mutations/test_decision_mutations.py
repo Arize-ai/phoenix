@@ -1,5 +1,6 @@
 import json
-from typing import Any
+from typing import Any, cast
+from unittest.mock import MagicMock
 
 import httpx
 import httpx2
@@ -13,13 +14,16 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
     DecisionConnection,
+    DecisionRateLimitError,
     DecisionRequest,
+    DecisionTransientError,
     OllamaDecisionClient,
     OpenAIDecisionClient,
     TypeSafeDecisionClient,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -1322,3 +1326,41 @@ async def test_ollama_requires_a_base_url(
     result = await gql_client.execute(MUTATION, variables={"input": ollama_run()})
     assert result.errors
     assert "Set OLLAMA_BASE_URL" in result.errors[0].message
+
+
+@pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])
+@pytest.mark.parametrize(
+    ("status", "error_class"),
+    [
+        pytest.param(429, DecisionRateLimitError, id="rate-limit"),
+        pytest.param(503, DecisionTransientError, id="transient"),
+        pytest.param(400, BadRequest, id="permanent"),
+    ],
+)
+async def test_failures_are_classified_for_a_retrying_caller(
+    provider: str, status: int, error_class: type[BadRequest]
+) -> None:
+    """The experiment runner retries by failure kind, so with the SDK's own retries off
+    each request goes out once and comes back typed."""
+    client_class = OpenAIDecisionClient if provider == "OPENAI" else TypeSafeDecisionClient
+    base_url = (
+        "https://decisions.example/v1" if provider == "OPENAI" else "https://decisions.example"
+    )
+    endpoint = f"{base_url}/decisions" if provider == "OPENAI" else f"{base_url}/v1/systemone"
+    client = client_class(
+        model_name="model",
+        connection=DecisionConnection(api_key="key", base_url=base_url, sdk_retries=False),
+    )
+    request = DecisionRequest.model_validate(
+        {"state": "hello", "questions": [{"type": "predicate", "name": "q", "instructions": "?"}]}
+    )
+    with respx.mock:
+        route = respx.post(endpoint).respond(status, json={"error": "no"})
+        with pytest.raises(BadRequest) as raised:
+            await client.create(
+                request=request, tracer=Tracer(span_cost_calculator=cast(Any, MagicMock()))
+            )
+    assert type(raised.value) is error_class
+    assert route.call_count == 1
+    assert client.is_rate_limit_error(raised.value) is (error_class is DecisionRateLimitError)
+    assert client.is_transient_error(raised.value) is (error_class is DecisionTransientError)

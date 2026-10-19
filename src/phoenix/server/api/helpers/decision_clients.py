@@ -23,6 +23,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Hashable,
     Literal,
     Mapping,
     Optional,
@@ -237,10 +238,31 @@ def describe_http_failure(provider_name: str, status_code: int) -> str:
     return f"{provider_name} decision request failed (HTTP {status_code}). {hint}"
 
 
-def _fail(span: OtelSpan, message: str) -> BadRequest:
-    """Record ``message`` as the span's error status and return the error to raise."""
+class DecisionRateLimitError(BadRequest):
+    """The provider rate-limited the request (HTTP 429). Worth retrying after a wait."""
+
+
+class DecisionTransientError(BadRequest):
+    """A timeout, a connection failure, or a provider error (HTTP 5xx). Worth retrying."""
+
+
+def _status_error_class(status_code: int) -> type[BadRequest]:
+    if status_code == 429:
+        return DecisionRateLimitError
+    if status_code >= 500:
+        return DecisionTransientError
+    return BadRequest
+
+
+def _fail(span: OtelSpan, message: str, error_class: type[BadRequest] = BadRequest) -> BadRequest:
+    """Record ``message`` as the span's error status and return the error to raise.
+
+    ``error_class`` says what kind of failure it is, so a caller that retries (the
+    experiment runner) can tell a rate limit or a transient failure from a request the
+    provider will always reject. Every kind is a ``BadRequest`` with the same message.
+    """
     span.set_status(Status(StatusCode.ERROR, message))
-    return BadRequest(message)
+    return error_class(message)
 
 
 @dataclass(frozen=True)
@@ -260,6 +282,9 @@ class DecisionConnection:
     ignore_environment: bool = False
     """Keep the SDK from reading the server's environment (organization, project), so
     a custom provider sends only what it configures."""
+    sdk_retries: bool = True
+    """Let the provider SDK retry rate limits and transient failures itself. Off when the
+    experiment runner retries, so retrying happens in one place."""
 
 
 class DecisionClient(ABC):
@@ -313,6 +338,16 @@ class DecisionClient(ABC):
     @classmethod
     def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
         return override or getenv(cls.base_url_env_var) or cls.default_base_url
+
+    def get_rate_limit_key(self) -> Hashable:
+        """Requests with the same key share rate-limit capacity: same API, endpoint, key."""
+        return ("decision", self.system.value, hash(self._base_url), hash(self._api_key))
+
+    def is_rate_limit_error(self, error: Exception) -> bool:
+        return isinstance(error, DecisionRateLimitError)
+
+    def is_transient_error(self, error: Exception) -> bool:
+        return isinstance(error, DecisionTransientError)
 
     @classmethod
     def dependencies_are_installed(cls) -> bool:
@@ -389,7 +424,7 @@ class DecisionClient(ABC):
                 span.set_status(Status(StatusCode.ERROR, "Decision execution cancelled"))
                 raise
             except BadRequest as error:
-                raise _fail(span, str(error)) from error
+                raise _fail(span, str(error), type(error)) from error
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 raise _fail(
                     span, f"{self.provider_key.value} returned an invalid decision response."
@@ -456,6 +491,7 @@ class TypeSafeDecisionClient(DecisionClient):
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         from typesafe_sdk import (
             AsyncTypeSafeClient,
+            RetryPolicy,
             TypeSafeAPIConnectionError,
             TypeSafeAPIError,
             TypeSafeAPIResponseValidationError,
@@ -470,6 +506,7 @@ class TypeSafeDecisionClient(DecisionClient):
                 api_key=self._api_key,
                 base_url=self._base_url,
                 headers=self._connection.headers,
+                retry=None if self._connection.sdk_retries else RetryPolicy(max_retries=0),
                 timeout=60,
             ) as client:
                 response = await client.system_one(**parameters)
@@ -478,12 +515,20 @@ class TypeSafeDecisionClient(DecisionClient):
             _record_output(span, error.body)
             raise ValueError("Invalid TypeSafe response") from error
         except TypeSafeAPITimeoutError as error:
-            raise _fail(span, "Decision request timed out. Retry or reduce the input.") from error
+            raise _fail(
+                span,
+                "Decision request timed out. Retry or reduce the input.",
+                DecisionTransientError,
+            ) from error
         except TypeSafeAPIConnectionError as error:
-            raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
+            raise _fail(
+                span, f"Could not connect to {self.provider_key.value}.", DecisionTransientError
+            ) from error
         except TypeSafeAPIError as error:
             raise _fail(
-                span, describe_http_failure(self.provider_key.value, error.status)
+                span,
+                describe_http_failure(self.provider_key.value, error.status),
+                _status_error_class(error.status),
             ) from error
         except TypeSafeError as error:
             raise _fail(span, "Invalid TypeSafe client configuration.") from error
@@ -582,7 +627,13 @@ class OpenAIDecisionClient(DecisionClient):
 
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         import httpx2
-        from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
+        from openai import (
+            DEFAULT_MAX_RETRIES,
+            APIConnectionError,
+            APIStatusError,
+            APITimeoutError,
+            AsyncOpenAI,
+        )
         from openai.types import Decision
 
         parameters = self._build_request(request)
@@ -598,6 +649,7 @@ class OpenAIDecisionClient(DecisionClient):
                     project=connection.project,
                     default_headers=connection.headers,
                     timeout=60,
+                    max_retries=DEFAULT_MAX_RETRIES if connection.sdk_retries else 0,
                     http_client=httpx2.AsyncClient(follow_redirects=False),
                 )
             async with openai_client as client:
@@ -606,12 +658,20 @@ class OpenAIDecisionClient(DecisionClient):
                 _record_output(span, raw)
                 decision = Decision.model_validate(raw)
         except APITimeoutError as error:
-            raise _fail(span, "Decision request timed out. Retry or reduce the input.") from error
+            raise _fail(
+                span,
+                "Decision request timed out. Retry or reduce the input.",
+                DecisionTransientError,
+            ) from error
         except APIConnectionError as error:
-            raise _fail(span, f"Could not connect to {self.provider_key.value}.") from error
+            raise _fail(
+                span, f"Could not connect to {self.provider_key.value}.", DecisionTransientError
+            ) from error
         except APIStatusError as error:
             raise _fail(
-                span, describe_http_failure(self.provider_key.value, error.status_code)
+                span,
+                describe_http_failure(self.provider_key.value, error.status_code),
+                _status_error_class(error.status_code),
             ) from error
         answers: dict[str, DecisionAnswer] = {}
         for answer in decision.answers:
