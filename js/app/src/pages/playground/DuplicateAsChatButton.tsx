@@ -66,6 +66,9 @@ export function DuplicateAsChatButton({
       instanceId: copyId,
       dirty: true,
       patch: {
+        task: { member: "prompt" },
+        decision: null,
+        decisionRequest: null,
         model: { ...chatModel, modelType: "LLM", responseFormat },
         template: { __type: "chat", messageIds: [] },
       },

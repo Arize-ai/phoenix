@@ -43,6 +43,7 @@ describe("PlaygroundRunButton with decision instances", () => {
       instanceId: chatInstance.id,
       patch: {
         llmModel: chatInstance.model,
+        task: { member: "decision" },
         decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,

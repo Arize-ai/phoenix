@@ -1,79 +1,97 @@
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
-import type { PlaygroundStateByDatasetId, PlaygroundTaskKind } from "./types";
+import type { PlaygroundStateByDatasetId, PlaygroundTaskRole } from "./types";
 
 /**
- * Where a prompt task's template variables resolve from until someone
+ * Where a tested task's template variables resolve from until someone
  * changes it: `{{query}}` is `input.query` of the dataset example.
  */
 export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
 
 /**
- * A template variables path for each kind of task: a dot-notation prefix
- * into the example context `{input, reference, metadata}`, or null for the
- * example root.
+ * A template variables path for each role: a dot-notation prefix into the
+ * example context `{input, reference, metadata}`, or null for the example
+ * root. The path belongs to the role, not the member: a decision reads its
+ * inputs from where prompts read their template variables.
  */
-export type TemplateVariablesPathByTaskKind = Record<
-  PlaygroundTaskKind,
+export type TemplateVariablesPathByRole = Record<
+  PlaygroundTaskRole,
   string | null
 >;
 
 /**
- * Each kind's path until someone changes it. Prompt tasks read variables
+ * Each role's path until someone changes it. Tested tasks read variables
  * from `input`; an evaluator's input mapping addresses `input`, `output` and
- * `metadata` from the example root, so evaluator tasks start there.
+ * `metadata` from the example root, so judging tasks start there.
  */
-export const DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND: TemplateVariablesPathByTaskKind =
+export const DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE: TemplateVariablesPathByRole =
   {
-    prompt: DEFAULT_TEMPLATE_VARIABLES_PATH,
-    evaluator: null,
+    tested: DEFAULT_TEMPLATE_VARIABLES_PATH,
+    judging: null,
   };
 
 /**
- * The template variables path of one kind of task over one dataset. Before
- * the dataset has any state, the kind's default.
+ * The template variables path of one role over one dataset. Before the
+ * dataset has any state, the role's default.
  */
 export function getTemplateVariablesPath({
   stateByDatasetId,
   datasetId,
-  taskKind,
+  taskRole,
 }: {
   stateByDatasetId: PlaygroundStateByDatasetId;
   datasetId: string;
-  taskKind: PlaygroundTaskKind;
+  taskRole: PlaygroundTaskRole;
 }): string | null {
   const datasetState = stateByDatasetId[datasetId];
 
   return datasetState
-    ? datasetState.templateVariablesPathByTaskKind[taskKind]
-    : DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND[taskKind];
+    ? datasetState.templateVariablesPathByRole[taskRole]
+    : DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE[taskRole];
 }
 
 /**
- * Persisted dataset state from before paths were kept per kind of task holds
- * one `templateVariablesPath`, which was the prompt tasks'. Carry it over and
- * start the evaluator kind at its default, so a stored choice survives the
- * upgrade.
+ * Persisted dataset state from before paths were kept per role holds either
+ * one `templateVariablesPath`, which was the prompt tasks', or paths keyed by
+ * the old kinds, `prompt` and `evaluator`. Carry the tested path over and
+ * start the judging role at its default or its stored value, so a stored
+ * choice survives the upgrade.
  */
 export function migrateTemplateVariablesPath(datasetState: unknown): unknown {
   if (
     !isStringKeyedObject(datasetState) ||
-    "templateVariablesPathByTaskKind" in datasetState
+    "templateVariablesPathByRole" in datasetState
   ) {
     return datasetState;
   }
 
-  const { templateVariablesPath, ...rest } = datasetState;
+  const { templateVariablesPath, templateVariablesPathByTaskKind, ...rest } =
+    datasetState;
+
+  const isPath = (value: unknown): value is string | null =>
+    typeof value === "string" || value === null;
+
+  if (isStringKeyedObject(templateVariablesPathByTaskKind)) {
+    const { prompt, evaluator } = templateVariablesPathByTaskKind;
+
+    return {
+      ...rest,
+      templateVariablesPathByRole: {
+        tested: isPath(prompt) ? prompt : DEFAULT_TEMPLATE_VARIABLES_PATH,
+        judging: isPath(evaluator)
+          ? evaluator
+          : DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE.judging,
+      },
+    };
+  }
 
   return {
     ...rest,
-    templateVariablesPathByTaskKind: {
-      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
-      prompt:
-        typeof templateVariablesPath === "string" ||
-        templateVariablesPath === null
-          ? templateVariablesPath
-          : DEFAULT_TEMPLATE_VARIABLES_PATH,
+    templateVariablesPathByRole: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+      tested: isPath(templateVariablesPath)
+        ? templateVariablesPath
+        : DEFAULT_TEMPLATE_VARIABLES_PATH,
     },
   };
 }

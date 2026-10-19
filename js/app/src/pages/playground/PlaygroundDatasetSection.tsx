@@ -27,7 +27,7 @@ import type {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import { getPlaygroundTaskRole } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
@@ -260,8 +260,8 @@ export function PlaygroundDatasetSection({
     return datasetEvaluatorsToAnnotationConfigs(selectedEvaluators);
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
-  const isEvaluatorKind = usePlaygroundContext(
-    (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  const isJudgingRole = usePlaygroundContext(
+    (state) => getPlaygroundTaskRole(state.instances) === "judging"
   );
 
   // Reported by the table as examples load; the toolbar's column selector
@@ -317,12 +317,12 @@ export function PlaygroundDatasetSection({
               splitIds={splitIds}
               editStore={editStore}
               evaluatorMappings={
-                isEvaluatorKind
+                isJudgingRole
                   ? NO_EVALUATOR_MAPPINGS
                   : selectedEvaluatorWithInputMapping
               }
               evaluatorOutputConfigs={
-                isEvaluatorKind
+                isJudgingRole
                   ? NO_EVALUATOR_OUTPUT_CONFIGS
                   : evaluatorOutputConfigs
               }

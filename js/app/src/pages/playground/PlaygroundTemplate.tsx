@@ -26,8 +26,10 @@ import {
   PlaygroundInstanceModelControls,
 } from "@phoenix/pages/playground/PlaygroundInstanceControls";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
+import { SaveDecisionDialog } from "@phoenix/pages/playground/SaveDecisionDialog";
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import type { PlaygroundInstanceProps } from "./types";
 
@@ -35,8 +37,8 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
   /**
-   * Pick the task with the playground page's task menu (prompts, evaluators,
-   * new drafts) instead of the prompt-only menu the evaluator dialogs use.
+   * Pick the task with the playground page's task menu (prompts, decisions,
+   * evaluators, new drafts) instead of the prompt-only menu the evaluator dialogs use.
    */
   taskMenu?: boolean;
   /** Enable the Decision tab in this instance's model menu. */
@@ -52,6 +54,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
+  const isDecision = usePlaygroundContext((state) =>
+    isDecisionInstance(
+      state.instances.find((candidate) => candidate.id === instanceId)
+    )
+  );
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
   const promptVersionId = prompt?.version;
@@ -105,7 +112,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
     props;
-  const isDecision = instance.model.modelType === "DECISION";
 
   return (
     <>
@@ -126,14 +132,18 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
+          {/* The task menu picks prompts and decisions alike; the prompt-only
+              menu has nothing to offer a decision. */}
           {disablePromptMenu ? null : props.taskMenu ? (
             <TaskMenu instanceId={instanceId} />
           ) : !isDecision ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
-          {!disablePromptSave && !isDecision ? (
+          {disablePromptSave ? null : isDecision ? (
+            <SaveDecisionButton dirty={dirty} instanceId={instanceId} />
+          ) : (
             <SaveButton instanceId={instanceId} dirty={dirty} />
-          ) : null}
+          )}
         </Flex>
         <Flex direction="row" gap="size-100" flex="none">
           <PlaygroundInstanceModelControls
@@ -223,6 +233,26 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
             instanceId={instanceId}
             selectedPromptId={instance.prompt?.id}
           />
+        </ViewportModal>
+      </ViewportModalOverlay>
+    </DialogTrigger>
+  );
+}
+
+function SaveDecisionButton({ instanceId, dirty }: SaveButtonProps) {
+  return (
+    <DialogTrigger>
+      <Button
+        variant={dirty ? "primary" : undefined}
+        size="S"
+        leadingVisual={<Icon svg={<Icons.Save />} />}
+        aria-label="Save decision"
+      >
+        Decision
+      </Button>
+      <ViewportModalOverlay>
+        <ViewportModal>
+          <SaveDecisionDialog instanceId={instanceId} />
         </ViewportModal>
       </ViewportModalOverlay>
     </DialogTrigger>

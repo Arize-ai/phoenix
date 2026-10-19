@@ -15,8 +15,8 @@ import {
 } from "@phoenix/store/playground/playgroundStore";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
-  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
-  type TemplateVariablesPathByTaskKind,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+  type TemplateVariablesPathByRole,
 } from "@phoenix/store/playground/templateVariablesPath";
 import type {
   ModelConfig,
@@ -161,7 +161,7 @@ export type ExperimentRehydrationResult = {
   stateByDatasetId: Record<
     string,
     {
-      templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKind;
+      templateVariablesPathByRole: TemplateVariablesPathByRole;
       appendedMessagesPath?: string | null;
       maxConcurrency: number;
     }
@@ -244,10 +244,10 @@ function taskConfigToPlaygroundProps(
   };
 
   // An experiment's playground config belongs to its prompt task; the
-  // evaluator kind keeps its default.
-  const templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKind = {
-    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
-    prompt:
+  // judging role keeps its default.
+  const templateVariablesPathByRole: TemplateVariablesPathByRole = {
+    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+    tested:
       taskConfig.playgroundConfig?.templateVariablesPath ??
       DEFAULT_TEMPLATE_VARIABLES_PATH,
   };
@@ -258,7 +258,7 @@ function taskConfigToPlaygroundProps(
     datasetId
       ? {
           [datasetId]: {
-            templateVariablesPathByTaskKind,
+            templateVariablesPathByRole,
             appendedMessagesPath,
             maxConcurrency,
           },

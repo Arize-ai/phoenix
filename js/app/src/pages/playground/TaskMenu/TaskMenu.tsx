@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { useDeferredValue, useState, useTransition } from "react";
 import type { Key } from "react-aria-components";
 import { useFilter } from "react-aria-components";
@@ -14,19 +15,23 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
+import type { PromptData } from "@phoenix/pages/playground/PromptMenu";
 import { PromptVersionSelector } from "@phoenix/pages/playground/PromptMenu";
 import type {
   PlaygroundInstanceSource,
-  PlaygroundTaskKind,
+  PlaygroundNormalizedInstance,
+  PlaygroundTaskMember,
 } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskKind,
-  isTaskKindLocked,
+  getPlaygroundTaskRole,
+  isTaskRoleLocked,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
 import { ConfirmReplaceTaskDialog } from "./ConfirmReplaceTaskDialog";
 import {
+  doesSourceLoadInPlace,
   getTaskMenuLabel,
   getTaskMenuSelectedKey,
   getTaskMenuTabs,
@@ -37,21 +42,23 @@ import { TaskMenuList } from "./TaskMenuList";
 import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
- * Picks what a playground instance is: a saved prompt, a saved evaluator,
- * or a new draft of either, from a tab per kind. With one instance on the
- * page both tabs are offered and choosing from the other kind's tab replaces
- * the instance; with more, only the page's kind is. A prompt task keeps the
- * version and tag pickers.
+ * Picks what a playground instance is: a saved prompt, decision or
+ * evaluator, or a new draft of any, from a tab per member, grouped by role:
+ * prompts and decisions (tested), then evaluators (judging). With one
+ * instance on the page every tab is offered and choosing from another
+ * member's tab replaces the instance; with more, only the page's role's
+ * members are, so prompts and decisions can sit side by side. A prompt or
+ * decision task keeps the version and tag pickers.
  */
 export function TaskMenu({ instanceId }: { instanceId: number }) {
   const instance = usePlaygroundContext(selectPlaygroundInstance(instanceId));
 
-  const taskKind = usePlaygroundContext((state) =>
-    getPlaygroundTaskKind(state.instances)
+  const taskRole = usePlaygroundContext((state) =>
+    getPlaygroundTaskRole(state.instances)
   );
 
   const isLocked = usePlaygroundContext((state) =>
-    isTaskKindLocked(state.instances)
+    isTaskRoleLocked(state.instances)
   );
 
   const isDirty = usePlaygroundContext(
@@ -77,8 +84,8 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   const [openCount, setOpenCount] = useState(0);
   const hasOpened = openCount > 0;
   // The menu opens on the tab of what the task is now.
-  const [selectedKind, setSelectedKind] = useState<PlaygroundTaskKind>(
-    instance.task.kind
+  const [selectedMember, setSelectedMember] = useState<PlaygroundTaskMember>(
+    instance.task.member
   );
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
@@ -89,13 +96,16 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
 
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const isPromptTask = instance.task.kind === "prompt";
-  const offersPrompts = !isLocked || taskKind === "prompt";
-  const offersEvaluators = !isLocked || taskKind === "evaluator";
+  const member = instance.task.member;
+  const isPromptTask = member === "prompt";
+  const isDecisionTask = member === "decision";
+  const offersTested = !isLocked || taskRole === "tested";
+  const offersEvaluators = !isLocked || taskRole === "judging";
 
-  const { prompts, promptItems, evaluators } = useTaskMenuOptions({
+  const { prompts, promptItems, decisions, evaluators } = useTaskMenuOptions({
     // A prompt task needs its prompt's versions before the menu opens.
-    includePrompts: offersPrompts && (isPromptTask || hasOpened),
+    includePrompts: offersTested && (isPromptTask || hasOpened),
+    includeDecisions: offersTested && hasOpened,
     includeEvaluators: offersEvaluators && hasOpened,
     search: deferredSearch,
     promptsFetchKey: instance.prompt
@@ -105,9 +115,10 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   });
 
   const tabs = getTaskMenuTabs({
-    kind: taskKind,
+    role: taskRole,
     isLocked,
     prompts: promptItems,
+    decisions,
     evaluators,
     search: deferredSearch,
     matches: contains,
@@ -126,13 +137,26 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     });
   }
 
+  function loadDecision(
+    source: Extract<PlaygroundInstanceSource, { type: "decision" }>
+  ) {
+    updateInstance({
+      instanceId,
+      patch: { loadingSource: source },
+      dirty: null,
+    });
+  }
+
   function apply(source: PlaygroundInstanceSource) {
     setPendingSource(null);
 
-    // Another prompt loads into the same prompt task, as it always has;
-    // anything else is a different task and replaces the instance.
+    // Another prompt loads into the same prompt task, as it always has, and
+    // another decision into the same decision task; anything else is a
+    // different task and replaces the instance.
     if (isPromptTask && source.type === "prompt") {
       loadPrompt(source);
+    } else if (isDecisionTask && source.type === "decision") {
+      loadDecision(source);
     } else {
       replaceInstance({ instanceId, source });
     }
@@ -149,7 +173,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       return;
     }
 
-    const replaces = !(isPromptTask && source.type === "prompt");
+    const replaces = !doesSourceLoadInPlace(member, source);
 
     if (replaces && isDirty) {
       setPendingSource(source);
@@ -167,7 +191,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       isDisabled={isRunning}
       onOpenChange={(isOpen) => {
         if (isOpen) {
-          setSelectedKind(instance.task.kind);
+          setSelectedMember(instance.task.member);
           startLoadingOptions(() => setOpenCount((count) => count + 1));
         }
       }}
@@ -191,8 +215,8 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       <Popover placement="bottom start">
         <TaskMenuList
           tabs={tabs}
-          selectedKind={selectedKind}
-          onSelectedKindChange={setSelectedKind}
+          selectedMember={selectedMember}
+          onSelectedMemberChange={setSelectedMember}
           search={search}
           onSearchChange={setSearch}
           isLoading={isLoadingOptions}
@@ -202,44 +226,16 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     </Select>
   );
 
-  const selectedPrompt = isPromptTask
-    ? (prompts.find((prompt) => prompt.id === instance.prompt?.id) ?? null)
-    : null;
-
   return (
     <div css={taskMenuContainerCSS}>
-      {selectedPrompt && instance.prompt ? (
-        <CompositeField>
-          {menu}
-          <PromptVersionSelector
-            prompt={selectedPrompt}
-            selectedVersionInfo={
-              selectedPrompt.versions.find(
-                (version) => version.id === instance.prompt?.version
-              ) ?? null
-            }
-            selectedTagName={instance.prompt.tag}
-            onSelectVersion={(promptVersionId) =>
-              loadPrompt({
-                type: "prompt",
-                promptId: selectedPrompt.id,
-                promptVersionId,
-                tagName: null,
-              })
-            }
-            onSelectTag={(tagName) =>
-              loadPrompt({
-                type: "prompt",
-                promptId: selectedPrompt.id,
-                promptVersionId: null,
-                tagName,
-              })
-            }
-          />
-        </CompositeField>
-      ) : (
-        menu
-      )}
+      <TaskVersionPickers
+        instance={instance}
+        prompts={prompts}
+        loadPrompt={loadPrompt}
+        loadDecision={loadDecision}
+      >
+        {menu}
+      </TaskVersionPickers>
       <ConfirmReplaceTaskDialog
         isOpen={pendingSource != null}
         onKeepEditing={() => setPendingSource(null)}
@@ -248,6 +244,98 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * The task menu, with the version and tag pickers of what it holds beside it:
+ * a prompt's, or a decision's. A task without a saved prompt or decision has
+ * none.
+ */
+function TaskVersionPickers({
+  instance,
+  prompts,
+  loadPrompt,
+  loadDecision,
+  children,
+}: {
+  instance: PlaygroundNormalizedInstance;
+  prompts: PromptData[];
+  loadPrompt: (
+    source: Extract<PlaygroundInstanceSource, { type: "prompt" }>
+  ) => void;
+  loadDecision: (
+    source: Extract<PlaygroundInstanceSource, { type: "decision" }>
+  ) => void;
+  children: ReactNode;
+}) {
+  const { decision, prompt } = instance;
+
+  if (instance.task.member === "decision" && decision) {
+    return (
+      <CompositeField>
+        {children}
+        <DecisionVersionSelector
+          decision={decision}
+          onSelectVersion={(decisionVersionId) =>
+            loadDecision({
+              type: "decision",
+              decisionId: decision.id,
+              decisionVersionId,
+              tagName: null,
+            })
+          }
+          onSelectTag={(tagName) =>
+            loadDecision({
+              type: "decision",
+              decisionId: decision.id,
+              decisionVersionId: null,
+              tagName,
+            })
+          }
+        />
+      </CompositeField>
+    );
+  }
+
+  const selectedPrompt =
+    instance.task.member === "prompt" && prompt
+      ? prompts.find((candidate) => candidate.id === prompt.id)
+      : undefined;
+
+  if (!selectedPrompt || !prompt) {
+    return children;
+  }
+
+  return (
+    <CompositeField>
+      {children}
+      <PromptVersionSelector
+        prompt={selectedPrompt}
+        selectedVersionInfo={
+          selectedPrompt.versions.find(
+            (version) => version.id === prompt.version
+          ) ?? null
+        }
+        selectedTagName={prompt.tag}
+        onSelectVersion={(promptVersionId) =>
+          loadPrompt({
+            type: "prompt",
+            promptId: selectedPrompt.id,
+            promptVersionId,
+            tagName: null,
+          })
+        }
+        onSelectTag={(tagName) =>
+          loadPrompt({
+            type: "prompt",
+            promptId: selectedPrompt.id,
+            promptVersionId: null,
+            tagName,
+          })
+        }
+      />
+    </CompositeField>
   );
 }
 

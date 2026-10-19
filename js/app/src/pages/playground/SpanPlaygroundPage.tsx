@@ -7,6 +7,7 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "@phoenix/pages/playground/Playground";
 import type { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
 
@@ -37,7 +38,7 @@ export function SpanPlaygroundPage() {
       <SpanPlaygroundBanners
         span={span}
         parsingErrors={parsingErrors}
-        isDecision={playgroundInstance.model.modelType === "DECISION"}
+        isDecision={isDecisionInstance(playgroundInstance)}
       />
       <Playground
         // remount the playground when the span changes, resetting all local state, closing dialogs, etc.

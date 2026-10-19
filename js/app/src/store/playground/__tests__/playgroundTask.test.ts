@@ -4,39 +4,71 @@ import {
   createPlaygroundEvaluatorTask,
   DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG,
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskKind,
-  getTaskKindForNewSource,
-  isTaskKindLocked,
+  getPlaygroundTaskMember,
+  getPlaygroundTaskRole,
+  getTaskMemberForNewSource,
+  isDecisionInstance,
+  isTaskRoleLocked,
+  PLAYGROUND_TASK_ROLE_BY_MEMBER,
 } from "../playgroundTask";
 import type { PlaygroundTask } from "../types";
 
-const promptTask: PlaygroundTask = { kind: "prompt" };
+const promptTask: PlaygroundTask = { member: "prompt" };
+
+const decisionTask: PlaygroundTask = { member: "decision" };
 
 const evaluatorTask: PlaygroundTask = {
-  kind: "evaluator",
+  member: "evaluator",
   evaluator: createPlaygroundEvaluatorTask({ kind: "CODE" }),
 };
 
-describe("getPlaygroundTaskKind", () => {
-  it("is the first instance's kind", () => {
-    expect(getPlaygroundTaskKind([{ task: promptTask }])).toBe("prompt");
-    expect(
-      getPlaygroundTaskKind([{ task: evaluatorTask }, { task: evaluatorTask }])
-    ).toBe("evaluator");
-  });
-
-  it("treats an empty page as a prompt page", () => {
-    expect(getPlaygroundTaskKind([])).toBe("prompt");
+describe("PLAYGROUND_TASK_ROLE_BY_MEMBER", () => {
+  it("puts prompts and decisions in the tested role and evaluators in the judging role", () => {
+    expect(PLAYGROUND_TASK_ROLE_BY_MEMBER).toEqual({
+      prompt: "tested",
+      decision: "tested",
+      evaluator: "judging",
+    });
   });
 });
 
-describe("isTaskKindLocked", () => {
-  it("locks the kind once there is more than one instance", () => {
-    expect(isTaskKindLocked([])).toBe(false);
-    expect(isTaskKindLocked([{ task: promptTask }])).toBe(false);
-    expect(isTaskKindLocked([{ task: promptTask }, { task: promptTask }])).toBe(
-      true
-    );
+describe("getPlaygroundTaskMember and isDecisionInstance", () => {
+  it("reads the member off the task, the one place it is recorded", () => {
+    expect(getPlaygroundTaskMember({ task: promptTask })).toBe("prompt");
+    expect(getPlaygroundTaskMember({ task: decisionTask })).toBe("decision");
+    expect(isDecisionInstance({ task: decisionTask })).toBe(true);
+    expect(isDecisionInstance({ task: promptTask })).toBe(false);
+    expect(isDecisionInstance(undefined)).toBe(false);
+  });
+});
+
+describe("getPlaygroundTaskRole", () => {
+  it("is the role of the first instance's member", () => {
+    expect(getPlaygroundTaskRole([{ task: promptTask }])).toBe("tested");
+    expect(getPlaygroundTaskRole([{ task: decisionTask }])).toBe("tested");
+    expect(
+      getPlaygroundTaskRole([{ task: evaluatorTask }, { task: evaluatorTask }])
+    ).toBe("judging");
+  });
+
+  it("treats a page of prompts and decisions as one tested page", () => {
+    expect(
+      getPlaygroundTaskRole([{ task: decisionTask }, { task: promptTask }])
+    ).toBe("tested");
+  });
+
+  it("treats an empty page as a tested page", () => {
+    expect(getPlaygroundTaskRole([])).toBe("tested");
+  });
+});
+
+describe("isTaskRoleLocked", () => {
+  it("locks the role once there is more than one instance", () => {
+    expect(isTaskRoleLocked([])).toBe(false);
+    expect(isTaskRoleLocked([{ task: promptTask }])).toBe(false);
+    expect(
+      isTaskRoleLocked([{ task: promptTask }, { task: decisionTask }])
+    ).toBe(true);
   });
 });
 
@@ -94,10 +126,11 @@ describe("getPlaygroundEvaluatorTask", () => {
   });
 });
 
-describe("getTaskKindForNewSource", () => {
+describe("getTaskMemberForNewSource", () => {
   it("maps evaluator kinds to the evaluator task kind", () => {
-    expect(getTaskKindForNewSource("prompt")).toBe("prompt");
-    expect(getTaskKindForNewSource("LLM")).toBe("evaluator");
-    expect(getTaskKindForNewSource("CODE")).toBe("evaluator");
+    expect(getTaskMemberForNewSource("prompt")).toBe("prompt");
+    expect(getTaskMemberForNewSource("decision")).toBe("decision");
+    expect(getTaskMemberForNewSource("LLM")).toBe("evaluator");
+    expect(getTaskMemberForNewSource("CODE")).toBe("evaluator");
   });
 });

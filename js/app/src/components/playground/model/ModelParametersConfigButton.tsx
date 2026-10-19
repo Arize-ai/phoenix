@@ -13,6 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
@@ -124,15 +125,14 @@ export function ModelParametersConfigButton(
   const { playgroundInstanceId, disableEphemeralRouting } = props;
   const [isModelConfigValid, setIsModelConfigValid] = useState(true);
 
-  const model = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === playgroundInstanceId)
-        ?.model
+  const playgroundInstance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
+  const model = playgroundInstance?.model;
 
   const provider = model?.provider;
   const customProvider = model?.customProvider;
-  const isDecision = model?.modelType === "DECISION";
+  const isDecision = isDecisionInstance(playgroundInstance);
 
   // When a custom provider is selected, hide routing fields (they come from the provider config)
   const usingCustomProvider = !!customProvider;

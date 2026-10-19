@@ -22,7 +22,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByRole.tested
     ).toBe("input.context");
   });
 
@@ -44,7 +44,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[experimentDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByRole.tested
     ).toBe("reference.answer");
   });
 
@@ -64,7 +64,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByRole.tested
     ).toBeNull();
   });
 
@@ -88,7 +88,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[storeDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByRole.tested
     ).toBe("input.context");
   });
 
@@ -112,7 +112,7 @@ describe("playground template variables path agent tool", () => {
     expect(playgroundStore.getState().stateByDatasetId).toEqual({});
   });
 
-  it("sets the path of the page's kind of task and leaves the other kind's", async () => {
+  it("sets the path of the page's role and leaves the other role's", async () => {
     const urlDatasetId = "url-dataset";
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -133,8 +133,8 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind
-    ).toEqual({ prompt: "input", evaluator: "output" });
+        .templateVariablesPathByRole
+    ).toEqual({ tested: "input", judging: "output" });
   });
 
   it("rejects off-contract input (extra key) via .strict()", async () => {

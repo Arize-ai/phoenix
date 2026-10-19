@@ -5,25 +5,58 @@ import type {
   PlaygroundEvaluatorTask,
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
-  PlaygroundTaskKind,
+  PlaygroundTaskMember,
+  PlaygroundTaskRole,
 } from "./types";
 
 /**
- * The kind of task the page holds. Every instance shares it, so the first
- * instance decides; an empty page is a prompt page.
+ * The role each member plays, the one place that says so. A new member joins
+ * a role with one line here.
  */
-export function getPlaygroundTaskKind(
-  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
-): PlaygroundTaskKind {
-  return instances[0]?.task.kind ?? "prompt";
+export const PLAYGROUND_TASK_ROLE_BY_MEMBER: Record<
+  PlaygroundTaskMember,
+  PlaygroundTaskRole
+> = {
+  prompt: "tested",
+  decision: "tested",
+  evaluator: "judging",
+};
+
+/** What an instance is: the one record of its member. */
+export function getPlaygroundTaskMember(
+  instance: Pick<PlaygroundInstance, "task">
+): PlaygroundTaskMember {
+  return instance.task.member;
+}
+
+/** Whether the instance runs a decision rather than a chat prompt. */
+export function isDecisionInstance(
+  instance: Pick<PlaygroundInstance, "task"> | undefined
+): boolean {
+  return instance?.task.member === "decision";
 }
 
 /**
- * Whether the page's kind can still change. A lone instance may switch
- * kinds by being replaced; once there is something to compare against, the
- * kind is fixed until the other instances are removed.
+ * The role the page plays. Every instance shares it, so the first instance
+ * decides; an empty page is a tested page.
  */
-export function isTaskKindLocked(instances: ReadonlyArray<unknown>): boolean {
+export function getPlaygroundTaskRole(
+  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
+): PlaygroundTaskRole {
+  const first = instances[0];
+
+  return first
+    ? PLAYGROUND_TASK_ROLE_BY_MEMBER[getPlaygroundTaskMember(first)]
+    : "tested";
+}
+
+/**
+ * Whether the page's role can still change. A lone instance may switch roles
+ * by being replaced; once there is something to compare against, the role is
+ * fixed until the other instances are removed. Members of the same role mix
+ * freely: a decision can sit beside a prompt.
+ */
+export function isTaskRoleLocked(instances: ReadonlyArray<unknown>): boolean {
   return instances.length > 1;
 }
 
@@ -73,16 +106,16 @@ export function createPlaygroundEvaluatorTask({
   };
 }
 
-/** Narrows to the evaluator draft, or null for a prompt instance. */
+/** Narrows to the evaluator draft, or null for a tested instance. */
 export function getPlaygroundEvaluatorTask(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): PlaygroundEvaluatorTask | null {
-  return instance?.task.kind === "evaluator" ? instance.task.evaluator : null;
+  return instance?.task.member === "evaluator" ? instance.task.evaluator : null;
 }
 
-/** The kind a "new task" source of the given kind belongs to. */
-export function getTaskKindForNewSource(
-  kind: "prompt" | PlaygroundEvaluatorTaskKind
-): PlaygroundTaskKind {
-  return kind === "prompt" ? "prompt" : "evaluator";
+/** The member a "new task" source of the given kind creates. */
+export function getTaskMemberForNewSource(
+  kind: "prompt" | "decision" | PlaygroundEvaluatorTaskKind
+): PlaygroundTaskMember {
+  return kind === "prompt" || kind === "decision" ? kind : "evaluator";
 }

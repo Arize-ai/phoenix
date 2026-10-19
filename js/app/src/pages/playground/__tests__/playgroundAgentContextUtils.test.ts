@@ -26,7 +26,7 @@ function makeInstance(
       modelName: "gpt-4o",
     } as PlaygroundInstance["model"],
     experiment: null,
-    task: { kind: "prompt" },
+    task: { member: "prompt" },
     ...overrides,
   };
 }
@@ -35,7 +35,7 @@ const position = { index: 0, isDirty: false };
 
 function evaluatorTask(name: string): PlaygroundInstance["task"] {
   return {
-    kind: "evaluator",
+    member: "evaluator",
     evaluator: createPlaygroundEvaluatorTask({ kind: "CODE", name }),
   };
 }
@@ -260,7 +260,7 @@ describe("buildPlaygroundAgentContext", () => {
 
     expect(
       buildPlaygroundAgentContext({
-        taskKind: "prompt",
+        taskRole: "tested",
         recordExperiments: false,
         repetitions: 4,
         nextExperimentScaffold: null,
@@ -286,7 +286,7 @@ describe("buildPlaygroundAgentContext", () => {
 
     expect(
       buildPlaygroundAgentContext({
-        taskKind: "evaluator",
+        taskRole: "judging",
         recordExperiments: true,
         repetitions: 1,
         nextExperimentScaffold: scaffold,

@@ -4,10 +4,12 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import type {
+  DecisionParam,
   EvaluatorTaskParam,
   PromptParam,
 } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import {
+  parseDecisionParams,
   parseEvaluatorTaskParams,
   parsePromptParams,
 } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
@@ -22,6 +24,7 @@ import {
 } from "@phoenix/store";
 
 import { fetchExperimentPlaygroundProps } from "./experimentRehydration";
+import { fetchPlaygroundDecisionAsInstance } from "./fetchPlaygroundDecision";
 import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
 
 /**
@@ -36,8 +39,9 @@ type PlaygroundInstanceWithoutId = Omit<PlaygroundInstance, "id">;
  */
 export type PlaygroundPageLoaderData =
   | {
-      source: "prompt";
+      source: "tested";
       promptParams: PromptParam[];
+      decisionParams: DecisionParam[];
       instances: PlaygroundInstanceWithoutId[];
       templateFormat: TemplateFormat;
     }
@@ -138,12 +142,14 @@ export function buildPlaygroundPropsFromLoaderData(
  */
 export type PlaygroundPageLoaderFetchers = {
   fetchPromptAsInstance: typeof fetchPlaygroundPromptAsInstance;
+  fetchDecisionAsInstance: typeof fetchPlaygroundDecisionAsInstance;
   fetchEvaluatorAsInstance: typeof fetchPlaygroundEvaluatorAsInstance;
   fetchExperimentProps: typeof fetchExperimentPlaygroundProps;
 };
 
 const ROUTE_FETCHERS: PlaygroundPageLoaderFetchers = {
   fetchPromptAsInstance: fetchPlaygroundPromptAsInstance,
+  fetchDecisionAsInstance: fetchPlaygroundDecisionAsInstance,
   fetchEvaluatorAsInstance: fetchPlaygroundEvaluatorAsInstance,
   fetchExperimentProps: fetchExperimentPlaygroundProps,
 };
@@ -209,7 +215,9 @@ async function loadEvaluatorTaskInstances(
  * Supports three sources:
  * - experimentId URL param → load from experiment task config
  * - evaluator{n}/datasetEvaluator{n} URL params, or taskKind=evaluator → evaluator tasks
- * - promptId/promptVersionId/promptTagName URL params → load from prompt version
+ * - promptId/promptVersionId/promptTagName and decisionId/decisionVersionId/
+ *   decisionTagName URL params → tested tasks, loaded from prompt and
+ *   decision versions (prompts first, then decisions)
  *
  * Returns `null` when no params are present (default playground).
  */
@@ -249,10 +257,11 @@ export function createPlaygroundPageLoader(
       );
     }
 
-    // Fall back to prompt params
+    // Fall back to tested tasks: prompt and decision params
     const promptParams = parsePromptParams(url.searchParams);
+    const decisionParams = parseDecisionParams(url.searchParams);
 
-    if (!promptParams.length) {
+    if (!promptParams.length && !decisionParams.length) {
       return null;
     }
 
@@ -300,11 +309,39 @@ export function createPlaygroundPageLoader(
       }
     }
 
+    // The decisions follow the prompts. The page has one template format: a
+    // prompt's if there is one, else the first decision's own. A decision the
+    // page's format can't express fails to load and is skipped, like a
+    // deleted one.
+    for (const { decisionId, decisionVersionId, tagName } of decisionParams) {
+      const result = await fetchers
+        .fetchDecisionAsInstance({
+          decisionId,
+          // A tag names whichever version carries it now, so it wins over the
+          // version it resolved to when the URL was written.
+          decisionVersionId: tagName ? null : decisionVersionId,
+          tagName,
+          templateFormat,
+        })
+        .catch(() => null);
+
+      if (result) {
+        instances.push(result.instance);
+        templateFormat ??= result.templateFormat;
+      }
+    }
+
     if (instances.length === 0 || templateFormat === null) {
       return null;
     }
 
-    return { source: "prompt", promptParams, instances, templateFormat };
+    return {
+      source: "tested",
+      promptParams,
+      decisionParams,
+      instances,
+      templateFormat,
+    };
   };
 }
 

@@ -44,8 +44,15 @@ export async function readTaskSnapshot({
     };
   }
 
-  if (instance.task.kind === "prompt") {
+  if (instance.task.member === "prompt") {
     return getPromptSnapshot({ playgroundStore, instanceId });
+  }
+
+  if (instance.task.member === "decision") {
+    return {
+      ok: false,
+      error: `Instance ${instanceId} holds a decision, which PXI cannot read yet.`,
+    };
   }
 
   const host = await waitForEvaluatorHost(

@@ -18,7 +18,10 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { DEFAULT_MAX_CONCURRENCY } from "@phoenix/store/playground";
+import {
+  DEFAULT_MAX_CONCURRENCY,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
@@ -64,7 +67,7 @@ export function PlaygroundConfigButton() {
   );
 
   const hasDecisionInstance = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.model.modelType === "DECISION")
+    state.instances.some(isDecisionInstance)
   );
   return (
     <DialogTrigger>

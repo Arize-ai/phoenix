@@ -14,6 +14,7 @@ import { InvocationParameterSpecsSync } from "@phoenix/components/playground/mod
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 /**
  * The model picker and parameters of an instance, for the header row of a
@@ -35,10 +36,10 @@ export function PlaygroundInstanceModelControls({
   supportsDecisionModels?: boolean;
   decisionTabNotice?: string;
 }) {
-  const isDecision = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)?.model
-        .modelType === "DECISION"
+  const isDecision = usePlaygroundContext((state) =>
+    isDecisionInstance(
+      state.instances.find((instance) => instance.id === instanceId)
+    )
   );
   return (
     <>
