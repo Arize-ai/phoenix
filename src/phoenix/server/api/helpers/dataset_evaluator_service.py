@@ -1159,7 +1159,7 @@ async def patch_dataset_evaluator(
                 decision = await get_decision_evaluator(session, row.evaluator_id, lock=True)
                 await session.refresh(row)
                 validate_decision_input_mapping(
-                    decision.selected_version, patch.input_mapping or None
+                    decision.selected_version, patch.input_mapping or row.input_mapping
                 )
                 policy = (
                     row.decision_projection_policy

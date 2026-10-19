@@ -979,6 +979,11 @@ async def test_invalid_base_urls_fail_before_provider_call(
             "OneOf Input Object 'DecisionStateInput' must specify exactly one key.",
             id="two-states",
         ),
+        pytest.param(
+            {**OBJECT_STATE, "state": {"object": False}},
+            "object must be true",
+            id="object-false",
+        ),
     ],
 )
 async def test_invalid_inputs_fail_before_provider_call(
@@ -1134,7 +1139,12 @@ async def test_custom_providers_declare_the_model_types_they_serve(
 
 @pytest.mark.parametrize(
     ("status", "accepted"),
-    [pytest.param(404, True, id="unknown-model"), pytest.param(401, False, id="bad-key")],
+    [
+        pytest.param(404, True, id="unknown-model"),
+        pytest.param(401, False, id="bad-key"),
+        pytest.param(429, False, id="rate-limited"),
+        pytest.param(503, False, id="unavailable"),
+    ],
 )
 async def test_typesafe_credentials_are_checked_without_running_a_model(
     gql_client: AsyncGraphQLClient, status: int, accepted: bool
@@ -1159,6 +1169,25 @@ async def test_typesafe_credentials_are_checked_without_running_a_model(
         assert error is None
     else:
         assert error and "ts-custom-key" not in error
+
+
+async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The server's TYPESAFE_BASE_URL never receives a custom provider's key."""
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "https://server-env.example")
+    config = {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": "ts-custom-key"}}}
+    with respx.mock:
+        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(404, json={})
+        result = await gql_client.execute(
+            """mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
+              testGenerativeModelCustomProviderCredentials(input: $input) { error }
+            }""",
+            variables={"input": config},
+        )
+    assert result.data and not result.errors, result.errors
+    assert route.call_count == 1
+    assert result.data["testGenerativeModelCustomProviderCredentials"]["error"] is None
 
 
 def test_custom_provider_capabilities_come_from_the_sdk() -> None:

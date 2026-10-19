@@ -242,3 +242,36 @@ def test_f_string_list_indices_render_as_json() -> None:
         {"ticket": [True, {"x": False}, None]},
     )
     assert rendered == "true false null"
+
+
+@pytest.mark.parametrize(
+    ("template", "values", "detail"),
+    [
+        pytest.param("{ticket.subject}", {"ticket": {}}, "no field 'subject'", id="missing-field"),
+        pytest.param("{ticket.subject}", {"ticket": None}, "has no attribute", id="null"),
+        pytest.param("{ticket[3]}", {"ticket": [1]}, "no item 3", id="index-out-of-range"),
+        pytest.param("{ticket[0]}", {"ticket": 5}, "not subscriptable", id="scalar-index"),
+    ],
+)
+def test_f_string_paths_the_inputs_lack_are_value_errors(
+    template: str, values: dict[str, Any], detail: str
+) -> None:
+    with pytest.raises(ValueError, match="can't be rendered from these inputs") as error:
+        render_state(_inputs("ticket"), _text(template, "F_STRING"), values)
+    assert detail in str(error.value)
+    assert "_JSON" not in str(error.value)
+
+
+def test_f_string_format_specs_apply_to_the_json_text() -> None:
+    state = _text("[{ticket:>10}] [{urgent:>6}]", "F_STRING")
+    assert (
+        render_state(_inputs("ticket", "urgent"), state, {"ticket": {"a": 1}, "urgent": True})
+        == '[  {"a": 1}] [  true]'
+    )
+
+
+def test_a_section_over_a_boolean_exposes_no_fields_of_its_own() -> None:
+    """Inside a section over a boolean, an input named value is still that input."""
+    state = _text("{{#urgent}}{{value}}{{/urgent}}")
+    values = {"urgent": True, "value": "Refund my order"}
+    assert render_state(_inputs("urgent", "value"), state, values) == "Refund my order"

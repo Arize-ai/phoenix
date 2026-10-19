@@ -16,6 +16,7 @@ from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     DecisionProjectionPolicy,
     effective_decision_policy,
+    fit_projection_policy,
     resolve_projection_policy,
 )
 from phoenix.db.types.evaluator_definition import (
@@ -233,7 +234,13 @@ async def patch_decision_evaluator(
                 else patch.projection_policy
             )
             assert policy is not None
-            policy = resolve_projection_policy(
+            # A policy the caller sends must fit the version; the saved one is carried over.
+            resolve = (
+                fit_projection_policy
+                if patch.projection_policy is UNSET
+                else resolve_projection_policy
+            )
+            policy = resolve(
                 version.questions, DecisionProjectionPolicy.model_validate(policy)
             ).model_dump(mode="json")
             await validate_bound_decision_update(session, evaluator, version, policy)
@@ -279,7 +286,10 @@ async def delete_decision_evaluator(
 async def guard_owned_decision_tag_move(
     session: AsyncSession, tag: models.DecisionVersionTag, version_id: int
 ) -> None:
-    """Validate generic tag moves against any evaluator that owns the tag."""
+    """Validate generic tag moves against any evaluator that owns the tag.
+
+    The judge's saved policy is carried to the new version, as a patch would.
+    """
     evaluator_id = await session.scalar(
         select(models.DecisionEvaluator.id).where(
             models.DecisionEvaluator.decision_version_tag_id == tag.id
@@ -289,27 +299,44 @@ async def guard_owned_decision_tag_move(
         return
     evaluator = await get_decision_evaluator(session, evaluator_id, lock=True)
     version = await _version_by_rowid(session, version_id)
-    await validate_bound_decision_update(session, evaluator, version, evaluator.projection_policy)
+    policy = fit_projection_policy(
+        version.questions, DecisionProjectionPolicy.model_validate(evaluator.projection_policy)
+    ).model_dump(mode="json")
+    await validate_bound_decision_update(session, evaluator, version, policy)
+    evaluator.projection_policy = policy
+
+
+# The keys of the context a dataset evaluator judges a run with (see experiment_runner).
+EVALUATOR_CONTEXT_KEYS = ("input", "output", "reference", "metadata")
 
 
 def validate_decision_input_mapping(
     version: models.DecisionVersion, input_mapping: Optional[InputMapping]
 ) -> None:
-    """Reject mapping keys that are not declared inputs of the judge's pinned version.
+    """Reject a mapping that names undeclared inputs or leaves a declared one unfillable.
 
-    Undeclared keys would otherwise be silently dropped at run time. Unmapped declared inputs
-    stay valid: they are filled from the experiment context.
+    Undeclared keys would otherwise be silently dropped at run time. An unmapped declared
+    input is filled from the experiment context only when it is named like one of the
+    context's keys; any other would fail every run as missing.
     """
-    if input_mapping is None:
-        return
     declared = [input.name for input in version.inputs]
-    unknown = sorted(
-        (set(input_mapping.path_mapping) | set(input_mapping.literal_mapping)) - set(declared)
+    mapped = (
+        set(input_mapping.path_mapping) | set(input_mapping.literal_mapping)
+        if input_mapping is not None
+        else set()
     )
-    if unknown:
+    if unknown := sorted(mapped - set(declared)):
         raise BadRequest(
             f"Input mapping names undeclared inputs: {', '.join(repr(k) for k in unknown)}. "
             f"Declared inputs: {', '.join(repr(n) for n in declared) or 'none'}"
+        )
+    if unfilled := [
+        name for name in declared if name not in mapped and name not in EVALUATOR_CONTEXT_KEYS
+    ]:
+        raise BadRequest(
+            f"Map the inputs {', '.join(repr(name) for name in unfilled)}: only inputs named "
+            f"{', '.join(repr(key) for key in EVALUATOR_CONTEXT_KEYS)} are filled from the "
+            f"experiment run without a mapping"
         )
 
 

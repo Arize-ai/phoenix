@@ -83,6 +83,35 @@ def resolve_projection_policy(
     return DecisionProjectionPolicy(questions=resolved)
 
 
+def fit_projection_policy(
+    questions: list[DecisionQuestion], policy: DecisionProjectionPolicy
+) -> DecisionProjectionPolicy:
+    """Carry a saved policy to another version's questions, then materialize defaults.
+
+    Settings for a question that is gone or changed type are dropped, as are scores for
+    choices the question no longer offers; a new question gets defaults.
+    """
+    by_name = {question.name: question for question in questions}
+    kept: dict[str, DecisionQuestionProjection] = {}
+    for name, projection in policy.questions.items():
+        question = by_name.get(name)
+        if question is None or question.type != projection.type:
+            continue
+        if isinstance(projection, ChoiceProjection) and isinstance(question, ChoiceQuestion):
+            offered = {choice.value for choice in question.choices}
+            projection = projection.model_copy(
+                update={
+                    "scores": {
+                        choice: score
+                        for choice, score in projection.scores.items()
+                        if choice in offered
+                    }
+                }
+            )
+        kept[name] = projection
+    return resolve_projection_policy(questions, DecisionProjectionPolicy(questions=kept))
+
+
 def derive_decision_output_configs(
     questions: list[DecisionQuestion], policy: DecisionProjectionPolicy
 ) -> list[OutputConfigType]:

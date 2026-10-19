@@ -31,6 +31,7 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.decision_clients import TYPESAFE_DEFAULT_BASE_URL
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
 )
@@ -159,8 +160,10 @@ _CREDENTIAL_CHECK_MODEL = "test-credential-check"
 async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Exception | None:
     """Ask a System One endpoint about a model that does not exist.
 
-    The endpoint authenticates before it resolves the model, so anything but a
-    401 or 403 means the key was accepted. No model runs, so nothing is billed.
+    The endpoint authenticates before it resolves the model, so a client error
+    other than 401 or 403 (the model is rejected) means the key was accepted. A
+    rate limit or a server error says nothing about the key, so it is reported.
+    No model runs, so nothing is billed.
     """
     try:
         from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy, TypeSafeAPIError
@@ -171,7 +174,8 @@ async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Ex
         with anyio.move_on_after(10) as scope:
             async with AsyncTypeSafeClient(
                 api_key=config.typesafe_authentication_method.api_key,
-                base_url=kwargs.base_url if kwargs else None,
+                # Never the server's TYPESAFE_BASE_URL: the key goes only where it's configured.
+                base_url=(kwargs.base_url if kwargs else None) or TYPESAFE_DEFAULT_BASE_URL,
                 headers=kwargs.default_headers if kwargs else None,
                 retry=RetryPolicy(max_retries=0),
                 timeout=10,
@@ -184,7 +188,9 @@ async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Ex
         if scope.cancelled_caught:
             return TimeoutError("Request timed out after 10 seconds")
     except TypeSafeAPIError as error:
-        if error.status in (401, 403):
+        # TODO: A wrong path also answers 404, which reads as an accepted key; telling it
+        # from an unknown model needs the error body's shape.
+        if error.status in (401, 403, 408, 429) or error.status >= 500:
             return error
     except Exception as error:
         return error

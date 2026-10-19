@@ -168,6 +168,8 @@ class DecisionStateInput:
 
     def to_orm(self) -> DecisionState:
         if self.object is not UNSET:
+            if self.object is not True:
+                raise ValueError("DecisionStateInput: object must be true")
             return ObjectState(type="object")
         if self.text:
             return self.text.to_orm()

@@ -109,7 +109,8 @@ def render_state(
     dotted paths and sections still read into it.
 
     Raises:
-        ValueError: A declared input is missing, or an undeclared one is passed.
+        ValueError: A declared input is missing, or an undeclared one is passed, or a
+            template path reads a field or item the input doesn't have.
     """
     names = [input.name for input in inputs]
     # Both are named together, so a misspelled name reads as the typo it is.
@@ -132,6 +133,12 @@ def render_state(
         return formatter.format(state.template, **{name: wrap(values[name]) for name in names})
     except TemplateFormatterError as error:
         raise ValueError(str(error)) from error
+    except (AttributeError, KeyError, IndexError, TypeError) as error:
+        # F-string paths raise these from str.format_map; Mustache renders a miss as empty.
+        detail = error.args[0] if error.args else type(error).__name__
+        raise ValueError(
+            f"The state template can't be rendered from these inputs: {detail}"
+        ) from error
 
 
 class _JSONDict(dict[str, Any]):
@@ -145,21 +152,30 @@ class _JSONList(list[Any]):
 
 
 class _JSONScalar:
-    """A boolean or null that renders as JSON but keeps its truthiness for sections."""
+    """A boolean or null that renders as JSON but keeps its truthiness for sections.
+
+    It has no public attributes: a Mustache section pushes it onto the context stack,
+    so a name inside the section must fall through to the inputs.
+    """
+
+    __slots__ = ("__value",)
 
     def __init__(self, value: Any) -> None:
-        self.value = value
+        self.__value = value
 
     def __str__(self) -> str:
-        return json.dumps(self.value)
+        return json.dumps(self.__value)
 
     def __bool__(self) -> bool:
-        return bool(self.value)
+        return bool(self.__value)
+
+    def unwrap(self) -> Any:
+        return self.__value
 
 
 def _unwrap(value: Any) -> Any:
     if isinstance(value, _JSONScalar):
-        return value.value
+        return value.unwrap()
     raise TypeError(f"{type(value).__name__} is not JSON serializable")
 
 
@@ -183,20 +199,29 @@ class _JSONView:
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_") or not isinstance(self._data, dict) or name not in self._data:
-            raise AttributeError(name)
+            raise AttributeError(f"no field '{name}'")
         return _json_view(self._data[name])
 
     def __getitem__(self, key: Any) -> Any:
-        return _json_view(self._data[key])
+        try:
+            return _json_view(self._data[key])
+        except (KeyError, IndexError, TypeError):
+            raise KeyError(f"no item {key!r}") from None
 
     def __str__(self) -> str:
         return json.dumps(self._data, ensure_ascii=False)
 
+    def __format__(self, spec: str) -> str:
+        return format(str(self), spec)
+
 
 def _json_view(value: Any) -> Any:
-    """Wrap ``value`` so an F-string template renders it as JSON, at any path depth."""
+    """Wrap ``value`` so an F-string template renders it as JSON, at any path depth.
+
+    F-strings have no sections, so a boolean or null is simply its JSON literal.
+    """
     if isinstance(value, (dict, list)):
         return _JSONView(value)
     if isinstance(value, bool) or value is None:
-        return _JSONScalar(value)
+        return json.dumps(value)
     return value

@@ -181,6 +181,41 @@ async def test_bound_tag_move_rejects_breaking_questions(
     assert result.errors and "still bound" in result.errors[0].message
 
 
+async def test_unbound_tag_move_carries_the_judges_policy_to_the_new_questions(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    policy_query = """query($id:ID!){node(id:$id){... on DecisionEvaluator{projectionPolicy{
+      questions{name ... on DecisionPredicateProjection{threshold}}}}}}"""
+
+    async def move_to(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        result = await gql_client.execute(
+            CREATE_VERSION,
+            variables={
+                "input": {
+                    "decisionId": decision["id"],
+                    "version": version_input(questions=questions),
+                    "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        result = await gql_client.execute(policy_query, variables={"id": evaluator["id"]})
+        assert result.data and not result.errors, result.errors
+        policy: list[dict[str, Any]] = result.data["node"]["projectionPolicy"]["questions"]
+        return policy
+
+    urgent = {"predicate": {"name": "urgent", "instructions": "Is the ticket urgent?"}}
+    added = {"predicate": {"name": "angry", "instructions": "Is the customer angry?"}}
+    # A kept question keeps its threshold; a new one gets the default.
+    assert await move_to([urgent, added]) == [
+        {"name": "urgent", "threshold": 0.8},
+        {"name": "angry", "threshold": 0.5},
+    ]
+    # Removing the customized question no longer blocks the move.
+    assert await move_to([added]) == [{"name": "angry", "threshold": 0.5}]
+
+
 async def test_detaching_last_binding_keeps_the_standalone_judge(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
@@ -254,7 +289,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         assert result.errors
         message = result.errors[0].message
         assert "undeclared inputs" in message and "Declared inputs: 'ticket'" in message
-    # Unmapped declared inputs remain valid (auto-filled from context).
+    # An unmapped input is filled from the run only when named like a context key.
     result = await gql_client.execute(
         create,
         variables={
@@ -263,6 +298,18 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
                 "evaluatorId": evaluator["id"],
                 "name": "empty",
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+            }
+        },
+    )
+    assert result.errors and "Map the inputs 'ticket'" in result.errors[0].message
+    result = await gql_client.execute(
+        create,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": evaluator["id"],
+                "name": "empty",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input"}},
             }
         },
     )
@@ -279,6 +326,21 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         },
     )
     assert result.errors and "'ghost'" in result.errors[0].message
+    result = await gql_client.execute(
+        update,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding_id,
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+            }
+        },
+    )
+    assert result.errors and "Map the inputs 'ticket'" in result.errors[0].message
+    # Omitting the mapping keeps the saved one, which still fills ticket.
+    result = await gql_client.execute(
+        update, variables={"input": {"datasetEvaluatorId": binding_id, "description": "x"}}
+    )
+    assert result.data and not result.errors, result.errors
     result = await gql_client.execute(
         update,
         variables={
