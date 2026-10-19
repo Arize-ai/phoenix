@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -46,6 +47,30 @@ def fetch_corpus(
         cache_root,
         destination,
         downloader or _download_archive,
+    )
+
+
+def fetch_file(
+    url: str,
+    checksum: str,
+    *,
+    cache_dir: Path,
+    downloader: Downloader | None = None,
+) -> Path:
+    """Cache a pinned HTTPS file, verifying its SHA-256 even on cache hits."""
+    if urlparse(url).scheme != "https":
+        raise CorpusFetchError("Dataset source URL must use HTTPS")
+    if re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
+        raise CorpusFetchError("Dataset checksum must be a lowercase SHA-256 digest")
+    destination = cache_dir / checksum
+    if destination.is_file() and _file_sha256(destination) == checksum:
+        return destination
+    _ensure_cache_dir(cache_dir)
+    return _download_and_publish(
+        CorpusPointer(url=url, sha256=checksum),
+        cache_dir,
+        destination,
+        downloader or _download_file,
     )
 
 
@@ -156,15 +181,13 @@ def _download_and_publish(
         try:
             downloader(pointer.url, archive_path)
         except (OSError, ValueError) as error:
-            raise CorpusFetchError(f"Unable to download the datagen corpus: {error}") from error
+            raise CorpusFetchError(f"Unable to download {pointer.url}: {error}") from error
         actual_digest = _file_sha256(archive_path)
         if actual_digest != pointer.sha256:
             raise CorpusFetchError(
-                f"Datagen corpus checksum mismatch: expected {pointer.sha256}, "
+                f"Downloaded file checksum mismatch: expected {pointer.sha256}, "
                 f"downloaded {actual_digest}"
             )
-        if destination.is_file():
-            return destination
         os.replace(archive_path, destination)
         return destination
     finally:

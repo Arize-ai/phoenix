@@ -78,7 +78,7 @@ If a step fails, consult the detailed setup instructions below.
 
 ## Synthetic Trace Traffic
 
-`phoenix datagen` is an internal development tool that replays a published corpus of recorded OpenInference traces into a Phoenix collector at a steady rate, forever, until you stop it. Use it whenever you need realistic, continuously arriving data — for example when working on online evals, live-updating tables, or time-series charts.
+`phoenix datagen` is an internal development tool that seeds development datasets, then replays a published corpus of recorded OpenInference traces into a Phoenix collector at a steady rate, forever, until you stop it. Use it whenever you need realistic, continuously arriving data — for example when working on online evals, live-updating tables, or time-series charts.
 
 > **⚠️ Internal tool:** `datagen` is hidden from `phoenix --help` and is not a supported feature. Its flags, default project name, and corpus format may change in any release without a MIGRATION.md entry.
 
@@ -126,7 +126,54 @@ Command-line flags take precedence over environment variables.
 | `--burstiness` | — | `0.5` | Variability of the time between traces. `0` is perfectly uniform; higher values make traffic burstier. |
 | `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
 | `--corpus` | — | published corpus | Path to a local corpus archive to replay instead of the published one. |
+| `--no-datasets` | — | false | Skip dataset seeding and only replay traces. |
 | — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
+
+### Development datasets
+
+At startup, datagen seeds three datasets before replaying traces. It retries transient
+connection failures while the Phoenix server starts. No model inference is performed.
+
+| Dataset | Source | Examples |
+| --- | --- | --- |
+| `phoenix-datagen-jevbench-hard` | [JevBench public hard](https://github.com/fstandhartinger/jevbench/blob/main/datasets/public/hard.jsonl) | 111 |
+| `phoenix-datagen-typed-decisions` | [Typed Decisions](https://huggingface.co/datasets/LocalLLaMA/typed-decisions), configuration `all`, split `test` | 400, with five questions per example |
+| `phoenix-datagen-boolq` | [BoolQ](https://huggingface.co/datasets/google/boolq), split `validation` | 3,270 |
+
+These are datagen-owned fixtures: re-seeding replaces their contents using stable example
+IDs. Identical reimports do not create a dataset version or duplicate examples. Keep
+custom examples in a separate dataset. Reference answers, rationales, and generation
+metadata are kept out of model inputs; Typed Decisions retains its soft reference
+distributions, which measure agreement with its teacher model.
+
+Source revisions and SHA-256 checksums are pinned in
+`src/phoenix/experimental/datagen/datasets.py`. Downloads are cached under
+`${XDG_CACHE_HOME:-~/.cache}/phoenix/datagen/datasets/`, keyed by checksum. Subsequent
+restarts verify and reuse cached files without contacting GitHub or Hugging Face.
+Parquet sources use the existing PyArrow dependency; no Hugging Face library or account
+is needed. Source URLs, revisions, checksums, and licenses are recorded in example metadata.
+
+To seed datasets without starting trace replay:
+
+```bash
+uv run phoenix datagen seed
+uv run phoenix datagen seed --source typed-decisions --endpoint http://localhost:6007
+```
+
+Future datasets can use a small source adapter or the generic local JSONL/Parquet loader.
+Each canonical row has a stable string `id`, object-valued `input` and `output`, and
+optional object-valued `metadata`. It need not describe a decision model task:
+
+```json
+{"id":"example-1","input":{"query":"Hello"},"output":{"answer":"Hi"},"metadata":{}}
+```
+
+```bash
+uv run phoenix datagen seed --file examples.jsonl --name my-development-dataset
+```
+
+Use `--format parquet` for local Parquet files. Files are fully validated before upload;
+empty files, duplicate IDs, and malformed records are rejected.
 
 In `pnpm dev`, `--endpoint` is always passed explicitly (built from `PHOENIX_PORT`), so `PHOENIX_COLLECTOR_ENDPOINT` in `.env` has no effect there.
 
