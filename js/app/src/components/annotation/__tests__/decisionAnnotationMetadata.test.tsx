@@ -120,6 +120,44 @@ describe("decision annotation rendering", () => {
     );
     expect(c.textContent).toContain("n/a");
   });
+  it.each([
+    ["answered", "Answered"],
+    ["refused", "Refused"],
+    ["error", "Error"],
+  ])("capitalizes the %s status", (status, label) => {
+    const container = render(
+      <AnnotationDetailsContent
+        annotation={{ name: "judge", metadata: { decision: { status } } }}
+      />
+    );
+    expect(
+      container.querySelector("[data-testid=decision-details]")?.textContent
+    ).toContain(label);
+  });
+  it("identifies scale probabilities by their zero-based level", () => {
+    const container = render(
+      <AnnotationDetailsContent
+        annotation={{
+          name: "judge",
+          metadata: {
+            decision: {
+              status: "answered",
+              question: { name: "severity", type: "scale" },
+              answer: {
+                expected_level: 0.8,
+                probabilities: { "0": 0.2, "1": 0.8 },
+              },
+            },
+          },
+        }}
+      />
+    );
+    const text = container.querySelector(
+      "[data-testid=decision-details]"
+    )?.textContent;
+    expect(text).toContain("p(level 0)");
+    expect(text).toContain("p(level 1)");
+  });
   it("shows confidence and probabilities in details", () => {
     const c = render(
       <AnnotationDetailsContent

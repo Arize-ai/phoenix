@@ -704,6 +704,9 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   externallyUpdatedToolRevisionById: Record<number, number>;
 
+  /** Bumped when a decision is loaded in place, never during normal typing. */
+  externallyUpdatedDecisionRevisionById: Partial<Record<number, number>>;
+
   /**
    * A map of instance id to whether the instance is dirty
    */

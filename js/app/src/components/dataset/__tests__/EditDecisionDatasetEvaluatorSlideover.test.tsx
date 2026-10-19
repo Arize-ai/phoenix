@@ -280,6 +280,36 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     expect(calls(BINDING)).toHaveLength(1);
   });
 
+  it("drops removed input paths and literals when selecting another version", async () => {
+    const data = buildQueryData();
+    queryData.current = {
+      ...data,
+      dataset: {
+        ...data.dataset,
+        datasetEvaluator: {
+          ...data.dataset.datasetEvaluator,
+          inputMapping: {
+            pathMapping: {
+              question: "input.question",
+              removed: "input.removed",
+            },
+            literalMapping: { removedLiteral: "obsolete" },
+          },
+        },
+      },
+    };
+    await render();
+    await click("Pin version 2");
+    await click("Update");
+    await act(async () =>
+      calls(PATCH)[0][1].onCompleted({ patchDecisionEvaluator: {} }, null)
+    );
+    expect(calls(BINDING)[0][1].variables.input.inputMapping).toEqual({
+      pathMapping: { question: "input.question" },
+      literalMapping: {},
+    });
+  });
+
   it("shows the server's refusal and saves nothing else when the judge change is refused", async () => {
     await render();
     await click("Edit judge scoring");

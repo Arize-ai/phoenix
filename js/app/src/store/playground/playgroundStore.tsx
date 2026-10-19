@@ -548,6 +548,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
     externallyUpdatedToolRevisionById: {},
+    externallyUpdatedDecisionRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -708,6 +709,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const loaded = normalizeInstance(instance, instanceId);
       set(
         {
+          externallyUpdatedDecisionRevisionById: {
+            ...get().externallyUpdatedDecisionRevisionById,
+            [instanceId]:
+              (get().externallyUpdatedDecisionRevisionById[instanceId] ?? 0) +
+              1,
+          },
           allInstanceMessages: {
             ...get().allInstanceMessages,
             ...loaded.messages,

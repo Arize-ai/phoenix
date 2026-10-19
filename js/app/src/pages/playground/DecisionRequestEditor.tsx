@@ -79,6 +79,9 @@ export function DecisionRequestEditor({
     (state) => state.updateDecisionRequest
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const editorRevision = usePlaygroundContext(
+    (state) => state.externallyUpdatedDecisionRevisionById[instanceId] ?? 0
+  );
   // The state is the evidence the user supplies, so it takes the user
   // message tint, as a chat template's user message would.
   const stateStyles = useChatMessageStyles("user");
@@ -210,8 +213,8 @@ export function DecisionRequestEditor({
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor
-              // Uncontrolled: remount when the template format toggles.
-              key={`text-${templateFormat}`}
+              // Loading replaces the draft; typing must keep the editor mounted.
+              key={`text-${instanceId}-${editorRevision}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}
