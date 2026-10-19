@@ -6,9 +6,13 @@
 > custom providers for decisions (`openai` and `typesafe`), Ollama, and decision
 > experiments on the server, shaped like prompt tasks (see
 > [Experiments](#experiments)), and saved decisions on the server: tables,
-> versions, tags, and their GraphQL (build order step 2, without the UI). The UI
-> work is PR #16876. This spec assumes apps fetch saved decisions at run time, the way they
-> fetch prompts; that assumption is what justifies a standalone family with tags.
+> versions, tags, their GraphQL, and `runDecisionVersion` (build order step 2,
+> without the UI). The UI work is PR #16876. Where the pipeline stands against
+> prompts is in [The Complete Parallel Pipeline](#the-complete-parallel-pipeline),
+> and the choices to settle before shipping are in
+> [Forking Decisions](#forking-decisions). This spec assumes apps fetch saved
+> decisions at run time, the way they fetch prompts; that assumption is what
+> justifies a standalone family with tags.
 
 ## Summary
 
@@ -399,7 +403,10 @@ A run's output is the answers by question name, with no decision rule applied:
 ```
 
 Keyed by name so evaluators reach values by path (`output.urgent.probability`),
-the same shape as a dataset's reference answers. The model that answered and
+as a dataset's reference answers are usually keyed. The fields inside each
+answer are Phoenix's, though, and a dataset's need not match: the typed-decisions
+references carry `label` where a choice answer has `choice` (see
+[Forking Decisions](#forking-decisions)). The model that answered and
 the usage stay on the `DECISION` span, which goes to the experiment's project,
 as a prompt run's output is the response alone.
 
@@ -585,11 +592,11 @@ catalog; and decision models kept out of every chat path. The rest, by the
 
 | Stage | Chat today | Decision status | Missing |
 |---|---|---|---|
-| One run in the playground | Chat completion subscription; LLM spans | `runDecision` built | UI: the `connection` input, custom providers and Ollama in the Decision tab, free-text model names |
-| Saved definitions | Prompts, versions, and tags; playground save and load; prompt pages | Built on the server: tables, versions, tags, GraphQL CRUD; decision tasks record their version | UI: playground save and load, a decisions page |
-| Run over a dataset | Prompt tasks; experiment views and comparison | Built on the server: the task, the runner, evaluators, `DecisionTaskConfig` | UI dataset mode and answer cells |
-| Judging the runs | Dataset evaluators | Dataset evaluators attach to decision tasks (built) | Built-in decision metrics and the experiment report |
-| Apps | `phoenix-client` `prompts.get` and `format`; REST | Nothing | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures |
+| One run in the playground | Chat completion subscription; LLM spans | Built on the server: `runDecision`, and `runDecisionVersion` for a saved version | UI: the `connection` input, custom providers and Ollama in the Decision tab, free-text model names |
+| Saved definitions | Prompts, versions, and tags; playground save and load; prompt pages | Built on the server: tables, versions, tags, GraphQL CRUD, lookup by name; decision tasks record their version | UI: playground save and load, a decisions page |
+| Run over a dataset | Prompt tasks; experiment views and comparison | Built on the server: the task, the runner, evaluators, `DecisionTaskConfig`; run against a benchmark through the subscription directly | UI dataset mode and answer cells (experiment pages show answers as raw JSON) |
+| Judging the runs | Dataset evaluators | Dataset evaluators attach to decision tasks and read answers by path (built) | Built-in decision metrics and the experiment report; a [reference answer convention](#reference-answers-in-datasets) |
+| Apps | `phoenix-client` `prompts.get` and `format`; REST | Nothing | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures; [whether Phoenix translates](#translating-for-apps) |
 | Tokens and cost | LLM token counts and costs everywhere | Spans record `decision.token_count.*`; nothing reads them | Token totals on traces and experiment runs; cost only if providers publish prices |
 
 ### Judging
@@ -606,8 +613,11 @@ catalog; and decision models kept out of every chat path. The rest, by the
 
 - **Traces.** `DECISION` spans render as decisions, and replay into the
   playground (built in PR #16876).
-- **The agent.** Its playground and experiment tools understand decision panels
-  and runs.
+- **The agent.** Not yet: its playground and experiment tools don't know
+  decision panels or runs.
+- **Before shipping:** the [forking decisions](#forking-decisions), to be decided
+  as a team, and the PostgreSQL migration and tests, which have run only on
+  SQLite.
 - **Decisions that block work:**
   - [renaming questions](#open-questions) decides how the UI flags a rename;
     the tables don't depend on it, since a rename is a new version;
@@ -638,6 +648,188 @@ evaluator kinds by hand changes.
    of the danger zone.
 6. **Judging, if pursued.** The decision evaluator definition, calibration in
    the evaluator playground, dataset bindings, then online evals.
+
+## Forking Decisions
+
+Choices that are cheap to change now and expensive once stored data, apps, and
+evaluators depend on them. Each has a current default so work can proceed; each
+needs a deliberate decision before it hardens.
+
+Five of them choose a format at a boundary: the stored version, the run output,
+the span, a dataset's reference answers, and the SDK arguments handed to apps.
+At each, Phoenix can use a provider's format or its own. They are related enough
+to decide together.
+
+### Answer Format
+
+Answers are stored, returned by GraphQL, and written as experiment run outputs in
+Phoenix's own format. The alternative is to adopt a provider's format, most
+likely TypeSafe's System One ("jev"), which TypeSafe and Ollama both return.
+
+| Answer | Phoenix (current) | System One | OpenAI Decisions |
+|---|---|---|---|
+| Yes / no | `predicate`: `probability` | `noul`: `noul` | `predicate`: `probability` |
+| Choice | `choice`, `confidence`, `probabilities` (map) | Same as Phoenix | `choice`, `confidence`, `probabilities` (list of `{value, probability}`) |
+| Scale | `scale`: `expected_level`, `confidence`, `probabilities` (map) | `score`: `score`, `confidence`, `probabilities` (map), `legend` | `score`: `score`, `confidence`, `probabilities` (list of `{label, value, probability}`) |
+| Refusal | `refusal` | None | `refusal` |
+
+For a provider's format:
+
+- Familiar to that provider's users, and close to its raw response.
+- Matches the input side, where experiments already read System One questions
+  (`questionsFormat: SYSTEM_ONE`).
+- Market reach is the argument for it, but neither format is a standard: OpenAI
+  agrees with Phoenix on yes/no answers and System One on choice answers.
+
+For Phoenix's own (the current default):
+
+- **Provider-neutral.** Phoenix runs both providers; storing one's format means
+  translating the other's into it, lossily (System One has no refusal, and OpenAI
+  choices can be booleans), and following that vendor's changes (System One added
+  `legend` and `box`).
+- **One shape everywhere.** `runDecision`, GraphQL, and run outputs agree; a
+  provider format in run outputs alone would give one answer two shapes.
+- **Self-describing.** `predicate` and `probability` say what they are; `noul`
+  doesn't.
+- **Adopting a provider format wouldn't remove the reference mismatch.** The
+  typed-decisions references use `label`, which neither API returns, so
+  evaluators map different paths for output and reference either way.
+
+A narrower option: **scales.** Both providers say `score` for the type and its
+expected value; only Phoenix says `scale` and `expected_level`. Aligning would
+follow both providers without adopting either, but the name was avoided on
+purpose, because every annotation already has a `score`, and a scale answer
+mapped to an annotation would put an expected level and an annotation score side
+by side under one name (see [Questions](#questions)).
+
+Decide before run outputs become a contract: before the REST routes and
+`phoenix-client` (build order step 3) or the built-in decision metrics (step 4),
+whichever comes first. Changing it after means migrating stored run outputs and
+every evaluator mapping written against them.
+
+### Stored Question Format
+
+What `decision_versions.questions` (and the state and inputs beside them) is
+written in. [Principle 1](#principles) chose Phoenix's own vocabulary, translated
+at the edge; this records the alternative, so the choice is made on purpose.
+
+The precedent is mixed. Prompt versions store tools (`{type: "function",
+function: {name, description, parameters, strict}}`) and the response format
+(`json_schema`) in OpenAI's shape, chosen because OpenAI's was the most widely
+used. Messages, content parts, and tool choice are Phoenix's own. Decisions
+follow the same path today: the stored questions are OpenAI's, almost exactly.
+
+| Question | Phoenix (current) | OpenAI Decisions | System One |
+|---|---|---|---|
+| Collection | Ordered list, each with a `name` | Ordered list, each with an optional `name` | Object keyed by name |
+| Yes / no | `predicate`: `instructions`, optional `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, optional `criteria: {true, false}` |
+| Choice | `choice`: `choices: [{value, description}]` | The same (`value` may be a boolean) | `choice`: `criteria: {value: description}` |
+| Scale | `scale`: `levels: [{label, description}]` | `score`: `levels: [{label, description}]` | `score`: `criteria: [description, ...]`, no labels |
+| Text fields | Plain strings | Plain strings | Strings or JSON |
+| Box | `box` (later) | None | `box` |
+
+For storing System One:
+
+- **Reach.** TypeSafe is the most visible on social media, and its ecosystem
+  already uses the format: Ollama serves it, and the typed-decisions dataset
+  writes its questions in it, so they could be saved verbatim.
+- **Features arrive there first.** `box`, assets in question text, and JSON in
+  text fields are System One's; a Phoenix or OpenAI shape lags them.
+- **Cheapest to switch now.** No release has stored a decision version yet.
+
+For staying with the current (OpenAI-like) shape:
+
+- **Order survives storage.** Questions are ordered and answers come back in
+  that order. PostgreSQL's `JSONB` doesn't keep object key order, so a System
+  One object would need its order stored separately, or be turned into a list,
+  which is no longer System One.
+- **Scale levels have labels.** OpenAI requires a short label per level, and the
+  UI and annotations need one. System One levels are descriptions only, so
+  translating them yields sentence-long labels (`None: everything reconciles.`).
+- **Provider-neutral, and calmer.** Both providers translate from it, with one
+  loss each way (OpenAI has no predicate criteria; System One has no level
+  labels). Storing System One ties stored rows to the faster-changing vendor
+  (see [Stable and Volatile](#stable-and-volatile)), and `noul` and an
+  annotation-colliding `score` enter Phoenix's vocabulary.
+- **Datasets don't need it.** Experiments already read System One questions
+  from examples (`questionsFormat: SYSTEM_ONE`), whatever the stored format.
+
+Social-media visibility is a volatile signal, and it can differ from what Phoenix
+users run. The prompt precedent picked the format with the most use, which is the
+measure to check here too.
+
+Decide before saved decisions ship in a release. Until then, changing it means
+changing code; after, it means migrating stored versions under a new
+`schema_version` ([principle 7](#principles)).
+
+### Span Contents
+
+Today a `DECISION` span's `input.value` and `output.value` are the provider's own
+request and response bodies (`_record_input` and `_record_output` in
+`decision_clients.py`), so a TypeSafe span and an OpenAI span record the same
+answer in different shapes. Beside them are the `decision.*` attributes: system,
+provider, model names, and token counts.
+
+The alternative is to also record the questions and answers in one neutral form,
+as `LLM` spans carry `llm.input_messages` and `llm.output_messages` beside the raw
+bodies.
+
+- **Raw bodies only** (current): exact, and nothing to design. But every reader
+  of answers from traces (replaying a span into the playground, grouping
+  production runs by version, any metric over production traffic) has to parse
+  each provider's format, and keep up with its changes.
+- **Neutral attributes as well:** one shape for readers, at the cost of an
+  OpenInference convention to design and get adopted, since apps' own
+  instrumentation emits these spans too.
+
+Traces are stored in volume and are another tool's input, so whatever spans hold
+is what older traces hold forever. The version ID attribute (see
+[Open Questions](#open-questions)) is one piece of this. Decide with OpenInference
+before apps are instrumented against `format` (build order step 3).
+
+### Reference Answers in Datasets
+
+No convention says how a dataset holds reference answers. The typed-decisions
+dataset uses its own: `label`, `noul` or `score`, `confidence`, and per-option
+`probabilities` aggregated from several labellers. That matches neither Phoenix's
+answers nor either provider's.
+
+- **What it decides:** whether a reference is one correct answer or a
+  distribution, which limits the metrics. Accuracy needs a single answer; Brier
+  score and calibration need distributions. And which field names the built-in
+  metrics read.
+- **Options:** define a Phoenix reference format; accept a provider's answer
+  format as the reference; or require each evaluator to map paths, as today,
+  with no convention.
+- **A default already chosen in passing:** an experiment reads per-example
+  questions as System One unless told otherwise (`questionsFormat` defaults to
+  `SYSTEM_ONE`), because the first benchmark was written that way.
+
+Whatever the built-in metrics (build order step 4) accept becomes the format
+users build benchmark datasets in, including outside Phoenix. Decide with them.
+
+### Translating for Apps
+
+[App Access](#app-access) has `phoenix-client`'s `format()` turn a stored version
+into TypeSafe or OpenAI SDK arguments, in Python and TypeScript, held to the same
+fixtures as the server adapters.
+
+- **Phoenix translates** (current plan): apps switch providers without
+  rewriting, and get validation of their inputs. Phoenix owns every translation,
+  for every vendor change, in two languages, and apps break when it lags behind a
+  provider.
+- **Phoenix hands back the version:** apps use it with their vendor's SDK
+  directly. Nothing to keep in step, but only workable if versions are stored in
+  that vendor's format (see [Stored Question Format](#stored-question-format)),
+  so the two are one decision for apps on that vendor.
+
+Once apps call `format()`, removing or narrowing it breaks them. Decide before
+`phoenix-client` ships it (build order step 3).
+
+A related choice, easier to reverse: a version pins its model, as a prompt
+version does. Changing or replacing a deprecated model means a new version, and
+an app following a tag gets whatever model that version names. A per-call
+override could be added later without breaking anything.
 
 ## Open Questions
 
