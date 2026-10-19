@@ -54,6 +54,7 @@ Schema: **CreateRunner**
 | `regionId` | string | Yes |  |
 | `name` | string | Yes |  |
 | `tags` | array of string | No | Tags to associate with the runner |
+| `sandboxClass` | object | No | The sandbox class supported by the runner. Defaults to container when omitted or null. |
 
 ### Responses
 

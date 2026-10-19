@@ -3,4 +3,4 @@ type: regex
 target: {source: file, path: groundedness_eval.py}
 match: not_contains
 ---
-llm_classify|OpenAIModel|AnthropicModel|run_evals|rails\s*=|phoenix\.evals\.legacy|_PROMPT_TEMPLATE
+llm_classify|OpenAIModel|AnthropicModel|run_evals|\brails\s*=|phoenix\.evals\.legacy|default_templates

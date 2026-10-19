@@ -197,4 +197,4 @@ Each LLM span carries its full prompt. Very long sessions can exceed attribute s
 
 ## API Reference
 
-- [API docs](https://arize-phoenix.readthedocs.io/en/latest/api/helpers.html#module-client.helpers.atif)
+- [API docs](https://arize-phoenix.readthedocs.io/projects/client/api/helpers.html#module-client.helpers.atif)

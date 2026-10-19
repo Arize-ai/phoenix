@@ -2,12 +2,13 @@ import { css } from "@emotion/react";
 import {
   createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import type { AppTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 const containerCSS = css`
   min-height: 0;
@@ -28,7 +29,7 @@ type RowPreviewTableProps = {
 type RowData = Record<string, string>;
 
 // Hoisted outside component - createColumnHelper returns a stateless factory
-const columnHelper = createColumnHelper<RowData>();
+const columnHelper = createColumnHelper<AppTableFeatures, RowData>();
 
 function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) {
@@ -41,18 +42,19 @@ function formatCellValue(value: unknown): string {
 }
 
 export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
-  "use no memo";
   const tableColumns = useMemo(
     () =>
       // Use a function accessor instead of a string accessor because TanStack Table
       // interprets dots in string accessors as nested property paths (e.g. "input.question"
       // would look up row.input.question instead of row["input.question"]).
-      columns.map((col) =>
-        columnHelper.accessor((row) => row[col], {
-          id: col,
-          header: col,
-          cell: (info) => info.getValue(),
-        })
+      columnHelper.columns(
+        columns.map((col) =>
+          columnHelper.accessor((row) => row[col], {
+            id: col,
+            header: col,
+            cell: (info) => info.getValue(),
+          })
+        )
       ),
     [columns]
   );
@@ -77,11 +79,11 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
     });
   }, [rows, columns]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns: tableColumns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
   });
 
   return (

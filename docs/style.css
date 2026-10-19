@@ -418,6 +418,15 @@ html.dark :focus-visible {
   color: var(--px-t1);
 }
 
+/* Quickstart, Coding Agents, and PXI are groups only so they can expand; keyed
+   by their root pages in docs.json, they sit flush under What is Phoenix? like
+   ordinary pages instead of taking a group's top margin. */
+ul.sidebar-group:has(> li[id="/docs/phoenix/get-started"]),
+ul.sidebar-group:has(> li[id="/docs/phoenix/integrations/developer-tools/coding-agents"]),
+ul.sidebar-group:has(> li[id="/docs/phoenix/pxi"]) {
+  margin-top: 1px;
+}
+
 /* --- Table of contents --------------------------------------------------- */
 /* `data-active` is applied client-side on scroll, so it is absent from SSR. */
 

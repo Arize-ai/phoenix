@@ -1,7 +1,7 @@
-import type { CellContext } from "@tanstack/react-table";
-
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { isStringOrNullOrUndefined } from "@phoenix/typeUtils";
+
+import type { CellContext } from "./tableFeatures";
 
 /**
  * A table cell that nicely formats a timestamp

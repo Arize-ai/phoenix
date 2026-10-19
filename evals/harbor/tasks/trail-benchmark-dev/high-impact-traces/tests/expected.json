@@ -1,5 +1,5 @@
 {
   "reference": "96 traces",
-  "notes": "The count must be 96 (out of 117 traces). A count of annotations (276) rather than traces does not match.",
+  "notes": "The count of traces must be 96 (out of 117). Restating the condition, such as 'traces with at least one high-impact trail_error annotation', is fine. A count of annotations (276) rather than traces does not match.",
   "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; traces with a trail_error annotation of score 1.0 (impact HIGH)"
 }

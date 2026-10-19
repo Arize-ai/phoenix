@@ -141,6 +141,18 @@ class TraceDataset:
                 evaluations for the spans in the dataset. If provided, the evaluations
                 can be materialized into a unified dataframe as annotations.
         """
+        # A dataframe with no rows is valid — e.g. a fixture download that found no
+        # traces, or from_spans([]). Add any missing required columns (keeping the
+        # existing ones) so it passes validation and flows through normalization
+        # like a populated one. Check the row count rather than `.empty`, which is
+        # also True for a frame with rows but no columns.
+        if len(dataframe) == 0:
+            dataframe = dataframe.reindex(
+                columns=[
+                    *dataframe.columns,
+                    *(column for column in REQUIRED_COLUMNS if column not in dataframe.columns),
+                ]
+            )
         # Validate that the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
             raise ValueError(

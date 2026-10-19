@@ -103,7 +103,7 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
     if not steps:
         return {}
     tool_calls = sum(len(step.get("tool_calls") or []) for step in steps)
-    return {"tool_call_count": float(tool_calls), "agent_turn_count": float(len(steps))}
+    return {"tool_count": float(tool_calls), "turn_count": float(len(steps))}
 
 
 def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:

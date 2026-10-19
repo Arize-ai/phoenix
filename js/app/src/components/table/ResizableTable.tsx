@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -17,6 +12,8 @@ import {
 } from "./styles";
 import { TableColumnHeader } from "./TableColumnHeader";
 import { TableEmpty } from "./TableEmpty";
+import type { ColumnDef } from "./tableFeatures";
+import { appTableFeatures } from "./tableFeatures";
 
 const containerCSS = css`
   display: flex;
@@ -45,7 +42,7 @@ const resizableTableCSS = css`
  * {@link TABLE_DATA_CELL_CLASS}, so a caller can reach them with
  * `td.table__cell`.
  */
-export function ResizableTable<DataRow>({
+export function ResizableTable<DataRow extends RowData>({
   columns,
   data,
   defaultSorting,
@@ -66,23 +63,21 @@ export function ResizableTable<DataRow>({
   className?: string;
   "data-testid"?: string;
 }) {
-  "use no memo";
   const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data,
     defaultColumn: {
       minSize: 60,
     },
     columnResizeMode: "onChange",
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     state: {
       sorting,
       columnPinning: {
-        right: pinnedRightColumnIds,
+        start: [],
+        end: pinnedRightColumnIds ?? [],
       },
     },
   });

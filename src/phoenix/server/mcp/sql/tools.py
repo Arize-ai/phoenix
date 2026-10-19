@@ -87,9 +87,14 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     )
     if dialect == "sqlite":
         lines.append(
-            "-- SQLite JSON: `->` yields JSON text; use `->>` or `json_extract` for scalar "
-            "values. Cast scalar values before MIN, MAX, or ORDER BY if they may hold numeric "
-            "strings."
+            "-- SQLite JSON: use `attributes ->> '$.llm.model_name'` for a nested scalar. "
+            "`->` yields JSON text; `->>` and `json_extract` yield SQL values. "
+            "Cast numeric strings before MIN, MAX, or ORDER BY."
+        )
+    else:
+        lines.append(
+            "-- PostgreSQL JSON: `->`/`->>` read one key; `#>`/`#>>` read a path, "
+            "e.g. `attributes #>> '{llm,model_name}'`. `->>`/`#>>` return text."
         )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
@@ -201,8 +206,8 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, experiments,
-        evaluators, and prompts."""
+        """Return the active SQL dialect and allowlisted schema for telemetry, datasets,
+        experiments, evaluators, and prompts."""
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 
@@ -269,6 +274,9 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         row_limit: Optional[int] = None,
     ) -> ExecuteSqlOutput:
         """Execute read-only analytics SQL against allowlisted Phoenix tables.
+
+        Call describeSqlSchema first for the active dialect and tables. Write SQL
+        in that dialect.
 
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.

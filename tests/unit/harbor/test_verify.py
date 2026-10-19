@@ -37,7 +37,7 @@ TRAJECTORY = {
 
 
 def test_measurements_count_agent_steps_only() -> None:
-    assert verify.measurements(TRAJECTORY) == {"tool_call_count": 3.0, "agent_turn_count": 3.0}
+    assert verify.measurements(TRAJECTORY) == {"tool_count": 3.0, "turn_count": 3.0}
     assert verify.measurements(None) == {}
 
 
@@ -102,8 +102,8 @@ def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
     )
     assert scores == {
         "reward": 1.0,
-        "tool_call_count": 3.0,
-        "agent_turn_count": 3.0,
+        "tool_count": 3.0,
+        "turn_count": 3.0,
         "extra": 0.5,
     }
     assert json.loads(reward_path.read_text()) == scores

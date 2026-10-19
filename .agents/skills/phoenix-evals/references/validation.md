@@ -2,10 +2,8 @@
 
 Validate LLM judges against human labels before deploying. Target >80% agreement.
 
-This reference covers the **concepts and the bar** — what to compute and how to read it. For
-runnable code, read the implementation reference for your stack next:
-[validation-evaluators-python.md](validation-evaluators-python.md) (Python) or
-[validation-evaluators-typescript.md](validation-evaluators-typescript.md) (TypeScript).
+This page covers what to compute and the targets to hit. Runnable code is in
+`validation-evaluators-{python|typescript}.md`.
 
 ## Requirements
 
@@ -42,6 +40,8 @@ with one another.
 
 ## Quick Validation
 
+Requires scikit-learn, which no Phoenix package installs: `pip install scikit-learn`.
+
 ```python
 from sklearn.metrics import classification_report, confusion_matrix, cohen_kappa_score
 
@@ -64,8 +64,8 @@ never *why*. Always pull out the disagreements and read a handful of each:
 - **False negatives** — judge says fail, humans say pass (the judge is too strict).
 
 Reading them tells you whether the judge is miscalibrated, the prompt is ambiguous, or the
-labels themselves are wrong — and that is what drives the next prompt revision. The
-implementation reference for your stack has the code to isolate these cases (`fp_mask` /
+labels themselves are wrong — and that is what drives the next prompt revision.
+`validation-evaluators-{python|typescript}.md` has the code to isolate these cases (`fp_mask` /
 `fn_mask`) and to correct an observed production pass rate for known TPR/TNR (`correct_estimate`).
 
 ## Golden Dataset Structure
@@ -108,9 +108,4 @@ golden_v1.append(new_example)
 
 ## See Also
 
-Pick the one that matches the stack you are writing for:
-
-- [validation-evaluators-python.md](validation-evaluators-python.md) — Python code: metrics,
-  isolating false positives/negatives, correcting production estimates
-- [validation-evaluators-typescript.md](validation-evaluators-typescript.md) — TypeScript code:
-  validation as a Phoenix experiment with a confusion matrix
+- [validation-evaluators-python](validation-evaluators-python.md), [validation-evaluators-typescript](validation-evaluators-typescript.md)

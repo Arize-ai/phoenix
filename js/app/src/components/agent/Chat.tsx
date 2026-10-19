@@ -72,6 +72,7 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { isVisibleMessagePart } from "./partitionMessageParts";
+import { getPromptHistory } from "./promptHistory";
 import { PxiGlyph } from "./PxiGlyph";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
@@ -610,6 +611,7 @@ export function ChatView({
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
   const conversationUsage = getConversationUsage({ messages });
+  const promptHistory = getPromptHistory(messages);
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
@@ -650,6 +652,27 @@ export function ChatView({
       preventDefault: true,
     },
     [canToggleEditPermission, editPermissionMode, setPermissions]
+  );
+
+  // Escape cancels the in-flight response from anywhere in the chat panel. It is
+  // only enabled while a turn is streaming, so Escape keeps its normal behavior
+  // otherwise. We defer to any popup that already consumed the key: the
+  // slash-command menu the session list.
+  useHotkeys(
+    "escape",
+    (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      void stop();
+    },
+    {
+      enabled: isRequestActive,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+    },
+    [isRequestActive, stop]
   );
 
   // Quick actions track the agent contexts the assistant is advertising for the current
@@ -1037,6 +1060,7 @@ export function ChatView({
                     : undefined
                 );
               }}
+              promptHistory={promptHistory}
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}

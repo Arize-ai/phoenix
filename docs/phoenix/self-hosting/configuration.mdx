@@ -75,6 +75,10 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 
+* **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_LOG\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP log collector. Specifying this variable exports the Phoenix server's logs over OpenTelemetry, correlated with its traces.
+
+* **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_LOG\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies a gRPC endpoint for the OTLP log collector. Specifying this variable exports the Phoenix server's logs over OpenTelemetry, correlated with its traces. Prefix the endpoint with `http://` for a plaintext collector; without a scheme the exporter connects over TLS.
+
 * **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
 
 * **PHOENIX\_DEFAULT\_ADMIN\_INITIAL\_PASSWORD:** Sets the initial password for the built-in admin user (email `admin@localhost`) when that account is created on first startup. Defaults to `admin`. Changing this after the default admin already exists has no effect—update the password via the UI or an admin reset instead.
@@ -85,9 +89,9 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `MINIMAX`, `PERPLEXITY`, `TOGETHER`, `ZAI`, `META`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0.
 
-* **PHOENIX\_ENABLE\_MCP\_SERVER:** Whether to mount the built-in [remote MCP server](/docs/phoenix/integrations/remote-mcp) (currently in beta) at `/mcp`. Defaults to `true`. Set to `false` to remove the endpoint entirely.
+* **PHOENIX\_ENABLE\_MCP\_SERVER:** Whether to mount the built-in [remote MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) (currently in beta) at `/mcp`. Defaults to `true`. Set to `false` to remove the endpoint entirely.
 
-* **PHOENIX\_ENABLE\_MCP\_CODE\_MODE:** Whether the built-in MCP server presents its code-mode tool surface, including an `execute` tool that runs agent-written Python in a sandboxed interpreter. Defaults to `true`. Set to `false` to disable code execution and expose plain, group-gated tools instead. Has no effect unless the MCP server is enabled. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for details.
+* **PHOENIX\_ENABLE\_MCP\_CODE\_MODE:** Whether the built-in MCP server presents its code-mode tool surface, including an `execute` tool that runs agent-written Python in a sandboxed interpreter. Defaults to `true`. Set to `false` to disable code execution and expose plain, group-gated tools instead. Has no effect unless the MCP server is enabled. See [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server) for details.
 
 * **PHOENIX\_ENABLE\_OAUTH2\_AUTHORIZATION\_SERVER:** Whether Phoenix serves its built-in OAuth2 authorization server, which lets MCP clients and the Phoenix CLI log in interactively via the browser. Defaults to `true`. Has no effect unless authentication is enabled. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full set of `PHOENIX_OAUTH2_*` tuning variables (grant expiry, dynamic client registration, redirect host allowlists, and rate limits).
 

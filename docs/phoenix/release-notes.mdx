@@ -13,6 +13,30 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="10.13.2026" href="/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools" title="Docker Sandboxes and MCP GraphQL Tools">
+**Available in arize-phoenix 20.20.0–20.21.3, arize-phoenix-evals 3.9.1+, and @arizeai/phoenix-client 7.16.1+**
+
+Run Python and TypeScript code evaluators in Docker's hosted sandbox environment, test Claude Haiku 5.5 in the playground, and let MCP clients inspect Phoenix data through GraphQL.
+
+- **Docker Sandboxes** run code evaluators in Docker's hosted sandbox environment, with optional outbound network blocking
+- **Claude Haiku 5.5 and Mistral pricing** keep the playground and trace cost view current
+- **MCP GraphQL tools** let agents inspect the schema, run read-only queries, and run permitted mutations on write-enabled deployments
+- **Analytics SQL** over evaluators, prompts, trace annotations, experiment jobs, and more tables
+- **Evaluator fixes**: metadata stays attached, and stale input mappings no longer fail runs
+</ReleaseUpdate>
+
+<ReleaseUpdate label="10.01.2026" href="/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans" title="Trace Tree Evals and Decision Spans">
+**Available in arize-phoenix 20.17.0–20.19.0 (Python) and @arizeai/phoenix-client 7.16.0+ (TypeScript)**
+
+Scan traces for failed evals before opening a span, and trace routers, classifiers, and rubric scorers as DECISION spans. arize-phoenix 20.17.0 requires Python 3.11 or newer.
+
+- **Trace tree evals**: annotation badges under each row, unfavorable first, with mean scores and label consensus
+- **DECISION spans**: a dedicated icon, a detail view that names the decision model, and span-kind filters
+- **Project annotation configs** in the TypeScript client: assign, unassign, list, and replace configs from setup scripts
+- **Experiment token detail charts** for prompt and completion token types
+- **Air-gapped deployments** skip the WebAssembly sandbox download and the UI's update check
+</ReleaseUpdate>
+
 <ReleaseUpdate label="09.29.2026" href="/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics" title="Editable Dataset Examples, Trace Metrics, and Custom Skills">
 **Available in arize-phoenix 20.13.0–20.16.0, arize-phoenix-evals 3.9.0+ and arize-phoenix-otel 0.17.2+ (Python), @arizeai/phoenix-client 7.12.0+, @arizeai/phoenix-evals 2.6.0+ and @arizeai/phoenix-cli 1.18.6+ (TypeScript)**
 
@@ -37,6 +61,18 @@ Install Phoenix into your coding agent with one command, and run error analysis 
 - **Span cost filters** — `total_cost` and `cost_details`, plus `.identifier` on annotation lookups
 - **Prompt version metadata** over REST, GraphQL, the TypeScript client, and the playground save dialog
 - **REST** — filter expressions for traces and sessions, and `GET /v1/datasets/{dataset_identifier}/splits`
+</ReleaseUpdate>
+
+<ReleaseUpdate label="09.08.2026" href="/docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks" title="Harbor Plugin for Agent Benchmarks">
+**Available in arize-phoenix-client 3.4.0+, with trajectory traces in 3.5.0+**
+
+Benchmark agents with Harbor and the job lands in Phoenix as a dataset and one experiment per agent configuration.
+
+- **A job becomes experiments**, one per resolved agent and model configuration, with a run per trial
+- **Verifier rewards become evaluations**, with `infra_ok` separating a failed agent from a broken sandbox
+- **Trajectories become traces** with `trace_mode="atif"`, linked to the run, one session per trial
+- **Experiment names are templated** from `{job.name}`, `{agent.name}`, `{agent.model}`, and `{agent.short_digest}`
+- **Resuming is idempotent**, so a re-run tops up the same experiment
 </ReleaseUpdate>
 
 <ReleaseUpdate label="09.08.2026" href="/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi" title="New Model Providers, Trace Filters, and PXI Updates">

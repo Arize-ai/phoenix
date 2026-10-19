@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -17,6 +12,8 @@ import {
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -50,7 +47,6 @@ export function ExampleExperimentRunsTable({
 }: {
   example: ExampleExperimentRunsTableFragment$key;
 }) {
-  "use no memo";
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -214,11 +210,11 @@ export function ExampleExperimentRunsTable({
       },
     },
   ];
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

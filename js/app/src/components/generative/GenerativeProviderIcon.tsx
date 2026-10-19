@@ -1,4 +1,3 @@
-"use no memo";
 import { css } from "@emotion/react";
 import React from "react";
 
@@ -522,5 +521,10 @@ export function GenerativeProviderIcon({
   provider,
   height = 18,
 }: GenerativeProviderIconProps) {
-  return <span css={iconWrapCSS}>{PROVIDER_ICONS[provider]({ height })}</span>;
+  const ProviderSVG = PROVIDER_ICONS[provider];
+  return (
+    <span css={iconWrapCSS}>
+      <ProviderSVG height={height} />
+    </span>
+  );
 }

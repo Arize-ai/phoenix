@@ -103,3 +103,54 @@ describe("generateClassification telemetry", () => {
     );
   });
 });
+
+describe("generateClassification telemetry with a decision model", () => {
+  test("records the decision state, question and answer on the decide spans", async () => {
+    const model = {
+      specificationVersion: "v4" as const,
+      provider: "mock-provider",
+      modelId: "mock-decision-model",
+      supportedQuestionTypes: ["choice" as const],
+      doDecide: async () => ({
+        answers: {
+          label: {
+            type: "choice" as const,
+            choice: "correct",
+            probabilities: { correct: 0.9, incorrect: 0.1 },
+          },
+        },
+        usage: { inputTokens: 300, outputTokens: 0 },
+        warnings: [],
+      }),
+    };
+
+    await generateClassification({
+      model,
+      labels: ["correct", "incorrect"],
+      prompt: "Classify this answer.",
+    });
+
+    const spans = exporter.getFinishedSpans();
+    expect(spans).toHaveLength(2);
+    const [modelSpan, callSpan] = spans;
+    for (const span of spans) {
+      expect(span.name).toBe("decide mock-decision-model");
+      expect(span.instrumentationScope.name).toBe("phoenix-evals");
+      expect(span.attributes).toMatchObject({
+        "gen_ai.operation.name": "decide",
+        "gen_ai.provider.name": "mock-provider",
+      });
+      // Recorded because the integration enables `experimental_decision`.
+      expect(span.attributes["ai.decision.state"]).toContain(
+        "Classify this answer."
+      );
+      expect(span.attributes["ai.decision.answers"]).toContain(
+        '"choice":"correct"'
+      );
+    }
+    expect(modelSpan?.attributes["gen_ai.usage.input_tokens"]).toBe(300);
+    expect(modelSpan?.parentSpanContext?.spanId).toBe(
+      callSpan?.spanContext().spanId
+    );
+  });
+});

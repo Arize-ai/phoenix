@@ -249,6 +249,8 @@ jobs:
             --head "$BRANCH" \
             --title "$PR_TITLE" \
             --body-file "$BODY_FILE"
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
 
       - name: Cleanup
         if: always() && steps.guard.outputs.ready == 'true'
