@@ -237,6 +237,31 @@ describe("getExperimentsOverDatasetInput", () => {
     );
   });
 
+  it("attaches a decision dataset evaluator binding like an LLM one, by binding id and name", () => {
+    const store = createStore();
+    const decisionBinding = {
+      name: "triage-judge",
+      inputMapping: {
+        literalMapping: { policy: "strict" },
+        pathMapping: { ticket: "input.ticket" },
+      },
+    };
+
+    const input = getExperimentsOverDatasetInput({
+      ...store,
+      datasetId: DATASET_ID,
+      evaluatorMappings: {
+        ...EVALUATOR_MAPPINGS,
+        RGF0YXNldEV2YWx1YXRvcjoy: decisionBinding,
+      },
+    });
+
+    expect(input.tasks[0].prompt?.evaluators).toEqual([
+      expect.objectContaining({ id: "RGF0YXNldEV2YWx1YXRvcjox" }),
+      { id: "RGF0YXNldEV2YWx1YXRvcjoy", ...decisionBinding },
+    ]);
+  });
+
   it("sends a prompt and a decision in one run, each as its own task, and records the saved version", () => {
     const store = createStore();
     const decisionId = store.playgroundStore

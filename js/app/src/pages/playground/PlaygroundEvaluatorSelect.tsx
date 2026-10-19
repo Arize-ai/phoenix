@@ -140,7 +140,9 @@ export function PlaygroundEvaluatorSelect(
                       key={evaluator.id}
                       evaluator={evaluator}
                       onOpenPlayground={
-                        evaluator.isBuiltIn
+                        // TODO(decision-evaluators): no evaluator-task playground
+                        // for a decision judge until milestone 2.
+                        evaluator.isBuiltIn || evaluator.kind === "DECISION"
                           ? undefined
                           : () => {
                               setEvaluatorMenuOpen(false);
@@ -150,7 +152,10 @@ export function PlaygroundEvaluatorSelect(
                             }
                       }
                       isSelected={selectedIds?.includes(evaluator.id) ?? false}
+                      // TODO(decision-evaluators): the decision editor is wave 2;
+                      // opening nothing keeps DECISION out of the LLM/CODE editors.
                       onEdit={() =>
+                        evaluator.kind !== "DECISION" &&
                         onEdit({
                           datasetEvaluatorId: evaluator.id,
                           kind: evaluator.kind,
