@@ -191,7 +191,7 @@ export function SavePromptForm({
                 )?.prompt?.name;
                 if (selectedName) {
                   setPromptInputValue(selectedName);
-                } else if (selectedPrompt) {
+                } else if (promptId == null && selectedPrompt) {
                   const deselectedName = selectedPrompt.prompt.name;
                   setPromptInputValue((current) =>
                     current === deselectedName ? "" : current
