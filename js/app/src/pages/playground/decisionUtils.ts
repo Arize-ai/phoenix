@@ -650,6 +650,32 @@ function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
 }
 
 /**
+ * Root input names referenced by a text state template.
+ *
+ * Dotted and indexed paths (e.g. `{ticket.subject}` or `{items[0]}`) name their
+ * root input (`ticket`, `items`), matching the server's `validate_inputs`.
+ *
+ * TODO: Names inside a Mustache section (e.g. `{{#ticket}}{{other}}{{/ticket}}`)
+ * can resolve against the section's own fields, so `extractVariablesFromMustacheLike`
+ * only extracts top-level names until inputs declare a `jsonSchema`.
+ */
+function stateTemplateVariables(
+  template: string,
+  templateFormat: TemplateFormat | undefined
+): string[] {
+  if (!templateFormat) return [];
+  const raw = getTemplateFormatUtils(templateFormat).extractVariables(template);
+  return Array.from(
+    new Set(
+      raw.map((path) => {
+        const match = path.match(/^([^.[\]]+)/);
+        return match ? match[1] : path;
+      })
+    )
+  );
+}
+
+/**
  * How the state reaches the server. A text state with template variables is
  * sent as a template over those variables, so the server renders it. A JSON
  * object is sent as an object state, one input per key, and so are listed
@@ -689,10 +715,9 @@ function toStateInput({
     return wholeStateInput(parsed);
   }
   const serverFormat = toServerTemplateFormat(templateFormat);
-  const names =
-    serverFormat && templateFormat
-      ? getTemplateFormatUtils(templateFormat).extractVariables(draft.state)
-      : [];
+  const names = serverFormat
+    ? stateTemplateVariables(draft.state, templateFormat)
+    : [];
   if (!serverFormat || names.length === 0) {
     return wholeStateInput(draft.state);
   }
@@ -820,9 +845,7 @@ export function getDecisionDatasetProblem({
     if (draft.stateFormat !== "text" || !serverFormat) {
       return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
     }
-    const names = getTemplateFormatUtils(templateFormat).extractVariables(
-      draft.state
-    );
+    const names = stateTemplateVariables(draft.state, templateFormat);
     if (names.length === 0) {
       return `${when}, the state needs a template variable that ${filler} fills.`;
     }
@@ -919,9 +942,7 @@ export function buildDecisionTaskDefinition({
   }
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (!serverFormat) throw new Error("Unsupported template format");
-  const names = getTemplateFormatUtils(templateFormat).extractVariables(
-    draft.state
-  );
+  const names = stateTemplateVariables(draft.state, templateFormat);
   const sole = soleStateVariable({
     template: draft.state,
     templateFormat,
@@ -1466,14 +1487,22 @@ export function extractDecisionVariables({
   draft: DecisionRequestDraft | null | undefined;
   templateFormat: TemplateFormat;
 }): string[] {
-  if (!draft || templateFormat === TemplateFormats.NONE) return [];
-  const { extractVariables } = getTemplateFormatUtils(templateFormat);
+  if (!draft) return [];
   const found = new Set<string>();
-  const addVariablesFrom = (text: string) =>
-    extractVariables(text).forEach((variable) => found.add(variable));
   if (draft.stateFormat === "inputs") {
     parseStateInputNames(draft.state).forEach((name) => found.add(name));
-  } else {
+  }
+  if (templateFormat === TemplateFormats.NONE) {
+    return Array.from(found);
+  }
+  const { extractVariables } = getTemplateFormatUtils(templateFormat);
+  const addVariablesFrom = (text: string) =>
+    extractVariables(text).forEach((variable) => found.add(variable));
+  if (draft.stateFormat === "text") {
+    stateTemplateVariables(draft.state, templateFormat).forEach((variable) =>
+      found.add(variable)
+    );
+  } else if (draft.stateFormat === "json") {
     addVariablesFrom(draft.state);
   }
   for (const question of draft.questions) {

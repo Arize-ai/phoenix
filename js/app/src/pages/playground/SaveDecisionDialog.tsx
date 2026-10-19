@@ -171,9 +171,12 @@ function SaveDecisionForm({
     // Defaults, not `values`: picking a decision while typing must not reset
     // the description and tags already entered.
     defaultValues: {
-      name: selectedDecision?.name ?? loadedDecision?.name ?? "",
+      name: selectedDecision?.name ?? "",
       description: "",
-      tags: loadedDecision?.tag ? [loadedDecision.tag] : [],
+      tags:
+        loadedDecision?.tag && availableTags.includes(loadedDecision.tag)
+          ? [loadedDecision.tag]
+          : [],
     },
     mode: "onChange",
   });
@@ -218,7 +221,11 @@ function SaveDecisionForm({
         onError(error instanceof Error ? error.message : String(error));
         return;
       }
-      const tags = values.tags.map((name) => ({ name }));
+      const availableTagSet = new Set(availableTags);
+      const visibleTags = values.tags.filter((name) =>
+        availableTagSet.has(name)
+      );
+      const tags = visibleTags.map((name) => ({ name }));
       const onMutationError = (error: Error) =>
         onError(
           getErrorMessagesFromRelayMutationError(error)?.[0] ??
@@ -234,7 +241,7 @@ function SaveDecisionForm({
               id: createDecisionVersion.id,
               name: createDecisionVersion.name,
               versionId: createDecisionVersion.version?.id ?? "",
-              tag: values.tags[0] ?? null,
+              tag: visibleTags[0] ?? null,
             }),
           onError: onMutationError,
         });
@@ -247,12 +254,13 @@ function SaveDecisionForm({
             id: createDecision.id,
             name: createDecision.name,
             versionId: createDecision.version?.id ?? "",
-            tag: values.tags[0] ?? null,
+            tag: visibleTags[0] ?? null,
           }),
         onError: onMutationError,
       });
     },
     [
+      availableTags,
       createDecision,
       createVersion,
       instanceId,

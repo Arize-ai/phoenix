@@ -648,6 +648,12 @@ describe("runDecision input", () => {
         templateFormat: TemplateFormats.Mustache,
       })
     ).toEqual(["reference", "output"]);
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.NONE,
+      })
+    ).toEqual(["reference", "output"]);
   });
 
   it("runs listed inputs over a dataset as an object state", () => {
@@ -866,6 +872,49 @@ describe("decision tasks over a dataset", () => {
         },
       },
     });
+  });
+
+  it("deduplicates repeated f-string variables and extracts root input names from paths", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      state: "{ticket.subject}: {ticket[0]} ({topic} / {topic})",
+    };
+    expect(
+      buildDecisionTaskDefinition({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }, { name: "topic" }],
+      state: {
+        text: {
+          template: "{ticket.subject}: {ticket[0]} ({topic} / {topic})",
+          templateFormat: "F_STRING",
+        },
+      },
+    });
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: TemplateFormats.FString,
+        variables: { ticket: "Refund", topic: "billing" },
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }, { name: "topic" }],
+      state: {
+        text: {
+          template: "{ticket.subject}: {ticket[0]} ({topic} / {topic})",
+          templateFormat: "F_STRING",
+        },
+      },
+      inputValues: { ticket: "Refund", topic: "billing" },
+    });
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.FString,
+      })
+    ).toEqual(["ticket", "topic"]);
   });
 
   it("explains what a dataset can't fill", () => {

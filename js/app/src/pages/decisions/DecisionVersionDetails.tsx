@@ -38,6 +38,9 @@ const definitionFragment = graphql`
     }
     state {
       __typename
+      ... on DecisionObjectState {
+        object
+      }
       ... on DecisionTextState {
         template
         templateFormat

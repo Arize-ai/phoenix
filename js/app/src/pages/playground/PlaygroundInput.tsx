@@ -28,7 +28,20 @@ export function PlaygroundInput() {
         break;
       }
       case TemplateFormats.NONE: {
-        return null;
+        if (!isDecision) return null;
+        return (
+          <View padding="size-100">
+            <Flex
+              direction="column"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Text color="text-700">
+                List input names in the decision state to fill them in here.
+              </Text>
+            </Flex>
+          </View>
+        );
       }
       default:
         assertUnreachable(templateFormat);

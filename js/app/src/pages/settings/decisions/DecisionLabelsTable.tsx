@@ -1,9 +1,4 @@
-import { flexRender } from "@tanstack/react-table";
-import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useLegacyTable,
-} from "@tanstack/react-table/legacy";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -12,6 +7,7 @@ import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { DeleteDecisionLabelButton } from "@phoenix/pages/settings/decisions/DeleteDecisionLabelButton";
 
 import type { DecisionLabelsTableFragment$key } from "./__generated__/DecisionLabelsTableFragment.graphql";
@@ -21,7 +17,6 @@ export function DecisionLabelsTable({
 }: {
   query: DecisionLabelsTableFragment$key;
 }) {
-  "use no memo";
   const data = useFragment<DecisionLabelsTableFragment$key>(
     graphql`
       fragment DecisionLabelsTableFragment on Query
@@ -47,8 +42,8 @@ export function DecisionLabelsTable({
     [data.decisionLabels.edges]
   );
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useLegacyTable<(typeof tableData)[number]>({
+  const table = useTable({
+    features: appTableFeatures,
     columns: [
       {
         header: "label",
@@ -83,8 +78,6 @@ export function DecisionLabelsTable({
       },
     ],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;

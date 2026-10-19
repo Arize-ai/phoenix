@@ -31,6 +31,14 @@ describe("decision definition comparison", () => {
       })
     );
     expect(decisionVersionToText(version)).not.toContain("__typename");
+    expect(
+      JSON.parse(
+        decisionVersionToText({
+          ...version,
+          state: { __typename: "DecisionObjectState", object: true },
+        })
+      ).state
+    ).toEqual({ object: true });
   });
   it("includes question content, model, and provider routing changes", () => {
     for (const changed of [

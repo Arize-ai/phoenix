@@ -1273,9 +1273,6 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
   // A decision instance carries its variables in the request's text fields;
   // its chat template is the one it restores when switched back to an LLM.
   if (isDecisionInstance(instance)) {
@@ -1283,6 +1280,9 @@ export const extractVariablesFromInstance = ({
       draft: instance.decisionRequest,
       templateFormat,
     });
+  }
+  if (templateFormat === TemplateFormats.NONE) {
+    return [];
   }
   const variables = new Set<string>();
   const instanceType = instance.template.__type;
@@ -1327,9 +1327,6 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
@@ -1370,13 +1367,13 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return { variablesMap: {}, variableKeys: [] };
-  }
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateFormat,
   });
+  if (variableKeys.length === 0) {
+    return { variablesMap: {}, variableKeys: [] };
+  }
 
   const variableValueCache = input.variablesValueCache ?? {};
 
