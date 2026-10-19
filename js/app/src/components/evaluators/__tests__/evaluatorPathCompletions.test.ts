@@ -9,14 +9,18 @@ import type { EvaluatorPathCompletion } from "../evaluatorPathCompletions";
 import {
   appendPathSegment,
   applyEvaluatorPathCompletion,
-  CONTAINER_COMPLETION_TYPE,
+  EMPTY_COMPLETION_TYPE,
+  FAN_OUT_COMPLETION_TYPE,
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
+  getEvaluatorPathSubmenuRows,
   IDEA_COMPLETION_TYPE,
+  IDEA_FIRST_COMPLETION_TYPE,
   MAX_BROWSE_MEMBERS,
   PATH_CONTINUATION_SECTION_RANK,
   PATH_MEMBER_SECTION_RANK,
   resolveEvaluatorPath,
+  SUBMENU_COMPLETION_TYPE,
   SUGGESTED_PATH_SECTION,
   toMemberSection,
   UNSET_COMPLETION_TYPE,
@@ -25,6 +29,9 @@ import {
   getEvaluatorPathIdeas,
   MAPPING_PATH_SYNTAX,
 } from "../evaluatorPathIdeas";
+
+/** The classes every path-field idea row carries. */
+const IDEA_TYPE = `${IDEA_COMPLETION_TYPE} ${IDEA_FIRST_COMPLETION_TYPE}`;
 
 const SPAN_SOURCE: Record<string, unknown> = {
   input: "what is the weather?",
@@ -257,21 +264,45 @@ describe("getEvaluatorPathCompletions", () => {
   it("previews the value each member holds on the record", () => {
     const result = completionsFor("metadata.attributes.llm.");
 
-    expect(result?.completions.map(({ key, detail }) => [key, detail])).toEqual(
-      [
-        ["model_name", "gpt-4o-mini"],
-        ["token_count", "object · 1"],
-      ]
-    );
+    expect(
+      result?.completions.map(({ key, detail, count }) => [key, detail, count])
+    ).toEqual([
+      ["model_name", "gpt-4o-mini", undefined],
+      ["token_count", "", { value: 1, noun: "field" }],
+    ]);
   });
 
-  it("describes a branch by what it is rather than by its contents", () => {
+  it("counts what a branch holds rather than naming its type", () => {
     const byKey = new Map(
-      completionsFor("metadata.")?.completions.map((c) => [c.key, c.detail])
+      completionsFor("metadata.")?.completions.map((c) => [c.key, c])
     );
 
-    expect(byKey.get("attributes")).toBe("object · 2");
-    expect(byKey.get("events")).toBe("list · 1");
+    expect(byKey.get("attributes")).toMatchObject({
+      detail: "",
+      count: { value: 2, noun: "field" },
+    });
+    expect(byKey.get("events")).toMatchObject({
+      detail: "",
+      count: { value: 1, noun: "item" },
+    });
+  });
+
+  it("says a branch with nothing in it is empty, without a count", () => {
+    const result = completionsFor("metadata.", {
+      metadata: { events: [], attributes: {} },
+    });
+
+    expect(
+      result?.completions.map(({ key, detail, count, type }) => [
+        key,
+        detail,
+        count,
+        type,
+      ])
+    ).toEqual([
+      ["events", "empty", undefined, EMPTY_COMPLETION_TYPE],
+      ["attributes", "empty", undefined, EMPTY_COMPLETION_TYPE],
+    ]);
   });
 
   it("leads each level with its ideas, written from the level", () => {
@@ -279,27 +310,37 @@ describe("getEvaluatorPathCompletions", () => {
 
     // A list's rows are subscripts, matched from the bracket that opens one.
     expect(result?.from).toBe(14);
-    // An idea shows its path beside what it reaches, and previews its value
-    // when highlighted.
+    // An idea leads with what it reaches and keeps its path beside it; a
+    // fan-out says what it does with the values it reads.
     expect(
-      result?.completions.map(({ key, path, detail, info }) => [
+      result?.completions.map(({ key, path, displayKey, detail, note }) => [
         key,
         path,
+        displayKey,
         detail,
-        info,
+        note,
       ])
     ).toEqual([
       [
         "[-1].content",
         "input.messages[-1].content",
         "Last message",
-        "What is the weather?",
+        "[-1].content",
+        undefined,
       ],
-      ["[0]", "input.messages[0]", "First message", "object · 2"],
-      ["[-1]", "input.messages[-1]", "Last message", "object · 2"],
-      ["[*]", "input.messages[*]", "All messages", "list · 2"],
-      ["[:-1]", "input.messages[:-1]", "All but last", "object · 2"],
+      ["[0]", "input.messages[0]", "First message", "[0]", undefined],
+      ["[-1]", "input.messages[-1]", "Last message", "[-1]", undefined],
+      [
+        "[*]",
+        "input.messages[*]",
+        "Every message, as a list",
+        "[*]",
+        "A list of every message",
+      ],
+      ["[:-1]", "input.messages[:-1]", "All but last", "[:-1]", "1 message"],
     ]);
+    // Highlighting an idea previews the value it reads.
+    expect(result?.completions[0]?.info).toBe("What is the weather?");
     expect(
       result?.completions.every(
         ({ section }) => section === SUGGESTED_PATH_SECTION
@@ -338,10 +379,14 @@ describe("getEvaluatorPathCompletions", () => {
     expect(
       result?.completions.map(({ key, path, detail }) => [key, path, detail])
     ).toEqual([
-      ["id", "output.documents[*].id", "list · 2"],
+      ["id", "output.documents[*].id", "A list of each document's value"],
       ["content", "output.documents[*].content", "Sunny"],
       ["score", "output.documents[*].score", "0.4"],
     ]);
+    expect(result?.completions[0]?.type).toBe(FAN_OUT_COMPLETION_TYPE);
+    expect(result?.completions[0]?.section.name).toBe(
+      "Each document in output.documents"
+    );
   });
 
   // A row that holds more reopens on what it holds, and that menu leads with
@@ -356,7 +401,7 @@ describe("getEvaluatorPathCompletions", () => {
       ["[:-1]", true],
     ]);
     expect(ideas?.completions[1]?.type).toBe(
-      `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`
+      `${IDEA_COMPLETION_TYPE} ${IDEA_FIRST_COMPLETION_TYPE} ${SUBMENU_COMPLETION_TYPE}`
     );
 
     const reopened = completionsFor("input.messages", CHAT_SOURCE, "span");
@@ -375,9 +420,9 @@ describe("getEvaluatorPathCompletions", () => {
     const input: EvaluatorPathCompletion = {
       key: "input",
       path: "input",
-      detail: "object · 1",
+      detail: "",
       section: { name: "Evaluator input", rank: 1 },
-      type: CONTAINER_COMPLETION_TYPE,
+      type: SUBMENU_COMPLETION_TYPE,
       drills: true,
     };
     const result = completionsFor("input", CHAT_SOURCE, "span", [input]);
@@ -386,23 +431,11 @@ describe("getEvaluatorPathCompletions", () => {
       result?.completions.map(({ key, drills, type }) => [key, drills, type])
     ).toEqual([
       ["input", false, "variable"],
-      ["input.messages[-1].content", false, IDEA_COMPLETION_TYPE],
-      [
-        "input.messages",
-        true,
-        `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`,
-      ],
-      [
-        "input.messages[-1]",
-        true,
-        `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`,
-      ],
-      ["input.messages[*].content", false, IDEA_COMPLETION_TYPE],
-      [
-        "input.tools",
-        false,
-        `${IDEA_COMPLETION_TYPE} ${UNSET_COMPLETION_TYPE}`,
-      ],
+      ["input.messages[-1].content", false, IDEA_TYPE],
+      ["input.messages", true, `${IDEA_TYPE} ${SUBMENU_COMPLETION_TYPE}`],
+      ["input.messages[-1]", true, `${IDEA_TYPE} ${SUBMENU_COMPLETION_TYPE}`],
+      ["input.messages[*].content", false, IDEA_TYPE],
+      ["input.tools", false, `${IDEA_TYPE} ${UNSET_COMPLETION_TYPE}`],
     ]);
   });
 
@@ -543,9 +576,10 @@ describe("getEvaluatorPathCompletions", () => {
     ).toEqual({
       key: "tools",
       path: "input.tools",
-      detail: "Available tools",
+      displayKey: "Available tools",
+      detail: "tools",
       info: "Not here",
-      type: `${IDEA_COMPLETION_TYPE} ${UNSET_COMPLETION_TYPE}`,
+      type: `${IDEA_TYPE} ${UNSET_COMPLETION_TYPE}`,
       section: SUGGESTED_PATH_SECTION,
       drills: false,
       boost: 1,
@@ -756,5 +790,34 @@ describe("applyEvaluatorPathCompletion", () => {
         "']"
       )
     ).toEqual({ doc: "metadata['llm']", head: 15 });
+  });
+});
+
+describe("getEvaluatorPathSubmenuRows", () => {
+  // The panel beside a row offers what accepting the row would open, so the
+  // two can never disagree about what is inside.
+  it("offers the level a row opens, written from the row", () => {
+    const rows = getEvaluatorPathSubmenuRows({
+      source: CHAT_SOURCE,
+      getIdeas: (containerPath) =>
+        getEvaluatorPathIdeas({
+          recordKind: "span",
+          source: CHAT_SOURCE,
+          containerPath,
+          syntax: MAPPING_PATH_SYNTAX,
+        }),
+      path: "input.messages[0]",
+    });
+
+    expect(rows.map(({ key, path, detail }) => [key, path, detail])).toEqual([
+      ["role", "input.messages[0].role", "system"],
+      ["content", "input.messages[0].content", "Be brief."],
+    ]);
+  });
+
+  it("offers nothing below a value that holds nothing", () => {
+    expect(
+      getEvaluatorPathSubmenuRows({ source: CHAT_SOURCE, path: "input.nope" })
+    ).toEqual([]);
   });
 });

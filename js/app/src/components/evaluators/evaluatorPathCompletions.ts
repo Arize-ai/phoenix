@@ -14,6 +14,10 @@ import {
   isPlainEvaluatorPathKey,
   parseEvaluatorPath,
 } from "./evaluatorJsonPath";
+import {
+  describeEvaluatorPathFanOut,
+  describeEvaluatorPathWildcardLevel,
+} from "./evaluatorPathWords";
 
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
@@ -218,10 +222,36 @@ export function isEvaluatorPathContainer(value: unknown): boolean {
 /** A row that describes what it reaches rather than spelling the path. */
 export const IDEA_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}idea`;
 
+/**
+ * A path-field idea, which leads with its description and keeps its path
+ * beside it — the other way round from an idea the template editor offers.
+ */
+export const IDEA_FIRST_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}idea-first`;
+
 /** A row for a name the selected record does not supply; dimmed, not dropped. */
 export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`;
 
+/**
+ * A path-field row that holds more. Hovering it opens the level below in a
+ * side panel, so — unlike `CONTAINER_COMPLETION_TYPE` — it carries no chevron.
+ */
+export const SUBMENU_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}submenu`;
+
+/** A row for a container with nothing in it; its detail says so in prose. */
+export const EMPTY_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}empty`;
+
+/** A row whose detail says what a fan-out does, in prose. */
+export const FAN_OUT_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}fan-out`;
+
 const UNRESOLVED_IDEA_INFO = "Not here";
+
+export const EMPTY_CONTAINER_DETAIL = "empty";
+
+/** How much of a value the side panel previews, against a row's 48. */
+const INFO_PREVIEW_LENGTH = 240;
+
+/** How many members a container holds, shown as a badge on its row. */
+export type EvaluatorPathCount = { value: number; noun: "item" | "field" };
 
 export function toMemberCompletionType(value: unknown): string {
   return isEvaluatorPathContainer(value)
@@ -266,6 +296,15 @@ export type EvaluatorPathCompletion = {
   info?: string;
   /** Whether the row names a container the path can keep reaching into. */
   drills?: boolean;
+  /**
+   * What the row shows in place of `key`, which it is still matched by: an
+   * idea's description, or a name with the home every row shares left off.
+   */
+  displayKey?: string;
+  /** How many members a container row holds. */
+  count?: EvaluatorPathCount;
+  /** What a path that reads several values does with them. */
+  note?: string;
 };
 
 /**
@@ -281,19 +320,34 @@ export function applyEvaluatorPathCompletion(
     _completion: Completion,
     _from: number,
     to: number
-  ) => {
-    view.dispatch({
-      changes: {
-        from: 0,
-        to: getReplacedEnd({ state: view.state, to }),
-        insert: completion.path,
-      },
-      selection: { anchor: completion.path.length },
-    });
-    if (completion.drills) {
-      startCompletion(view);
-    }
-  };
+  ) => writeEvaluatorPathCompletion({ view, completion, to });
+}
+
+/**
+ * Writes a row's whole path over the text up to `to`, reopening the menu on
+ * what comes next when the row holds more. The side panel writes its rows
+ * through this too, from outside the menu's own accept.
+ */
+export function writeEvaluatorPathCompletion({
+  view,
+  completion,
+  to,
+}: {
+  view: EditorView;
+  completion: EvaluatorPathCompletion;
+  to: number;
+}) {
+  view.dispatch({
+    changes: {
+      from: 0,
+      to: getReplacedEnd({ state: view.state, to }),
+      insert: completion.path,
+    },
+    selection: { anchor: completion.path.length },
+  });
+  if (completion.drills) {
+    startCompletion(view);
+  }
 }
 
 /**
@@ -378,6 +432,20 @@ export function toMemberSection(
   rank: number
 ): CompletionSection {
   return { name: containerPath, rank };
+}
+
+/**
+ * The heading of a level the path field drills into: the path that reaches it,
+ * or what a `*` makes of it — "Each message in input.messages".
+ */
+export function toPathLevelSection(
+  containerPath: string,
+  rank: number
+): CompletionSection {
+  return {
+    name: describeEvaluatorPathWildcardLevel(containerPath) ?? containerPath,
+    rank,
+  };
 }
 
 /** Where a drill level sits among the path field's own groups. */
@@ -482,7 +550,7 @@ export function getEvaluatorPathCompletions({
       typedKey !== null &&
       toRelativePath(row.path, containerPath) === typedKey
   );
-  const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
+  const section = toPathLevelSection(containerPath, PATH_MEMBER_SECTION_RANK);
   const completions =
     typed === undefined
       ? [
@@ -559,7 +627,7 @@ function getRootCompletions({
           ...typed,
           drills: false,
           type:
-            typed.type === CONTAINER_COMPLETION_TYPE ? "variable" : typed.type,
+            typed.type === SUBMENU_COMPLETION_TYPE ? "variable" : typed.type,
         },
         ...getBelowCompletions({
           source,
@@ -637,7 +705,7 @@ function getClosedSubscriptCompletions({
       toFinishedCompletion({
         row: typed,
         key: toKey(typed.path),
-        section: toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK),
+        section: toPathLevelSection(containerPath, PATH_MEMBER_SECTION_RANK),
       }),
       ...getBelowCompletions({ source, getIdeas, path: typed.path, toKey }),
     ],
@@ -684,7 +752,7 @@ function getBelowCompletions({
     ...SUGGESTED_PATH_SECTION,
     rank: PATH_CONTINUATION_SECTION_RANK,
   };
-  const fieldSection = toMemberSection(
+  const fieldSection = toPathLevelSection(
     path,
     PATH_CONTINUATION_SECTION_RANK + 1
   );
@@ -697,6 +765,27 @@ function getBelowCompletions({
         toLevelCompletion({ row, key: toKey(row.path), section: fieldSection })
     ),
   ];
+}
+
+/**
+ * The level below a row that holds more, as the side panel beside it offers
+ * it: the same rows accepting the row would open, written from the row on.
+ */
+export function getEvaluatorPathSubmenuRows({
+  source,
+  getIdeas = NO_IDEAS,
+  path,
+}: {
+  source: Record<string, unknown>;
+  getIdeas?: EvaluatorPathIdeaSource;
+  path: string;
+}): EvaluatorPathCompletion[] {
+  return getBelowCompletions({
+    source,
+    getIdeas,
+    path,
+    toKey: (rowPath) => toRelativePath(rowPath, path),
+  });
 }
 
 /**
@@ -736,6 +825,8 @@ function getTypedKey({
 type EvaluatorPathLevelRow = {
   path: string;
   value: unknown;
+  /** How many values the path reads; more than one binds them as a list. */
+  matchCount: number;
   /** Whether what the path reads has members of its own to drill into. */
   holdsMore: boolean;
   /** For an idea: what it reaches. */
@@ -796,6 +887,7 @@ function getEvaluatorPathLevel({
       (member) => ({
         path: member.path,
         value: member.value,
+        matchCount: 1,
         holdsMore: holdsMore({ value: member.value, matches: [member.value] }),
       })
     );
@@ -814,8 +906,17 @@ function toIdeaRows(
     idea: idea.description,
     boost: ideas.length - index,
     ...(idea.status === "resolved"
-      ? { value: idea.value, holdsMore: holdsMore(idea) }
-      : { value: undefined, holdsMore: false, isUnresolved: true }),
+      ? {
+          value: idea.value,
+          matchCount: idea.matches.length,
+          holdsMore: holdsMore(idea),
+        }
+      : {
+          value: undefined,
+          matchCount: 0,
+          holdsMore: false,
+          isUnresolved: true,
+        }),
   }));
 }
 
@@ -830,7 +931,14 @@ function resolveLevelRow({
   if (resolution.status !== "resolved") {
     return [];
   }
-  return [{ path, value: resolution.value, holdsMore: holdsMore(resolution) }];
+  return [
+    {
+      path,
+      value: resolution.value,
+      matchCount: resolution.matches.length,
+      holdsMore: holdsMore(resolution),
+    },
+  ];
 }
 
 /** Whether a value has members to drill into: a non-empty list or object. */
@@ -870,6 +978,11 @@ function getMatchedFields(matches: readonly unknown[]): string[] {
   return [...fields];
 }
 
+/**
+ * One row of a drill level. An idea leads with what it reaches and keeps its
+ * path beside it; a field leads with its name and shows what it holds — a
+ * value, a count of members, or what a fan-out does with the values it reads.
+ */
 function toLevelCompletion({
   row,
   key,
@@ -879,24 +992,107 @@ function toLevelCompletion({
   key: string;
   section: CompletionSection;
 }): EvaluatorPathCompletion {
-  const preview = row.isUnresolved
+  const isIdea = row.idea !== undefined;
+  const note = toLevelNote(row);
+  // A fan-out's value is the list of what it read, not a container the
+  // author wrote, so its count is said in the note instead of a badge.
+  const count = note === null ? toEvaluatorPathCount(row.value) : null;
+  const isEmpty = count?.value === 0;
+  const info = row.isUnresolved
     ? UNRESOLVED_IDEA_INFO
-    : toMemberPreview(row.value);
-  const type = [
-    ...(row.idea !== undefined ? [IDEA_COMPLETION_TYPE] : []),
-    ...(row.isUnresolved ? [UNSET_COMPLETION_TYPE] : []),
-    ...(row.holdsMore ? [CONTAINER_COMPLETION_TYPE] : []),
-  ].join(" ");
+    : toInfoPreview(row.value);
   return {
     key,
     path: row.path,
-    detail: row.idea ?? preview,
-    type: type || "variable",
+    detail: isIdea ? key : toFieldDetail({ row, note, count }),
+    type: toLevelRowType({ row, note, isEmpty }),
     section,
     drills: row.holdsMore,
-    ...(row.idea !== undefined && preview !== "" ? { info: preview } : {}),
+    ...(isIdea ? { displayKey: row.idea } : {}),
+    ...(count !== null && !isEmpty ? { count } : {}),
+    ...(note !== null ? { note } : {}),
+    // A fan-out's detail says what it does, so the values it reads go in the
+    // panel, as an idea's do.
+    ...((isIdea || note !== null) && info !== "" ? { info } : {}),
     ...(row.boost !== undefined ? { boost: row.boost } : {}),
   };
+}
+
+/**
+ * What a row that reads several values says about them. A field only says so
+ * when it does read several; an idea says so either way, since its single
+ * match binding on its own is exactly what an author would not expect.
+ */
+function toLevelNote(row: EvaluatorPathLevelRow): string | null {
+  if (row.isUnresolved || (row.idea === undefined && row.matchCount <= 1)) {
+    return null;
+  }
+  return describeEvaluatorPathFanOut({
+    path: row.path,
+    matchCount: row.matchCount,
+  });
+}
+
+/** A field's detail: what a fan-out does, a container's emptiness, a value. */
+function toFieldDetail({
+  row,
+  note,
+  count,
+}: {
+  row: EvaluatorPathLevelRow;
+  note: string | null;
+  count: EvaluatorPathCount | null;
+}): string {
+  if (note !== null) {
+    return note;
+  }
+  if (count !== null) {
+    return count.value === 0 ? EMPTY_CONTAINER_DETAIL : "";
+  }
+  return toMemberPreview(row.value);
+}
+
+function toLevelRowType({
+  row,
+  note,
+  isEmpty,
+}: {
+  row: EvaluatorPathLevelRow;
+  note: string | null;
+  isEmpty: boolean;
+}): string {
+  const isIdea = row.idea !== undefined;
+  const type = [
+    ...(isIdea ? [IDEA_COMPLETION_TYPE, IDEA_FIRST_COMPLETION_TYPE] : []),
+    ...(row.isUnresolved ? [UNSET_COMPLETION_TYPE] : []),
+    ...(row.holdsMore ? [SUBMENU_COMPLETION_TYPE] : []),
+    ...(isEmpty && !isIdea ? [EMPTY_COMPLETION_TYPE] : []),
+    ...(note !== null && !isIdea ? [FAN_OUT_COMPLETION_TYPE] : []),
+  ].join(" ");
+  return type || "variable";
+}
+
+/** The members a container holds, or null for a value that holds none. */
+export function toEvaluatorPathCount(
+  value: unknown
+): EvaluatorPathCount | null {
+  if (Array.isArray(value)) {
+    return { value: value.length, noun: "item" };
+  }
+  if (isStringKeyedObject(value)) {
+    return { value: Object.keys(value).length, noun: "field" };
+  }
+  return null;
+}
+
+/** A value as the side panel previews it: longer than a row has room for. */
+function toInfoPreview(value: unknown): string {
+  if (value == null) {
+    return "";
+  }
+  return (
+    toContentPreview(value, { maxLength: INFO_PREVIEW_LENGTH }) ?? String(value)
+  );
 }
 
 /**

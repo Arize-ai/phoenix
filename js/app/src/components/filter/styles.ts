@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { validationBadgeGrowIn } from "@phoenix/components/core/alert";
+import { counterCSS } from "@phoenix/components/core/counter/Counter";
 import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
@@ -128,7 +129,62 @@ export const typeaheadMenuCSS = css`
       content: " ›";
       color: var(--global-text-color-500);
     }
+    /* A path-field idea leads with what it reaches, in prose, and keeps the
+       path it writes beside it in code. */
+    li.typeahead-completion--idea-first .cm-completionLabel {
+      font-family: var(--global-font-family-sans);
+    }
+    li.typeahead-completion--idea-first .cm-completionDetail {
+      font-family: var(--global-font-family-mono);
+    }
+    /* What a fan-out does with what it reads, said in prose */
+    li.typeahead-completion--fan-out .cm-completionDetail {
+      font-family: var(--global-font-family-sans);
+    }
+    /* How many members a container row holds */
+    .typeahead-completion-count {
+      ${counterCSS}
+      flex: none;
+      margin-left: auto;
+    }
+    /* Beside a detail it sits close, rather than a whole column away */
+    .cm-completionDetail + .typeahead-completion-count {
+      margin-left: calc(
+        var(--global-dimension-size-100) - var(--global-dimension-size-300)
+      );
+    }
+    /* The chevron a row with a submenu ends in, as the app's menus draw it */
+    .typeahead-completion-chevron {
+      display: flex;
+      flex: none;
+      width: 1em;
+      height: 1em;
+      font-size: 1.2em;
+      margin-left: auto;
+      color: var(--global-text-color-700);
+      svg {
+        fill: currentColor;
+        width: 1em;
+        height: 1em;
+      }
+    }
+    .cm-completionDetail + .typeahead-completion-chevron,
+    .typeahead-completion-count + .typeahead-completion-chevron {
+      margin-left: calc(
+        var(--global-dimension-size-50) - var(--global-dimension-size-300)
+      );
+    }
+    /* The pointer resting on a path-field row is what opens its side
+       panel; the layer that notices sits over the whole row */
+    & > ul > li:has(.evaluator-path-hover-target) {
+      position: relative;
+    }
+    .evaluator-path-hover-target {
+      position: absolute;
+      inset: 0;
+    }
     /* Details that read as prose rather than as a value */
+    li.typeahead-completion--empty .cm-completionDetail,
     li.typeahead-completion--unset .cm-completionDetail,
     li.typeahead-completion--hint .cm-completionDetail {
       font-family: var(--global-font-family-sans);
@@ -160,6 +216,81 @@ export const typeaheadMenuCSS = css`
       padding: var(--global-dimension-size-100);
       color: var(--global-text-color-700);
       max-width: 300px;
+    }
+    /* The path field's side panel: a submenu of the level below a row, or a
+       longer look at the value one reads. It is set like the menu itself. */
+    & .cm-tooltip.cm-completionInfo:has(.evaluator-path-panel) {
+      padding: var(--global-dimension-size-50);
+      white-space: normal;
+    }
+    .evaluator-path-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: var(--global-dimension-size-50);
+      min-width: 200px;
+    }
+    /* A level deeper, beside the row of the panel that opened it. It clears
+       that panel's border, and the menu's padding around the first panel. */
+    .evaluator-path-panel--nested {
+      ${popoverSurfaceCSS}
+      position: absolute;
+      left: 100%;
+      z-index: 1;
+      width: max-content;
+      max-width: 400px;
+      padding: var(--global-dimension-size-50);
+      margin-left: calc(1px + var(--global-dimension-size-50));
+      &.evaluator-path-panel--left {
+        left: auto;
+        right: 100%;
+        margin-left: 0;
+        margin-right: calc(1px + var(--global-dimension-size-50));
+      }
+    }
+    .cm-completionInfo > .evaluator-path-panel > .evaluator-path-panel--nested {
+      margin-left: calc(2px + 2 * var(--global-dimension-size-50));
+      &.evaluator-path-panel--left {
+        margin-left: 0;
+        margin-right: calc(2px + 2 * var(--global-dimension-size-50));
+      }
+    }
+    .evaluator-path-panel__note {
+      padding: var(--global-dimension-size-50) var(--global-dimension-size-100)
+        0;
+      font-size: var(--global-font-size-xs);
+      color: var(--global-text-color-500);
+    }
+    .evaluator-path-panel__preview {
+      padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+    .evaluator-path-panel__rows {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: var(--global-font-size-s);
+      line-height: var(--global-line-height-s);
+      & > li {
+        display: flex;
+        align-items: center;
+        gap: var(--global-dimension-size-300);
+        padding: var(--global-dimension-size-50)
+          var(--global-dimension-size-100);
+        border-radius: var(--global-rounding-small);
+        color: var(--global-text-color-900);
+        cursor: pointer;
+        &:hover,
+        &[data-open] {
+          background-color: var(--global-menu-item-background-color-hover);
+        }
+      }
     }
   }
 `;

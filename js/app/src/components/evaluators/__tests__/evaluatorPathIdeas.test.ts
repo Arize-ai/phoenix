@@ -211,13 +211,13 @@ describe("getEvaluatorPathIdeas", () => {
           [-1].content | Last message
           [0] | First message
           [-1] | Last message
-          [*] | All messages
+          [*] | Every message, as a list
           [:-1] | All but last
         input.tools[ →
           [*].function.name | Tool names
           [0] | First tool
           [-1] | Last tool
-          [*] | All tools
+          [*] | Every tool, as a list
           [*].type | Type of each
         output. →
           messages[-1].tool_calls | Tool calls
@@ -236,7 +236,7 @@ describe("getEvaluatorPathIdeas", () => {
           [-1].function.arguments | Last call's arguments
           [0] | First tool call
           [-1] | Last tool call
-          [*] | All tool calls
+          [*] | Every tool call, as a list
         metadata. →
       retriever span
         (root) →
@@ -261,7 +261,7 @@ describe("getEvaluatorPathIdeas", () => {
           [0].content | First document
           [0] | First document
           [-1] | Last document
-          [*] | All documents
+          [*] | Every document, as a list
         metadata. →
       CHAIN root span
         (root) →

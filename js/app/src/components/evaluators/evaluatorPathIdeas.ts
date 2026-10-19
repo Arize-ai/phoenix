@@ -13,6 +13,7 @@ import {
   isEvaluatorPathContainer,
   resolveEvaluatorPath,
 } from "./evaluatorPathCompletions";
+import { capitalize, toItemNoun, toWords } from "./evaluatorPathWords";
 
 /** Subscript syntax an idea's path uses, which not every surface can write. */
 export type EvaluatorPathSyntax =
@@ -149,7 +150,7 @@ export const CURATED_EVALUATOR_PATH_IDEAS: readonly CuratedEvaluatorPathIdea[] =
 
 /**
  * An idea built from the shape of the data. `{item}` is one item of the list,
- * `{items}` the list's own name, `{list}` the list's key, and `{field}` /
+ * `{list}` the list's key, and `{field}` /
  * `{Field}` the field the most items have.
  */
 type EvaluatorPathIdeaTemplate = { path: string; description: string };
@@ -157,7 +158,7 @@ type EvaluatorPathIdeaTemplate = { path: string; description: string };
 const LIST_IDEA_TEMPLATES: readonly EvaluatorPathIdeaTemplate[] = [
   { path: "[0]", description: "First {item}" },
   { path: "[-1]", description: "Last {item}" },
-  { path: "[*]", description: "All {items}" },
+  { path: "[*]", description: "Every {item}, as a list" },
   { path: "[:-1]", description: "All but last" },
   { path: "[*].{field}", description: "{Field} of each" },
 ];
@@ -353,7 +354,6 @@ function fillTemplate({
     .replace(".{field}", field === null ? "" : toTrailingSegment(field));
   const description = template.description
     .replace("{item}", toItemNoun(listPath))
-    .replace("{items}", toListWords(listPath))
     .replace("{Field}", field === null ? "" : capitalize(toWords(field)));
   return [{ relativePath, description }];
 }
@@ -444,45 +444,4 @@ function getProjectedField(items: readonly unknown[]): string | null {
     }
   }
   return projected;
-}
-
-/** What one item of the list at `listPath` is called: `messages` → message. */
-function toItemNoun(listPath: string): string {
-  return singularize(toListWords(listPath));
-}
-
-/** The list's own name in words: `tool_calls` → tool calls. */
-function toListWords(listPath: string): string {
-  const parsed = parseEvaluatorPath(listPath);
-  const lastStep = parsed.isValid ? parsed.steps.at(-1) : undefined;
-  const name =
-    lastStep?.kind === "fields" && lastStep.keys.length === 1
-      ? (lastStep.keys[0].split(".").at(-1) ?? "")
-      : "";
-  const words = toWords(name);
-  return /[a-z]/.test(words) ? words : "items";
-}
-
-function toWords(key: string): string {
-  return key
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_\-\s]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function capitalize(words: string): string {
-  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
-}
-
-const SINGULAR_ENDINGS: readonly [RegExp, string][] = [
-  [/ies$/, "y"],
-  [/(ss|us|is)$/, "$1"],
-  [/(ch|sh|x|ss|us)es$/, "$1"],
-  [/s$/, ""],
-];
-
-function singularize(words: string): string {
-  const rule = SINGULAR_ENDINGS.find(([ending]) => ending.test(words));
-  return rule === undefined ? words : words.replace(rule[0], rule[1]);
 }
