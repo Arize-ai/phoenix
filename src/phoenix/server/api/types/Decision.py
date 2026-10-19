@@ -44,6 +44,34 @@ def _user(user_id: Optional[int]) -> Optional["User"]:
     return User(id=user_id)
 
 
+@strawberry.type
+class DecisionLabel(Node):
+    id: NodeID[int]
+    db_record: Private[models.DecisionLabel]
+
+    @strawberry.field
+    def name(self) -> str:
+        return self.db_record.name
+
+    @strawberry.field
+    def description(self) -> Optional[str]:
+        return self.db_record.description
+
+    @strawberry.field
+    def color(self) -> Optional[str]:
+        return self.db_record.color
+
+    @strawberry.field
+    async def usage_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            count = await session.scalar(
+                select(func.count(models.DecisionDecisionLabel.id)).where(
+                    models.DecisionDecisionLabel.decision_label_id == self.id
+                )
+            )
+        return int(count or 0)
+
+
 @strawberry.type(description="A movable name for one of a decision's versions.")
 class DecisionVersionTag(Node):
     id: NodeID[int]
@@ -141,6 +169,31 @@ class DecisionVersion(Node):
             return None
         return GenerativeModelCustomProvider(id=provider.id, db_record=provider)
 
+    @strawberry.field
+    async def sequence_number(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            count = await session.scalar(
+                select(func.count(models.DecisionVersion.id)).where(
+                    models.DecisionVersion.decision_id == self.db_record.decision_id,
+                    models.DecisionVersion.id <= self.id,
+                )
+            )
+        return int(count or 0)
+
+    @strawberry.field
+    async def previous_version(self, info: Info[Context, None]) -> Optional["DecisionVersion"]:
+        async with info.context.db.read() as session:
+            version = await session.scalar(
+                select(models.DecisionVersion)
+                .where(
+                    models.DecisionVersion.decision_id == self.db_record.decision_id,
+                    models.DecisionVersion.id < self.id,
+                )
+                .order_by(models.DecisionVersion.id.desc())
+                .limit(1)
+            )
+        return DecisionVersion(id=version.id, db_record=version) if version else None
+
     @strawberry.field(description="The tags pointing at this version.")  # type: ignore
     async def tags(self, info: Info[Context, None]) -> list[DecisionVersionTag]:
         async with info.context.db.read() as session:
@@ -184,6 +237,43 @@ class Decision(Node):
     @strawberry.field
     def user(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         return _user(self.db_record.user_id)
+
+    @strawberry.field
+    def created_by(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        return _user(self.db_record.user_id)
+
+    @strawberry.field
+    async def updated_by(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        version = await self.version(info)
+        return _user(version.db_record.user_id) if version else _user(self.db_record.user_id)
+
+    @strawberry.field
+    async def source_decision(self, info: Info[Context, None]) -> Optional["Decision"]:
+        if self.db_record.source_decision_id is None:
+            return None
+        async with info.context.db.read() as session:
+            decision = await session.get(models.Decision, self.db_record.source_decision_id)
+        return Decision(id=decision.id, db_record=decision) if decision else None
+
+    @strawberry.field
+    async def labels(self, info: Info[Context, None]) -> list[DecisionLabel]:
+        async with info.context.db.read() as session:
+            labels = (
+                await session.scalars(
+                    select(models.DecisionLabel)
+                    .join(
+                        models.DecisionDecisionLabel,
+                        models.DecisionLabel.id == models.DecisionDecisionLabel.decision_label_id,
+                    )
+                    .where(
+                        models.DecisionDecisionLabel.decision_id == self.id,
+                    )
+                    .order_by(models.DecisionLabel.name)
+                )
+            ).all()
+        return [DecisionLabel(id=label.id, db_record=label) for label in labels]
 
     @strawberry.field(
         description="A version by ID or by tag; the latest version when neither is given. "

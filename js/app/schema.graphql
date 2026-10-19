@@ -1034,6 +1034,12 @@ input CreateDecisionInput {
   tags: [CreateDecisionVersionTagInput!] = null
 }
 
+input CreateDecisionLabelInput {
+  name: String!
+  description: String = null
+  color: String!
+}
+
 input CreateDecisionVersionInput {
   decisionId: ID!
   version: DecisionVersionInput!
@@ -1685,6 +1691,10 @@ type Decision implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   user: User
+  createdBy: User
+  updatedBy: User
+  sourceDecision: Decision
+  labels: [DecisionLabel!]!
 
   """
   A version by ID or by tag; the latest version when neither is given. Null when there is no such version, so asking for one tag never loses the rest of the query.
@@ -1770,6 +1780,47 @@ input DecisionInputDefinitionInput {
 """The state is one input's value, unchanged."""
 type DecisionInputState {
   input: String!
+}
+
+type DecisionLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String
+  usageCount: Int!
+}
+
+type DecisionLabelAssociationMutationPayload {
+  query: Query!
+}
+
+"""A connection to a list of items."""
+type DecisionLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionLabelEdge!]!
+}
+
+type DecisionLabelDeleteMutationPayload {
+  deletedDecisionLabelIds: [ID!]!
+  query: Query!
+}
+
+"""An edge in a connection."""
+type DecisionLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionLabel!
+}
+
+type DecisionLabelMutationPayload {
+  decisionLabels: [DecisionLabel!]!
+  query: Query!
 }
 
 """The state is the declared inputs, as a JSON object."""
@@ -1950,6 +2001,8 @@ type DecisionVersion implements Node {
 
   """The custom provider this version runs on, if any."""
   customProvider: GenerativeModelCustomProvider
+  sequenceNumber: Int!
+  previousVersion: DecisionVersion
 
   """The tags pointing at this version."""
   tags: [DecisionVersionTag!]!
@@ -2092,6 +2145,10 @@ type DeleteDatasetSplitsMutationPayload {
 
 input DeleteDecisionInput {
   decisionId: ID!
+}
+
+input DeleteDecisionLabelsInput {
+  decisionLabelIds: [ID!]!
 }
 
 type DeleteDecisionMutationPayload {
@@ -3806,6 +3863,11 @@ type Mutation {
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createDecisionLabel(input: CreateDecisionLabelInput!): DecisionLabelMutationPayload!
+  patchDecisionLabel(input: PatchDecisionLabelInput!): DecisionLabelMutationPayload!
+  deleteDecisionLabels(input: DeleteDecisionLabelsInput!): DecisionLabelDeleteMutationPayload!
+  setDecisionLabels(input: SetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  unsetDecisionLabels(input: UnsetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -4005,6 +4067,12 @@ input PatchDecisionInput {
   decisionId: ID!
   description: String
   metadata: JSON
+}
+
+input PatchDecisionLabelInput {
+  decisionLabelId: ID!
+  name: String = null
+  description: String = null
 }
 
 input PatchExperimentInput {
@@ -5337,7 +5405,8 @@ type Query {
   viewer: User
 
   """Saved decisions, newest first."""
-  decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter): DecisionConnection!
+  decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter, labelIds: [ID!]): DecisionConnection!
+  decisionLabels(first: Int = 100, after: String): DecisionLabelConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
 
   """
@@ -5402,6 +5471,7 @@ type Query {
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
   datasetCount: Int!
+  decisionCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
@@ -5812,6 +5882,11 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+input SetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
 }
 
 input SetDecisionVersionTagInput {
@@ -6645,6 +6720,11 @@ type UnparsableConfig {
 
 type UnparsableSecret {
   parseError: String!
+}
+
+input UnsetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
 }
 
 input UnsetPromptLabelsInput {

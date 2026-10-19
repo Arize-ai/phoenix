@@ -91,7 +91,12 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
-from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
+from phoenix.server.api.types.Decision import (
+    Decision,
+    DecisionLabel,
+    DecisionVersion,
+    DecisionVersionTag,
+)
 from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
@@ -1191,6 +1196,12 @@ class Query:
                     return to_gql_prompt_version(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == DecisionLabel.__name__:
+            async with info.context.db.read() as session:
+                label = await session.get(models.DecisionLabel, node_id)
+            if label is None:
+                raise NotFound(f"Decision label not found: {id}")
+            return DecisionLabel(id=label.id, db_record=label)
         elif type_name == PromptLabel.__name__:
             return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
@@ -1251,6 +1262,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[DecisionFilter] = UNSET,
+        label_ids: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Decision]:
         args = ConnectionArgs(
             first=first,
@@ -1264,11 +1276,43 @@ class Query:
         if filter:
             # Cast the Identifier column to String for ilike, as prompts do
             stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{filter.value}%"))
+        if label_ids:
+            ids = [
+                from_global_id_with_expected_type(label_id, "DecisionLabel")
+                for label_id in label_ids
+            ]
+            stmt = stmt.where(
+                models.Decision.id.in_(
+                    select(models.DecisionDecisionLabel.decision_id).where(
+                        models.DecisionDecisionLabel.decision_label_id.in_(ids)
+                    )
+                )
+            )
         async with info.context.db.read() as session:
             decisions = (await session.scalars(stmt)).all()
         return connection_from_list(
             data=[Decision(id=decision.id, db_record=decision) for decision in decisions],
             args=args,
+        )
+
+    @strawberry.field
+    async def decision_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[DecisionLabel]:
+        async with info.context.db.read() as session:
+            labels = (
+                await session.scalars(
+                    select(models.DecisionLabel).order_by(models.DecisionLabel.name)
+                )
+            ).all()
+        return connection_from_list(
+            data=[DecisionLabel(id=label.id, db_record=label) for label in labels],
+            args=ConnectionArgs(
+                first=first, after=after if isinstance(after, CursorString) else None
+            ),
         )
 
     @strawberry.field
@@ -2070,6 +2114,11 @@ class Query:
     async def dataset_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Dataset.id))) or 0
+
+    @strawberry.field
+    async def decision_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.Decision.id))) or 0
 
     @strawberry.field
     async def prompt_count(self, info: Info[Context, None]) -> int:
