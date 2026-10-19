@@ -103,7 +103,6 @@ export function DecisionVersionDetails({
         description
         createdAt
         metadata
-        schemaVersion
         user {
           username
           profilePictureUrl
