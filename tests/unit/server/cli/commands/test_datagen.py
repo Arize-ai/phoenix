@@ -154,7 +154,13 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     monkeypatch.setattr("phoenix.client.Client", MagicMock(return_value=client))
     seed = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
+    prompts = MagicMock(return_value=[])
+    decisions = MagicMock(return_value=[])
+    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
     args.func(args)
+    prompts.assert_called_once_with(client, [])
+    decisions.assert_called_once_with(transport, [])
     expected = (
         list(DATASET_SOURCES.values())
         if source == "all"
@@ -207,3 +213,21 @@ def test_startup_seeding_does_not_retry_permission_errors(
     with pytest.raises(DatasetUploadError if wrapped else httpx.HTTPStatusError):
         datagen._seed_when_ready(datagen._resolve_config(args, {}))
     seed.assert_called_once()
+
+
+def test_startup_seeds_prompt_and_decision_counterparts(monkeypatch: pytest.MonkeyPatch) -> None:
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    args = parser.parse_args(["datagen"])
+    datasets = [MagicMock()]
+    prompts = MagicMock(return_value=[])
+    decisions = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.datasets.seed_datasets", MagicMock(return_value=datasets)
+    )
+    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    datagen._seed_when_ready(datagen._resolve_config(args, {}))
+    assert prompts.call_args.args[1] is datasets
+    assert decisions.call_args.args[1] is datasets
+    assert decisions.call_args.args[0] is prompts.call_args.args[0]._client
