@@ -5,6 +5,7 @@ from typing import Optional
 
 import strawberry
 from pydantic import ValidationError
+from strawberry.relay import GlobalID
 
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.exceptions import BadRequest
@@ -61,6 +62,11 @@ class DecisionTaskInput:
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(
         default_factory=list,
         description="Dataset evaluators to run on this decision's runs",
+    )
+    decision_version_id: Optional[GlobalID] = strawberry.field(
+        default=None,
+        description="The saved version this definition was copied from, as a prompt task's "
+        "promptVersionId. It is recorded, not read: the definition given here is what runs.",
     )
 
     def to_config(self) -> DecisionTaskConfig:

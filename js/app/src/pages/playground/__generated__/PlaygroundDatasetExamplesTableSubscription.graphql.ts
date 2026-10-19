@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4512ae58226d5730098a1835aaed77d>>
+ * @generated SignedSource<<30b3e50d88612a5aad5ccf082e183eed>>
  * @lightSyntaxTransform
  */
 
@@ -355,6 +355,7 @@ export type EvaluatorTaskSourceInput = {
 };
 export type DecisionTaskInput = {
   connection: DecisionConnectionInput;
+  decisionVersionId?: string | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   inputValuesPath?: string | null;
   inputs: ReadonlyArray<DecisionInputDefinitionInput>;

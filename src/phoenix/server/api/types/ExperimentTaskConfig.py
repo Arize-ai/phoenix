@@ -20,6 +20,7 @@ from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.Decision import DecisionVersion
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
         GenerativeModelCustomProvider,
     )
@@ -353,6 +354,7 @@ class DecisionTaskConfig(Node):
         "appendedMessagesPath."
     )
     questions_format: DecisionQuestionFormat
+    decision_version_id: Private[Optional[int]] = None
 
     @classmethod
     def from_orm(cls, obj: models.ExperimentDecisionTask) -> "DecisionTaskConfig":
@@ -368,7 +370,24 @@ class DecisionTaskConfig(Node):
             input_values_path=config.input_values_path,
             questions_path=config.questions_path,
             questions_format=DecisionQuestionFormat(config.questions_format),
+            decision_version_id=obj.decision_version_id,
         )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The saved version the definition was copied from, if it still exists.",
+    )
+    async def decision_version(
+        self, info: Info[Context, None]
+    ) -> Annotated["DecisionVersion", strawberry.lazy(".Decision")] | None:
+        if self.decision_version_id is None:
+            return None
+        from phoenix.server.api.types.Decision import DecisionVersion
+
+        async with info.context.db.read() as session:
+            version = await session.get(models.DecisionVersion, self.decision_version_id)
+        if version is None:
+            return None
+        return DecisionVersion(id=version.id, db_record=version)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="The custom provider this experiment ran on, if any.",

@@ -344,6 +344,7 @@ class _ResolvedDecisionTask:
     custom_provider_id: Optional[int]
     base_url: Optional[str]
     config: DecisionTaskConfig
+    decision_version_id: Optional[int]
 
     def columns(self) -> dict[str, Any]:
         return {
@@ -352,6 +353,7 @@ class _ResolvedDecisionTask:
             "custom_provider_id": self.custom_provider_id,
             "base_url": self.base_url,
             "config": self.config,
+            "decision_version_id": self.decision_version_id,
         }
 
 
@@ -374,8 +376,16 @@ async def _resolve_decision_task(
 
     Raises:
         BadRequest: The task can't run as given.
+        NotFound: The saved version it names doesn't exist.
     """
     config = task.to_config()
+    decision_version_id = None
+    if task.decision_version_id is not None:
+        decision_version_id = from_global_id_with_expected_type(
+            task.decision_version_id, "DecisionVersion"
+        )
+        if await session.get(models.DecisionVersion, decision_version_id) is None:
+            raise NotFound(f"Decision version not found: {task.decision_version_id}")
     client = await task.connection.resolve_client(
         model_name=task.model_name,
         session=session,
@@ -417,6 +427,7 @@ async def _resolve_decision_task(
         if custom_provider_id is not None
         else task.connection.built_in_provider().base_url,
         config=config,
+        decision_version_id=decision_version_id,
     )
 
 

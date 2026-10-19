@@ -1855,6 +1855,9 @@ type DecisionTaskConfig implements Node {
   questionsPath: String
   questionsFormat: DecisionQuestionFormat!
 
+  """The saved version the definition was copied from, if it still exists."""
+  decisionVersion: DecisionVersion
+
   """The custom provider this experiment ran on, if any."""
   customProvider: GenerativeModelCustomProvider
 }
@@ -1890,6 +1893,11 @@ input DecisionTaskInput {
 
   """Dataset evaluators to run on this decision's runs"""
   evaluators: [PlaygroundEvaluatorInput!]! = []
+
+  """
+  The saved version this definition was copied from, as a prompt task's promptVersionId. It is recorded, not read: the definition given here is what runs.
+  """
+  decisionVersionId: ID = null
 }
 
 enum DecisionTemplateFormat {

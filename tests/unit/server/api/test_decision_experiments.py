@@ -9,7 +9,10 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.decisions import ObjectState
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -272,6 +275,53 @@ async def test_examples_that_cannot_be_asked_stop_the_run_before_it_starts(
     assert route.call_count == 0
     async with db() as session:
         assert await session.scalar(select(func.count(models.Experiment.id))) == 0
+
+
+async def test_a_run_records_the_saved_version_it_was_copied_from(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    benchmark_dataset: list[dict[str, Any]],
+) -> None:
+    """As a prompt task records its prompt version: the definition sent is what runs."""
+    async with db() as session:
+        decision = models.Decision(name=Identifier("triage"), metadata_={})
+        version = models.DecisionVersion(
+            decision=decision,
+            schema_version=1,
+            inputs=[],
+            state=ObjectState(type="object"),
+            questions=[],
+            model_provider=ModelProvider.OLLAMA,
+            model_name="tev1:0.8b-mxfp8",
+            metadata_={},
+        )
+        session.add(version)
+        await session.flush()
+        version_id = str(GlobalID("DecisionVersion", str(version.id)))
+
+    with respx.mock:
+        respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
+        payloads = await collect(
+            gql_client, run_input(benchmark_dataset, decisionVersionId=version_id)
+        )
+    config = await gql_client.execute(
+        """query ($id: ID!) {
+          node(id: $id) {
+            ... on Experiment {
+              job { taskConfig { ... on DecisionTaskConfig { decisionVersion { id } } } }
+            }
+          }
+        }""",
+        variables={"id": payloads[0]["experimentId"]},
+    )
+    assert config.data and not config.errors, config.errors
+    assert config.data["node"]["job"]["taskConfig"] == {"decisionVersion": {"id": version_id}}
+
+    missing = str(GlobalID("DecisionVersion", "999"))
+    with respx.mock:
+        respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
+        with pytest.raises(Exception, match="Decision version not found"):
+            await collect(gql_client, run_input(benchmark_dataset, decisionVersionId=missing))
 
 
 async def test_the_runner_retries_a_rate_limited_request(
