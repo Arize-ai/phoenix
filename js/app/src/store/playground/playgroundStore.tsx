@@ -240,10 +240,11 @@ export function createEvaluatorTaskInstance({
   model?: ModelConfig;
 }): Omit<PlaygroundInstance, "id"> {
   const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
 
   return {
     ...params,
-    model: model ?? params.model,
+    model: chatModel ?? params.model,
     template:
       kind === "LLM"
         ? generateJudgeChatTemplate()
@@ -315,18 +316,21 @@ function createInstanceFromSource(
 
   // A new task keeps the page's model so comparisons start on equal footing.
   const model = firstInstance?.model;
+  const chatModel =
+    model?.modelType === "DECISION" ? firstInstance?.llmModel : model;
+  const llmModel = firstInstance?.llmModel;
 
   if (source.type === "new") {
     if (source.kind === "decision") {
       return normalizeInstance(
-        createDecisionTaskInstance({ model }),
+        createDecisionTaskInstance({ model, llmModel }),
         generateInstanceId()
       );
     }
 
     if (source.kind !== "prompt") {
       return normalizeInstance(
-        createEvaluatorTaskInstance({ kind: source.kind, model }),
+        createEvaluatorTaskInstance({ kind: source.kind, model: chatModel }),
         generateInstanceId()
       );
     }
@@ -334,14 +338,17 @@ function createInstanceFromSource(
     const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
     return {
-      instance: { ...instance, model: model ?? instance.model },
+      instance: { ...instance, model: chatModel ?? instance.model },
       messages: instanceMessages,
     };
   }
 
   if (source.type === "decision") {
     return normalizeInstance(
-      { ...createDecisionTaskInstance({ model }), loadingSource: source },
+      {
+        ...createDecisionTaskInstance({ model, llmModel }),
+        loadingSource: source,
+      },
       generateInstanceId()
     );
   }
@@ -352,7 +359,7 @@ function createInstanceFromSource(
     return {
       instance: {
         ...instance,
-        model: model ?? instance.model,
+        model: chatModel ?? instance.model,
         loadingSource: source,
       },
       messages: instanceMessages,
@@ -361,7 +368,7 @@ function createInstanceFromSource(
 
   // A saved evaluator's kind is only known once fetched; the draft is
   // replaced wholesale when its content lands.
-  const draft = createEvaluatorTaskInstance({ kind: "LLM", model });
+  const draft = createEvaluatorTaskInstance({ kind: "LLM", model: chatModel });
 
   return normalizeInstance(
     {
@@ -678,8 +685,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return null;
       }
 
+      const shouldResetTemplateFormat =
+        created.instance.task.member === "evaluator" &&
+        get().templateFormat === TemplateFormats.NONE;
+
       set(
         {
+          ...(shouldResetTemplateFormat
+            ? { templateFormat: TemplateFormats.Mustache }
+            : {}),
           allInstanceMessages: {
             ...get().allInstanceMessages,
             ...created.messages,

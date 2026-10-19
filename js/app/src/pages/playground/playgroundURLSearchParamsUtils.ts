@@ -43,7 +43,12 @@ const EVALUATOR_PARAM_KEYS = {
  * time; a tested page's prompts and decisions are two families of params.
  */
 export type PlaygroundTaskParams =
-  | { role: "tested"; prompts: PromptParam[]; decisions: DecisionParam[] }
+  | {
+      role: "tested";
+      prompts: PromptParam[];
+      decisions: DecisionParam[];
+      hasDecisionDraft?: boolean;
+    }
   | { role: "judging"; evaluators: (EvaluatorTaskParam | null)[] };
 
 /** Marks a page of evaluator tasks; it is what keeps a fresh draft's role on reload. */
@@ -135,30 +140,38 @@ export function getPlaygroundTaskParams(
     };
   }
 
+  const prompts = instances.flatMap((instance) =>
+    instance.task.member === "prompt" && instance.prompt
+      ? [
+          {
+            promptId: instance.prompt.id,
+            promptVersionId: instance.prompt.version,
+            tagName: instance.prompt.tag,
+          },
+        ]
+      : []
+  );
+  const decisions = instances.flatMap((instance) =>
+    instance.task.member === "decision" && instance.decision
+      ? [
+          {
+            decisionId: instance.decision.id,
+            decisionVersionId: instance.decision.versionId,
+            tagName: instance.decision.tag,
+          },
+        ]
+      : []
+  );
+  const hasDecisionDraft =
+    prompts.length === 0 &&
+    decisions.length === 0 &&
+    instances.some((instance) => instance.task.member === "decision");
+
   return {
     role: "tested",
-    prompts: instances.flatMap((instance) =>
-      instance.task.member === "prompt" && instance.prompt
-        ? [
-            {
-              promptId: instance.prompt.id,
-              promptVersionId: instance.prompt.version,
-              tagName: instance.prompt.tag,
-            },
-          ]
-        : []
-    ),
-    decisions: instances.flatMap((instance) =>
-      instance.task.member === "decision" && instance.decision
-        ? [
-            {
-              decisionId: instance.decision.id,
-              decisionVersionId: instance.decision.versionId,
-              tagName: instance.decision.tag,
-            },
-          ]
-        : []
-    ),
+    prompts,
+    decisions,
+    ...(hasDecisionDraft ? { hasDecisionDraft: true } : {}),
   };
 }
 
@@ -170,6 +183,7 @@ export function arePlaygroundTaskParamsEqual(
     return (
       left.role === "tested" &&
       right.role === "tested" &&
+      Boolean(left.hasDecisionDraft) === Boolean(right.hasDecisionDraft) &&
       left.prompts.length === right.prompts.length &&
       left.prompts.every(
         (param, index) =>
@@ -194,7 +208,9 @@ export function arePlaygroundTaskParamsEqual(
       (param, index) =>
         param?.evaluatorId === right.evaluators[index]?.evaluatorId &&
         param?.datasetEvaluatorId ===
-          right.evaluators[index]?.datasetEvaluatorId
+          right.evaluators[index]?.datasetEvaluatorId &&
+        param?.projectEvaluatorId ===
+          right.evaluators[index]?.projectEvaluatorId
     )
   );
 }
@@ -212,6 +228,11 @@ export function setPlaygroundTaskParams({
 }): boolean {
   if (tasks.role === "tested") {
     const clearedEvaluators = clearEvaluatorTaskParams(searchParams);
+    const clearedNewDecision =
+      !tasks.hasDecisionDraft && searchParams.has("newDecision");
+    if (clearedNewDecision) {
+      searchParams.delete("newDecision");
+    }
     const setPrompts = setPromptParams({
       searchParams,
       prompts: tasks.prompts,
@@ -221,16 +242,23 @@ export function setPlaygroundTaskParams({
       decisions: tasks.decisions,
     });
 
-    return setPrompts || setDecisions || clearedEvaluators;
+    return (
+      setPrompts || setDecisions || clearedEvaluators || clearedNewDecision
+    );
   }
 
+  const clearedNewDecision = searchParams.has("newDecision");
+  if (clearedNewDecision) {
+    searchParams.delete("newDecision");
+  }
   const clearedPrompts = setPromptParams({ searchParams, prompts: [] });
   const clearedDecisions = setDecisionParams({ searchParams, decisions: [] });
 
   return (
     setEvaluatorTaskParams({ searchParams, evaluators: tasks.evaluators }) ||
     clearedPrompts ||
-    clearedDecisions
+    clearedDecisions ||
+    clearedNewDecision
   );
 }
 
@@ -258,8 +286,10 @@ function setEvaluatorTaskParams({
   next.set(TASK_KIND_PARAM, EVALUATOR_TASK_KIND);
   evaluators.forEach((param, position) => {
     // The binding is the more specific reference: reopening it keeps Save
-    // pointed at the dataset evaluator rather than the shared evaluator.
-    if (param?.datasetEvaluatorId) {
+    // pointed at the dataset or project evaluator rather than the shared evaluator.
+    if (param?.projectEvaluatorId) {
+      next.set(`projectEvaluator${position}`, param.projectEvaluatorId);
+    } else if (param?.datasetEvaluatorId) {
       next.set(`datasetEvaluator${position}`, param.datasetEvaluatorId);
     } else if (param?.evaluatorId) {
       next.set(`evaluator${position}`, param.evaluatorId);

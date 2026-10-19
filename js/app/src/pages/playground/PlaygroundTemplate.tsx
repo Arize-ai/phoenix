@@ -51,6 +51,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const loadInstance = usePlaygroundContext((state) => state.loadInstance);
+  const setTemplateFormat = usePlaygroundContext(
+    (state) => state.setTemplateFormat
+  );
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
@@ -89,10 +92,23 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         tagName: promptTagName,
       });
       if (response) {
+        if (instances.length <= 1) {
+          setTemplateFormat(
+            response.promptVersion.templateFormat as Parameters<
+              typeof setTemplateFormat
+            >[0]
+          );
+        }
         loadInstance({ instanceId, instance: response.instance });
       }
     },
-    [instanceId, updateInstance, loadInstance]
+    [
+      instanceId,
+      instances.length,
+      updateInstance,
+      loadInstance,
+      setTemplateFormat,
+    ]
   );
 
   if (!instance) {

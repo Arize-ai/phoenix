@@ -580,4 +580,53 @@ describe("decision params", () => {
       false
     );
   });
+
+  it("clears newDecision when a decision draft is replaced by a prompt draft or saved decision", () => {
+    const decisionDraftParams = getPlaygroundTaskParams([
+      decisionInstance(null),
+    ]);
+    expect(decisionDraftParams).toEqual({
+      role: "tested",
+      prompts: [],
+      decisions: [],
+      hasDecisionDraft: true,
+    });
+
+    const promptDraftParams = getPlaygroundTaskParams([promptInstance(null)]);
+    expect(
+      arePlaygroundTaskParamsEqual(decisionDraftParams, promptDraftParams)
+    ).toBe(false);
+
+    const searchParams = new URLSearchParams("newDecision=");
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: decisionDraftParams })
+    ).toBe(false);
+    expect(searchParams.toString()).toBe("newDecision=");
+
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: promptDraftParams })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe("");
+  });
+
+  it("preserves projectEvaluatorId in equality checks and URL serialization", () => {
+    const projectEvalParams = getPlaygroundTaskParams([
+      evaluatorInstance({ evaluatorId: "E1", projectEvaluatorId: "PE1" }),
+    ]);
+    const sharedEvalParams = getPlaygroundTaskParams([
+      evaluatorInstance({ evaluatorId: "E1" }),
+    ]);
+
+    expect(
+      arePlaygroundTaskParamsEqual(projectEvalParams, sharedEvalParams)
+    ).toBe(false);
+
+    const searchParams = new URLSearchParams();
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: projectEvalParams })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe(
+      "taskKind=evaluator&projectEvaluator0=PE1"
+    );
+  });
 });

@@ -102,7 +102,9 @@ export function DeleteEvaluatorDialog({
                   traces are deleted with it.
                   {evaluatorKind === "BUILTIN"
                     ? " The built-in evaluator remains available elsewhere."
-                    : " The evaluator is deleted only if it isn't used anywhere else."}
+                    : evaluatorKind === "DECISION"
+                      ? " The decision judge remains available elsewhere."
+                      : " The evaluator is deleted only if it isn't used anywhere else."}
                 </Text>
                 {evaluatorKind === "LLM" ? (
                   <Checkbox
