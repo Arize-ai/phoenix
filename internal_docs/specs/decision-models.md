@@ -354,8 +354,10 @@ supported yet, and the version ID, since which attribute holds it is an
 
 A decision task runs a decision over a dataset as an experiment, the way a
 prompt task runs a prompt. The playground's dataset mode creates one experiment
-per decision panel through `experimentsOverDataset`, alongside prompt and
-evaluator tasks; a run holds one example and repetition.
+per decision panel through `experimentsOverDataset`; a run holds one example
+and repetition. The rule is per role: tested tasks (prompts and decisions) may
+share one run, each with its own experiment, so a decision can be compared with
+a prompt side by side, while evaluator tasks run alone.
 
 The decision task mirrors `ExperimentPromptTask` field for field:
 

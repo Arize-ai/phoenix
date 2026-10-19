@@ -3199,7 +3199,7 @@ input ExperimentsOverDatasetInput {
   createEphemeralExperiment: Boolean = false
 
   """
-  One experiment is created per task, in this order. The tasks must all be of one kind: prompts, decisions, or evaluators.
+  One experiment is created per task, in this order. The tasks must all be tested tasks (prompts and decisions, which may be mixed) or all evaluators.
   """
   tasks: [ExperimentTaskInput!]!
 }

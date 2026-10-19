@@ -3269,9 +3269,7 @@ class TestExperimentsOverDatasetSubscription:
             [self._prompt_task("Where is {city}?"), self._evaluator_task(sandbox_config_id)]
         )
 
-        with pytest.raises(
-            RuntimeError, match="Tasks must all be of one kind: prompts, decisions, or evaluators"
-        ):
+        with pytest.raises(RuntimeError, match="Tasks must all be tested tasks"):
             await self._collect(gql_client, variables)
 
     async def test_dataset_evaluators_cannot_be_attached_to_an_evaluator_task(

@@ -381,3 +381,76 @@ async def test_dataset_evaluators_judge_decision_runs_as_they_judge_prompt_runs(
             select(func.count(models.ExperimentDatasetEvaluator.experiment_id))
         )
         assert linked == 1
+
+
+def prompt_task(template_text: str) -> dict[str, Any]:
+    return {
+        "prompt": {
+            "promptVersion": {
+                "templateFormat": "F_STRING",
+                "template": {
+                    "messages": [{"role": "USER", "content": [{"text": {"text": template_text}}]}]
+                },
+                "modelProvider": "OPENAI",
+                "modelName": "gpt-4",
+                "invocationParameters": {"openai": {}},
+                "tools": None,
+            }
+        }
+    }
+
+
+async def test_a_prompt_and_a_decision_share_a_run_as_two_experiments(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    benchmark_dataset: list[dict[str, Any]],
+    openai_api_key: str,
+) -> None:
+    variables = run_input(benchmark_dataset)
+    # A template variable no example has: the prompt's runs fail while formatting, so the
+    # prompt experiment runs to completion without a model call.
+    variables["input"]["tasks"].insert(0, prompt_task("Where is {country}?"))
+    with respx.mock:
+        route = respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
+        payloads = await collect(gql_client, variables)
+
+    experiments = [p for p in payloads if p["__typename"] == "ChatCompletionSubscriptionExperiment"]
+    # In task order: the prompt first, then the decision.
+    assert [e["experiment"]["name"] for e in experiments] == [
+        "playground-experiment",
+        "playground-experiment decision:tev1:0.8b-mxfp8",
+    ]
+    prompt_id, decision_id = (e["experimentId"] for e in experiments)
+    assert prompt_id != decision_id
+    by_experiment: dict[str, list[str]] = {prompt_id: [], decision_id: []}
+    for payload in payloads:
+        if payload["experimentId"] in by_experiment and payload["__typename"] != (
+            "ChatCompletionSubscriptionExperiment"
+        ):
+            by_experiment[payload["experimentId"]].append(payload["__typename"])
+    assert by_experiment[prompt_id] == ["ChatCompletionSubscriptionError"] * 2
+    assert by_experiment[decision_id] == ["ChatCompletionSubscriptionResult"] * 2
+    assert route.call_count == 2
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.ExperimentPromptTask.id))) == 1
+        assert await session.scalar(select(func.count(models.ExperimentDecisionTask.id))) == 1
+
+
+async def test_a_decision_cannot_share_a_run_with_an_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    benchmark_dataset: list[dict[str, Any]],
+) -> None:
+    variables = run_input(benchmark_dataset)
+    variables["input"]["tasks"].append(
+        {
+            "evaluator": {
+                "evaluator": {"builtInEvaluatorId": str(GlobalID("BuiltInEvaluator", "1"))},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+            }
+        }
+    )
+    with pytest.raises(Exception, match="Tasks must all be tested tasks"):
+        await collect(gql_client, variables)
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.Experiment.id))) == 0

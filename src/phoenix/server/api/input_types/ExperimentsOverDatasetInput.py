@@ -101,6 +101,14 @@ class EvaluatorTaskInput:
     )
 
 
+# The role each task kind plays. Tasks in one run must share a role.
+_ROLE_OF_KIND: dict[str, str] = {
+    "prompt": "tested",
+    "decision": "tested",
+    "evaluator": "judging",
+}
+
+
 @strawberry.input(one_of=True)
 class ExperimentTaskInput:
     prompt: Optional[PromptTaskInput] = UNSET
@@ -138,7 +146,8 @@ class ExperimentsOverDatasetInput:
     create_ephemeral_experiment: Optional[bool] = False
     tasks: list[ExperimentTaskInput] = strawberry.field(
         description="One experiment is created per task, in this order. "
-        "The tasks must all be of one kind: prompts, decisions, or evaluators.",
+        "The tasks must all be tested tasks (prompts and decisions, which may be mixed) "
+        "or all evaluators.",
     )
 
     def __post_init__(self) -> None:
@@ -146,6 +155,9 @@ class ExperimentsOverDatasetInput:
             raise BadRequest("At least one task is required")
         if len(self.tasks) > MAX_TASKS_PER_RUN:
             raise BadRequest(f"At most {MAX_TASKS_PER_RUN} tasks can run together")
-        kinds = {task.kind for task in self.tasks}
-        if len(kinds) > 1:
-            raise BadRequest("Tasks must all be of one kind: prompts, decisions, or evaluators")
+        # A run holds the members of one role: tested tasks may share a run, and
+        # evaluators judge alone. Adding a member to a role is a one-line change above.
+        if len({_ROLE_OF_KIND[task.kind] for task in self.tasks}) > 1:
+            raise BadRequest(
+                "Tasks must all be tested tasks (prompts and decisions) or all evaluators"
+            )
