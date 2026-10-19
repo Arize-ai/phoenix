@@ -99,7 +99,16 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
-import { Alert, Flex, PageHeader, View } from "@phoenix/components";
+import {
+  Alert,
+  Flex,
+  PageHeader,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -144,7 +153,8 @@ import {
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
 
-import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
+import { DECISION_DATASET_BLOCKED_REASON, DECISION_DATASET_SELECT_DISABLED_REASON } from "./constants";
+import { setDecisionSearchParams } from "./decisionUtils";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -810,6 +820,38 @@ function PlaygroundContent() {
     );
   }, [taskParams, setSearchParams]);
 
+  // The first instance's decision target is part of the URL so a reload
+  // recreates it (see getInitialInstances). Later instances are compared in
+  // place and are not encoded, and a chat first instance clears the params.
+  const firstInstanceDecisionTarget = usePlaygroundContext(
+    (state) => {
+      const firstInstance = state.instances[0];
+      return firstInstance?.model.modelType === "DECISION"
+        ? {
+            provider: firstInstance.model.provider,
+            modelName: firstInstance.model.modelName,
+          }
+        : null;
+    },
+    (left, right) =>
+      left?.provider === right?.provider &&
+      left?.modelName === right?.modelName &&
+      (left == null) === (right == null)
+  );
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        setDecisionSearchParams({
+          searchParams: next,
+          target: firstInstanceDecisionTarget,
+        });
+        return next;
+      },
+      { replace: true }
+    );
+  }, [firstInstanceDecisionTarget, setSearchParams]);
+
   // Soft block at the router level:
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept
   // - Non-ephemeral experiment running: daemon continues, but ask if user wants to stop
@@ -997,7 +1039,19 @@ function PlaygroundContent() {
                 resizable
                 title="Inputs"
                 extra={
-                  <PlaygroundDatasetSelect isDisabled={hasDecisionInstance} />
+                  hasDecisionInstance ? (
+                    <TooltipTrigger delay={0}>
+                      <TriggerWrap>
+                        <PlaygroundDatasetSelect isDisabled />
+                      </TriggerWrap>
+                      <Tooltip>
+                        <TooltipArrow />
+                        {DECISION_DATASET_SELECT_DISABLED_REASON}
+                      </Tooltip>
+                    </TooltipTrigger>
+                  ) : (
+                    <PlaygroundDatasetSelect />
+                  )
                 }
                 panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
