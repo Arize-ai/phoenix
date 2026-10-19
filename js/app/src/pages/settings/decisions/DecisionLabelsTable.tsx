@@ -1,9 +1,9 @@
+import { flexRender } from "@tanstack/react-table";
 import {
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+  useLegacyTable,
+} from "@tanstack/react-table/legacy";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -48,7 +48,7 @@ export function DecisionLabelsTable({
   );
 
   // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useLegacyTable<(typeof tableData)[number]>({
     columns: [
       {
         header: "label",

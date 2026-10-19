@@ -1,11 +1,11 @@
 import { css } from "@emotion/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
 import {
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+  useLegacyTable,
+} from "@tanstack/react-table/legacy";
 import {
   startTransition,
   useCallback,
@@ -31,6 +31,7 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   ACTIONS_COLUMN_ID,
+  ACTIONS_COLUMN_PINNING,
   CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
@@ -443,16 +444,14 @@ export function DecisionsTable(props: DecisionsTableProps) {
   });
 
   // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useLegacyTable({
     columns,
     data: tableData,
     state: {
       columnSizing,
       columnVisibility,
       columnOrder: leafColumnOrder,
-      columnPinning: {
-        right: [ACTIONS_COLUMN_ID],
-      },
+      columnPinning: ACTIONS_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
