@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.zh.md" />
 </p>
 
-Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/)。Phoenix 核心功能包括：
+Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)。Phoenix 核心功能包括：
 
 - [**_链路追踪 (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - 基于 OpenTelemetry 标准的插桩，追踪大语言模型（LLM）应用的运行时调用链。
 - [**_效果评估 (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 利用 LLM 自主能力，通过回答质量评估与检索效果评测建立基准测试。
@@ -64,7 +64,7 @@ Phoenix 与模型供应商和编程语言完全解耦，开箱即用地支持主
 Phoenix 可在几乎任何环境中运行，包括本地开发机、容器化环境或云端平台。详细操作请参阅[运行环境指南 (Environments)](https://arize.com/docs/phoenix/environments)，或直接查阅[链路追踪快速入门 (Tracing Quickstart)](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
 
 > [!NOTE]
-> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
+> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
 
 ## 目录
 
