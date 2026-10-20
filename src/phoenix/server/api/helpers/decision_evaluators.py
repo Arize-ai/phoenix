@@ -13,7 +13,7 @@ from phoenix.db.types.decision_evaluators import (
     effective_decision_policy,
     resolve_projection_policy,
 )
-from phoenix.db.types.decisions import DecisionInput, ScaleQuestion
+from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, ScaleQuestion
 from phoenix.db.types.evaluator_definition import EvaluatorSource, InlineDecisionEvaluatorDefinition
 from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
@@ -82,6 +82,17 @@ def validate_decision_output_overrides(
     return derived
 
 
+def _question_metadata(question: DecisionQuestion) -> dict[str, Any]:
+    """The asked question's identity, and for a scale its levels, since answers and
+    projections index levels by position only."""
+    metadata: dict[str, Any] = {"name": question.name, "type": question.type}
+    if isinstance(question, ScaleQuestion):
+        metadata["levels"] = [
+            {"label": level.label, "description": level.description} for level in question.levels
+        ]
+    return metadata
+
+
 def project_decision_response(
     definition: InlineDecisionEvaluatorDefinition,
     response: DecisionResponse,
@@ -128,7 +139,7 @@ def project_decision_response(
                 "metadata": {
                     "decision": {
                         "status": "refused" if refused else "answered",
-                        "question": {"name": question.name, "type": question.type},
+                        "question": _question_metadata(question),
                         "answer": answer.model_dump(mode="json"),
                         "projection": projection.model_dump(mode="json"),
                         "requested_model": definition.model_name,

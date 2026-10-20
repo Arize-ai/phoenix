@@ -139,6 +139,17 @@ def test_scale_label_is_the_most_probable_level_not_the_first(
     assert quality["score"] == 0.8
 
 
+def test_scale_metadata_keeps_the_asked_levels(
+    definition: InlineDecisionEvaluatorDefinition,
+) -> None:
+    results = project(definition, response())
+    [scale] = [question for question in definition.questions if question.type == "scale"]
+    assert results["quality"]["metadata"]["decision"]["question"]["levels"] == [
+        {"label": level.label, "description": level.description} for level in scale.levels
+    ]
+    assert "levels" not in results["correct"]["metadata"]["decision"]["question"]
+
+
 def test_scale_label_is_omitted_unless_requested(
     definition: InlineDecisionEvaluatorDefinition,
 ) -> None:

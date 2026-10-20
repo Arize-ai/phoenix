@@ -6,9 +6,17 @@
 
 export type DecisionAnnotationStatus = "answered" | "refused" | "error";
 
+/** A scale level as the judge asked it; probabilities index levels by position. */
+export type DecisionScaleLevel = { label: string; description: string | null };
+
 export type DecisionAnnotationSummary = {
   status: DecisionAnnotationStatus;
-  question: { name: string; type: string } | null;
+  question: {
+    name: string;
+    type: string;
+    /** A scale's levels, in order; null for other types and older annotations */
+    levels: DecisionScaleLevel[] | null;
+  } | null;
   /** Confidence for choice/scale answers, when present */
   confidence: number | null;
   /** Probability of "true" for predicate answers, when present */
@@ -36,6 +44,14 @@ const asNumber = (value: unknown): number | null =>
 
 const asString = (value: unknown): string | null =>
   typeof value === "string" && value !== "" ? value : null;
+
+function parseLevels(value: unknown): DecisionScaleLevel[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.map((level) => ({
+    label: (isRecord(level) && asString(level.label)) || "",
+    description: (isRecord(level) && asString(level.description)) || null,
+  }));
+}
 
 function parseProbabilities(
   value: unknown
@@ -67,6 +83,7 @@ export function parseDecisionAnnotationMetadata(
     ? {
         name: asString(decision.question.name) ?? "",
         type: asString(decision.question.type) ?? "",
+        levels: parseLevels(decision.question.levels),
       }
     : null;
   const answer = isRecord(decision.answer) ? decision.answer : {};
@@ -84,6 +101,27 @@ export function parseDecisionAnnotationMetadata(
     customProviderId: asString(decision.custom_provider_id),
     source: asString(decision.source),
   };
+}
+
+/**
+ * How to name a scale level's probability: its label, or its description when
+ * the label is only the level's number, or the number for older annotations
+ * that didn't store levels.
+ */
+export function describeScaleLevel(
+  key: string,
+  levels: DecisionScaleLevel[] | null
+): { name: string; title: string } {
+  const level = levels?.[Number(key)];
+  if (!level) return { name: `level ${key}`, title: `level ${key}` };
+  const name =
+    level.label && level.label !== key
+      ? level.label
+      : (level.description ?? `level ${key}`);
+  const title = [`level ${key}`, level.label, level.description]
+    .filter((part, index, parts) => part && parts.indexOf(part) === index)
+    .join(": ");
+  return { name, title };
 }
 
 export function isRefusedDecisionAnnotation(annotation: {

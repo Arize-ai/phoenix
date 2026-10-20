@@ -51,6 +51,20 @@ describe("parseDecisionAnnotationMetadata", () => {
     ]);
     expect(s.resolvedModel).toBe("gpt-x");
   });
+  it("parses a scale's levels, and none for older annotations", () => {
+    const levels = [{ label: "low", description: null }];
+    expect(
+      parseDecisionAnnotationMetadata({
+        decision: {
+          status: "answered",
+          question: { name: "q", type: "scale", levels },
+        },
+      })!.question?.levels
+    ).toEqual(levels);
+    expect(parseDecisionAnnotationMetadata(refused)!.question?.levels).toBe(
+      null
+    );
+  });
   it("parses predicate and tolerates a bad answer", () => {
     const s = parseDecisionAnnotationMetadata({
       decision: { status: "answered", answer: { probability: 0.3 } },
@@ -167,6 +181,38 @@ describe("decision annotation rendering", () => {
     )?.textContent;
     expect(text).toContain("p(level 0)");
     expect(text).toContain("p(level 1)");
+  });
+  it("names scale probabilities by the levels the judge asked", () => {
+    const container = render(
+      <AnnotationDetailsContent
+        annotation={{
+          name: "judge",
+          metadata: {
+            decision: {
+              status: "answered",
+              question: {
+                name: "severity",
+                type: "scale",
+                levels: [
+                  { label: "low", description: "Minor issue" },
+                  { label: "1", description: "Blocks the user" },
+                ],
+              },
+              answer: {
+                expected_level: 0.8,
+                probabilities: { "0": 0.2, "1": 0.8 },
+              },
+            },
+          },
+        }}
+      />
+    );
+    const text = container.querySelector(
+      "[data-testid=decision-details]"
+    )?.textContent;
+    expect(text).toContain("p(low)");
+    // A label that is only the level's number falls back to its description.
+    expect(text).toContain("p(Blocks the user)");
   });
   it("shows confidence and probabilities in details", () => {
     const c = render(

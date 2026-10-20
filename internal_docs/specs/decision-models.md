@@ -362,7 +362,8 @@ the judge's uncertainty.
 (`decision_evaluators.py`, `decision_evaluator.py`):
 
 - **Answered or refused:** `status` (`answered` or `refused`), `question` (`name`,
-  `type`), `answer` (Phoenix's normalized answer, with confidence and
+  `type`, and for a scale its `levels`, each `{label, description}`, since the
+  answer and projection index levels by position only), `answer` (Phoenix's normalized answer, with confidence and
   probabilities), `projection` (the question's applied scoring settings),
   `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
   `source` (evaluator, decision, version, and binding IDs).
@@ -707,7 +708,7 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 | Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
 | `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
 | `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value fails the call, since Phoenix's answers hold strings ([open question](#open-questions)) |
-| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the version's, or an example's under `questionsPath`), but nothing stores them with the answer, so an annotation shows levels by index |
+| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the version's, or an example's under `questionsPath`), and a judge's annotation stores the asked levels beside the answer |
 | `refusal` | `refusal`, with no reason | None | Nothing |
 | `box` (later): edges as fractions, optional `confidence` | None | The same | — |
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |

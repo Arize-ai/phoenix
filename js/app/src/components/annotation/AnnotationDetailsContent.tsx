@@ -7,15 +7,25 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { AnnotationScoreText } from "./AnnotationScoreText";
 import {
   type DecisionAnnotationSummary,
+  describeScaleLevel,
   parseDecisionAnnotationMetadata,
 } from "./decisionAnnotationMetadata";
 import type { Annotation } from "./types";
 
-function DecisionRow({ name, value }: { name: string; value: string }) {
+function DecisionRow({
+  name,
+  value,
+  title,
+}: {
+  name: string;
+  value: string;
+  /** Full text for a name that may be truncated */
+  title?: string;
+}) {
   return (
     <Flex direction="row" justifyContent="space-between" gap="size-100">
-      <Text weight="heavy" color="inherit">
-        {name}
+      <Text weight="heavy" color="inherit" title={title}>
+        <Truncate maxWidth="200px">{name}</Truncate>
       </Text>
       <Text color="inherit" fontFamily="mono">
         {value}
@@ -68,19 +78,20 @@ function DecisionDetails({
             value={floatFormatter(decision.confidence)}
           />
         ) : null}
-        {decision.probabilities.map(({ key, probability }) => (
-          <DecisionRow
-            key={key}
-            // TODO: Include scale level labels in annotation metadata to show
-            // historical labels here. Indices match the zero-based expected level.
-            name={
-              decision.question?.type === "scale"
-                ? `p(level ${key})`
-                : `p(${key})`
-            }
-            value={floatFormatter(probability)}
-          />
-        ))}
+        {decision.probabilities.map(({ key, probability }) => {
+          const level =
+            decision.question?.type === "scale"
+              ? describeScaleLevel(key, decision.question.levels)
+              : null;
+          return (
+            <DecisionRow
+              key={key}
+              name={level ? `p(${level.name})` : `p(${key})`}
+              title={level?.title}
+              value={floatFormatter(probability)}
+            />
+          );
+        })}
         {model ? <DecisionRow name="model" value={model} /> : null}
         {decision.provider ? (
           <DecisionRow name="provider" value={decision.provider} />
