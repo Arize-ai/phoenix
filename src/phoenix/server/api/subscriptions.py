@@ -49,6 +49,7 @@ from phoenix.server.api.evaluators import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_experiments import build_example_request
+from phoenix.server.api.helpers.evaluator_preview import stream_evaluator_preview
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
@@ -62,6 +63,7 @@ from phoenix.server.api.helpers.playground_project import get_or_create_playgrou
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
 from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
+from phoenix.server.api.input_types.EvaluatorDefinitionInput import EvaluatorPreviewInput
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     EvaluatorTaskInput,
     ExperimentsOverDatasetInput,
@@ -79,6 +81,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.EvaluatorPreviewSubjectResult import EvaluatorPreviewSubjectResult
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -323,6 +326,18 @@ class Subscription:
         """
         async for payload in _stream_experiments_over_dataset(info, input):
             yield payload
+
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def evaluator_preview(
+        self, info: Info[Context, None], input: EvaluatorPreviewInput
+    ) -> AsyncIterator[EvaluatorPreviewSubjectResult]:
+        """
+        Run one evaluator definition against each subject and stream a result per
+        subject as it finishes. The stream ends once every subject has reported.
+        Nothing is persisted.
+        """
+        async for result in stream_evaluator_preview(info.context, input):
+            yield result
 
 
 @dataclass(frozen=True)

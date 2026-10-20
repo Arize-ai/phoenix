@@ -2931,6 +2931,20 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._session_key = session_key
         self._sandbox_session_manager = sandbox_session_manager
 
+    def release_sandbox_session(self) -> None:
+        """Close the managed sandbox session this runner reuses, without waiting for it.
+
+        A caller that owns a short-lived ``session_key``, such as one evaluator preview,
+        calls this when it is done so the sandbox does not wait out the idle TTL. The
+        manager retains the close, so shutdown still awaits it. A no-op on the ephemeral
+        path and for backends without sessions.
+        """
+        if self._sandbox_session_manager is None or self._session_key is None:
+            return
+        if isinstance(self._sandbox_backend, BaseNoSessionBackend):
+            return
+        self._sandbox_session_manager.schedule_eviction(self._session_key, self._sandbox_backend)
+
     @property
     def name(self) -> str:
         return self._name

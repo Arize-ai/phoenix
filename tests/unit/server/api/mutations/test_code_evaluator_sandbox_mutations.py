@@ -422,9 +422,11 @@ class TestUpdateSandboxProvider:
         assert result.errors
 
 
-_EVALUATOR_PREVIEWS = """
-mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
-    evaluatorPreviews(input: $input) {
+_EVALUATOR_PREVIEW = """
+subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
+    evaluatorPreview(input: $input) {
+        id
+        error
         results {
             evaluatorName
             error
@@ -586,24 +588,21 @@ class TestDisabledProviderAndConfigGuards:
         )
         assert result.data and not result.errors
 
-        result = await gql_client.execute(
-            _EVALUATOR_PREVIEWS,
-            variables={
-                "input": {
-                    "previews": [
-                        {
-                            "evaluator": {"codeEvaluatorId": evaluator_gid},
-                            "context": {"output": "test"},
-                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        }
-                    ]
-                }
-            },
-        )
-        assert result.errors
+        with pytest.raises(RuntimeError) as preview_error:
+            async for _ in gql_client.subscription(
+                _EVALUATOR_PREVIEW,
+                variables={
+                    "input": {
+                        "evaluator": {"codeEvaluatorId": evaluator_gid},
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        "subjects": [{"id": "a", "context": {"output": "test"}}],
+                    }
+                },
+            ):
+                pass
         assert (
             "Sandbox provider 'WASM' is disabled. Enable it before testing this evaluator."
-            in str(result.errors)
+            in str(preview_error.value)
         )
 
 
@@ -1178,25 +1177,22 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert result.data and not result.errors
         assert result.data["updateSandboxConfig"]["sandboxConfig"]["enabled"] is False
 
-        result = await gql_client.execute(
-            _EVALUATOR_PREVIEWS,
-            variables={
-                "input": {
-                    "previews": [
-                        {
-                            "evaluator": {"codeEvaluatorId": evaluator_gid},
-                            "context": {"output": "test"},
-                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        }
-                    ]
-                }
-            },
-        )
-        assert result.errors
+        with pytest.raises(RuntimeError) as preview_error:
+            async for _ in gql_client.subscription(
+                _EVALUATOR_PREVIEW,
+                variables={
+                    "input": {
+                        "evaluator": {"codeEvaluatorId": evaluator_gid},
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        "subjects": [{"id": "a", "context": {"output": "test"}}],
+                    }
+                },
+            ):
+                pass
         assert (
             f"Sandbox configuration '{sandbox_config.name}' is disabled. "
             "Enable it before testing this evaluator."
-        ) in str(result.errors)
+        ) in str(preview_error.value)
 
 
 class TestCrossProviderIsolation:
@@ -1733,22 +1729,21 @@ class TestMontyCodeEvaluatorPersistence:
                 )
             ],
         }
-        preview = await gql_client.execute(
-            _EVALUATOR_PREVIEWS,
-            variables={
-                "input": {
-                    "previews": [
-                        {
-                            "evaluator": {"inlineCodeEvaluator": definition},
-                            "context": {"output": "well darn it"},
-                            "inputMapping": _OUTPUT_MAPPING,
-                        }
-                    ]
-                }
-            },
-        )
-        assert preview.data and not preview.errors, preview.errors
-        (preview_result,) = preview.data["evaluatorPreviews"]["results"]
+        (preview,) = [
+            payload["evaluatorPreview"]
+            async for payload in gql_client.subscription(
+                _EVALUATOR_PREVIEW,
+                variables={
+                    "input": {
+                        "evaluator": {"inlineCodeEvaluator": definition},
+                        "inputMapping": _OUTPUT_MAPPING,
+                        "subjects": [{"id": "a", "context": {"output": "well darn it"}}],
+                    }
+                },
+            )
+        ]
+        assert preview["error"] is None, preview["error"]
+        (preview_result,) = preview["results"]
         assert preview_result["annotation"]["label"] == "contains_curse_word"
 
         created = await gql_client.execute(
@@ -1872,20 +1867,19 @@ class TestMontyCodeEvaluatorPersistence:
             {"name": "verdict", "values": [{"label": "pass"}, {"label": "fail"}]}
         ]
 
-        preview = await gql_client.execute(
-            _EVALUATOR_PREVIEWS,
-            variables={
-                "input": {
-                    "previews": [
-                        {
-                            "evaluator": {"codeEvaluatorId": evaluator_gid},
-                            "context": {"output": "anything"},
-                            "inputMapping": _OUTPUT_MAPPING,
-                        }
-                    ]
-                }
-            },
-        )
-        assert preview.data and not preview.errors, preview.errors
-        (preview_result,) = preview.data["evaluatorPreviews"]["results"]
+        (preview,) = [
+            payload["evaluatorPreview"]
+            async for payload in gql_client.subscription(
+                _EVALUATOR_PREVIEW,
+                variables={
+                    "input": {
+                        "evaluator": {"codeEvaluatorId": evaluator_gid},
+                        "inputMapping": _OUTPUT_MAPPING,
+                        "subjects": [{"id": "a", "context": {"output": "anything"}}],
+                    }
+                },
+            )
+        ]
+        assert preview["error"] is None, preview["error"]
+        (preview_result,) = preview["results"]
         assert preview_result["annotation"] == {"label": "pass", "score": 1.0}

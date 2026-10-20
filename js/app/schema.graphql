@@ -2772,9 +2772,10 @@ type EvaluationQueueTarget {
 
 type EvaluationResult {
   evaluatorName: String!
+
+  """answered, error, or refused when a decision judge declined to answer."""
   status: String
   annotation: ExperimentRunAnnotation
-  trace: Trace
   error: String
 }
 
@@ -3010,29 +3011,45 @@ type EvaluatorLabelCount {
   count: Int!
 }
 
-input EvaluatorPreviewItemInput {
+input EvaluatorPreviewInput {
+  """The evaluator to run. Optional only when datasetEvaluatorId names one."""
   evaluator: EvaluatorDefinitionInput = null
-  context: JSON!
-  inputMapping: EvaluatorInputMappingInput!
 
   """
   Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy.
   """
   datasetEvaluatorId: ID = null
+  inputMapping: EvaluatorInputMappingInput!
+  subjects: [EvaluatorPreviewSubjectInput!]!
 
   """
   Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
   """
   applyOnlineEvaluationLimits: Boolean! = false
-}
-
-input EvaluatorPreviewsInput {
-  previews: [EvaluatorPreviewItemInput!]!
   credentials: [GenerativeCredentialInput!]
 }
 
-type EvaluatorPreviewsPayload {
+input EvaluatorPreviewSubjectInput {
+  """
+  Chosen by the caller and echoed on the subject's result; unique per request.
+  """
+  id: String!
+  context: JSON!
+}
+
+type EvaluatorPreviewSubjectResult {
+  """The id the subject was sent with."""
+  id: String!
+
+  """
+  One result per annotation the evaluator produces; empty when error is set.
+  """
   results: [EvaluationResult!]!
+
+  """
+  Why the evaluator could not run on this subject at all, such as a sandbox runtime that was busy or timed out. The other subjects are unaffected.
+  """
+  error: String
 }
 
 enum EvaluatorScope {
@@ -4007,7 +4024,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
@@ -6592,6 +6608,7 @@ type StoredDecisionEvaluatorDefinition {
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
   experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  evaluatorPreview(input: EvaluatorPreviewInput!): EvaluatorPreviewSubjectResult!
 }
 
 type SystemApiKey implements ApiKey & Node {

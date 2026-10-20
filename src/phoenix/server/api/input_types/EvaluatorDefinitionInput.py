@@ -186,20 +186,23 @@ def _node_id(global_id: GlobalID, expected_type_name: str, noun: str) -> int:
 
 
 @strawberry.input
-class EvaluatorPreviewsInput:
-    """Input for the evaluatorPreviews mutation."""
+class EvaluatorPreviewSubjectInput:
+    """One record to run the previewed evaluator on."""
 
-    previews: list["EvaluatorPreviewItemInput"]
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
+    id: str = strawberry.field(
+        description="Chosen by the caller and echoed on the subject's result; unique per request."
+    )
+    context: JSON
 
 
 @strawberry.input
-class EvaluatorPreviewItemInput:
-    """A single evaluator preview request with one or more contexts."""
+class EvaluatorPreviewInput:
+    """Input for the evaluatorPreview subscription: one evaluator, many subjects."""
 
-    evaluator: Optional[EvaluatorDefinitionInput] = None
-    context: JSON
-    input_mapping: EvaluatorInputMappingInput
+    evaluator: Optional[EvaluatorDefinitionInput] = strawberry.field(
+        default=None,
+        description="The evaluator to run. Optional only when datasetEvaluatorId names one.",
+    )
     dataset_evaluator_id: Optional[GlobalID] = strawberry.field(
         default=None,
         description=(
@@ -208,6 +211,8 @@ class EvaluatorPreviewItemInput:
             "Omit to preview the judge on its own, under its own name and policy."
         ),
     )
+    input_mapping: EvaluatorInputMappingInput
+    subjects: list[EvaluatorPreviewSubjectInput]
     apply_online_evaluation_limits: bool = strawberry.field(
         default=False,
         description=(
@@ -219,3 +224,4 @@ class EvaluatorPreviewItemInput:
             "configuration, never from this request."
         ),
     )
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET

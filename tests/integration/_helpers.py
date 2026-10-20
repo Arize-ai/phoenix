@@ -88,7 +88,7 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_URL,
 )
 from phoenix.db.engines import get_async_db_url
-from phoenix.server.api.auth import IsAdmin
+from phoenix.server.api.auth import IsAdmin, IsNotViewer
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.routers.v1 import create_v1_router
@@ -969,6 +969,39 @@ def _gql(
         return _json(resp), resp.headers
     resp.raise_for_status()
     return cast(dict[str, Any], resp.json()), resp.headers
+
+
+def _gql_subscription(
+    app: _AppInfo,
+    auth: Optional[_SecurityArtifact] = None,
+    /,
+    *,
+    query: str,
+    variables: Optional[Mapping[str, Any]] = None,
+    operation_name: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Run a subscription to its end over the multipart HTTP protocol and return each
+    payload's ``data``. Errors raise as :func:`_json` raises them."""
+    json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
+    resp = _httpx_client(app, auth).post(
+        "graphql",
+        json=json_,
+        headers={"Accept": "multipart/mixed;subscriptionSpec=1.0,application/json"},
+    )
+    resp.raise_for_status()
+    payloads: list[dict[str, Any]] = []
+    for part in resp.content.split(b"--graphql"):
+        part_json = _extract_json_from_multipart_part(part)
+        if not part_json or "payload" not in part_json:
+            continue
+        payload = part_json["payload"]
+        if errors := payload.get("errors"):
+            msg = errors[0]["message"]
+            if "not auth" in msg or IsAdmin.message in msg or IsNotViewer.message in msg:
+                raise Unauthorized(msg)
+            raise RuntimeError(msg)
+        payloads.append(payload["data"])
+    return payloads
 
 
 def _get_gql_spans(
