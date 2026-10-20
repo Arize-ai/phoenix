@@ -182,9 +182,12 @@ For Phoenix's own (the current default):
 A narrower option: **scales.** Both providers say `score` for the type and its
 expected value; only Phoenix says `scale` and `expected_level`. Renaming would
 follow both providers without adopting either format. Phoenix avoided the name
-on purpose, though. Every annotation already has a `score`, so a scale answer
-mapped to an annotation would put two different numbers under one name: the
-answer's expected level and the annotation's score (see [Questions](#questions)).
+on purpose, though. Every annotation already has a `score`, and a judge's
+annotation carries its answer in `metadata.decision.answer`, so one record would
+use `score` for two different things: the annotation's score, which the
+projection policy decides, and the answer's expected level. By default the two
+values happen to match, which makes the shared name easier to misread, not
+safer (see [Questions](#questions)).
 
 **Decide before** run outputs become a contract: before the REST routes and
 `phoenix-client` (the [Apps step](#build-order)) or the built-in decision
@@ -229,9 +232,10 @@ OpenAI's structure.
 For staying with the current (OpenAI-like) shape:
 
 - **Order survives storage.** Questions are ordered and answers come back in
-  that order. PostgreSQL's `JSONB` doesn't keep object key order, so a System
-  One object would need its order stored separately, or be turned into a list,
-  which is no longer System One.
+  that order. PostgreSQL's `JSONB` doesn't keep object key order, and System One
+  uses objects twice: for the questions, and for each choice question's
+  `criteria`, which holds its options. Both would need their order stored
+  separately, or be turned into lists, which is no longer System One.
 - **Scale levels have labels.** OpenAI requires a short label per level, and the
   UI and annotations need one. System One levels are descriptions only, so
   translating them yields sentence-long labels (`None: everything reconciles.`).
@@ -264,10 +268,19 @@ bodies.
 
 **Tradeoffs:**
 
-- **Raw bodies only** (current): exact, and nothing to design. But every reader
-  of answers from traces (replaying a span into the playground, grouping
-  production runs by version, any metric over production traffic) has to parse
-  each provider's format, and keep up with its changes.
+- **Raw bodies only** (current): an exact record of what was sent and received,
+  and nothing to design. What was sent is already translated, though, so a span
+  holds what each provider's format kept ([Provider Wire
+  Formats](#provider-wire-formats)), not the version's own questions. And every
+  reader of answers from traces (replaying a span into the playground, any
+  metric over production traffic) has to parse each provider's format, and keep
+  up with its changes. Adding a span to a dataset is one of those readers: the
+  export treats only `LLM` and `RETRIEVER` spans specially
+  (`dataset_helpers.py`), so a `DECISION` span's example output is the raw
+  provider body. That is shaped differently for each provider, and differently
+  from a decision experiment's output, so one evaluator mapping can't read both.
+  Grouping runs by version reads the version ID attribute instead, not the
+  bodies.
 - **Neutral attributes as well:** one shape for readers, at the cost of an
   OpenInference convention to design and get adopted, since apps' own
   instrumentation emits these spans too.
@@ -281,16 +294,21 @@ OpenInference.
 ### Reference Answers in Datasets
 
 **Current default:** no convention says how a dataset holds reference answers;
-each evaluator maps paths. The typed-decisions dataset uses its own: `label`, `noul` or `score`, `confidence`, and per-option
-`probabilities` aggregated from several labellers. That matches neither Phoenix's
-answers nor either provider's.
+each evaluator maps paths. The typed-decisions dataset uses its own: `label`,
+`noul` or `score`, `confidence`, and per-option `probabilities` aggregated from
+several labellers. The other seeded benchmarks differ again: jevbench-hard and
+BoolQ references hold `type`, `label`, and the System One answer field (`noul`,
+`choice`, or `score`). None of these matches Phoenix's answers or either
+provider's.
 
 **Tradeoffs:**
 
-- **What it decides:** whether a reference is one correct answer or a
-  distribution, which limits the metrics. Accuracy needs a single answer; Brier
-  score and calibration need distributions. And which field names the built-in
-  metrics read.
+- **What it decides:** whether a reference is one correct answer, a
+  distribution, or both, which limits the metrics. Accuracy, Brier score, and
+  calibration all compare the model's own probabilities with one correct
+  answer; only distance from a reference distribution (soft labels from several
+  labellers) needs a distribution. A reference can hold both. And which field
+  names the built-in metrics read.
 - **Alternatives:** define a Phoenix reference format; accept a provider's
   answer format as the reference; or keep requiring each evaluator to map
   paths, as today, with no convention.
@@ -318,10 +336,12 @@ with it.
   for every vendor change, in two languages, and apps break when it lags behind a
   provider.
 - **Phoenix hands back the version:** apps use it with their vendor's SDK
-  directly. Nothing to keep in step. But it only works if versions are stored in
-  that vendor's format (see [Stored Question Format](#stored-question-format)),
-  so for apps on that vendor, this choice and the stored format are decided
-  together.
+  directly. Less to keep in step, since the questions need no translation. But
+  the state still does: neither SDK renders a `text` template or picks out an
+  `input`, so `phoenix-client` still builds the state in both languages. And it
+  only works if versions are stored in that vendor's format (see [Stored
+  Question Format](#stored-question-format)), so for apps on that vendor, this
+  choice and the stored format are decided together.
 
 Once apps call `format()`, removing or narrowing it breaks them. **Decide
 before** `phoenix-client` ships it (the [Apps step](#build-order)).
@@ -347,7 +367,8 @@ the judge's uncertainty.
   `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
   `source` (evaluator, decision, version, and binding IDs).
 - **Error:** only `status: error` and `source`; the message is the annotation's
-  `error`.
+  `error`. Errors the runner records itself (a timeout, or retries exhausted)
+  carry the same metadata.
 - **Not recorded:** usage, which stays on the span.
 
 The preview already reads `status` (`chat_mutations.py`), and annotations are
@@ -364,7 +385,10 @@ exported and read by other tools.
   so readers handle one shape.
 - **Refusal status:** metadata only (current), or a first-class annotation field,
   since coverage counts and aggregates must exclude refusals and annotations
-  have no status column.
+  have no status column. Today they rely on a rule instead: an answer always has
+  a score or a label, while a refusal has neither and no error. The score and
+  label summaries already leave refusals out by that rule, but a row `count` and
+  an evaluator distribution's evaluated count include them.
 - **One shape with `phoenix-evals`:** a `ClassificationEvaluator(llm: Decision)`
   writes annotations too. Matching shapes let one reader handle both; its rubric
   normalization and recovery planner are not implicitly the server contract.
@@ -389,7 +413,7 @@ for decisions, `output_configs` is read-only in effect.
 |---|---|---|
 | `output_configs` on a decision binding | Accepted only if equal to the derived configs; not stored | Not taken by decision mutations |
 | `projection_policy` on any other kind | Refused | Taken only by decision mutations |
-| Both, on reads | Returned, derived configs beside the policy | Returned the same way |
+| Reads | A binding returns its stored overrides only, so `output_configs` is null and `projection_policy` is the override or null; `/v1/evaluators` returns the derived configs beside the policy | Derived configs beside the policy, on bindings and evaluators |
 
 A decision binding's `output_configs` can therefore only repeat the server's own
 answer. The REST binding body has two sibling scoring fields, and each is
@@ -398,7 +422,9 @@ writable for some kinds only.
 **Alternatives and tradeoffs:**
 
 - **Accept and check** (current): one request shape for every kind, and a client
-  can echo back what it read. But the field looks writable and isn't.
+  can send back derived configs it read from `/v1/evaluators` or GraphQL. (A
+  binding read returns null, which needs no check.) But the field looks writable
+  and isn't.
 - **Type the binding bodies:** make the REST create and patch bodies a union
   keyed by `type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
   `PatchDecisionEvaluatorRequest`). The decision variant has `projection_policy`
@@ -680,8 +706,8 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 |---|---|---|---|
 | Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
 | `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
-| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value becomes a string ([open question](#open-questions)) |
-| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the version |
+| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value fails the call, since Phoenix's answers hold strings ([open question](#open-questions)) |
+| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the version's, or an example's under `questionsPath`), but nothing stores them with the answer, so an annotation shows levels by index |
 | `refusal` | `refusal`, with no reason | None | Nothing |
 | `box` (later): edges as fractions, optional `confidence` | None | The same | — |
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
@@ -768,10 +794,13 @@ result = await typesafe.system_one(**kwargs)  # or openai.decisions.create(**kwa
 and translates the questions for the chosen SDK. It's the same translation the
 server adapters do, held to the same fixtures.
 
-To link app traces to versions, `format` also returns the decision version ID,
-which the app's instrumentation records on the `DECISION` span. Phoenix can then
-group production runs by version. Which attribute holds it is an
-[open question](#open-questions).
+To link app traces to versions, the app's instrumentation must record the
+decision version ID on the `DECISION` span, so Phoenix can group production runs
+by version. The ID can't ride along in `format`'s result: both SDK calls reject
+unknown keyword arguments, and `**kwargs` unpacking keeps only the keys. So it
+needs its own channel, such as a context manager around the call, as
+OpenInference's `using_prompt_template` does for prompts. Which attribute holds
+it is an [open question](#open-questions).
 
 ## Execution in Phoenix
 
@@ -874,6 +903,10 @@ only LLM attributes:
   app traces take.
 - Cumulative trace token counts for spans recorded by the server
   (`tracers.py`) read only `llm.token_count.*`.
+- Token totals per trace, per project, and per session
+  (`dataloaders/token_counts.py`, `token_counts_by_trace` in `db/helpers.py`,
+  `db/session_aggregates.py`) sum only `LLM` spans. Cost summaries read
+  `SpanCost` rows, which exist only for priced spans.
 - Prompt experiment runs (`playground_experiment_runs.py`) fill
   `prompt_token_count` and `completion_token_count` from the LLM keys. Decision
   experiment runs fill neither.
@@ -1192,14 +1225,14 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   failure, while a decision judge is retried (see [Refusals, Errors, and
   Metadata](#refusals-errors-and-metadata)). Extending the retries to LLM judges
   changes existing behavior, so it is a separate change.
-- **A deleted custom provider.** Deleting one sets `custom_provider_id` to null
-  on its versions. A saved version, or a judge pinned to one, then silently runs
-  on the built-in provider of the same kind, with the server's key and default
-  endpoint. Prompts behave the same way. Decision experiment tasks don't fall
-  back: they record the provider's name and fail. For judges, [Runtime and
-  Integration Points](#runtime-and-integration-points) already rules the
-  fallback out. Two fixes are open: refuse to run such a version, or block
-  deleting a provider that versions use.
+- **A deleted custom provider, for prompts.** Decisions are settled: deleting
+  a custom provider that a decision version or a decision experiment task uses
+  is refused, and a frozen judge whose provider is gone fails with not found
+  rather than falling back. Prompts still fall back: deleting a provider sets
+  `custom_provider_id` to null on prompt versions and prompt tasks, so a saved
+  prompt or a resumed task silently runs on the built-in provider of the same
+  kind, with the server's key and default endpoint. Whether prompts should get
+  the same guard is outside this spec, but it would make the two families agree.
 - **A default Ollama address.** Phoenix refuses to run Ollama without
   `OLLAMA_BASE_URL` or a run's `baseUrl`, in chat, the agent, and decisions,
   although Ollama listens on `http://localhost:11434`. A default would need to
@@ -1210,11 +1243,15 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   first run fails.
 - **Whether a version stores its endpoint.** A version stores no endpoint, as
   a prompt doesn't, so every run of a saved Ollama version must pass `baseUrl`
-  unless the server sets `OLLAMA_BASE_URL`.
+  unless the server sets `OLLAMA_BASE_URL`. A judge has no call to pass it on:
+  Phoenix builds judges with no base URL, so a judge on a built-in Ollama
+  version runs only where the server sets `OLLAMA_BASE_URL`. A custom provider
+  pointed at Ollama brings its own endpoint and avoids this.
 - **The playground's state modes.** The state editor has three modes. Text is
   a template and saves as `text`, or as `input` when it is a single variable.
-  JSON is a fixed value, sent as `object` when it is a non-empty object and
-  whole otherwise; it can't be saved or run over a dataset. Inputs lists input
+  JSON is a fixed value: a non-empty object is sent as `object`, an array or
+  `{}` unchanged as `input`, and any other value as text. It can't be saved or
+  run over a dataset. Inputs lists input
   names, sends their values from the Inputs panel as `object`, and is how a
   saved `object` state loads. Three things are unsettled:
   - JSON and Inputs overlap: in Mustache, `{"a": "{{a}}"}` runs about the same
@@ -1244,7 +1281,9 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   `true` and `"true"` are different choices. Phoenix stores every value as a
   string, so it can't send a boolean. Importing OpenAI questions also turns
   `true` into `"True"`. That value no longer matches a reference answer of
-  `true`, and it reaches OpenAI as a different choice. Options:
+  `true`, and it reaches OpenAI as a different choice. A boolean in a response
+  fails the call, since answers hold strings, but Phoenix never sends one, so
+  OpenAI doesn't return one. Options:
   - allow `string | boolean` values (answers, maps, and annotation labels then
     need typed keys);
   - refuse booleans on import;
@@ -1287,7 +1326,7 @@ which now holds both.
 
 | Step | Built | Missing |
 |---|---|---|
-| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings and policy overrides, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations. | Refused counts and coverage in summaries; the frozen judges in the UI; refusing to run after a custom provider is deleted (an [open question](#open-questions)); PostgreSQL. |
+| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings and policy overrides, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI; PostgreSQL. |
 | **Calibration** in the evaluator playground, milestone 2 (chat: evaluator tasks against expected outputs) | `EvaluatorDefinitionInput.decisionEvaluatorId` reaches the runner, untested. | An inline decision evaluator definition, its rebuild in the runner, its form; opening a judge as a playground evaluator task. |
 | **Online evaluation**, milestone 3 (chat: project bindings; sweeper, producer, executor) | Binding a judge to a project is refused. | Every [integration point](#runtime-and-integration-points). |
 | **Library**, outside this spec (chat: `phoenix-evals` `ClassificationEvaluator(llm: LLM)`) | Separate work (`llm: LLM \| Decision`). | — |
