@@ -90,7 +90,13 @@ function replaceDataBlockWithJsonPlaceholder(
     if (typeof message.content !== "string") {
       return message;
     }
-    return { ...message, content: replaceDataInner(message.content) };
+    // Only string-content roles (system/user/assistant) reach here; rewriting
+    // the embedded data block keeps the message a valid ModelMessage. The cast
+    // avoids TS synthesizing an invalid { role: "tool"; content: string } member.
+    return {
+      ...message,
+      content: replaceDataInner(message.content),
+    } as ModelMessage;
   });
 }
 

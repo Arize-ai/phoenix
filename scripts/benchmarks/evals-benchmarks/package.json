@@ -17,7 +17,8 @@
     "@ai-sdk/google": "^3.0.119",
     "@ai-sdk/openai": "^3.0.125",
     "@arizeai/phoenix-client": "workspace:*",
-    "@arizeai/phoenix-evals": "workspace:*"
+    "@arizeai/phoenix-evals": "workspace:*",
+    "ai": "7.0.137"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
