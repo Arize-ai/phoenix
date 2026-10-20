@@ -20,10 +20,16 @@ export type RecordedRunResult = {
  * instead of letting it sit beside a definition it did not come from.
  */
 export type RecordedRun = { fingerprint: string } & (
-  | { status: "running" }
+  | {
+      status: "running";
+      /** The run this one replaces, if the record had been tested before. */
+      previous?: FinishedRecordedRun;
+    }
   | { status: "done"; results: RecordedRunResult[] }
   | { status: "error"; message: string }
 );
+
+export type FinishedRecordedRun = Exclude<RecordedRun, { status: "running" }>;
 
 /** A recent record the evaluator can be tested against. */
 export type RecordedRunRow = {

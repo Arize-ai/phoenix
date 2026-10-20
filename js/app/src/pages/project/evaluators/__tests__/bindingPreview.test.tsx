@@ -473,7 +473,10 @@ describe("the evaluator inputs", () => {
     expect(details[1]?.getAttribute("data-variant")).toBe("danger");
   });
   it("shows the last result beside the inspector's Test button", async () => {
-    const renderInspector = (resultState: RecordedRunEntry["resultState"]) =>
+    const renderInspector = (
+      resultState: RecordedRunEntry["resultState"],
+      run?: RecordedRunEntry["run"]
+    ) =>
       act(async () => {
         root.render(
           <ThemeProvider themeMode="light" disableBodyTheme>
@@ -491,7 +494,7 @@ describe("the evaluator inputs", () => {
                       isSample: false,
                     },
                     missingCount: 0,
-                    run: undefined,
+                    run,
                     resultState,
                   }}
                   recordKind="span"
@@ -525,6 +528,24 @@ describe("the evaluator inputs", () => {
 
     await renderInspector({ kind: "failed", message: "boom", isStale: false });
     expect(segment()?.textContent).toContain("Error");
+
+    // A re-test holds the segment in place while it runs; a first test,
+    // with nothing to hold, shows none.
+    await renderInspector(
+      { kind: "running" },
+      {
+        status: "running",
+        fingerprint: "v2",
+        previous: { status: "error", fingerprint: "v1", message: "boom" },
+      }
+    );
+    expect(segment()?.getAttribute("aria-busy")).toBe("true");
+    expect(segment()?.querySelector('[aria-label="Testing"]')).not.toBeNull();
+    await renderInspector(
+      { kind: "running" },
+      { status: "running", fingerprint: "v1" }
+    );
+    expect(segment()).toBeNull();
   });
 });
 

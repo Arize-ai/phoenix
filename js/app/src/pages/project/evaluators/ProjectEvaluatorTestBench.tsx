@@ -665,10 +665,18 @@ function useEvaluatorPreviewRuns({
       state.evaluator.inputMapping
     );
     const rowKey = row.key;
-    setRuns((current) => ({
-      ...current,
-      [rowKey]: { status: "running", fingerprint },
-    }));
+    setRuns((current) => {
+      const previous = current[rowKey];
+      return {
+        ...current,
+        [rowKey]: {
+          status: "running",
+          fingerprint,
+          previous:
+            previous?.status === "running" ? previous.previous : previous,
+        },
+      };
+    });
     previewEvaluator({
       variables: {
         input: {

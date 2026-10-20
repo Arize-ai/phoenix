@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
@@ -233,10 +234,28 @@ function TestButton({
  * What the last test of this record said, beside the button that runs it,
  * so a test started from here shows its outcome here too. It mirrors the
  * row's Result cell: the verdict chip, or an error with its message on
- * hover; nothing before the first test or while one is running.
+ * hover. A re-test holds the segment in place with a spinner until the new
+ * result replaces the old; before the first test there is no segment.
  */
 function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
-  const { resultState: state } = entry;
+  const { resultState: state, run } = entry;
+  if (state.kind === "running" && run?.status === "running" && run.previous) {
+    return (
+      <div
+        className="record-inspector__last-result"
+        aria-label="Last test result"
+        aria-busy
+      >
+        <span className="record-inspector__last-result-label">
+          <Text size="XS" color="text-500">
+            Last result
+          </Text>
+        </span>
+        {/* The button beside it already says "Testing…". */}
+        <ProgressCircle isIndeterminate size="S" aria-label="Testing" />
+      </div>
+    );
+  }
   if (state.kind !== "annotated" && state.kind !== "failed") {
     return null;
   }
