@@ -119,6 +119,9 @@ export type DecisionChoiceOptionDraft = {
 
 export type DecisionScoreLevelDraft = {
   id: string;
+  /** Short name, such as "low". OpenAI requires it; TypeSafe sends it when there is no description. */
+  label: string;
+  /** Rubric text. TypeSafe sends this instead of the label when it is present. */
   description: string;
 };
 

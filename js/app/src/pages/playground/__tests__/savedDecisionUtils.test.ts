@@ -45,7 +45,10 @@ function makeDraft(state: string): DecisionRequestDraft {
         type: "score",
         name: "urgency",
         instructions: "How urgent is it?",
-        levels: [createScoreLevel("Whenever"), createScoreLevel("Now")],
+        levels: [
+          createScoreLevel({ label: "Whenever" }),
+          createScoreLevel({ label: "Now", description: "Act today" }),
+        ],
       }),
     ],
   };

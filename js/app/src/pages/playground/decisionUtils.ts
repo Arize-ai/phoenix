@@ -88,8 +88,25 @@ export function createChoiceOption({
   return { id: generateDecisionDraftId(), value, description };
 }
 
-export function createScoreLevel(description = ""): DecisionScoreLevelDraft {
-  return { id: generateDecisionDraftId(), description };
+export function createScoreLevel({
+  label = "",
+  description = "",
+}: { label?: string; description?: string } = {}): DecisionScoreLevelDraft {
+  return { id: generateDecisionDraftId(), label, description };
+}
+
+/**
+ * The text a TypeSafe score level is judged by: the rubric, or the label when
+ * there is none. Only the rubric is a template; a label names the level in
+ * annotations, so it is sent as written.
+ */
+function scoreLevelCriteria(
+  level: DecisionScoreLevelDraft,
+  formatText: TextFormatter
+): string {
+  return level.description.trim()
+    ? formatText(level.description)
+    : level.label.trim();
 }
 
 /**
@@ -115,7 +132,10 @@ export function createDecisionQuestion({
         : [],
     levels:
       type === "score"
-        ? [createScoreLevel("Low"), createScoreLevel("High")]
+        ? [
+            createScoreLevel({ label: "Low" }),
+            createScoreLevel({ label: "High" }),
+          ]
         : [],
     noul: { trueDescription: "", falseDescription: "" },
     ...overrides,
@@ -169,8 +189,8 @@ export type DecisionQuestionErrors = {
   choiceOptions?: Partial<Record<string, string>>;
   /** Too few or too many levels. */
   levels?: string;
-  /** Per level id: an empty description. */
-  levelDescriptions?: Partial<Record<string, string>>;
+  /** Per level id: an empty label. */
+  levelLabels?: Partial<Record<string, string>>;
 };
 
 export type DecisionDraftErrors = {
@@ -203,9 +223,8 @@ function getChoiceQuestionErrors(
 
 function getScoreQuestionErrors(
   question: DecisionQuestionDraft
-): Pick<DecisionQuestionErrors, "levels" | "levelDescriptions"> {
-  const errors: Pick<DecisionQuestionErrors, "levels" | "levelDescriptions"> =
-    {};
+): Pick<DecisionQuestionErrors, "levels" | "levelLabels"> {
+  const errors: Pick<DecisionQuestionErrors, "levels" | "levelLabels"> = {};
   const levelCount = question.levels.length;
   if (levelCount < MIN_SCORE_LEVELS) {
     errors.levels = `Add at least ${MIN_SCORE_LEVELS} levels`;
@@ -214,9 +233,9 @@ function getScoreQuestionErrors(
   }
   const levelErrors: Partial<Record<string, string>> = {};
   for (const level of question.levels) {
-    if (!level.description.trim()) levelErrors[level.id] = REQUIRED_ERROR;
+    if (!level.label.trim()) levelErrors[level.id] = REQUIRED_ERROR;
   }
-  if (Object.keys(levelErrors).length) errors.levelDescriptions = levelErrors;
+  if (Object.keys(levelErrors).length) errors.levelLabels = levelErrors;
   return errors;
 }
 
@@ -330,8 +349,8 @@ export function getDecisionValidationError(
       return `${label}: option values must be unique and non-empty`;
     }
     if (questionErrors.levels) return `${label}: ${questionErrors.levels}`;
-    if (questionErrors.levelDescriptions) {
-      return `${label}: every level needs a description`;
+    if (questionErrors.levelLabels) {
+      return `${label}: every level needs a label`;
     }
   }
   return null;
@@ -430,8 +449,8 @@ export function maskUntouchedErrors({
         toFieldId: decisionFieldId.option,
         touched,
       }),
-      levelDescriptions: visibleFieldErrors({
-        fieldErrors: questionErrors.levelDescriptions,
+      levelLabels: visibleFieldErrors({
+        fieldErrors: questionErrors.levelLabels,
         toFieldId: decisionFieldId.level,
         touched,
       }),
@@ -566,7 +585,9 @@ export function toSystemOneQuestion({
     return {
       type: "score",
       instructions,
-      criteria: question.levels.map((level) => formatText(level.description)),
+      criteria: question.levels.map((level) =>
+        scoreLevelCriteria(level, formatText)
+      ),
     };
   }
   const trueDescription = question.noul.trueDescription.trim();
@@ -777,8 +798,8 @@ function toQuestionInput({
           name,
           instructions,
           levels: question.levels.map((level) => ({
-            label: formatText(level.description),
-            description: null,
+            label: level.label.trim(),
+            description: optionalText(level.description, formatText),
           })),
         },
       };
@@ -1211,7 +1232,10 @@ function toDraftFromOpenAIDecisions(
         name: question.name,
         instructions: question.instructions,
         levels: question.levels.map((level) =>
-          createScoreLevel(level.description ?? level.label)
+          createScoreLevel({
+            label: level.label,
+            description: level.description ?? "",
+          })
         ),
       });
     }
@@ -1252,8 +1276,8 @@ function toDraftFromSystemOne(body: SystemOneBody): DecisionRequestDraft {
           type: "score",
           name,
           instructions,
-          levels: question.criteria.map((description) =>
-            createScoreLevel(toText(description))
+          levels: question.criteria.map((criteria) =>
+            createScoreLevel({ label: toText(criteria) })
           ),
         });
       }
@@ -1336,9 +1360,13 @@ function describeCriteria(question: DecisionQuestionDraft): string[] {
         return description ? `- ${value}: ${description}` : `- ${value}`;
       });
     case "score":
-      return question.levels.map(
-        (level, index) => `${index}: ${level.description.trim()}`
-      );
+      return question.levels.map((level, index) => {
+        const label = level.label.trim();
+        const description = level.description.trim();
+        return description
+          ? `${index}: ${label}: ${description}`
+          : `${index}: ${label}`;
+      });
     case "noul": {
       const lines: string[] = [];
       const trueDescription = question.noul.trueDescription.trim();
@@ -1633,7 +1661,9 @@ function getScoreLevelLabel({
   if (typeof reportedLabel === "string") return reportedLabel;
   const legendLabel = legend?.[String(index)];
   if (typeof legendLabel === "string") return legendLabel;
-  return question?.levels[index]?.description ?? String(index);
+  const level = question?.levels[index];
+  if (!level) return String(index);
+  return level.label.trim() || level.description.trim() || String(index);
 }
 
 function normalizeScoreAnswer({
@@ -1682,7 +1712,11 @@ function normalizeScoreAnswer({
     }
   } else if (question?.type === "score") {
     question.levels.forEach((level, index) =>
-      levels.push({ index, label: level.description, probability: null })
+      levels.push({
+        index,
+        label: level.label.trim() || level.description.trim(),
+        probability: null,
+      })
     );
   }
   levels.sort((left, right) => left.index - right.index);

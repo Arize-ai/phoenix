@@ -70,9 +70,9 @@ const optionRowCSS = css`
 
 const levelRowCSS = css`
   display: grid;
-  grid-template-columns: 2ch minmax(0, 1fr) auto;
+  grid-template-columns: 2ch minmax(6em, 0.8fr) minmax(0, 1.6fr) auto;
   gap: var(--global-dimension-size-100);
-  align-items: center;
+  align-items: start;
 `;
 
 const twoUpCSS = css`
@@ -435,21 +435,47 @@ function ScoreCriteriaEditor({
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
       <ol css={listCSS} aria-label="Score levels">
         {question.levels.map((level, levelIndex) => {
-          const levelError = errors?.levelDescriptions?.[level.id];
+          const levelError = errors?.levelLabels?.[level.id];
           return (
             <li key={level.id} css={levelRowCSS}>
               <Text size="S" color="text-700" fontFamily="mono">
                 {levelIndex}
               </Text>
+              <TextField
+                size="S"
+                aria-label={`Level ${levelIndex} label`}
+                value={level.label}
+                onChange={(label) =>
+                  onChange({
+                    levels: question.levels.map((candidate) =>
+                      candidate.id === level.id
+                        ? { ...candidate, label }
+                        : candidate
+                    ),
+                  })
+                }
+                onBlur={() => onTouch(decisionFieldId.level(level.id))}
+                isDisabled={isDisabled}
+                isInvalid={!!levelError}
+              >
+                <Input
+                  placeholder={
+                    levelIndex === 0
+                      ? "e.g. Low"
+                      : levelIndex === question.levels.length - 1
+                        ? "e.g. High"
+                        : "Label"
+                  }
+                />
+                {levelError ? <FieldError>{levelError}</FieldError> : null}
+              </TextField>
               <TemplateInput
                 key={`${level.id}-${templateFormat}`}
                 aria-label={`Level ${levelIndex} description`}
                 templateFormat={templateFormat}
                 defaultValue={level.description}
-                placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
+                placeholder="Rubric (optional)"
                 readOnly={isDisabled}
-                isInvalid={!!levelError}
-                errorMessage={levelError}
                 onChange={(description) =>
                   onChange({
                     levels: question.levels.map((candidate) =>
@@ -459,7 +485,6 @@ function ScoreCriteriaEditor({
                     ),
                   })
                 }
-                onBlur={() => onTouch(decisionFieldId.level(level.id))}
               />
               <Flex direction="row" gap="size-50">
                 <Button

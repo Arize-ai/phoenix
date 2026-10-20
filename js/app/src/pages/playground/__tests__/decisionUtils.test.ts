@@ -74,15 +74,15 @@ describe("decision request draft", () => {
       type: "score",
       name: "severity",
       instructions: "Severity?",
-      levels: [createScoreLevel("Low"), createScoreLevel("")],
+      levels: [createScoreLevel({ label: "Low" }), createScoreLevel()],
     });
     draft.questions.push(score);
     const errors = validateDecisionDraft(draft);
     expect(errors.byQuestionId[score.id]).toEqual({
-      levelDescriptions: { [score.levels[1].id]: "Required" },
+      levelLabels: { [score.levels[1].id]: "Required" },
     });
     expect(getDecisionValidationError(draft)).toBe(
-      "severity: every level needs a description"
+      "severity: every level needs a label"
     );
   });
 
@@ -162,7 +162,10 @@ describe("decision request draft", () => {
         type: "score",
         name: "severity",
         instructions: "Severity?",
-        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+        levels: [
+          createScoreLevel({ label: "Low" }),
+          createScoreLevel({ label: "High" }),
+        ],
       })
     );
     const request = buildDecisionRequest({ draft });
@@ -273,7 +276,10 @@ describe("request import", () => {
         type: "score",
         name: "severity",
         instructions: "Severity?",
-        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+        levels: [
+          createScoreLevel({ label: "Low" }),
+          createScoreLevel({ label: "High" }),
+        ],
       })
     );
     return base;
@@ -406,7 +412,10 @@ describe("answer normalization", () => {
         type: "score",
         name: "severity",
         instructions: "?",
-        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+        levels: [
+          createScoreLevel({ label: "Low" }),
+          createScoreLevel({ label: "High" }),
+        ],
       }),
       createDecisionQuestion({
         type: "noul",
@@ -509,7 +518,10 @@ describe("structured output", () => {
         type: "score",
         name: "severity",
         instructions: "Severity?",
-        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+        levels: [
+          createScoreLevel({ label: "Low" }),
+          createScoreLevel({ label: "High" }),
+        ],
       })
     );
     return base;
@@ -733,7 +745,11 @@ describe("runDecision input", () => {
         type: "score",
         name: "severity",
         instructions: "How severe?",
-        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+        levels: [
+          createScoreLevel({ label: "Low" }),
+          // A label names the level in annotations, so only the rubric is a template.
+          createScoreLevel({ label: "{{who}}", description: "Blocks {{who}}" }),
+        ],
       }),
     ];
     const input = buildDecisionInput({
@@ -755,7 +771,7 @@ describe("runDecision input", () => {
           instructions: "How severe?",
           levels: [
             { label: "Low", description: null },
-            { label: "High", description: null },
+            { label: "{{who}}", description: "Blocks the customer" },
           ],
         },
       },

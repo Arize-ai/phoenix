@@ -176,14 +176,16 @@ function toDraftQuestion(
         ),
       });
     case "scale":
-      // The editor names a level by one text, which it saves as the label.
-      // TODO: re-saving drops each level's description, which TypeSafe prefers
-      // over the label; the editor needs a label and a description per level.
       return createDecisionQuestion({
         type: "score",
         name: question.name,
         instructions: question.instructions,
-        levels: question.levels.map((level) => createScoreLevel(level.label)),
+        levels: question.levels.map((level) =>
+          createScoreLevel({
+            label: level.label,
+            description: level.description ?? "",
+          })
+        ),
       });
     default:
       return assertUnreachable(question);
