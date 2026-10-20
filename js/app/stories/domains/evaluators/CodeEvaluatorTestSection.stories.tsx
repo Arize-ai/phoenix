@@ -1,20 +1,21 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { userEvent, within } from "storybook/test";
 
-import type { useEvaluatorPreviewMutation } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewMutation.graphql";
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 
+import {
+  createEvaluatorPreviewEnvironment,
+  type EvaluatorPreviewOutputResult,
+} from "../../utils/evaluatorPreviewRelayEnvironment";
 import { OptionGrid } from "../../utils/OptionGrid";
 
-type PreviewResult =
-  useEvaluatorPreviewMutation["response"]["evaluatorPreviews"]["results"][number];
+type PreviewResult = EvaluatorPreviewOutputResult;
 
 const SOURCE_CODE = `def evaluate(output, reference):
     return {"score": float(output == reference)}`;
@@ -34,7 +35,7 @@ function annotationResult({
 }): PreviewResult {
   return {
     evaluatorName: name,
-    annotation: { decision: null, id, name, score, label, explanation },
+    annotation: { id, name, score, label, explanation, decision: null },
     error: null,
   };
 }
@@ -48,14 +49,8 @@ function TestedEvaluator({
   outputConfigs: AnnotationConfig[];
   results: PreviewResult[];
 }) {
-  const [environment] = useState(
-    () =>
-      new Environment({
-        network: Network.create(async () => ({
-          data: { evaluatorPreviews: { results } },
-        })),
-        store: new Store(new RecordSource()),
-      })
+  const [environment] = useState(() =>
+    createEvaluatorPreviewEnvironment(results)
   );
   return (
     <RelayEnvironmentProvider environment={environment}>

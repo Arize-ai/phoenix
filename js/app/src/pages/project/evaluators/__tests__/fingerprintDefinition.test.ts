@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { OptimizationDirection } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestBenchPreviewMutation.graphql";
+import type { OptimizationDirection } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import {
   fingerprintDefinition,
   type PreviewEvaluatorInput,
