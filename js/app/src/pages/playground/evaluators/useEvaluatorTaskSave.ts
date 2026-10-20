@@ -11,7 +11,7 @@ import type {
   MutationParameters,
 } from "relay-runtime";
 
-import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
 import type { PlaygroundInstancePrompt } from "@phoenix/store";
 import type { EvaluatorInputMapping } from "@phoenix/types";

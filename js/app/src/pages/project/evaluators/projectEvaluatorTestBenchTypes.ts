@@ -2,7 +2,7 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-/** One evaluator's verdict on one record, as the preview mutation returns it. */
+/** One evaluator's verdict on one record, as the preview returns it. */
 export type RecordedRunResult = {
   readonly evaluatorName: string;
   readonly annotation: {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { graphql, useMutation } from "react-relay";
 
 import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
@@ -13,51 +12,23 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
-import type { Annotation } from "@phoenix/components/annotation";
-import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
 import {
   AnnotationPreviewCard,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import {
+  type EvaluationPreviewResult,
+  type EvaluatorPreviewSubjectResult,
+  toEvaluationPreviewResults,
+  useSingleSubjectEvaluatorPreview,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-type EvaluationPreviewResult =
-  | { kind: "success"; annotation: Annotation }
-  | { kind: "error"; evaluatorName: string; message: string };
-
-type EvaluatorPreviewsOutput =
-  CodeEvaluatorTestSectionMutation["response"]["evaluatorPreviews"];
-
-function buildPreviewResults(
-  response: CodeEvaluatorTestSectionMutation["response"]
-): EvaluationPreviewResult[] {
-  return response.evaluatorPreviews.results.map((result) => {
-    if (result.error != null) {
-      return {
-        kind: "error" as const,
-        evaluatorName: result.evaluatorName,
-        message: result.error,
-      };
-    } else if (result.annotation != null) {
-      return {
-        kind: "success" as const,
-        annotation: {
-          id: result.annotation.id,
-          name: result.annotation.name,
-          label: result.annotation.label,
-          score: result.annotation.score,
-          explanation: result.annotation.explanation,
-        },
-      };
-    } else {
-      throw new Error("Unknown error: no annotation or error returned");
-    }
-  });
-}
+/** What the agent's test tool reads: the selected example's results. */
+type EvaluatorPreviewOutput = Pick<EvaluatorPreviewSubjectResult, "results">;
 
 export type CodeEvaluatorTestSectionProps = {
   /** The evaluator's source code */
@@ -98,29 +69,11 @@ export const CodeEvaluatorTestSection = ({
     (state) => state.evaluatorMappingSource
   );
 
-  const [testEvaluator, isLoading] =
-    useMutation<CodeEvaluatorTestSectionMutation>(graphql`
-      mutation CodeEvaluatorTestSectionMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              explanation
-              label
-              score
-              name
-              id
-            }
-            error
-          }
-        }
-      }
-    `);
+  const testEvaluator = useSingleSubjectEvaluatorPreview();
+  const [isLoading, setIsLoading] = useState(false);
 
   const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
+    { ok: true; output: EvaluatorPreviewOutput } | { ok: false; error: string }
   > => {
     setError(null);
     setPreviewResults([]);
@@ -145,55 +98,28 @@ export const CodeEvaluatorTestSection = ({
     }
 
     const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
-    return new Promise((resolve) => {
-      testEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: evaluatorMappingSource.source,
-                evaluator: {
-                  inlineCodeEvaluator: {
-                    name: evaluatorName,
-                    description: evaluatorDescription || null,
-                    language,
-                    sourceCode,
-                    outputConfigs: gqlOutputConfigs,
-                    sandboxConfigId,
-                  },
-                },
-                inputMapping,
-              },
-            ],
-          },
+    setIsLoading(true);
+    const preview = await testEvaluator({
+      context: evaluatorMappingSource.source,
+      evaluator: {
+        inlineCodeEvaluator: {
+          name: evaluatorName,
+          description: evaluatorDescription || null,
+          language,
+          sourceCode,
+          outputConfigs: gqlOutputConfigs,
+          sandboxConfigId,
         },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
-            const errorMessage =
-              errorMessages?.join("\n") ??
-              errors[0]?.message ??
-              "An unknown error occurred";
-            setError(errorMessage);
-            resolve({ ok: false, error: errorMessage });
-          } else {
-            const results = buildPreviewResults(response);
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
-      });
+      },
+      inputMapping,
     });
+    setIsLoading(false);
+    if (!preview.ok) {
+      setError(preview.error);
+      return preview;
+    }
+    setPreviewResults(toEvaluationPreviewResults(preview.result));
+    return { ok: true, output: { results: preview.result.results } };
   }, [
     evaluatorDescription,
     evaluatorMappingSource,

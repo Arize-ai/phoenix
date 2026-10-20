@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -25,10 +24,13 @@ import {
 import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
-import type {
-  EvaluatorOutputPreviewMutation,
-  InlineLLMEvaluatorInput,
-} from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { InlineLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
+import {
+  type EvaluationPreviewResult,
+  type EvaluatorPreviewSubjectResult,
+  toEvaluationPreviewResults,
+  useSingleSubjectEvaluatorPreview,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import {
   createLLMEvaluatorPayload,
   getOutputConfigOptimizationValue,
@@ -42,14 +44,9 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-type EvaluationPreviewResult =
-  | { kind: "success"; annotation: Annotation }
-  | { kind: "error"; evaluatorName: string; message: string };
-
-type EvaluatorPreviewsOutput =
-  EvaluatorOutputPreviewMutation["response"]["evaluatorPreviews"];
+/** What the agent's test tool reads: the selected example's results. */
+type EvaluatorPreviewOutput = Pick<EvaluatorPreviewSubjectResult, "results">;
 
 export const EvaluatorOutputPreview = () => {
   const [error, setError] = useState<string | null>(null);
@@ -60,27 +57,11 @@ export const EvaluatorOutputPreview = () => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const playgroundStore = usePlaygroundStore();
   const credentials = useCredentialsContext((state) => state);
-  const [previewEvaluator, isLoadingEvaluatorPreview] =
-    useMutation<EvaluatorOutputPreviewMutation>(graphql`
-      mutation EvaluatorOutputPreviewMutation($input: EvaluatorPreviewsInput!) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              ...decisionAnnotation_annotation @relay(mask: false)
-              explanation
-              label
-              score
-              name
-              id
-            }
-            error
-          }
-        }
-      }
-    `);
+  const previewEvaluator = useSingleSubjectEvaluatorPreview();
+  const [isLoadingEvaluatorPreview, setIsLoadingEvaluatorPreview] =
+    useState(false);
   const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
+    { ok: true; output: EvaluatorPreviewOutput } | { ok: false; error: string }
   > => {
     setError(null);
     setPreviewResults([]);
@@ -122,71 +103,20 @@ export const EvaluatorOutputPreview = () => {
       };
     }
 
-    return new Promise((resolve) => {
-      previewEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: state.evaluatorMappingSource.source,
-                evaluator: params,
-                inputMapping: state.evaluator.inputMapping,
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
-          },
-        },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
-            const errorMessage =
-              errorMessages?.join("\n") ??
-              errors[0]?.message ??
-              "An unknown error occurred";
-            setError(errorMessage);
-            resolve({ ok: false, error: errorMessage });
-          } else {
-            const results: EvaluationPreviewResult[] =
-              response.evaluatorPreviews.results.map((result) => {
-                if (result.error != null) {
-                  return {
-                    kind: "error" as const,
-                    evaluatorName: result.evaluatorName,
-                    message: result.error,
-                  };
-                } else if (result.annotation != null) {
-                  return {
-                    kind: "success" as const,
-                    annotation: {
-                      id: result.annotation.id,
-                      name: result.annotation.name,
-                      label: result.annotation.label,
-                      score: result.annotation.score,
-                      explanation: result.annotation.explanation,
-                    },
-                  };
-                } else {
-                  throw new Error(
-                    "Unknown error: no annotation or error returned"
-                  );
-                }
-              });
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
-      });
+    setIsLoadingEvaluatorPreview(true);
+    const preview = await previewEvaluator({
+      context: state.evaluatorMappingSource.source,
+      evaluator: params,
+      inputMapping: state.evaluator.inputMapping,
+      credentials: toGqlCredentials(credentials),
     });
+    setIsLoadingEvaluatorPreview(false);
+    if (!preview.ok) {
+      setError(preview.error);
+      return preview;
+    }
+    setPreviewResults(toEvaluationPreviewResults(preview.result));
+    return { ok: true, output: { results: preview.result.results } };
   }, [credentials, evaluatorStore, playgroundStore, previewEvaluator]);
 
   const agentStore = useAgentStore();
