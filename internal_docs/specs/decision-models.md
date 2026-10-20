@@ -566,12 +566,12 @@ describes the value for the playground form and is not enforced on a call.
 
 The state sent to the model is built from those inputs:
 
-| State | Meaning | When |
+| State | Meaning | Ships in |
 |---|---|---|
-| `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | Launch |
-| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters (rules below). | Launch |
-| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | Launch |
-| `messages` | A message list, for OpenAI's message-style `input` and for images. | With assets |
+| `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | [Build step 1](#build-order), Runs |
+| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters (rules below). | [Build step 1](#build-order), Runs |
+| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | [Build step 1](#build-order), Runs |
+| `messages` | A message list, for OpenAI's message-style `input` and for images. | [Build step 5](#build-order), with assets and `box` |
 
 A `text` template may only reference declared inputs, checked on write. An
 object, array, boolean, or null renders as JSON when named on its own, nested
