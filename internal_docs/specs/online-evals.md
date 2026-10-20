@@ -440,8 +440,8 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   both fill the same room.
   - A batch is never larger than the queue, so an empty queue can always take one. A span window
     with more evaluations than the queue holds is split, in arrival order, into batches of whole
-    spans, and a sweeper page holds no more pairs than the queue and ends on a whole trace or
-    session.
+    spans (a span with more evaluations than the queue holds is itself split), and a sweeper page
+    holds no more pairs than the queue and ends on a whole trace or session.
   - New spans reach the queue about once a minute, one window at a time, so the limit should hold
     about a minute of new evaluations of all kinds.
   - A dropped trace or session is recorded as `OVERFLOWED` on its work row, and offered again
@@ -452,7 +452,8 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
     not recovered if it sits below that id.
   - The span producer counts dropped evaluations per project evaluator in one-minute buckets on
     the span cursor row, written by the statement that advances the cursor, so every replica reads
-    the same counts and they survive a restart. Only the last 10 minutes are kept.
+    the same counts and they survive a restart. Only the buckets that overlap the last 10 minutes
+    are kept.
 
   Overload shows on the evaluators pages, where the queue reads Overloaded while it has dropped
   evaluations of any kind in the last 10 minutes, and in the

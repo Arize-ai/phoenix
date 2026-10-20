@@ -12,6 +12,7 @@ from phoenix.server.online_eval.queue_health import (
     load_project_queues,
     load_queue_throughput,
     project_evaluator_run_status,
+    recent_span_overflowed_counts,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -248,3 +249,13 @@ def test_project_evaluator_run_status_precedence(
         now=now,
     )
     assert status == expected
+
+
+def test_span_drops_count_for_the_whole_window() -> None:
+    now = datetime(2026, 10, 20, 12, 15, 1, tzinfo=timezone.utc)
+    overflowed_counts = {
+        datetime(2026, 10, 20, 12, 5, tzinfo=timezone.utc).isoformat(): {"1": 2},
+        datetime(2026, 10, 20, 12, 4, tzinfo=timezone.utc).isoformat(): {"1": 3},
+    }
+    # A drop at 12:05:30 is 9.5 minutes old; one from the 12:04 minute is over 10.
+    assert recent_span_overflowed_counts(overflowed_counts, now) == {1: 2}

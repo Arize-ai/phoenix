@@ -103,23 +103,26 @@ class _ActiveProjectEvaluator:
         return [sid for sid in span_ids if sample_key(sid) < self.sampling_rate]
 
 
-def _whole_span_batches(
+def _span_batches(
     evaluator_indexes_by_span: Mapping[int, Sequence[int]],
     max_batch_size: int,
-) -> list[list[int]]:
-    """Group span ids, in arrival order, into batches of at most ``max_batch_size``
-    evaluations without splitting a span. A span with more evaluations than that forms a
-    batch alone."""
-    batches: list[list[int]] = []
-    batch: list[int] = []
+) -> list[list[tuple[int, Sequence[int]]]]:
+    """Group ``(span_id, evaluator_indexes)`` pairs, in arrival order, into batches of at
+    most ``max_batch_size`` evaluations without splitting a span, so that an empty queue
+    can always take a batch. The exception is a span with more evaluations than that,
+    which is split across consecutive batches."""
+    batches: list[list[tuple[int, Sequence[int]]]] = []
+    batch: list[tuple[int, Sequence[int]]] = []
     batch_size = 0
     for span_id in sorted(evaluator_indexes_by_span):
-        span_size = len(evaluator_indexes_by_span[span_id])
-        if batch and batch_size + span_size > max_batch_size:
-            batches.append(batch)
-            batch, batch_size = [], 0
-        batch.append(span_id)
-        batch_size += span_size
+        indexes = evaluator_indexes_by_span[span_id]
+        for start in range(0, len(indexes), max_batch_size):
+            part = indexes[start : start + max_batch_size]
+            if batch and batch_size + len(part) > max_batch_size:
+                batches.append(batch)
+                batch, batch_size = [], 0
+            batch.append((span_id, part))
+            batch_size += len(part)
     if batch:
         batches.append(batch)
     return batches
@@ -276,12 +279,17 @@ class OnlineEvalProducer(DaemonTask):
         return await session.get(models.EvalSpanCursor, _CURSOR_ID)
 
     async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> Optional[models.EvalSpanCursor]:
-        """Lower the cursor to the live span high water, or return None if another
-        producer moved it since it was loaded."""
+        """Lower the cursor, and the drop floor with it, to the live span high water, or
+        return None if another producer moved it since it was loaded. SQLite reuses the ids
+        of deleted newest spans, so a floor left above the high water would hide new spans
+        that were never dropped from the backstop."""
         async with self._db() as session:
             max_span_id = await session.scalar(select(func.max(models.Span.id))) or 0
             if max_span_id >= cursor.produced_through_id:
                 return cursor
+            overflowed_through_id = cursor.overflowed_through_id
+            if overflowed_through_id is not None:
+                overflowed_through_id = min(overflowed_through_id, max_span_id)
             return await session.scalar(
                 update(models.EvalSpanCursor)
                 .where(
@@ -290,6 +298,7 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 .values(
                     produced_through_id=max_span_id,
+                    overflowed_through_id=overflowed_through_id,
                     observed_high_water_id=None,
                     observed_at=None,
                 )
@@ -385,9 +394,9 @@ class OnlineEvalProducer(DaemonTask):
     ) -> tuple[bool, int]:
         """Offer the window to every project evaluator and advance past it, returning whether
         the cursor advanced and the room left in the queue. The window is one batch, or, when
-        it holds more evaluations than the queue does, consecutive batches of whole spans no
-        larger than the queue. A batch that does not fit is dropped whole: any rule for which
-        part to keep would break the nested sampling every evaluator shares.
+        it holds more evaluations than the queue does, consecutive batches no larger than the
+        queue (``_span_batches``). A batch that does not fit is dropped whole: any rule for
+        which part to keep would break the nested sampling every evaluator shares.
 
         A dropped batch leaves no work rows. The compare-and-set that advances the cursor
         also raises ``overflowed_through_id`` to the newest dropped span and adds the drops to
@@ -406,17 +415,17 @@ class OnlineEvalProducer(DaemonTask):
                 for span_id in project_evaluator.sampled(span_ids):
                     evaluator_indexes_by_span.setdefault(span_id, []).append(index)
             budget = await admission.lock_room(session, self._db.dialect)
-            for batch in _whole_span_batches(evaluator_indexes_by_span, admission.max_queued()):
-                batch_size = sum(len(evaluator_indexes_by_span[span_id]) for span_id in batch)
+            for batch in _span_batches(evaluator_indexes_by_span, admission.max_queued()):
+                batch_size = sum(len(indexes) for _, indexes in batch)
                 if batch_size > budget:
-                    for span_id in batch:
-                        for index in evaluator_indexes_by_span[span_id]:
+                    for _, indexes in batch:
+                        for index in indexes:
                             dropped[active[index].project_evaluator_id] += 1
-                    newest_dropped_span_id = batch[-1]
+                    newest_dropped_span_id = batch[-1][0]
                     continue
                 span_ids_by_evaluator: dict[int, list[int]] = {}
-                for span_id in batch:
-                    for index in evaluator_indexes_by_span[span_id]:
+                for span_id, indexes in batch:
+                    for index in indexes:
                         span_ids_by_evaluator.setdefault(index, []).append(span_id)
                 for index, span_ids in span_ids_by_evaluator.items():
                     queued_count += await self._insert_work_units(session, active[index], span_ids)
