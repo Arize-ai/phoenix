@@ -31,4 +31,6 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
         ),
         "input": EvaluatorInput(description="The input query or conversational context."),
     },
+    default_filter_condition="span_kind == 'RETRIEVER' and attributes['retrieval']['documents'] is not None",
+    default_path_mapping={"document_text": "output.documents[*].content"},
 )

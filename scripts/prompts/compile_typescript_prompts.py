@@ -53,6 +53,11 @@ class ClassificationEvaluatorConfig(BaseModel):
     category: Optional[EvaluatorCategory] = None
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
+    # Gallery defaults for a project evaluator created from this config: the
+    # filter condition in the DSL of `scope`, and JSONPath expressions keyed by
+    # declared input name. Omit either to fall back to the level's defaults.
+    default_filter_condition: Optional[str] = None
+    default_path_mapping: Optional[dict[str, str]] = None
 
     @field_validator("inputs")
     @classmethod
@@ -82,6 +87,22 @@ class ClassificationEvaluatorConfig(BaseModel):
             if unused_inputs:
                 errors.append(f"unused inputs: {sorted(unused_inputs)}")
             raise ValueError("; ".join(errors))
+        return self
+
+    @model_validator(mode="after")
+    def validate_gallery_defaults(self) -> "ClassificationEvaluatorConfig":
+        filter_condition = self.default_filter_condition
+        if filter_condition is not None and not filter_condition.strip():
+            raise ValueError("default filter condition must not be empty")
+        if self.default_path_mapping is None:
+            return self
+        if self.inputs is None:
+            raise ValueError("default path mapping requires declared inputs")
+        undeclared = sorted(set(self.default_path_mapping) - set(self.inputs))
+        if undeclared:
+            raise ValueError(f"default path mapping names undeclared inputs: {undeclared}")
+        if any(not path.strip() for path in self.default_path_mapping.values()):
+            raise ValueError("default path mapping paths must not be empty")
         return self
 
 

@@ -45,3 +45,11 @@ class ClassificationEvaluatorConfig:
     category: Optional[EvaluatorCategory]
     details: Optional[str]
     inputs: Optional[list[EvaluatorInputDescriptor]]
+    default_filter_condition: Optional[str] = strawberry.field(
+        description="The filter condition a project evaluator created from this config "
+        "starts with, in the filter language of `scope`. Null means the level's default."
+    )
+    default_path_mapping: Optional[JSON] = strawberry.field(
+        description="JSONPath expressions keyed by input name that a project evaluator "
+        "created from this config starts with. Null means no mapping."
+    )

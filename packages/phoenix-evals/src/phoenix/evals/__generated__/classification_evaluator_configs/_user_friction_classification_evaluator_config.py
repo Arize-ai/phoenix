@@ -22,7 +22,7 @@ USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"friction": 1.0, "no_friction": 0.0},
     substitutions=None,
     labels=[],
-    scope=EvaluatorScope.TRACE,
+    scope=EvaluatorScope.SESSION,
     recommended=True,
     category=EvaluatorCategory.USER_EXPERIENCE,
     details="Classifies whether the latest user message expresses friction with an assistant's preceding behavior. It detects corrections, retries after an unsuccessful response, frustration, and challenges to unrequested or unexplained actions.",
@@ -31,5 +31,10 @@ USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
             description="The complete conversational context, including user/assistant messages. Intermediate tool calls/results are optional but may help, especially those from the most recent turn."
         ),
         "user_message": EvaluatorInput(description="The latest user message to be evaluated."),
+    },
+    default_filter_condition="num_traces > 1",
+    default_path_mapping={
+        "conversation": "metadata.turns[:-1]",
+        "user_message": "metadata.turns[-1].input",
     },
 )
