@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.pl.md" />
 </p>
 
-Arize Phoenix to open-source'owa platforma obserwowalności (observability) AI firmy Arize, przeznaczona do eksperymentowania, ewaluacji i rozwiązywania problemów. Do zarządzanych procesów produkcyjnych Arize oferuje również [Arize AX](https://arize.com/products/ax/). Phoenix zapewnia:
+Arize Phoenix to open-source'owa platforma obserwowalności (observability) AI firmy Arize, przeznaczona do eksperymentowania, ewaluacji i rozwiązywania problemów. Do zarządzanych procesów produkcyjnych Arize oferuje również [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pl). Phoenix zapewnia:
 
 - [**_Śledzenie (tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) — śledzenie działania aplikacji LLM w czasie wykonania za pomocą instrumentacji opartej na OpenTelemetry.
 - [**_Ewaluacja_**](https://arize.com/docs/phoenix/evaluation/llm-evals) — wykorzystanie LLM do benchmarkingu wydajności aplikacji za pomocą ewaluacji (evals) odpowiedzi i wyszukiwania (retrieval).
@@ -64,7 +64,7 @@ Phoenix jest niezależny od dostawcy i języka, z wbudowaną obsługą popularny
 Phoenix działa praktycznie wszędzie: na komputerze lokalnym, we wdrożeniu kontenerowym lub w chmurze. Omówienie każdej z opcji znajduje się w sekcji [Środowiska](https://arize.com/docs/phoenix/environments); można też od razu przejść do [przewodnika Szybki start ze śledzeniem](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix jest projektem open-source hostowanym samodzielnie. Jako platformę zarządzaną Arize oferuje [Arize AX](https://arize.com/products/ax/) — ta sama instrumentacja OpenTelemetry/OpenInference działa z obiema. Zobacz [pełne porównanie](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix jest projektem open-source hostowanym samodzielnie. Jako platformę zarządzaną Arize oferuje [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pl) — ta sama instrumentacja OpenTelemetry/OpenInference działa z obiema. Zobacz [pełne porównanie](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Spis treści
 
