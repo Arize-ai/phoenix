@@ -45,7 +45,8 @@
   "seo": {
     "metatags": {
       "canonical": "https://arize.com"
-    }
+    },
+    "indexing": "all"
   },
   "navigation": {
     "tabs": [
