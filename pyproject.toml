@@ -512,7 +512,7 @@ target_package_path = "evals/harbor/verifiers/harbor_verifiers/graphql"
 target_package_name = "__generated__"
 async_client = false
 multipart_uploads = false
-include_all_inputs = false
+include_all_inputs = true
 include_all_enums = false
 include_comments = "none"
 

@@ -1,11 +1,12 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
+from strawberry.scalars import JSON
 
 from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES
 from phoenix.db import models
@@ -104,7 +105,7 @@ def _patch_built_evaluator(evaluator: Any) -> Any:
 
 
 _BUILTIN_PLACEHOLDER = {"builtInEvaluatorId": str(GlobalID("BuiltInEvaluator", "1"))}
-_EMPTY_MAPPING = {"literalMapping": {}, "pathMapping": {}}
+_EMPTY_MAPPING: dict[str, dict[str, Any]] = {"literalMapping": {}, "pathMapping": {}}
 
 
 async def test_preview_hides_every_annotation_under_its_own_name() -> None:
@@ -341,9 +342,9 @@ class TestEvaluatorPreviewCancellation:
             evaluator=MagicMock(),
             input_mapping=MagicMock(),
             subjects=[
-                EvaluatorPreviewSubjectInput(id="fast", context={"output": "fast"}),
-                EvaluatorPreviewSubjectInput(id="slow-1", context={"output": "slow-1"}),
-                EvaluatorPreviewSubjectInput(id="slow-2", context={"output": "slow-2"}),
+                EvaluatorPreviewSubjectInput(id="fast", context=cast(JSON, {"output": "fast"})),
+                EvaluatorPreviewSubjectInput(id="slow-1", context=cast(JSON, {"output": "slow-1"})),
+                EvaluatorPreviewSubjectInput(id="slow-2", context=cast(JSON, {"output": "slow-2"})),
             ],
         )
         first_result = asyncio.Event()
