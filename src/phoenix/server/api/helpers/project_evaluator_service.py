@@ -427,7 +427,7 @@ async def add_project_evaluator(
         evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
     except ValueError as error:
         raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
-    # TODO: online evaluation of decision judges (milestone 3) needs a DECISION branch in
+    # TODO: online evaluation of decision judges needs a DECISION branch in
     # project_evaluator_resolution.resolve_project_evaluators_bulk and online_eval/executor.py.
     if evaluator_kind not in ("LLM", "CODE"):
         raise BadRequest("Projects run LLM and code evaluators")

@@ -146,7 +146,7 @@ export function PlaygroundEvaluatorSelect(
                       evaluator={evaluator}
                       onOpenPlayground={
                         // TODO(decision-evaluators): no evaluator-task playground
-                        // for a decision judge until milestone 2.
+                        // for a decision judge yet.
                         evaluator.isBuiltIn || evaluator.kind === "DECISION"
                           ? undefined
                           : () => {
