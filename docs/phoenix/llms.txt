@@ -183,6 +183,7 @@
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
 - [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run evals as pytest tests with arize-phoenix-client[pytest], recorded as experiments and gating CI
+- [Evaluate a Prompt Change in Code](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change): Compare two code-based prompts in an experiment with a deterministic evaluator and no LLM key
 - [Run Experiments in the Background](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background): Start Playground experiments that keep running after you close the browser
 
 ## Prompt Engineering
@@ -473,7 +474,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [General FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions about Phoenix features, pricing, and compatibility
 - [Contribute](https://arize.com/docs/phoenix/resources/contribute-to-phoenix): Open-source contribution guide
 - [Arize Phoenix or Arize AX](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Compare open-source Phoenix with the commercial Arize AX platform and decide which fits your team
-- [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Move traces, evaluations, annotations, datasets, and experiments from Phoenix to Arize AX
+- [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Use the supported AX guide and migration skill to migrate supported Phoenix traces, datasets, experiments, and evaluation results
 
 - [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison): Compare Phoenix and Braintrust across tracing, evaluation, and licensing
 - [Can I add other users to my Phoenix Instance?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance): Enable authentication and invite teammates to a Phoenix deployment
@@ -860,6 +861,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [09.08.2026: Harbor Plugin for Agent Benchmarks](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks): Record Harbor agent benchmark jobs as Phoenix datasets and experiments, with rewards as evaluations and ATIF trajectories as traces
 - [09.14.2026: Coding Agent Plugins and Error Analysis](https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis): Install Phoenix as a Claude Code, Cursor, or Codex plugin; run error analysis over MCP; score completeness
 - [09.29.2026: Editable Dataset Examples, Trace Metrics, and Custom Skills](https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics): Edit dataset examples in the table, see latency and cost per trace row, and mount custom skills into MCP and PXI
+- [10.01.2026: Trace Tree Evals and Decision Spans](https://arize.com/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans): Find failed evaluations in trace trees and represent model decision calls as DECISION spans
+- [10.13.2026: Docker Sandboxes and MCP GraphQL Tools](https://arize.com/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools): Run code evaluators in Docker Cloud Sandboxes and let MCP clients query Phoenix data through GraphQL
 
 ### 2025
 
