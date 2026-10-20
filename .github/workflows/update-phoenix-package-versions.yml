@@ -64,10 +64,11 @@ jobs:
             echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
           fi
 
-      # PyPI's simple index trails the upload by a minute or two, and tox.ini
-      # resolves the workspace siblings from PyPI (`--no-sources`), so a PR opened
-      # too early cannot resolve. Require two hits: the CDN purge reaches nodes
-      # unevenly, so one lucky response proves nothing.
+      # PyPI's simple index trails the upload by a minute or two. Installs that
+      # resolve the new floor from the index, including the migration job's
+      # `--no-sources` install, fail until the version is listed. Require two
+      # hits: the CDN purge reaches nodes unevenly, so one lucky response proves
+      # nothing.
       - name: Wait for version to be resolvable on PyPI
         if: steps.check-update.outputs.needs_update == 'true'
         run: |

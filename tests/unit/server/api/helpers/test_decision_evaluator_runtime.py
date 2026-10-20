@@ -70,7 +70,9 @@ def response() -> DecisionResponse:
                 choice="accept", confidence=0.9, probabilities={"accept": 0.9, "review": 0.1}
             ),
             "quality": ScaleAnswer(
-                expected_level=0.5, confidence=0.5, probabilities={0: 0.5, 1: 0.5}
+                expected_level=0.5,
+                confidence=0.5,
+                probabilities={0: 0.5, 1: 0.25, 2: 0.25},
             ),
         },
         input_tokens=3,
@@ -130,7 +132,7 @@ def test_scale_label_is_the_most_probable_level_not_the_first(
 ) -> None:
     decision_response = response()
     decision_response.answers["quality"] = ScaleAnswer(
-        expected_level=0.8, confidence=0.7, probabilities={0: 0.2, 1: 0.8}
+        expected_level=0.8, confidence=0.7, probabilities={0: 0.1, 1: 0.1, 2: 0.8}
     )
     quality = project(definition, decision_response)["quality"]
     assert quality["label"] == "high"
@@ -149,7 +151,7 @@ def test_scale_label_is_omitted_unless_requested(
     )
     decision_response = response()
     decision_response.answers["quality"] = ScaleAnswer(
-        expected_level=0.8, confidence=0.7, probabilities={0: 0.2, 1: 0.8}
+        expected_level=0.8, confidence=0.7, probabilities={0: 0.1, 1: 0.1, 2: 0.8}
     )
     quality = project(definition, decision_response)["quality"]
     assert quality["label"] is None
