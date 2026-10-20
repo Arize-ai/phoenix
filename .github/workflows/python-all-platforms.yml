@@ -85,7 +85,9 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-otel/
             evals/
             tests/unit/
             tests/conftest.py
@@ -165,6 +167,7 @@ jobs:
             src/phoenix/
             packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-otel/
             tests/integration/
             tests/__generated__/
             tests/__init__.py
