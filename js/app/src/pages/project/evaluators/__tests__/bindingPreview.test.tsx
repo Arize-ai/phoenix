@@ -17,8 +17,10 @@ import {
   getEvaluatorRecordInputs,
   getRecordMappingDiagnostics,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
+import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
+  type RecordedRunEntry,
   formatBulkTestLabel,
   formatRecordedRunSummary,
   getContextSnippet,
@@ -469,6 +471,60 @@ describe("the evaluator inputs", () => {
       "No sandbox configuration selected",
     ]);
     expect(details[1]?.getAttribute("data-variant")).toBe("danger");
+  });
+  it("shows the last result beside the inspector's Test button", async () => {
+    const renderInspector = (resultState: RecordedRunEntry["resultState"]) =>
+      act(async () => {
+        root.render(
+          <ThemeProvider themeMode="light" disableBodyTheme>
+            <EvaluatorStoreProvider
+              initialState={DEFAULT_LLM_EVALUATOR_STORE_VALUES}
+            >
+              <EvaluatorInputVariablesContext.Provider value={["input"]}>
+                <ProjectEvaluatorRecordInspector
+                  entry={{
+                    row: {
+                      key: "a",
+                      name: "judged span",
+                      recordId: "a-0123456789",
+                      context: { input: "hello", metadata: {} },
+                      isSample: false,
+                    },
+                    missingCount: 0,
+                    run: undefined,
+                    resultState,
+                  }}
+                  recordKind="span"
+                  inputMapping={{ pathMapping: {}, literalMapping: {} }}
+                  isRunnable
+                  runBlocker={null}
+                  onRun={() => {}}
+                />
+              </EvaluatorInputVariablesContext.Provider>
+            </EvaluatorStoreProvider>
+          </ThemeProvider>
+        );
+      });
+    const segment = () =>
+      container.querySelector('[aria-label="Last test result"]');
+
+    await renderInspector({ kind: "idle" });
+    expect(segment()).toBeNull();
+
+    await renderInspector({
+      kind: "annotated",
+      annotations: [
+        { name: "correctness", label: "true", score: 1, explanation: null },
+      ],
+      isStale: true,
+    });
+    expect(segment()?.textContent).toContain("Last result (stale)");
+    expect(segment()?.textContent).toContain("true");
+    // It sits in the header, with the button that produced it.
+    expect(segment()?.closest("header")).not.toBeNull();
+
+    await renderInspector({ kind: "failed", message: "boom", isStale: false });
+    expect(segment()?.textContent).toContain("Error");
   });
 });
 

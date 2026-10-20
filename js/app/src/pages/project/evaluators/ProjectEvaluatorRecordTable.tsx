@@ -585,6 +585,11 @@ const resultCellCSS = css`
     // The chip's button pads its pill by 4px of nothing; giving 3px of that
     // back keeps the verdict and its explanation within a row's height.
     margin: -3px 0;
+    // And by 8px either side: the first chip gives its leading 8px back, so
+    // its text starts on the explanation's left edge under it.
+    &:first-of-type {
+      margin-inline-start: -8px;
+    }
   }
 `;
 

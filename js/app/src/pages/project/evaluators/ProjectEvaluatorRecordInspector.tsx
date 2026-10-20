@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
@@ -138,6 +139,7 @@ export function ProjectEvaluatorRecordInspector({
           </span>
         </Flex>
         <div className="record-inspector__actions">
+          <LastTestResult entry={entry} />
           <TestButton
             recordKind={recordKind}
             isRunning={resultState.kind === "running"}
@@ -227,6 +229,51 @@ function TestButton({
   );
 }
 
+/**
+ * What the last test of this record said, beside the button that runs it,
+ * so a test started from here shows its outcome here too. It mirrors the
+ * row's Result cell: the verdict chip, or an error with its message on
+ * hover; nothing before the first test or while one is running.
+ */
+function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
+  const { resultState: state } = entry;
+  if (state.kind !== "annotated" && state.kind !== "failed") {
+    return null;
+  }
+  return (
+    <div
+      className="record-inspector__last-result"
+      data-stale={state.isStale}
+      aria-label="Last test result"
+    >
+      <span className="record-inspector__last-result-label">
+        <Text size="XS" color="text-500">
+          {state.isStale ? "Last result (stale)" : "Last result"}
+        </Text>
+      </span>
+      {state.kind === "annotated" ? (
+        state.annotations.map((annotation, index) => (
+          <span key={index} className="record-inspector__last-result-chip">
+            <AnnotationPreviewPopoverButton annotation={annotation} compact />
+          </span>
+        ))
+      ) : (
+        <TooltipTrigger delay={300}>
+          <TriggerWrap>
+            <Text size="S" color="danger">
+              Error
+            </Text>
+          </TriggerWrap>
+          <Tooltip placement="bottom">
+            <TooltipArrow />
+            {state.message}
+          </Tooltip>
+        </TooltipTrigger>
+      )}
+    </div>
+  );
+}
+
 function InspectorSectionTitle({
   title,
   description,
@@ -266,12 +313,20 @@ const inspectorCSS = css`
     padding: var(--global-dimension-size-50) var(--global-dimension-size-200);
     border-bottom: 1px solid var(--global-border-color-default);
     font-size: var(--global-font-size-s);
+    // Where the header is short of room, which it answers to rather than the
+    // viewport, the record's id, age, and latency drop out before anything
+    // in the last result segment does: the inspector exists to read that.
+    container-type: inline-size;
     a {
       flex: none;
       white-space: nowrap;
     }
   }
+  // Where the header runs short the record's details give way first, then
+  // its name down to a few characters; the actions keep their size.
   .record-inspector__name {
+    flex: 0 1 auto;
+    min-width: var(--global-dimension-size-800);
     font-weight: 600;
     color: var(--global-text-color-900);
     overflow: hidden;
@@ -282,7 +337,10 @@ const inspectorCSS = css`
     display: inline-flex;
     align-items: center;
     gap: var(--global-dimension-size-100);
-    flex: none;
+    flex: 0 1000 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
     code {
@@ -302,6 +360,30 @@ const inspectorCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-300);
+  }
+  // A segment of its own, set off from the record's name by a rule.
+  .record-inspector__last-result {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+    min-width: 0;
+    padding-inline-start: var(--global-dimension-size-200);
+    border-inline-start: 1px solid var(--global-border-color-default);
+    align-self: stretch;
+    &[data-stale="true"] .record-inspector__last-result-chip {
+      opacity: 0.5;
+    }
+  }
+  @container (max-width: 760px) {
+    .record-inspector__meta {
+      display: none;
+    }
+  }
+  .record-inspector__last-result-chip {
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
   }
   .record-inspector__actions {
     flex: none;
