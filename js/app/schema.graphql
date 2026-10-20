@@ -707,6 +707,16 @@ type ClassificationEvaluatorConfig {
   category: EvaluatorCategory
   details: String
   inputs: [EvaluatorInput!]
+
+  """
+  The filter condition a project evaluator created from this config starts with, in the filter language of `scope`. Null means the level's default.
+  """
+  defaultFilterCondition: String
+
+  """
+  JSONPath expressions keyed by input name that a project evaluator created from this config starts with. Null means no mapping.
+  """
+  defaultPathMapping: JSON
 }
 
 type ClearAllQueuedEvaluationsPayload {

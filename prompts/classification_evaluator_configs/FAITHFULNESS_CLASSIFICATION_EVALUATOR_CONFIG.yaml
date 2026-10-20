@@ -15,6 +15,7 @@ inputs:
     description: "The input query or conversational context."
   output:
     description: "The LLM's output response to be evaluated."
+default_filter_condition: "span_kind == 'LLM'"
 optimization_direction: maximize
 messages:
   - role: user

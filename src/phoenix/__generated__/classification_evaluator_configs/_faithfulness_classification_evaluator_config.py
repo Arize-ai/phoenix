@@ -30,4 +30,5 @@ FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "input": EvaluatorInput(description="The input query or conversational context."),
         "output": EvaluatorInput(description="The LLM's output response to be evaluated."),
     },
+    default_filter_condition="span_kind == 'LLM'",
 )
