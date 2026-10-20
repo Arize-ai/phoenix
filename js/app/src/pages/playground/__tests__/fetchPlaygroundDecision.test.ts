@@ -53,7 +53,7 @@ describe("toDecisionInstance", () => {
       templateFormat: TemplateFormats.Mustache,
     });
 
-    expect(instance.task).toEqual({ member: "decision" });
+    expect(instance.task).toEqual({ type: "decision" });
     expect(instance.decision).toEqual({
       id: "D1",
       name: "triage",

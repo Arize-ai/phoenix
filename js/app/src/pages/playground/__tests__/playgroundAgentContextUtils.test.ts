@@ -26,7 +26,7 @@ function makeInstance(
       modelName: "gpt-4o",
     } as PlaygroundInstance["model"],
     experiment: null,
-    task: { member: "prompt" },
+    task: { type: "prompt" },
     ...overrides,
   };
 }
@@ -35,7 +35,7 @@ const position = { index: 0, isDirty: false };
 
 function evaluatorTask(name: string): PlaygroundInstance["task"] {
   return {
-    member: "evaluator",
+    type: "evaluator",
     evaluator: createPlaygroundEvaluatorTask({ kind: "CODE", name }),
   };
 }

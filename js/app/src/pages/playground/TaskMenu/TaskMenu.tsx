@@ -21,7 +21,7 @@ import { PromptVersionSelector } from "@phoenix/pages/playground/PromptMenu";
 import type {
   PlaygroundInstanceSource,
   PlaygroundNormalizedInstance,
-  PlaygroundTaskMember,
+  PlaygroundTaskType,
 } from "@phoenix/store/playground";
 import {
   getPlaygroundMode,
@@ -43,11 +43,11 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
  * Picks what a playground instance is: a saved prompt, decision or
- * evaluator, or a new draft of any, from a tab per member, grouped by mode:
+ * evaluator, or a new draft of any, from a tab per type, grouped by mode:
  * prompts and decisions (task mode), then evaluators (evaluator mode). With one
  * instance on the page every tab is offered and choosing from another
- * member's tab replaces the instance; with more, only the mode's
- * members are, so prompts and decisions can sit side by side. A prompt or
+ * type's tab replaces the instance; with more, only the mode's
+ * task types are, so prompts and decisions can sit side by side. A prompt or
  * decision task keeps the version and tag pickers.
  */
 export function TaskMenu({ instanceId }: { instanceId: number }) {
@@ -84,8 +84,8 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   const [openCount, setOpenCount] = useState(0);
   const hasOpened = openCount > 0;
   // The menu opens on the tab of what the task is now.
-  const [selectedMember, setSelectedMember] = useState<PlaygroundTaskMember>(
-    instance.task.member
+  const [selectedTaskType, setSelectedTaskType] = useState<PlaygroundTaskType>(
+    instance.task.type
   );
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
@@ -96,9 +96,9 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
 
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const member = instance.task.member;
-  const isPromptTask = member === "prompt";
-  const isDecisionTask = member === "decision";
+  const taskType = instance.task.type;
+  const isPromptTask = taskType === "prompt";
+  const isDecisionTask = taskType === "decision";
   const offersTasks = !isLocked || mode === "task";
   const offersEvaluators = !isLocked || mode === "evaluator";
 
@@ -173,7 +173,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       return;
     }
 
-    const replaces = !doesSourceLoadInPlace(member, source);
+    const replaces = !doesSourceLoadInPlace(taskType, source);
 
     if (replaces && isDirty) {
       setPendingSource(source);
@@ -191,7 +191,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       isDisabled={isRunning}
       onOpenChange={(isOpen) => {
         if (isOpen) {
-          setSelectedMember(instance.task.member);
+          setSelectedTaskType(instance.task.type);
           startLoadingOptions(() => setOpenCount((count) => count + 1));
         }
       }}
@@ -215,8 +215,8 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       <Popover placement="bottom start">
         <TaskMenuList
           tabs={tabs}
-          selectedMember={selectedMember}
-          onSelectedMemberChange={setSelectedMember}
+          selectedTaskType={selectedTaskType}
+          onSelectedTaskTypeChange={setSelectedTaskType}
           search={search}
           onSearchChange={setSearch}
           isLoading={isLoadingOptions}
@@ -271,7 +271,7 @@ function TaskVersionPickers({
 }) {
   const { decision, prompt } = instance;
 
-  if (instance.task.member === "decision" && decision) {
+  if (instance.task.type === "decision" && decision) {
     return (
       <CompositeField>
         {children}
@@ -299,7 +299,7 @@ function TaskVersionPickers({
   }
 
   const selectedPrompt =
-    instance.task.member === "prompt" && prompt
+    instance.task.type === "prompt" && prompt
       ? prompts.find((candidate) => candidate.id === prompt.id)
       : undefined;
 

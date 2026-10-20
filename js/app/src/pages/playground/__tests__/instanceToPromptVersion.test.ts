@@ -39,7 +39,7 @@ describe("instanceToPromptVersion", () => {
       },
       activeRunId: null,
       selectedRepetitionNumber: 1,
-      task: { member: "prompt" },
+      task: { type: "prompt" },
     } satisfies PlaygroundInstance;
 
     const promptVersion = instanceToPromptVersion({
@@ -99,7 +99,7 @@ describe("instanceToPromptVersion", () => {
       },
       activeRunId: null,
       selectedRepetitionNumber: 1,
-      task: { member: "prompt" },
+      task: { type: "prompt" },
     } satisfies PlaygroundInstance;
 
     const promptVersion = instanceToPromptVersion({

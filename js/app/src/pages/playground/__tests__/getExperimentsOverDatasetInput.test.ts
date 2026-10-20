@@ -52,7 +52,7 @@ function addEvaluatorInstance(
       .getState()
       .instances.find((candidate) => candidate.id === instanceId);
 
-    if (instance?.task.member !== "evaluator") {
+    if (instance?.task.type !== "evaluator") {
       throw new Error("Expected an evaluator instance");
     }
 
@@ -60,7 +60,7 @@ function addEvaluatorInstance(
       instanceId,
       patch: {
         task: {
-          member: "evaluator",
+          type: "evaluator",
           evaluator: { ...instance.task.evaluator, name },
         },
       },
@@ -170,7 +170,7 @@ describe("getExperimentsOverDatasetInput", () => {
       instanceId,
       patch: {
         task: {
-          member: "evaluator",
+          type: "evaluator",
           evaluator: createPlaygroundEvaluatorTask({
             kind: "CODE",
             name: "no_sql_in_output",

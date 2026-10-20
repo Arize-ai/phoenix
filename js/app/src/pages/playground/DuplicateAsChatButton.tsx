@@ -72,7 +72,7 @@ export function DuplicateAsChatButton({
       instanceId: copyId,
       dirty: true,
       patch: {
-        task: { member: "prompt" },
+        task: { type: "prompt" },
         decision: null,
         decisionRequest: null,
         model: { ...chatModel, modelType: "LLM", responseFormat },

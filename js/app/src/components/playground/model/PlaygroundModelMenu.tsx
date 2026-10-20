@@ -48,7 +48,7 @@ export function PlaygroundModelMenu({
   const handleChange = (model: ModelMenuValue) => {
     if (!instance) return;
 
-    // The picker's Decision tab is a shortcut for the task's member: a
+    // The picker's Decision tab is a shortcut for the task's type: a
     // decision model makes the instance a decision, an LLM a prompt.
     if (model.modelType === "DECISION") {
       const wasDecision = isDecisionInstance(instance);
@@ -56,7 +56,7 @@ export function PlaygroundModelMenu({
         instanceId: playgroundInstanceId,
         dirty: true,
         patch: {
-          task: { member: "decision" },
+          task: { type: "decision" },
           // Keep a request the instance already had; start one otherwise.
           decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
           // Remember the chat configuration so switching back restores it.
@@ -99,7 +99,7 @@ export function PlaygroundModelMenu({
         instanceId: playgroundInstanceId,
         dirty: true,
         patch: {
-          task: { member: "prompt" },
+          task: { type: "prompt" },
           model: { ...restoredModel, modelType: "LLM" },
           repetitions: {},
         },

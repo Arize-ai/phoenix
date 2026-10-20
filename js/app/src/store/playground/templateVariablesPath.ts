@@ -9,7 +9,7 @@ export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
 /**
  * A template variables path for each mode: a dot-notation prefix into the
  * example context `{input, reference, metadata}`, or null for the example
- * root. The path belongs to the mode, not the member: a decision reads its
+ * root. The path belongs to the mode, not the task type: a decision reads its
  * inputs from where prompts read their template variables.
  */
 export type TemplateVariablesPathByMode = Record<PlaygroundMode, string | null>;

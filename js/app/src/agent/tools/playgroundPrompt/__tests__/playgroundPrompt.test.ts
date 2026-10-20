@@ -123,7 +123,7 @@ describe("playground prompt agent tools", () => {
     const result = await addAction(undefined);
 
     const [, added] = playgroundStore.getState().instances;
-    expect(added.task).toEqual({ member: "prompt" });
+    expect(added.task).toEqual({ type: "prompt" });
     expect(result).toMatchObject({
       ok: true,
       output: {
@@ -151,7 +151,7 @@ describe("playground prompt agent tools", () => {
 
     const [, added] = playgroundStore.getState().instances;
     expect(added.task).toMatchObject({
-      member: "evaluator",
+      type: "evaluator",
       evaluator: { kind: "LLM" },
     });
     expect(waitForFakeHost).toHaveBeenCalledWith(added.id, expect.any(Number));

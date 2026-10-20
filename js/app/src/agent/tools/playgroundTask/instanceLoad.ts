@@ -71,7 +71,7 @@ export function hasInstanceLoaded(
       );
     case "decision":
       return (
-        instance.task.member === "decision" &&
+        instance.task.type === "decision" &&
         instance.decision?.id === source.decisionId &&
         (source.decisionVersionId == null ||
           instance.decision.versionId === source.decisionVersionId)

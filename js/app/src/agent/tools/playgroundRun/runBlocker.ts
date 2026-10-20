@@ -19,7 +19,7 @@ export function getPlaygroundRunBlocker({
   getEvaluatorHost: (instanceId: number) => EvaluatorTaskAgentHost | undefined;
 }): string | null {
   const evaluatorTasks = instances.flatMap((instance, index) =>
-    instance.task.member === "evaluator" ? [{ instance, index }] : []
+    instance.task.type === "evaluator" ? [{ instance, index }] : []
   );
 
   if (evaluatorTasks.length === 0) {

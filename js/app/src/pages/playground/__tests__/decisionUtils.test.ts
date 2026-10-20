@@ -1025,15 +1025,15 @@ describe("decision tasks over a dataset", () => {
 
   it("lets decisions and prompts share a dataset run, checking only the decisions", () => {
     const decision = {
-      task: { member: "decision" },
+      task: { type: "decision" },
       decisionRequest: { ...createDecisionDraft(), state: "{{state}}" },
     } as never;
     const unfillable = {
-      task: { member: "decision" },
+      task: { type: "decision" },
       decisionRequest: createDecisionDraft(),
     } as never;
     const prompt = {
-      task: { member: "prompt" },
+      task: { type: "prompt" },
       decisionRequest: null,
     } as never;
     expect(

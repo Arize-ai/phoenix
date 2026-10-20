@@ -5,15 +5,15 @@ import type {
   PlaygroundEvaluatorTask,
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
-  PlaygroundTaskMember,
+  PlaygroundTaskType,
   PlaygroundMode,
 } from "./types";
 
 /**
- * Maps each task member to its playground mode.
+ * Maps each task type to its playground mode.
  */
-export const PLAYGROUND_MODE_BY_MEMBER: Record<
-  PlaygroundTaskMember,
+export const PLAYGROUND_MODE_BY_TASK_TYPE: Record<
+  PlaygroundTaskType,
   PlaygroundMode
 > = {
   prompt: "task",
@@ -21,18 +21,18 @@ export const PLAYGROUND_MODE_BY_MEMBER: Record<
   evaluator: "evaluator",
 };
 
-/** What an instance is: the one record of its member. */
-export function getPlaygroundTaskMember(
+/** Returns the instance's task type. */
+export function getPlaygroundTaskType(
   instance: Pick<PlaygroundInstance, "task">
-): PlaygroundTaskMember {
-  return instance.task.member;
+): PlaygroundTaskType {
+  return instance.task.type;
 }
 
 /** Whether the instance runs a decision rather than a chat prompt. */
 export function isDecisionInstance(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): boolean {
-  return instance?.task.member === "decision";
+  return instance?.task.type === "decision";
 }
 
 /**
@@ -45,14 +45,14 @@ export function getPlaygroundMode(
   const first = instances[0];
 
   return first
-    ? PLAYGROUND_MODE_BY_MEMBER[getPlaygroundTaskMember(first)]
+    ? PLAYGROUND_MODE_BY_TASK_TYPE[getPlaygroundTaskType(first)]
     : "task";
 }
 
 /**
  * Whether the page's mode can still change. A lone instance may switch modes
  * by being replaced; once there is something to compare against, the mode is
- * fixed until the other instances are removed. Members of the same mode mix
+ * fixed until the other instances are removed. Task types in the same mode mix
  * freely: a decision can sit beside a prompt.
  */
 export function isPlaygroundModeLocked(
@@ -111,12 +111,12 @@ export function createPlaygroundEvaluatorTask({
 export function getPlaygroundEvaluatorTask(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): PlaygroundEvaluatorTask | null {
-  return instance?.task.member === "evaluator" ? instance.task.evaluator : null;
+  return instance?.task.type === "evaluator" ? instance.task.evaluator : null;
 }
 
-/** The member a "new task" source of the given kind creates. */
-export function getTaskMemberForNewSource(
+/** The task type a "new task" source of the given kind creates. */
+export function getTaskTypeForNewSource(
   kind: "prompt" | "decision" | PlaygroundEvaluatorTaskKind
-): PlaygroundTaskMember {
+): PlaygroundTaskType {
   return kind === "prompt" || kind === "decision" ? kind : "evaluator";
 }

@@ -20,7 +20,7 @@ import {
 type TaskInstance = Pick<PlaygroundInstance, "task" | "prompt" | "decision">;
 
 const promptInstance = (id: string | null): TaskInstance => ({
-  task: { member: "prompt" },
+  task: { type: "prompt" },
   prompt: id ? { id, name: id, version: `${id}-v`, tag: null } : null,
   decision: null,
 });
@@ -29,7 +29,7 @@ const decisionInstance = (
   id: string | null,
   tag: string | null = null
 ): TaskInstance => ({
-  task: { member: "decision" },
+  task: { type: "decision" },
   prompt: null,
   decision: id ? { id, name: id, versionId: `${id}-v`, tag } : null,
 });
@@ -42,7 +42,7 @@ const evaluatorInstance = (
   } = {}
 ): TaskInstance => ({
   task: {
-    member: "evaluator",
+    type: "evaluator",
     evaluator: createPlaygroundEvaluatorTask({
       kind: "CODE",
       source: {

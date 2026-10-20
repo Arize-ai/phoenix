@@ -367,7 +367,7 @@ export async function fetchPlaygroundEvaluatorAsInstance(
   const draft: Omit<PlaygroundInstance, "id"> = {
     ...createEvaluatorTaskInstance({ kind }),
     task: {
-      member: "evaluator",
+      type: "evaluator",
       evaluator: buildEvaluatorTask({ node, evaluator, kind, binding }),
     },
   };

@@ -121,7 +121,7 @@ describe("playground.task.select", () => {
     const [replacement] = playgroundStore.getState().instances;
     expect(replacement.id).not.toBe(instance.id);
     expect(replacement.task).toMatchObject({
-      member: "evaluator",
+      type: "evaluator",
       evaluator: { kind: "CODE" },
     });
     expect(waitForEvaluatorHost).toHaveBeenCalledWith(
@@ -156,7 +156,7 @@ describe("playground.task.select", () => {
     expect(
       playgroundStore
         .getState()
-        .instances.every((i) => i.task.member === "prompt")
+        .instances.every((i) => i.task.type === "prompt")
     ).toBe(true);
   });
 
@@ -187,9 +187,7 @@ describe("playground.task.select", () => {
         discardChanges: true,
       })
     ).toMatchObject({ ok: true });
-    expect(playgroundStore.getState().instances[0].task.member).toBe(
-      "evaluator"
-    );
+    expect(playgroundStore.getState().instances[0].task.type).toBe("evaluator");
   });
 
   it("rejects a change while a run is active", async () => {
@@ -368,7 +366,7 @@ describe("instance load helpers", () => {
     ).toBe(false);
 
     const decisionInstance = {
-      task: { member: "decision" as const },
+      task: { type: "decision" as const },
       prompt: null,
       decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
     };

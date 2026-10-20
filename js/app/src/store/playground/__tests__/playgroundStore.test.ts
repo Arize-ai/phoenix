@@ -55,7 +55,7 @@ describe("decision instances in the store", () => {
       instanceId,
       patch: {
         llmModel: chatInstance.model,
-        task: { member: "decision" },
+        task: { type: "decision" },
         decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,
@@ -1409,7 +1409,7 @@ describe("addInstance", () => {
     const second = store.getState().instances[1];
 
     expect(id).toBe(second.id);
-    expect(second.task).toEqual({ member: "prompt" });
+    expect(second.task).toEqual({ type: "prompt" });
     expect(second.model).toEqual(first.model);
     expect(second.template).not.toEqual(first.template);
     expect(
@@ -1433,7 +1433,7 @@ describe("addInstance", () => {
     store.getState().addInstance({ type: "new", kind: "prompt" });
     const second = store.getState().instances[1];
 
-    expect(second.task).toEqual({ member: "prompt" });
+    expect(second.task).toEqual({ type: "prompt" });
     expect(second.prompt).toBeUndefined();
     expect(second.loadingSource).toBeUndefined();
     expect(second.model.provider).toBe("ANTHROPIC");
@@ -1445,8 +1445,8 @@ describe("addInstance", () => {
     store.getState().addInstance({ type: "new", kind: "decision" });
     const [first, second] = store.getState().instances;
 
-    expect(first.task).toEqual({ member: "prompt" });
-    expect(second.task).toEqual({ member: "decision" });
+    expect(first.task).toEqual({ type: "prompt" });
+    expect(second.task).toEqual({ type: "decision" });
     expect(second.decisionRequest?.questions.length).toBeGreaterThan(0);
     expect(second.decision).toBeUndefined();
     expect(second.loadingSource).toBeUndefined();
@@ -1470,7 +1470,7 @@ describe("addInstance", () => {
     store.getState().addInstance(source);
     const second = store.getState().instances[1];
 
-    expect(second.task).toEqual({ member: "decision" });
+    expect(second.task).toEqual({ type: "decision" });
     expect(second.loadingSource).toEqual(source);
   });
 
@@ -1484,7 +1484,7 @@ describe("addInstance", () => {
     });
 
     expect(store.getState().instances).toHaveLength(1);
-    expect(store.getState().instances[0].task.member).toBe("decision");
+    expect(store.getState().instances[0].task.type).toBe("decision");
     expect(store.getState().instances[0].model.modelType).toBe("DECISION");
     expect(store.getState().instances[0].llmModel).toEqual(initialModel);
 
@@ -1493,7 +1493,7 @@ describe("addInstance", () => {
       source: { type: "new", kind: "prompt" },
     });
 
-    expect(store.getState().instances[0].task.member).toBe("prompt");
+    expect(store.getState().instances[0].task.type).toBe("prompt");
     expect(store.getState().instances[0].model).toEqual(initialModel);
   });
 
@@ -1517,7 +1517,7 @@ describe("addInstance", () => {
       source: { type: "new", kind: "LLM" },
     });
 
-    expect(store.getState().instances[0].task.member).toBe("evaluator");
+    expect(store.getState().instances[0].task.type).toBe("evaluator");
     expect(store.getState().instances[0].model).toEqual(initialModel);
     expect(store.getState().templateFormat).toBe("MUSTACHE");
   });
@@ -1543,9 +1543,9 @@ describe("addInstance", () => {
     store.getState().addInstance({ type: "new", kind: "LLM" });
     const second = store.getState().instances[1];
 
-    expect(second.task.member).toBe("evaluator");
+    expect(second.task.type).toBe("evaluator");
     expect(
-      second.task.member === "evaluator" && second.task.evaluator
+      second.task.type === "evaluator" && second.task.evaluator
     ).toMatchObject({ kind: "LLM", code: null });
     expect(second.toolChoice).toEqual({ type: "ONE_OR_MORE" });
     const messageIds = chatMessageIds(second.template);
@@ -1561,7 +1561,7 @@ describe("addInstance", () => {
     const second = store.getState().instances[1];
 
     expect(
-      second.task.member === "evaluator" && second.task.evaluator.code
+      second.task.type === "evaluator" && second.task.evaluator.code
     ).toMatchObject({ language: "PYTHON", sandboxConfigId: null });
     expect(chatMessageIds(second.template)).toEqual([]);
   });
@@ -1579,7 +1579,7 @@ describe("addInstance", () => {
     store.getState().addInstance(source);
     const second = store.getState().instances[1];
 
-    expect(second.task).toEqual({ member: "prompt" });
+    expect(second.task).toEqual({ type: "prompt" });
     expect(second.loadingSource).toEqual(source);
     expect(second.prompt).toBeUndefined();
   });
@@ -1597,14 +1597,14 @@ describe("addInstance", () => {
       evaluatorId: "E1",
     });
     expect(
-      second.task.member === "evaluator" && second.task.evaluator.source
+      second.task.type === "evaluator" && second.task.evaluator.source
     ).toEqual({
       evaluatorId: "E1",
       datasetEvaluatorId: null,
       projectEvaluatorId: null,
     });
     expect(
-      third.task.member === "evaluator" && third.task.evaluator.source
+      third.task.type === "evaluator" && third.task.evaluator.source
     ).toEqual({
       evaluatorId: null,
       datasetEvaluatorId: "DE1",
@@ -1633,7 +1633,7 @@ describe("replaceInstance", () => {
     expect(instances).toHaveLength(2);
     expect(instances[0].id).toBe(replacementId);
     expect(instances[0].id).not.toBe(first.id);
-    expect(instances[0].task.member).toBe("evaluator");
+    expect(instances[0].task.type).toBe("evaluator");
     expect(instances[1]).toBe(second);
     expect(store.getState().dirtyInstances[first.id]).toBe(false);
     expect(store.getState().dirtyInstances[instances[0].id]).toBe(false);

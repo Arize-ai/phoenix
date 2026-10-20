@@ -4,7 +4,7 @@ import { useFilter } from "react-aria-components";
 
 import { Button, Icon, Icons, Popover, Select } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import type { PlaygroundTaskMember } from "@phoenix/store/playground";
+import type { PlaygroundTaskType } from "@phoenix/store/playground";
 import { getPlaygroundMode } from "@phoenix/store/playground";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "../constants";
@@ -38,13 +38,13 @@ export function PlaygroundCompareMenu() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  // The tab shown; the first instance's member, as Compare most likely
+  // The tab shown; the first instance's type, as Compare most likely
   // adds another of it.
-  const firstMember = usePlaygroundContext(
-    (state) => state.instances[0]?.task.member ?? "prompt"
+  const firstTaskType = usePlaygroundContext(
+    (state) => state.instances[0]?.task.type ?? "prompt"
   );
-  const [selectedMember, setSelectedMember] =
-    useState<PlaygroundTaskMember>(firstMember);
+  const [selectedTaskType, setSelectedTaskType] =
+    useState<PlaygroundTaskType>(firstTaskType);
 
   // Bumped on every opening, so evaluators saved since then show.
   const [openCount, setOpenCount] = useState(0);
@@ -100,8 +100,8 @@ export function PlaygroundCompareMenu() {
       <Popover placement="bottom end">
         <TaskMenuList
           tabs={tabs}
-          selectedMember={selectedMember}
-          onSelectedMemberChange={setSelectedMember}
+          selectedTaskType={selectedTaskType}
+          onSelectedTaskTypeChange={setSelectedTaskType}
           leadingSections={[DUPLICATE_SECTION]}
           search={search}
           onSearchChange={setSearch}

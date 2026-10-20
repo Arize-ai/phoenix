@@ -34,7 +34,7 @@ export function PlaygroundTaskInstance({
   usePlaygroundInstanceSourceLoader(instanceId);
 
   const member = usePlaygroundContext(
-    (state) => selectPlaygroundInstance(instanceId)(state)?.task.member
+    (state) => selectPlaygroundInstance(instanceId)(state)?.task.type
   );
 
   const isLoading = usePlaygroundContext(

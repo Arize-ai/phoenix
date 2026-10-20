@@ -4,27 +4,27 @@ import {
   createPlaygroundEvaluatorTask,
   DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG,
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskMember,
+  getPlaygroundTaskType,
   getPlaygroundMode,
-  getTaskMemberForNewSource,
+  getTaskTypeForNewSource,
   isDecisionInstance,
   isPlaygroundModeLocked,
 } from "../playgroundTask";
 import type { PlaygroundTask } from "../types";
 
-const promptTask: PlaygroundTask = { member: "prompt" };
+const promptTask: PlaygroundTask = { type: "prompt" };
 
-const decisionTask: PlaygroundTask = { member: "decision" };
+const decisionTask: PlaygroundTask = { type: "decision" };
 
 const evaluatorTask: PlaygroundTask = {
-  member: "evaluator",
+  type: "evaluator",
   evaluator: createPlaygroundEvaluatorTask({ kind: "CODE" }),
 };
 
-describe("getPlaygroundTaskMember and isDecisionInstance", () => {
-  it("reads the member off the task, the one place it is recorded", () => {
-    expect(getPlaygroundTaskMember({ task: promptTask })).toBe("prompt");
-    expect(getPlaygroundTaskMember({ task: decisionTask })).toBe("decision");
+describe("getPlaygroundTaskType and isDecisionInstance", () => {
+  it("reads the type off the task, the one place it is recorded", () => {
+    expect(getPlaygroundTaskType({ task: promptTask })).toBe("prompt");
+    expect(getPlaygroundTaskType({ task: decisionTask })).toBe("decision");
     expect(isDecisionInstance({ task: decisionTask })).toBe(true);
     expect(isDecisionInstance({ task: promptTask })).toBe(false);
     expect(isDecisionInstance(undefined)).toBe(false);
@@ -32,7 +32,7 @@ describe("getPlaygroundTaskMember and isDecisionInstance", () => {
 });
 
 describe("getPlaygroundMode", () => {
-  it("is the mode of the first instance's member", () => {
+  it("is the mode of the first instance's task type", () => {
     expect(getPlaygroundMode([{ task: promptTask }])).toBe("task");
     expect(getPlaygroundMode([{ task: decisionTask }])).toBe("task");
     expect(
@@ -115,11 +115,11 @@ describe("getPlaygroundEvaluatorTask", () => {
   });
 });
 
-describe("getTaskMemberForNewSource", () => {
+describe("getTaskTypeForNewSource", () => {
   it("maps evaluator kinds to the evaluator task kind", () => {
-    expect(getTaskMemberForNewSource("prompt")).toBe("prompt");
-    expect(getTaskMemberForNewSource("decision")).toBe("decision");
-    expect(getTaskMemberForNewSource("LLM")).toBe("evaluator");
-    expect(getTaskMemberForNewSource("CODE")).toBe("evaluator");
+    expect(getTaskTypeForNewSource("prompt")).toBe("prompt");
+    expect(getTaskTypeForNewSource("decision")).toBe("decision");
+    expect(getTaskTypeForNewSource("LLM")).toBe("evaluator");
+    expect(getTaskTypeForNewSource("CODE")).toBe("evaluator");
   });
 });

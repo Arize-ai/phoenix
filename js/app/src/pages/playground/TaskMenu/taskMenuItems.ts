@@ -2,10 +2,10 @@ import type {
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
   PlaygroundInstanceSource,
-  PlaygroundTaskMember,
+  PlaygroundTaskType,
   PlaygroundMode,
 } from "@phoenix/store/playground";
-import { PLAYGROUND_MODE_BY_MEMBER } from "@phoenix/store/playground";
+import { PLAYGROUND_MODE_BY_TASK_TYPE } from "@phoenix/store/playground";
 
 export type TaskMenuPrompt = {
   id: string;
@@ -39,17 +39,21 @@ export type TaskMenuSection = {
   items: TaskMenuItem[];
 };
 
-/** One member of the tasks in the menu: its saved items and its "New" actions. */
+/** A task-type tab with saved items and "New" actions. */
 export type TaskMenuTab = {
-  member: PlaygroundTaskMember;
+  type: PlaygroundTaskType;
   title: string;
   sections: TaskMenuSection[];
 };
 
 /** The tabs in the order the menu shows them, grouped by mode. */
-const TAB_MEMBERS: PlaygroundTaskMember[] = ["prompt", "decision", "evaluator"];
+const TAB_TASK_TYPES: PlaygroundTaskType[] = [
+  "prompt",
+  "decision",
+  "evaluator",
+];
 
-const TAB_TITLES: Record<PlaygroundTaskMember, string> = {
+const TAB_TITLES: Record<PlaygroundTaskType, string> = {
   prompt: "Prompts",
   decision: "Decisions",
   evaluator: "Evaluators",
@@ -59,7 +63,7 @@ const TAB_TITLES: Record<PlaygroundTaskMember, string> = {
 export const TASK_MENU_LOCK_NOTE =
   "Prompts and decisions can share a page; evaluators run alone. Remove the other tasks to switch.";
 
-const NEW_ITEMS: Record<PlaygroundTaskMember, TaskMenuItem[]> = {
+const NEW_ITEMS: Record<PlaygroundTaskType, TaskMenuItem[]> = {
   prompt: [{ key: "new:prompt", label: "New prompt", isAction: true }],
   decision: [{ key: "new:decision", label: "New decision", isAction: true }],
   evaluator: [
@@ -79,13 +83,10 @@ const NEW_ITEMS: Record<PlaygroundTaskMember, TaskMenuItem[]> = {
 };
 
 /**
- * The tabs a task menu offers, one per member of the tasks. With the mode
- * unlocked every member has a tab, grouped by mode: prompts and decisions
- * (task mode), then evaluators (evaluator mode). Locked, only the members available in the current mode
- * do, so a task of the other mode cannot be mixed in; prompts and decisions
- * mix freely. Each tab lists that member's saved items, then its "New"
- * actions. Prompts are filtered here; decisions and evaluators arrive already
- * filtered by the server.
+ * Offers a tab for each task type. When the mode is locked, only types in
+ * that mode appear; prompts and decisions can share task mode. Each tab
+ * lists saved items followed by "New" actions. Prompts are filtered here;
+ * decisions and evaluators arrive filtered by the server.
  */
 export function getTaskMenuTabs({
   mode,
@@ -104,15 +105,15 @@ export function getTaskMenuTabs({
   search: string;
   matches: (text: string, search: string) => boolean;
 }): TaskMenuTab[] {
-  const members = TAB_MEMBERS.filter(
-    (member) => !isLocked || PLAYGROUND_MODE_BY_MEMBER[member] === mode
+  const taskTypes = TAB_TASK_TYPES.filter(
+    (type) => !isLocked || PLAYGROUND_MODE_BY_TASK_TYPE[type] === mode
   );
 
-  return members.map((member) => ({
-    member,
-    title: TAB_TITLES[member],
-    sections: getMemberSections({
-      member,
+  return taskTypes.map((type) => ({
+    type,
+    title: TAB_TITLES[type],
+    sections: getTaskTypeSections({
+      type,
       prompts,
       decisions,
       evaluators,
@@ -123,15 +124,15 @@ export function getTaskMenuTabs({
 }
 
 /** A tab's sections: the saved items, if any match, then the "New" actions. */
-function getMemberSections({
-  member,
+function getTaskTypeSections({
+  type,
   prompts,
   decisions,
   evaluators,
   search,
   matches,
 }: {
-  member: PlaygroundTaskMember;
+  type: PlaygroundTaskType;
   prompts: TaskMenuPrompt[];
   decisions: TaskMenuDecision[];
   evaluators: TaskMenuEvaluator[];
@@ -140,8 +141,8 @@ function getMemberSections({
 }): TaskMenuSection[] {
   const sections: TaskMenuSection[] = [];
 
-  // The tab names the member, so the saved items need no title of their own.
-  if (member === "prompt") {
+  // The tab names the type, so the saved items need no title of their own.
+  if (type === "prompt") {
     const items = prompts
       .filter((prompt) => !search || matches(prompt.name, search))
       .map((prompt) => ({ key: `prompt:${prompt.id}`, label: prompt.name }));
@@ -149,7 +150,7 @@ function getMemberSections({
     if (items.length) {
       sections.push({ id: "prompts", title: null, items });
     }
-  } else if (member === "decision") {
+  } else if (type === "decision") {
     if (decisions.length) {
       sections.push({
         id: "decisions",
@@ -172,7 +173,7 @@ function getMemberSections({
     });
   }
 
-  sections.push({ id: "new", title: "New", items: NEW_ITEMS[member] });
+  sections.push({ id: "new", title: "New", items: NEW_ITEMS[type] });
 
   return sections;
 }
@@ -190,12 +191,12 @@ export const DUPLICATE_SECTION: TaskMenuSection = {
  * decision into a decision task.
  */
 export function doesSourceLoadInPlace(
-  member: PlaygroundTaskMember,
+  type: PlaygroundTaskType,
   source: PlaygroundInstanceSource
 ): boolean {
   return (
-    (member === "prompt" && source.type === "prompt") ||
-    (member === "decision" && source.type === "decision")
+    (type === "prompt" && source.type === "prompt") ||
+    (type === "decision" && source.type === "decision")
   );
 }
 
@@ -253,11 +254,11 @@ export function parseTaskMenuKey(
 export function getTaskMenuSelectedKey(
   instance: Pick<PlaygroundInstance, "task" | "prompt" | "decision">
 ): string | null {
-  if (instance.task.member === "prompt") {
+  if (instance.task.type === "prompt") {
     return instance.prompt ? `prompt:${instance.prompt.id}` : null;
   }
 
-  if (instance.task.member === "decision") {
+  if (instance.task.type === "decision") {
     return instance.decision
       ? `decision:${instance.decision.id}`
       : "new:decision";
@@ -285,11 +286,11 @@ export function getTaskMenuLabel(
     return "Loading…";
   }
 
-  if (instance.task.member === "prompt") {
+  if (instance.task.type === "prompt") {
     return instance.prompt?.name ?? null;
   }
 
-  if (instance.task.member === "decision") {
+  if (instance.task.type === "decision") {
     return instance.decision?.name ?? "New decision";
   }
 

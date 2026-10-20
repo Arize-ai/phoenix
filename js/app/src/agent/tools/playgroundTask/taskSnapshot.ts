@@ -44,11 +44,11 @@ export async function readTaskSnapshot({
     };
   }
 
-  if (instance.task.member === "prompt") {
+  if (instance.task.type === "prompt") {
     return getPromptSnapshot({ playgroundStore, instanceId });
   }
 
-  if (instance.task.member === "decision") {
+  if (instance.task.type === "decision") {
     return {
       ok: false,
       error: `Instance ${instanceId} holds a decision, which PXI cannot read yet.`,

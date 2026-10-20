@@ -204,7 +204,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       },
     },
     activeRunId: null,
-    task: { member: "prompt" },
+    task: { type: "prompt" },
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -253,7 +253,7 @@ export function createEvaluatorTaskInstance({
     toolChoice: kind === "LLM" ? { type: "ONE_OR_MORE" } : params.toolChoice,
     selectedRepetitionNumber: 1,
     task: {
-      member: "evaluator",
+      type: "evaluator",
       evaluator: createPlaygroundEvaluatorTask({ kind }),
     },
   };
@@ -292,7 +292,7 @@ export function createDecisionTaskInstance({
           },
     decisionRequest: createDecisionDraft(),
     selectedRepetitionNumber: 1,
-    task: { member: "decision" },
+    task: { type: "decision" },
   };
 }
 
@@ -374,7 +374,7 @@ function createInstanceFromSource(
     {
       ...draft,
       task: {
-        member: "evaluator",
+        type: "evaluator",
         evaluator: {
           ...createPlaygroundEvaluatorTask({ kind: "LLM" }),
           source: {
@@ -686,7 +686,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
 
       const shouldResetTemplateFormat =
-        created.instance.task.member === "evaluator" &&
+        created.instance.task.type === "evaluator" &&
         created.instance.task.evaluator.kind === "LLM" &&
         get().templateFormat === TemplateFormats.NONE;
 
@@ -957,7 +957,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   // Decision instances carry no chat invocation parameters,
                   // and their providers have no chat adapter to parse them.
                   invocationParameters:
-                    instance.task.member === "decision"
+                    instance.task.type === "decision"
                       ? instance.model.invocationParameters
                       : parseInvocationConfig(
                           instance.model.provider,

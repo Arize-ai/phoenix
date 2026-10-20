@@ -177,7 +177,7 @@ export function EvaluatorTaskSaveButton({
 
         const patch: Partial<PlaygroundNormalizedInstance> = {
           task: {
-            member: "evaluator",
+            type: "evaluator",
             evaluator: {
               ...savedEvaluator,
               savedRevision: getEvaluatorTaskRevision(savedEvaluator),

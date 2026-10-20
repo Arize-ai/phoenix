@@ -1991,7 +1991,7 @@ export function buildDecisionInstanceFromSpanAttributes({
       ...base,
       // Keep the chat defaults so switching the instance back to an LLM works.
       llmModel: base.model,
-      task: { member: "decision" },
+      task: { type: "decision" },
       model: {
         provider: provider ?? base.model.provider,
         modelName,

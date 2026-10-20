@@ -28,14 +28,14 @@ const matches = (text: string, search: string) =>
 const options = { prompts, decisions, evaluators, search: "", matches };
 
 describe("getTaskMenuTabs", () => {
-  it("offers a tab per member, grouped by mode, each with its items and New actions, while the mode is unlocked", () => {
+  it("offers a tab per type, grouped by mode, each with its items and New actions, while the mode is unlocked", () => {
     const tabs = getTaskMenuTabs({
       mode: "task",
       isLocked: false,
       ...options,
     });
 
-    expect(tabs.map((tab) => [tab.member, tab.title])).toEqual([
+    expect(tabs.map((tab) => [tab.type, tab.title])).toEqual([
       ["prompt", "Prompts"],
       ["decision", "Decisions"],
       ["evaluator", "Evaluators"],
@@ -68,14 +68,14 @@ describe("getTaskMenuTabs", () => {
     ]);
   });
 
-  it("keeps both members of the tested mode when it is locked, and hides the judging mode", () => {
+  it("keeps both task types in task mode when it is locked, and hides evaluator mode", () => {
     const tabs = getTaskMenuTabs({
       mode: "task",
       isLocked: true,
       ...options,
     });
 
-    expect(tabs.map((tab) => tab.member)).toEqual(["prompt", "decision"]);
+    expect(tabs.map((tab) => tab.type)).toEqual(["prompt", "decision"]);
   });
 
   it("keeps only the evaluator tab when the judging mode is locked", () => {
@@ -85,7 +85,7 @@ describe("getTaskMenuTabs", () => {
       ...options,
     });
 
-    expect(tabs.map((tab) => tab.member)).toEqual(["evaluator"]);
+    expect(tabs.map((tab) => tab.type)).toEqual(["evaluator"]);
     expect(tabs[0].sections.map((section) => section.id)).toEqual([
       "evaluators",
       "new",
@@ -179,7 +179,7 @@ describe("doesSourceLoadInPlace", () => {
     expect(doesSourceLoadInPlace(decision, decisionSource)).toBe(true);
   });
 
-  it("replaces the task when the member changes, or for a new draft", () => {
+  it("replaces the task when the type changes, or for a new draft", () => {
     expect(doesSourceLoadInPlace(prompt, decisionSource)).toBe(false);
     expect(doesSourceLoadInPlace(decision, promptSource)).toBe(false);
     expect(
@@ -193,7 +193,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
     overrides: Partial<ReturnType<typeof createPlaygroundEvaluatorTask>>
   ) => ({
     task: {
-      member: "evaluator" as const,
+      type: "evaluator" as const,
       evaluator: createPlaygroundEvaluatorTask({ kind: "LLM", ...overrides }),
     },
     prompt: null,
@@ -203,7 +203,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
 
   it("selects the loaded prompt and reads its name", () => {
     const instance = {
-      task: { member: "prompt" as const },
+      task: { type: "prompt" as const },
       prompt: { id: "P1", name: "Summarize", version: "V1", tag: null },
       decision: null,
       loadingSource: null,
@@ -215,7 +215,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
 
   it("has no selection and no label for a fresh prompt task", () => {
     const instance = {
-      task: { member: "prompt" as const },
+      task: { type: "prompt" as const },
       prompt: null,
       decision: null,
       loadingSource: null,
@@ -227,7 +227,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
 
   it("selects the loaded decision and reads its name", () => {
     const instance = {
-      task: { member: "decision" as const },
+      task: { type: "decision" as const },
       prompt: null,
       decision: { id: "D1", name: "triage", versionId: "DV1", tag: "prod" },
       loadingSource: null,
@@ -239,7 +239,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
 
   it("selects the New action for a decision that was never saved", () => {
     const draft = {
-      task: { member: "decision" as const },
+      task: { type: "decision" as const },
       prompt: null,
       decision: null,
       loadingSource: null,
@@ -251,7 +251,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
 
   it("ignores a decision reference an instance kept after becoming a prompt", () => {
     const instance = {
-      task: { member: "prompt" as const },
+      task: { type: "prompt" as const },
       prompt: null,
       decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
       loadingSource: null,
@@ -284,7 +284,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
   it("says Loading while a saved source is being fetched", () => {
     expect(
       getTaskMenuLabel({
-        task: { member: "prompt" },
+        task: { type: "prompt" },
         prompt: null,
         decision: null,
         loadingSource: { type: "prompt", promptId: "P1" },

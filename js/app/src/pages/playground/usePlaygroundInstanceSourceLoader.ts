@@ -48,7 +48,7 @@ function getLoadFailurePatch(
 
   if (evaluator) {
     patch.task = {
-      member: "evaluator",
+      type: "evaluator",
       evaluator: createPlaygroundEvaluatorTask({ kind: evaluator.kind }),
     };
   }
@@ -91,7 +91,7 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
     const hasOtherTemplatedInstance = state.instances.some(
       (candidate) =>
         candidate.id !== instanceId &&
-        (candidate.task.member !== "evaluator" ||
+        (candidate.task.type !== "evaluator" ||
           candidate.task.evaluator.kind === "LLM")
     );
 
@@ -109,7 +109,7 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
           const stillAloneOrCodeOnly = !current.instances.some(
             (candidate) =>
               candidate.id !== instanceId &&
-              (candidate.task.member !== "evaluator" ||
+              (candidate.task.type !== "evaluator" ||
                 candidate.task.evaluator.kind === "LLM")
           );
           if (stillAloneOrCodeOnly && loaded.templateFormat != null) {

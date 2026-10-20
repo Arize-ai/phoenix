@@ -295,13 +295,11 @@ export type PlaygroundInstancePrompt = {
 export type PlaygroundMode = "task" | "evaluator";
 
 /**
- * What a task is, one tab of the task menu each. The member decides the
- * mode (see getPlaygroundMode) and what the instance must hold: a
- * decision member holds a decision request and a decision model. New task-mode
- * members, such as a code task that holds no model, are added here and in
- * the mode table.
+ * The task type shown in the task menu. It determines the playground mode
+ * and the instance's data: decision tasks hold a decision request and model.
+ * New task types are added here and in the mode mapping.
  */
-export type PlaygroundTaskMember = "prompt" | "decision" | "evaluator";
+export type PlaygroundTaskType = "prompt" | "decision" | "evaluator";
 
 export type PlaygroundEvaluatorTaskKind = "LLM" | "CODE";
 
@@ -344,14 +342,13 @@ export type PlaygroundEvaluatorTask = {
 };
 
 /**
- * What a playground instance is: a prompt, a decision, or an evaluator
- * judged over the dataset. The member is the only record of which; every
- * instance on a page plays one mode, see getPlaygroundMode.
+ * A prompt, decision, or evaluator task. The type determines its data and
+ * playground mode; every instance on a page shares that mode.
  */
 export type PlaygroundTask =
-  | { member: "prompt" }
-  | { member: "decision" }
-  | { member: "evaluator"; evaluator: PlaygroundEvaluatorTask };
+  | { type: "prompt" }
+  | { type: "decision" }
+  | { type: "evaluator"; evaluator: PlaygroundEvaluatorTask };
 
 /**
  * Where a new (or replacement) instance comes from. Saved prompts and

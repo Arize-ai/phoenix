@@ -45,7 +45,7 @@ it("restores a decision's frozen definition, connection, and dataset settings", 
     selectedDatasetEvaluatorIds: ["judge-1"],
   });
   expect(result.playgroundProps.instances?.[0]).toMatchObject({
-    task: { member: "decision" },
+    task: { type: "decision" },
     model: {
       provider: "TYPESAFE",
       modelName: "jev-pinned",
@@ -126,7 +126,7 @@ it("fetches a fixed-question decision experiment", async () => {
   });
   const result = await fetchExperimentPlaygroundProps("exp-fixed");
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
-    task: { member: "decision" },
+    task: { type: "decision" },
     decisionRequest: {
       stateFormat: "text",
       state: "{{ticket}}",

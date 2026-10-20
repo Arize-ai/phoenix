@@ -51,7 +51,7 @@ function getPlaygroundTaskForAgent(
 ): PlaygroundAgentTask {
   // The agent's context has no decision member yet: it sees a decision as
   // the tested task it is.
-  if (task.member !== "evaluator") {
+  if (task.type !== "evaluator") {
     return { kind: "prompt" };
   }
 

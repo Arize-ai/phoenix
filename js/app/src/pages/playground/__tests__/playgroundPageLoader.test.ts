@@ -49,13 +49,13 @@ function load(search: string) {
 function codeEvaluator(name: string) {
   const instance = createEvaluatorTaskInstance({ kind: "CODE" });
 
-  if (instance.task.member !== "evaluator") throw new Error("unreachable");
+  if (instance.task.type !== "evaluator") throw new Error("unreachable");
 
   return {
     instance: {
       ...instance,
       task: {
-        member: "evaluator" as const,
+        type: "evaluator" as const,
         evaluator: { ...instance.task.evaluator, name },
       },
     },
@@ -76,7 +76,7 @@ describe("playgroundPageLoader", () => {
     if (data?.source !== "task")
       throw new Error("Expected prompt and decision tasks");
     expect(data.instances).toHaveLength(1);
-    expect(data.instances[0].task.member).toBe("decision");
+    expect(data.instances[0].task.type).toBe("decision");
     expect(data.instances[0].model.modelType).toBe("DECISION");
     expect(fetchDecision).not.toHaveBeenCalled();
     expect(fetchPrompt).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe("playgroundPageLoader", () => {
     expect(
       data.instances.map(
         (instance) =>
-          instance.task.member === "evaluator" && instance.task.evaluator.name
+          instance.task.type === "evaluator" && instance.task.evaluator.name
       )
     ).toEqual(["E0", "DE1"]);
     expect(data.templateFormat).toBe("MUSTACHE");
@@ -140,7 +140,7 @@ describe("playgroundPageLoader", () => {
     if (data?.source !== "evaluator") throw new Error("unreachable");
     expect(data.instances).toHaveLength(1);
     expect(data.instances[0].task).toMatchObject({
-      member: "evaluator",
+      type: "evaluator",
       evaluator: { kind: "LLM", source: { evaluatorId: null } },
     });
     const props = buildPlaygroundPropsFromLoaderData(data);
@@ -174,7 +174,7 @@ describe("playgroundPageLoader", () => {
       ({
         instance: {
           ...createDecisionTaskInstance(),
-          task: { member: "prompt" as const },
+          task: { type: "prompt" as const },
           prompt: { id: name, name, version: `${name}-v`, tag: null },
         },
         promptVersion: { templateFormat: "MUSTACHE" },
@@ -198,7 +198,7 @@ describe("playgroundPageLoader", () => {
       expect(data.decisionParams).toEqual([
         { decisionId: "D1", decisionVersionId: "DV1", tagName: null },
       ]);
-      expect(data.instances.map((i) => i.task.member)).toEqual(["decision"]);
+      expect(data.instances.map((i) => i.task.type)).toEqual(["decision"]);
       expect(data.templateFormat).toBe("F_STRING");
     });
 
@@ -217,7 +217,7 @@ describe("playgroundPageLoader", () => {
         templateFormat: "MUSTACHE",
       });
       if (data?.source !== "task") throw new Error("unreachable");
-      expect(data.instances.map((i) => i.task.member)).toEqual([
+      expect(data.instances.map((i) => i.task.type)).toEqual([
         "prompt",
         "decision",
       ]);
@@ -233,7 +233,7 @@ describe("playgroundPageLoader", () => {
       const data = await load("promptId=P1&decisionId=gone");
 
       if (data?.source !== "task") throw new Error("unreachable");
-      expect(data.instances.map((i) => i.task.member)).toEqual(["prompt"]);
+      expect(data.instances.map((i) => i.task.type)).toEqual(["prompt"]);
     });
   });
 });

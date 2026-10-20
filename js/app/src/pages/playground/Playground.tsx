@@ -288,7 +288,7 @@ function getTaskPanelTitle(
     return "Evaluators";
   }
 
-  const hasPrompt = instances.some(({ task }) => task.member === "prompt");
+  const hasPrompt = instances.some(({ task }) => task.type === "prompt");
   const hasDecision = instances.some(isDecisionInstance);
 
   if (hasDecision) {

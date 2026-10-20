@@ -8,9 +8,9 @@ import type {
 } from "@phoenix/store/playground";
 import {
   getPlaygroundMode,
-  getTaskMemberForNewSource,
+  getTaskTypeForNewSource,
   isPlaygroundModeLocked,
-  PLAYGROUND_MODE_BY_MEMBER,
+  PLAYGROUND_MODE_BY_TASK_TYPE,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
@@ -25,7 +25,7 @@ export function getTaskSourceMode(
 ): PlaygroundMode {
   switch (source.type) {
     case "new":
-      return PLAYGROUND_MODE_BY_MEMBER[getTaskMemberForNewSource(source.kind)];
+      return PLAYGROUND_MODE_BY_TASK_TYPE[getTaskTypeForNewSource(source.kind)];
     case "prompt":
     case "decision":
       return "task";
@@ -43,7 +43,7 @@ export function doesTaskSourceReplace(
   instance: Pick<PlaygroundNormalizedInstance, "task">,
   source: TaskSource
 ): boolean {
-  return !(instance.task.member === "prompt" && source.type === "prompt");
+  return !(instance.task.type === "prompt" && source.type === "prompt");
 }
 
 /**
@@ -125,7 +125,7 @@ export function applyTaskSource({
     return null;
   }
 
-  if (instance.task.member === "prompt" && source.type === "prompt") {
+  if (instance.task.type === "prompt" && source.type === "prompt") {
     state.updateInstance({
       instanceId,
       patch: { loadingSource: source },

@@ -126,7 +126,7 @@ export function getPlaygroundTaskParams(
     return {
       mode: "evaluator",
       evaluators: instances.map((instance) => {
-        if (instance.task.member !== "evaluator") {
+        if (instance.task.type !== "evaluator") {
           return null;
         }
 
@@ -141,7 +141,7 @@ export function getPlaygroundTaskParams(
   }
 
   const prompts = instances.flatMap((instance) =>
-    instance.task.member === "prompt" && instance.prompt
+    instance.task.type === "prompt" && instance.prompt
       ? [
           {
             promptId: instance.prompt.id,
@@ -152,7 +152,7 @@ export function getPlaygroundTaskParams(
       : []
   );
   const decisions = instances.flatMap((instance) =>
-    instance.task.member === "decision" && instance.decision
+    instance.task.type === "decision" && instance.decision
       ? [
           {
             decisionId: instance.decision.id,
@@ -165,7 +165,7 @@ export function getPlaygroundTaskParams(
   const hasDecisionDraft =
     prompts.length === 0 &&
     decisions.length === 0 &&
-    instances.some((instance) => instance.task.member === "decision");
+    instances.some((instance) => instance.task.type === "decision");
 
   return {
     mode: "task",

@@ -1225,7 +1225,7 @@ export function PlaygroundDatasetExamplesTable({
         // An evaluator task's verdicts are its runs; only a prompt task has
         // dataset evaluators scoring its outputs afterwards.
         totalEvals:
-          instance.task.member === "evaluator"
+          instance.task.type === "evaluator"
             ? 0
             : runExampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,
