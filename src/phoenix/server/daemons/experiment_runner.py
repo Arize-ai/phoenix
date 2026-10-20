@@ -1118,7 +1118,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                 explanation=None,
                 trace_id=trace_id,
                 error=message,
-                metadata_={},
+                metadata_=self._evaluator.error_metadata,
                 start_time=at,
                 end_time=at,
             )
@@ -1594,7 +1594,7 @@ class EvalWorkItem(WorkItem):
                             explanation=None,
                             trace_id=None,
                             error=str(e),
-                            metadata_={},
+                            metadata_=self._evaluator.error_metadata,
                             start_time=error_end_time,
                             end_time=error_end_time,
                         )
@@ -2798,7 +2798,7 @@ class RunningExperiment:
                         explanation=None,
                         trace_id=None,
                         error=error_msg,
-                        metadata_={},
+                        metadata_=work_item._evaluator.error_metadata,
                         start_time=now,
                         end_time=now,
                     )

@@ -50,6 +50,16 @@ class DecisionEvaluator(BaseEvaluator):
         return self.client
 
     @property
+    def error_metadata(self) -> dict[str, Any]:
+        source = self.definition.source
+        return {
+            "decision": {
+                "status": "error",
+                "source": source.model_dump(mode="json") if source else None,
+            }
+        }
+
+    @property
     def annotator_kind(self) -> str:
         return "LLM"
 
@@ -118,14 +128,7 @@ class DecisionEvaluator(BaseEvaluator):
                         "label": None,
                         "score": None,
                         "explanation": None,
-                        "metadata": {
-                            "decision": {
-                                "status": "error",
-                                "source": self.definition.source.model_dump(mode="json")
-                                if self.definition.source
-                                else None,
-                            }
-                        },
+                        "metadata": self.error_metadata,
                         "error": str(error),
                         "error_exc": error,
                         "trace_id": trace_id,

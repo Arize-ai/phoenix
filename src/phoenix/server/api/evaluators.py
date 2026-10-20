@@ -237,6 +237,11 @@ class BaseEvaluator(ABC):
         return "CODE"
 
     @property
+    def error_metadata(self) -> dict[str, Any]:
+        """Metadata for an errored annotation, including errors the runner records."""
+        return {}
+
+    @property
     @abstractmethod
     def name(self) -> str:
         """The display name of this evaluator."""

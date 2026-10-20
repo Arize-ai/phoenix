@@ -280,6 +280,25 @@ async def test_runner_retries_a_returned_rate_limit_from_a_decision_judge_only(
     _raise_retryable_evaluation_error(other, results)
 
 
+async def test_runner_recorded_errors_keep_the_decision_error_metadata(
+    definition: InlineDecisionEvaluatorDefinition,
+    client: TypeSafeDecisionClient,
+) -> None:
+    from phoenix.server.daemons.experiment_runner import EvalWorkItem
+    from tests.unit.server.daemons.test_experiment_runner import _make_running_experiment
+
+    evaluator = DecisionEvaluator(definition, client)
+    work_item = MagicMock(spec=EvalWorkItem)
+    work_item.experiment_run = MagicMock(id=1)
+    work_item.annotation_names = ["judge.correct"]
+    work_item._evaluator = evaluator
+    work_item._persist_eval_results = AsyncMock()
+    await _make_running_experiment()._persist_exhausted_retry(work_item, "retries exhausted")
+    [annotations, _] = work_item._persist_eval_results.await_args.args
+    assert [annotation.metadata_ for annotation in annotations] == [evaluator.error_metadata]
+    assert evaluator.error_metadata["decision"]["status"] == "error"
+
+
 async def test_eval_log_for_a_deleted_binding_is_skipped() -> None:
     from phoenix.db import models
     from tests.unit.server.daemons.test_experiment_runner import (

@@ -577,7 +577,7 @@ async def test_frozen_decision_evaluators_survive_binding_deletion_and_experimen
     assert frozen["name"] == "ticket-urgency"
     assert frozen["datasetEvaluatorId"] == binding_id
     assert frozen["definition"]["name"] == "ticket-urgency"
-    assert frozen["annotationNames"] == ["urgent", "team"]
+    assert frozen["annotationNames"] == ["ticket-urgency.urgent", "ticket-urgency.team"]
 
     result = await gql_client.execute(
         "mutation($ids: [ID!]!){deleteExperiments(input:{experimentIds:$ids}){experiments{id}}}",

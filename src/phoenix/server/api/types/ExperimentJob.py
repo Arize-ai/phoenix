@@ -205,6 +205,7 @@ class ExperimentJob(Node):
         from phoenix.server.api.helpers.decision_evaluator_snapshots import (
             DecisionEvaluatorSnapshot,
         )
+        from phoenix.server.api.helpers.evaluators import result_annotation_names
         from phoenix.server.api.types.EvaluatorTaskDefinition import (
             InlineDecisionEvaluatorDefinition,
         )
@@ -227,7 +228,9 @@ class ExperimentJob(Node):
                     definition=InlineDecisionEvaluatorDefinition.from_orm(
                         snapshot.definition, snapshot.dataset_evaluator_id
                     ),
-                    annotation_names=[config.name for config in snapshot.output_configs],
+                    annotation_names=result_annotation_names(
+                        snapshot.name, snapshot.output_configs
+                    ),
                 )
             )
         return result
