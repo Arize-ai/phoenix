@@ -1,10 +1,13 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  GRIP_RESIZE_TARGET_MINIMUM_SIZE,
+  GripResizeHandle,
+} from "@phoenix/components/resize";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import type {
@@ -117,20 +120,35 @@ export const EvaluatorForm = ({
   right: ReactNode;
 }) => {
   return (
-    <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
+    <Group
+      orientation="horizontal"
+      style={{ flex: 1, minHeight: 0 }}
+      resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
+    >
       {leftDock != null ? (
-        <Panel defaultSize={50} style={dockedPanelStyle} css={dockedLeftCSS}>
+        <Panel
+          defaultSize={50}
+          minSize={LEFT_PANEL_MIN_SIZE}
+          style={dockedPanelStyle}
+          css={dockedLeftCSS}
+        >
           <div className="evaluator-form__left-scroll">{left}</div>
           <div className="evaluator-form__left-dock">{leftDock}</div>
         </Panel>
       ) : (
-        <Panel defaultSize={50} style={panelStyle} css={leftCSS}>
+        <Panel
+          defaultSize={50}
+          minSize={LEFT_PANEL_MIN_SIZE}
+          style={panelStyle}
+          css={leftCSS}
+        >
           {left}
         </Panel>
       )}
-      <Separator css={compactResizeHandleCSS} />
+      <GripResizeHandle />
       <Panel
         defaultSize={50}
+        minSize={RIGHT_PANEL_MIN_SIZE}
         style={panelStyle}
         css={css`
           display: flex;
@@ -145,6 +163,14 @@ export const EvaluatorForm = ({
     </Group>
   );
 };
+
+/**
+ * Floors in pixels, so on a laptop neither side can be dragged down to a
+ * sliver: the form keeps room for its two-up fields, the test side for its
+ * table's columns.
+ */
+const LEFT_PANEL_MIN_SIZE = "420px";
+const RIGHT_PANEL_MIN_SIZE = "480px";
 
 const leftCSS = css`
   display: flex;

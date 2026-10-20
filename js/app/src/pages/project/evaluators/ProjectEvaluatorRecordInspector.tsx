@@ -16,16 +16,12 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
-import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
 import { getRowTestBlocker } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
   type RecordedRunEntry,
-  type RecordedRunResult,
-  type RecordedRunResultState,
   shortenRecordId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
@@ -63,13 +59,12 @@ const CONTEXT_TITLE: Record<ProjectEvaluatorRecordKind, string> = {
 };
 
 /**
- * The docked detail of the focused record: what the evaluator returned for
- * it, and what each variable resolved to. It sits in a fixed region so
- * arrowing through records reads each in the same place. The Test button
- * lives with the result it produces, under the Result title, so the control
- * and its outcome are read together here as they are in the table. The
- * result and the inputs stack rather than sit side by side: before a run the
- * result is one line, and beside it the inputs left a column mostly empty.
+ * The docked detail of the focused record: what each variable resolved to,
+ * and the record's data to map from. It sits in a fixed region so arrowing
+ * through records reads each in the same place. The verdict is not repeated
+ * here: the record's row above already carries it with its explanation, the
+ * way a span carries its name and excerpt. The header keeps the record's own
+ * Test button, so the record being read can be run without finding its row.
  */
 export function ProjectEvaluatorRecordInspector({
   entry,
@@ -142,9 +137,18 @@ export function ProjectEvaluatorRecordInspector({
             )}
           </span>
         </Flex>
-        {row.href ? (
-          <ExternalLink href={row.href}>Open {recordKind}</ExternalLink>
-        ) : null}
+        <div className="record-inspector__actions">
+          <TestButton
+            recordKind={recordKind}
+            isRunning={resultState.kind === "running"}
+            isRetest={hasResult}
+            blocker={testBlocker}
+            onRun={onRun}
+          />
+          {row.href ? (
+            <ExternalLink href={row.href}>Open {recordKind}</ExternalLink>
+          ) : null}
+        </div>
       </header>
       <div className="record-inspector__body">
         {row.unavailableReason ? (
@@ -153,19 +157,6 @@ export function ProjectEvaluatorRecordInspector({
           </Alert>
         ) : (
           <div className="record-inspector__sections">
-            <section className="record-inspector__result" aria-label="Result">
-              <div className="record-inspector__section-header">
-                <InspectorSectionTitle title="Result" />
-                <TestButton
-                  recordKind={recordKind}
-                  isRunning={resultState.kind === "running"}
-                  isRetest={hasResult}
-                  blocker={testBlocker}
-                  onRun={onRun}
-                />
-              </div>
-              <RecordedRunDetail entry={entry} />
-            </section>
             <EvaluatorInputsView
               heading={
                 <InspectorSectionTitle
@@ -193,8 +184,8 @@ export function ProjectEvaluatorRecordInspector({
 }
 
 /**
- * The inspector's Test button, beside the result it produces: the one
- * obvious way to run the record being read.
+ * The inspector's Test button, in its header beside the record it runs: the
+ * one obvious way to run the record being read.
  */
 function TestButton({
   recordKind,
@@ -257,118 +248,6 @@ function InspectorSectionTitle({
   );
 }
 
-/**
- * The run's outcome: the verdict chip with its explanation, a spinner while
- * a test is in flight, and a line before the first run. A stale outcome is
- * still shown, under a note that says what it is.
- */
-function RecordedRunDetail({ entry }: { entry: RecordedRunEntry }) {
-  const { run, resultState } = entry;
-  if (run == null || resultState.kind === "idle") {
-    return (
-      <Text size="S" color="text-500">
-        Not tested yet.
-      </Text>
-    );
-  }
-  if (run.status === "running") {
-    return (
-      <Flex direction="row" alignItems="center" gap="size-100">
-        <ProgressCircle isIndeterminate size="S" aria-label="Testing" />
-        <Text size="S" color="text-500">
-          Testing…
-        </Text>
-      </Flex>
-    );
-  }
-  const staleNote = isStaleState(resultState) ? (
-    <Text size="XS" color="text-500">
-      From an earlier version of the evaluator. Re-test to refresh it.
-    </Text>
-  ) : null;
-  if (run.status === "error") {
-    return (
-      <Flex direction="column" gap="size-100">
-        {staleNote}
-        <Alert variant="danger" title="Evaluator Error">
-          {run.message}
-        </Alert>
-      </Flex>
-    );
-  }
-  return (
-    <Flex direction="column" gap="size-100">
-      {staleNote}
-      <div data-stale={isStaleState(resultState)} css={staleCSS}>
-        {run.results.map((result, index) =>
-          result.error ? (
-            <Alert
-              key={index}
-              variant="danger"
-              title={`Evaluator Error: ${result.evaluatorName}`}
-            >
-              {result.error}
-            </Alert>
-          ) : result.annotation ? (
-            <RecordedRunVerdict key={index} annotation={result.annotation} />
-          ) : null
-        )}
-      </div>
-    </Flex>
-  );
-}
-
-function isStaleState(state: RecordedRunResultState): boolean {
-  return (
-    (state.kind === "annotated" || state.kind === "failed") && state.isStale
-  );
-}
-
-/**
- * One verdict: the chip the Result column shows, which already carries the
- * label and score, and the explanation under it. The same chip opens the
- * annotation's full details.
- */
-function RecordedRunVerdict({
-  annotation,
-}: {
-  annotation: NonNullable<RecordedRunResult["annotation"]>;
-}) {
-  return (
-    <div css={verdictCSS}>
-      <Flex direction="row" alignItems="center" gap="size-150" wrap>
-        <AnnotationPreviewPopoverButton annotation={annotation} compact />
-      </Flex>
-      {annotation.explanation ? (
-        <p className="record-verdict__explanation">{annotation.explanation}</p>
-      ) : null}
-    </div>
-  );
-}
-
-const staleCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  &[data-stale="true"] {
-    opacity: 0.6;
-  }
-`;
-
-const verdictCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  .record-verdict__explanation {
-    margin: 0;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    color: var(--global-text-color-700);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-`;
-
 const inspectorCSS = css`
   display: flex;
   flex-direction: column;
@@ -424,19 +303,12 @@ const inspectorCSS = css`
     flex-direction: column;
     gap: var(--global-dimension-size-300);
   }
-  .record-inspector__result {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    min-width: 0;
-  }
-  .record-inspector__section-header {
+  .record-inspector__actions {
+    flex: none;
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
     gap: var(--global-dimension-size-200);
-    min-height: var(--global-button-height-s);
   }
   // The same register as the table header above: one heading style for the
   // dense half of the dialog rather than a third one.

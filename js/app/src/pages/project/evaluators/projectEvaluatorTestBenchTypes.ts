@@ -61,16 +61,26 @@ export const SAMPLE_ROW_KEY = "__sample__";
  * A current missing input outranks an earlier verdict: the verdict came from
  * a definition that did not have the variable, and a test now would fail.
  */
+export type RecordedRunAnnotation = NonNullable<
+  RecordedRunResult["annotation"]
+>;
+
 export type RecordedRunResultState =
   | { kind: "unavailable" }
   | { kind: "running" }
   | { kind: "missing"; count: number }
   | {
       kind: "annotated";
-      annotation: NonNullable<RecordedRunResult["annotation"]>;
+      /** Every annotation the run produced, one per output, in order. */
+      annotations: RecordedRunAnnotation[];
       isStale: boolean;
     }
-  | { kind: "failed"; isStale: boolean }
+  | {
+      kind: "failed";
+      /** What went wrong, as the server or the evaluator said it. */
+      message: string;
+      isStale: boolean;
+    }
   | { kind: "idle" };
 
 export function isRecordedRunStale(
@@ -103,14 +113,24 @@ export function getRecordedRunResultState({
   }
   const isStale = isRecordedRunStale(run, currentFingerprint);
   if (run?.status === "done") {
-    const annotated = run.results.find((result) => result.annotation != null);
-    if (annotated?.annotation) {
-      return { kind: "annotated", annotation: annotated.annotation, isStale };
+    const annotations = run.results.flatMap(({ annotation }) =>
+      annotation != null ? [annotation] : []
+    );
+    if (annotations.length > 0) {
+      return { kind: "annotated", annotations, isStale };
     }
-    return { kind: "failed", isStale };
+    const errors = run.results.flatMap(({ error }) => (error ? [error] : []));
+    return {
+      kind: "failed",
+      message:
+        errors.length > 0
+          ? errors.join("\n")
+          : "The evaluator returned no annotation.",
+      isStale,
+    };
   }
   if (run?.status === "error") {
-    return { kind: "failed", isStale };
+    return { kind: "failed", message: run.message, isStale };
   }
   return { kind: "idle" };
 }

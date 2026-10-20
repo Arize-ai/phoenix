@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Fragment, Suspense, useState, useSyncExternalStore } from "react";
 import { graphql, useMutation } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
@@ -27,7 +27,10 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  GRIP_RESIZE_TARGET_MINIMUM_SIZE,
+  GripResizeHandle,
+} from "@phoenix/components/resize";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
@@ -232,11 +235,15 @@ export function ProjectEvaluatorTestBench({
           })}
         </Button>
       </TestBenchHeader>
-      <Group orientation="vertical" className="test-bench__split">
+      <Group
+        orientation="vertical"
+        className="test-bench__split"
+        resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
+      >
         <Panel
           id="project-evaluator-records"
           defaultSize="55%"
-          minSize="25%"
+          minSize={RECORDS_PANEL_MIN_SIZE}
           className="test-bench__panel"
         >
           <ProjectEvaluatorRecordTable
@@ -252,10 +259,10 @@ export function ProjectEvaluatorTestBench({
             onLoadMore={onLoadMore}
           />
         </Panel>
-        <Separator css={compactResizeHandleCSS} />
+        <GripResizeHandle />
         <Panel
           id="project-evaluator-inspector"
-          minSize="20%"
+          minSize={INSPECTOR_PANEL_MIN_SIZE}
           className="test-bench__panel"
         >
           {focusedEntry ? (
@@ -412,6 +419,14 @@ function TimeWindowSelect({
     </Select>
   );
 }
+
+/**
+ * Floors in pixels for the split under the bench header: the table keeps its
+ * header and two rows, the inspector its header and the first input, however
+ * short the screen.
+ */
+const RECORDS_PANEL_MIN_SIZE = "160px";
+const INSPECTOR_PANEL_MIN_SIZE = "200px";
 
 const inlineSelectCSS = css`
   display: inline-flex;

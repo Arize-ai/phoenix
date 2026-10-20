@@ -398,6 +398,78 @@ describe("the evaluator inputs", () => {
     });
     expect(onFocusRow).toHaveBeenCalledWith("other-span");
   });
+  it("puts a verdict's explanation and an error's message under the result", async () => {
+    const tableRow = (key: string, name: string) => ({
+      key,
+      name,
+      recordId: `${key}-0123456789`,
+      context: { input: "hello" },
+      isSample: false,
+    });
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <EvaluatorStoreProvider
+            initialState={DEFAULT_LLM_EVALUATOR_STORE_VALUES}
+          >
+            <EvaluatorInputVariablesContext.Provider value={["input"]}>
+              <ProjectEvaluatorRecordTable
+                entries={[
+                  {
+                    row: tableRow("a", "judged span"),
+                    missingCount: 0,
+                    run: undefined,
+                    resultState: {
+                      kind: "annotated",
+                      annotations: [
+                        {
+                          name: "correctness",
+                          label: "true",
+                          score: 1,
+                          explanation: "It answers the question.",
+                        },
+                      ],
+                      isStale: false,
+                    },
+                  },
+                  {
+                    row: tableRow("b", "failed span"),
+                    missingCount: 0,
+                    run: undefined,
+                    resultState: {
+                      kind: "failed",
+                      message: "No sandbox configuration selected",
+                      isStale: false,
+                    },
+                  },
+                ]}
+                recordKind="span"
+                focusedRowKey="a"
+                onFocusRow={() => {}}
+                isRunnable
+                runBlocker={null}
+                onRunRow={() => {}}
+                hasMore={false}
+                isLoadingMore={false}
+                onLoadMore={() => {}}
+              />
+            </EvaluatorInputVariablesContext.Provider>
+          </EvaluatorStoreProvider>
+        </ThemeProvider>
+      );
+    });
+    const details = [...container.querySelectorAll(".result-cell__detail")];
+    expect(details.map((node) => node.textContent)).toEqual([
+      "It answers the question.",
+      "No sandbox configuration selected",
+    ]);
+    // The whole of a cut line is a hover away.
+    expect(details.map((node) => node.getAttribute("title"))).toEqual([
+      "It answers the question.",
+      "No sandbox configuration selected",
+    ]);
+    expect(details[1]?.getAttribute("data-variant")).toBe("danger");
+  });
 });
 
 describe("the recorded run result state", () => {
@@ -454,7 +526,7 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v1",
       })
-    ).toEqual({ kind: "annotated", annotation, isStale: false });
+    ).toEqual({ kind: "annotated", annotations: [annotation], isStale: false });
     expect(
       getRecordedRunResultState({
         run: annotatedRun,
@@ -462,7 +534,7 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v2",
       })
-    ).toEqual({ kind: "annotated", annotation, isStale: true });
+    ).toEqual({ kind: "annotated", annotations: [annotation], isStale: true });
   });
 
   it("reads a run without a verdict as failed, and no run as idle or missing", () => {
@@ -479,7 +551,7 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v1",
       })
-    ).toEqual({ kind: "failed", isStale: false });
+    ).toEqual({ kind: "failed", message: "boom", isStale: false });
     expect(
       getRecordedRunResultState({
         run: { status: "error", fingerprint: "v1", message: "network" },
@@ -487,7 +559,7 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v2",
       })
-    ).toEqual({ kind: "failed", isStale: true });
+    ).toEqual({ kind: "failed", message: "network", isStale: true });
     expect(
       getRecordedRunResultState({
         run: undefined,
@@ -524,7 +596,7 @@ describe("the bench summary and bulk button", () => {
         run: undefined,
         resultState: {
           kind: "annotated",
-          annotation: { name: "n", label: "l", score: 1, explanation: null },
+          annotations: [{ name: "n", label: "l", score: 1, explanation: null }],
           isStale: false,
         },
       },
@@ -534,7 +606,7 @@ describe("the bench summary and bulk button", () => {
         run: undefined,
         resultState: {
           kind: "annotated",
-          annotation: { name: "n", label: "l", score: 1, explanation: null },
+          annotations: [{ name: "n", label: "l", score: 1, explanation: null }],
           isStale: true,
         },
       },
@@ -542,7 +614,7 @@ describe("the bench summary and bulk button", () => {
         row: row("c"),
         missingCount: 0,
         run: undefined,
-        resultState: { kind: "failed", isStale: false },
+        resultState: { kind: "failed", message: "boom", isStale: false },
       },
       {
         row: row("d"),

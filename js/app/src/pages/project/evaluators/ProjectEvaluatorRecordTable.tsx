@@ -393,9 +393,12 @@ function TestRowButton({
 
 /**
  * The Result column: what the last test said, in plain words, with the
- * control that produces it at the end of the row. The annotation chip is the
- * only coloured thing here; the states around it are text, so a row that
- * cannot run yet does not shout over one that failed.
+ * control that produces it at the end of the row. A verdict reads like the
+ * name column beside it: the chip on the first line and the explanation
+ * under it, cut to one line with the whole of it on hover; an error puts its
+ * message in the same place. The annotation chip is the only coloured thing
+ * here; the states around it are text, so a row that cannot run yet does not
+ * shout over one that failed.
  */
 function RecordedRunResultCell({
   entry,
@@ -429,26 +432,48 @@ function RecordedRunResultCell({
 function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
   const { resultState: state } = entry;
   switch (state.kind) {
-    case "annotated":
+    case "annotated": {
+      const explanation = state.annotations.find(
+        ({ explanation }) => explanation
+      )?.explanation;
       return (
-        <div className="result-cell__annotation" data-stale={state.isStale}>
-          <span className="result-cell__chip">
-            <AnnotationPreviewPopoverButton
-              annotation={state.annotation}
-              compact
-            />
-          </span>
-          {state.isStale ? <StaleNote /> : null}
+        <div className="result-cell__lines" data-stale={state.isStale}>
+          <div className="result-cell__annotation">
+            {state.annotations.map((annotation, index) => (
+              <span key={index} className="result-cell__chip">
+                <AnnotationPreviewPopoverButton
+                  annotation={annotation}
+                  compact
+                />
+              </span>
+            ))}
+            {state.isStale ? <StaleNote /> : null}
+          </div>
+          {explanation ? (
+            <span className="result-cell__detail" title={explanation}>
+              {explanation}
+            </span>
+          ) : null}
         </div>
       );
+    }
     case "failed":
       return (
-        <Flex direction="row" alignItems="center" gap="size-75">
-          <Text size="S" color="danger">
-            Error
-          </Text>
-          {state.isStale ? <StaleNote /> : null}
-        </Flex>
+        <div className="result-cell__lines" data-stale={state.isStale}>
+          <Flex direction="row" alignItems="center" gap="size-75">
+            <Text size="S" color="danger">
+              Error
+            </Text>
+            {state.isStale ? <StaleNote /> : null}
+          </Flex>
+          <span
+            className="result-cell__detail"
+            data-variant="danger"
+            title={state.message}
+          >
+            {state.message}
+          </span>
+        </div>
       );
     case "missing":
       return (
@@ -518,6 +543,17 @@ const resultCellCSS = css`
   > :not(.result-cell__value) {
     flex: none;
   }
+  .result-cell__lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+    &[data-stale="true"] .result-cell__chip,
+    &[data-stale="true"] .result-cell__detail {
+      opacity: 0.5;
+    }
+  }
   .result-cell__annotation {
     display: flex;
     flex-direction: row;
@@ -528,8 +564,17 @@ const resultCellCSS = css`
     > :not(.result-cell__chip) {
       flex: none;
     }
-    &[data-stale="true"] .result-cell__chip {
-      opacity: 0.5;
+  }
+  // Set like the excerpt under a record's name in the column beside it.
+  .result-cell__detail {
+    font-size: var(--global-font-size-xs);
+    line-height: 14px;
+    color: var(--global-text-color-500);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &[data-variant="danger"] {
+      color: var(--global-color-danger);
     }
   }
   .result-cell__chip {
@@ -537,8 +582,14 @@ const resultCellCSS = css`
     flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
+    // The chip's button pads its pill by 4px of nothing; giving 3px of that
+    // back keeps the verdict and its explanation within a row's height.
+    margin: -3px 0;
   }
 `;
+
+/** A record's row: a verdict line and an explanation line, padding and rule. */
+const ROW_HEIGHT = 57;
 
 const tableScrollCSS = css`
   height: 100%;
@@ -556,7 +607,10 @@ const recordTableCSS = css(
         outline: 2px solid var(--global-color-info);
         outline-offset: -2px;
       }
-      // Rows stay one even height so the list scans as a grid.
+      // Rows stay one even height so the list scans as a grid, tall enough
+      // from the start for a verdict over its explanation, so a result
+      // arriving does not move the rows under the pointer.
+      height: ${ROW_HEIGHT}px;
       td.${TABLE_DATA_CELL_CLASS} {
         vertical-align: middle;
         overflow: hidden;
