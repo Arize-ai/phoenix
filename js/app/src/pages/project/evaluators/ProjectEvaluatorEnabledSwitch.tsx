@@ -109,6 +109,10 @@ export function ProjectEvaluatorEnabledSwitch({
     ).subscribe({});
   };
 
+  const isEnabledNow = () =>
+    environment.getStore().getSource().get(projectEvaluatorId)?.enabled ===
+    true;
+
   const onClearFailed = (message: string) => {
     refetchRunSummary();
     refreshQueueStats();
@@ -116,7 +120,16 @@ export function ProjectEvaluatorEnabledSwitch({
       title: `Disabled ${name}, but couldn't clear its queue`,
       message,
       expireMs: null,
-      action: { text: "Retry", onClick: () => clearQueue() },
+      action: {
+        text: "Retry",
+        // The toast outlives the switch's state: never clear an evaluator that
+        // has been turned back on since.
+        onClick: () => {
+          if (!isEnabledNow()) {
+            clearQueue();
+          }
+        },
+      },
     });
   };
 
