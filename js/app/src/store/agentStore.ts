@@ -28,6 +28,12 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
+import {
+  addRecentAgentModel,
+  type AgentRecentModel,
+  normalizeRecentAgentModels,
+} from "@phoenix/components/agent/agentModelConfig";
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ASSISTANT_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
@@ -347,6 +353,12 @@ export interface AgentProps {
   defaultTemporaryChat: boolean;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
+  /**
+   * Models the user recently picked in the PXI model picker, newest first,
+   * deduped and capped at 5 (see {@link addRecentAgentModel}). Typed names
+   * outside the catalog are kept too. Persisted.
+   */
+  recentModels: AgentRecentModel[];
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -384,6 +396,8 @@ export interface AgentState extends AgentProps {
    */
   clearSessionEphemeralState: (sessionId: string) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
+  /** Records a model pick at the front of {@link AgentProps.recentModels}. */
+  recordRecentModel: (model: ModelMenuValue) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
   setAgentsConfig: (
@@ -673,6 +687,12 @@ function mergeAgentPersistedState(
       capabilities: persisted.capabilities,
       defaultCapabilities: currentState.capabilities,
     }),
+    // Blobs written before recent models existed lack the key; malformed
+    // entries are dropped rather than breaking the picker.
+    recentModels:
+      persisted.recentModels === undefined
+        ? currentState.recentModels
+        : normalizeRecentAgentModels({ value: persisted.recentModels }),
   };
 }
 
@@ -735,6 +755,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isDraftSessionTemporary: false,
     defaultTemporaryChat: false,
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    recentModels: [],
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     permissions: DEFAULT_AGENT_PERMISSIONS,
@@ -843,6 +864,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       set({ defaultModelConfig: config }, false, {
         type: "setDefaultModelConfig",
       });
+    },
+    recordRecentModel: (model) => {
+      set(
+        (state) => ({
+          recentModels: addRecentAgentModel({
+            recentModels: state.recentModels,
+            model,
+          }),
+        }),
+        false,
+        { type: "recordRecentModel" }
+      );
     },
     setObservability: (patch) => {
       set(
@@ -1406,6 +1439,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         fabPlacement: state.fabPlacement,
         defaultTemporaryChat: state.defaultTemporaryChat,
         defaultModelConfig: state.defaultModelConfig,
+        recentModels: state.recentModels,
         observability: state.observability,
         permissions: state.permissions,
         capabilities: state.capabilities,

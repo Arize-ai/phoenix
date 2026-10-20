@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { parseRequestedSkills } from "@phoenix/agent/skills/requestedSkills";
@@ -20,12 +20,12 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import type { AgentState } from "@phoenix/store/agentStore";
 
+import { AgentChatModelPicker } from "./AgentChatModelPicker";
 import {
   type AgentChatSuggestionContext,
   getAgentChatPlaceholder,
 } from "./agentChatPlaceholder";
 import { AgentContextPills } from "./AgentContextPills";
-import { AgentModelMenu } from "./AgentModelMenu";
 import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { SkillPromptInputBoundary } from "./SkillPromptInputBoundary";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
@@ -135,6 +135,7 @@ export function AgentChatInput({
   promptTokenCount,
   onStop,
 }: AgentChatInputProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [slashMenuLayer, setSlashMenuLayer] = useState<HTMLDivElement | null>(
     null
   );
@@ -173,7 +174,7 @@ export function AgentChatInput({
   };
 
   return (
-    <div css={agentChatInputCSS}>
+    <div css={agentChatInputCSS} ref={containerRef}>
       <div className="agent-chat-input__prompt-stack">
         <div
           className="agent-chat-input__slash-menu-layer"
@@ -201,12 +202,10 @@ export function AgentChatInput({
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
-              <AgentModelMenu
+              <AgentChatModelPicker
                 value={modelMenuValue}
                 onChange={onModelChange}
-                placement="top start"
-                shouldFlip
-                variant="quiet"
+                popoverBoundaryRef={containerRef}
               />
               <AgentWebSearchToggle />
             </PromptInputTools>

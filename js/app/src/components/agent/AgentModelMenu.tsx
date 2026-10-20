@@ -19,6 +19,7 @@ import type {
   ModelMenuValue,
 } from "@phoenix/components/generative/ModelMenu";
 import { ProviderModelMenuItems } from "@phoenix/components/generative/ModelMenu";
+import { applyBedrockModelPrefix } from "@phoenix/components/generative/modelProviderUtils";
 import {
   getModelsByProvider,
   type CustomProviderInfo,
@@ -41,13 +42,6 @@ const menuWidthCSS = css`
     outline: none;
   }
 `;
-
-function applyBedrockPrefix(modelName: string, prefix: string): string {
-  const prefixDot = `${prefix}.`;
-  return modelName.startsWith(prefixDot)
-    ? modelName
-    : `${prefixDot}${modelName}`;
-}
 
 function AgentModelItem({
   model,
@@ -112,11 +106,12 @@ function CuratedAndOtherModelMenuSections({
 }
 
 /**
- * Assistant-specific model picker.
+ * Assistant-specific model picker used by Settings.
  *
  * Unlike the global model picker, this menu is intentionally opinionated.
  * By default it stays flat and limited to curated built-in models. Settings
- * can opt out to expose the broader provider/model universe in sections.
+ * opts out to expose the broader provider/model universe in sections. The
+ * chat uses `AgentChatModelPicker` instead.
  */
 export function AgentModelMenu({
   value,
@@ -148,7 +143,10 @@ export function AgentModelMenu({
       if (model.provider === "AWS" && awsBedrockModelPrefix) {
         onChange?.({
           ...model,
-          modelName: applyBedrockPrefix(model.modelName, awsBedrockModelPrefix),
+          modelName: applyBedrockModelPrefix({
+            modelName: model.modelName,
+            prefix: awsBedrockModelPrefix,
+          }),
         });
       } else {
         onChange?.(model);
