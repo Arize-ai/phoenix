@@ -6,6 +6,11 @@ import type {
   projectEvaluatorTemplatesQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
+import {
+  getDefaultProjectEvaluatorFilterCondition,
+  type ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { EvaluatorInputMapping } from "@phoenix/types";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 export const projectEvaluatorTemplatesQuery = graphql`
@@ -22,6 +27,8 @@ export const projectEvaluatorTemplatesQuery = graphql`
         name
         description
       }
+      defaultFilterCondition
+      defaultPathMapping
       messages {
         ...promptUtils_promptMessages
       }
@@ -98,13 +105,52 @@ export function getProjectEvaluatorTemplateMessages(
   });
 }
 
+/**
+ * The JSONPath expressions a template ships for its declared inputs, keyed by
+ * input name. Anything that is not a string-to-string record is ignored.
+ */
+export function getProjectEvaluatorTemplatePathMapping(config: {
+  defaultPathMapping: unknown;
+}): Record<string, string> {
+  const parsed = z
+    .record(z.string(), z.string())
+    .safeParse(config.defaultPathMapping);
+  return parsed.success ? parsed.data : {};
+}
+
+/**
+ * Where a template opens the creation form: its target, the filter it starts
+ * with (the template's own, else the target's default), and its input mapping.
+ */
+export function getProjectEvaluatorTemplateDefaults(config: {
+  scope: ProjectEvaluatorTemplate["scope"];
+  defaultFilterCondition: string | null;
+  defaultPathMapping: unknown;
+}): {
+  targetType: ProjectEvaluatorTarget;
+  filterCondition: string;
+  inputMapping: EvaluatorInputMapping;
+} {
+  const targetType: ProjectEvaluatorTarget = config.scope ?? "SPAN";
+  return {
+    targetType,
+    filterCondition:
+      config.defaultFilterCondition ??
+      getDefaultProjectEvaluatorFilterCondition(targetType),
+    inputMapping: {
+      pathMapping: getProjectEvaluatorTemplatePathMapping(config),
+      literalMapping: {},
+    },
+  };
+}
+
 export function buildTemplateCreationMode(
   config: ProjectEvaluatorTemplate
 ): ProjectEvaluatorCreationMode {
   return {
     kind: "template",
     initialState: {
-      targetType: config.scope ?? "SPAN",
+      ...getProjectEvaluatorTemplateDefaults(config),
       name: config.name,
       description: config.description ?? "",
       outputConfigs: [

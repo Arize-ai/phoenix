@@ -34,4 +34,5 @@ HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
             description="The LLM's output response (messages and tool calls) to be evaluated."
         ),
     },
+    default_filter_condition="span_kind == 'LLM'",
 )
