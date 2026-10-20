@@ -34,8 +34,8 @@ vi.mock("../AgentModelCredentialForm", () => ({
   }),
 }));
 
-vi.mock("../AgentChatModelPicker", () => ({
-  AgentChatModelPicker: () => <button type="button">Model</button>,
+vi.mock("../AgentModelPicker", () => ({
+  AgentModelPicker: () => <button type="button">Model</button>,
 }));
 
 vi.mock("../AgentWebSearchToggle", () => ({

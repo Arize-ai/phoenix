@@ -20,12 +20,12 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import type { AgentState } from "@phoenix/store/agentStore";
 
-import { AgentChatModelPicker } from "./AgentChatModelPicker";
 import {
   type AgentChatSuggestionContext,
   getAgentChatPlaceholder,
 } from "./agentChatPlaceholder";
 import { AgentContextPills } from "./AgentContextPills";
+import { AgentModelPicker } from "./AgentModelPicker";
 import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { SkillPromptInputBoundary } from "./SkillPromptInputBoundary";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
@@ -202,7 +202,7 @@ export function AgentChatInput({
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
-              <AgentChatModelPicker
+              <AgentModelPicker
                 value={modelMenuValue}
                 onChange={onModelChange}
                 popoverBoundaryRef={containerRef}

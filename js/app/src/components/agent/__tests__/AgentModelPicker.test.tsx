@@ -14,7 +14,7 @@ import {
 } from "@phoenix/store/agentStore";
 import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 
-import { AgentChatModelPicker } from "../AgentChatModelPicker";
+import { AgentModelPicker } from "../AgentModelPicker";
 
 const MODEL_MENU_DATA = {
   customProviders: [
@@ -113,7 +113,7 @@ const CURRENT_MODEL: ModelMenuValue = {
   modelName: "claude-opus-4-6",
 };
 
-describe("AgentChatModelPicker", () => {
+describe("AgentModelPicker", () => {
   let container: HTMLDivElement;
   let root: Root;
   let store: AgentStore;
@@ -158,7 +158,7 @@ describe("AgentChatModelPicker", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <PreferencesProvider awsBedrockModelPrefix={awsBedrockModelPrefix}>
             <AgentContext.Provider value={store}>
-              <AgentChatModelPicker value={value} onChange={onChange} />
+              <AgentModelPicker value={value} onChange={onChange} />
             </AgentContext.Provider>
           </PreferencesProvider>
         </ThemeProvider>

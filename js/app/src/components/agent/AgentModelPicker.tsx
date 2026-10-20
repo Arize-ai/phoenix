@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { KeyboardEvent, RefObject } from "react";
 import { useMemo, useState } from "react";
-import type { Key } from "react-aria-components";
+import type { Key, PopoverProps } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 
 import {
@@ -259,31 +259,50 @@ const pickerCSS = css`
   }
 `;
 
-export type AgentChatModelPickerProps = {
+export type AgentModelPickerProps = {
   /** The selected model; an empty model name shows "Select a model" */
   value: ModelMenuValue;
   /** Called with the picked model, with the Bedrock prefix applied */
   onChange: (model: ModelMenuValue) => void;
   /**
    * The element the popover should fit inside (the chat input). The popover
-   * is as wide as it, up to 380px.
+   * is as wide as it, up to 380px; without it, it is 380px wide.
    */
   popoverBoundaryRef?: RefObject<HTMLElement | null>;
+  /**
+   * Where the popover opens relative to the trigger.
+   * @default "top start" (above the chat footer)
+   */
+  placement?: PopoverProps["placement"];
+  /**
+   * Whether the popover may flip to the other side when it doesn't fit.
+   * @default false (the chat picker always opens upward)
+   */
+  shouldFlip?: boolean;
+  /**
+   * The trigger button's variant: borderless in the chat footer, bordered in
+   * a form.
+   * @default "quiet"
+   */
+  triggerVariant?: "default" | "quiet";
 };
 
 /**
- * The PXI chat's model picker: a popover above the chat footer with search on
- * top. With no query it lists the current model, recent picks and the
+ * The PXI model picker, used in the chat footer and in Settings: a popover
+ * with search on top. With no query it lists the current model, recent picks and the
  * curated models; typing searches every provider's models (see
  * `agentModelSearch`). The last row of a search offers the query as a custom
  * model name, with a submenu (on hover, ArrowRight or Enter) to pick the
  * provider to send it to.
  */
-export function AgentChatModelPicker({
+export function AgentModelPicker({
   value,
   onChange,
   popoverBoundaryRef,
-}: AgentChatModelPickerProps) {
+  placement = "top start",
+  shouldFlip = false,
+  triggerVariant = "quiet",
+}: AgentModelPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [popoverWidth, setPopoverWidth] = useState(DEFAULT_POPOVER_MAX_WIDTH);
@@ -451,7 +470,7 @@ export function AgentChatModelPicker({
     <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button
         size="S"
-        variant="quiet"
+        variant={triggerVariant}
         css={triggerCSS}
         isDisabled={isDisabled}
         aria-label={
@@ -468,8 +487,8 @@ export function AgentChatModelPicker({
         )}
       </Button>
       <MenuContainer
-        placement="top start"
-        shouldFlip={false}
+        placement={placement}
+        shouldFlip={shouldFlip}
         minHeight={0}
         minWidth={popoverWidth}
         maxWidth={popoverWidth}
