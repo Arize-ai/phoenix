@@ -267,7 +267,6 @@ describe("AgentChatModelPicker", () => {
       "Claude Opus 5",
       "Claude Opus 4.6",
       "Claude Sonnet 4.6",
-      "GPT-5.4",
       "GPT-5.4 mini",
       "Gemini 3.7 Flash",
     ]);

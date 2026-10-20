@@ -293,9 +293,9 @@ describe("rankAgentModels", () => {
     expect(
       search("gpt", { scope: { provider: "OPENAI", customProviderId: null } })
     ).toEqual([
-      "OPENAI:gpt-5.4",
       "OPENAI:gpt-5.4-mini",
       "OPENAI:gpt-4o",
+      "OPENAI:gpt-5.4",
       "OPENAI:gpt-4o-mini",
     ]);
   });

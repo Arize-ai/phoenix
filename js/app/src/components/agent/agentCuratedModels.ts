@@ -32,18 +32,8 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
     },
     {
       provider: "ANTHROPIC",
-      modelName: "claude-fable-5",
-      displayName: "Claude Fable 5",
-    },
-    {
-      provider: "ANTHROPIC",
       modelName: "claude-opus-5",
       displayName: "Claude Opus 5",
-    },
-    {
-      provider: "ANTHROPIC",
-      modelName: "claude-opus-4-8",
-      displayName: "Claude Opus 4.8",
     },
     {
       provider: "ANTHROPIC",
@@ -60,7 +50,6 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
       modelName: "gpt-5.6-sol",
       displayName: "GPT-5.6 Sol",
     },
-    { provider: "OPENAI", modelName: "gpt-5.4", displayName: "GPT-5.4" },
     {
       provider: "OPENAI",
       modelName: "gpt-5.4-mini",
