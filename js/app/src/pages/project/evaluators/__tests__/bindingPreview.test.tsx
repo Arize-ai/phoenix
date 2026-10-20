@@ -529,8 +529,8 @@ describe("the evaluator inputs", () => {
     await renderInspector({ kind: "failed", message: "boom", isStale: false });
     expect(segment()?.textContent).toContain("Error");
 
-    // A re-test holds the segment in place while it runs; a first test,
-    // with nothing to hold, shows none.
+    // A test in flight holds the segment's place under a skeleton: a re-test
+    // keeps the previous result laid out, hidden, beneath it.
     await renderInspector(
       { kind: "running" },
       {
@@ -540,12 +540,22 @@ describe("the evaluator inputs", () => {
       }
     );
     expect(segment()?.getAttribute("aria-busy")).toBe("true");
-    expect(segment()?.querySelector('[aria-label="Testing"]')).not.toBeNull();
+    expect(segment()?.querySelector(".skeleton")).not.toBeNull();
+    expect(
+      segment()?.querySelector(".record-inspector__last-result-held")
+        ?.textContent
+    ).toContain("Error");
     await renderInspector(
       { kind: "running" },
       { status: "running", fingerprint: "v1" }
     );
-    expect(segment()).toBeNull();
+    expect(segment()?.querySelector(".skeleton")).not.toBeNull();
+    expect(
+      segment()?.querySelector(".record-inspector__last-result-held")
+    ).toBeNull();
+    // The button keeps its label while it runs; a spinner takes the icon.
+    const button = [...container.querySelectorAll("header button")].pop();
+    expect(button?.getAttribute("aria-label")).toBe("Test");
   });
 });
 

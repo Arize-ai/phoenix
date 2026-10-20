@@ -18,6 +18,7 @@ import {
   TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
+  Skeleton,
 } from "@phoenix/components";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
@@ -349,7 +350,12 @@ function TestRowButton({
 }) {
   const { row, run, resultState } = entry;
   if (resultState.kind === "running") {
-    return <ProgressCircle isIndeterminate size="S" aria-label="Testing" />;
+    // In a box the button's size, so the cell's value keeps its width.
+    return (
+      <span className="result-cell__running">
+        <ProgressCircle isIndeterminate size="S" aria-label="Testing" />
+      </span>
+    );
   }
   const blocker = getRowTestBlocker({
     entry,
@@ -490,10 +496,19 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
         </Text>
       );
     case "running":
+      // The two lines a verdict will take, so the row's content holds still
+      // when the result lands.
       return (
-        <Text size="S" color="text-500">
-          Testing…
-        </Text>
+        <div className="result-cell__lines" aria-label="Testing" aria-busy>
+          <Skeleton width="55%" height={24} borderRadius="S" />
+          {/* The explanation's 14px line, with its text's height filled. */}
+          <Skeleton
+            width="85%"
+            height={10}
+            borderRadius="S"
+            style={{ margin: "2px 0" }}
+          />
+        </div>
       );
     case "idle":
       return (
@@ -543,12 +558,22 @@ const resultCellCSS = css`
   > :not(.result-cell__value) {
     flex: none;
   }
+  .result-cell__running {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--global-button-height-s);
+    height: var(--global-button-height-s);
+  }
   .result-cell__lines {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
     max-width: 100%;
+    // The full width of the cell's value, so the running state's skeletons
+    // have a width to take their percentages of.
+    flex: 1 1 auto;
     &[data-stale="true"] .result-cell__chip,
     &[data-stale="true"] .result-cell__detail {
       opacity: 0.5;

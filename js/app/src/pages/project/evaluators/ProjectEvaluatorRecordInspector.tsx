@@ -9,6 +9,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Skeleton,
   Text,
   Token,
   Tooltip,
@@ -24,6 +25,8 @@ import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEv
 import { getRowTestBlocker } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
   type RecordedRunEntry,
+  getRecordedRunResultState,
+  type RecordedRunResultState,
   shortenRecordId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
@@ -87,7 +90,10 @@ export function ProjectEvaluatorRecordInspector({
   onRun: () => void;
 }) {
   const { row, run, resultState } = entry;
-  const hasResult = run != null && run.status !== "running";
+  // A re-test in flight still counts: the button keeps its label, so it does
+  // not change width under the pointer while the test runs.
+  const hasResult =
+    run != null && (run.status !== "running" || run.previous != null);
   const testBlocker = getRowTestBlocker({
     entry,
     recordKind,
@@ -208,12 +214,25 @@ function TestButton({
       size="S"
       variant="primary"
       leadingVisual={
-        <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
+        // A spinner in the icon's place rather than a "Testing…" label, so
+        // the button keeps its width while it runs.
+        isRunning ? (
+          <ProgressCircle isIndeterminate size="S" aria-label="Testing" />
+        ) : (
+          <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
+        )
       }
       isDisabled={blocker != null || isRunning}
       onPress={onRun}
+      aria-label={isRetest ? "Re-test" : "Test"}
     >
-      {isRunning ? "Testing…" : isRetest ? "Re-test" : "Test"}
+      {/* Both labels take the same cell and only one shows, so the button is
+          as wide as "Re-test" from the start and does not grow when the
+          first result turns it into one. */}
+      <span className="record-inspector__test-label" aria-hidden>
+        <span data-active={!isRetest}>Test</span>
+        <span data-active={isRetest}>Re-test</span>
+      </span>
     </Button>
   );
   if (blocker == null) {
@@ -234,25 +253,47 @@ function TestButton({
  * What the last test of this record said, beside the button that runs it,
  * so a test started from here shows its outcome here too. It mirrors the
  * row's Result cell: the verdict chip, or an error with its message on
- * hover. A re-test holds the segment in place with a spinner until the new
- * result replaces the old; before the first test there is no segment.
+ * hover. While a test runs the segment holds its place under a skeleton:
+ * a re-test keeps the previous result laid out, hidden, so the skeleton is
+ * exactly its size; a first test reserves a chip's worth of room. Before the
+ * first test there is no segment.
  */
 function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
   const { resultState: state, run } = entry;
-  if (state.kind === "running" && run?.status === "running" && run.previous) {
+  if (state.kind === "running") {
+    const previous =
+      run?.status === "running" && run.previous
+        ? getRecordedRunResultState({
+            run: run.previous,
+            missingCount: 0,
+            isUnavailable: false,
+            currentFingerprint: run.previous.fingerprint,
+          })
+        : null;
     return (
       <div
         className="record-inspector__last-result"
         aria-label="Last test result"
         aria-busy
       >
-        <span className="record-inspector__last-result-label">
-          <Text size="XS" color="text-500">
-            Last result
-          </Text>
-        </span>
-        {/* The button beside it already says "Testing…". */}
-        <ProgressCircle isIndeterminate size="S" aria-label="Testing" />
+        <LastTestResultLabel isStale={false} />
+        {previous?.kind === "annotated" || previous?.kind === "failed" ? (
+          <span className="record-inspector__last-result-placeholder">
+            <span aria-hidden className="record-inspector__last-result-held">
+              <LastTestResultValue state={previous} />
+            </span>
+            <Skeleton
+              className="record-inspector__last-result-skeleton"
+              borderRadius="S"
+            />
+          </span>
+        ) : (
+          <Skeleton
+            width={FIRST_RESULT_SKELETON_WIDTH}
+            height={CHIP_HEIGHT}
+            borderRadius="S"
+          />
+        )}
       </div>
     );
   }
@@ -265,31 +306,55 @@ function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
       data-stale={state.isStale}
       aria-label="Last test result"
     >
-      <span className="record-inspector__last-result-label">
-        <Text size="XS" color="text-500">
-          {state.isStale ? "Last result (stale)" : "Last result"}
-        </Text>
-      </span>
-      {state.kind === "annotated" ? (
-        state.annotations.map((annotation, index) => (
-          <span key={index} className="record-inspector__last-result-chip">
-            <AnnotationPreviewPopoverButton annotation={annotation} compact />
-          </span>
-        ))
-      ) : (
-        <TooltipTrigger delay={300}>
-          <TriggerWrap>
-            <Text size="S" color="danger">
-              Error
-            </Text>
-          </TriggerWrap>
-          <Tooltip placement="bottom">
-            <TooltipArrow />
-            {state.message}
-          </Tooltip>
-        </TooltipTrigger>
-      )}
+      <LastTestResultLabel isStale={state.isStale} />
+      <LastTestResultValue state={state} />
     </div>
+  );
+}
+
+/** A compact chip's height: its pill, without the button's padding. */
+const CHIP_HEIGHT = 24;
+/**
+ * Room for a first verdict before its size is known: the chip a new
+ * evaluator's stand-in name and a label and score take, so the common case
+ * lands without moving the header.
+ */
+const FIRST_RESULT_SKELETON_WIDTH = 232;
+
+function LastTestResultLabel({ isStale }: { isStale: boolean }) {
+  return (
+    <span className="record-inspector__last-result-label">
+      <Text size="XS" color="text-500">
+        {isStale ? "Last result (stale)" : "Last result"}
+      </Text>
+    </span>
+  );
+}
+
+function LastTestResultValue({
+  state,
+}: {
+  state: Extract<RecordedRunResultState, { kind: "annotated" | "failed" }>;
+}) {
+  if (state.kind === "annotated") {
+    return state.annotations.map((annotation, index) => (
+      <span key={index} className="record-inspector__last-result-chip">
+        <AnnotationPreviewPopoverButton annotation={annotation} compact />
+      </span>
+    ));
+  }
+  return (
+    <TooltipTrigger delay={300}>
+      <TriggerWrap>
+        <Text size="S" color="danger">
+          Error
+        </Text>
+      </TriggerWrap>
+      <Tooltip placement="bottom">
+        <TooltipArrow />
+        {state.message}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -399,10 +464,38 @@ const inspectorCSS = css`
       display: none;
     }
   }
+  // The previous result keeps its room but not its looks; the skeleton
+  // over it stops at the chip's pill, inside the button's padding.
+  .record-inspector__last-result-placeholder {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .record-inspector__last-result-held {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+    visibility: hidden;
+  }
+  .record-inspector__last-result-skeleton {
+    position: absolute;
+    inset: 3px 0;
+  }
   .record-inspector__last-result-chip {
     display: flex;
     min-width: 0;
     overflow: hidden;
+  }
+  .record-inspector__test-label {
+    display: inline-grid;
+    > span {
+      grid-area: 1 / 1;
+      text-align: center;
+    }
+    > span[data-active="false"] {
+      visibility: hidden;
+    }
   }
   .record-inspector__actions {
     flex: none;
