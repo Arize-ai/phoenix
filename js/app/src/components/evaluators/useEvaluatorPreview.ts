@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { graphql, useRelayEnvironment } from "react-relay";
 import type { Disposable } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
@@ -85,10 +85,22 @@ export function useEvaluatorPreview() {
 
 /**
  * A preview of one subject, as a promise: the dataset evaluator forms test the
- * selected example and wait for its verdict.
+ * selected example and wait for its verdict. Unmounting the form closes any
+ * preview still running, so the server stops its work, and settles the promise
+ * so nothing waits on it.
  */
 export function useSingleSubjectEvaluatorPreview() {
   const startPreview = useEvaluatorPreview();
+  const closeRunningPreviewsRef = useRef(new Set<() => void>());
+  useEffect(() => {
+    const closeRunningPreviews = closeRunningPreviewsRef.current;
+    return () => {
+      for (const close of closeRunningPreviews) {
+        close();
+      }
+      closeRunningPreviews.clear();
+    };
+  }, []);
   return useCallback(
     (
       input: Omit<EvaluatorPreviewInput, "subjects"> & { context: unknown }
@@ -99,15 +111,26 @@ export function useSingleSubjectEvaluatorPreview() {
       const { context, ...rest } = input;
       return new Promise((resolve) => {
         let result: EvaluatorPreviewSubjectResult | null = null;
-        startPreview(
+        let isSettled = false;
+        const closeRunningPreviews = closeRunningPreviewsRef.current;
+        const settle = (
+          outcome:
+            | { ok: true; result: EvaluatorPreviewSubjectResult }
+            | { ok: false; error: string }
+        ) => {
+          isSettled = true;
+          closeRunningPreviews.delete(close);
+          resolve(outcome);
+        };
+        const preview = startPreview(
           { ...rest, subjects: [{ id: "subject", context }] },
           {
             onSubjectResult: (subjectResult) => {
               result = subjectResult;
             },
-            onError: (error) => resolve({ ok: false, error }),
+            onError: (error) => settle({ ok: false, error }),
             onCompleted: () =>
-              resolve(
+              settle(
                 result == null
                   ? { ok: false, error: "The preview returned no result" }
                   : result.error != null
@@ -116,6 +139,16 @@ export function useSingleSubjectEvaluatorPreview() {
               ),
           }
         );
+        function close() {
+          preview.dispose();
+          settle({
+            ok: false,
+            error: "The evaluator form closed before the test finished",
+          });
+        }
+        if (!isSettled) {
+          closeRunningPreviews.add(close);
+        }
       });
     },
     [startPreview]
