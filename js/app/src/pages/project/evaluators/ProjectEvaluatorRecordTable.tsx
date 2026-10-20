@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import type { KeyboardEvent } from "react";
 
 import {
@@ -27,6 +22,8 @@ import {
   selectableTableCSS,
   TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import {
   isRecordedRunEntryRunnable,
@@ -93,7 +90,6 @@ export function ProjectEvaluatorRecordTable({
 }) {
   // TanStack's table instance hands back functions the compiler cannot
   // memoize without leaving stale rows; the table is cheap to re-derive.
-  "use no memo";
   const tableData = entries as RecordedRunEntry[];
   const recordNoun = formatEvaluationRecordKind(recordKind);
   const columns: ColumnDef<RecordedRunEntry>[] = [
@@ -188,12 +184,11 @@ export function ProjectEvaluatorRecordTable({
       ),
     },
   ];
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<RecordedRunEntry>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     getRowId: (entry) => entry.row.key,
-    getCoreRowModel: getCoreRowModel(),
   });
   const tableRows = table.getRowModel().rows;
   const focusRowAt = (
@@ -500,12 +495,12 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
       // when the result lands.
       return (
         <div className="result-cell__lines" aria-label="Testing" aria-busy>
-          <Skeleton width="55%" height={24} borderRadius="S" />
+          <Skeleton width="55%" height={24} borderRadius="small" />
           {/* The explanation's 14px line, with its text's height filled. */}
           <Skeleton
             width="85%"
             height={10}
-            borderRadius="S"
+            borderRadius="small"
             style={{ margin: "2px 0" }}
           />
         </div>

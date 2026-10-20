@@ -285,14 +285,14 @@ function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
             <Skeleton
               className="record-inspector__last-result-skeleton"
               height={CHIP_HEIGHT}
-              borderRadius="S"
+              borderRadius="small"
             />
           </span>
         ) : (
           <Skeleton
             width={FIRST_RESULT_SKELETON_WIDTH}
             height={CHIP_HEIGHT}
-            borderRadius="S"
+            borderRadius="small"
           />
         )}
       </div>
