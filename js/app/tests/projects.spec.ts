@@ -90,7 +90,10 @@ async function fillDeclaredVariablePaths(
   await expect(declaredVariablePaths.first()).toBeVisible();
   let prefilled = 0;
   for (const pathField of await declaredVariablePaths.all()) {
-    if ((await pathField.textContent())?.trim()) {
+    // The field is a CodeMirror editor: its placeholder is rendered as text,
+    // so an empty field is recognized by the placeholder being shown.
+    const isEmpty = (await pathField.locator(".cm-placeholder").count()) > 0;
+    if (!isEmpty) {
       prefilled += 1;
       continue;
     }
