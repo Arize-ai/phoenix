@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffeb01392c9df2823c00e6b45d7e3467>>
+ * @generated SignedSource<<c3e872cc7169691b320daed9f5d394b9>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type ProjectEvaluatorEnabledSwitchRunSummaryQuery$data = {
     readonly runSummary?: {
       readonly droppedCount: number;
       readonly oldestQueuedAt: string | null;
+      readonly overflowedCount: number;
       readonly queuedCount: number;
       readonly runningCount: number;
       readonly status: ProjectEvaluatorRunStatus;
@@ -85,6 +86,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "droppedCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "overflowedCount",
       "storageKey": null
     },
     {
@@ -164,16 +172,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0e8cd194fdacf25e68ad9c51540cf2e5",
+    "cacheID": "625e0e6d8a0db4817473f60af24bdce4",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchRunSummaryQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorEnabledSwitchRunSummaryQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorEnabledSwitchRunSummaryQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        droppedCount\n        overflowedCount\n        oldestQueuedAt\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1c5b9efaa46f0f89d0c6480b30e775b0";
+(node as any).hash = "9ccf2a2dc204590f16e552783c7fd78e";
 
 export default node;
