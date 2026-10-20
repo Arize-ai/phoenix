@@ -109,28 +109,25 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
     result = await gql_client.execute(
         """
-      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName error annotation { name label score explanation metadata
+      mutation($input:EvaluatorPreviewInput!) { previewEvaluator(input:$input) { results { results { evaluatorName status error annotation { name label score explanation metadata
         decision { status question { name type } answer { __typename ... on PredicateAnswer { probability } }
-          scoring { __typename name } resolvedModel modelProvider } } } } }
+          scoring { __typename name } resolvedModel modelProvider } } } } } }
     """,
         variables={
             "input": {
                 "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                        "context": {"input": {"ticket": {"id": 1}}},
-                        "inputMapping": {
-                            "literalMapping": {},
-                            "pathMapping": {"ticket": "input.ticket"},
-                        },
-                    }
-                ],
+                "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                "inputMapping": {
+                    "literalMapping": {},
+                    "pathMapping": {"ticket": "input.ticket"},
+                },
+                "subjects": [{"id": "0", "context": {"input": {"ticket": {"id": 1}}}}],
             }
         },
     )
     assert result.data and not result.errors, result.errors
-    answered, refused = result.data["evaluatorPreviews"]["results"]
+    answered, refused = result.data["previewEvaluator"]["results"][0]["results"]
+    assert (answered["status"], refused["status"]) == ("answered", "refused")
     assert answered["annotation"]["label"] == "false"
     assert answered["annotation"]["score"] == 0.7
     assert refused["error"] is None
@@ -417,7 +414,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         ),
     )
     query = """
-      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName annotation { name label score } } } }
+      mutation($input:EvaluatorPreviewInput!) { previewEvaluator(input:$input) { results { results { evaluatorName annotation { name label score } } } } }
     """
 
     async def preview(**extra: Any) -> list[dict[str, Any]]:
@@ -426,22 +423,18 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
             variables={
                 "input": {
                     "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                    "previews": [
-                        {
-                            "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                            "context": {"input": {"ticket": {"id": 1}}},
-                            "inputMapping": {
-                                "literalMapping": {},
-                                "pathMapping": {"ticket": "input.ticket"},
-                            },
-                            **extra,
-                        }
-                    ],
+                    "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                    "inputMapping": {
+                        "literalMapping": {},
+                        "pathMapping": {"ticket": "input.ticket"},
+                    },
+                    "subjects": [{"id": "0", "context": {"input": {"ticket": {"id": 1}}}}],
+                    **extra,
                 }
             },
         )
         assert result.data and not result.errors, result.errors
-        return list(result.data["evaluatorPreviews"]["results"])
+        return list(result.data["previewEvaluator"]["results"][0]["results"])
 
     judge_only = await preview()
     as_binding = await preview(datasetEvaluatorId=binding_id)
@@ -470,14 +463,10 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         query,
         variables={
             "input": {
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
-                        "context": {},
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "datasetEvaluatorId": binding_id,
-                    }
-                ]
+                "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "datasetEvaluatorId": binding_id,
+                "subjects": [{"id": "0", "context": {}}],
             }
         },
     )
@@ -488,14 +477,10 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         query,
         variables={
             "input": {
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                        "context": {},
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
-                    }
-                ]
+                "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
+                "subjects": [{"id": "0", "context": {}}],
             }
         },
     )
@@ -1244,44 +1229,38 @@ async def test_unsaved_decision_preview_uses_draft_and_scoring_without_persisten
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
     result = await gql_client.execute(
         """
-mutation($input: EvaluatorPreviewsInput!) {
-  evaluatorPreviews(input:$input) { results { error annotation { name label score } } }
+mutation($input: EvaluatorPreviewInput!) {
+  previewEvaluator(input:$input) { results { results { error annotation { name label score } } } }
 }
 """,
         variables={
             "input": {
                 "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                "previews": [
-                    {
-                        "evaluator": {
-                            "inlineDecisionEvaluator": {
-                                "name": "unsaved",
-                                "decisionVersion": version_input(
-                                    questions=[
-                                        {
-                                            "predicate": {
-                                                "name": "relevant",
-                                                "instructions": "Use this unsaved instruction",
-                                            }
-                                        }
-                                    ]
-                                ),
-                                "scoringPolicy": {
-                                    "questions": [
-                                        {"predicate": {"name": "relevant", "threshold": 0.8}}
-                                    ]
-                                },
-                            }
+                "evaluator": {
+                    "inlineDecisionEvaluator": {
+                        "name": "unsaved",
+                        "decisionVersion": version_input(
+                            questions=[
+                                {
+                                    "predicate": {
+                                        "name": "relevant",
+                                        "instructions": "Use this unsaved instruction",
+                                    }
+                                }
+                            ]
+                        ),
+                        "scoringPolicy": {
+                            "questions": [{"predicate": {"name": "relevant", "threshold": 0.8}}]
                         },
-                        "context": {"output": {"text": "An answer"}},
-                        "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
                     }
-                ],
+                },
+                "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
+                "subjects": [{"id": "0", "context": {"output": {"text": "An answer"}}}],
             }
         },
     )
     assert result.data and not result.errors, result.errors
-    assert result.data["evaluatorPreviews"]["results"] == [
+    assert result.data["previewEvaluator"]["results"][0]["results"] == [
         {"error": None, "annotation": {"name": "unsaved", "label": "false", "score": 0.7}}
     ]
     assert invoke.call_args.args[0].questions[0].instructions == "Use this unsaved instruction"

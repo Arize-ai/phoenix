@@ -312,6 +312,84 @@ class TestEvaluatorPreviewSubscription:
         assert peak == 2
 
 
+class TestPreviewEvaluatorMutation:
+    """The mutation collects the subscription's stream; these pin that it is the same run."""
+
+    _MUTATION = """
+      mutation($input: EvaluatorPreviewInput!) {
+        previewEvaluator(input: $input) {
+          results { id error results { evaluatorName error annotation { score } } }
+        }
+      }
+    """
+
+    async def test_returns_every_subject_in_the_order_sent(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Subjects finish in reverse order; the payload still lists them as sent.
+        async def evaluate(**kwargs: Any) -> list[EvaluationResultDict]:
+            index = int(kwargs["context"]["output"])
+            if index == 1:
+                raise MontyBusy("internal capacity detail")
+            await asyncio.sleep(0.01 * (3 - index))
+            return [_eval_result("accuracy", score=index / 2), _eval_result("tone")]
+
+        with _patch_built_evaluator(_FakeEvaluator(evaluate)):
+            response = await gql_client.execute(
+                self._MUTATION,
+                {
+                    "input": {
+                        "evaluator": _BUILTIN_PLACEHOLDER,
+                        "inputMapping": _EMPTY_MAPPING,
+                        "subjects": [
+                            {"id": f"s{i}", "context": {"output": str(i)}} for i in range(3)
+                        ],
+                    }
+                },
+            )
+
+        assert response.data and not response.errors, response.errors
+        results = response.data["previewEvaluator"]["results"]
+        assert [r["id"] for r in results] == ["s0", "s1", "s2"]
+        assert results[0]["results"] == [
+            {"evaluatorName": "accuracy", "error": None, "annotation": {"score": 0.0}},
+            {"evaluatorName": "tone", "error": None, "annotation": {"score": 1.0}},
+        ]
+        assert results[1] == {
+            "id": "s1",
+            "error": "The Monty runtime is busy. Retry shortly.",
+            "results": [],
+        }
+        assert results[2]["results"][0]["annotation"] == {"score": 1.0}
+
+    async def test_a_definition_error_fails_the_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            self._MUTATION,
+            {
+                "input": {
+                    "evaluator": {
+                        "inlineCodeEvaluator": {
+                            "name": "inline_code_eval",
+                            "language": "PYTHON",
+                            "sourceCode": "def evaluate(output):\n    return 1.0",
+                            "sandboxConfigId": None,
+                            "outputConfigs": [{"freeform": {"name": "score"}}],
+                        }
+                    },
+                    "inputMapping": _EMPTY_MAPPING,
+                    "subjects": [{"id": "a", "context": {"output": "x"}}],
+                }
+            },
+        )
+
+        assert response.errors
+        assert "No sandbox configuration selected" in response.errors[0].message
+
+
 class TestEvaluatorPreviewCancellation:
     async def test_cancelling_the_stream_cancels_running_subjects_and_releases_the_sandbox(
         self,

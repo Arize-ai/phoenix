@@ -3029,6 +3029,11 @@ input EvaluatorPreviewInput {
   credentials: [GenerativeCredentialInput!]
 }
 
+type EvaluatorPreviewPayload {
+  """One result per subject, in the order the subjects were sent."""
+  results: [EvaluatorPreviewSubjectResult!]!
+}
+
 input EvaluatorPreviewSubjectInput {
   """
   Chosen by the caller and echoed on the subject's result; unique per request.
@@ -4113,6 +4118,11 @@ type Mutation {
   Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
   """
   createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
+
+  """
+  The evaluatorPreview subscription for callers that cannot read a stream, such as scripts: it runs the same preview and returns once every subject has reported.
+  """
+  previewEvaluator(input: EvaluatorPreviewInput!): EvaluatorPreviewPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!

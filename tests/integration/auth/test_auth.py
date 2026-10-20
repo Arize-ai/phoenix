@@ -999,7 +999,7 @@ class TestGraphQLQuery:
 
 class TestSandboxAndCodeEvaluatorPermissions:
     # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
-    # Tier 2 (IsNotViewer): code-evaluator mutations + the evaluatorPreview subscription.
+    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluator previews (subscription, mutation).
     # Tier 3 (unrestricted): sandbox/provider/config reads + code-evaluator source.
 
     QUERY = """
@@ -1043,6 +1043,10 @@ class TestSandboxAndCodeEvaluatorPermissions:
 
       subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
         evaluatorPreview(input: $input) { id }
+      }
+
+      mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
+        previewEvaluator(input: $input) { results { id } }
       }
 
       mutation CreateDataset($input: CreateDatasetInput!) {
@@ -1254,6 +1258,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                 "subjects": [],
             }
         }
+        check(members_allowed, "PreviewEvaluator", preview_variables)
         if members_allowed:
             _gql_subscription(
                 _app,
