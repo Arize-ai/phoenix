@@ -120,30 +120,21 @@ class DecisionStateRootModel(RootModel[DecisionState]):
     root: DecisionState
 
 
-QuestionFormat = Literal["phoenix", "system_one", "openai"]
-"""How questions stored in a dataset example are written."""
-
-
 class DecisionTaskConfig(DBBaseModel):
     """A decision run over a dataset, copied when the experiment is created.
 
     It mirrors a prompt task: a copy of the decision's definition, and where each
     example supplies what the definition needs. ``input_values_path`` works as a prompt
-    task's ``template_variables_path`` and ``questions_path`` as its
-    ``appended_messages_path``.
+    task's ``template_variables_path``. The same questions are asked of every example.
     """
 
     inputs: list[DecisionInput]
     state: DecisionState
     questions: list[DecisionQuestion]
-    """The definition's questions. Empty when ``questions_path`` reads them per example."""
+    """The fixed questions asked of every example."""
     input_values_path: str = "input"
     """A dot path into the example's context (``input``, ``reference``, ``metadata``) to
     the object holding the input values, by input name. Empty for the whole context."""
-    questions_path: Optional[str] = None
-    """A dot path into the example's input to that example's own questions, as a
-    benchmark carries them, used instead of ``questions``."""
-    questions_format: QuestionFormat = "system_one"
     custom_provider_name: Optional[str] = None
     """The custom provider the task runs on, by name when it was created. The task's
     ``custom_provider_id`` is cleared when the provider is deleted; this lets a resumed

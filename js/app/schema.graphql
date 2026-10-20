@@ -2011,13 +2011,6 @@ input DecisionProjectionPolicyInput {
 
 union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
 
-"""How questions stored in a dataset example are written."""
-enum DecisionQuestionFormat {
-  PHOENIX
-  SYSTEM_ONE
-  OPENAI
-}
-
 """One decision question. Exactly one type must be set."""
 input DecisionQuestionInput @oneOf {
   predicate: PredicateQuestionInput
@@ -2114,21 +2107,13 @@ type DecisionTaskConfig implements Node {
   inputs: [DecisionInputDefinition!]!
   state: DecisionState!
 
-  """
-  The questions asked of every example; empty when `questionsPath` read each example's own.
-  """
+  """The fixed questions asked of every example."""
   questions: [DecisionQuestion!]!
 
   """
   Where input values were read, as a prompt task's templateVariablesPath.
   """
   inputValuesPath: String!
-
-  """
-  Where each example's own questions were read, as a prompt task's appendedMessagesPath.
-  """
-  questionsPath: String
-  questionsFormat: DecisionQuestionFormat!
 
   """The saved version the definition was copied from, if it still exists."""
   decisionVersion: DecisionVersion
@@ -2148,23 +2133,13 @@ input DecisionTaskInput {
   inputs: [DecisionInputDefinitionInput!]!
   state: DecisionStateInput!
 
-  """
-  The questions asked of every example. Leave empty when `questionsPath` reads each example's own.
-  """
-  questions: [DecisionQuestionInput!]! = []
+  """The fixed questions asked of every example; at least one is required."""
+  questions: [DecisionQuestionInput!]!
 
   """
   Dot-notation path to the object holding the input values, by input name, as `templateVariablesPath` is for a prompt. Default 'input' means input `ticket` resolves to input.ticket. Empty string means the whole context, so values are read as `input`, `reference`, or `metadata`.
   """
   inputValuesPath: String = "input"
-
-  """
-  Dot-notation path to each example's own questions in its input, as `appendedMessagesPath` is for a prompt. For benchmarks whose questions vary per example.
-  """
-  questionsPath: String = null
-
-  """How the questions at `questionsPath` are written."""
-  questionsFormat: DecisionQuestionFormat! = SYSTEM_ONE
 
   """Dataset evaluators to run on this decision's runs"""
   evaluators: [PlaygroundEvaluatorInput!]! = []

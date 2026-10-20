@@ -2,8 +2,7 @@
 
 A decision experiment copies a :class:`DecisionTaskConfig` and reads each example the way
 a prompt task does: input values come from ``input_values_path``, as template variables
-come from ``template_variables_path``, and per-example questions from ``questions_path``,
-as appended messages come from ``appended_messages_path``.
+come from ``template_variables_path``. The task's questions are fixed across examples.
 """
 
 from typing import Any
@@ -12,12 +11,8 @@ from pydantic import ValidationError
 
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
-from phoenix.server.api.helpers.decision_formats import parse_questions
 from phoenix.server.api.helpers.decision_versions import render_state
-from phoenix.server.api.helpers.message_helpers import (
-    build_template_variables,
-    extract_value_from_path,
-)
+from phoenix.server.api.helpers.message_helpers import build_template_variables
 
 
 def build_example_request(
@@ -30,12 +25,11 @@ def build_example_request(
     """The request one dataset example makes.
 
     Only the declared inputs are read from the object at ``input_values_path``, so an
-    example may carry other fields (a benchmark's questions, say) beside them.
+    example may carry other fields beside them.
 
     Raises:
-        ValueError: A path misses, a declared input is missing, the example's questions
-            can't be read, or the request breaks a write-time rule. The message says
-            which.
+        ValueError: A path misses, a declared input is missing, or the request breaks a
+            write-time rule. The message says which.
     """
     try:
         source = build_template_variables(
@@ -52,15 +46,8 @@ def build_example_request(
     state = render_state(
         config.inputs, config.state, {name: source[name] for name in names if name in source}
     )
-    questions = config.questions
-    if config.questions_path:
-        try:
-            raw_questions = extract_value_from_path(input, config.questions_path)
-        except (KeyError, TypeError) as error:
-            raise ValueError(f"Questions: {_reason(error)}") from error
-        questions = parse_questions(raw_questions, config.questions_format)
     try:
-        return DecisionRequest(state=state, questions=questions)
+        return DecisionRequest(state=state, questions=config.questions)
     except ValidationError as error:
         raise ValueError(error.errors()[0]["msg"].removeprefix("Value error, ")) from error
 

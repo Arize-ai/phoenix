@@ -25,8 +25,6 @@ const taskConfig: DecisionTaskConfig = {
   customProvider: { id: "provider-1", name: "My endpoint" },
   baseUrl: null,
   inputValuesPath: "metadata.inputs",
-  questionsPath: null,
-  questionsFormat: "PHOENIX",
   inputs: [{ name: "ticket" }],
   state: { __typename: "DecisionObjectState", object: true },
   questions: [
@@ -92,22 +90,7 @@ it("restores f-string text and a built-in provider's endpoint", () => {
   expect(result.stateByDatasetId).toEqual({});
 });
 
-it("fetches a fixed-question decision experiment and skips per-example benchmark tasks", async () => {
-  mockFetchQuery.mockResolvedValueOnce({
-    node: {
-      dataset: { id: "dataset-1" },
-      job: {
-        maxConcurrency: 2,
-        datasetEvaluators: { edges: [{ node: { id: "judge-1" } }] },
-        taskConfig: {
-          ...taskConfig,
-          questionsPath: "input.questions",
-        },
-      },
-    },
-  });
-  expect(await fetchExperimentPlaygroundProps("exp-benchmark")).toBeNull();
-
+it("fetches a fixed-question decision experiment", async () => {
   mockFetchQuery.mockResolvedValueOnce({
     node: {
       dataset: { id: "dataset-1" },

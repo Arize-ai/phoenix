@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a37071b96aad390b6ca8c7ac179ea91>>
+ * @generated SignedSource<<7f1814072b1b28555d03fe72f7b2bc7c>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,6 @@ export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "X
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
-export type DecisionQuestionFormat = "OPENAI" | "PHOENIX" | "SYSTEM_ONE";
 export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
@@ -372,9 +371,7 @@ export type DecisionTaskInput = {
   inputValuesPath?: string | null;
   inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   modelName: string;
-  questions?: ReadonlyArray<DecisionQuestionInput>;
-  questionsFormat?: DecisionQuestionFormat;
-  questionsPath?: string | null;
+  questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
 };
 export type DecisionConnectionInput = {

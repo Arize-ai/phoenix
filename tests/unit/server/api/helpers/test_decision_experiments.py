@@ -20,14 +20,19 @@ from phoenix.server.api.helpers.decision_experiments import (
 )
 
 
-def benchmark_config(**state: Any) -> DecisionTaskConfig:
-    """Each example carries its state and questions, as datagen's benchmarks are seeded."""
+def task_config(**state: Any) -> DecisionTaskConfig:
+    """Each example supplies state for the task's fixed questions."""
     return DecisionTaskConfig.model_validate(
         {
             "inputs": [{"name": "state"}],
             "state": state or {"type": "input", "name": "state"},
-            "questions": [],
-            "questions_path": "questions",
+            "questions": [
+                {
+                    "type": "predicate",
+                    "name": "decision",
+                    "instructions": "Is the passage about rivers?",
+                }
+            ],
         }
     )
 
@@ -41,13 +46,10 @@ def ask(config: DecisionTaskConfig, input: dict[str, Any], **example: Any) -> An
     )
 
 
-NOUL = {"decision": {"type": "noul", "instructions": "Is the passage about rivers?"}}
-
-
 def test_a_structured_state_is_sent_unchanged() -> None:
     """Typed Decisions' states are JSON objects whose keys vary per workflow."""
     state = {"agent": {"autonomy": "checkpointed"}, "constraints": ["Spend under $50"]}
-    request = ask(benchmark_config(), {"state": state, "questions": NOUL})
+    request = ask(task_config(), {"state": state})
     assert request.state == state
     assert request.questions == [
         PredicateQuestion(
@@ -58,8 +60,8 @@ def test_a_structured_state_is_sent_unchanged() -> None:
 
 def test_a_text_state_can_still_render_a_template() -> None:
     request = ask(
-        benchmark_config(type="text", template="Passage: {{state}}", template_format="MUSTACHE"),
-        {"state": "The Nile is long.", "questions": NOUL},
+        task_config(type="text", template="Passage: {{state}}", template_format="MUSTACHE"),
+        {"state": "The Nile is long."},
     )
     assert request.state == "Passage: The Nile is long."
 
@@ -82,7 +84,7 @@ def test_the_task_questions_are_asked_of_every_example() -> None:
             "questions": [TEAM],
         }
     )
-    request = ask(config, {"ticket": "Refund me", "customer": "acme"})
+    request = ask(config, {"ticket": "Refund me", "customer": "acme", "questions": {"ignored": {}}})
     assert request.state == "Refund me"
     assert isinstance(request.questions[0], ChoiceQuestion)
 
@@ -103,40 +105,34 @@ def test_an_empty_path_reads_input_values_from_the_whole_context() -> None:
 @pytest.mark.parametrize(
     ("example", "message"),
     [
-        pytest.param({"questions": NOUL}, "Missing inputs: state", id="missing-state"),
-        pytest.param({"state": "x"}, "Key 'questions' not found", id="missing-questions"),
-        pytest.param({"state": "x", "questions": {"q": {"type": "box"}}}, "unsupported", id="box"),
-        pytest.param({"state": "", "questions": NOUL}, "empty", id="empty-state"),
-        pytest.param(
-            {
-                "state": "x",
-                "questions": {
-                    "q": {"type": "choice", "instructions": "?", "criteria": {"a": None}}
-                },
-            },
-            "2 to 255 choices",
-            id="one-choice",
-        ),
+        pytest.param({}, "Missing inputs: state", id="missing-state"),
+        pytest.param({"state": ""}, "empty", id="empty-state"),
     ],
 )
 def test_an_example_that_cannot_be_asked_says_why(example: Any, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        ask(benchmark_config(), example)
+        ask(task_config(), example)
 
 
 def test_a_missing_input_values_path_says_so() -> None:
-    config = benchmark_config().model_copy(update={"input_values_path": "input.nope.deeper"})
+    config = task_config().model_copy(update={"input_values_path": "input.nope.deeper"})
     with pytest.raises(ValueError, match=r"^Input values: ") as excinfo:
-        ask(config, {"state": "x", "questions": NOUL})
+        ask(config, {"state": "x"})
     assert "nope" in str(excinfo.value)
     assert isinstance(excinfo.value.__cause__, (KeyError, TypeError))
 
 
 def test_input_values_that_are_not_an_object_say_so() -> None:
-    config = benchmark_config()
+    config = task_config()
     config = config.model_copy(update={"input_values_path": "input.state"})
     with pytest.raises(ValueError, match="are not an object"):
-        ask(config, {"state": "x", "questions": NOUL})
+        ask(config, {"state": "x"})
+
+
+def test_a_task_without_questions_fails_before_any_call() -> None:
+    config = task_config().model_copy(update={"questions": []})
+    with pytest.raises(ValueError, match="At least one question is required"):
+        ask(config, {"state": "Rivers carry sediment."})
 
 
 def test_the_run_output_keeps_full_answers_by_question_name() -> None:

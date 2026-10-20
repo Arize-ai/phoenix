@@ -155,8 +155,6 @@ the question's order (see "One vocabulary everywhere" below).
 **Tradeoffs.** For a provider's format:
 
 - Familiar to that provider's users, and close to its raw response.
-- Matches the input side, where experiments already read System One questions
-  (`questionsFormat: SYSTEM_ONE`).
 - Market reach is the argument for it, but neither format is a standard. On
   yes/no answers, OpenAI matches Phoenix and System One doesn't; on choice
   answers, System One matches Phoenix and OpenAI doesn't.
@@ -244,8 +242,8 @@ For staying with the current (OpenAI-like) shape:
   System One has no level labels). Storing System One ties stored rows to the
   faster-changing vendor (see [Stable and Volatile](#stable-and-volatile)), and
   `noul` and an annotation-colliding `score` enter Phoenix's vocabulary.
-- **Datasets don't need it.** Experiments already read System One questions
-  from examples (`questionsFormat: SYSTEM_ONE`), whatever the stored format.
+- **Datasets supply values, not question definitions.** Each decision task uses
+  fixed Phoenix questions across its examples, independently of the provider.
 
 The prompt precedent picked the format with the most use, and that is the
 measure to check here too: how much Phoenix users run each provider.
@@ -312,13 +310,10 @@ provider's.
 - **Alternatives:** define a Phoenix reference format; accept a provider's
   answer format as the reference; or keep requiring each evaluator to map
   paths, as today, with no convention.
-- **A default already chosen in passing:** an experiment reads per-example
-  questions as System One unless told otherwise (`questionsFormat` defaults to
-  `SYSTEM_ONE`), because the first benchmark was written that way.
 
-Whatever the built-in metrics (the [Measurement step](#build-order)) accept becomes the format
-users build benchmark datasets in, including outside Phoenix. **Decide before**
-the built-in metrics, together with them.
+Whatever the built-in metrics (the [Measurement step](#build-order)) accept becomes
+the format users build benchmark datasets in, including outside Phoenix. **Decide
+before** the built-in metrics, together with them.
 
 ### Translating for Apps
 
@@ -711,18 +706,11 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 | Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
 | `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
 | `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value fails the call, since Phoenix's answers hold strings ([open question](#open-questions)) |
-| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the version's, or an example's under `questionsPath`), and a judge's annotation stores the asked levels beside the answer |
+| `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the task's or version's fixed questions), and a judge's annotation stores the asked levels beside the answer |
 | `refusal` | `refusal`, with no reason | None | Nothing |
 | `box` (later): edges as fractions, optional `confidence` | None | The same | — |
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
 | Resolved model | `model` | `model` | Nothing |
-
-**Imports** through `questionsPath` read System One and OpenAI questions back
-(`decision_formats.py`), and lose more than the adapters: JSON text is
-serialized to a string, a System One question without instructions is refused
-(Phoenix requires them, so these questions can't be run), and an
-OpenAI boolean choice value becomes the string `"True"` or `"False"` (see
-[Open Questions](#open-questions)).
 
 ### Models and Preview Flags
 
@@ -839,7 +827,7 @@ The decision task mirrors `ExperimentPromptTask` field for field:
 | `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, also optional with `ON DELETE SET NULL` (`decisionVersionId` on the input). Recorded for provenance only: the task runs its copy, not the version |
 | Model and connection, or a custom provider | Model and `connection`, or a custom provider |
 | `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `inputValuesPath` (default `input`): input `ticket` reads `input.ticket` |
-| `appendedMessagesPath`: messages from the example, appended | `questionsPath` and `questionsFormat`: questions from the example, used instead of the version's |
+| `appendedMessagesPath`: messages from the example, appended | No equivalent: every example uses the task's fixed questions |
 | `evaluators`: dataset evaluators judge each run | `evaluators`: the same |
 
 Only the declared inputs are read from the object at `inputValuesPath`, so an
@@ -847,14 +835,10 @@ example may carry other fields (a benchmark's questions, say) beside them. There
 is no per-input mapping: input names must match the example's field names, as a
 prompt's template variables must.
 
-`questionsPath` is for benchmarks whose questions vary per example, such as the
-datasets `phoenix datagen` seeds. Those questions are read in the format they
-were published in (`system_one`, `openai`, or `phoenix`) and translated to
-Phoenix's types. Two adapter outputs can't be reversed: the TypeSafe adapter
-sends a level's description in place of its label, and the OpenAI adapter folds
-predicate criteria into the instructions. Everything else round-trips, and the
-round-trip tests cover questions without those two. A System One predicate with
-criteria but no instructions is rejected, since Phoenix requires instructions.
+Decision tasks require at least one fixed question. Per-example question loading
+is not supported: the API, saved decisions, and playground use the same fixed
+question model. Datasets with varying question definitions must be split into
+tasks with fixed questions or run through application code outside this workflow.
 
 Requests are checked twice:
 
@@ -1256,7 +1240,49 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   `{}` unchanged as `input`, and any other value as text. It can't be saved or
   run over a dataset. Inputs lists input
   names, sends their values from the Inputs panel as `object`, and is how a
-  saved `object` state loads. Three things are unsettled:
+  saved `object` state loads.
+
+  The state mode and template format control different things. **Text, JSON,
+  and Inputs choose how to construct the state. Mustache, F-string, and None
+  choose whether and how to substitute template variables.** Their interaction
+  in the current playground is:
+
+  | State editor mode | Mustache | F-string | None |
+  |---|---|---|---|
+  | **Text** | Substitutes `{{name}}` in the text template. | Substitutes `{name}` in the text template. | Uses the text literally, including any placeholder braces. |
+  | **JSON** | Substitutes `{{name}}` into the JSON source, then parses the result as JSON. The result must still be valid JSON. | Parses the JSON without substituting variables. A string such as `"{name}"` stays that literal string. | Parses the JSON without substituting variables. A string such as `"{{name}}"` stays that literal string. |
+  | **Inputs** | Looks up each listed input name and builds an object from its value; no template substitution is involved. | Looks up each listed input name and builds an object from its value; no template substitution is involved. | Looks up each listed input name and builds an object from its value; no template substitution is involved. |
+
+  For example, Text `Reference: {{reference}}` with Mustache and input
+  `reference = A` produces the string `Reference: A`. JSON
+  `{"reference": "{{reference}}"}` with Mustache produces the object
+  `{"reference": "A"}`. Inputs `reference, output`, with values `A` and `B`,
+  produces `{"reference": "A", "output": "B"}` under all three template
+  settings. Inputs names are lookup keys, so they need no placeholder braces.
+  See [State Construction Walkthroughs](#appendix-state-construction-walkthroughs)
+  for nested input values, the wire payload, and a comparison with Text and JSON.
+
+  F-string substitution is skipped for JSON because JSON's object braces
+  conflict with F-string's placeholder syntax. This is a restriction of the
+  current implementation, rather than a requirement that structured data can
+  never contain variables. Mustache substitution happens on the JSON source,
+  rather than on parsed string values, so inserted quotes or other content can
+  make the result invalid JSON.
+
+  The table describes state construction. The template setting also controls
+  substitution in question instructions for an ad hoc playground run,
+  regardless of the state mode. Saved versions and dataset runs require fixed
+  questions and reject question template variables.
+
+  Text can express the same evidence as an object, but an ordinary text
+  template renders that evidence into a string. A Text state consisting of a
+  single variable is the exception: it saves as `input` and passes the caller's
+  value through unchanged, including objects and arrays. Inputs builds an
+  object from several named values instead. That distinction matters when
+  loading saved definitions or preserving structured dataset values; it does
+  not by itself settle whether the editor needs three separate modes.
+
+  Three things are unsettled:
   - JSON and Inputs overlap: in Mustache, `{"a": "{{a}}"}` runs about the same
     as Inputs `a`. Merging them would need a save rule: JSON saves as `object`
     when every value is exactly its own variable. The editor wouldn't show that
@@ -1282,28 +1308,18 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   `inputSchema` matches the other evaluator types.
 - **Boolean choice values.** OpenAI's choice values may be booleans, and
   `true` and `"true"` are different choices. Phoenix stores every value as a
-  string, so it can't send a boolean. Importing OpenAI questions also turns
-  `true` into `"True"`. That value no longer matches a reference answer of
-  `true`, and it reaches OpenAI as a different choice. A boolean in a response
-  fails the call, since answers hold strings, but Phoenix never sends one, so
-  OpenAI doesn't return one. Options:
-  - allow `string | boolean` values (answers, maps, and annotation labels then
-    need typed keys);
-  - refuse booleans on import;
-  - convert them to `"true"` and `"false"`.
-
-  Refusing or converting can be widened to allowing later; allowing them first
-  can't be narrowed without breaking stored versions.
+  string, so it can't send a boolean. A boolean in a response fails the call,
+  since answers hold strings, but Phoenix never sends one, so OpenAI doesn't
+  return one. The playground's OpenAI import turns a boolean value into `"true"`
+  or `"false"`. Supporting `string | boolean` values would also require typed
+  keys in answers, probability maps, and annotation labels. That could be added
+  later without changing the current string-only contract.
 - **Per-call request options.** OpenAI takes `safety_identifier` with each
   call, and System One takes `assets`. Neither belongs on a version. The
   question `options` field is per question, and `assets` waits on the
   `messages` state, so per-call options (an end-user ID, a provider flag) have
   no place yet: a run's input, the connection, or `format()`'s arguments for
   apps.
-- **Evaluator outputs for per-example questions.** An evaluator's output names
-  are fixed, while a benchmark's question names vary per example. A code
-  evaluator can summarize over all answers; whether built-in metrics need
-  per-question names is part of designing them.
 
 ## Implementation Status
 
@@ -1319,7 +1335,7 @@ which now holds both.
 
 | Step | Built | Missing |
 |---|---|---|
-| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | Server: `runDecision`; the task, the runner, `DecisionTaskConfig`; a benchmark can run through the subscription directly; dataset evaluators attach to decision tasks and read answers by path. UI: the Decision tab, with custom providers, Ollama, free-text model names, and span replay; dataset mode. | The version ID on spans (an [open question](#open-questions)); answer cells, since experiment pages show answers as raw JSON. |
+| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | Server: `runDecision`; the task, the runner, `DecisionTaskConfig`; dataset tasks use fixed questions; dataset evaluators attach to decision tasks and read answers by path. UI: the Decision tab, with custom providers, Ollama, free-text model names, and span replay; dataset mode. | The version ID on spans (an [open question](#open-questions)); answer cells, since experiment pages show answers as raw JSON. |
 | **Saved decisions** (chat: prompts, versions, tags, prompt pages) | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, `runDecisionVersion`; decision tasks record their version. UI: playground save and load, the decisions library, version pages and diffs, labels, cloning. | — |
 | **Apps** (chat: `prompts.get` and `format`, REST) | Nothing. | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures; [whether Phoenix translates](#translating-for-apps). |
 | **Measurement** (chat: LLM counts and costs everywhere) | Spans record `decision.token_count.*`; nothing reads them. | Token totals on traces and experiment runs; cost only if providers publish prices; built-in decision metrics and the experiment report; a [reference answer convention](#reference-answers-in-datasets). |
@@ -1458,6 +1474,155 @@ frozen definitions and correct role-specific contexts. Milestone 3 adds all
 project targets, fingerprint/hydration concurrency tests, atomic refusal-aware
 publication, health/result views and protection from recursive evaluator traffic.
 The complete feature includes all three milestones.
+
+## Appendix: State Construction Walkthroughs
+
+These examples follow the current behavior in the
+[playground matrix](#open-questions). They distinguish the editor's state mode,
+Phoenix's GraphQL run input, and the final state sent through a provider adapter.
+GraphQL snippets are excerpts: model configuration and question definitions are
+omitted so the state construction is visible.
+
+### Inputs: Preserve a Nested Ticket and Policy
+
+Suppose a decision asks whether a support ticket requires urgent attention under
+the customer's support policy. The question's instructions are fixed:
+
+> Does this ticket require urgent attention under the policy for the customer's
+> plan? Use the reported impact and workaround availability.
+
+First, select **Inputs** in the state editor and enter:
+
+```text
+ticket, policy
+```
+
+This declares two input names. It does not declare the fields inside either
+value. A dataset example or API caller supplies actual nested objects:
+
+```json
+{
+  "ticket": {
+    "subject": "Production sign-in is down",
+    "customer": {"name": "Acme", "plan": "enterprise"},
+    "impact": {"affected_users": 250, "workaround_available": false}
+  },
+  "policy": {
+    "plans": {
+      "enterprise": {
+        "response_hours": 1,
+        "urgent_when": "Production is blocked and no workaround exists"
+      }
+    }
+  }
+}
+```
+
+For a dataset run, these keys are read from the example at `inputValuesPath`.
+For a direct GraphQL `runDecision` call, the relevant wire fields are:
+
+```json
+{
+  "inputs": [{"name": "ticket"}, {"name": "policy"}],
+  "state": {"object": true},
+  "inputValues": {
+    "ticket": {
+      "subject": "Production sign-in is down",
+      "customer": {"name": "Acme", "plan": "enterprise"},
+      "impact": {"affected_users": 250, "workaround_available": false}
+    },
+    "policy": {
+      "plans": {
+        "enterprise": {
+          "response_hours": 1,
+          "urgent_when": "Production is blocked and no workaround exists"
+        }
+      }
+    }
+  }
+}
+```
+
+Phoenix validates the input names, then builds an object with one field per
+declared input. The final state is exactly the first JSON object above: `ticket`
+and `policy`, including all their nested fields. The number `250` remains a
+number and `false` remains a boolean. Nothing is flattened, and there is no
+template substitution. Choosing Mustache, F-string, or None does not change this
+state.
+
+The provider adapter translates that state for the selected provider. TypeSafe
+accepts the structured state; OpenAI receives it serialized as text. The model
+can connect the customer's enterprise plan to its policy and the reported lack
+of a workaround. The expected answer is that the ticket requires urgent
+attention; Phoenix does not extract those nested facts through a template.
+
+The current playground Inputs panel accepts text values. Pasting the ticket's
+JSON into a panel field supplies a string containing JSON, rather than the
+object shown here. Use structured dataset or API values for this example;
+typing JSON into the panel is not a substitute for that distinction.
+
+### Text: Read Nested Fields into a String
+
+Use the same input values, but select **Text** and **Mustache**, with this state:
+
+```text
+Customer plan: {{ticket.customer.plan}}
+Urgent when: {{policy.plans.enterprise.urgent_when}}
+```
+
+The declared inputs are still `ticket` and `policy`: dotted paths refer to fields
+within those root inputs. The GraphQL state declaration is now:
+
+```json
+{
+  "text": {
+    "template": "Customer plan: {{ticket.customer.plan}}\nUrgent when: {{policy.plans.enterprise.urgent_when}}",
+    "templateFormat": "MUSTACHE"
+  }
+}
+```
+
+With the same `inputValues`, Phoenix constructs this string state:
+
+```text
+Customer plan: enterprise
+Urgent when: Production is blocked and no workaround exists
+```
+
+An F-string template can read the same fields using `{ticket.customer.plan}`
+and `{policy.plans.enterprise.urgent_when}`. With None, the placeholder text
+stays literal instead.
+
+Dotted paths have meaning here because the text formatter interprets them.
+Entering `ticket.customer.plan` in **Inputs** instead declares one literal input
+name. It requires a separately supplied value under that exact key and produces
+an object such as `{"ticket.customer.plan": "enterprise"}`; it does not traverse
+the `ticket` object.
+
+There is also a useful exception to rendering Text as a string: when saving a
+decision or building a dataset task, a Text state consisting only of
+`{{ticket}}` becomes `input: "ticket"`. That passes the whole ticket value
+unchanged. Its final state is the ticket object itself, without an outer
+`ticket` field. Inputs `ticket` instead produces `{"ticket": <ticket value>}`.
+
+### JSON: Supply a Concrete Structured State
+
+For a one-off playground run, select **JSON** and **None**, then paste the first
+JSON object from the Inputs example into the state editor. The playground parses
+it and sends its non-empty top-level object using `state: {object: true}`, with
+`ticket` and `policy` as the inputs and the parsed objects as their values.
+The final state is the same nested object as in the Inputs example.
+
+The difference is how those values are supplied and reused. JSON mode supplies
+the values written in the editor for that run. Inputs declares names whose
+values come from the panel, dataset rows, or callers. Currently, JSON mode
+cannot be saved as a reusable decision or run over a dataset; Inputs can.
+
+Switching this JSON example to Mustache permits substitution into its source,
+but does not turn it into a reusable input mapping. Inserted content must leave
+valid JSON, and F-string substitution is skipped in JSON mode. These restrictions
+are why a JSON template is not equivalent to directly passing nested values as
+Inputs.
 
 ## References
 

@@ -453,8 +453,6 @@ function ExperimentDetailsDialogContent({
                     name
                   }
                   inputValuesPath
-                  questionsPath
-                  questionsFormat
                   inputs {
                     name
                   }
@@ -770,16 +768,6 @@ function ExperimentDetailsDialogContent({
                   <DetailRow label="Input Values Path">
                     {decisionTaskConfig.inputValuesPath}
                   </DetailRow>
-                  {decisionTaskConfig.questionsPath != null ? (
-                    <>
-                      <DetailRow label="Questions Path">
-                        {decisionTaskConfig.questionsPath}
-                      </DetailRow>
-                      <DetailRow label="Questions Format">
-                        {decisionTaskConfig.questionsFormat}
-                      </DetailRow>
-                    </>
-                  ) : null}
                   {job?.maxConcurrency != null ? (
                     <DetailRow label="Max Concurrency">
                       {intFormatter(job.maxConcurrency)}

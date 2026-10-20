@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6a24677b7ec9e45e2b4f2b24e3cfce13>>
+ * @generated SignedSource<<15311e8169dd780425b9b9d063bf3034>>
  * @lightSyntaxTransform
  */
 
@@ -109,7 +109,7 @@ export type ExperimentsTableFragment$data = {
           readonly status: ExperimentJobStatus;
           readonly taskConfig: {
             readonly __typename: "DecisionTaskConfig";
-            readonly questionsPath: string | null;
+            readonly id: string;
           } | {
             readonly __typename: "PromptTaskConfig";
             readonly id: string;
@@ -721,21 +721,13 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": (v14/*:: as any*/),
-                          "type": "PromptTaskConfig",
+                          "type": "DecisionTaskConfig",
                           "abstractKey": null
                         },
                         {
                           "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "questionsPath",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "DecisionTaskConfig",
+                          "selections": (v14/*:: as any*/),
+                          "type": "PromptTaskConfig",
                           "abstractKey": null
                         }
                       ],
@@ -803,6 +795,6 @@ return {
 };
 })();
 
-(node as any).hash = "74ab27f7c724b00b919bf48663f0d91c";
+(node as any).hash = "84b7af5cdcea5ae4d0af355e310ed08f";
 
 export default node;

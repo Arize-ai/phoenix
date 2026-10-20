@@ -61,8 +61,6 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                 name
               }
               inputValuesPath
-              questionsPath
-              questionsFormat
               inputs {
                 name
               }
@@ -358,10 +356,6 @@ export async function fetchExperimentPlaygroundProps(
   );
 
   if (taskConfig.__typename === "DecisionTaskConfig") {
-    // TODO: Preserve per-example questionsPath/questionsFormat in the decision
-    // playground draft before rehydrating benchmark tasks; fixed questions would
-    // silently change what a rerun asks.
-    if (taskConfig.questionsPath != null) return null;
     return decisionTaskConfigToPlaygroundProps({
       taskConfig,
       maxConcurrency: job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,

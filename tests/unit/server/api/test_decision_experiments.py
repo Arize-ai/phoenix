@@ -36,26 +36,24 @@ QUERY = """
   }
 """
 
-# Shaped like datagen's benchmarks: each example carries its state and its questions.
+# Every example supplies state for the same fixed questions.
+QUESTIONS = [
+    {"predicate": {"name": "decision", "instructions": "Is this about rivers?"}},
+    {
+        "choice": {
+            "name": "team",
+            "instructions": "Which team?",
+            "choices": [{"value": "billing", "description": "Payments"}, {"value": "technical"}],
+        }
+    },
+]
 EXAMPLES: list[dict[str, Any]] = [
     {
-        "input": {
-            "state": "The Nile is the longest river in Africa.",
-            "questions": {"decision": {"type": "noul", "instructions": "Is this about rivers?"}},
-        },
-        "output": {"decision": {"type": "noul", "label": "true", "noul": 1.0}},
+        "input": {"state": "The Nile is the longest river in Africa."},
+        "output": {"team": {"type": "choice", "label": "technical"}},
     },
     {
-        "input": {
-            "state": {"ticket": "I was charged twice.", "plan": "pro"},
-            "questions": {
-                "team": {
-                    "type": "choice",
-                    "instructions": "Which team?",
-                    "criteria": {"billing": "Payments", "technical": None},
-                }
-            },
-        },
+        "input": {"state": {"ticket": "I was charged twice.", "plan": "pro"}},
         "output": {"team": {"type": "choice", "label": "billing"}},
     },
 ]
@@ -151,8 +149,7 @@ def run_input(target: list[dict[str, Any]], **task: Any) -> dict[str, Any]:
                         "modelName": "tev1:0.8b-mxfp8",
                         "inputs": [{"name": "state"}],
                         "state": {"input": "state"},
-                        "questionsPath": "questions",
-                        "questionsFormat": "SYSTEM_ONE",
+                        "questions": QUESTIONS,
                         **task,
                     }
                 }
@@ -168,7 +165,7 @@ async def collect(gql_client: AsyncGraphQLClient, variables: dict[str, Any]) -> 
     ]
 
 
-async def test_a_benchmark_runs_as_a_decision_experiment(
+async def test_fixed_questions_run_as_a_decision_experiment(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     benchmark_dataset: list[dict[str, Any]],
@@ -185,18 +182,27 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
     outputs = sorted(
         (result["experimentRun"]["output"] for result in results), key=lambda o: list(o)
     )
-    # The answers by question name, the shape of the dataset's reference answers.
-    assert outputs == [
-        {"decision": {"type": "predicate", "probability": 0.9}},
-        {
-            "team": {
-                "type": "choice",
-                "choice": "billing",
-                "confidence": 0.8,
-                "probabilities": {"billing": 0.8, "technical": 0.2},
+    # Each run's output: answers keyed by question name, in Phoenix's vocabulary, the
+    # shape the dataset's reference answers are compared with. The mock answers alike.
+    assert (
+        outputs
+        == [
+            {
+                "decision": {"type": "predicate", "probability": 0.9},
+                "team": {
+                    "type": "choice",
+                    "choice": "billing",
+                    "confidence": 0.8,
+                    "probabilities": {"billing": 0.8, "technical": 0.2},
+                },
             }
-        },
-    ]
+        ]
+        * 2
+    )
+    assert all(
+        set(json.loads(call.request.content)["questions"]) == {"decision", "team"}
+        for call in route.calls
+    )
     # The structured state went out unchanged, not wrapped and not rendered as text.
     sent_states = [json.loads(call.request.content)["state"] for call in route.calls]
     assert {"ticket": "I was charged twice.", "plan": "pro"} in sent_states
@@ -210,7 +216,7 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
                 taskConfig {
                   __typename
                   ... on DecisionTaskConfig {
-                    modelProvider modelName inputValuesPath questionsPath questionsFormat
+                    modelProvider modelName inputValuesPath
                     inputs { name }
                     state { __typename ... on DecisionInputState { input } }
                     questions { __typename }
@@ -228,11 +234,12 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
         "modelProvider": "OLLAMA",
         "modelName": "tev1:0.8b-mxfp8",
         "inputValuesPath": "input",
-        "questionsPath": "questions",
-        "questionsFormat": "SYSTEM_ONE",
         "inputs": [{"name": "state"}],
         "state": {"__typename": "DecisionInputState", "input": "state"},
-        "questions": [],
+        "questions": [
+            {"__typename": "DecisionPredicateQuestion"},
+            {"__typename": "DecisionChoiceQuestion"},
+        ],
     }
 
     experiment_id = int(GlobalID.from_id(experiment["experimentId"]).node_id)
@@ -240,10 +247,8 @@ async def test_a_benchmark_runs_as_a_decision_experiment(
         task = await session.get(models.ExperimentDecisionTask, experiment_id)
         assert task is not None
         assert (task.model_provider.value, task.model_name) == ("OLLAMA", "tev1:0.8b-mxfp8")
-        assert (task.config.input_values_path, task.config.questions_path) == (
-            "input",
-            "questions",
-        )
+        assert task.config.input_values_path == "input"
+        assert [question.name for question in task.config.questions] == ["decision", "team"]
         db_experiment = await session.get(models.Experiment, experiment_id)
         assert db_experiment is not None
         decision_spans = await session.scalar(
@@ -367,11 +372,14 @@ async def test_dataset_evaluators_judge_decision_runs_as_they_judge_prompt_runs(
         respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
         payloads = await collect(gql_client, run_input(benchmark_dataset, evaluators=[evaluator]))
     chunks = [p for p in payloads if p["__typename"] == "EvaluationChunk"]
-    # The team example matches its reference; the other has no team question to judge.
+    # Both examples are judged; only the billing reference matches the model answer.
     judged = [
         chunk["experimentRunEvaluation"] for chunk in chunks if chunk["experimentRunEvaluation"]
     ]
-    assert [(e["name"], e["label"], e["score"]) for e in judged] == [("exact-match", "true", 1.0)]
+    assert sorted((e["name"], e["label"], e["score"]) for e in judged) == [
+        ("exact-match", "false", 0.0),
+        ("exact-match", "true", 1.0),
+    ]
     assert len(chunks) == 2
     async with db() as session:
         linked = await session.scalar(

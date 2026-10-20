@@ -32,7 +32,6 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.input_types.DecisionTaskInput import DecisionQuestionFormat
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.DecisionDefinition import (
     DecisionInputDefinition,
@@ -343,17 +342,11 @@ class DecisionTaskConfig(Node):
     inputs: list[DecisionInputDefinition]
     state: DecisionState
     questions: list[DecisionQuestion] = strawberry.field(
-        description="The questions asked of every example; empty when `questionsPath` read "
-        "each example's own."
+        description="The fixed questions asked of every example."
     )
     input_values_path: str = strawberry.field(
         description="Where input values were read, as a prompt task's templateVariablesPath."
     )
-    questions_path: Optional[str] = strawberry.field(
-        description="Where each example's own questions were read, as a prompt task's "
-        "appendedMessagesPath."
-    )
-    questions_format: DecisionQuestionFormat
     decision_version_id: Private[Optional[int]] = None
 
     @classmethod
@@ -368,8 +361,6 @@ class DecisionTaskConfig(Node):
             state=to_gql_decision_state(config.state),
             questions=[to_gql_decision_question(question) for question in config.questions],
             input_values_path=config.input_values_path,
-            questions_path=config.questions_path,
-            questions_format=DecisionQuestionFormat(config.questions_format),
             decision_version_id=obj.decision_version_id,
         )
 

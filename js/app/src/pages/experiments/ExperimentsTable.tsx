@@ -359,11 +359,11 @@ export function ExperimentsTable({
                   status
                   taskConfig {
                     __typename
-                    ... on PromptTaskConfig {
+                    ... on DecisionTaskConfig {
                       id
                     }
-                    ... on DecisionTaskConfig {
-                      questionsPath
+                    ... on PromptTaskConfig {
+                      id
                     }
                   }
                 }
@@ -829,8 +829,7 @@ export function ExperimentsTable({
         const taskConfig = row.original.job?.taskConfig;
         const canOpenInPlayground =
           taskConfig?.__typename === "PromptTaskConfig" ||
-          (taskConfig?.__typename === "DecisionTaskConfig" &&
-            taskConfig.questionsPath == null);
+          taskConfig?.__typename === "DecisionTaskConfig";
         return (
           <StopPropagation>
             <Flex direction="row" gap="size-100">
