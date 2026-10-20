@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import {
@@ -35,10 +35,11 @@ function createHeldOpenEnvironment() {
   return { environment, streams };
 }
 
-let startPreview: ReturnType<typeof useSingleSubjectEvaluatorPreview>;
+type StartPreview = ReturnType<typeof useSingleSubjectEvaluatorPreview>;
 
-function PreviewProbe() {
-  startPreview = useSingleSubjectEvaluatorPreview();
+function PreviewProbe({ onReady }: { onReady: (start: StartPreview) => void }) {
+  const startPreview = useSingleSubjectEvaluatorPreview();
+  useEffect(() => onReady(startPreview), [onReady, startPreview]);
   return null;
 }
 
@@ -59,15 +60,23 @@ afterEach(() => {
 describe("useSingleSubjectEvaluatorPreview", () => {
   it("closes a running preview when the form unmounts and settles it", async () => {
     const { environment, streams } = createHeldOpenEnvironment();
+    let startPreview: StartPreview | null = null;
     act(() =>
       root.render(
         <RelayEnvironmentProvider environment={environment}>
-          <PreviewProbe />
+          <PreviewProbe
+            onReady={(start) => {
+              startPreview = start;
+            }}
+          />
         </RelayEnvironmentProvider>
       )
     );
     let outcome: PreviewOutcome | null = null;
-    void startPreview({
+    if (startPreview == null) {
+      throw new Error("the probe did not mount");
+    }
+    void (startPreview as StartPreview)({
       evaluator: { builtInEvaluatorId: "QnVpbHRJbkV2YWx1YXRvcjox" },
       inputMapping: { literalMapping: {}, pathMapping: {} },
       context: { output: "hello" },
