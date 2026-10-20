@@ -148,6 +148,8 @@ const projectEvaluatorGalleryModalQuery = graphql`
         name
         description
       }
+      defaultFilterCondition
+      defaultPathMapping
       messages {
         ...promptUtils_promptMessages
       }
