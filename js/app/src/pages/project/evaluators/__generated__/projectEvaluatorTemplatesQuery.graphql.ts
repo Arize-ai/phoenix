@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a70b058b1df6d70c35b14c9be64c12a>>
+ * @generated SignedSource<<759910c95dbfb056200e206ed3241661>>
  * @lightSyntaxTransform
  */
 
@@ -17,6 +17,8 @@ export type projectEvaluatorTemplatesQuery$data = {
   readonly evaluatorGalleryConfigs: ReadonlyArray<{
     readonly category: EvaluatorCategory | null;
     readonly choices: any;
+    readonly defaultFilterCondition: string | null;
+    readonly defaultPathMapping: any | null;
     readonly description: string | null;
     readonly details: string | null;
     readonly inputs: ReadonlyArray<{
@@ -100,6 +102,20 @@ v7 = {
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "defaultFilterCondition",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "defaultPathMapping",
+  "storageKey": null
+},
+v10 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -124,7 +140,7 @@ v8 = {
   "type": "TextContentPart",
   "abstractKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -154,6 +170,8 @@ return {
           (v5/*:: as any*/),
           (v6/*:: as any*/),
           (v7/*:: as any*/),
+          (v8/*:: as any*/),
+          (v9/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -174,11 +192,11 @@ return {
                     "name": "content",
                     "plural": true,
                     "selections": [
-                      (v8/*:: as any*/)
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v9/*:: as any*/)
+                  (v11/*:: as any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -215,6 +233,8 @@ return {
           (v5/*:: as any*/),
           (v6/*:: as any*/),
           (v7/*:: as any*/),
+          (v8/*:: as any*/),
+          (v9/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -238,11 +258,11 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v8/*:: as any*/)
+                  (v10/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v9/*:: as any*/)
+              (v11/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -252,16 +272,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "35fa7efa168c88d02a2ea034d5c720e5",
+    "cacheID": "d8709b5cfeed2dd1867c72dbb46032f7",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorTemplatesQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorTemplatesQuery {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorTemplatesQuery {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    defaultFilterCondition\n    defaultPathMapping\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fde662a46912e3a998226124fcbb54ba";
+(node as any).hash = "e343417b4af5cca68baf29f557b7d40a";
 
 export default node;

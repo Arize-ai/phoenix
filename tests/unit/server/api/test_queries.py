@@ -54,6 +54,8 @@ async def test_evaluator_gallery_configs_contract(
             "category": "response_quality",
             "details": "Detailed guidance.",
             "inputs": {"input": {"description": "The user request."}},
+            "default_filter_condition": "num_spans > 1",
+            "default_path_mapping": {"input": "metadata.attributes.input.value"},
         }
     )
     monkeypatch.setattr(
@@ -68,6 +70,7 @@ async def test_evaluator_gallery_configs_contract(
             evaluatorGalleryConfigs {
               name scope recommended category details
               inputs { name description }
+              defaultFilterCondition defaultPathMapping
             }
           }
         """
@@ -82,6 +85,8 @@ async def test_evaluator_gallery_configs_contract(
                 "category": "RESPONSE_QUALITY",
                 "details": "Detailed guidance.",
                 "inputs": [{"name": "input", "description": "The user request."}],
+                "defaultFilterCondition": "num_spans > 1",
+                "defaultPathMapping": {"input": "metadata.attributes.input.value"},
             }
         ]
     }
