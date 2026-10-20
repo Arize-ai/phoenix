@@ -161,15 +161,18 @@ the question's order (see "One vocabulary everywhere" below).
 - Familiar to that provider's users, and close to its raw response.
 - Matches the input side, where experiments already read System One questions
   (`questionsFormat: SYSTEM_ONE`).
-- Market reach is the argument for it, but neither format is a standard: OpenAI
-  agrees with Phoenix on yes/no answers and System One on choice answers.
+- Market reach is the argument for it, but neither format is a standard. On
+  yes/no answers, OpenAI matches Phoenix and System One doesn't; on choice
+  answers, System One matches Phoenix and OpenAI doesn't.
 
 For Phoenix's own (the current default):
 
-- **Provider-neutral.** Phoenix runs both providers; storing one's format means
-  translating the other's into it, lossily (System One has no refusal, and OpenAI
-  choices can be booleans), and following that vendor's changes (System One added
-  `legend` and `box`).
+- **Provider-neutral.** Phoenix runs both providers, so storing one's format
+  means translating the other's into it, and each direction loses something:
+  OpenAI answers stored as System One lose their refusal, which System One has
+  no field for, and OpenAI questions stored as System One lose boolean choice
+  values. Storing a vendor's format also means following its changes (System One
+  added `legend` and `box`).
 - **One vocabulary everywhere.** `runDecision`, GraphQL, and run outputs use the
   same types and field names; only serialization differs, with GraphQL listing
   probabilities in the question's order and run outputs keying them by option. A
@@ -181,11 +184,11 @@ For Phoenix's own (the current default):
   evaluators map different paths for output and reference either way.
 
 A narrower option: **scales.** Both providers say `score` for the type and its
-expected value; only Phoenix says `scale` and `expected_level`. Aligning would
-follow both providers without adopting either, but the name was avoided on
-purpose, because every annotation already has a `score`, and a scale answer
-mapped to an annotation would put an expected level and an annotation score side
-by side under one name (see [Questions](#questions)).
+expected value; only Phoenix says `scale` and `expected_level`. Renaming would
+follow both providers without adopting either format. Phoenix avoided the name
+on purpose, though. Every annotation already has a `score`, so a scale answer
+mapped to an annotation would put two different numbers under one name: the
+answer's expected level and the annotation's score (see [Questions](#questions)).
 
 **Decide before** run outputs become a contract: before the REST routes and
 `phoenix-client` (the [Apps step](#build-order)) or the built-in decision
@@ -237,17 +240,16 @@ For staying with the current (OpenAI-like) shape:
 - **Scale levels have labels.** OpenAI requires a short label per level, and the
   UI and annotations need one. System One levels are descriptions only, so
   translating them yields sentence-long labels (`None: everything reconciles.`).
-- **Provider-neutral, and tied to neither vendor's pace.** Both providers translate from it, with one
-  loss each way (OpenAI has no predicate criteria; System One has no level
-  labels). Storing System One ties stored rows to the faster-changing vendor
-  (see [Stable and Volatile](#stable-and-volatile)), and `noul` and an
-  annotation-colliding `score` enter Phoenix's vocabulary.
+- **Provider-neutral, and tied to neither vendor's pace.** Both providers
+  translate from it, with one loss each way (OpenAI has no predicate criteria;
+  System One has no level labels). Storing System One ties stored rows to the
+  faster-changing vendor (see [Stable and Volatile](#stable-and-volatile)), and
+  `noul` and an annotation-colliding `score` enter Phoenix's vocabulary.
 - **Datasets don't need it.** Experiments already read System One questions
   from examples (`questionsFormat: SYSTEM_ONE`), whatever the stored format.
 
-The prompt precedent picked the format with the most use, which is the measure
-to check here too: how much Phoenix users run each provider, not how visible
-either is on social media, which is volatile and can differ from it.
+The prompt precedent picked the format with the most use, and that is the
+measure to check here too: how much Phoenix users run each provider.
 
 **Decide before** saved decisions ship in a release. Until then, changing it means
 changing code; after, it means migrating stored versions and a new API version
@@ -321,9 +323,10 @@ with it.
   for every vendor change, in two languages, and apps break when it lags behind a
   provider.
 - **Phoenix hands back the version:** apps use it with their vendor's SDK
-  directly. Nothing to keep in step, but only workable if versions are stored in
+  directly. Nothing to keep in step. But it only works if versions are stored in
   that vendor's format (see [Stored Question Format](#stored-question-format)),
-  so the two are one decision for apps on that vendor.
+  so for apps on that vendor, this choice and the stored format are decided
+  together.
 
 Once apps call `format()`, removing or narrowing it breaks them. **Decide
 before** `phoenix-client` ships it (the [Apps step](#build-order)).
@@ -387,14 +390,15 @@ for decisions, `output_configs` is read-only in effect.
 
 **Current default:** accept and check.
 
-- **Writes:** the REST create and patch bodies for a dataset binding still accept
-  `output_configs` for a decision judge. The server accepts them only if they equal
-  the derived configs, then stores none, so the field can only repeat the server's
-  own answer. GraphQL's decision mutations don't take them. The converse is
-  enforced: a binding's `projection_policy` is refused for any other kind, on
-  create and patch, and GraphQL takes it only in decision mutations. So the REST
-  binding body has two sibling scoring fields, each writable for some kinds only.
-- **Reads:** REST and GraphQL return both, the derived configs beside the policy.
+| Binding field | REST create and patch | GraphQL |
+|---|---|---|
+| `output_configs` on a decision binding | Accepted only if equal to the derived configs; not stored | Not taken by decision mutations |
+| `projection_policy` on any other kind | Refused | Taken only by decision mutations |
+| Both, on reads | Returned, derived configs beside the policy | Returned the same way |
+
+A decision binding's `output_configs` can therefore only repeat the server's own
+answer. The REST binding body has two sibling scoring fields, and each is
+writable for some kinds only.
 
 **Alternatives and tradeoffs:**
 
@@ -406,11 +410,15 @@ for decisions, `output_configs` is read-only in effect.
   and no `output_configs`; the others have `output_configs` and no
   `projection_policy`. Each field then exists only where it can be written, the
   generated schema and SDK types state the rule, and the echo check and both
-  wrong-kind refusals go away. But `type` repeats what `evaluator_id` implies, so
-  the server must refuse a mismatch; patch bodies need it too (`minProperties: 2`,
-  as for decision evaluators); and existing clients binding LLM evaluators must
-  start sending it, unless it stays optional for them at the price of a looser
-  schema. Plain rejection, without the union, gets the clarity but not the types.
+  wrong-kind refusals go away. It costs three things:
+  - `type` repeats what `evaluator_id` implies, so the server must refuse a
+    mismatch.
+  - Patch bodies need `type` too (`minProperties: 2`, as for decision
+    evaluators).
+  - Existing clients binding LLM evaluators must start sending `type`, unless it
+    stays optional for them, at the price of a looser schema.
+
+  Plain rejection, without the union, gets the clarity but not the types.
 - **Unify:** split every output config into its shape (annotation names, labels,
   score types), which is derived, and its scoring (label scores, direction,
   thresholds), which is authored. A decision already works this way: questions
@@ -814,12 +822,11 @@ prompt's template variables must.
 `questionsPath` is for benchmarks whose questions vary per example, such as the
 datasets `phoenix datagen` seeds. Those questions are read in the format they
 were published in (`system_one`, `openai`, or `phoenix`) and translated to
-Phoenix's types. The translation reverses what the adapters write only where the
-adapters lose nothing: the TypeSafe adapter sends a level's description in place
-of its label, and the OpenAI adapter folds predicate criteria into the
-instructions, so neither round-trips. Round-trip tests cover questions without
-those. A System One predicate with criteria but no instructions is rejected,
-since Phoenix requires instructions.
+Phoenix's types. Two adapter outputs can't be reversed: the TypeSafe adapter
+sends a level's description in place of its label, and the OpenAI adapter folds
+predicate criteria into the instructions. Everything else round-trips, and the
+round-trip tests cover questions without those two. A System One predicate with
+criteria but no instructions is rejected, since Phoenix requires instructions.
 
 Requests are checked twice:
 
@@ -948,12 +955,12 @@ Store a projection policy on the evaluator for predicate thresholds,
 choice scores, scale-label mode, and optimization direction. Dataset bindings
 may override it per question: each question a binding's policy names replaces the
 evaluator's settings for that question, and every other question keeps the
-evaluator's, so a later edit to the evaluator still reaches them. Existing generic
-`output_configs` have no predicate threshold field, so they alone cannot express
-these overrides. A typed binding policy field holds them, and one shared resolver
-derives the effective policy and output configs. A decision binding stores no
-`output_configs`: they are derived whenever they are read. A request may send
-them only if they equal the derived ones.
+evaluator's, so a later edit to the evaluator still reaches them. Generic
+`output_configs` have no predicate threshold field, so a typed binding policy
+field holds the overrides, and one shared resolver derives the effective policy
+and output configs. A decision binding stores no `output_configs`; how requests
+may still send them is under [Output Configs and Projection
+Policies](#output-configs-and-projection-policies).
 
 The policy's GraphQL shape is under [GraphQL](#graphql).
 
@@ -976,8 +983,9 @@ the effective projection policy. Annotation names use `result_annotation_names`:
 one question writes under the binding's name, several under
 `{binding}.{question}`. The runner's rule for other evaluators, that a lone output
 writes under its config's name, does not apply: a decision's configs are named
-after its questions, and two bindings of one judge must not share a name. Changing between one and several questions changes
-annotation names and is a breaking bound update, even if an old question remains.
+after its questions, and two bindings of one judge must not share a name.
+Changing between one and several questions changes annotation names, so it is a
+breaking bound update, even if an old question remains.
 
 | Answer | Derived output config | Annotation |
 |---|---|---|
@@ -1016,14 +1024,20 @@ for a complete validated result set, which may contain terminal refusals.
 Provider failures, timeouts, and invalid responses remain errors. Missing, extra,
 or wrong-type answers fail the invocation under existing adapter validation;
 this feature does not require batch splitting or malformed-answer salvage.
-Retryable provider failures must reach the runner's retry handler. Returning an
-error result with `error_exc` attached is insufficient where the runner records
-that result directly as a failure, so the runner re-raises a decision judge's
-returned rate-limit or transient failure, classified by the judge's own client.
-As for any retried work, a retried attempt's trace is not kept. LLM judges return
-failures the same way and are still recorded on the first one; giving them the
-same retries is a separate change. The runner owns retries in experiments, so
-judges there run without SDK retries; a preview, which nothing retries, keeps them.
+Retryable provider failures must reach the runner's retry handler. A judge
+returns a failure as an error result with `error_exc` attached, and the runner
+records such a result as a failure without retrying. So the runner re-raises a
+decision judge's returned rate-limit or transient failure, as classified by the
+judge's own client. Retries then differ by where a judge runs:
+
+- **A decision judge in an experiment:** the runner retries it, and the judge
+  runs without SDK retries, so the two don't stack. As for any retried work, a
+  retried attempt's trace is not kept.
+- **A decision judge in a preview:** nothing retries a preview, so the judge
+  keeps its SDK retries.
+- **An LLM judge:** it returns failures the same way, but the runner doesn't
+  re-raise them, so it is recorded on the first failure. Giving it the same
+  retries is a separate change.
 
 Each annotation records, under `metadata.decision`, its outcome status, the
 question's identity and type, the normalized answer (including native
@@ -1179,18 +1193,18 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   decided by the same deadline, since older traces keep whatever spans hold.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
-- **Retries for LLM judges.** The runner retries a decision judge's returned
-  rate-limit and transient failures; an LLM judge returns failures the same way
-  but is still recorded on the first one. Extending the retries to LLM judges
-  changes existing behavior, so it is a separate change (see
-  [Refusals, Errors, and Metadata](#refusals-errors-and-metadata)).
+- **Retries for LLM judges.** An LLM judge is recorded on its first returned
+  failure, while a decision judge is retried (see [Refusals, Errors, and
+  Metadata](#refusals-errors-and-metadata)). Extending the retries to LLM judges
+  changes existing behavior, so it is a separate change.
 - **A deleted custom provider.** Deleting one sets `custom_provider_id` to null
-  on its versions, so a saved version, and a judge pinned to one, then runs on
-  the built-in provider of the same kind, with the server's key and default
-  endpoint. Prompts behave the same. Experiment tasks record the provider's
-  name and fail instead. The choice is to refuse to run such a version, or to
-  block deleting a provider that versions use; [Runtime and Integration
-  Points](#runtime-and-integration-points) rules out the fallback for judges.
+  on its versions. A saved version, or a judge pinned to one, then silently runs
+  on the built-in provider of the same kind, with the server's key and default
+  endpoint. Prompts behave the same way. Decision experiment tasks don't fall
+  back: they record the provider's name and fail. For judges, [Runtime and
+  Integration Points](#runtime-and-integration-points) already rules the
+  fallback out. Two fixes are open: refuse to run such a version, or block
+  deleting a provider that versions use.
 - **A default Ollama address.** Phoenix refuses to run Ollama without
   `OLLAMA_BASE_URL` or a run's `baseUrl`, in chat, the agent, and decisions,
   although Ollama listens on `http://localhost:11434`. A default would need to
@@ -1209,10 +1223,10 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   names, sends their values from the Inputs panel as `object`, and is how a
   saved `object` state loads. Three things are unsettled:
   - JSON and Inputs overlap: in Mustache, `{"a": "{{a}}"}` runs about the same
-    as Inputs `a`. Merging them would mean JSON saves as `object` when every
-    value is exactly its own variable, a rule the editor wouldn't show, and
-    F-string can't express it, because the braces would have to be doubled and
-    the state would no longer parse as JSON.
+    as Inputs `a`. Merging them would need a save rule: JSON saves as `object`
+    when every value is exactly its own variable. The editor wouldn't show that
+    rule. F-string couldn't use it at all: its braces would have to be doubled,
+    and the state would then no longer parse as JSON.
   - JSON mode fills template variables into the JSON text before parsing it,
     which is the client-side JSON template that
     [Inputs and State](#inputs-and-state) rules out on the server. It is never
@@ -1232,13 +1246,17 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   by each version's own input names, `metadata` by the user's, and
   `inputSchema` matches the other evaluator types.
 - **Boolean choice values.** OpenAI's choice values may be booleans, and
-  `true` and `"true"` are different choices. Phoenix stores a value as a
-  string, so it can't send a boolean, and importing OpenAI questions turns
-  `true` into `"True"`, which no longer matches a reference answer of `true`
-  and reaches OpenAI as a different choice. Options: allow `string | boolean`
-  values (answers, maps, and annotation labels then need typed keys), refuse
-  booleans on import, or convert them to `"true"` and `"false"`. Refusing or
-  converting stays open to widening later; allowing them first doesn't.
+  `true` and `"true"` are different choices. Phoenix stores every value as a
+  string, so it can't send a boolean. Importing OpenAI questions also turns
+  `true` into `"True"`. That value no longer matches a reference answer of
+  `true`, and it reaches OpenAI as a different choice. Options:
+  - allow `string | boolean` values (answers, maps, and annotation labels then
+    need typed keys);
+  - refuse booleans on import;
+  - convert them to `"true"` and `"false"`.
+
+  Refusing or converting can be widened to allowing later; allowing them first
+  can't be narrowed without breaking stored versions.
 - **Per-call request options.** OpenAI takes `safety_identifier` with each
   call, and System One takes `assets`. Neither belongs on a version. The
   question `options` field is per question, and `assets` waits on the
