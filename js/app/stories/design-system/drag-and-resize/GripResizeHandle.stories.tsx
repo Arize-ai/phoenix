@@ -12,10 +12,10 @@ import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
  * A separator for splits that are meant to be dragged: a line a step stronger
- * than the borders around it, with a grip at its middle, that takes the accent
- * color over its hit area, while dragged, and when focused. Pair it with
- * `GRIP_RESIZE_TARGET_MINIMUM_SIZE` on the `Group`, which widens the area the
- * pointer can grab. For a divider that should stay quiet, use
+ * than the borders around it, with a grip at its middle, that takes the resize
+ * handle indicator color over its hit area, while dragged, and when focused.
+ * Pair it with `GRIP_RESIZE_TARGET_MINIMUM_SIZE` on the `Group`, which widens
+ * the area the pointer can grab. For a divider that should stay quiet, use
  * `compactResizeHandleCSS` on a plain `Separator`.
  */
 const meta: Meta = {

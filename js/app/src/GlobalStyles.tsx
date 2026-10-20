@@ -1333,10 +1333,10 @@ const resizeHandleCSS = (theme: Theme) => css`
     --global-resize-handle-background-color: var(--global-border-color-default);
     --global-resize-handle-indicator-color-hover: var(--global-color-gray-600);
     // The grip separator, for splits that are meant to be dragged: a line a
-    // step stronger than the default border, a grip, and an accent in use.
+    // step stronger than the default border, and a grip. In use it takes the
+    // indicator color above, like every other resize handle.
     --global-resize-handle-line-color: var(--global-color-gray-300);
     --global-resize-handle-grip-color: var(--global-color-gray-500);
-    --global-resize-handle-active-color: var(--global-color-info);
   }
 `;
 

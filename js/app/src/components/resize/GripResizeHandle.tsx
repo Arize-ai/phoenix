@@ -13,7 +13,7 @@ export const GRIP_RESIZE_TARGET_MINIMUM_SIZE = { fine: 16, coarse: 28 };
  * A separator that reads as something to drag: a line a step stronger than
  * the borders around it, with a grip at its middle. Over its hit area, while
  * dragged, and when focused from the keyboard, the line and the grip take the
- * accent color. Use where resizing is part of the workflow and a bare 1px
+ * resize handle indicator color, as every other resize handle does. Use where resizing is part of the workflow and a bare 1px
  * line would pass for one more border; where a divider should stay quiet,
  * use `compactResizeHandleCSS` instead.
  */
@@ -59,9 +59,9 @@ const gripResizeHandleCSS = css`
   &[data-separator="hover"],
   &[data-separator="active"],
   &[data-separator="focus"] {
-    background-color: var(--global-resize-handle-active-color);
+    background-color: var(--global-resize-handle-indicator-color-hover);
     .grip-resize-handle__grip {
-      background-color: var(--global-resize-handle-active-color);
+      background-color: var(--global-resize-handle-indicator-color-hover);
     }
   }
 `;
