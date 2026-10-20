@@ -44,8 +44,8 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
     name: Identifier = Field(description="Unique among this dataset's evaluators.")
     evaluator_id: str = Field(
         description=(
-            "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a "
-            "definition through POST /v1/evaluators first."
+            "GlobalID of the LLM, code, built-in, or decision evaluator definition to run. "
+            "Create a definition through POST /v1/evaluators first."
         )
     )
     input_mapping: InputMapping
@@ -64,7 +64,9 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
         min_length=1,
         description=(
             "Null inherits the shared output configs. An override needs at least one config; "
-            "an LLM binding's configs must be categorical and match the prompt's tool schema."
+            "an LLM binding's configs must be categorical and match the prompt's tool schema. "
+            "A decision binding's configs are derived from its projection policy, so they are "
+            "accepted only if they equal the derived ones, and are not stored."
         ),
     )
 
@@ -90,7 +92,8 @@ class PatchDatasetEvaluatorRequest(EvaluatorRequest):
         description=(
             "Omit to preserve; null restores inheritance. An override needs at least one "
             "config; an LLM binding's configs must be categorical and match the prompt's tool "
-            "schema."
+            "schema. A decision binding's configs are derived from its projection policy, so "
+            "they are accepted only if they equal the derived ones, and are not stored."
         ),
     )
 

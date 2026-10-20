@@ -3031,7 +3031,7 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /**
              * Evaluator Id
-             * @description GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             * @description GlobalID of the LLM, code, built-in, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
              */
             evaluator_id: string;
             input_mapping: components["schemas"]["InputMapping"];
@@ -3044,7 +3044,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -5020,7 +5020,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };

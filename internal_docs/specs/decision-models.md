@@ -390,7 +390,10 @@ for decisions, `output_configs` is read-only in effect.
 - **Writes:** the REST create and patch bodies for a dataset binding still accept
   `output_configs` for a decision judge. The server accepts them only if they equal
   the derived configs, then stores none, so the field can only repeat the server's
-  own answer. GraphQL's decision mutations don't take them.
+  own answer. GraphQL's decision mutations don't take them. The converse is
+  enforced: a binding's `projection_policy` is refused for any other kind, on
+  create and patch, and GraphQL takes it only in decision mutations. So the REST
+  binding body has two sibling scoring fields, each writable for some kinds only.
 - **Reads:** REST and GraphQL return both, the derived configs beside the policy.
 
 **Alternatives and tradeoffs:**
