@@ -23,7 +23,8 @@ describe("createSentimentEvaluator", () => {
     const evaluator = createSentimentEvaluator({ model });
 
     const result = await evaluator.evaluate({
-      conversation: "User: My order still hasn't arrived.\nAssistant: Let me check.",
+      conversation:
+        "User: My order still hasn't arrived.\nAssistant: Let me check.",
       userMessage: "This is the third time I've had to ask.",
     });
 
