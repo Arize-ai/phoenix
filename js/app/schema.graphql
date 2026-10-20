@@ -5073,6 +5073,11 @@ type ProjectSessionAnnotation implements Node & Annotation {
   """The user that produced the annotation."""
   user: User
 
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
+
   """The project session associated with the annotation."""
   projectSessionId: ID!
 
@@ -6385,6 +6390,11 @@ type SpanAnnotation implements Node & Annotation {
 
   """The user that produced the annotation."""
   user: User
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
   spanId: ID!
 
   """The span associated with the annotation."""
@@ -6826,6 +6836,11 @@ type TraceAnnotation implements Node {
 
   """Metadata about the annotation."""
   metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """The identifier of the annotation."""
   identifier: String!

@@ -554,7 +554,7 @@ class ProjectEvaluator(TypedDict):
     id: str
     project_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: str
     evaluation_target: Literal["SPAN", "TRACE", "SESSION"]

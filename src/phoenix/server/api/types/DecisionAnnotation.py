@@ -1,7 +1,7 @@
 """A decision judge's result on an annotation, typed from the annotation's metadata."""
 
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 from strawberry.relay import GlobalID
@@ -119,3 +119,9 @@ def to_gql_decision_annotation(decision: metadata.DecisionAnnotation) -> Decisio
         else None,
         source=source,
     )
+
+
+def decision_annotation_from_metadata(annotation_metadata: Any) -> Optional[DecisionAnnotation]:
+    """The typed `decision` field of any annotation, from its metadata."""
+    decision = metadata.parse_decision_annotation(annotation_metadata)
+    return to_gql_decision_annotation(decision) if decision is not None else None

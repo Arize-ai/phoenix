@@ -38,9 +38,11 @@ async def resolve_project_evaluators_bulk(
 ) -> list[Optional[ResolvedProjectEvaluator]]:
     """Resolve project evaluator fingerprint inputs in bulk, pinning mutable pointers to
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
-    evaluators, the latest CodeEvaluatorVersion id for CODE, and
-    (key, synced_at, implementation_version) for BUILTIN. Each unresolved row
-    produces None.
+    evaluators, the latest CodeEvaluatorVersion id for CODE,
+    (key, synced_at, implementation_version) for BUILTIN, and for DECISION the tagged
+    DecisionVersion id with the judge's projection policy, which scores its answers. A
+    custom provider adds (provider id, updated_at) for LLM and DECISION. Each unresolved
+    row produces None.
     """
     tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
@@ -150,6 +152,31 @@ async def resolve_project_evaluators_bulk(
             if sandbox_config.enabled and provider.enabled
         }
 
+    decision_custom_provider_ids = {
+        evaluator.selected_version.custom_provider_id
+        for _, evaluator in project_evaluator_pairs
+        if isinstance(evaluator, models.DecisionEvaluator)
+        and evaluator.selected_version is not None
+        and evaluator.selected_version.custom_provider_id is not None
+    }
+    decision_custom_provider_updated_at: dict[int, str] = {}
+    if decision_custom_provider_ids:
+        decision_custom_provider_updated_at = {
+            provider_id: updated_at.isoformat()
+            for provider_id, updated_at in (
+                await session.execute(
+                    select(
+                        models.GenerativeModelCustomProvider.id,
+                        models.GenerativeModelCustomProvider.updated_at,
+                    ).where(
+                        models.GenerativeModelCustomProvider.id.in_(decision_custom_provider_ids)
+                    )
+                )
+            )
+            .tuples()
+            .all()
+        }
+
     resolved: list[Optional[ResolvedProjectEvaluator]] = []
     for project_evaluator, evaluator in project_evaluator_pairs:
         version_ref: Any
@@ -182,6 +209,21 @@ async def resolve_project_evaluators_bulk(
                 evaluator.synced_at.isoformat(),
                 evaluator_class.implementation_version,
             ]
+        elif isinstance(evaluator, models.DecisionEvaluator):
+            decision_version = evaluator.selected_version
+            if decision_version is None:
+                resolved.append(None)
+                continue
+            provider_ref: Optional[list[Any]] = None
+            if decision_version.custom_provider_id is not None:
+                updated_at = decision_custom_provider_updated_at.get(
+                    decision_version.custom_provider_id
+                )
+                if updated_at is None:
+                    resolved.append(None)
+                    continue
+                provider_ref = [decision_version.custom_provider_id, updated_at]
+            version_ref = [decision_version.id, evaluator.projection_policy, provider_ref]
         else:
             resolved.append(None)
             continue
@@ -209,7 +251,12 @@ def _sandbox_runtime_fingerprint(
 
 def _resolved_project_evaluator(
     project_evaluator: models.ProjectEvaluator,
-    evaluator: models.LLMEvaluator | models.CodeEvaluator | models.BuiltinEvaluator,
+    evaluator: (
+        models.LLMEvaluator
+        | models.CodeEvaluator
+        | models.BuiltinEvaluator
+        | models.DecisionEvaluator
+    ),
     version_ref: Any,
 ) -> Optional[ResolvedProjectEvaluator]:
     input_mapping: Any = None

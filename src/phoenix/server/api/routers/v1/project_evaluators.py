@@ -42,8 +42,8 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
     name: Identifier = Field(description="Unique among this project's evaluators.")
     evaluator_id: str = Field(
         description=(
-            "GlobalID of the LLM or code evaluator definition to run. Create a definition "
-            "through POST /v1/evaluators first."
+            "GlobalID of the LLM, code, or decision evaluator definition to run. Create a "
+            "definition through POST /v1/evaluators first."
         )
     )
     evaluation_target: models.EvaluationTarget
@@ -103,7 +103,7 @@ class ProjectEvaluator(V1RoutesBaseModel):
     id: str
     project_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: Identifier
     evaluation_target: models.EvaluationTarget
@@ -162,10 +162,17 @@ def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) 
         id=encode_global_id("ProjectEvaluator", row.id),
         project_id=encode_global_id("Project", row.project_id),
         evaluator_id=encode_global_id(
-            {"LLM": "LLMEvaluator", "CODE": "CodeEvaluator", "BUILTIN": "BuiltInEvaluator"}[kind],
+            {
+                "LLM": "LLMEvaluator",
+                "CODE": "CodeEvaluator",
+                "BUILTIN": "BuiltInEvaluator",
+                "DECISION": "DecisionEvaluator",
+            }[kind],
             row.evaluator_id,
         ),
-        evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin"}[kind],
+        evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin", "DECISION": "decision"}[
+            kind
+        ],
         trace_project_id=encode_global_id("Project", row.trace_project_id),
         name=row.name,
         evaluation_target=row.evaluation_target,
@@ -190,7 +197,7 @@ def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) 
 async def create_project_evaluator(
     request: Request, project_identifier: str, body: CreateProjectEvaluatorRequest
 ) -> ProjectEvaluatorResponseBody:
-    """Bind an existing LLM or code evaluator definition to a project.
+    """Bind an existing LLM, code, or decision evaluator definition to a project.
 
     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per

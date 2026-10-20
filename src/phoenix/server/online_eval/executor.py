@@ -59,6 +59,11 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
+from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
+from phoenix.server.api.helpers.decision_evaluators import (
+    freeze_decision_evaluator,
+    parse_decision_annotation,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import (
     TRACE_ANNOTATIONS_METADATA_KEY,
@@ -109,7 +114,7 @@ _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
-EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
+EvaluatorKind = Literal["LLM", "CODE", "BUILTIN", "DECISION"]
 
 
 class EvalExecutionError(Exception):
@@ -470,6 +475,11 @@ async def load_trace_eval_context(
         events=root_span.events,
         annotations=annotations,
     )
+
+
+def _is_refusal(result: EvaluationResult) -> bool:
+    decision = parse_decision_annotation(result["metadata"])
+    return decision is not None and decision.status == "refused"
 
 
 def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
@@ -964,6 +974,14 @@ class OnlineEvalExecutor:
             )
         if isinstance(evaluator_orm, models.BuiltinEvaluator):
             return self._hydrate_builtin(evaluator_orm)
+        if isinstance(evaluator_orm, models.DecisionEvaluator):
+            if (
+                not isinstance(version_ref, list)
+                or len(version_ref) != 3
+                or not isinstance(version_ref[0], int)
+            ):
+                return None
+            return await self._hydrate_decision(session, evaluator_orm, version_ref[0])
         return None
 
     async def _hydrate_llm(
@@ -1088,6 +1106,32 @@ class OnlineEvalExecutor:
             output_configs=tuple(output_configs),
         )
 
+    async def _hydrate_decision(
+        self,
+        session: AsyncSession,
+        evaluator_orm: models.DecisionEvaluator,
+        decision_version_id: int,
+    ) -> Optional[_HydratedEvaluatorSnapshot]:
+        """A judge runs the version its tag selected when its fingerprint was resolved,
+        scored by its own policy. It has no request credentials, so the provider key
+        comes from the server's secrets or environment, as for LLM judges."""
+        if (
+            evaluator_orm.selected_version is None
+            or evaluator_orm.selected_version.id != decision_version_id
+        ):
+            return None
+        definition = freeze_decision_evaluator(evaluator_orm)
+        evaluator = await build_decision_evaluator(
+            definition, session=session, decrypt=self._decrypt
+        )
+        evaluator.max_request_bytes = get_env_online_eval_max_llm_message_bytes()
+        return _HydratedEvaluatorSnapshot(
+            annotator_kind="LLM",
+            evaluator_kind="DECISION",
+            evaluator=evaluator,
+            output_configs=tuple(evaluator.output_configs),
+        )
+
     def _hydrate_builtin(
         self,
         evaluator_orm: models.BuiltinEvaluator,
@@ -1177,6 +1221,9 @@ class OnlineEvalExecutor:
             for result in results:
                 output_config = output_configs_by_name[result["name"]]
                 if not isinstance(output_config, CategoricalOutputConfig):
+                    continue
+                if hydrated.evaluator_kind == "DECISION" and _is_refusal(result):
+                    # A refusal is an answer with neither label nor score.
                     continue
                 label = result["label"]
                 allowed_labels = {value.label for value in output_config.values}

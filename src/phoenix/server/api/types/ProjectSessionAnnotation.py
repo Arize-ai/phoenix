@@ -1,6 +1,6 @@
 from datetime import datetime
 from math import isfinite
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
@@ -15,6 +15,7 @@ from .Annotation import Annotation
 from .AnnotationSource import AnnotationSource
 
 if TYPE_CHECKING:
+    from .DecisionAnnotation import DecisionAnnotation
     from .ProjectSession import ProjectSession
     from .User import User
 
@@ -102,13 +103,32 @@ class ProjectSessionAnnotation(Node, Annotation):
         self,
         info: Info[Context, None],
     ) -> JSON:
+        return JSON(await self._metadata(info))
+
+    async def _metadata(self, info: Info[Context, None]) -> Any:
         if self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.project_session_annotation_fields.load(
-                (self.id, models.ProjectSessionAnnotation.metadata_),
-            )
-        return JSON(val)
+            return self.db_record.metadata_
+        return await info.context.data_loaders.project_session_annotation_fields.load(
+            (self.id, models.ProjectSessionAnnotation.metadata_),
+        )
+
+    @strawberry.field(
+        description=(
+            "The decision judge's result, typed, when the metadata holds one in Phoenix's "
+            "decision format; null otherwise."
+        )
+    )  # type: ignore
+    async def decision(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
+        # Imported here: the decision clients import the playground clients, which import
+        # the annotation types.
+        from phoenix.server.api.types.DecisionAnnotation import (
+            decision_annotation_from_metadata,
+        )
+
+        return decision_annotation_from_metadata(await self._metadata(info))
 
     @strawberry.field(description="The identifier of the annotation.")  # type: ignore
     async def identifier(

@@ -467,7 +467,7 @@ class OnlineEvalConsumer(DaemonTask):
                     raise EvalExecutionTimeout(
                         cause=(
                             ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
-                            if hydrated.evaluator_kind == "LLM"
+                            if hydrated.evaluator_kind in ("LLM", "DECISION")
                             else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
                         ),
                         deadline_seconds=self._execution_deadline_seconds,
@@ -483,7 +483,7 @@ class OnlineEvalConsumer(DaemonTask):
                     raise EvalExecutionTimeout(
                         cause=(
                             ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
-                            if hydrated.evaluator_kind == "LLM"
+                            if hydrated.evaluator_kind in ("LLM", "DECISION")
                             else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
                         ),
                         deadline_seconds=self._execution_deadline_seconds,

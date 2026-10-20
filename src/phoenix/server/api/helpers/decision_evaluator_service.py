@@ -158,11 +158,18 @@ async def validate_bound_decision_update(
     version: models.DecisionVersion,
     policy: dict[str, Any],
 ) -> None:
-    """Reject changes that invalidate a dataset binding."""
+    """Reject changes that invalidate a dataset or project binding."""
     bindings = list(
         await session.scalars(
             select(models.DatasetEvaluators).where(
                 models.DatasetEvaluators.evaluator_id == evaluator.id
+            )
+        )
+    )
+    project_bindings = list(
+        await session.scalars(
+            select(models.ProjectEvaluator).where(
+                models.ProjectEvaluator.evaluator_id == evaluator.id
             )
         )
     )
@@ -173,14 +180,21 @@ async def validate_bound_decision_update(
     # TODO: a judge with a single binding still can't change its inputs or questions from that
     # binding's editor. Allowing it needs one mutation that moves the version and rewrites that
     # binding's input mapping together.
-    if bindings and _signature(original) != _signature(candidate):
-        names = ", ".join(sorted(f"'{binding.name.root}'" for binding in bindings))
+    if (bindings or project_bindings) and _signature(original) != _signature(candidate):
+        broken = [
+            f"{kind} evaluators " + ", ".join(sorted(f"'{binding.name.root}'" for binding in group))
+            for kind, group in (("dataset", bindings), ("project", project_bindings))
+            if group
+        ]
         raise Conflict(
             f"Changing decision inputs, question names, types, choices, or scale levels "
-            f"would break dataset evaluators {names}; detach them or create a new evaluator",
+            f"would break {' and '.join(broken)}; detach them or create a new evaluator",
             reason="incompatible_override",
             dataset_evaluator_ids=[
                 str(GlobalID("DatasetEvaluator", str(binding.id))) for binding in bindings
+            ],
+            project_evaluator_ids=[
+                str(GlobalID("ProjectEvaluator", str(binding.id))) for binding in project_bindings
             ],
         )
     try:
@@ -291,16 +305,22 @@ async def guard_owned_decision_tag_move(
 
 # The keys of the context a dataset evaluator judges a run with (see experiment_runner).
 EVALUATOR_CONTEXT_KEYS = ("input", "output", "reference", "metadata")
+# What online evaluation fills from a span, trace, or session; there is no reference.
+PROJECT_EVALUATOR_CONTEXT_KEYS = ("input", "output", "metadata")
 
 
 def validate_decision_input_mapping(
-    version: models.DecisionVersion, input_mapping: Optional[InputMapping]
+    version: models.DecisionVersion,
+    input_mapping: Optional[InputMapping],
+    *,
+    context_keys: Sequence[str] = EVALUATOR_CONTEXT_KEYS,
+    context: str = "experiment run",
 ) -> None:
     """Reject a mapping that names undeclared inputs or leaves a declared one unfillable.
 
     Undeclared keys would otherwise be silently dropped at run time. An unmapped declared
-    input is filled from the experiment context only when it is named like one of the
-    context's keys; any other would fail every run as missing.
+    input is filled from the context only when it is named like one of the context's
+    keys; any other would fail every run as missing.
     """
     declared = [input.name for input in version.inputs]
     mapped = (
@@ -313,13 +333,11 @@ def validate_decision_input_mapping(
             f"Input mapping names undeclared inputs: {', '.join(repr(k) for k in unknown)}. "
             f"Declared inputs: {', '.join(repr(n) for n in declared) or 'none'}"
         )
-    if unfilled := [
-        name for name in declared if name not in mapped and name not in EVALUATOR_CONTEXT_KEYS
-    ]:
+    if unfilled := [name for name in declared if name not in mapped and name not in context_keys]:
         raise BadRequest(
             f"Map the inputs {', '.join(repr(name) for name in unfilled)}: only inputs named "
-            f"{', '.join(repr(key) for key in EVALUATOR_CONTEXT_KEYS)} are filled from the "
-            f"experiment run without a mapping"
+            f"{', '.join(repr(key) for key in context_keys)} are filled from the "
+            f"{context} without a mapping"
         )
 
 

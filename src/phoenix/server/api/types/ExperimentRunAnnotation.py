@@ -154,11 +154,11 @@ class ExperimentRunAnnotation(Node):
     ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
         # Imported here: the decision clients import the playground clients, which import
         # this type.
-        from phoenix.server.api.helpers.decision_evaluators import parse_decision_annotation
-        from phoenix.server.api.types.DecisionAnnotation import to_gql_decision_annotation
+        from phoenix.server.api.types.DecisionAnnotation import (
+            decision_annotation_from_metadata,
+        )
 
-        decision = parse_decision_annotation(await self._metadata(info))
-        return to_gql_decision_annotation(decision) if decision is not None else None
+        return decision_annotation_from_metadata(await self._metadata(info))
 
     @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
     async def start_time(

@@ -1,5 +1,6 @@
 """Native decision evaluator runtime, shared by previews and experiments."""
 
+import json
 from datetime import datetime, timezone
 from typing import Any, Optional, Sequence, cast
 
@@ -11,7 +12,12 @@ from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import derive_decision_output_configs
 from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import BaseEvaluator, EvaluationResult, apply_input_mapping
+from phoenix.server.api.evaluators import (
+    BaseEvaluator,
+    EvaluationResult,
+    RenderedMessageTooLargeError,
+    apply_input_mapping,
+)
 from phoenix.server.api.helpers.decision_clients import DecisionClient, DecisionRequest
 from phoenix.server.api.helpers.decision_evaluators import (
     ErroredDecisionAnnotation,
@@ -25,9 +31,17 @@ from phoenix.server.api.helpers.evaluators import result_annotation_names
 
 
 class DecisionEvaluator(BaseEvaluator):
-    def __init__(self, definition: InlineDecisionEvaluatorDefinition, client: DecisionClient):
+    def __init__(
+        self,
+        definition: InlineDecisionEvaluatorDefinition,
+        client: DecisionClient,
+        *,
+        max_request_bytes: Optional[int] = None,
+    ):
         self.definition = definition
         self.client = client
+        # Online evaluation caps what one call sends, as it caps an LLM judge's messages.
+        self.max_request_bytes = max_request_bytes
 
     @property
     def name(self) -> str:
@@ -50,6 +64,19 @@ class DecisionEvaluator(BaseEvaluator):
     @property
     def provider_client(self) -> DecisionClient:
         return self.client
+
+    def _check_request_size(self, request: DecisionRequest) -> None:
+        if self.max_request_bytes is None:
+            return
+        state = request.state if isinstance(request.state, str) else json.dumps(request.state)
+        questions = json.dumps([question.model_dump(mode="json") for question in request.questions])
+        size = len(state.encode("utf-8")) + len(questions.encode("utf-8"))
+        if size > self.max_request_bytes:
+            raise RenderedMessageTooLargeError(
+                f"The rendered state and questions are {size} bytes, exceeding the "
+                f"{self.max_request_bytes}-byte limit. Narrow the inputs with a path mapping, "
+                "or raise the limit with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+            )
 
     @property
     def error_metadata(self) -> dict[str, Any]:
@@ -90,6 +117,7 @@ class DecisionEvaluator(BaseEvaluator):
                     state=render_state(self.definition.inputs, self.definition.state, values),
                     questions=self.definition.questions,
                 )
+                self._check_request_size(request)
                 response = await self.client.create(request=request, tracer=collector)
                 results = project_decision_response(
                     self.definition,

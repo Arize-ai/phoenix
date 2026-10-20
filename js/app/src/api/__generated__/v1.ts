@@ -642,7 +642,7 @@ export interface paths {
         put?: never;
         /**
          * Create Project Evaluator
-         * @description Bind an existing LLM or code evaluator definition to a project.
+         * @description Bind an existing LLM, code, or decision evaluator definition to a project.
          *
          *     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
          *     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per
@@ -3236,7 +3236,7 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /**
              * Evaluator Id
-             * @description GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             * @description GlobalID of the LLM, code, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
              */
             evaluator_id: string;
             evaluation_target: components["schemas"]["EvaluationTarget"];
@@ -5317,7 +5317,7 @@ export interface components {
              * Evaluator Type
              * @enum {string}
              */
-            evaluator_type: "llm" | "code" | "builtin";
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
             /** Trace Project Id */
             trace_project_id: string;
             name: components["schemas"]["Identifier"];

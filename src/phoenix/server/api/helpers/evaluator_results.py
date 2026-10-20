@@ -25,7 +25,14 @@ def primary_result_annotation(
     configs = as_output_configs(
         evaluator.output_configs
         if isinstance(
-            evaluator, (models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator)
+            evaluator,
+            (
+                models.LLMEvaluator,
+                models.CodeEvaluator,
+                models.BuiltinEvaluator,
+                # Derived from the judge's questions and policy.
+                models.DecisionEvaluator,
+            ),
         )
         else None
     )

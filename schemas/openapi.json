@@ -4189,7 +4189,7 @@
           "evaluators"
         ],
         "summary": "Create Project Evaluator",
-        "description": "Bind an existing LLM or code evaluator definition to a project.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay. A name the\nproject already uses is refused with 409 `already_exists` and that binding's\n`existing_id`.",
+        "description": "Bind an existing LLM, code, or decision evaluator definition to a project.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay. A name the\nproject already uses is refused with 409 `already_exists` and that binding's\n`existing_id`.",
         "operationId": "createProjectEvaluator",
         "parameters": [
           {
@@ -14573,7 +14573,7 @@
           "evaluator_id": {
             "type": "string",
             "title": "Evaluator Id",
-            "description": "GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first."
+            "description": "GlobalID of the LLM, code, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first."
           },
           "evaluation_target": {
             "$ref": "#/components/schemas/EvaluationTarget"
@@ -20040,7 +20040,8 @@
             "enum": [
               "llm",
               "code",
-              "builtin"
+              "builtin",
+              "decision"
             ],
             "title": "Evaluator Type"
           },
