@@ -284,6 +284,7 @@ function LastTestResult({ entry }: { entry: RecordedRunEntry }) {
             </span>
             <Skeleton
               className="record-inspector__last-result-skeleton"
+              height={CHIP_HEIGHT}
               borderRadius="S"
             />
           </span>
@@ -465,7 +466,8 @@ const inspectorCSS = css`
     }
   }
   // The previous result keeps its room but not its looks; the skeleton
-  // over it stops at the chip's pill, inside the button's padding.
+  // over it is the chip's pill: its width, a pill's height, and centred on
+  // the header's middle line like everything else in it.
   .record-inspector__last-result-placeholder {
     position: relative;
     display: flex;
@@ -480,7 +482,10 @@ const inspectorCSS = css`
   }
   .record-inspector__last-result-skeleton {
     position: absolute;
-    inset: 3px 0;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .record-inspector__last-result-chip {
     display: flex;
