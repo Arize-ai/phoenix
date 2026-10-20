@@ -467,8 +467,8 @@ ships.
   prompts run.
 - Link app traces back to the decision version that produced them.
 - Run decision models as saved evaluators: dataset bindings and experiment
-  evaluation first, evaluator calibration second, project bindings and online
-  evaluation third.
+  evaluation first, project bindings and online evaluation second, evaluator
+  calibration third.
 - Add question types, input modalities, and providers without migrations.
 - Keep decision models out of every chat code path.
 
@@ -932,11 +932,11 @@ with the probability of true and labeled by a threshold.
    it against experiment task outputs. Include the dataset UI, APIs, results,
    trace links, and evaluation resume. An inline-only or API-only demonstration
    does not complete this milestone.
-2. **Evaluator calibration.** Draft or load a judge in the evaluator playground,
-   preview it, and run evaluator-as-task experiments against dataset judgments.
-3. **Online evaluation.** Bind the same saved evaluator to project spans, traces,
+2. **Online evaluation.** Bind the same saved evaluator to project spans, traces,
    and sessions, with existing scheduling, configuration identity, and result
    views.
+3. **Evaluator calibration.** Draft or load a judge in the evaluator playground,
+   preview it, and run evaluator-as-task experiments against dataset judgments.
 
 This is delivery order, not reduced scope. Dataset evaluation does not wait for
 app SDK formatters, image inputs, `box`, or online evaluation.
@@ -1331,24 +1331,45 @@ catalog; and decision models kept out of every chat path. The rest follows the
 chat equivalent in parentheses. "Server" and "UI" are the two halves of PR #16875,
 which now holds both.
 
+**Decision-specific behavior** explains how each workflow differs from its chat
+counterpart; it does not report implementation status. **Built** records what
+exists. **Missing** lists the work required to complete that step, including
+both LLM-equivalent functionality and decision-specific requirements.
+**Not implemented** means no implementation exists for that step;
+**No remaining work identified** means no unfinished requirements are currently
+identified. Optional enhancements beyond completing these steps are listed under
+[Additional Planned Work](#additional-planned-work).
+
 ### Tested
 
-| Step | Built | Missing |
-|---|---|---|
-| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | Server: `runDecision`; the task, the runner, `DecisionTaskConfig`; dataset tasks use fixed questions; dataset evaluators attach to decision tasks and read answers by path. UI: the Decision tab, with custom providers, Ollama, free-text model names, and span replay; dataset mode. | The version ID on spans (an [open question](#open-questions)); answer cells, since experiment pages show answers as raw JSON. |
-| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, `runDecisionVersion`; decision tasks record their version. UI: playground save and load, the decisions library, version pages and diffs, labels, cloning. | — |
-| **Apps** (chat: `prompts.get` and `format`, REST) | Nothing. | REST routes; `decisions.get` and `format` in Python and TypeScript; shared translation fixtures; [whether Phoenix translates](#translating-for-apps). |
-| **Measurement** (chat: LLM counts and costs everywhere) | Spans record `decision.token_count.*`; nothing reads them. | Token totals on traces and experiment runs; cost only if providers publish prices; built-in decision metrics and the experiment report; a [reference answer convention](#reference-answers-in-datasets). |
-| **Assets, `messages` state, and `box`** | Nothing; `box` is rejected as an evaluator output, which blocks no other type. | All of it; image inputs wait on assets and the `messages` state. |
+| Step | Decision-specific behavior | Built | Missing |
+|---|---|---|---|
+| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; dataset tasks use fixed questions; dataset evaluators attach to decision tasks and read answers by path. UI: the Decision tab, with custom providers, Ollama, free-text model names, and span replay; dataset mode. | The version ID on spans (an [open question](#open-questions)); answer cells, since experiment pages show answers as raw JSON. |
+| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load, the decisions library, version pages and diffs, labels, cloning. | No remaining work identified. |
+| **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; resolve [whether Phoenix translates](#translating-for-apps). |
+| **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts; trace and experiment totals do not yet include them. | Token totals on traces and experiment runs; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#reference-answers-in-datasets). |
+| **Images, message inputs, and spatial answers** (chat: messages with image inputs) | Image evidence can support typed spatial questions with bounding-box answers. | Not implemented. | Message and image inputs, including asset handling and message-based state; bounding-box questions and answer rendering. |
 
 ### Judging
 
-| Step | Built | Missing |
-|---|---|---|
-| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI. |
-| **Calibration** in the evaluator playground, milestone 2 (chat: evaluator tasks against expected outputs) | `EvaluatorDefinitionInput.decisionEvaluatorId` reaches the runner. | An inline decision evaluator definition, its rebuild in the runner, its form; opening a judge as a playground evaluator task. |
-| **Online evaluation**, milestone 3 (chat: project bindings; sweeper, producer, executor) | Server: binding a judge to a project over REST, with its inputs checked against what a span, trace, or session fills; judge changes that break a project binding are refused; the fingerprint pins the tagged version, the judge's policy, and a custom provider's revision; the executor runs the judge with server-side credentials and the online byte cap, lets refusals through result validation, and retries the provider's rate limits and transient failures without spending attempts; timeouts count as provider timeouts; the primary result and a typed `decision` field on span, trace, and session annotations. | A GraphQL mutation and UI for binding a judge to a project; decision details in span, trace, and session annotation views. |
-| **Library**, outside this spec (chat: `phoenix-evals` `ClassificationEvaluator(llm: LLM)`) | Separate work (`llm: LLM \| Decision`). | — |
+| Step | Decision-specific behavior | Built | Missing |
+|---|---|---|---|
+| **Dataset evaluators**, milestone 1 (chat: saved LLM evaluators using prompt versions and tags; dataset bindings) | Projects typed answers into scores and retains probabilities and per-question refusals. | Server: saved decision evaluators with pinned decision versions, scoring policies, and derived outputs, exposed through GraphQL and REST; bindings with input mappings, previews (also as a binding), captured evaluator configurations, evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | No remaining work identified. |
+| **Online evaluation**, milestone 2 (chat: project bindings; sweeper, producer, executor) | Applies decision questions and scoring policies to live spans, traces, and sessions. | Server: binding a judge to a project over REST, with its inputs checked against what a span, trace, or session fills; judge changes that break a project binding are refused; the fingerprint pins the tagged version, the judge's policy, and a custom provider's revision; the executor runs the judge with server-side credentials and the online byte cap, lets refusals through result validation, and retries the provider's rate limits and transient failures without spending attempts; timeouts count as provider timeouts; the primary result and structured decision metadata on span, trace, and session annotations. | GraphQL mutations and UI for creating and editing project bindings; verify that span, trace, and session annotation views expose refusal status and answer probabilities or confidence, and add any missing details. |
+| **Calibration** in the evaluator playground, milestone 3 (chat: evaluator tasks against expected outputs) | Compares projected decision judgments with expected outputs to assess question and scoring choices. | The API and runner accept a reference to a saved decision evaluator. | Authoring an unsaved decision evaluator, reconstructing it for execution, and opening a saved evaluator in the playground for calibration. |
+| **Library**, outside this spec (chat: classification evaluators in the Phoenix evals library) | Uses a decision model as the evaluator's model interface. | Separate work outside this spec. | Outside this spec. |
+
+### Additional Planned Work
+
+These optional enhancements are beyond the requirements tracked in Missing:
+
+- **Evaluation summaries:** per-question refusal counts and the fraction of
+  evaluations producing usable judgments.
+- **Evaluator configuration history:** an experiment UI for inspecting the
+  evaluator configuration captured when the experiment started. Attached LLM
+  evaluators lack the same snapshot mechanism and inspection UI.
+- **Evaluator library:** support decision models in the Phoenix evals library,
+  as separate work outside this spec.
 
 ### Cross-Cutting
 
@@ -1390,9 +1411,9 @@ derived outputs, projection policy, and tracing support all three.
    including UI, preview, experiment evaluation and resume. *Needs:* Saved
    decisions, since evaluators refer to saved definitions as `LLMEvaluator` refers
    to `prompt_id`; not app formatting, measurement, or assets.
-2. **Calibration.** Inline evaluator authoring and evaluator-as-task
+2. **Online evaluation.** Project bindings. *Needs:* Dataset evaluators.
+3. **Calibration.** Inline evaluator authoring and evaluator-as-task
    calibration. *Needs:* Dataset evaluators.
-3. **Online evaluation.** Project bindings. *Needs:* Dataset evaluators.
 
 ## Appendix: Decision Evaluator Implementation
 
@@ -1411,7 +1432,7 @@ experiment reconstruction, and online hydration. Provider translation remains in
   projection policy, and experiment snapshots. Keep
   deletion and concurrent edits consistent with existing evaluator services and
   lock ordering. Extend
-  `evaluators.kind`; milestone 2 also extends
+  `evaluators.kind`; milestone 3 also extends
   `experiment_evaluator_tasks.evaluator_kind`. Existing annotation kinds remain
   unchanged because model judgments use `LLM`.
 - **Discovery and APIs.** Extend GraphQL types, enums, node resolution, queries,
@@ -1422,7 +1443,7 @@ experiment reconstruction, and online hydration. Provider translation remains in
   stores `.output_configs` with a shared effective-config resolver, including
   primary-result selection, distributions, comparisons and result views.
 - **Experiments.** Extend dataset evaluator loading and `EvalWorkItem` first;
-  add inline definitions, provenance and `EvaluatorTaskWorkItem` in milestone 2.
+  add inline definitions, provenance and `EvaluatorTaskWorkItem` in milestone 3.
   Audit rate-limit, retry, timeout and error paths: current LLM-only checks would
   otherwise leave decision judges unthrottled or mark errors as `CODE`.
 - **Retry ownership.** Use the decision client's rate-limit key and failure
@@ -1469,10 +1490,11 @@ mapping edits, live-binding deletion, and crashes around persistence, including
 between the separate trace and annotation transactions. Exercise
 existing LLM/CODE/BUILTIN dataset evaluator flows for regressions.
 
-Milestone 2 adds shared inline preview and evaluator-as-task calibration with
-frozen definitions and correct role-specific contexts. Milestone 3 adds all
-project targets, fingerprint/hydration concurrency tests, atomic refusal-aware
-publication, health/result views and protection from recursive evaluator traffic.
+Milestone 2 adds all project targets, fingerprint/hydration concurrency tests,
+atomic refusal-aware publication, health/result views and protection from
+recursive evaluator traffic. Milestone 3 adds shared inline preview and
+evaluator-as-task calibration with frozen definitions and correct role-specific
+contexts.
 The complete feature includes all three milestones.
 
 ## Appendix: State Construction Walkthroughs
