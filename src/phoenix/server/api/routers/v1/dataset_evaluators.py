@@ -57,7 +57,7 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
         description=(
             "Null inherits the shared output configs. An override needs at least one config; "
             "an LLM binding's configs must be categorical and match the prompt's tool schema. "
-            "A decision binding's configs are derived from its projection policy, so they are "
+            "A decision binding's configs are derived from its scoring policy, so they are "
             "accepted only if they equal the derived ones, and are not stored."
         ),
     )
@@ -77,7 +77,7 @@ class PatchDatasetEvaluatorRequest(EvaluatorRequest):
         description=(
             "Omit to preserve; null restores inheritance. An override needs at least one "
             "config; an LLM binding's configs must be categorical and match the prompt's tool "
-            "schema. A decision binding's configs are derived from its projection policy, so "
+            "schema. A decision binding's configs are derived from its scoring policy, so "
             "they are accepted only if they equal the derived ones, and are not stored."
         ),
     )

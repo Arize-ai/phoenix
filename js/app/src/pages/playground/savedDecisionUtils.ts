@@ -11,7 +11,7 @@ import {
   buildDecisionTaskDefinition,
   createChoiceOption,
   createDecisionQuestion,
-  createScoreLevel,
+  createScaleLevel,
   type DecisionTaskDefinition,
 } from "./decisionUtils";
 
@@ -123,13 +123,13 @@ function toDraftState({
 }: {
   state: SavedDecisionVersion["state"];
   templateFormat: TemplateFormat;
-}): Pick<DecisionRequestDraft, "state" | "stateFormat"> {
+}): Pick<DecisionRequestDraft, "state" | "stateEditorMode"> {
   switch (state.kind) {
     case "input":
       if (templateFormat === TemplateFormats.FString)
-        return { state: `{${state.input}}`, stateFormat: "text" };
+        return { state: `{${state.input}}`, stateEditorMode: "text" };
       if (templateFormat === TemplateFormats.Mustache)
-        return { state: `{{${state.input}}}`, stateFormat: "text" };
+        return { state: `{{${state.input}}}`, stateEditorMode: "text" };
       throw new Error(
         "This decision's state is an input. Switch the template format to Mustache or F-String to load it."
       );
@@ -140,10 +140,10 @@ function toDraftState({
           `This decision's state is written in ${format === TemplateFormats.Mustache ? "Mustache" : "F-String"}. Switch the template format to load it.`
         );
       }
-      return { state: state.template, stateFormat: "text" };
+      return { state: state.template, stateEditorMode: "text" };
     }
     case "object":
-      return { state: state.inputs.join(", "), stateFormat: "inputs" };
+      return { state: state.inputs.join(", "), stateEditorMode: "inputs" };
     default:
       return assertUnreachable(state);
   }
@@ -155,10 +155,10 @@ function toDraftQuestion(
   switch (question.kind) {
     case "predicate":
       return createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: question.name,
         instructions: question.instructions,
-        noul: {
+        predicate: {
           trueDescription: question.criteria?.true ?? "",
           falseDescription: question.criteria?.false ?? "",
         },
@@ -177,11 +177,11 @@ function toDraftQuestion(
       });
     case "scale":
       return createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: question.name,
         instructions: question.instructions,
         levels: question.levels.map((level) =>
-          createScoreLevel({
+          createScaleLevel({
             label: level.label,
             description: level.description ?? "",
           })

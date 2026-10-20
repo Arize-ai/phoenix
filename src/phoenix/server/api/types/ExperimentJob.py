@@ -38,11 +38,13 @@ class ExperimentJobStatus(Enum):
 
 
 @strawberry.type(
-    description="A decision judge frozen into an experiment when it was created. It keeps "
-    "running on resume even if its dataset evaluator binding was later deleted."
+    description="A decision evaluator configuration captured when the experiment was created. "
+    "It keeps running on resume even if its dataset evaluator binding was later deleted."
 )
-class FrozenDecisionEvaluator:
-    name: str = strawberry.field(description="The binding name at the time the experiment froze.")
+class DecisionEvaluatorSnapshot:
+    name: str = strawberry.field(
+        description="The binding name captured when the experiment was created."
+    )
     dataset_evaluator_id: GlobalID = strawberry.field(
         description="The dataset evaluator binding's ID. The binding may have been deleted, "
         "so this ID may no longer resolve."
@@ -50,9 +52,11 @@ class FrozenDecisionEvaluator:
     definition: Annotated[
         "InlineDecisionEvaluatorDefinition",
         strawberry.lazy(".EvaluatorTaskDefinition"),
-    ] = strawberry.field(description="The frozen judge, with the binding's effective scoring.")
+    ] = strawberry.field(
+        description="The captured evaluator definition, including its scoring settings."
+    )
     annotation_names: list[str] = strawberry.field(
-        description="Names of the annotations this judge writes."
+        description="Names of the annotations this evaluator writes."
     )
 
 
@@ -195,15 +199,15 @@ class ExperimentJob(Node):
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Decision judges frozen into this experiment, with the binding name, scoring, "
-        "and annotation names the runner uses. Unlike datasetEvaluators, these remain after a "
+        description="Decision evaluator configurations captured for this experiment, with binding "
+        "names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a "
         "binding is deleted.",
     )
-    async def frozen_decision_evaluators(
+    async def decision_evaluator_snapshots(
         self, info: Info[Context, None]
-    ) -> list[FrozenDecisionEvaluator]:
+    ) -> list[DecisionEvaluatorSnapshot]:
         from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-            DecisionEvaluatorSnapshot,
+            DecisionEvaluatorSnapshot as StoredDecisionEvaluatorSnapshot,
         )
         from phoenix.server.api.helpers.evaluators import result_annotation_names
         from phoenix.server.api.types.EvaluatorTaskDefinition import (
@@ -218,9 +222,9 @@ class ExperimentJob(Node):
             )
         result = []
         for value in values or []:
-            snapshot = DecisionEvaluatorSnapshot.model_validate(value)
+            snapshot = StoredDecisionEvaluatorSnapshot.model_validate(value)
             result.append(
-                FrozenDecisionEvaluator(
+                DecisionEvaluatorSnapshot(
                     name=snapshot.name,
                     dataset_evaluator_id=GlobalID(
                         "DatasetEvaluator", str(snapshot.dataset_evaluator_id)

@@ -61,7 +61,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
 )
 from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
 from phoenix.server.api.helpers.decision_evaluators import (
-    freeze_decision_evaluator,
+    capture_decision_evaluator_definition,
     parse_decision_annotation,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
@@ -1120,7 +1120,7 @@ class OnlineEvalExecutor:
             or evaluator_orm.selected_version.id != decision_version_id
         ):
             return None
-        definition = freeze_decision_evaluator(evaluator_orm)
+        definition = capture_decision_evaluator_definition(evaluator_orm)
         evaluator = await build_decision_evaluator(
             definition, session=session, decrypt=self._decrypt
         )

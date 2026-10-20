@@ -1,4 +1,4 @@
-"""Decision projection policies derive output shape and reject incompatible overrides."""
+"""Decision scoring policies derive output shape and reject incompatible overrides."""
 
 from typing import Any
 
@@ -6,13 +6,13 @@ import pytest
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
 from phoenix.db.types.decision_evaluators import (
-    ChoiceProjection,
-    DecisionProjectionPolicy,
-    PredicateProjection,
-    ScaleProjection,
+    ChoiceScoring,
+    DecisionScoringPolicy,
+    PredicateScoring,
+    ScaleScoring,
+    adapt_scoring_policy,
     derive_decision_output_configs,
-    fit_projection_policy,
-    resolve_projection_policy,
+    resolve_scoring_policy,
 )
 from phoenix.db.types.decisions import (
     ChoiceOption,
@@ -47,10 +47,10 @@ def questions() -> list[DecisionQuestion]:
 
 
 def test_output_shapes_and_default_policy_roundtrip() -> None:
-    resolved = resolve_projection_policy(questions(), DecisionProjectionPolicy())
-    assert DecisionProjectionPolicy.model_validate(resolved.model_dump()) == resolved
+    resolved = resolve_scoring_policy(questions(), DecisionScoringPolicy())
+    assert DecisionScoringPolicy.model_validate(resolved.model_dump()) == resolved
     predicate = resolved.questions["correct"]
-    assert isinstance(predicate, PredicateProjection)
+    assert isinstance(predicate, PredicateScoring)
     assert predicate.threshold == 0.5
     configs = derive_decision_output_configs(questions(), resolved)
     assert [config.name for config in configs] == ["correct", "route", "quality"]
@@ -82,12 +82,12 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
         ),
         pytest.param(
             {"questions": {"unknown": {"type": "scale"}}},
-            "Unknown projection questions: unknown",
+            "Unknown scoring questions: unknown",
             id="unknown-question",
         ),
         pytest.param(
             {"questions": {"route": {"type": "scale"}}},
-            "Projection type for route must be choice",
+            "Scoring type for route must be choice",
             id="type-mismatch",
         ),
         pytest.param(
@@ -99,11 +99,11 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
 )
 def test_invalid_policies(policy: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        resolve_projection_policy(questions(), DecisionProjectionPolicy.model_validate(policy))
+        resolve_scoring_policy(questions(), DecisionScoringPolicy.model_validate(policy))
 
 
-def test_fit_projection_policy_adapts_policy_to_updated_questions() -> None:
-    prior = DecisionProjectionPolicy.model_validate(
+def test_adapt_scoring_policy_adapts_policy_to_updated_questions() -> None:
+    prior = DecisionScoringPolicy.model_validate(
         {
             "questions": {
                 "correct": {"type": "predicate", "threshold": 0.8},
@@ -124,7 +124,7 @@ def test_fit_projection_policy_adapts_policy_to_updated_questions() -> None:
             instructions="Pick a route",
             choices=[ChoiceOption(value="accept"), ChoiceOption(value="escalate")],
         ),
-        # Type changed from scale -> predicate; old scale projection is replaced by default.
+        # Type changed from scale -> predicate; old scale scoring is replaced by default.
         PredicateQuestion(type="predicate", name="quality", instructions="Pass quality?"),
         ScaleQuestion(
             type="scale",
@@ -133,9 +133,9 @@ def test_fit_projection_policy_adapts_policy_to_updated_questions() -> None:
             levels=[ScaleLevel(label="a"), ScaleLevel(label="b")],
         ),
     ]
-    fitted = fit_projection_policy(updated_questions, prior)
+    fitted = adapt_scoring_policy(updated_questions, prior)
     assert set(fitted.questions) == {"correct", "route", "quality", "fresh"}
-    assert fitted.questions["correct"] == PredicateProjection(type="predicate", threshold=0.8)
-    assert fitted.questions["route"] == ChoiceProjection(type="choice", scores={"accept": 1.0})
-    assert fitted.questions["quality"] == PredicateProjection(type="predicate", threshold=0.5)
-    assert fitted.questions["fresh"] == ScaleProjection(type="scale", include_label=False)
+    assert fitted.questions["correct"] == PredicateScoring(type="predicate", threshold=0.8)
+    assert fitted.questions["route"] == ChoiceScoring(type="choice", scores={"accept": 1.0})
+    assert fitted.questions["quality"] == PredicateScoring(type="predicate", threshold=0.5)
+    assert fitted.questions["fresh"] == ScaleScoring(type="scale", include_label=False)

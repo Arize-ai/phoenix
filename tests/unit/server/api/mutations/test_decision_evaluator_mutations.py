@@ -22,11 +22,11 @@ from .test_saved_decision_mutations import CREATE_VERSION, create, version_input
 CREATE_EVALUATOR = """
 mutation ($input: CreateDecisionEvaluatorInput!) {
   createDecisionEvaluator(input: $input) { evaluator {
-    id name kind projectionPolicy {
+    id name kind scoringPolicy {
       questions { __typename name optimizationDirection
-        ... on DecisionPredicateProjection { threshold }
-        ... on DecisionChoiceProjection { scores { choice score } }
-        ... on DecisionScaleProjection { includeLabel }
+        ... on DecisionPredicateScoring { threshold }
+        ... on DecisionChoiceScoring { scores { choice score } }
+        ... on DecisionScaleScoring { includeLabel }
       }
     } inputSchema decisionVersion { id }
     decisionVersionTag { id name }
@@ -44,7 +44,7 @@ async def saved_evaluator(gql_client: AsyncGraphQLClient) -> tuple[dict[str, Any
             "input": {
                 "name": "triage-judge",
                 "decisionVersionId": decision["version"]["id"],
-                "projectionPolicy": {
+                "scoringPolicy": {
                     "questions": [{"predicate": {"name": "urgent", "threshold": 0.8}}],
                 },
             }
@@ -117,7 +117,7 @@ async def test_dataset_binding_and_mixed_refusal_preview(
         """
       mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName error annotation { name label score explanation metadata
         decision { status question { name type } answer { __typename ... on PredicateAnswer { probability } }
-          projection { __typename name } resolvedModel modelProvider } } } } }
+          scoring { __typename name } resolvedModel modelProvider } } } } }
     """,
         variables={
             "input": {
@@ -146,7 +146,7 @@ async def test_dataset_binding_and_mixed_refusal_preview(
         "status": "ANSWERED",
         "question": {"name": "urgent", "type": "PREDICATE"},
         "answer": {"__typename": "PredicateAnswer", "probability": 0.7},
-        "projection": {"__typename": "DecisionPredicateProjection", "name": "urgent"},
+        "scoring": {"__typename": "DecisionPredicateScoring", "name": "urgent"},
         "resolvedModel": "jev-resolved",
         "modelProvider": "TYPESAFE",
     }
@@ -197,8 +197,8 @@ async def test_unbound_tag_move_carries_the_judges_policy_to_the_new_questions(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     decision, evaluator = await saved_evaluator(gql_client)
-    policy_query = """query($id:ID!){node(id:$id){... on DecisionEvaluator{projectionPolicy{
-      questions{name ... on DecisionPredicateProjection{threshold}}}}}}"""
+    policy_query = """query($id:ID!){node(id:$id){... on DecisionEvaluator{scoringPolicy{
+      questions{name ... on DecisionPredicateScoring{threshold}}}}}}"""
 
     async def move_to(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         result = await gql_client.execute(
@@ -214,7 +214,7 @@ async def test_unbound_tag_move_carries_the_judges_policy_to_the_new_questions(
         assert result.data and not result.errors, result.errors
         result = await gql_client.execute(policy_query, variables={"id": evaluator["id"]})
         assert result.data and not result.errors, result.errors
-        policy: list[dict[str, Any]] = result.data["node"]["projectionPolicy"]["questions"]
+        policy: list[dict[str, Any]] = result.data["node"]["scoringPolicy"]["questions"]
         return policy
 
     urgent = {"predicate": {"name": "urgent", "instructions": "Is the ticket urgent?"}}
@@ -377,7 +377,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
             "input": {
                 "name": "context-judge",
                 "decisionVersionId": context_decision["version"]["id"],
-                "projectionPolicy": {"questions": []},
+                "scoringPolicy": {"questions": []},
             }
         },
     )
@@ -457,7 +457,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
             "input": {
                 "name": "other-judge",
                 "decisionVersionId": decision["version"]["id"],
-                "projectionPolicy": {"questions": []},
+                "scoringPolicy": {"questions": []},
             }
         },
     )
@@ -499,13 +499,13 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
     assert result.errors and "not found" in result.errors[0].message
 
 
-async def test_frozen_decision_evaluators_survive_binding_deletion_and_experiment_cleanup(
+async def test_decision_evaluator_snapshots_survive_binding_deletion_and_experiment_cleanup(
     gql_client: AsyncGraphQLClient, empty_dataset: None, db: DbSessionFactory
 ) -> None:
     from sqlalchemy import insert, select
 
     from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-        freeze_dataset_decision_evaluators,
+        capture_dataset_decision_evaluators,
     )
 
     _, evaluator = await saved_evaluator(gql_client)
@@ -537,7 +537,7 @@ async def test_frozen_decision_evaluators_survive_binding_deletion_and_experimen
                 experiment_id=experiment_id, dataset_evaluator_id=binding_row_id
             )
         )
-        await freeze_dataset_decision_evaluators(session, experiment_id)
+        await capture_dataset_decision_evaluators(session, experiment_id)
         binding_project_id = await session.scalar(
             select(models.DatasetEvaluators.project_id).where(
                 models.DatasetEvaluators.id == binding_row_id
@@ -571,15 +571,15 @@ async def test_frozen_decision_evaluators_survive_binding_deletion_and_experimen
     result = await gql_client.execute(
         """query($id: ID!) { node(id:$id) { ... on ExperimentJob {
           datasetEvaluators { edges { node { id } } }
-          frozenDecisionEvaluators { name datasetEvaluatorId annotationNames
-            definition { name projectionPolicy { questions { name } } } }
+          decisionEvaluatorSnapshots { name datasetEvaluatorId annotationNames
+            definition { name scoringPolicy { questions { name } } } }
         } } }""",
         variables={"id": job_id},
     )
     assert result.data and not result.errors, result.errors
     job_data = result.data["node"]
     assert job_data["datasetEvaluators"]["edges"] == []
-    [frozen] = job_data["frozenDecisionEvaluators"]
+    [frozen] = job_data["decisionEvaluatorSnapshots"]
     assert frozen["name"] == "ticket-urgency"
     assert frozen["datasetEvaluatorId"] == binding_id
     assert frozen["definition"]["name"] == "ticket-urgency"
@@ -594,13 +594,13 @@ async def test_frozen_decision_evaluators_survive_binding_deletion_and_experimen
         assert await session.get(models.Project, fallback_id) is None
 
 
-async def test_typed_projection_variants_and_frozen_definition(
+async def test_typed_scoring_variants_and_frozen_definition(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     empty_dataset: None,
 ) -> None:
     from phoenix.db.types.evaluators import InputMapping
-    from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+    from phoenix.server.api.helpers.decision_evaluators import capture_decision_evaluator_definition
 
     version = version_input()
     version["questions"].append(
@@ -619,7 +619,7 @@ async def test_typed_projection_variants_and_frozen_definition(
             "input": {
                 "name": "typed-judge",
                 "decisionVersionId": decision["version"]["id"],
-                "projectionPolicy": {
+                "scoringPolicy": {
                     "questions": [
                         {
                             "predicate": {
@@ -646,24 +646,24 @@ async def test_typed_projection_variants_and_frozen_definition(
     )
     assert result.data and not result.errors, result.errors
     evaluator = result.data["createDecisionEvaluator"]["evaluator"]
-    policy = evaluator["projectionPolicy"]
+    policy = evaluator["scoringPolicy"]
     # Declared order, not the order sent or the stored map's key order.
     expected_policy: dict[str, Any] = {
         "questions": [
             {
-                "__typename": "DecisionPredicateProjection",
+                "__typename": "DecisionPredicateScoring",
                 "name": "urgent",
                 "threshold": 0.75,
                 "optimizationDirection": "MAXIMIZE",
             },
             {
-                "__typename": "DecisionChoiceProjection",
+                "__typename": "DecisionChoiceScoring",
                 "name": "team",
                 "scores": [{"choice": "billing", "score": 1}, {"choice": "technical", "score": 0}],
                 "optimizationDirection": "MINIMIZE",
             },
             {
-                "__typename": "DecisionScaleProjection",
+                "__typename": "DecisionScaleScoring",
                 "name": "quality",
                 "includeLabel": True,
                 "optimizationDirection": "NONE",
@@ -676,7 +676,7 @@ async def test_typed_projection_variants_and_frozen_definition(
             models.DecisionEvaluator, int(GlobalID.from_id(evaluator["id"]).node_id)
         )
         assert record is not None
-        definition = freeze_decision_evaluator(record)
+        definition = capture_decision_evaluator_definition(record)
         experiment = models.Experiment(
             dataset_id=1, dataset_version_id=1, name="typed-frozen", repetitions=1, metadata_={}
         )
@@ -698,10 +698,10 @@ async def test_typed_projection_variants_and_frozen_definition(
         """
       query($id: ID!) { node(id:$id) { ... on ExperimentJob { taskConfig {
         ... on EvaluatorTaskConfig { definition { ... on InlineDecisionEvaluatorDefinition {
-          projectionPolicy { questions { __typename name optimizationDirection
-            ... on DecisionPredicateProjection { threshold }
-            ... on DecisionChoiceProjection { scores { choice score } }
-            ... on DecisionScaleProjection { includeLabel }
+          scoringPolicy { questions { __typename name optimizationDirection
+            ... on DecisionPredicateScoring { threshold }
+            ... on DecisionChoiceScoring { scores { choice score } }
+            ... on DecisionScaleScoring { includeLabel }
           } }
         } } }
       } } } }
@@ -709,7 +709,7 @@ async def test_typed_projection_variants_and_frozen_definition(
         variables={"id": str(GlobalID("ExperimentJob", str(experiment.id)))},
     )
     assert result.data and not result.errors, result.errors
-    assert result.data["node"]["taskConfig"]["definition"]["projectionPolicy"] == policy
+    assert result.data["node"]["taskConfig"]["definition"]["scoringPolicy"] == policy
 
 
 @pytest.mark.parametrize(
@@ -717,7 +717,7 @@ async def test_typed_projection_variants_and_frozen_definition(
     [
         pytest.param(
             {"questions": [{"predicate": {"name": "urgent"}}, {"predicate": {"name": "urgent"}}]},
-            "Duplicate projection question 'urgent'",
+            "Duplicate scoring question 'urgent'",
             id="duplicate-question-names",
         ),
         pytest.param(
@@ -740,12 +740,12 @@ async def test_typed_projection_variants_and_frozen_definition(
         pytest.param(
             {"questions": [{}]},
             "must specify exactly one key",
-            id="empty-projection",
+            id="empty-scoring",
         ),
         pytest.param(
             {"questions": [{"predicate": {"name": "urgent"}, "scale": {"name": "urgent"}}]},
             "must specify exactly one key",
-            id="two-projection-keys",
+            id="two-scoring-keys",
         ),
     ],
 )
@@ -764,7 +764,7 @@ async def test_invalid_typed_policy_does_not_create_an_evaluator(
             "input": {
                 "name": "invalid-policy",
                 "decisionVersionId": decision["version"]["id"],
-                "projectionPolicy": policy,
+                "scoringPolicy": policy,
             }
         },
     )
@@ -785,7 +785,7 @@ PATCH_EVALUATOR = """
 mutation ($input: PatchDecisionEvaluatorInput!) {
   patchDecisionEvaluator(input: $input) { evaluator {
     name decisionVersion { id }
-    projectionPolicy { questions { name ... on DecisionPredicateProjection { threshold } } }
+    scoringPolicy { questions { name ... on DecisionPredicateScoring { threshold } } }
   } }
 }
 """
@@ -800,31 +800,31 @@ async def test_patch_decision_evaluator(gql_client: AsyncGraphQLClient) -> None:
         )
 
     def threshold(patched: Any) -> float:
-        questions = patched.data["patchDecisionEvaluator"]["evaluator"]["projectionPolicy"][
+        questions = patched.data["patchDecisionEvaluator"]["evaluator"]["scoringPolicy"][
             "questions"
         ]
         return float(next(q["threshold"] for q in questions if q["name"] == "urgent"))
 
     result = await patch(
-        projectionPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 0.3}}]}
+        scoringPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 0.3}}]}
     )
     assert result.data and not result.errors, result.errors
     assert threshold(result) == 0.3
     result = await patch(name="renamed-judge")
     assert result.data and not result.errors, result.errors
     assert threshold(result) == 0.3, "omitting the policy keeps it"
-    result = await patch(projectionPolicy=None)
+    result = await patch(scoringPolicy=None)
     assert result.errors and "cannot be null" in result.errors[0].message
     other = await create(gql_client, name="other-decision")
     result = await patch(decisionVersionId=other["version"]["id"])
     assert result.errors and "its own decision" in result.errors[0].message
     result = await patch(
-        projectionPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 1.5}}]}
+        scoringPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 1.5}}]}
     )
     assert result.errors
     message = result.errors[0].message
     assert "question 'urgent'" in message and "threshold" in message
-    assert "pydantic" not in message and "PredicateProjection" not in message
+    assert "pydantic" not in message and "PredicateScoring" not in message
 
 
 async def test_reordering_bound_questions_is_compatible(

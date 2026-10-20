@@ -82,7 +82,7 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
             metadata_={},
             decision_id=decision.id,
             decision_version_tag_id=tag.id,
-            projection_policy={
+            scoring_policy={
                 "questions": {"correct": {"type": "predicate", "threshold": threshold}}
             },
         )
@@ -208,9 +208,7 @@ async def test_editing_the_judges_policy_changes_its_fingerprint(
     async with db() as session:
         judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None
-        judge.projection_policy = {
-            "questions": {"correct": {"type": "predicate", "threshold": 0.5}}
-        }
+        judge.scoring_policy = {"questions": {"correct": {"type": "predicate", "threshold": 0.5}}}
     assert await _fingerprint(db, judge_id, binding_id) != before
 
 

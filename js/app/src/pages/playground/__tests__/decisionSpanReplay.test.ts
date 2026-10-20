@@ -1,6 +1,6 @@
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 
-import { buildDecisionRequest } from "../decisionUtils";
+import { buildSystemOneRequest } from "../decisionUtils";
 import { transformSpanAttributesToPlaygroundInstance } from "../playgroundUtils";
 import { basePlaygroundSpan } from "./fixtures";
 
@@ -56,7 +56,7 @@ describe("decision span replay", () => {
       modelType: "DECISION",
     });
     expect(playgroundInstance.llmModel?.provider).toBe("OPENAI");
-    const request = buildDecisionRequest({
+    const request = buildSystemOneRequest({
       draft: playgroundInstance.decisionRequest!,
     });
     expect(request.state).toEqual({ complaint: "I was charged twice." });
@@ -94,10 +94,10 @@ describe("decision span replay", () => {
     expect(parsingErrors).toEqual([]);
     expect(playgroundInstance.model.provider).toBe("OPENAI");
     expect(playgroundInstance.model.modelName).toBe("gpt-6-luna");
-    expect(playgroundInstance.decisionRequest?.stateFormat).toBe("text");
+    expect(playgroundInstance.decisionRequest?.stateEditorMode).toBe("text");
     expect(playgroundInstance.decisionRequest?.questions[0]).toMatchObject({
       name: "urgent",
-      type: "noul",
+      type: "predicate",
     });
   });
 

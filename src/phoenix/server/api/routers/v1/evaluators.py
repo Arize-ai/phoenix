@@ -15,7 +15,7 @@ from phoenix.db.helpers import (
     latest_code_evaluator_versions_by_evaluator_id,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
@@ -149,7 +149,7 @@ class CreateDecisionEvaluatorRequest(EvaluatorRequest):
     name: Identifier
     decision_version_id: str
     description: Optional[str] = None
-    projection_policy: DecisionProjectionPolicy = Field(default_factory=DecisionProjectionPolicy)
+    scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
 
 
 class PatchDecisionEvaluatorRequest(EvaluatorRequest):
@@ -159,7 +159,7 @@ class PatchDecisionEvaluatorRequest(EvaluatorRequest):
     name: Identifier = Field(default=UNDEFINED)
     decision_version_id: str = Field(default=UNDEFINED)
     description: Optional[str] = Field(default=UNDEFINED)
-    projection_policy: DecisionProjectionPolicy = Field(default=UNDEFINED)
+    scoring_policy: DecisionScoringPolicy = Field(default=UNDEFINED)
 
 
 class CodeEvaluatorVersionRequest(EvaluatorRequest):
@@ -245,7 +245,7 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
     decision_id: str
     decision_version_id: str
     decision_version_tag_id: str
-    projection_policy: DecisionProjectionPolicy
+    scoring_policy: DecisionScoringPolicy
     output_configs: list[EvaluatorOutputConfig]
 
 
@@ -260,7 +260,7 @@ def _decision_evaluator_definition(
         decision_id=encode_global_id("Decision", row.decision_id),
         decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
         decision_version_tag_id=encode_global_id("DecisionVersionTag", row.decision_version_tag_id),
-        projection_policy=DecisionProjectionPolicy.model_validate(row.projection_policy),
+        scoring_policy=DecisionScoringPolicy.model_validate(row.scoring_policy),
         output_configs=output_configs_from_db(row.output_configs),
     )
 
@@ -626,7 +626,7 @@ async def create_evaluator(
                     name=body.name,
                     decision_version_id=parse_global_id(body.decision_version_id),
                     description=body.description,
-                    projection_policy=body.projection_policy.model_dump(mode="json"),
+                    scoring_policy=body.scoring_policy.model_dump(mode="json"),
                 ),
             )
             return EvaluatorDefinitionResponseBody(
@@ -720,8 +720,8 @@ async def patch_evaluator(
         if isinstance(body, PatchDecisionEvaluatorRequest):
             if "decision_version_id" in fields:
                 values["decision_version_id"] = parse_global_id(body.decision_version_id)
-            if "projection_policy" in fields:
-                values["projection_policy"] = body.projection_policy.model_dump(mode="json")
+            if "scoring_policy" in fields:
+                values["scoring_policy"] = body.scoring_policy.model_dump(mode="json")
             await decision_service.patch_decision_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),

@@ -103,7 +103,7 @@ export function DeleteEvaluatorDialog({
                   {evaluatorKind === "BUILTIN"
                     ? " The built-in evaluator remains available elsewhere."
                     : evaluatorKind === "DECISION"
-                      ? " The decision judge remains available elsewhere."
+                      ? " The decision evaluator remains available elsewhere."
                       : " The evaluator is deleted only if it isn't used anywhere else."}
                 </Text>
                 {evaluatorKind === "LLM" ? (

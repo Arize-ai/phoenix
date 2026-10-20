@@ -3,7 +3,6 @@ import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import type {
   PlaygroundEvaluatorTask,
-  PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
   PlaygroundTaskType,
   PlaygroundMode,
@@ -102,7 +101,7 @@ export function createPlaygroundEvaluatorTask({
       datasetEvaluatorId: null,
       projectEvaluatorId: null,
     },
-    savedRevision: null,
+    savedContentKey: null,
     ...overrides,
   };
 }
@@ -112,11 +111,4 @@ export function getPlaygroundEvaluatorTask(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): PlaygroundEvaluatorTask | null {
   return instance?.task.type === "evaluator" ? instance.task.evaluator : null;
-}
-
-/** The task type a "new task" source of the given kind creates. */
-export function getTaskTypeForNewSource(
-  kind: "prompt" | "decision" | PlaygroundEvaluatorTaskKind
-): PlaygroundTaskType {
-  return kind === "prompt" || kind === "decision" ? kind : "evaluator";
 }

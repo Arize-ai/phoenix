@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
 
-import type { DecisionProjectionPolicyValue } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
+import type { DecisionScoringPolicyValue } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 
 import { EditDecisionDatasetEvaluatorSlideover } from "../EditDecisionDatasetEvaluatorSlideover";
@@ -51,7 +51,7 @@ vi.mock("@phoenix/pages/playground/DecisionVersionSelector", () => ({
   ),
 }));
 
-const judgeEdit: DecisionProjectionPolicyValue = {
+const evaluatorEdit: DecisionScoringPolicyValue = {
   questions: [
     {
       predicate: {
@@ -63,20 +63,22 @@ const judgeEdit: DecisionProjectionPolicyValue = {
   ],
 };
 vi.mock(
-  "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor",
+  "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor",
   () => ({
-    DecisionProjectionPolicyEditor: ({
+    DecisionScoringPolicyEditor: ({
       onChange,
     }: {
       onChange: (value: unknown) => void;
     }) => (
-      <button onClick={() => onChange(judgeEdit)}>Edit judge scoring</button>
+      <button onClick={() => onChange(evaluatorEdit)}>
+        Edit evaluator scoring
+      </button>
     ),
   })
 );
 
-const predicateProjection = {
-  __typename: "DecisionPredicateProjection",
+const predicateScoring = {
+  __typename: "DecisionPredicateScoring",
   name: "accurate",
   optimizationDirection: "NONE",
   threshold: 0.5,
@@ -98,11 +100,11 @@ function buildQueryData() {
         },
         evaluator: {
           __typename: "DecisionEvaluator",
-          id: "judge-1",
-          name: "saved_judge",
+          id: "evaluator-1",
+          name: "saved_evaluator",
           inputSchema: { properties: { question: {} } },
           datasetEvaluators: [{ id: "binding-1" }, { id: "binding-2" }],
-          projectionPolicy: { questions: [predicateProjection] },
+          scoringPolicy: { questions: [predicateScoring] },
           decisionVersion: {
             id: "version-1",
             sequenceNumber: 1,
@@ -115,7 +117,7 @@ function buildQueryData() {
   };
 }
 
-const PATCH = "EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation";
+const PATCH = "EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation";
 const BINDING = "EditDecisionDatasetEvaluatorSlideover_updateBindingMutation";
 const PREVIEW = "EditDecisionDatasetEvaluatorSlideover_previewMutation";
 
@@ -178,7 +180,7 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
   const calls = (name: string) =>
     commit.mock.calls.filter(([mutation]) => mutation === name);
 
-  it("updates only the binding when the judge is unchanged", async () => {
+  it("updates only the binding when the evaluator is unchanged", async () => {
     await render();
     await click("Update");
 
@@ -206,24 +208,26 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     expect(onUpdate).toHaveBeenCalled();
   });
 
-  it("warns that judge changes affect every dataset using the judge", async () => {
+  it("warns that evaluator changes affect every dataset using the evaluator", async () => {
     await render();
     const warning = document.querySelector(
-      '[data-testid="decision-evaluator-judge-warning"]'
+      '[data-testid="decision-evaluator-evaluator-warning"]'
     );
-    expect(warning?.textContent).toContain("every dataset using this judge");
+    expect(warning?.textContent).toContain(
+      "every dataset using this evaluator"
+    );
     expect(warning?.textContent).toContain("1 other dataset evaluator uses");
     expect(warning?.textContent).toContain("refused");
   });
 
-  it("patches the judge before the binding when the version is repinned", async () => {
+  it("patches the evaluator before the binding when the version is repinned", async () => {
     await render();
     await click("Pin version 2");
     await click("Update");
 
     expect(calls(PATCH)).toHaveLength(1);
     expect(calls(PATCH)[0][1].variables.input).toMatchObject({
-      evaluatorId: "judge-1",
+      evaluatorId: "evaluator-1",
       decisionVersionId: "version-2",
     });
     expect(calls(BINDING)).toHaveLength(0);
@@ -263,13 +267,13 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     });
   });
 
-  it("shows the server's refusal and saves nothing else when the judge change is refused", async () => {
+  it("shows the server's refusal and saves nothing else when the evaluator change is refused", async () => {
     await render();
-    await click("Edit judge scoring");
+    await click("Edit evaluator scoring");
     await click("Update");
     expect(calls(PATCH)[0][1].variables.input).toEqual({
-      evaluatorId: "judge-1",
-      projectionPolicy: judgeEdit,
+      evaluatorId: "evaluator-1",
+      scoringPolicy: evaluatorEdit,
     });
     await act(async () =>
       calls(PATCH)[0][1].onCompleted({}, [
@@ -283,15 +287,15 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
-  it("previews the saved judge as this dataset's evaluator", async () => {
+  it("previews the saved evaluator as this dataset's evaluator", async () => {
     await render();
     await click("Test");
     expect(calls(PREVIEW)).toHaveLength(1);
     const [item] = calls(PREVIEW)[0][1].variables.input.previews;
-    expect(item.evaluator).toEqual({ decisionEvaluatorId: "judge-1" });
+    expect(item.evaluator).toEqual({ decisionEvaluatorId: "evaluator-1" });
     expect(item.datasetEvaluatorId).toBe("binding-1");
     expect(document.body.textContent).toContain(
-      "runs the judge as this dataset's evaluator"
+      "runs the evaluator as this dataset's evaluator"
     );
   });
 });

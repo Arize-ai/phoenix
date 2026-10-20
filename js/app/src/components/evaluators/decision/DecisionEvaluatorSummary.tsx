@@ -3,20 +3,20 @@ import { graphql, useFragment } from "react-relay";
 import { Flex, Text } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
 
-import type { DecisionJudgeSummary_evaluator$key } from "./__generated__/DecisionJudgeSummary_evaluator.graphql";
-import type { DecisionQuestionProjectionValue } from "./decisionPolicyUtils";
+import type { DecisionEvaluatorSummary_evaluator$key } from "./__generated__/DecisionEvaluatorSummary_evaluator.graphql";
+import type { DecisionQuestionScoringValue } from "./decisionPolicyUtils";
 import {
-  getQuestionProjectionName,
+  getQuestionScoringName,
   policyOutputToInput,
 } from "./decisionPolicyUtils";
 
-export type DecisionJudgeSummaryProps = {
-  evaluator: DecisionJudgeSummary_evaluator$key;
+export type DecisionEvaluatorSummaryProps = {
+  evaluator: DecisionEvaluatorSummary_evaluator$key;
 };
 
 /** Describes one question's scoring in a short sentence. */
 export function describeQuestionScoring(
-  question: DecisionQuestionProjectionValue,
+  question: DecisionQuestionScoringValue,
   { includeDirection = true }: { includeDirection?: boolean } = {}
 ): string {
   const direction = (value: string) =>
@@ -29,7 +29,7 @@ export function describeQuestionScoring(
           : "; no optimization direction";
   if ("predicate" in question) {
     const { threshold, optimizationDirection } = question.predicate;
-    return `Predicate: true at probability >= ${threshold}${direction(optimizationDirection)}`;
+    return `Yes / No: true at probability >= ${threshold}${direction(optimizationDirection)}`;
   }
   if ("choice" in question) {
     const { scores, optimizationDirection } = question.choice;
@@ -44,13 +44,15 @@ export function describeQuestionScoring(
 }
 
 /**
- * Read-only description of a decision judge: the decision and version it runs
+ * Read-only description of a decision evaluator: the decision and version it runs
  * (linked), its model, and each question's scoring.
  */
-export function DecisionJudgeSummary({ evaluator }: DecisionJudgeSummaryProps) {
-  const data = useFragment<DecisionJudgeSummary_evaluator$key>(
+export function DecisionEvaluatorSummary({
+  evaluator,
+}: DecisionEvaluatorSummaryProps) {
+  const data = useFragment<DecisionEvaluatorSummary_evaluator$key>(
     graphql`
-      fragment DecisionJudgeSummary_evaluator on DecisionEvaluator {
+      fragment DecisionEvaluatorSummary_evaluator on DecisionEvaluator {
         decisionVersion {
           id
           decisionId
@@ -64,21 +66,21 @@ export function DecisionJudgeSummary({ evaluator }: DecisionJudgeSummaryProps) {
         decisionVersionTag {
           name
         }
-        projectionPolicy {
+        scoringPolicy {
           questions {
             __typename
             name
             optimizationDirection
-            ... on DecisionPredicateProjection {
+            ... on DecisionPredicateScoring {
               threshold
             }
-            ... on DecisionChoiceProjection {
+            ... on DecisionChoiceScoring {
               scores {
                 choice
                 score
               }
             }
-            ... on DecisionScaleProjection {
+            ... on DecisionScaleScoring {
               includeLabel
             }
           }
@@ -88,13 +90,13 @@ export function DecisionJudgeSummary({ evaluator }: DecisionJudgeSummaryProps) {
     evaluator
   );
   const { decisionVersion } = data;
-  const policy = policyOutputToInput(data.projectionPolicy);
+  const policy = policyOutputToInput(data.scoringPolicy);
 
   return (
     <Flex
       direction="column"
       gap="size-100"
-      data-testid="decision-judge-summary"
+      data-testid="decision-evaluator-summary"
     >
       <Flex direction="row" gap="size-100" alignItems="center" wrap>
         <Link
@@ -112,7 +114,7 @@ export function DecisionJudgeSummary({ evaluator }: DecisionJudgeSummaryProps) {
       </Flex>
       <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none" }}>
         {policy.questions.map((question) => {
-          const name = getQuestionProjectionName(question);
+          const name = getQuestionScoringName(question);
           return (
             <li key={name}>
               <Text weight="heavy">{name}</Text>{" "}

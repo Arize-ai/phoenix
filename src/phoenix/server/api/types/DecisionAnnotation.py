@@ -9,9 +9,9 @@ from strawberry.relay import GlobalID
 from phoenix.server.api.helpers import decision_evaluators as metadata
 from phoenix.server.api.types.DecisionAnswer import DecisionAnswer, to_gql_answer
 from phoenix.server.api.types.DecisionDefinition import DecisionChoiceOption, DecisionScaleLevel
-from phoenix.server.api.types.DecisionProjectionPolicy import (
-    DecisionQuestionProjection,
-    to_gql_question_projection,
+from phoenix.server.api.types.DecisionScoringPolicy import (
+    DecisionQuestionScoring,
+    to_gql_question_scoring,
 )
 from phoenix.server.api.types.EvaluatorTaskDefinition import (
     EvaluatorTaskSource,
@@ -61,7 +61,7 @@ class DecisionAnnotation:
     answer: Optional[DecisionAnswer] = strawberry.field(
         description="The normalized answer, a refusal included; null when the call failed."
     )
-    projection: Optional[DecisionQuestionProjection] = strawberry.field(
+    scoring: Optional[DecisionQuestionScoring] = strawberry.field(
         description="The scoring settings applied to the answer; null when the call failed."
     )
     requested_model: Optional[str]
@@ -80,7 +80,7 @@ def to_gql_decision_annotation(decision: metadata.DecisionAnnotation) -> Decisio
             status=DecisionAnnotationStatus.ERROR,
             question=None,
             answer=None,
-            projection=None,
+            scoring=None,
             requested_model=None,
             resolved_model=None,
             model_provider=None,
@@ -108,7 +108,7 @@ def to_gql_decision_annotation(decision: metadata.DecisionAnnotation) -> Decisio
             else None,
         ),
         answer=to_gql_answer(question.name, decision.answer, choice_order),
-        projection=to_gql_question_projection(question.name, decision.projection, choice_order),
+        scoring=to_gql_question_scoring(question.name, decision.scoring, choice_order),
         requested_model=decision.requested_model,
         resolved_model=decision.resolved_model,
         model_provider=GenerativeProviderKey.from_model_provider(decision.provider),

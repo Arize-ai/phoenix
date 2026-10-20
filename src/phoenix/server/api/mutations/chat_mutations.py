@@ -28,7 +28,7 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
 from phoenix.server.api.helpers.decision_evaluators import (
-    freeze_decision_evaluator,
+    capture_decision_evaluator_definition,
     parse_decision_annotation,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
@@ -148,10 +148,10 @@ async def _evaluate_preview(
         raise BadRequest("The Monty runtime failed unexpectedly. Retry the preview.") from exc
 
 
-async def _freeze_as_binding(
+async def _capture_binding_definition(
     session: AsyncSession, definition: EvaluatorDefinition, binding_id: int
 ) -> InlineDecisionEvaluatorDefinition:
-    """Freeze a saved judge as a dataset binding, matching what an experiment would run."""
+    """Capture a saved evaluator as a dataset binding, matching what an experiment would run."""
     if not isinstance(definition, StoredDecisionEvaluatorDefinition):
         raise BadRequest("datasetEvaluatorId requires a saved decision evaluator")
     binding = await session.get(models.DatasetEvaluators, binding_id)
@@ -161,7 +161,7 @@ async def _freeze_as_binding(
         raise BadRequest("The dataset evaluator is not bound to the given decision evaluator")
     judge = await get_decision_evaluator(session, definition.decision_evaluator_id)
     try:
-        return freeze_decision_evaluator(
+        return capture_decision_evaluator_definition(
             judge,
             name=binding.name.root,
             description=binding.description,
@@ -206,7 +206,7 @@ class ChatCompletionMutationMixin:
             # never depends on a follow-up request reaching the same replica.
             async with info.context.db() as session:
                 if binding_id is not None:
-                    definition = await _freeze_as_binding(session, definition, binding_id)
+                    definition = await _capture_binding_definition(session, definition, binding_id)
                 evaluator = await build_evaluator_from_definition(
                     definition=definition,
                     session=session,

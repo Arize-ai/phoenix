@@ -538,7 +538,7 @@ class PlaygroundPromptTaskUIContext(TypedDict):
     kind: NotRequired[Literal["prompt"]]
 
 
-class PredicateProjection(TypedDict):
+class PredicateScoring(TypedDict):
     type: Literal["predicate"]
     threshold: NotRequired[float]
     optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
@@ -889,7 +889,7 @@ class SandboxConfigsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
-class ScaleProjection(TypedDict):
+class ScaleScoring(TypedDict):
     type: Literal["scale"]
     include_label: NotRequired[bool]
     optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
@@ -1606,7 +1606,7 @@ class ChatCompletionUsage(TypedDict):
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
 
 
-class ChoiceProjection(TypedDict):
+class ChoiceScoring(TypedDict):
     type: Literal["choice"]
     scores: NotRequired[Mapping[str, float]]
     optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
@@ -1726,10 +1726,8 @@ class DatasetExample(TypedDict):
     source: NotRequired[DatasetExampleSource]
 
 
-class DecisionProjectionPolicy(TypedDict):
-    questions: NotRequired[
-        Mapping[str, Union[PredicateProjection, ChoiceProjection, ScaleProjection]]
-    ]
+class DecisionScoringPolicy(TypedDict):
+    questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
 
 
 class DynamicToolApprovalRequestedPart(TypedDict):
@@ -1930,7 +1928,7 @@ class PatchDecisionEvaluatorRequest(TypedDict):
     name: NotRequired[str]
     decision_version_id: NotRequired[str]
     description: NotRequired[str]
-    projection_policy: NotRequired[DecisionProjectionPolicy]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
 
 
 class PatchLLMEvaluatorRequest(TypedDict):
@@ -2358,7 +2356,7 @@ class CreateDecisionEvaluatorRequest(TypedDict):
     name: str
     decision_version_id: str
     description: NotRequired[str]
-    projection_policy: NotRequired[DecisionProjectionPolicy]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
 
 
 class CreateLLMEvaluatorRequest(TypedDict):
@@ -2410,7 +2408,7 @@ class DecisionEvaluatorDefinition(TypedDict):
     decision_id: str
     decision_version_id: str
     decision_version_tag_id: str
-    projection_policy: DecisionProjectionPolicy
+    scoring_policy: DecisionScoringPolicy
     output_configs: Sequence[
         Union[
             CategoricalAnnotationConfigData,

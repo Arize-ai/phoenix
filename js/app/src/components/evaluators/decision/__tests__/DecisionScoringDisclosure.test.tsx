@@ -24,7 +24,7 @@ describe("DecisionScoringDisclosure", () => {
       root.render(
         <DecisionScoringDisclosure
           id="scoring"
-          title="Judge scoring"
+          title="Evaluator scoring"
           summary="2 questions overridden"
           defaultExpanded={defaultExpanded}
         >

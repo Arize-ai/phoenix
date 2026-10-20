@@ -1360,7 +1360,7 @@ CREATE TABLE decision_evaluators (
         CHECK (kind = 'DECISION'),
     decision_id INTEGER NOT NULL,
     decision_version_tag_id INTEGER NOT NULL,
-    projection_policy JSONB NOT NULL,
+    scoring_policy JSONB NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
     CONSTRAINT fk_decision_evaluators_decision_id_decisions

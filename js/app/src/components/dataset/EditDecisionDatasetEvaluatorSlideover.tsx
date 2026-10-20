@@ -26,7 +26,7 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components/core/overlay";
 import type { EditDecisionDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_evaluatorQuery.graphql";
-import type { EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation.graphql";
+import type { EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation.graphql";
 import type { EditDecisionDatasetEvaluatorSlideover_previewMutation } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_previewMutation.graphql";
 import type { EditDecisionDatasetEvaluatorSlideover_updateBindingMutation } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_updateBindingMutation.graphql";
 import type { EditDecisionDatasetEvaluatorSlideover_versionQuery } from "@phoenix/components/dataset/__generated__/EditDecisionDatasetEvaluatorSlideover_versionQuery.graphql";
@@ -34,10 +34,10 @@ import {
   commitAsync,
   getMutationErrorMessage,
   policiesEqual,
-  toDecisionJudgeView,
+  toDecisionEvaluatorView,
 } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
 import type {
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
@@ -47,8 +47,8 @@ import {
   toDecisionQuestionDefinitions,
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
-import { DecisionProjectionPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor";
 import { DecisionScoringDisclosure } from "@phoenix/components/evaluators/decision/DecisionScoringDisclosure";
+import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -156,21 +156,21 @@ const EditDecisionEvaluatorDialog = (
                     datasetEvaluators {
                       id
                     }
-                    projectionPolicy {
+                    scoringPolicy {
                       questions {
                         __typename
                         name
                         optimizationDirection
-                        ... on DecisionPredicateProjection {
+                        ... on DecisionPredicateScoring {
                           threshold
                         }
-                        ... on DecisionChoiceProjection {
+                        ... on DecisionChoiceScoring {
                           scores {
                             choice
                             score
                           }
                         }
-                        ... on DecisionScaleProjection {
+                        ... on DecisionScaleScoring {
                           includeLabel
                         }
                       }
@@ -213,11 +213,11 @@ const EditDecisionEvaluatorDialog = (
     );
   const datasetEvaluator = data.dataset.datasetEvaluator;
   invariant(datasetEvaluator != null, "datasetEvaluator is required");
-  const judge = datasetEvaluator.evaluator;
+  const evaluator = datasetEvaluator.evaluator;
   invariant(
-    judge.__typename === "DecisionEvaluator" &&
-      judge.projectionPolicy &&
-      judge.decisionVersion,
+    evaluator.__typename === "DecisionEvaluator" &&
+      evaluator.scoringPolicy &&
+      evaluator.decisionVersion,
     "a decision evaluator is required"
   );
   const initialState = useMemo(
@@ -226,8 +226,8 @@ const EditDecisionEvaluatorDialog = (
         ...DEFAULT_STORE_VALUES,
         evaluator: {
           ...DEFAULT_STORE_VALUES.evaluator,
-          id: judge.id,
-          globalName: judge.name,
+          id: evaluator.id,
+          globalName: evaluator.name,
           name: datasetEvaluator.name,
           description: datasetEvaluator.description ?? "",
           kind: "DECISION",
@@ -256,22 +256,22 @@ const EditDecisionEvaluatorDialog = (
           selectedSplitIds: [],
         },
       }) satisfies EvaluatorStoreProps,
-    [datasetEvaluator, judge, datasetEvaluatorId, datasetId]
+    [datasetEvaluator, evaluator, datasetEvaluatorId, datasetId]
   );
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       <EditDecisionEvaluatorDialogContent
         {...props}
-        judge={{
-          id: judge.id,
-          name: judge.name,
-          inputSchema: judge.inputSchema,
-          projectionPolicy: judge.projectionPolicy,
-          decisionVersion: judge.decisionVersion,
+        evaluator={{
+          id: evaluator.id,
+          name: evaluator.name,
+          inputSchema: evaluator.inputSchema,
+          scoringPolicy: evaluator.scoringPolicy,
+          decisionVersion: evaluator.decisionVersion,
         }}
         otherBindingCount={Math.max(
           0,
-          (judge.datasetEvaluators?.length ?? 1) - 1
+          (evaluator.datasetEvaluators?.length ?? 1) - 1
         )}
       />
     </EvaluatorStoreProvider>
@@ -283,40 +283,40 @@ const EditDecisionEvaluatorDialogContent = ({
   updateConnectionIds,
   onClose,
   onUpdate,
-  judge,
+  evaluator,
   otherBindingCount,
 }: EditDecisionEvaluatorDialogProps & {
-  judge: Parameters<typeof toDecisionJudgeView>[0];
+  evaluator: Parameters<typeof toDecisionEvaluatorView>[0];
   otherBindingCount: number;
 }) => {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
   const notifySuccess = useNotifySuccess();
-  const [patchJudge] =
-    useMutation<EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation>(
+  const [patchEvaluator] =
+    useMutation<EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation>(
       graphql`
-        mutation EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation(
+        mutation EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation(
           $input: PatchDecisionEvaluatorInput!
         ) {
           patchDecisionEvaluator(input: $input) {
             evaluator {
               id
               inputSchema
-              projectionPolicy {
+              scoringPolicy {
                 questions {
                   __typename
                   name
                   optimizationDirection
-                  ... on DecisionPredicateProjection {
+                  ... on DecisionPredicateScoring {
                     threshold
                   }
-                  ... on DecisionChoiceProjection {
+                  ... on DecisionChoiceScoring {
                     scores {
                       choice
                       score
                     }
                   }
-                  ... on DecisionScaleProjection {
+                  ... on DecisionScaleScoring {
                     includeLabel
                   }
                 }
@@ -355,37 +355,39 @@ const EditDecisionEvaluatorDialogContent = ({
       `
     );
 
-  const judgeView = useMemo(() => toDecisionJudgeView(judge), [judge]);
-  // What the judge is saved as. Moves forward when the judge is patched, so a
-  // retry after a failed binding update does not patch the judge again.
-  const [savedJudge, setSavedJudge] = useState<{
-    versionId: string;
-    policy: DecisionProjectionPolicyValue;
-  }>({ versionId: judge.decisionVersion.id, policy: judgeView.policy });
-  const [pinned, setPinned] = useState<PinnedVersion>({
-    versionId: judge.decisionVersion.id,
-    sequenceNumber: judge.decisionVersion.sequenceNumber,
-    questions: judgeView.questions,
-    variables: judgeView.variables,
-  });
-  const [judgePolicy, setJudgePolicy] = useState<DecisionProjectionPolicyValue>(
-    judgeView.policy
+  const evaluatorView = useMemo(
+    () => toDecisionEvaluatorView(evaluator),
+    [evaluator]
   );
+  // What the evaluator is saved as. Moves forward when the evaluator is patched, so a
+  // retry after a failed binding update does not patch the evaluator again.
+  const [savedEvaluator, setSavedEvaluator] = useState<{
+    versionId: string;
+    policy: DecisionScoringPolicyValue;
+  }>({ versionId: evaluator.decisionVersion.id, policy: evaluatorView.policy });
+  const [pinned, setPinned] = useState<PinnedVersion>({
+    versionId: evaluator.decisionVersion.id,
+    sequenceNumber: evaluator.decisionVersion.sequenceNumber,
+    questions: evaluatorView.questions,
+    variables: evaluatorView.variables,
+  });
+  const [evaluatorPolicy, setEvaluatorPolicy] =
+    useState<DecisionScoringPolicyValue>(evaluatorView.policy);
   const [versionError, setVersionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [showValidationError, setShowValidationError] = useState(false);
 
-  const effectiveJudgePolicy = useMemo(
-    () => normalizePolicy(pinned.questions, judgePolicy),
-    [pinned.questions, judgePolicy]
+  const effectiveEvaluatorPolicy = useMemo(
+    () => normalizePolicy(pinned.questions, evaluatorPolicy),
+    [pinned.questions, evaluatorPolicy]
   );
-  const isVersionChanged = pinned.versionId !== savedJudge.versionId;
-  const isJudgePolicyChanged = !policiesEqual(
-    effectiveJudgePolicy,
-    normalizePolicy(pinned.questions, savedJudge.policy)
+  const isVersionChanged = pinned.versionId !== savedEvaluator.versionId;
+  const isEvaluatorPolicyChanged = !policiesEqual(
+    effectiveEvaluatorPolicy,
+    normalizePolicy(pinned.questions, savedEvaluator.policy)
   );
-  const isJudgeChanged = isVersionChanged || isJudgePolicyChanged;
+  const isEvaluatorChanged = isVersionChanged || isEvaluatorPolicyChanged;
 
   const selectVersion = async (version: {
     versionId?: string;
@@ -434,7 +436,7 @@ const EditDecisionEvaluatorDialogContent = ({
             }
           `,
           {
-            decisionId: judge.decisionVersion.decision.id,
+            decisionId: evaluator.decisionVersion.decision.id,
             versionId: version.versionId ?? null,
             tagName: version.tagName ?? null,
           },
@@ -447,18 +449,22 @@ const EditDecisionEvaluatorDialogContent = ({
       }
       const questions = toDecisionQuestionDefinitions(next.questions);
       const variables = next.inputs.map(({ name }) => name);
-      const { evaluator, setPathMapping, setLiteralMapping } = store.getState();
+      const {
+        evaluator: draftEvaluator,
+        setPathMapping,
+        setLiteralMapping,
+      } = store.getState();
       const declaredNames = new Set(variables);
       setPathMapping(
         Object.fromEntries(
-          Object.entries(evaluator.inputMapping.pathMapping).filter(([name]) =>
-            declaredNames.has(name)
+          Object.entries(draftEvaluator.inputMapping.pathMapping).filter(
+            ([name]) => declaredNames.has(name)
           )
         )
       );
       setLiteralMapping(
         Object.fromEntries(
-          Object.entries(evaluator.inputMapping.literalMapping).filter(
+          Object.entries(draftEvaluator.inputMapping.literalMapping).filter(
             ([name]) => declaredNames.has(name)
           )
         )
@@ -469,7 +475,7 @@ const EditDecisionEvaluatorDialogContent = ({
         questions,
         variables,
       });
-      setJudgePolicy((current) => normalizePolicy(questions, current));
+      setEvaluatorPolicy((current) => normalizePolicy(questions, current));
     } catch (e) {
       setVersionError(getMutationErrorMessage(e));
     }
@@ -483,42 +489,42 @@ const EditDecisionEvaluatorDialogContent = ({
       return;
     }
     setShowValidationError(false);
-    if (!isPolicyValid(validatePolicy(effectiveJudgePolicy))) {
+    if (!isPolicyValid(validatePolicy(effectiveEvaluatorPolicy))) {
       setError("Fix the scoring settings highlighted below before saving.");
       return;
     }
     setIsSubmitting(true);
-    const { evaluator } = store.getState();
+    const { evaluator: draftEvaluator } = store.getState();
     const result = await runUpdateDecisionEvaluator({
-      judgePatch: isJudgeChanged
+      evaluatorPatch: isEvaluatorChanged
         ? {
-            evaluatorId: judge.id,
+            evaluatorId: evaluator.id,
             ...(isVersionChanged
               ? { decisionVersionId: pinned.versionId }
               : {}),
             // A new version can declare other questions, so its policy is
-            // always sent fitted to them.
-            projectionPolicy: effectiveJudgePolicy,
+            // always adapted to them.
+            scoringPolicy: effectiveEvaluatorPolicy,
           }
         : null,
       binding: {
         datasetEvaluatorId,
-        name: evaluator.name,
-        description: evaluator.description.trim(),
-        inputMapping: normalizeInputMapping(evaluator.inputMapping),
+        name: draftEvaluator.name,
+        description: draftEvaluator.description.trim(),
+        inputMapping: normalizeInputMapping(draftEvaluator.inputMapping),
       },
       connectionIds: updateConnectionIds ?? [],
-      commitJudge: (input) =>
-        commitAsync(patchJudge, { input }).then(() => undefined),
+      commitEvaluator: (input) =>
+        commitAsync(patchEvaluator, { input }).then(() => undefined),
       commitBinding: (input, connectionIds) =>
         commitAsync(updateBinding, { input, connectionIds }).then(
           () => undefined
         ),
     });
-    if (result.isJudgeSaved) {
-      setSavedJudge({
+    if (result.isEvaluatorSaved) {
+      setSavedEvaluator({
         versionId: pinned.versionId,
-        policy: effectiveJudgePolicy,
+        policy: effectiveEvaluatorPolicy,
       });
     }
     setIsSubmitting(false);
@@ -531,7 +537,7 @@ const EditDecisionEvaluatorDialogContent = ({
     }
   };
 
-  const decisionName = judge.decisionVersion.decision.name;
+  const decisionName = evaluator.decisionVersion.decision.name;
   const left = (
     <Flex direction="column" gap="size-300">
       <EvaluatorNameAndDescriptionFields isNameRequired />
@@ -539,28 +545,28 @@ const EditDecisionEvaluatorDialogContent = ({
         <Flex direction="column" gap="size-150">
           <EvaluatorSectionHeader
             title="Input mapping"
-            description="Map the judge's inputs to fields of the dataset example, the task output, and the reference output."
+            description="Map the evaluator's inputs to fields of the dataset example, the task output, and the reference output."
           />
           <EvaluatorInputMapping key={pinned.versionId} />
         </Flex>
       </section>
-      <section aria-label="Decision judge">
+      <section aria-label="Decision evaluator">
         <Flex direction="column" gap="size-150">
           <EvaluatorSectionHeader
-            title={`Decision judge: ${judge.name}`}
+            title={`Decision evaluator: ${evaluator.name}`}
             description={`Runs the decision ${decisionName}.`}
           />
           <Alert
             variant="warning"
-            title="Changes here affect every dataset using this judge"
-            data-testid="decision-evaluator-judge-warning"
+            title="Changes here affect every dataset using this evaluator"
+            data-testid="decision-evaluator-evaluator-warning"
           >
             {otherBindingCount > 0
-              ? `${otherBindingCount} other ${otherBindingCount === 1 ? "dataset evaluator uses" : "dataset evaluators use"} this judge. `
+              ? `${otherBindingCount} other ${otherBindingCount === 1 ? "dataset evaluator uses" : "dataset evaluators use"} this evaluator. `
               : ""}
-            Changing the judge&apos;s version or scoring applies to all of its
-            dataset evaluators. Changes that would break an existing evaluator
-            are refused, and the error names the evaluators affected.
+            Changing the evaluator&apos;s version or scoring applies to all of
+            its dataset evaluators. Changes that would break an existing
+            evaluator are refused, and the error names the evaluators affected.
           </Alert>
           {versionError ? <Alert variant="danger">{versionError}</Alert> : null}
           <Flex direction="row" gap="size-100" alignItems="center" wrap>
@@ -568,7 +574,7 @@ const EditDecisionEvaluatorDialogContent = ({
             <DecisionVersionSelector
               sequenceNumber={pinned.sequenceNumber}
               decision={{
-                id: judge.decisionVersion.decision.id,
+                id: evaluator.decisionVersion.decision.id,
                 name: decisionName,
                 versionId: pinned.versionId,
                 tag: null,
@@ -583,21 +589,21 @@ const EditDecisionEvaluatorDialogContent = ({
             ) : null}
           </Flex>
           <DecisionScoringDisclosure
-            id="decision-judge-scoring"
-            title="Judge scoring"
+            id="decision-evaluator-scoring"
+            title="Evaluator scoring"
             summary={
               policiesEqual(
-                effectiveJudgePolicy,
+                effectiveEvaluatorPolicy,
                 buildDefaultPolicy(pinned.questions)
               )
                 ? "Defaults"
                 : "Customized"
             }
           >
-            <DecisionProjectionPolicyEditor
+            <DecisionScoringPolicyEditor
               questions={pinned.questions}
-              value={effectiveJudgePolicy}
-              onChange={setJudgePolicy}
+              value={effectiveEvaluatorPolicy}
+              onChange={setEvaluatorPolicy}
               isDisabled={isSubmitting}
             />
           </DecisionScoringDisclosure>
@@ -610,10 +616,10 @@ const EditDecisionEvaluatorDialogContent = ({
     <Flex direction="column" gap="size-200">
       <View paddingX="size-200">
         <Flex direction="column" gap="size-100">
-          <DecisionJudgePreview
-            judgeId={judge.id}
+          <DecisionEvaluatorPreview
+            evaluatorId={evaluator.id}
             datasetEvaluatorId={datasetEvaluatorId}
-            isJudgeChanged={isJudgeChanged}
+            isEvaluatorChanged={isEvaluatorChanged}
           />
           <EvaluatorExampleDataset />
         </Flex>
@@ -653,50 +659,50 @@ const EditDecisionEvaluatorDialogContent = ({
   );
 };
 
-type PatchJudgeInput =
-  EditDecisionDatasetEvaluatorSlideover_patchJudgeMutation["variables"]["input"];
+type PatchEvaluatorInput =
+  EditDecisionDatasetEvaluatorSlideover_patchEvaluatorMutation["variables"]["input"];
 type UpdateBindingInput =
   EditDecisionDatasetEvaluatorSlideover_updateBindingMutation["variables"]["input"];
 
 /**
- * Saves the judge first, then the binding. The server refuses a judge change
+ * Saves the evaluator first, then the binding. The server refuses a evaluator change
  * that would break a dataset using it; nothing about this binding saves then.
- * Never throws; `isJudgeSaved` tells the caller the judge change landed even
+ * Never throws; `isEvaluatorSaved` tells the caller the evaluator change landed even
  * when the binding update failed, so a retry does not patch it again.
  */
 async function runUpdateDecisionEvaluator({
-  judgePatch,
+  evaluatorPatch,
   binding,
   connectionIds,
-  commitJudge,
+  commitEvaluator,
   commitBinding,
 }: {
-  judgePatch: PatchJudgeInput | null;
+  evaluatorPatch: PatchEvaluatorInput | null;
   binding: UpdateBindingInput;
   connectionIds: string[];
-  commitJudge: (input: PatchJudgeInput) => Promise<void>;
+  commitEvaluator: (input: PatchEvaluatorInput) => Promise<void>;
   commitBinding: (
     input: UpdateBindingInput,
     connectionIds: string[]
   ) => Promise<void>;
 }): Promise<
-  | { ok: true; isJudgeSaved: boolean }
-  | { ok: false; message: string; isJudgeSaved: boolean }
+  | { ok: true; isEvaluatorSaved: boolean }
+  | { ok: false; message: string; isEvaluatorSaved: boolean }
 > {
-  let isJudgeSaved = false;
-  if (judgePatch) {
-    const judgeError = await commitJudge(judgePatch).then(
+  let isEvaluatorSaved = false;
+  if (evaluatorPatch) {
+    const evaluatorError = await commitEvaluator(evaluatorPatch).then(
       () => null,
       (e: unknown) => e
     );
-    if (judgeError) {
+    if (evaluatorError) {
       return {
         ok: false,
-        message: getMutationErrorMessage(judgeError),
-        isJudgeSaved,
+        message: getMutationErrorMessage(evaluatorError),
+        isEvaluatorSaved,
       };
     }
-    isJudgeSaved = true;
+    isEvaluatorSaved = true;
   }
   const bindingError = await commitBinding(binding, connectionIds).then(
     () => null,
@@ -706,10 +712,10 @@ async function runUpdateDecisionEvaluator({
     return {
       ok: false,
       message: getMutationErrorMessage(bindingError),
-      isJudgeSaved,
+      isEvaluatorSaved,
     };
   }
-  return { ok: true, isJudgeSaved };
+  return { ok: true, isEvaluatorSaved };
 }
 
 type PreviewResult =
@@ -717,18 +723,18 @@ type PreviewResult =
   | { kind: "error"; evaluatorName: string; message: string };
 
 /**
- * Runs the saved judge on the selected example as this dataset's evaluator, so
+ * Runs the saved evaluator on the selected example as this dataset's evaluator, so
  * it is named and scored as experiments run it: with the saved version and the
- * judge's saved scoring. Unsaved edits made in this dialog are not used.
+ * evaluator's saved scoring. Unsaved edits made in this dialog are not used.
  */
-const DecisionJudgePreview = ({
-  judgeId,
+const DecisionEvaluatorPreview = ({
+  evaluatorId,
   datasetEvaluatorId,
-  isJudgeChanged,
+  isEvaluatorChanged,
 }: {
-  judgeId: string;
+  evaluatorId: string;
   datasetEvaluatorId: string;
-  isJudgeChanged: boolean;
+  isEvaluatorChanged: boolean;
 }) => {
   const store = useEvaluatorStoreInstance();
   const credentials = useCredentialsContext((state) => state);
@@ -765,7 +771,7 @@ const DecisionJudgePreview = ({
           previews: [
             {
               context: state.evaluatorMappingSource.source,
-              evaluator: { decisionEvaluatorId: judgeId },
+              evaluator: { decisionEvaluatorId: evaluatorId },
               datasetEvaluatorId,
               inputMapping: normalizeInputMapping(state.evaluator.inputMapping),
             },
@@ -791,7 +797,7 @@ const DecisionJudgePreview = ({
               return {
                 kind: "error",
                 evaluatorName: result.evaluatorName,
-                message: "The judge returned no annotation.",
+                message: "The evaluator returned no annotation.",
               };
             }
             return { kind: "success", annotation: result.annotation };
@@ -823,10 +829,10 @@ const DecisionJudgePreview = ({
         </Button>
       </Flex>
       <Text color="text-500">
-        The test runs the judge as this dataset&apos;s evaluator, with its saved
-        version and scoring, this dataset&apos;s saved scoring, and the input
-        mapping below.{" "}
-        {isJudgeChanged ? "Your unsaved changes are not used." : ""}
+        The test runs the evaluator as this dataset&apos;s evaluator, with its
+        saved version and scoring, this dataset&apos;s saved scoring, and the
+        input mapping below.{" "}
+        {isEvaluatorChanged ? "Your unsaved changes are not used." : ""}
       </Text>
       {isPreviewing ? <AnnotationPreviewSkeletonCard /> : null}
       {results.map((result, index) =>

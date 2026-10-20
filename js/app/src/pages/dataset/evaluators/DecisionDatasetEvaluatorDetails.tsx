@@ -2,10 +2,10 @@ import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text, Token } from "@phoenix/components";
-import { describeQuestionScoring } from "@phoenix/components/evaluators/decision/DecisionJudgeSummary";
+import { describeQuestionScoring } from "@phoenix/components/evaluators/decision/DecisionEvaluatorSummary";
 import {
-  getQuestionProjectionName,
-  getQuestionProjectionSettings,
+  getQuestionScoringName,
+  getQuestionScoringSettings,
   policyOutputToInput,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
@@ -34,21 +34,21 @@ export function DecisionDatasetEvaluatorDetails({
         evaluator {
           __typename
           ... on DecisionEvaluator {
-            projectionPolicy {
+            scoringPolicy {
               questions {
                 __typename
                 name
                 optimizationDirection
-                ... on DecisionPredicateProjection {
+                ... on DecisionPredicateScoring {
                   threshold
                 }
-                ... on DecisionChoiceProjection {
+                ... on DecisionChoiceScoring {
                   scores {
                     choice
                     score
                   }
                 }
-                ... on DecisionScaleProjection {
+                ... on DecisionScaleScoring {
                   includeLabel
                 }
               }
@@ -102,7 +102,7 @@ export function DecisionDatasetEvaluatorDetails({
     );
   }
   const version = evaluator.decisionVersion;
-  const policy = policyOutputToInput(evaluator.projectionPolicy);
+  const policy = policyOutputToInput(evaluator.scoringPolicy);
 
   return (
     <Flex direction="column" gap="size-300">
@@ -111,7 +111,7 @@ export function DecisionDatasetEvaluatorDetails({
         <Flex justifyContent="space-between" alignItems="center">
           <Flex alignItems="center" gap="size-100">
             <DecisionCell decisionVersion={version} nameMaxWidth="24rem" />
-            {/* The judge's version tag is an internal pin, so only the version is shown. */}
+            {/* The evaluator's version tag is an internal pin, so only the version is shown. */}
           </Flex>
           <Flex alignItems="center" gap="size-50">
             <GenerativeProviderIcon
@@ -144,8 +144,7 @@ export function DecisionDatasetEvaluatorDetails({
         {version.questions.map((question) => {
           if (!("name" in question)) return null;
           const scoring = policy.questions.find(
-            (projection) =>
-              getQuestionProjectionName(projection) === question.name
+            (scoring) => getQuestionScoringName(scoring) === question.name
           );
           return (
             <div
@@ -178,7 +177,7 @@ export function DecisionDatasetEvaluatorDetails({
                     <Text size="S">
                       <Text weight="heavy">Optimization Direction:</Text>{" "}
                       {
-                        getQuestionProjectionSettings(scoring)
+                        getQuestionScoringSettings(scoring)
                           .optimizationDirection
                       }
                     </Text>

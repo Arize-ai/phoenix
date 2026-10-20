@@ -5,11 +5,11 @@ import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
 } from "../decisionPolicyUtils";
 import { buildDefaultPolicy } from "../decisionPolicyUtils";
-import { DecisionProjectionPolicyEditor } from "../DecisionProjectionPolicyEditor";
+import { DecisionScoringPolicyEditor } from "../DecisionScoringPolicyEditor";
 
 const questions: DecisionQuestionDefinition[] = [
   { type: "predicate", name: "accurate" },
@@ -17,7 +17,7 @@ const questions: DecisionQuestionDefinition[] = [
   { type: "scale", name: "clarity", levels: ["low", "high"] },
 ];
 
-const initialPolicy: DecisionProjectionPolicyValue = {
+const initialPolicy: DecisionScoringPolicyValue = {
   questions: [
     {
       predicate: {
@@ -47,12 +47,12 @@ function Harness({
   initial,
   onChange,
 }: {
-  initial: DecisionProjectionPolicyValue;
-  onChange: (value: DecisionProjectionPolicyValue) => void;
+  initial: DecisionScoringPolicyValue;
+  onChange: (value: DecisionScoringPolicyValue) => void;
 }) {
   const [value, setValue] = useState(initial);
   return (
-    <DecisionProjectionPolicyEditor
+    <DecisionScoringPolicyEditor
       questions={questions}
       value={value}
       onChange={(next) => {
@@ -63,7 +63,7 @@ function Harness({
   );
 }
 
-describe("DecisionProjectionPolicyEditor", () => {
+describe("DecisionScoringPolicyEditor", () => {
   let container: HTMLDivElement;
   let root: Root;
   const onChange = vi.fn();
@@ -88,7 +88,7 @@ describe("DecisionProjectionPolicyEditor", () => {
   const lastValue = () =>
     onChange.mock.calls[
       onChange.mock.calls.length - 1
-    ][0] as DecisionProjectionPolicyValue;
+    ][0] as DecisionScoringPolicyValue;
 
   const typeInto = async (testId: string, text: string) => {
     const user = userEvent.setup();

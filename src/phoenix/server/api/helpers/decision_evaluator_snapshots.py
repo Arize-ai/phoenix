@@ -1,4 +1,4 @@
-"""Immutable dataset decision judges, independent of later binding or tag edits."""
+"""Immutable dataset decision evaluators, independent of later binding or tag edits."""
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
 from phoenix.server.api.helpers.decision_evaluators import (
-    freeze_decision_evaluator,
+    capture_decision_evaluator_definition,
     validate_decision_output_overrides,
 )
 
@@ -26,7 +26,7 @@ class DecisionEvaluatorSnapshot(BaseModel):
     project_id: int
 
 
-async def freeze_dataset_decision_evaluators(session: AsyncSession, experiment_id: int) -> None:
+async def capture_dataset_decision_evaluators(session: AsyncSession, experiment_id: int) -> None:
     """Freeze definitions, effective policies, mappings, and output names at creation."""
     await session.flush()
     job = await session.get(models.ExperimentJob, experiment_id)
@@ -52,7 +52,7 @@ async def freeze_dataset_decision_evaluators(session: AsyncSession, experiment_i
     for binding in bindings:
         evaluator = await get_decision_evaluator(session, binding.evaluator_id, lock=True)
         try:
-            definition = freeze_decision_evaluator(
+            definition = capture_decision_evaluator_definition(
                 evaluator,
                 name=binding.name.root,
                 description=binding.description,

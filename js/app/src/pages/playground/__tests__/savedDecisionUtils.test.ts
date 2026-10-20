@@ -7,7 +7,7 @@ import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 import {
   createChoiceOption,
   createDecisionQuestion,
-  createScoreLevel,
+  createScaleLevel,
 } from "../decisionUtils";
 import type {
   DecisionVersionInput,
@@ -24,13 +24,16 @@ const fString = TemplateFormats.FString;
 function makeDraft(state: string): DecisionRequestDraft {
   return {
     state,
-    stateFormat: "text",
+    stateEditorMode: "text",
     questions: [
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "is_refund",
         instructions: "Is this a refund request?",
-        noul: { trueDescription: "Asks for money back", falseDescription: "" },
+        predicate: {
+          trueDescription: "Asks for money back",
+          falseDescription: "",
+        },
       }),
       createDecisionQuestion({
         type: "choice",
@@ -42,12 +45,12 @@ function makeDraft(state: string): DecisionRequestDraft {
         ],
       }),
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "urgency",
         instructions: "How urgent is it?",
         levels: [
-          createScoreLevel({ label: "Whenever" }),
-          createScoreLevel({ label: "Now", description: "Act today" }),
+          createScaleLevel({ label: "Whenever" }),
+          createScaleLevel({ label: "Now", description: "Act today" }),
         ],
       }),
     ],
@@ -252,8 +255,8 @@ describe("savedDecisionVersionToDraft", () => {
     });
 
     expect(loaded.questions[0]).toMatchObject({
-      type: "noul",
-      noul: { trueDescription: "", falseDescription: "" },
+      type: "predicate",
+      predicate: { trueDescription: "", falseDescription: "" },
     });
     expect(loaded.questions[1]).toMatchObject({
       type: "choice",
@@ -271,14 +274,17 @@ describe("savedDecisionVersionToDraft", () => {
           },
           templateFormat,
         })
-      ).toMatchObject({ state: "reference, output", stateFormat: "inputs" });
+      ).toMatchObject({
+        state: "reference, output",
+        stateEditorMode: "inputs",
+      });
     }
   });
 
   it("round-trips listed inputs as an object state", () => {
     const draft = {
       ...makeDraft("reference, output"),
-      stateFormat: "inputs" as const,
+      stateEditorMode: "inputs" as const,
     };
     const input = toDecisionVersionInput({
       instance: makeInstance(draft),

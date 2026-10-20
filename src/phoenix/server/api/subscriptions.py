@@ -537,10 +537,10 @@ async def _stream_experiments_over_dataset(
                     )
                 )
             from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-                freeze_dataset_decision_evaluators,
+                capture_dataset_decision_evaluators,
             )
 
-            await freeze_dataset_decision_evaluators(session, experiment.id)
+            await capture_dataset_decision_evaluators(session, experiment.id)
             experiments.append(experiment)
 
     experiment_ids = [

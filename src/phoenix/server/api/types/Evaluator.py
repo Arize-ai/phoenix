@@ -23,7 +23,7 @@ from phoenix.db.types.annotation_configs import (
     as_output_configs,
 )
 from phoenix.db.types.decision_evaluators import (
-    DecisionProjectionPolicy as StoredDecisionProjectionPolicy,
+    DecisionScoringPolicy as StoredDecisionScoringPolicy,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
@@ -51,7 +51,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
-from phoenix.server.api.types.DecisionProjectionPolicy import DecisionProjectionPolicy
+from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -776,10 +776,10 @@ class DecisionEvaluator(Evaluator, Node):
         return JSON(decision_input_schema((await self._record(info)).selected_version.inputs))
 
     @strawberry.field
-    async def projection_policy(self, info: Info[Context, None]) -> DecisionProjectionPolicy:
+    async def scoring_policy(self, info: Info[Context, None]) -> DecisionScoringPolicy:
         record = await self._record(info)
-        return DecisionProjectionPolicy.from_orm(
-            StoredDecisionProjectionPolicy.model_validate(record.projection_policy),
+        return DecisionScoringPolicy.from_orm(
+            StoredDecisionScoringPolicy.model_validate(record.scoring_policy),
             record.selected_version.questions,
         )
 
@@ -1348,11 +1348,13 @@ class DatasetEvaluator(Node):
                 return []
             if isinstance(evaluator, models.DecisionEvaluator):
                 from phoenix.db.types.decision_evaluators import derive_decision_output_configs
-                from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+                from phoenix.server.api.helpers.decision_evaluators import (
+                    capture_decision_evaluator_definition,
+                )
 
-                definition = freeze_decision_evaluator(evaluator)
+                definition = capture_decision_evaluator_definition(evaluator)
                 configs = derive_decision_output_configs(
-                    definition.questions, definition.projection_policy
+                    definition.questions, definition.scoring_policy
                 )
             elif isinstance(evaluator, models.LLMEvaluator):
                 configs = list(evaluator.output_configs)

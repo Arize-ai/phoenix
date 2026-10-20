@@ -172,7 +172,7 @@ class EvaluatorPreviewItemInput:
         default=None,
         description=(
             "Preview a saved decision judge as this dataset evaluator binding: it runs under "
-            "the binding's name with the binding's scoring override, as an experiment would. "
+            "the binding's name and provenance, using the evaluator's scoring policy. "
             "Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to "
             "preview the judge on its own, under its own name and policy."
         ),

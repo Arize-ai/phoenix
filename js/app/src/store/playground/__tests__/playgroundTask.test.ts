@@ -6,7 +6,6 @@ import {
   getPlaygroundEvaluatorTask,
   getPlaygroundTaskType,
   getPlaygroundMode,
-  getTaskTypeForNewSource,
   isDecisionInstance,
   isPlaygroundModeLocked,
 } from "../playgroundTask";
@@ -74,7 +73,7 @@ describe("createPlaygroundEvaluatorTask", () => {
         datasetEvaluatorId: null,
         projectEvaluatorId: null,
       },
-      savedRevision: null,
+      savedContentKey: null,
     });
     expect(task.outputConfigs).toEqual([DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG]);
   });
@@ -112,14 +111,5 @@ describe("getPlaygroundEvaluatorTask", () => {
     );
     expect(getPlaygroundEvaluatorTask({ task: promptTask })).toBeNull();
     expect(getPlaygroundEvaluatorTask(undefined)).toBeNull();
-  });
-});
-
-describe("getTaskTypeForNewSource", () => {
-  it("maps evaluator kinds to the evaluator task kind", () => {
-    expect(getTaskTypeForNewSource("prompt")).toBe("prompt");
-    expect(getTaskTypeForNewSource("decision")).toBe("decision");
-    expect(getTaskTypeForNewSource("LLM")).toBe("evaluator");
-    expect(getTaskTypeForNewSource("CODE")).toBe("evaluator");
   });
 });

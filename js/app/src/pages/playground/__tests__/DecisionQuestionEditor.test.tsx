@@ -6,7 +6,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { DecisionQuestionEditor } from "../DecisionQuestionEditor";
-import { createDecisionQuestion, createScoreLevel } from "../decisionUtils";
+import { createDecisionQuestion, createScaleLevel } from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: () => null,
@@ -52,12 +52,12 @@ describe("DecisionQuestionEditor scale levels", () => {
   });
 
   const question = createDecisionQuestion({
-    type: "score",
+    type: "scale",
     name: "severity",
     instructions: "How severe?",
     levels: [
-      createScoreLevel({ label: "low", description: "Cosmetic" }),
-      createScoreLevel({ label: "high", description: "Blocks the user" }),
+      createScaleLevel({ label: "low", description: "Cosmetic" }),
+      createScaleLevel({ label: "high", description: "Blocks the user" }),
     ],
   });
   const render = (onChange: (patch: unknown) => void) =>

@@ -75,7 +75,7 @@ def upgrade() -> None:
             unique=True,
             index=True,
         ),
-        sa.Column("projection_policy", JSON_, nullable=False),
+        sa.Column("scoring_policy", JSON_, nullable=False),
         sa.Column(
             "updated_at",
             sa.TIMESTAMP(timezone=True),

@@ -321,16 +321,19 @@ function createInstanceFromSource(
   const llmModel = firstInstance?.llmModel;
 
   if (source.type === "new") {
-    if (source.kind === "decision") {
+    if (source.taskType === "decision") {
       return normalizeInstance(
         createDecisionTaskInstance({ model, llmModel }),
         generateInstanceId()
       );
     }
 
-    if (source.kind !== "prompt") {
+    if (source.taskType === "evaluator") {
       return normalizeInstance(
-        createEvaluatorTaskInstance({ kind: source.kind, model: chatModel }),
+        createEvaluatorTaskInstance({
+          kind: source.evaluatorKind,
+          model: chatModel,
+        }),
         generateInstanceId()
       );
     }

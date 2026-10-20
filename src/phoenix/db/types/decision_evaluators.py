@@ -16,17 +16,17 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.decisions import ChoiceQuestion, DecisionQuestion, PredicateQuestion
 
 
-class _ProjectionModel(BaseModel):
+class _ScoringModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
-class PredicateProjection(_ProjectionModel):
+class PredicateScoring(_ScoringModel):
     type: Literal["predicate"]
     threshold: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
 
-class ChoiceProjection(_ProjectionModel):
+class ChoiceScoring(_ScoringModel):
     type: Literal["choice"]
     scores: dict[str, float] = Field(default_factory=dict)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
@@ -38,98 +38,100 @@ class ChoiceProjection(_ProjectionModel):
         return self
 
 
-class ScaleProjection(_ProjectionModel):
+class ScaleScoring(_ScoringModel):
     type: Literal["scale"]
     include_label: bool = False
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
 
-DecisionQuestionProjection = Annotated[
-    Union[PredicateProjection, ChoiceProjection, ScaleProjection], Field(discriminator="type")
+DecisionQuestionScoring = Annotated[
+    Union[PredicateScoring, ChoiceScoring, ScaleScoring], Field(discriminator="type")
 ]
 
 
-class DecisionProjectionPolicy(_ProjectionModel):
-    questions: dict[str, DecisionQuestionProjection] = Field(default_factory=dict)
+class DecisionScoringPolicy(_ScoringModel):
+    """Question thresholds, choice scores, scale labels, and comparison direction."""
+
+    questions: dict[str, DecisionQuestionScoring] = Field(default_factory=dict)
 
 
-def resolve_projection_policy(
-    questions: list[DecisionQuestion], policy: DecisionProjectionPolicy
-) -> DecisionProjectionPolicy:
+def resolve_scoring_policy(
+    questions: list[DecisionQuestion], policy: DecisionScoringPolicy
+) -> DecisionScoringPolicy:
     """Materialize defaults and reject policies inconsistent with their question definitions."""
     if unknown := policy.questions.keys() - {question.name for question in questions}:
-        raise ValueError(f"Unknown projection questions: {', '.join(sorted(unknown))}")
-    resolved: dict[str, DecisionQuestionProjection] = {}
+        raise ValueError(f"Unknown scoring questions: {', '.join(sorted(unknown))}")
+    resolved: dict[str, DecisionQuestionScoring] = {}
     for question in questions:
-        projection = policy.questions.get(question.name)
-        if projection is None:
+        scoring = policy.questions.get(question.name)
+        if scoring is None:
             if question.type == "predicate":
-                projection = PredicateProjection(type="predicate")
+                scoring = PredicateScoring(type="predicate")
             elif question.type == "choice":
-                projection = ChoiceProjection(type="choice")
+                scoring = ChoiceScoring(type="choice")
             else:
-                projection = ScaleProjection(type="scale")
-        if projection.type != question.type:
-            raise ValueError(f"Projection type for {question.name} must be {question.type}")
-        if isinstance(projection, ChoiceProjection) and isinstance(question, ChoiceQuestion):
-            if unknown_choices := projection.scores.keys() - {
+                scoring = ScaleScoring(type="scale")
+        if scoring.type != question.type:
+            raise ValueError(f"Scoring type for {question.name} must be {question.type}")
+        if isinstance(scoring, ChoiceScoring) and isinstance(question, ChoiceQuestion):
+            if unknown_choices := scoring.scores.keys() - {
                 choice.value for choice in question.choices
             }:
                 raise ValueError(
                     f"Unknown scored choices for {question.name}: "
                     f"{', '.join(sorted(unknown_choices))}"
                 )
-        resolved[question.name] = type(projection).model_validate(projection.model_dump())
-    return DecisionProjectionPolicy(questions=resolved)
+        resolved[question.name] = type(scoring).model_validate(scoring.model_dump())
+    return DecisionScoringPolicy(questions=resolved)
 
 
-def fit_projection_policy(
-    questions: list[DecisionQuestion], policy: DecisionProjectionPolicy
-) -> DecisionProjectionPolicy:
+def adapt_scoring_policy(
+    questions: list[DecisionQuestion], policy: DecisionScoringPolicy
+) -> DecisionScoringPolicy:
     """Carry a saved policy to another version's questions, then materialize defaults.
 
     Settings for a question that is gone or changed type are dropped, as are scores for
     choices the question no longer offers; a new question gets defaults.
     """
     by_name = {question.name: question for question in questions}
-    kept: dict[str, DecisionQuestionProjection] = {}
-    for name, projection in policy.questions.items():
+    kept: dict[str, DecisionQuestionScoring] = {}
+    for name, scoring in policy.questions.items():
         question = by_name.get(name)
-        if question is None or question.type != projection.type:
+        if question is None or question.type != scoring.type:
             continue
-        if isinstance(projection, ChoiceProjection) and isinstance(question, ChoiceQuestion):
+        if isinstance(scoring, ChoiceScoring) and isinstance(question, ChoiceQuestion):
             offered = {choice.value for choice in question.choices}
-            projection = projection.model_copy(
+            scoring = scoring.model_copy(
                 update={
                     "scores": {
                         choice: score
-                        for choice, score in projection.scores.items()
+                        for choice, score in scoring.scores.items()
                         if choice in offered
                     }
                 }
             )
-        kept[name] = projection
-    return resolve_projection_policy(questions, DecisionProjectionPolicy(questions=kept))
+        kept[name] = scoring
+    return resolve_scoring_policy(questions, DecisionScoringPolicy(questions=kept))
 
 
 def derive_decision_output_configs(
-    questions: list[DecisionQuestion], policy: DecisionProjectionPolicy
+    questions: list[DecisionQuestion], policy: DecisionScoringPolicy
 ) -> list[OutputConfigType]:
     """Derive structural output schemas directly from the selected decision questions."""
-    resolved = resolve_projection_policy(questions, policy)
+    resolved = resolve_scoring_policy(questions, policy)
     configs: list[OutputConfigType] = []
     for question in questions:
-        projection = resolved.questions[question.name]
+        scoring = resolved.questions[question.name]
         if isinstance(question, ChoiceQuestion):
-            assert isinstance(projection, ChoiceProjection)
+            assert isinstance(scoring, ChoiceScoring)
             configs.append(
                 CategoricalOutputConfig(
                     type="CATEGORICAL",
                     name=question.name,
-                    optimization_direction=projection.optimization_direction,
+                    optimization_direction=scoring.optimization_direction,
                     values=[
                         CategoricalAnnotationValue(
-                            label=choice.value, score=projection.scores.get(choice.value)
+                            label=choice.value, score=scoring.scores.get(choice.value)
                         )
                         for choice in question.choices
                     ],
@@ -140,7 +142,7 @@ def derive_decision_output_configs(
                 ContinuousOutputConfig(
                     type="CONTINUOUS",
                     name=question.name,
-                    optimization_direction=projection.optimization_direction,
+                    optimization_direction=scoring.optimization_direction,
                     lower_bound=0,
                     upper_bound=1
                     if isinstance(question, PredicateQuestion)

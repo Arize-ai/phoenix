@@ -15,7 +15,7 @@ from pydantic import ConfigDict, Field, RootModel
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.db_helper_types import DBBaseModel
-from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, DecisionState
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -119,7 +119,7 @@ class BuiltInEvaluatorDefinition(DBBaseModel):
 
 
 class InlineDecisionEvaluatorDefinition(DBBaseModel):
-    """An immutable decision judge, including effective scoring and connection identity."""
+    """A self-contained decision evaluator definition with scoring and provider identity."""
 
     model_config = ConfigDict(frozen=True)
     type: Literal["inline_decision_evaluator"]
@@ -131,7 +131,7 @@ class InlineDecisionEvaluatorDefinition(DBBaseModel):
     model_provider: ModelProvider
     model_name: str
     custom_provider_id: int | None = None
-    projection_policy: DecisionProjectionPolicy = Field(default_factory=DecisionProjectionPolicy)
+    scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
     source: EvaluatorSource | None = None
 
 

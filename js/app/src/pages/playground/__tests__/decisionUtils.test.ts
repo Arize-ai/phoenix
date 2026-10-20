@@ -8,11 +8,11 @@ import {
   buildDecisionConnection,
   buildDecisionInput,
   buildDecisionTaskDefinition,
-  buildDecisionRequest,
+  buildSystemOneRequest,
   createChoiceOption,
   createDecisionDraft,
   createDecisionQuestion,
-  createScoreLevel,
+  createScaleLevel,
   decisionFieldId,
   extractDecisionVariables,
   getDecisionDatasetBlockedReason,
@@ -31,7 +31,7 @@ describe("decision request draft", () => {
   it("builds a valid Choice example", () => {
     const draft = createDecisionDraft();
     expect(getDecisionValidationError(draft)).toBeNull();
-    const request = buildDecisionRequest({ draft });
+    const request = buildSystemOneRequest({ draft });
     expect(request.questions.department).toEqual({
       type: "choice",
       instructions: "Which department should handle this request?",
@@ -46,10 +46,10 @@ describe("decision request draft", () => {
   it("preserves structured state rather than turning it into a chat message", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "json" as const,
+      stateEditorMode: "json" as const,
       state: '{"events":["refund"]}',
     };
-    expect(buildDecisionRequest({ draft }).state).toEqual({
+    expect(buildSystemOneRequest({ draft }).state).toEqual({
       events: ["refund"],
     });
   });
@@ -71,10 +71,10 @@ describe("decision request draft", () => {
   it("reports an empty level per level", () => {
     const draft = createDecisionDraft();
     const score = createDecisionQuestion({
-      type: "score",
+      type: "scale",
       name: "severity",
       instructions: "Severity?",
-      levels: [createScoreLevel({ label: "Low" }), createScoreLevel()],
+      levels: [createScaleLevel({ label: "Low" }), createScaleLevel()],
     });
     draft.questions.push(score);
     const errors = validateDecisionDraft(draft);
@@ -138,7 +138,11 @@ describe("decision request draft", () => {
   it("rejects malformed JSON state, empty questions, and duplicate names", () => {
     const base = createDecisionDraft();
     expect(
-      getDecisionValidationError({ ...base, stateFormat: "json", state: "{" })
+      getDecisionValidationError({
+        ...base,
+        stateEditorMode: "json",
+        state: "{",
+      })
     ).toContain("valid JSON");
     expect(getDecisionValidationError({ ...base, questions: [] })).toContain(
       "at least one"
@@ -152,23 +156,23 @@ describe("decision request draft", () => {
     const draft = createDecisionDraft();
     draft.questions.push(
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "urgent",
         instructions: "Urgent?",
       })
     );
     draft.questions.push(
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "severity",
         instructions: "Severity?",
         levels: [
-          createScoreLevel({ label: "Low" }),
-          createScoreLevel({ label: "High" }),
+          createScaleLevel({ label: "Low" }),
+          createScaleLevel({ label: "High" }),
         ],
       })
     );
-    const request = buildDecisionRequest({ draft });
+    const request = buildSystemOneRequest({ draft });
     expect(request.questions.urgent).toEqual({
       type: "noul",
       instructions: "Urgent?",
@@ -187,7 +191,7 @@ describe("decision request draft", () => {
       createChoiceOption({ value: "no" }),
     ];
     expect(
-      buildDecisionRequest({ draft }).questions.department.criteria
+      buildSystemOneRequest({ draft }).questions.department.criteria
     ).toEqual({
       yes: null,
       no: null,
@@ -198,7 +202,7 @@ describe("decision request draft", () => {
     const draft = createDecisionDraft();
     draft.questions = Array.from({ length: 256 }, (_, index) =>
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: `q${index}`,
         instructions: "?",
       })
@@ -208,10 +212,10 @@ describe("decision request draft", () => {
 
   it("explains a JSON state that stops parsing once variables are filled in", () => {
     const draft = createDecisionDraft();
-    draft.stateFormat = "json";
+    draft.stateEditorMode = "json";
     draft.state = '{"note": "{{note}}"}';
     expect(() =>
-      buildDecisionRequest({
+      buildSystemOneRequest({
         draft,
         templateFormat: TemplateFormats.Mustache,
         variables: { note: 'say "hi"' },
@@ -223,7 +227,7 @@ describe("decision request draft", () => {
     const draft = createDecisionDraft();
     draft.questions[0].name = "__proto__";
     expect(
-      Object.hasOwn(buildDecisionRequest({ draft }).questions, "__proto__")
+      Object.hasOwn(buildSystemOneRequest({ draft }).questions, "__proto__")
     ).toBe(true);
   });
 });
@@ -247,10 +251,10 @@ describe("template variables", () => {
 
   it("applies variables when building the request, including inside JSON state", () => {
     const draft = createDecisionDraft();
-    draft.stateFormat = "json";
+    draft.stateEditorMode = "json";
     draft.state = '{"ticket": "{{ticket}}"}';
     draft.questions[0].instructions = "Route {{ticket}}";
-    const request = buildDecisionRequest({
+    const request = buildSystemOneRequest({
       draft,
       templateFormat: TemplateFormats.Mustache,
       variables: { ticket: "T-1" },
@@ -265,20 +269,20 @@ describe("request import", () => {
     const base = createDecisionDraft();
     base.questions.push(
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "urgent",
         instructions: "Urgent?",
-        noul: { trueDescription: "Time sensitive", falseDescription: "" },
+        predicate: { trueDescription: "Time sensitive", falseDescription: "" },
       })
     );
     base.questions.push(
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "severity",
         instructions: "Severity?",
         levels: [
-          createScoreLevel({ label: "Low" }),
-          createScoreLevel({ label: "High" }),
+          createScaleLevel({ label: "Low" }),
+          createScaleLevel({ label: "High" }),
         ],
       })
     );
@@ -286,13 +290,13 @@ describe("request import", () => {
   })();
 
   it("imports a System One body and round-trips it", () => {
-    const original = buildDecisionRequest({ draft });
+    const original = buildSystemOneRequest({ draft });
     const imported = parseDecisionImport(
       JSON.stringify({ model: "jev-latest", ...original })
     );
     expect(imported.model).toBe("jev-latest");
     expect(getDecisionValidationError(imported.draft)).toBeNull();
-    expect(buildDecisionRequest({ draft: imported.draft })).toEqual(original);
+    expect(buildSystemOneRequest({ draft: imported.draft })).toEqual(original);
   });
 
   it("imports an OpenAI Decisions body", () => {
@@ -323,8 +327,8 @@ describe("request import", () => {
         ],
       })
     );
-    expect(imported.draft.stateFormat).toBe("text");
-    const request = buildDecisionRequest({ draft: imported.draft });
+    expect(imported.draft.stateEditorMode).toBe("text");
+    const request = buildSystemOneRequest({ draft: imported.draft });
     expect(request.questions.department).toEqual({
       type: "choice",
       instructions: "Which team?",
@@ -345,7 +349,7 @@ describe("request import", () => {
         questions: { urgent: { type: "noul", instructions: "Urgent?" } },
       })
     );
-    expect(imported.draft.stateFormat).toBe("json");
+    expect(imported.draft.stateEditorMode).toBe("json");
     expect(JSON.parse(imported.draft.state)).toEqual({ events: ["refund"] });
   });
 
@@ -404,21 +408,21 @@ describe("answer normalization", () => {
     const draft = createDecisionDraft();
     draft.questions = [
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "urgent",
         instructions: "?",
       }),
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "severity",
         instructions: "?",
         levels: [
-          createScoreLevel({ label: "Low" }),
-          createScoreLevel({ label: "High" }),
+          createScaleLevel({ label: "Low" }),
+          createScaleLevel({ label: "High" }),
         ],
       }),
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "blocked",
         instructions: "?",
       }),
@@ -442,14 +446,14 @@ describe("answer normalization", () => {
       draft,
     });
     expect(result.answers.map((answer) => answer.kind)).toEqual([
-      "noul",
-      "score",
+      "predicate",
+      "scale",
       "refusal",
     ]);
     const score = result.answers[1];
-    if (score.kind === "score") {
+    if (score.kind === "scale") {
       expect(score.levels.map((level) => level.label)).toEqual(["0", "1"]);
-      expect(score.score).toBe(0.7);
+      expect(score.expectedLevel).toBe(0.7);
     }
   });
 });
@@ -473,7 +477,7 @@ describe("span replay", () => {
       },
     });
     expect(result.answers).toEqual([
-      { kind: "noul", name: "urgent", probability: 0.9 },
+      { kind: "predicate", name: "urgent", probability: 0.9 },
       { kind: "refusal", name: "team" },
     ]);
   });
@@ -507,20 +511,20 @@ describe("structured output", () => {
     const base = createDecisionDraft();
     base.questions.push(
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "urgent",
         instructions: "Urgent?",
-        noul: { trueDescription: "Time sensitive", falseDescription: "" },
+        predicate: { trueDescription: "Time sensitive", falseDescription: "" },
       })
     );
     base.questions.push(
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "severity",
         instructions: "Severity?",
         levels: [
-          createScoreLevel({ label: "Low" }),
-          createScoreLevel({ label: "High" }),
+          createScaleLevel({ label: "Low" }),
+          createScaleLevel({ label: "High" }),
         ],
       })
     );
@@ -582,7 +586,7 @@ describe("structured output", () => {
   it("writes listed inputs as one variable per line in the chat", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "inputs" as const,
+      stateEditorMode: "inputs" as const,
       state: "reference, output",
     };
     expect(
@@ -628,7 +632,7 @@ describe("runDecision input", () => {
   it("sends a JSON object as an object state, one input per key", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "json" as const,
+      stateEditorMode: "json" as const,
       state: '{"plan":"pro","events":["refund"]}',
     };
     const input = buildDecisionInput({ draft });
@@ -644,7 +648,7 @@ describe("runDecision input", () => {
     ] as const) {
       const draft = {
         ...createDecisionDraft(),
-        stateFormat: "json" as const,
+        stateEditorMode: "json" as const,
         state,
       };
       const input = buildDecisionInput({ draft });
@@ -657,7 +661,7 @@ describe("runDecision input", () => {
   it("sends listed inputs as an object state, valued from the variables", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "inputs" as const,
+      stateEditorMode: "inputs" as const,
       state: " reference ,output, ",
     };
     const input = buildDecisionInput({
@@ -669,7 +673,8 @@ describe("runDecision input", () => {
     expect(input.state).toEqual({ object: true });
     expect(input.inputValues).toEqual({ reference: "billing", output: "" });
     expect(
-      buildDecisionRequest({ draft, variables: { reference: "billing" } }).state
+      buildSystemOneRequest({ draft, variables: { reference: "billing" } })
+        .state
     ).toEqual({ reference: "billing", output: "" });
     expect(
       extractDecisionVariables({
@@ -688,7 +693,7 @@ describe("runDecision input", () => {
   it("runs listed inputs over a dataset as an object state", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "inputs" as const,
+      stateEditorMode: "inputs" as const,
       state: "reference, output",
     };
     expect(
@@ -711,7 +716,7 @@ describe("runDecision input", () => {
   it("requires listed inputs to be named once each", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "inputs" as const,
+      stateEditorMode: "inputs" as const,
     };
     expect(validateDecisionDraft({ ...draft, state: " , " }).state).toBe(
       "State cannot be empty"
@@ -724,7 +729,7 @@ describe("runDecision input", () => {
   it("sends a JSON array whole", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "json" as const,
+      stateEditorMode: "json" as const,
       state: '["refund"]',
     };
     expect(buildDecisionInput({ draft }).inputValues).toEqual({
@@ -736,19 +741,19 @@ describe("runDecision input", () => {
     const draft = createDecisionDraft();
     draft.questions = [
       createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name: "urgent",
         instructions: "Is {{who}} waiting?",
-        noul: { trueDescription: "Time sensitive", falseDescription: "" },
+        predicate: { trueDescription: "Time sensitive", falseDescription: "" },
       }),
       createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: "severity",
         instructions: "How severe?",
         levels: [
-          createScoreLevel({ label: "Low" }),
+          createScaleLevel({ label: "Low" }),
           // A label names the level in annotations, so only the rubric is a template.
-          createScoreLevel({ label: "{{who}}", description: "Blocks {{who}}" }),
+          createScaleLevel({ label: "{{who}}", description: "Blocks {{who}}" }),
         ],
       }),
     ];
@@ -831,7 +836,11 @@ describe("runDecision output", () => {
       confidence: 0.8,
     });
     expect(normalized.answers).toContainEqual(
-      expect.objectContaining({ kind: "score", name: "severity", score: 0.4 })
+      expect.objectContaining({
+        kind: "scale",
+        name: "severity",
+        expectedLevel: 0.4,
+      })
     );
     expect(normalized.answers).toContainEqual({
       kind: "refusal",
@@ -960,10 +969,10 @@ describe("decision tasks over a dataset", () => {
     ).toEqual(["ticket", "topic"]);
   });
 
-  it("does not treat JSON object braces as f-string variables when stateFormat is json", () => {
+  it("does not treat JSON object braces as f-string variables when stateEditorMode is json", () => {
     const draft = {
       ...createDecisionDraft(),
-      stateFormat: "json" as const,
+      stateEditorMode: "json" as const,
       state: '{"nested": {"id": 1}}',
     };
     expect(
@@ -973,7 +982,7 @@ describe("decision tasks over a dataset", () => {
       })
     ).toEqual([]);
     expect(
-      buildDecisionRequest({
+      buildSystemOneRequest({
         draft,
         templateFormat: TemplateFormats.FString,
       }).state
@@ -997,7 +1006,7 @@ describe("decision tasks over a dataset", () => {
     ).toContain("needs a template variable");
     expect(
       getDecisionDatasetProblem({
-        draft: { ...draft, state: "{{state}}", stateFormat: "json" },
+        draft: { ...draft, state: "{{state}}", stateEditorMode: "json" },
         templateFormat: mustache,
       })
     ).toContain("write the state as text");
@@ -1077,9 +1086,9 @@ describe("normalizeDecisionAnswer for experiment run outputs", () => {
         },
       })
     ).toMatchObject({
-      kind: "score",
+      kind: "scale",
       name: "urgency",
-      score: 1.3,
+      expectedLevel: 1.3,
       confidence: 0.4,
       levels: [
         { index: 0, probability: 0.2 },

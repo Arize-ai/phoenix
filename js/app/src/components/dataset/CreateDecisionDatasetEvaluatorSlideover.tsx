@@ -28,17 +28,17 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components/core/overlay";
 import type { CreateDecisionDatasetEvaluatorSlideover_createBindingMutation } from "@phoenix/components/dataset/__generated__/CreateDecisionDatasetEvaluatorSlideover_createBindingMutation.graphql";
-import type { CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation } from "@phoenix/components/dataset/__generated__/CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation.graphql";
-import type { CreateDecisionDatasetEvaluatorSlideover_judgesQuery } from "@phoenix/components/dataset/__generated__/CreateDecisionDatasetEvaluatorSlideover_judgesQuery.graphql";
-import type { DecisionJudgeData } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
+import type { CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation.graphql";
+import type { CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery } from "@phoenix/components/dataset/__generated__/CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery.graphql";
+import type { DecisionEvaluatorData } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
 import {
   commitAsync,
   getMutationErrorMessage,
-  judgePolicySummary,
-  toDecisionJudgeView,
+  evaluatorPolicySummary,
+  toDecisionEvaluatorView,
 } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
 import type {
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
@@ -47,8 +47,8 @@ import {
   normalizePolicy,
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
-import { DecisionProjectionPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor";
 import { DecisionScoringDisclosure } from "@phoenix/components/evaluators/decision/DecisionScoringDisclosure";
+import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
 import type { DecisionVersionSelection } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
@@ -68,7 +68,7 @@ import {
 } from "@phoenix/store/evaluatorStore";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
-type JudgeMode = "existing" | "new";
+type EvaluatorSourceMode = "existing" | "new";
 
 export const CreateDecisionDatasetEvaluatorSlideover = ({
   datasetId,
@@ -148,32 +148,32 @@ const CreateDecisionEvaluatorDialogContent = ({
   const store = useEvaluatorStoreInstance();
   const notifySuccess = useNotifySuccess();
   const data =
-    useLazyLoadQuery<CreateDecisionDatasetEvaluatorSlideover_judgesQuery>(
+    useLazyLoadQuery<CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery>(
       graphql`
-        query CreateDecisionDatasetEvaluatorSlideover_judgesQuery {
+        query CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery {
           evaluators(first: 200) {
             edges {
-              judge: node {
+              evaluator: node {
                 __typename
                 id
                 name
                 ... on DecisionEvaluator {
                   inputSchema
-                  projectionPolicy {
+                  scoringPolicy {
                     questions {
                       __typename
                       name
                       optimizationDirection
-                      ... on DecisionPredicateProjection {
+                      ... on DecisionPredicateScoring {
                         threshold
                       }
-                      ... on DecisionChoiceProjection {
+                      ... on DecisionChoiceScoring {
                         scores {
                           choice
                           score
                         }
                       }
-                      ... on DecisionScaleProjection {
+                      ... on DecisionScaleScoring {
                         includeLabel
                       }
                     }
@@ -213,10 +213,10 @@ const CreateDecisionEvaluatorDialogContent = ({
       {},
       { fetchPolicy: "network-only" }
     );
-  const [createJudge] =
-    useMutation<CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation>(
+  const [createEvaluator] =
+    useMutation<CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation>(
       graphql`
-        mutation CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation(
+        mutation CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation(
           $input: CreateDecisionEvaluatorInput!
         ) {
           createDecisionEvaluator(input: $input) {
@@ -224,21 +224,21 @@ const CreateDecisionEvaluatorDialogContent = ({
               id
               name
               inputSchema
-              projectionPolicy {
+              scoringPolicy {
                 questions {
                   __typename
                   name
                   optimizationDirection
-                  ... on DecisionPredicateProjection {
+                  ... on DecisionPredicateScoring {
                     threshold
                   }
-                  ... on DecisionChoiceProjection {
+                  ... on DecisionChoiceScoring {
                     scores {
                       choice
                       score
                     }
                   }
-                  ... on DecisionScaleProjection {
+                  ... on DecisionScaleScoring {
                     includeLabel
                   }
                 }
@@ -297,19 +297,19 @@ const CreateDecisionEvaluatorDialogContent = ({
       `
     );
 
-  const judges = useMemo(
+  const evaluators = useMemo(
     () =>
-      data.evaluators.edges.flatMap(({ judge }): DecisionJudgeData[] =>
-        judge.__typename === "DecisionEvaluator" &&
-        judge.projectionPolicy &&
-        judge.decisionVersion
+      data.evaluators.edges.flatMap(({ evaluator }): DecisionEvaluatorData[] =>
+        evaluator.__typename === "DecisionEvaluator" &&
+        evaluator.scoringPolicy &&
+        evaluator.decisionVersion
           ? [
               {
-                id: judge.id,
-                name: judge.name,
-                inputSchema: judge.inputSchema,
-                projectionPolicy: judge.projectionPolicy,
-                decisionVersion: judge.decisionVersion,
+                id: evaluator.id,
+                name: evaluator.name,
+                inputSchema: evaluator.inputSchema,
+                scoringPolicy: evaluator.scoringPolicy,
+                decisionVersion: evaluator.decisionVersion,
               },
             ]
           : []
@@ -317,51 +317,58 @@ const CreateDecisionEvaluatorDialogContent = ({
     [data]
   );
 
-  const [judgeMode, setJudgeMode] = useState<JudgeMode>(
-    judges.length > 0 ? "existing" : "new"
+  const [evaluatorSourceMode, setEvaluatorSourceMode] =
+    useState<EvaluatorSourceMode>(evaluators.length > 0 ? "existing" : "new");
+  const [selectedEvaluatorId, setSelectedEvaluatorId] = useState<string | null>(
+    null
   );
-  const [selectedJudgeId, setSelectedJudgeId] = useState<string | null>(null);
-  const [newJudgeName, setNewJudgeName] = useState("");
-  const [isJudgeNameTouched, setIsJudgeNameTouched] = useState(false);
+  const [newEvaluatorName, setNewEvaluatorName] = useState("");
+  const [isEvaluatorNameTouched, setIsEvaluatorNameTouched] = useState(false);
   const [selection, setSelection] = useState<DecisionVersionSelection | null>(
     null
   );
-  // The judge's policy as edited; null until the author touches it, so an
+  // The evaluator's policy as edited; null until the author touches it, so an
   // untouched policy is left to the server's defaults.
-  const [judgePolicyDraft, setJudgePolicyDraft] =
-    useState<DecisionProjectionPolicyValue | null>(null);
+  const [evaluatorPolicyDraft, setEvaluatorPolicyDraft] =
+    useState<DecisionScoringPolicyValue | null>(null);
   // Set once createDecisionEvaluator succeeds, so a retry after a failed
-  // binding binds this judge instead of creating a duplicate.
-  const [createdJudge, setCreatedJudge] = useState<DecisionJudgeData | null>(
-    null
-  );
+  // binding binds this evaluator instead of creating a duplicate.
+  const [createdEvaluator, setCreatedEvaluator] =
+    useState<DecisionEvaluatorData | null>(null);
   const [mappingKey, setMappingKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [showValidationError, setShowValidationError] = useState(false);
 
-  const judgeData: DecisionJudgeData | null =
-    createdJudge ??
-    (judgeMode === "existing"
-      ? (judges.find((judge) => judge.id === selectedJudgeId) ?? null)
+  const evaluatorData: DecisionEvaluatorData | null =
+    createdEvaluator ??
+    (evaluatorSourceMode === "existing"
+      ? (evaluators.find((evaluator) => evaluator.id === selectedEvaluatorId) ??
+        null)
       : null);
   const view = useMemo(() => {
-    if (judgeData) {
-      return toDecisionJudgeView(judgeData);
+    if (evaluatorData) {
+      return toDecisionEvaluatorView(evaluatorData);
     }
-    if (judgeMode === "new" && selection) {
+    if (evaluatorSourceMode === "new" && selection) {
       return {
         id: null,
-        name: newJudgeName,
+        name: newEvaluatorName,
         variables: selection.inputs.map(({ name }) => name),
         questions: selection.questions,
-        policy: normalizePolicy(selection.questions, judgePolicyDraft),
+        policy: normalizePolicy(selection.questions, evaluatorPolicyDraft),
       };
     }
     return null;
-  }, [judgeData, judgeMode, selection, newJudgeName, judgePolicyDraft]);
+  }, [
+    evaluatorData,
+    evaluatorSourceMode,
+    selection,
+    newEvaluatorName,
+    evaluatorPolicyDraft,
+  ]);
 
-  // Mappings belong to one judge's inputs, so changing the judge starts over.
+  // Mappings belong to one evaluator's inputs, so changing the evaluator starts over.
   const resetBinding = useCallback(() => {
     const { setPathMapping, setLiteralMapping } = store.getState();
     setPathMapping({});
@@ -369,31 +376,39 @@ const CreateDecisionEvaluatorDialogContent = ({
     setMappingKey((key) => key + 1);
   }, [store]);
 
-  const isJudgeLocked = createdJudge != null;
-  const judgeNameValidation = validateIdentifier(newJudgeName);
-  const judgeNameError =
-    isJudgeNameTouched && judgeNameValidation !== true
-      ? String(judgeNameValidation)
+  const isEvaluatorLocked = createdEvaluator != null;
+  const evaluatorNameValidation = validateIdentifier(newEvaluatorName);
+  const evaluatorNameError =
+    isEvaluatorNameTouched && evaluatorNameValidation !== true
+      ? String(evaluatorNameValidation)
       : undefined;
 
   // What stops a save before any request, if anything.
   const getCreateProblem = ():
-    | { message?: string; touchJudgeName?: boolean }
+    | { message?: string; touchEvaluatorName?: boolean }
     | undefined => {
-    if (!createdJudge && judgeMode === "existing" && !judgeData) {
-      return { message: "Select a decision judge to add to this dataset." };
+    if (
+      !createdEvaluator &&
+      evaluatorSourceMode === "existing" &&
+      !evaluatorData
+    ) {
+      return { message: "Select a decision evaluator to add to this dataset." };
     }
-    if (!createdJudge && judgeMode === "new" && !selection) {
-      return { message: "Select a decision version for the new judge." };
+    if (!createdEvaluator && evaluatorSourceMode === "new" && !selection) {
+      return { message: "Select a decision version for the new evaluator." };
     }
-    if (!createdJudge && judgeMode === "new" && judgeNameValidation !== true) {
-      return { touchJudgeName: true };
+    if (
+      !createdEvaluator &&
+      evaluatorSourceMode === "new" &&
+      evaluatorNameValidation !== true
+    ) {
+      return { touchEvaluatorName: true };
     }
     const isScoringValid =
-      createdJudge || judgeMode !== "new"
+      createdEvaluator || evaluatorSourceMode !== "new"
         ? true
         : isPolicyValid(
-            judgePolicyDraft ? validatePolicy(judgePolicyDraft) : {}
+            evaluatorPolicyDraft ? validatePolicy(evaluatorPolicyDraft) : {}
           );
     return isScoringValid
       ? undefined
@@ -407,11 +422,11 @@ const CreateDecisionEvaluatorDialogContent = ({
     const isValid = await store.getState().validateAll();
     if (!isValid) {
       if (
-        !createdJudge &&
-        judgeMode === "new" &&
-        judgeNameValidation !== true
+        !createdEvaluator &&
+        evaluatorSourceMode === "new" &&
+        evaluatorNameValidation !== true
       ) {
-        setIsJudgeNameTouched(true);
+        setIsEvaluatorNameTouched(true);
       }
       setShowValidationError(true);
       return;
@@ -419,8 +434,8 @@ const CreateDecisionEvaluatorDialogContent = ({
     setShowValidationError(false);
     const problem = getCreateProblem();
     if (problem) {
-      if (problem.touchJudgeName) {
-        setIsJudgeNameTouched(true);
+      if (problem.touchEvaluatorName) {
+        setIsEvaluatorNameTouched(true);
       }
       if (problem.message) {
         setError(problem.message);
@@ -431,13 +446,13 @@ const CreateDecisionEvaluatorDialogContent = ({
     setIsSubmitting(true);
     const { evaluator } = store.getState();
     const result = await runCreateDecisionEvaluator({
-      judge: judgeData,
-      newJudge: selection
+      evaluator: evaluatorData,
+      newEvaluator: selection
         ? {
-            name: newJudgeName,
+            name: newEvaluatorName,
             versionId: selection.versionId,
             questions: selection.questions,
-            policyDraft: judgePolicyDraft,
+            policyDraft: evaluatorPolicyDraft,
           }
         : null,
       description: evaluator.description.trim() || null,
@@ -445,8 +460,8 @@ const CreateDecisionEvaluatorDialogContent = ({
       inputMapping: normalizeInputMapping(evaluator.inputMapping),
       datasetId,
       connectionIds: updateConnectionIds ?? [],
-      commitJudge: (input) =>
-        commitAsync(createJudge, { input }).then(
+      commitEvaluator: (input) =>
+        commitAsync(createEvaluator, { input }).then(
           (response) => response.createDecisionEvaluator.evaluator
         ),
       commitBinding: (input, connectionIds) =>
@@ -454,10 +469,10 @@ const CreateDecisionEvaluatorDialogContent = ({
           (response) => response.createDatasetDecisionEvaluator.evaluator.id
         ),
     });
-    // Keep a judge that was created selected, so a retry binds it rather
+    // Keep a evaluator that was created selected, so a retry binds it rather
     // than creating it again.
-    if (result.createdJudge) {
-      setCreatedJudge(result.createdJudge);
+    if (result.createdEvaluator) {
+      setCreatedEvaluator(result.createdEvaluator);
     }
     setIsSubmitting(false);
     if (result.ok) {
@@ -475,88 +490,88 @@ const CreateDecisionEvaluatorDialogContent = ({
         isNameRequired
         descriptionPlaceholder="What this evaluator measures on this dataset"
       />
-      <section aria-label="Decision judge">
+      <section aria-label="Decision evaluator">
         <Flex direction="column" gap="size-150">
           <EvaluatorSectionHeader
-            title="Decision judge"
-            description="The saved decision that judges each example. Use one that already exists, or create one from a decision version."
+            title="Decision evaluator"
+            description="The saved decision that evaluators each example. Use one that already exists, or create one from a decision version."
           />
-          {isJudgeLocked ? (
-            <Alert variant="info" title="Decision judge created">
-              {`The judge "${createdJudge.name}" is saved. Finish adding it to this dataset; saving again will not create it twice.`}
+          {isEvaluatorLocked ? (
+            <Alert variant="info" title="Decision evaluator created">
+              {`The evaluator "${createdEvaluator.name}" is saved. Finish adding it to this dataset; saving again will not create it twice.`}
             </Alert>
           ) : null}
           <RadioGroup
-            aria-label="Decision judge source"
-            value={judgeMode}
-            isDisabled={isJudgeLocked || isSubmitting}
+            aria-label="Decision evaluator source"
+            value={evaluatorSourceMode}
+            isDisabled={isEvaluatorLocked || isSubmitting}
             onChange={(value) => {
-              setJudgeMode(value as JudgeMode);
+              setEvaluatorSourceMode(value as EvaluatorSourceMode);
               resetBinding();
             }}
-            data-testid="decision-evaluator-judge-mode-radio-group"
+            data-testid="decision-evaluator-evaluator-mode-radio-group"
           >
-            <Radio value="existing" isDisabled={judges.length === 0}>
-              Use an existing judge
+            <Radio value="existing" isDisabled={evaluators.length === 0}>
+              Use an existing evaluator
             </Radio>
-            <Radio value="new">Create a new judge</Radio>
+            <Radio value="new">Create a new evaluator</Radio>
           </RadioGroup>
-          {judgeMode === "existing" ? (
-            <ExistingJudgeSelect
-              judges={judges}
-              selectedJudgeId={createdJudge?.id ?? selectedJudgeId}
-              isDisabled={isJudgeLocked || isSubmitting}
-              onChange={(judgeId) => {
-                setSelectedJudgeId(judgeId);
+          {evaluatorSourceMode === "existing" ? (
+            <ExistingEvaluatorSelect
+              evaluators={evaluators}
+              selectedEvaluatorId={createdEvaluator?.id ?? selectedEvaluatorId}
+              isDisabled={isEvaluatorLocked || isSubmitting}
+              onChange={(evaluatorId) => {
+                setSelectedEvaluatorId(evaluatorId);
                 resetBinding();
               }}
             />
           ) : (
             <Flex direction="column" gap="size-150">
               <TextField
-                value={newJudgeName}
-                onChange={(value) => setNewJudgeName(value)}
-                onBlur={() => setIsJudgeNameTouched(true)}
-                isInvalid={judgeNameError != null}
-                isDisabled={isJudgeLocked || isSubmitting}
+                value={newEvaluatorName}
+                onChange={(value) => setNewEvaluatorName(value)}
+                onBlur={() => setIsEvaluatorNameTouched(true)}
+                isInvalid={evaluatorNameError != null}
+                isDisabled={isEvaluatorLocked || isSubmitting}
                 isRequired
                 autoComplete="off"
-                data-testid="decision-evaluator-judge-name-input"
+                data-testid="decision-evaluator-evaluator-name-input"
               >
-                <Label>Judge name</Label>
-                <Input placeholder="e.g. answer_quality_judge" />
+                <Label>Evaluator name</Label>
+                <Input placeholder="e.g. answer_quality_evaluator" />
                 <Text slot="description">
-                  The name of the saved judge, shared by every dataset that uses
-                  it. This dataset&apos;s evaluator name is set above.
+                  The name of the saved evaluator, shared by every dataset that
+                  uses it. This dataset&apos;s evaluator name is set above.
                 </Text>
-                <FieldError>{judgeNameError}</FieldError>
+                <FieldError>{evaluatorNameError}</FieldError>
               </TextField>
               <DecisionVersionPicker
                 value={selection}
-                isDisabled={isJudgeLocked || isSubmitting}
+                isDisabled={isEvaluatorLocked || isSubmitting}
                 onChange={(next) => {
                   setSelection(next);
-                  setJudgePolicyDraft(null);
+                  setEvaluatorPolicyDraft(null);
                   resetBinding();
                 }}
               />
-              {selection && !isJudgeLocked ? (
+              {selection && !isEvaluatorLocked ? (
                 <DecisionScoringDisclosure
-                  id="decision-judge-scoring"
-                  title="Judge scoring (optional)"
-                  description="How the judge's answers become scores, wherever the judge runs."
-                  summary={judgePolicySummary(
+                  id="decision-evaluator-scoring"
+                  title="Evaluator scoring (optional)"
+                  description="How the evaluator's answers become scores, wherever the evaluator runs."
+                  summary={evaluatorPolicySummary(
                     selection.questions,
-                    judgePolicyDraft
+                    evaluatorPolicyDraft
                   )}
                 >
-                  <DecisionProjectionPolicyEditor
+                  <DecisionScoringPolicyEditor
                     questions={selection.questions}
                     value={
-                      judgePolicyDraft ??
+                      evaluatorPolicyDraft ??
                       buildDefaultPolicy(selection.questions)
                     }
-                    onChange={setJudgePolicyDraft}
+                    onChange={setEvaluatorPolicyDraft}
                     isDisabled={isSubmitting}
                   />
                 </DecisionScoringDisclosure>
@@ -570,13 +585,15 @@ const CreateDecisionEvaluatorDialogContent = ({
           <Flex direction="column" gap="size-150">
             <EvaluatorSectionHeader
               title="Input mapping"
-              description="Map the judge's inputs to fields of the dataset example, the task output, and the reference output."
+              description="Map the evaluator's inputs to fields of the dataset example, the task output, and the reference output."
             />
             <EvaluatorInputMapping key={mappingKey} />
           </Flex>
         </section>
       ) : (
-        <Text color="text-500">Choose a decision judge to map its inputs.</Text>
+        <Text color="text-500">
+          Choose a decision evaluator to map its inputs.
+        </Text>
       )}
     </Flex>
   );
@@ -587,7 +604,8 @@ const CreateDecisionEvaluatorDialogContent = ({
         <Flex direction="column" gap="size-100">
           <Text color="text-500">
             Pick an example to see the fields available for input mapping. A
-            decision judge can be tested from its edit page once it is saved.
+            decision evaluator can be tested from its edit page once it is
+            saved.
           </Text>
           <EvaluatorExampleDataset />
         </Flex>
@@ -627,8 +645,8 @@ const CreateDecisionEvaluatorDialogContent = ({
   );
 };
 
-type CreateJudgeInput =
-  CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation["variables"]["input"];
+type CreateEvaluatorInput =
+  CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation["variables"]["input"];
 type CreateBindingInput =
   CreateDecisionDatasetEvaluatorSlideover_createBindingMutation["variables"]["input"];
 
@@ -636,80 +654,82 @@ type RunCreateResult =
   | {
       ok: true;
       datasetEvaluatorId: string;
-      createdJudge: DecisionJudgeData | null;
+      createdEvaluator: DecisionEvaluatorData | null;
     }
   | {
       ok: false;
       message: string;
-      createdJudge: DecisionJudgeData | null;
+      createdEvaluator: DecisionEvaluatorData | null;
     };
 
 /**
- * Creates the judge when there is not one yet, then binds it to the dataset.
- * Never throws: a failure after the judge exists reports that judge so the
+ * Creates the evaluator when there is not one yet, then binds it to the dataset.
+ * Never throws: a failure after the evaluator exists reports that evaluator so the
  * caller can keep it selected for the retry.
  */
 async function runCreateDecisionEvaluator({
-  judge,
-  newJudge,
+  evaluator,
+  newEvaluator,
   description,
   bindingName,
   inputMapping,
   datasetId,
   connectionIds,
-  commitJudge,
+  commitEvaluator,
   commitBinding,
 }: {
-  judge: DecisionJudgeData | null;
-  newJudge: {
+  evaluator: DecisionEvaluatorData | null;
+  newEvaluator: {
     name: string;
     versionId: string;
     questions: DecisionQuestionDefinition[];
-    policyDraft: DecisionProjectionPolicyValue | null;
+    policyDraft: DecisionScoringPolicyValue | null;
   } | null;
   description: string | null;
   bindingName: string;
   inputMapping: CreateBindingInput["inputMapping"];
   datasetId: string;
   connectionIds: string[];
-  commitJudge: (input: CreateJudgeInput) => Promise<DecisionJudgeData>;
+  commitEvaluator: (
+    input: CreateEvaluatorInput
+  ) => Promise<DecisionEvaluatorData>;
   commitBinding: (
     input: CreateBindingInput,
     connectionIds: string[]
   ) => Promise<string>;
 }): Promise<RunCreateResult> {
-  let boundJudge = judge;
-  let createdJudge: DecisionJudgeData | null = null;
-  if (boundJudge == null) {
-    if (newJudge == null) {
+  let boundEvaluator = evaluator;
+  let createdEvaluator: DecisionEvaluatorData | null = null;
+  if (boundEvaluator == null) {
+    if (newEvaluator == null) {
       return {
         ok: false,
-        message: "Select a decision judge to add to this dataset.",
-        createdJudge,
+        message: "Select a decision evaluator to add to this dataset.",
+        createdEvaluator,
       };
     }
-    const created = await commitJudge({
-      name: newJudge.name,
-      decisionVersionId: newJudge.versionId,
+    const created = await commitEvaluator({
+      name: newEvaluator.name,
+      decisionVersionId: newEvaluator.versionId,
       description,
-      projectionPolicy: newJudge.policyDraft
-        ? normalizePolicy(newJudge.questions, newJudge.policyDraft)
+      scoringPolicy: newEvaluator.policyDraft
+        ? normalizePolicy(newEvaluator.questions, newEvaluator.policyDraft)
         : null,
     }).catch((e: unknown) => e);
     if (created instanceof Error) {
       return {
         ok: false,
         message: getMutationErrorMessage(created),
-        createdJudge,
+        createdEvaluator,
       };
     }
-    boundJudge = created as DecisionJudgeData;
-    createdJudge = boundJudge;
+    boundEvaluator = created as DecisionEvaluatorData;
+    createdEvaluator = boundEvaluator;
   }
   const bindingId = await commitBinding(
     {
       datasetId,
-      evaluatorId: boundJudge.id,
+      evaluatorId: boundEvaluator.id,
       name: bindingName,
       description,
       inputMapping,
@@ -720,50 +740,54 @@ async function runCreateDecisionEvaluator({
     const message = getMutationErrorMessage(bindingId);
     return {
       ok: false,
-      message: createdJudge
-        ? `The decision judge "${createdJudge.name}" was created, but adding it to the dataset failed. Saving again adds it without creating it twice. ${message}`
+      message: createdEvaluator
+        ? `The decision evaluator "${createdEvaluator.name}" was created, but adding it to the dataset failed. Saving again adds it without creating it twice. ${message}`
         : message,
-      createdJudge,
+      createdEvaluator,
     };
   }
-  return { ok: true, datasetEvaluatorId: bindingId, createdJudge };
+  return { ok: true, datasetEvaluatorId: bindingId, createdEvaluator };
 }
 
-type JudgeOption = { readonly id: string; readonly name: string };
+type EvaluatorOption = { readonly id: string; readonly name: string };
 
-const ExistingJudgeSelect = ({
-  judges,
-  selectedJudgeId,
+const ExistingEvaluatorSelect = ({
+  evaluators,
+  selectedEvaluatorId,
   isDisabled,
   onChange,
 }: {
-  judges: readonly JudgeOption[];
-  selectedJudgeId: string | null;
+  evaluators: readonly EvaluatorOption[];
+  selectedEvaluatorId: string | null;
   isDisabled?: boolean;
-  onChange: (judgeId: string) => void;
+  onChange: (evaluatorId: string) => void;
 }) => (
   <Select
-    aria-label="Decision judge"
-    placeholder="Select a decision judge"
+    aria-label="Decision evaluator"
+    placeholder="Select a decision evaluator"
     isDisabled={isDisabled}
-    value={selectedJudgeId}
+    value={selectedEvaluatorId}
     onChange={(key) => {
-      if (key != null && key !== selectedJudgeId) {
+      if (key != null && key !== selectedEvaluatorId) {
         onChange(String(key));
       }
     }}
-    data-testid="decision-evaluator-judge-select"
+    data-testid="decision-evaluator-evaluator-select"
   >
-    <Label>Judge</Label>
+    <Label>Evaluator</Label>
     <Button>
       <SelectValue />
       <SelectChevronUpDownIcon />
     </Button>
     <Popover>
       <ListBox>
-        {judges.map((judge) => (
-          <SelectItem key={judge.id} id={judge.id} textValue={judge.name}>
-            {judge.name}
+        {evaluators.map((evaluator) => (
+          <SelectItem
+            key={evaluator.id}
+            id={evaluator.id}
+            textValue={evaluator.name}
+          >
+            {evaluator.name}
           </SelectItem>
         ))}
       </ListBox>

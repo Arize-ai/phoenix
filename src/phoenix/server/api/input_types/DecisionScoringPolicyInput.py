@@ -19,7 +19,7 @@ class DecisionChoiceScoreInput:
 
 
 @strawberry.input(description="Scoring for a predicate question.")
-class DecisionPredicateProjectionInput:
+class DecisionPredicateScoringInput:
     name: str
     threshold: float = strawberry.field(
         default=0.5,
@@ -29,7 +29,7 @@ class DecisionPredicateProjectionInput:
 
 
 @strawberry.input(description="Scoring for a choice question.")
-class DecisionChoiceProjectionInput:
+class DecisionChoiceScoringInput:
     name: str
     scores: list[DecisionChoiceScoreInput] = strawberry.field(
         default_factory=list,
@@ -39,7 +39,7 @@ class DecisionChoiceProjectionInput:
 
 
 @strawberry.input(description="Scoring for a scale question; its score is the expected level.")
-class DecisionScaleProjectionInput:
+class DecisionScaleScoringInput:
     name: str
     include_label: bool = strawberry.field(
         default=False, description="Also label the annotation with the most probable level."
@@ -48,15 +48,15 @@ class DecisionScaleProjectionInput:
 
 
 @strawberry.input(one_of=True, description="Scoring settings for one named decision question.")
-class DecisionQuestionProjectionInput:
-    predicate: Optional[DecisionPredicateProjectionInput] = UNSET
-    choice: Optional[DecisionChoiceProjectionInput] = UNSET
-    scale: Optional[DecisionScaleProjectionInput] = UNSET
+class DecisionQuestionScoringInput:
+    predicate: Optional[DecisionPredicateScoringInput] = UNSET
+    choice: Optional[DecisionChoiceScoringInput] = UNSET
+    scale: Optional[DecisionScaleScoringInput] = UNSET
 
-    def to_orm(self) -> tuple[str, stored.DecisionQuestionProjection]:
+    def to_orm(self) -> tuple[str, stored.DecisionQuestionScoring]:
         """Convert the selected question settings to the stored policy representation."""
         if self.predicate:
-            return self.predicate.name, stored.PredicateProjection(
+            return self.predicate.name, stored.PredicateScoring(
                 type="predicate",
                 threshold=self.predicate.threshold,
                 optimization_direction=self.predicate.optimization_direction,
@@ -67,18 +67,18 @@ class DecisionQuestionProjectionInput:
                 if value.choice in scores:
                     raise BadRequest(f"Duplicate score for choice '{value.choice}'")
                 scores[value.choice] = value.score
-            return self.choice.name, stored.ChoiceProjection(
+            return self.choice.name, stored.ChoiceScoring(
                 type="choice",
                 scores=scores,
                 optimization_direction=self.choice.optimization_direction,
             )
         if self.scale:
-            return self.scale.name, stored.ScaleProjection(
+            return self.scale.name, stored.ScaleScoring(
                 type="scale",
                 include_label=self.scale.include_label,
                 optimization_direction=self.scale.optimization_direction,
             )
-        raise BadRequest("Exactly one projection type must be provided")
+        raise BadRequest("Exactly one scoring type must be provided")
 
 
 @strawberry.input(
@@ -87,26 +87,26 @@ class DecisionQuestionProjectionInput:
         "dataset binding, the judge's own setting."
     )
 )
-class DecisionProjectionPolicyInput:
-    questions: list[DecisionQuestionProjectionInput] = strawberry.field(default_factory=list)
+class DecisionScoringPolicyInput:
+    questions: list[DecisionQuestionScoringInput] = strawberry.field(default_factory=list)
 
-    def to_orm(self) -> stored.DecisionProjectionPolicy:
+    def to_orm(self) -> stored.DecisionScoringPolicy:
         """Validate typed settings without silently dropping duplicate question names."""
         # TODO: policies are validated several times per request (to_orm -> model_dump ->
         # model_validate). Harmless; tidy when touching this.
-        questions: dict[str, stored.DecisionQuestionProjection] = {}
+        questions: dict[str, stored.DecisionQuestionScoring] = {}
         for value in self.questions:
             settings = (value.predicate, value.choice, value.scale)
             name = next((setting.name for setting in settings if setting), None)
             if name is None:
-                raise BadRequest("Exactly one projection type must be provided")
+                raise BadRequest("Exactly one scoring type must be provided")
             try:
-                _, projection = value.to_orm()
+                _, scoring = value.to_orm()
             except ValidationError as error:
                 raise BadRequest(
-                    f"Projection for question '{name}': {format_validation_error(error)}"
+                    f"Scoring for question '{name}': {format_validation_error(error)}"
                 ) from error
             if name in questions:
-                raise BadRequest(f"Duplicate projection question '{name}'")
-            questions[name] = projection
-        return stored.DecisionProjectionPolicy(questions=questions)
+                raise BadRequest(f"Duplicate scoring question '{name}'")
+            questions[name] = scoring
+        return stored.DecisionScoringPolicy(questions=questions)

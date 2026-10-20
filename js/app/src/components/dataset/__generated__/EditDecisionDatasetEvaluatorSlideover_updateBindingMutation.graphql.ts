@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0941f9c93424b2a53c0e5174fb27e5b5>>
+ * @generated SignedSource<<8a3b72a7c05de83f8a74a9a174be13cf>>
  * @lightSyntaxTransform
  */
 
@@ -732,9 +732,9 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "DecisionProjectionPolicy",
+                        "concreteType": "DecisionScoringPolicy",
                         "kind": "LinkedField",
-                        "name": "projectionPolicy",
+                        "name": "scoringPolicy",
                         "plural": false,
                         "selections": [
                           {
@@ -753,7 +753,7 @@ return {
                                 "selections": [
                                   (v29/*:: as any*/)
                                 ],
-                                "type": "DecisionPredicateProjection",
+                                "type": "DecisionPredicateScoring",
                                 "abstractKey": null
                               },
                               {
@@ -779,7 +779,7 @@ return {
                                     "storageKey": null
                                   }
                                 ],
-                                "type": "DecisionChoiceProjection",
+                                "type": "DecisionChoiceScoring",
                                 "abstractKey": null
                               },
                               {
@@ -793,7 +793,7 @@ return {
                                     "storageKey": null
                                   }
                                 ],
-                                "type": "DecisionScaleProjection",
+                                "type": "DecisionScaleScoring",
                                 "abstractKey": null
                               }
                             ],
@@ -898,12 +898,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b236eae1904444b531803ea7e3a68727",
+    "cacheID": "2ed447fd78e40215a06427df9385ac98",
     "id": null,
     "metadata": {},
     "name": "EditDecisionDatasetEvaluatorSlideover_updateBindingMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDecisionDatasetEvaluatorSlideover_updateBindingMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...DecisionDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment DecisionDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      projectionPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateProjection {\n            threshold\n          }\n          ... on DecisionChoiceProjection {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleProjection {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n        inputs {\n          name\n          description\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation EditDecisionDatasetEvaluatorSlideover_updateBindingMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...DecisionDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment DecisionDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n        inputs {\n          name\n          description\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

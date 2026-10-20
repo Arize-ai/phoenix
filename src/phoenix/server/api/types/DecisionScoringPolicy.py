@@ -1,4 +1,4 @@
-"""Typed projection policies for saved, dataset-bound, and frozen decision judges."""
+"""Typed scoring policies for saved, dataset-bound, and captured decision evaluators."""
 
 from typing import Optional, Sequence
 
@@ -19,7 +19,7 @@ class DecisionChoiceScore:
 @strawberry.interface(
     description="How one decision question's answer becomes an annotation's label and score."
 )
-class DecisionQuestionProjection:
+class DecisionQuestionScoring:
     name: str = strawberry.field(description="The question's name.")
     optimization_direction: OptimizationDirection = strawberry.field(
         description="Whether a higher or lower score is better, for comparisons and charts."
@@ -32,7 +32,7 @@ class DecisionQuestionProjection:
         "that probability is at least the threshold, otherwise `false`."
     )
 )
-class DecisionPredicateProjection(DecisionQuestionProjection):
+class DecisionPredicateScoring(DecisionQuestionScoring):
     threshold: float = strawberry.field(
         description="The probability, in [0, 1], at or above which the label is `true`."
     )
@@ -44,7 +44,7 @@ class DecisionPredicateProjection(DecisionQuestionProjection):
         "score, or null when the value has none."
     )
 )
-class DecisionChoiceProjection(DecisionQuestionProjection):
+class DecisionChoiceScoring(DecisionQuestionScoring):
     scores: list[DecisionChoiceScore] = strawberry.field(
         description="Scores for some or all of the question's choices, in declared order."
     )
@@ -53,7 +53,7 @@ class DecisionChoiceProjection(DecisionQuestionProjection):
 @strawberry.type(
     description=("A scale's score is its expected level, from 0 to the number of levels minus one.")
 )
-class DecisionScaleProjection(DecisionQuestionProjection):
+class DecisionScaleScoring(DecisionQuestionScoring):
     include_label: bool = strawberry.field(
         description=(
             "Whether the annotation is also labeled with the most probable level; on a tie, "
@@ -62,16 +62,16 @@ class DecisionScaleProjection(DecisionQuestionProjection):
     )
 
 
-@strawberry.type(description="How a decision judge's answers become annotations, by question.")
-class DecisionProjectionPolicy:
-    questions: list[DecisionQuestionProjection] = strawberry.field(
+@strawberry.type(description="How a decision evaluator's answers become annotations, by question.")
+class DecisionScoringPolicy:
+    questions: list[DecisionQuestionScoring] = strawberry.field(
         description="Settings by question, in the order the decision declares its questions."
     )
 
     @classmethod
     def from_orm(
-        cls, policy: stored.DecisionProjectionPolicy, questions: Sequence[DecisionQuestion]
-    ) -> "DecisionProjectionPolicy":
+        cls, policy: stored.DecisionScoringPolicy, questions: Sequence[DecisionQuestion]
+    ) -> "DecisionScoringPolicy":
         """Expose the stored question map as type-specific objects in declared order.
 
         The stored map's key order is not kept by every database, so the decision's own
@@ -82,11 +82,11 @@ class DecisionProjectionPolicy:
         names = [name for name in declared if name in policy.questions] + sorted(
             name for name in policy.questions if name not in declared
         )
-        result: list[DecisionQuestionProjection] = []
+        result: list[DecisionQuestionScoring] = []
         for name in names:
             question = declared.get(name)
             result.append(
-                to_gql_question_projection(
+                to_gql_question_scoring(
                     name,
                     policy.questions[name],
                     [choice.value for choice in question.choices]
@@ -97,36 +97,36 @@ class DecisionProjectionPolicy:
         return cls(questions=result)
 
 
-def to_gql_question_projection(
+def to_gql_question_scoring(
     name: str,
-    projection: stored.DecisionQuestionProjection,
+    scoring: stored.DecisionQuestionScoring,
     choice_order: Optional[Sequence[str]] = None,
-) -> DecisionQuestionProjection:
+) -> DecisionQuestionScoring:
     """One question's settings. A choice's scores follow ``choice_order`` when given,
     then any other scored values sorted."""
-    if isinstance(projection, stored.PredicateProjection):
-        return DecisionPredicateProjection(
+    if isinstance(scoring, stored.PredicateScoring):
+        return DecisionPredicateScoring(
             name=name,
-            optimization_direction=projection.optimization_direction,
-            threshold=projection.threshold,
+            optimization_direction=scoring.optimization_direction,
+            threshold=scoring.threshold,
         )
-    if isinstance(projection, stored.ChoiceProjection):
+    if isinstance(scoring, stored.ChoiceScoring):
         order = list(choice_order or [])
-        choices = [choice for choice in order if choice in projection.scores] + sorted(
-            choice for choice in projection.scores if choice not in order
+        choices = [choice for choice in order if choice in scoring.scores] + sorted(
+            choice for choice in scoring.scores if choice not in order
         )
-        return DecisionChoiceProjection(
+        return DecisionChoiceScoring(
             name=name,
-            optimization_direction=projection.optimization_direction,
+            optimization_direction=scoring.optimization_direction,
             scores=[
-                DecisionChoiceScore(choice=choice, score=projection.scores[choice])
+                DecisionChoiceScore(choice=choice, score=scoring.scores[choice])
                 for choice in choices
             ],
         )
-    if isinstance(projection, stored.ScaleProjection):
-        return DecisionScaleProjection(
+    if isinstance(scoring, stored.ScaleScoring):
+        return DecisionScaleScoring(
             name=name,
-            optimization_direction=projection.optimization_direction,
-            include_label=projection.include_label,
+            optimization_direction=scoring.optimization_direction,
+            include_label=scoring.include_label,
         )
-    assert_never(projection)
+    assert_never(scoring)

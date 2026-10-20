@@ -134,7 +134,8 @@ describe("parseTaskMenuKey", () => {
     });
     expect(parseTaskMenuKey("new:CODE", prompts)).toEqual({
       type: "new",
-      kind: "CODE",
+      taskType: "evaluator",
+      evaluatorKind: "CODE",
     });
     expect(parseTaskMenuKey("prompt:P1", prompts)).toEqual({
       type: "prompt",
@@ -147,7 +148,7 @@ describe("parseTaskMenuKey", () => {
     });
     expect(parseTaskMenuKey("new:decision", prompts)).toEqual({
       type: "new",
-      kind: "decision",
+      taskType: "decision",
     });
     expect(parseTaskMenuKey("decision:D1", prompts)).toEqual({
       type: "decision",
@@ -183,7 +184,7 @@ describe("doesSourceLoadInPlace", () => {
     expect(doesSourceLoadInPlace(prompt, decisionSource)).toBe(false);
     expect(doesSourceLoadInPlace(decision, promptSource)).toBe(false);
     expect(
-      doesSourceLoadInPlace(decision, { type: "new", kind: "decision" })
+      doesSourceLoadInPlace(decision, { type: "new", taskType: "decision" })
     ).toBe(false);
   });
 });

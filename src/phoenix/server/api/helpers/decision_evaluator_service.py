@@ -14,9 +14,9 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
-    DecisionProjectionPolicy,
-    fit_projection_policy,
-    resolve_projection_policy,
+    DecisionScoringPolicy,
+    adapt_scoring_policy,
+    resolve_scoring_policy,
 )
 from phoenix.db.types.evaluator_definition import (
     InlineDecisionEvaluatorDefinition,
@@ -26,7 +26,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.decision_evaluators import (
-    freeze_decision_evaluator,
+    capture_decision_evaluator_definition,
     validate_decision_output_overrides,
 )
 from phoenix.server.api.helpers.evaluator_management import get_project_for_dataset_evaluator
@@ -78,7 +78,7 @@ class CreateDecisionEvaluatorInput:
     name: Identifier
     decision_version_id: GlobalID
     description: Optional[str] = None
-    projection_policy: Optional[dict[str, Any]] = None
+    scoring_policy: Optional[dict[str, Any]] = None
 
 
 async def create_decision_evaluator(
@@ -88,9 +88,9 @@ async def create_decision_evaluator(
     try:
         async with context.db() as session:
             version = await _version(session, input.decision_version_id)
-            policy = resolve_projection_policy(
+            policy = resolve_scoring_policy(
                 version.questions,
-                DecisionProjectionPolicy.model_validate(input.projection_policy or {}),
+                DecisionScoringPolicy.model_validate(input.scoring_policy or {}),
             )
             tag = models.DecisionVersionTag(
                 name=Identifier(f"{input.name.root}-evaluator-{token_hex(4)}"),
@@ -108,7 +108,7 @@ async def create_decision_evaluator(
                 kind="DECISION",
                 decision_id=version.decision_id,
                 decision_version_tag_id=tag.id,
-                projection_policy=policy.model_dump(mode="json"),
+                scoring_policy=policy.model_dump(mode="json"),
             )
             session.add(evaluator)
             await session.flush()
@@ -125,7 +125,7 @@ class DecisionEvaluatorPatch:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     decision_version_id: Optional[GlobalID] = UNSET
-    projection_policy: Optional[dict[str, Any]] = UNSET
+    scoring_policy: Optional[dict[str, Any]] = UNSET
 
 
 def _signature(definition: InlineDecisionEvaluatorDefinition) -> tuple[Any, ...]:
@@ -173,7 +173,7 @@ async def validate_bound_decision_update(
             )
         )
     )
-    original = freeze_decision_evaluator(evaluator)
+    original = capture_decision_evaluator_definition(evaluator)
     candidate = original.model_copy(
         update={"inputs": version.inputs, "state": version.state, "questions": version.questions}
     )
@@ -198,9 +198,7 @@ async def validate_bound_decision_update(
             ],
         )
     try:
-        resolve_projection_policy(
-            version.questions, DecisionProjectionPolicy.model_validate(policy)
-        )
+        resolve_scoring_policy(version.questions, DecisionScoringPolicy.model_validate(policy))
     except ValueError as error:
         raise BadRequest(str(error)) from error
 
@@ -223,28 +221,24 @@ async def patch_decision_evaluator(
                 raise BadRequest(
                     "A decision evaluator can only be pinned to versions of its own decision"
                 )
-            if patch.projection_policy is None and patch.projection_policy is not UNSET:
-                raise BadRequest("projection_policy cannot be null")
+            if patch.scoring_policy is None and patch.scoring_policy is not UNSET:
+                raise BadRequest("scoring_policy cannot be null")
             policy = (
-                evaluator.projection_policy
-                if patch.projection_policy is UNSET
-                else patch.projection_policy
+                evaluator.scoring_policy if patch.scoring_policy is UNSET else patch.scoring_policy
             )
             assert policy is not None
             # A policy the caller sends must fit the version; the saved one is carried over.
             resolve = (
-                fit_projection_policy
-                if patch.projection_policy is UNSET
-                else resolve_projection_policy
+                adapt_scoring_policy if patch.scoring_policy is UNSET else resolve_scoring_policy
             )
             policy = resolve(
-                version.questions, DecisionProjectionPolicy.model_validate(policy)
+                version.questions, DecisionScoringPolicy.model_validate(policy)
             ).model_dump(mode="json")
             await validate_bound_decision_update(session, evaluator, version, policy)
             tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
             assert tag is not None
             tag.decision_version_id = version.id
-            evaluator.projection_policy = policy
+            evaluator.scoring_policy = policy
             if patch.name is not UNSET and patch.name is not None:
                 evaluator.name = patch.name
             if patch.description is not UNSET:
@@ -296,11 +290,11 @@ async def guard_owned_decision_tag_move(
         return
     evaluator = await get_decision_evaluator(session, evaluator_id, lock=True)
     version = await _version_by_rowid(session, version_id)
-    policy = fit_projection_policy(
-        version.questions, DecisionProjectionPolicy.model_validate(evaluator.projection_policy)
+    policy = adapt_scoring_policy(
+        version.questions, DecisionScoringPolicy.model_validate(evaluator.scoring_policy)
     ).model_dump(mode="json")
     await validate_bound_decision_update(session, evaluator, version, policy)
-    evaluator.projection_policy = policy
+    evaluator.scoring_policy = policy
 
 
 # The keys of the context a dataset evaluator judges a run with (see experiment_runner).
@@ -368,7 +362,7 @@ async def create_dataset_decision_binding(
             )
             if dataset_name is None:
                 raise NotFound("Dataset not found")
-            definition = freeze_decision_evaluator(evaluator)
+            definition = capture_decision_evaluator_definition(evaluator)
             validate_decision_output_overrides(definition, input.output_configs)
             validate_decision_input_mapping(evaluator.selected_version, input.input_mapping)
             binding = models.DatasetEvaluators(
@@ -415,13 +409,13 @@ async def build_decision_evaluator(
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
     if isinstance(definition, StoredDecisionEvaluatorDefinition):
-        definition = freeze_decision_evaluator(
+        definition = capture_decision_evaluator_definition(
             await get_decision_evaluator(session, definition.decision_evaluator_id)
         )
     try:
         validate_inputs(definition.inputs, definition.state)
         validate_questions(definition.questions)
-        resolve_projection_policy(definition.questions, definition.projection_policy)
+        resolve_scoring_policy(definition.questions, definition.scoring_policy)
     except ValueError as error:
         raise BadRequest(str(error)) from error
     if definition.custom_provider_id is not None:

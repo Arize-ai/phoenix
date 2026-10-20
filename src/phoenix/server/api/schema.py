@@ -20,7 +20,7 @@ from phoenix.server.api.types.CronExpression import (
     cron_expression_scalar_definition,
 )
 from phoenix.server.api.types.DecisionAnswer import DecisionAnswer
-from phoenix.server.api.types.DecisionProjectionPolicy import DecisionQuestionProjection
+from phoenix.server.api.types.DecisionScoringPolicy import DecisionQuestionScoring
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
@@ -60,7 +60,7 @@ def build_graphql_schema(
                 _implementing_types(ChatCompletionSubscriptionPayload),
                 _implementing_types(Evaluator),
                 _implementing_types(DecisionAnswer),
-                _implementing_types(DecisionQuestionProjection),
+                _implementing_types(DecisionQuestionScoring),
             )
         ),
     )

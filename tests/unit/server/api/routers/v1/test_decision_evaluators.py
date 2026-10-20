@@ -4,9 +4,9 @@ import httpx
 from strawberry.relay import GlobalID
 
 from phoenix.db.types.decision_evaluators import (
-    ChoiceProjection,
-    DecisionProjectionPolicy,
-    PredicateProjection,
+    ChoiceScoring,
+    DecisionScoringPolicy,
+    PredicateScoring,
 )
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.mutations.test_saved_decision_mutations import create
@@ -40,13 +40,11 @@ async def test_decision_evaluator_and_binding_lifecycle(
         route,
         json={
             "type": "decision",
-            "projection_policy": {
-                "questions": {"urgent": {"type": "predicate", "threshold": 0.75}}
-            },
+            "scoring_policy": {"questions": {"urgent": {"type": "predicate", "threshold": 0.75}}},
         },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["data"]["projection_policy"]["questions"]["urgent"]["threshold"] == 0.75
+    assert response.json()["data"]["scoring_policy"]["questions"]["urgent"]["threshold"] == 0.75
     dataset_route = f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators"
     response = await httpx_client.post(
         dataset_route,
@@ -60,9 +58,9 @@ async def test_decision_evaluator_and_binding_lifecycle(
     binding = response.json()["data"]
     assert binding["evaluator_type"] == "decision"
     # Scoring is the judge's own; a binding has no policy to set.
-    assert "projection_policy" not in binding
+    assert "scoring_policy" not in binding
     response = await httpx_client.patch(
-        f"v1/dataset_evaluators/{binding['id']}", json={"projection_policy": None}
+        f"v1/dataset_evaluators/{binding['id']}", json={"scoring_policy": None}
     )
     assert response.status_code == 422, response.text
     assert (await httpx_client.delete(route)).status_code == 409
@@ -92,16 +90,16 @@ async def test_unbound_judge_can_be_deleted(
     assert (await httpx_client.delete(f"v1/evaluators/{evaluator_id}")).status_code == 204
 
 
-async def test_default_projection_policy_keeps_discriminators_in_responses(
+async def test_default_scoring_policy_keeps_discriminators_in_responses(
     httpx_client: httpx.AsyncClient,
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
 ) -> None:
     decision = await create(gql_client)
-    expected = DecisionProjectionPolicy(
+    expected = DecisionScoringPolicy(
         questions={
-            "urgent": PredicateProjection(type="predicate"),
-            "team": ChoiceProjection(type="choice"),
+            "urgent": PredicateScoring(type="predicate"),
+            "team": ChoiceScoring(type="choice"),
         }
     )
     response = await httpx_client.post(
@@ -116,12 +114,12 @@ async def test_default_projection_policy_keeps_discriminators_in_responses(
     evaluator_id = response.json()["data"]["id"]
     response = await httpx_client.get(f"v1/evaluators/{evaluator_id}")
     assert response.status_code == 200, response.text
-    policy = response.json()["data"]["projection_policy"]
+    policy = response.json()["data"]["scoring_policy"]
     assert {name: question["type"] for name, question in policy["questions"].items()} == {
         "urgent": "predicate",
         "team": "choice",
     }
-    assert DecisionProjectionPolicy.model_validate(policy) == expected
+    assert DecisionScoringPolicy.model_validate(policy) == expected
 
 
 async def test_binding_output_configs_must_match_the_derived_outputs(
@@ -157,4 +155,4 @@ async def test_binding_output_configs_must_match_the_derived_outputs(
         },
     )
     assert response.status_code == 422, response.text
-    assert "Decision outputs are derived from the questions and projection policy" in response.text
+    assert "Decision outputs are derived from the questions and scoring policy" in response.text

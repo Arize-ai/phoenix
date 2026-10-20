@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7faac10690d60f016ea1566970fcd4dc>>
+ * @generated SignedSource<<bffc8674abfda61e684a72fc2eb65f28>>
  * @lightSyntaxTransform
  */
 
@@ -13,30 +13,30 @@ export type CreateDecisionEvaluatorInput = {
   decisionVersionId: string;
   description?: string | null;
   name: string;
-  projectionPolicy?: DecisionProjectionPolicyInput | null;
+  scoringPolicy?: DecisionScoringPolicyInput | null;
 };
-export type DecisionProjectionPolicyInput = {
-  questions?: ReadonlyArray<DecisionQuestionProjectionInput>;
+export type DecisionScoringPolicyInput = {
+  questions?: ReadonlyArray<DecisionQuestionScoringInput>;
 };
-export type DecisionQuestionProjectionInput = {
+export type DecisionQuestionScoringInput = {
   choice?: never;
-  predicate: DecisionPredicateProjectionInput;
+  predicate: DecisionPredicateScoringInput;
   scale?: never;
 } | {
-  choice: DecisionChoiceProjectionInput;
+  choice: DecisionChoiceScoringInput;
   predicate?: never;
   scale?: never;
 } | {
   choice?: never;
   predicate?: never;
-  scale: DecisionScaleProjectionInput;
+  scale: DecisionScaleScoringInput;
 };
-export type DecisionPredicateProjectionInput = {
+export type DecisionPredicateScoringInput = {
   name: string;
   optimizationDirection?: OptimizationDirection;
   threshold?: number;
 };
-export type DecisionChoiceProjectionInput = {
+export type DecisionChoiceScoringInput = {
   name: string;
   optimizationDirection?: OptimizationDirection;
   scores?: ReadonlyArray<DecisionChoiceScoreInput>;
@@ -45,15 +45,15 @@ export type DecisionChoiceScoreInput = {
   choice: string;
   score: number;
 };
-export type DecisionScaleProjectionInput = {
+export type DecisionScaleScoringInput = {
   includeLabel?: boolean;
   name: string;
   optimizationDirection?: OptimizationDirection;
 };
-export type CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$variables = {
+export type CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation$variables = {
   input: CreateDecisionEvaluatorInput;
 };
-export type CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$data = {
+export type CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation$data = {
   readonly createDecisionEvaluator: {
     readonly evaluator: {
       readonly decisionVersion: {
@@ -87,7 +87,7 @@ export type CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$data = {
       readonly id: string;
       readonly inputSchema: any;
       readonly name: string;
-      readonly projectionPolicy: {
+      readonly scoringPolicy: {
         readonly questions: ReadonlyArray<{
           readonly __typename: string;
           readonly includeLabel?: boolean;
@@ -103,9 +103,9 @@ export type CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$data = {
     };
   };
 };
-export type CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation = {
-  response: CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$data;
-  variables: CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation$variables;
+export type CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation = {
+  response: CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation$data;
+  variables: CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -172,9 +172,9 @@ v4 = [
           {
             "alias": null,
             "args": null,
-            "concreteType": "DecisionProjectionPolicy",
+            "concreteType": "DecisionScoringPolicy",
             "kind": "LinkedField",
-            "name": "projectionPolicy",
+            "name": "scoringPolicy",
             "plural": false,
             "selections": [
               {
@@ -205,7 +205,7 @@ v4 = [
                         "storageKey": null
                       }
                     ],
-                    "type": "DecisionPredicateProjection",
+                    "type": "DecisionPredicateScoring",
                     "abstractKey": null
                   },
                   {
@@ -237,7 +237,7 @@ v4 = [
                         "storageKey": null
                       }
                     ],
-                    "type": "DecisionChoiceProjection",
+                    "type": "DecisionChoiceScoring",
                     "abstractKey": null
                   },
                   {
@@ -251,7 +251,7 @@ v4 = [
                         "storageKey": null
                       }
                     ],
-                    "type": "DecisionScaleProjection",
+                    "type": "DecisionScaleScoring",
                     "abstractKey": null
                   }
                 ],
@@ -376,7 +376,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation",
     "selections": (v4/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -385,20 +385,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation",
     "selections": (v4/*:: as any*/)
   },
   "params": {
-    "cacheID": "b95cdb10b4f6d2df935a4110286bdecc",
+    "cacheID": "ea0506ed19e4f8840cfdf78d658d1311",
     "id": null,
     "metadata": {},
-    "name": "CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation(\n  $input: CreateDecisionEvaluatorInput!\n) {\n  createDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      inputSchema\n      projectionPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateProjection {\n            threshold\n          }\n          ... on DecisionChoiceProjection {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleProjection {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        sequenceNumber\n        decision {\n          id\n          name\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation(\n  $input: CreateDecisionEvaluatorInput!\n) {\n  createDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      inputSchema\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        sequenceNumber\n        decision {\n          id\n          name\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f3e66c8eebb81fdb2ef2e5ddc4fe3ae3";
+(node as any).hash = "4cb1a5c526f5a64330a35bcfd4062ecb";
 
 export default node;

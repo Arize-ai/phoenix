@@ -139,7 +139,7 @@ describe("playground prompt agent tools", () => {
     const [prompt] = playgroundStore.getState().instances;
     playgroundStore.getState().replaceInstance({
       instanceId: prompt.id,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
 
     const addAction = createAddPromptInstanceClientAction({
@@ -173,7 +173,9 @@ describe("playground prompt agent tools", () => {
       waitForEvaluatorHost: waitForFakeHost,
     });
 
-    const result = await addAction({ source: { type: "new", kind: "CODE" } });
+    const result = await addAction({
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
+    });
 
     expect(result).toMatchObject({
       ok: false,

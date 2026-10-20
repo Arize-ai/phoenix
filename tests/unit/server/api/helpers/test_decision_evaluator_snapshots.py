@@ -8,11 +8,11 @@ from pydantic import SecretStr
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.decision_evaluators import PredicateProjection
+from phoenix.db.types.decision_evaluators import PredicateScoring
 from phoenix.server.api.decision_evaluator import DecisionEvaluator
 from phoenix.server.api.helpers.decision_evaluator_snapshots import (
     DecisionEvaluatorSnapshot,
-    freeze_dataset_decision_evaluators,
+    capture_dataset_decision_evaluators,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
@@ -62,7 +62,7 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
                 dataset_evaluator_id=int(GlobalID.from_id(binding_id).node_id),
             )
         )
-        await freeze_dataset_decision_evaluators(session, experiment.id)
+        await capture_dataset_decision_evaluators(session, experiment.id)
         job = await session.get(models.ExperimentJob, experiment.id)
         assert job is not None
         original = DecisionEvaluatorSnapshot.model_validate(job.decision_evaluator_snapshots[0])
@@ -95,7 +95,7 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
         variables={
             "input": {
                 "evaluatorId": evaluator["id"],
-                "projectionPolicy": {
+                "scoringPolicy": {
                     "questions": [{"predicate": {"name": "urgent", "threshold": 0.9}}]
                 },
             }
@@ -130,9 +130,9 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
         assert spec.output_configs == original.output_configs
         assert isinstance(spec.evaluator, DecisionEvaluator)
         assert spec.evaluator.definition.model_name == decision["version"]["modelName"]
-        projection = spec.evaluator.definition.projection_policy.questions["urgent"]
+        scoring = spec.evaluator.definition.scoring_policy.questions["urgent"]
         # The judge's policy as frozen, not its later edit.
-        assert isinstance(projection, PredicateProjection) and projection.threshold == 0.8
+        assert isinstance(scoring, PredicateScoring) and scoring.threshold == 0.8
         assert await session.get(models.Project, spec.evaluator_project_id) is not None
         resumed = DecisionEvaluatorSnapshot.model_validate(job.decision_evaluator_snapshots[0])
         assert resumed.definition == original.definition

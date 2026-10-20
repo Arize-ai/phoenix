@@ -22,23 +22,23 @@ import { optimizationDirectionOptions } from "@phoenix/components/evaluators/Opt
 import type {
   DecisionOptimizationDirection,
   DecisionPolicyValidation,
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
-  DecisionQuestionProjectionValue,
+  DecisionQuestionScoringValue,
 } from "./decisionPolicyUtils";
 import {
-  getQuestionProjectionName,
+  getQuestionScoringName,
   normalizePolicy,
   validatePolicy,
 } from "./decisionPolicyUtils";
 
-export type DecisionProjectionPolicyEditorProps = {
+export type DecisionScoringPolicyEditorProps = {
   /** The decision version's questions, in declared order. */
   questions: readonly DecisionQuestionDefinition[];
   /** The policy being edited; missing questions show defaults. */
-  value: DecisionProjectionPolicyValue | null | undefined;
+  value: DecisionScoringPolicyValue | null | undefined;
   /** Receives the next value, listing every question in declared order. */
-  onChange: (value: DecisionProjectionPolicyValue) => void;
+  onChange: (value: DecisionScoringPolicyValue) => void;
   isDisabled?: boolean;
 };
 
@@ -76,24 +76,24 @@ const questionCSS = css`
 `;
 
 /**
- * Edits how a decision judge's answers become annotation scores: a threshold
+ * Edits how a decision evaluator's answers become annotation scores: a threshold
  * per predicate, a score per declared choice, a label switch per scale, and an
  * optimization direction for each.
  *
  * Controlled.
  */
-export function DecisionProjectionPolicyEditor({
+export function DecisionScoringPolicyEditor({
   questions,
   value,
   onChange,
   isDisabled,
-}: DecisionProjectionPolicyEditorProps) {
+}: DecisionScoringPolicyEditorProps) {
   const effective = normalizePolicy(questions, value);
   const validation = validatePolicy(effective);
 
   const updateQuestion = (
     index: number,
-    updated: DecisionQuestionProjectionValue
+    updated: DecisionQuestionScoringValue
   ) => {
     onChange({
       questions: effective.questions.map((q, i) => (i === index ? updated : q)),
@@ -101,9 +101,9 @@ export function DecisionProjectionPolicyEditor({
   };
 
   return (
-    <ul css={listCSS} data-testid="decision-projection-policy-editor">
+    <ul css={listCSS} data-testid="decision-scoring-policy-editor">
       {effective.questions.map((question, index) => {
-        const name = getQuestionProjectionName(question);
+        const name = getQuestionScoringName(question);
         const definition = questions[index];
         return (
           <li
@@ -122,7 +122,7 @@ export function DecisionProjectionPolicyEditor({
                 <Text weight="heavy">{name}</Text>
                 <Text size="XS" color="text-700">
                   {definition.type === "predicate"
-                    ? "Predicate"
+                    ? "Yes / No"
                     : definition.type === "choice"
                       ? "Choice"
                       : "Scale"}
@@ -151,10 +151,10 @@ function QuestionFields({
   onChange,
 }: {
   definition: DecisionQuestionDefinition;
-  question: DecisionQuestionProjectionValue;
+  question: DecisionQuestionScoringValue;
   errors: DecisionPolicyValidation[string] | undefined;
   isDisabled?: boolean;
-  onChange: (question: DecisionQuestionProjectionValue) => void;
+  onChange: (question: DecisionQuestionScoringValue) => void;
 }) {
   const direction = (
     settings: { optimizationDirection: DecisionOptimizationDirection },
@@ -288,9 +288,9 @@ function QuestionFields({
 }
 
 function withDirection(
-  question: DecisionQuestionProjectionValue,
+  question: DecisionQuestionScoringValue,
   optimizationDirection: DecisionOptimizationDirection
-): DecisionQuestionProjectionValue {
+): DecisionQuestionScoringValue {
   if ("predicate" in question) {
     return { predicate: { ...question.predicate, optimizationDirection } };
   }

@@ -511,7 +511,7 @@ export const EvaluatorsTable = ({
               ? row.original.data.kind
               : row.original.data.evaluator.kind;
 
-          // TODO: support opening a decision judge as a playground evaluator task.
+          // TODO: support opening a decision evaluator as a playground evaluator task.
           if (kind === "BUILTIN" || kind === "DECISION") return null;
           const params = new URLSearchParams();
 

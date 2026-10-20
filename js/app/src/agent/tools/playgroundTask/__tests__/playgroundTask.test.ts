@@ -114,7 +114,7 @@ describe("playground.task.select", () => {
     });
 
     const result = await select({
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
       discardChanges: false,
     });
 
@@ -145,7 +145,7 @@ describe("playground.task.select", () => {
 
     const result = await select({
       instanceId: playgroundStore.getState().instances[1].id,
-      source: { type: "new", kind: "LLM" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
       discardChanges: true,
     });
 
@@ -172,7 +172,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "LLM" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
         discardChanges: false,
       })
     ).toMatchObject({
@@ -183,7 +183,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "LLM" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
         discardChanges: true,
       })
     ).toMatchObject({ ok: true });
@@ -201,7 +201,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "CODE" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
         discardChanges: false,
       })
     ).toMatchObject({ ok: false, error: expect.stringContaining("running") });
@@ -285,7 +285,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "prompt" },
+        source: { type: "new", taskType: "prompt" },
         discardChanges: false,
       })
     ).toMatchObject({
@@ -346,7 +346,13 @@ describe("instance load helpers", () => {
         datasetEvaluatorId: "DE1",
       })
     ).toBe(false);
-    expect(hasInstanceLoaded(draft, { type: "new", kind: "CODE" })).toBe(true);
+    expect(
+      hasInstanceLoaded(draft, {
+        type: "new",
+        taskType: "evaluator",
+        evaluatorKind: "CODE",
+      })
+    ).toBe(true);
 
     const promptInstance = playgroundStore.getState().instances[0];
     expect(
@@ -403,7 +409,7 @@ describe("selectTaskInputSchema", () => {
     ).toBe(false);
     expect(
       selectTaskInputSchema.safeParse({
-        source: { type: "new", kind: "CODE" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
         slot: "A",
       }).success
     ).toBe(false);

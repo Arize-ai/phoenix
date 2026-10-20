@@ -25,7 +25,7 @@ from phoenix.server.api.helpers.decision_clients import (
     TypeSafeDecisionClient,
 )
 from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+from phoenix.server.api.helpers.decision_evaluators import capture_decision_evaluator_definition
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.types import DbSessionFactory
 
@@ -104,7 +104,7 @@ async def test_seed_reuses_judge_and_binding_and_repairs_drift(
         assert binding is not None
         assert binding.name.root == "accuracy"
         assert binding.input_mapping.path_mapping == {"reference": "reference", "output": "output"}
-        frozen = freeze_decision_evaluator(evaluator)
+        frozen = capture_decision_evaluator_definition(evaluator)
         judge = await build_decision_evaluator(
             frozen,
             session=session,

@@ -13291,7 +13291,7 @@
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
-      "ChoiceProjection": {
+      "ChoiceScoring": {
         "properties": {
           "type": {
             "type": "string",
@@ -13315,7 +13315,7 @@
         "required": [
           "type"
         ],
-        "title": "ChoiceProjection"
+        "title": "ChoiceScoring"
       },
       "CodeEvaluatorDefinition": {
         "properties": {
@@ -14179,7 +14179,7 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored."
+            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
@@ -14326,8 +14326,8 @@
             ],
             "title": "Description"
           },
-          "projection_policy": {
-            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
           }
         },
         "additionalProperties": false,
@@ -15653,8 +15653,8 @@
             "type": "string",
             "title": "Decision Version Tag Id"
           },
-          "projection_policy": {
-            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
           },
           "output_configs": {
             "items": {
@@ -15691,32 +15691,32 @@
           "decision_id",
           "decision_version_id",
           "decision_version_tag_id",
-          "projection_policy",
+          "scoring_policy",
           "output_configs"
         ],
         "title": "DecisionEvaluatorDefinition"
       },
-      "DecisionProjectionPolicy": {
+      "DecisionScoringPolicy": {
         "properties": {
           "questions": {
             "additionalProperties": {
               "oneOf": [
                 {
-                  "$ref": "#/components/schemas/PredicateProjection"
+                  "$ref": "#/components/schemas/PredicateScoring"
                 },
                 {
-                  "$ref": "#/components/schemas/ChoiceProjection"
+                  "$ref": "#/components/schemas/ChoiceScoring"
                 },
                 {
-                  "$ref": "#/components/schemas/ScaleProjection"
+                  "$ref": "#/components/schemas/ScaleScoring"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "choice": "#/components/schemas/ChoiceProjection",
-                  "predicate": "#/components/schemas/PredicateProjection",
-                  "scale": "#/components/schemas/ScaleProjection"
+                  "choice": "#/components/schemas/ChoiceScoring",
+                  "predicate": "#/components/schemas/PredicateScoring",
+                  "scale": "#/components/schemas/ScaleScoring"
                 }
               }
             },
@@ -15726,7 +15726,8 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "DecisionProjectionPolicy"
+        "title": "DecisionScoringPolicy",
+        "description": "Question thresholds, choice scores, scale labels, and comparison direction."
       },
       "DeleteAnnotationConfigResponseBody": {
         "properties": {
@@ -19271,7 +19272,7 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored."
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
@@ -19304,8 +19305,8 @@
             ],
             "title": "Description"
           },
-          "projection_policy": {
-            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
           }
         },
         "additionalProperties": false,
@@ -19965,7 +19966,7 @@
         ],
         "title": "PlaygroundUIContext"
       },
-      "PredicateProjection": {
+      "PredicateScoring": {
         "properties": {
           "type": {
             "type": "string",
@@ -19989,7 +19990,7 @@
         "required": [
           "type"
         ],
-        "title": "PredicateProjection"
+        "title": "PredicateScoring"
       },
       "Project": {
         "properties": {
@@ -22613,7 +22614,7 @@
         ],
         "title": "SandboxConfigsResponseBody"
       },
-      "ScaleProjection": {
+      "ScaleScoring": {
         "properties": {
           "type": {
             "type": "string",
@@ -22635,7 +22636,7 @@
         "required": [
           "type"
         ],
-        "title": "ScaleProjection"
+        "title": "ScaleScoring"
       },
       "SecretKeyValue": {
         "properties": {

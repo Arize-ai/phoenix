@@ -1,9 +1,9 @@
 /**
- * Pure helpers for a decision evaluator's projection policy: the settings that
- * turn a decision judge's answers into annotation labels and scores.
+ * Pure helpers for a decision evaluator's scoring policy: the settings that
+ * turn a decision evaluator's answers into annotation labels and scores.
  *
  * The "value" shape used throughout mirrors the GraphQL
- * `DecisionProjectionPolicyInput` (each question is a `@oneOf` of `predicate`,
+ * `DecisionScoringPolicyInput` (each question is a `@oneOf` of `predicate`,
  * `choice` or `scale`), so a value can be sent to a mutation unchanged.
  */
 
@@ -11,31 +11,31 @@ export type DecisionOptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 
 export type DecisionChoiceScoreValue = { choice: string; score: number };
 
-export type DecisionPredicateProjectionValue = {
+export type DecisionPredicateScoringValue = {
   name: string;
   threshold: number;
   optimizationDirection: DecisionOptimizationDirection;
 };
-export type DecisionChoiceProjectionValue = {
+export type DecisionChoiceScoringValue = {
   name: string;
   scores: DecisionChoiceScoreValue[];
   optimizationDirection: DecisionOptimizationDirection;
 };
-export type DecisionScaleProjectionValue = {
+export type DecisionScaleScoringValue = {
   name: string;
   includeLabel: boolean;
   optimizationDirection: DecisionOptimizationDirection;
 };
 
-/** One question's settings, in the `DecisionQuestionProjectionInput` shape. */
-export type DecisionQuestionProjectionValue =
-  | { predicate: DecisionPredicateProjectionValue }
-  | { choice: DecisionChoiceProjectionValue }
-  | { scale: DecisionScaleProjectionValue };
+/** One question's settings, in the `DecisionQuestionScoringInput` shape. */
+export type DecisionQuestionScoringValue =
+  | { predicate: DecisionPredicateScoringValue }
+  | { choice: DecisionChoiceScoringValue }
+  | { scale: DecisionScaleScoringValue };
 
-/** A policy in the `DecisionProjectionPolicyInput` shape. */
-export type DecisionProjectionPolicyValue = {
-  questions: DecisionQuestionProjectionValue[];
+/** A policy in the `DecisionScoringPolicyInput` shape. */
+export type DecisionScoringPolicyValue = {
+  questions: DecisionQuestionScoringValue[];
 };
 
 /** A decision version question as plain data, in declared order. */
@@ -49,11 +49,11 @@ export const DEFAULT_DECISION_OPTIMIZATION_DIRECTION: DecisionOptimizationDirect
   "NONE";
 
 /**
- * The GraphQL output shape of a projection policy, as selected through
- * `... on DecisionPredicateProjection` etc. Structural so any Relay fragment
+ * The GraphQL output shape of a scoring policy, as selected through
+ * `... on DecisionPredicateScoring` etc. Structural so any Relay fragment
  * selecting these fields is accepted.
  */
-export type DecisionProjectionPolicyOutput = {
+export type DecisionScoringPolicyOutput = {
   readonly questions: ReadonlyArray<{
     readonly __typename: string;
     readonly name?: string;
@@ -78,19 +78,19 @@ export type DecisionVersionQuestionsOutput = ReadonlyArray<{
 }>;
 
 /** The name of a question's settings, whichever variant it is. */
-export function getQuestionProjectionName(
-  question: DecisionQuestionProjectionValue
+export function getQuestionScoringName(
+  question: DecisionQuestionScoringValue
 ): string {
-  return getQuestionProjectionSettings(question).name;
+  return getQuestionScoringSettings(question).name;
 }
 
 /** The settings of a question, without the `@oneOf` wrapper. */
-export function getQuestionProjectionSettings(
-  question: DecisionQuestionProjectionValue
+export function getQuestionScoringSettings(
+  question: DecisionQuestionScoringValue
 ):
-  | DecisionPredicateProjectionValue
-  | DecisionChoiceProjectionValue
-  | DecisionScaleProjectionValue {
+  | DecisionPredicateScoringValue
+  | DecisionChoiceScoringValue
+  | DecisionScaleScoringValue {
   if ("predicate" in question) return question.predicate;
   if ("choice" in question) return question.choice;
   return question.scale;
@@ -139,16 +139,16 @@ export function toDecisionQuestionDefinitions(
  * Unknown question variants are dropped.
  */
 export function policyOutputToInput(
-  policy: DecisionProjectionPolicyOutput | null | undefined
-): DecisionProjectionPolicyValue {
-  const questions: DecisionQuestionProjectionValue[] = [];
+  policy: DecisionScoringPolicyOutput | null | undefined
+): DecisionScoringPolicyValue {
+  const questions: DecisionQuestionScoringValue[] = [];
   for (const question of policy?.questions ?? []) {
     const name = question.name ?? "";
     const optimizationDirection = normalizeDirection(
       question.optimizationDirection
     );
     switch (question.__typename) {
-      case "DecisionPredicateProjection":
+      case "DecisionPredicateScoring":
         questions.push({
           predicate: {
             name,
@@ -157,7 +157,7 @@ export function policyOutputToInput(
           },
         });
         break;
-      case "DecisionChoiceProjection":
+      case "DecisionChoiceScoring":
         questions.push({
           choice: {
             name,
@@ -169,7 +169,7 @@ export function policyOutputToInput(
           },
         });
         break;
-      case "DecisionScaleProjection":
+      case "DecisionScaleScoring":
         questions.push({
           scale: {
             name,
@@ -184,9 +184,9 @@ export function policyOutputToInput(
 }
 
 /** Default settings for one question. */
-export function defaultQuestionProjection(
+export function defaultQuestionScoring(
   question: DecisionQuestionDefinition
-): DecisionQuestionProjectionValue {
+): DecisionQuestionScoringValue {
   const optimizationDirection = DEFAULT_DECISION_OPTIMIZATION_DIRECTION;
   switch (question.type) {
     case "predicate":
@@ -215,12 +215,12 @@ export function defaultQuestionProjection(
 /** Default settings for every question of a version, in declared order. */
 export function buildDefaultPolicy(
   questions: readonly DecisionQuestionDefinition[]
-): DecisionProjectionPolicyValue {
-  return { questions: questions.map(defaultQuestionProjection) };
+): DecisionScoringPolicyValue {
+  return { questions: questions.map(defaultQuestionScoring) };
 }
 
 function questionKind(
-  question: DecisionQuestionProjectionValue
+  question: DecisionQuestionScoringValue
 ): "predicate" | "choice" | "scale" {
   if ("predicate" in question) return "predicate";
   if ("choice" in question) return "choice";
@@ -232,12 +232,12 @@ function questionKind(
  * is replaced by the default, and choice scores keep declared choice order and
  * drop undeclared choices.
  */
-export function fitQuestionProjection(
+export function fitQuestionScoring(
   definition: DecisionQuestionDefinition,
-  setting: DecisionQuestionProjectionValue | undefined
-): DecisionQuestionProjectionValue {
+  setting: DecisionQuestionScoringValue | undefined
+): DecisionQuestionScoringValue {
   if (!setting || questionKind(setting) !== definition.type) {
-    return defaultQuestionProjection(definition);
+    return defaultQuestionScoring(definition);
   }
   if (definition.type === "choice" && "choice" in setting) {
     const byChoice = new Map(
@@ -263,17 +263,17 @@ export function fitQuestionProjection(
  */
 export function normalizePolicy(
   questions: readonly DecisionQuestionDefinition[],
-  policy: DecisionProjectionPolicyValue | null | undefined
-): DecisionProjectionPolicyValue {
+  policy: DecisionScoringPolicyValue | null | undefined
+): DecisionScoringPolicyValue {
   const byName = new Map(
     (policy?.questions ?? []).map((question) => [
-      getQuestionProjectionName(question),
+      getQuestionScoringName(question),
       question,
     ])
   );
   return {
     questions: questions.map((definition) =>
-      fitQuestionProjection(definition, byName.get(definition.name))
+      fitQuestionScoring(definition, byName.get(definition.name))
     ),
   };
 }
@@ -283,9 +283,9 @@ function numbersEqual(a: number, b: number): boolean {
 }
 
 /** Whether two questions' settings are equal (choice scores by choice). */
-export function questionProjectionsEqual(
-  a: DecisionQuestionProjectionValue,
-  b: DecisionQuestionProjectionValue
+export function questionScoringEqual(
+  a: DecisionQuestionScoringValue,
+  b: DecisionQuestionScoringValue
 ): boolean {
   if ("predicate" in a && "predicate" in b) {
     return (
@@ -328,7 +328,7 @@ export type DecisionPolicyValidation = Record<string, string[]>;
  * scores finite and unique per choice, and question names unique.
  */
 export function validatePolicy(
-  policy: DecisionProjectionPolicyValue
+  policy: DecisionScoringPolicyValue
 ): DecisionPolicyValidation {
   const messages: DecisionPolicyValidation = {};
   const add = (name: string, message: string) => {
@@ -336,7 +336,7 @@ export function validatePolicy(
   };
   const seen = new Set<string>();
   for (const question of policy.questions) {
-    const settings = getQuestionProjectionSettings(question);
+    const settings = getQuestionScoringSettings(question);
     if (seen.has(settings.name)) {
       add(settings.name, "Question settings are listed more than once.");
     }

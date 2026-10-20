@@ -53,7 +53,7 @@ async def test_decision_evaluator_schema(
         ).scalar_one()
         conn.execute(
             text(
-                "INSERT INTO decision_evaluators (id, decision_id, decision_version_tag_id, projection_policy) VALUES (:id, :decision, :tag, '{}')"
+                "INSERT INTO decision_evaluators (id, decision_id, decision_version_tag_id, scoring_policy) VALUES (:id, :decision, :tag, '{}')"
             ),
             {"id": row_id, "decision": decision_id, "tag": tag_id},
         )

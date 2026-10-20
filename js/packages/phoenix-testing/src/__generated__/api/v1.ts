@@ -2758,8 +2758,8 @@ export interface components {
              */
             value: string;
         };
-        /** ChoiceProjection */
-        ChoiceProjection: {
+        /** ChoiceScoring */
+        ChoiceScoring: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -3042,7 +3042,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored.
+             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -3114,7 +3114,7 @@ export interface components {
             decision_version_id: string;
             /** Description */
             description?: string | null;
-            projection_policy?: components["schemas"]["DecisionProjectionPolicy"];
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
         };
         /**
          * CreateExperimentRequestBody
@@ -3672,15 +3672,18 @@ export interface components {
             decision_version_id: string;
             /** Decision Version Tag Id */
             decision_version_tag_id: string;
-            projection_policy: components["schemas"]["DecisionProjectionPolicy"];
+            scoring_policy: components["schemas"]["DecisionScoringPolicy"];
             /** Output Configs */
             output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
         };
-        /** DecisionProjectionPolicy */
-        DecisionProjectionPolicy: {
+        /**
+         * DecisionScoringPolicy
+         * @description Question thresholds, choice scores, scale labels, and comparison direction.
+         */
+        DecisionScoringPolicy: {
             /** Questions */
             questions?: {
-                [key: string]: components["schemas"]["PredicateProjection"] | components["schemas"]["ChoiceProjection"] | components["schemas"]["ScaleProjection"];
+                [key: string]: components["schemas"]["PredicateScoring"] | components["schemas"]["ChoiceScoring"] | components["schemas"]["ScaleScoring"];
             };
         };
         /** DeleteAnnotationConfigResponseBody */
@@ -5015,7 +5018,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its projection policy, so they are accepted only if they equal the derived ones, and are not stored.
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -5031,7 +5034,7 @@ export interface components {
             decision_version_id?: string;
             /** Description */
             description?: string | null;
-            projection_policy?: components["schemas"]["DecisionProjectionPolicy"];
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
         };
         /** PatchLLMEvaluatorRequest */
         PatchLLMEvaluatorRequest: {
@@ -5281,8 +5284,8 @@ export interface components {
             /** Evaluators */
             evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
-        /** PredicateProjection */
-        PredicateProjection: {
+        /** PredicateScoring */
+        PredicateScoring: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -6329,8 +6332,8 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** ScaleProjection */
-        ScaleProjection: {
+        /** ScaleScoring */
+        ScaleScoring: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}

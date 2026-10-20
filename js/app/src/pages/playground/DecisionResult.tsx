@@ -117,24 +117,26 @@ function DistributionRow({
   );
 }
 
-/** The level index closest to a score, or null without a score or levels. */
+/** The level index closest to the expected level, or null without a value or levels. */
 function getNearestLevelIndex({
-  score,
+  expectedLevel,
   levelIndices,
 }: {
-  score: number | null;
+  expectedLevel: number | null;
   levelIndices: number[];
 }): number | null {
-  if (score == null || levelIndices.length === 0) return null;
+  if (expectedLevel == null || levelIndices.length === 0) return null;
   return levelIndices.reduce((nearest, index) =>
-    Math.abs(index - score) < Math.abs(nearest - score) ? index : nearest
+    Math.abs(index - expectedLevel) < Math.abs(nearest - expectedLevel)
+      ? index
+      : nearest
   );
 }
 
 /**
  * One question's answer, drawn to show the distribution the model returned
  * rather than only the arg-max. Provider values are shown as reported; a
- * score is the provider's weighted position on the author's scale.
+ * scale answer is the provider's weighted position on the author's scale.
  */
 export function DecisionAnswerView({
   answer,
@@ -163,13 +165,13 @@ export function DecisionAnswerView({
           ))}
         </div>
       );
-    case "score": {
+    case "scale": {
       const nearestLevelIndex = getNearestLevelIndex({
-        score: answer.score,
+        expectedLevel: answer.expectedLevel,
         levelIndices: answer.levels.map((level) => level.index),
       });
       return (
-        <div css={distributionCSS} aria-label={`${answer.name} score levels`}>
+        <div css={distributionCSS} aria-label={`${answer.name} scale levels`}>
           {answer.levels.map((level) => (
             <DistributionRow
               key={level.index}
@@ -183,7 +185,7 @@ export function DecisionAnswerView({
         </div>
       );
     }
-    case "noul":
+    case "predicate":
       return (
         <div css={distributionCSS} aria-label={`${answer.name} probability`}>
           <DistributionRow
@@ -223,9 +225,11 @@ export function getAnswerValue(answer: NormalizedDecisionAnswer): string {
   switch (answer.kind) {
     case "choice":
       return answer.choice ?? "";
-    case "score":
-      return answer.score == null ? "" : answer.score.toFixed(2);
-    case "noul":
+    case "scale":
+      return answer.expectedLevel == null
+        ? ""
+        : answer.expectedLevel.toFixed(2);
+    case "predicate":
       return formatPercent(answer.probability);
     case "refusal":
       return "Refused";
@@ -235,7 +239,7 @@ export function getAnswerValue(answer: NormalizedDecisionAnswer): string {
 }
 
 /**
- * The numbers the bars cannot show: a score's weighted position and the
+ * The numbers the bars cannot show: a scale's expected level and the
  * provider's confidence. One short line, or nothing.
  */
 export function getAnswerMeta(
@@ -243,11 +247,11 @@ export function getAnswerMeta(
 ): string | null {
   if (!answer) return null;
   const parts: string[] = [];
-  if (answer.kind === "score" && answer.score != null) {
-    parts.push(`score ${answer.score.toFixed(2)}`);
+  if (answer.kind === "scale" && answer.expectedLevel != null) {
+    parts.push(`expected level ${answer.expectedLevel.toFixed(2)}`);
   }
   if (
-    (answer.kind === "choice" || answer.kind === "score") &&
+    (answer.kind === "choice" || answer.kind === "scale") &&
     answer.confidence != null
   ) {
     parts.push(`confidence ${formatPercent(answer.confidence)}`);

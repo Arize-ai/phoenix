@@ -30,11 +30,9 @@ import type {
   DecisionRequestDraft,
 } from "@phoenix/store/playground/types";
 
-const STATE_FORMATS: ReadonlyArray<DecisionRequestDraft["stateFormat"]> = [
-  "text",
-  "json",
-  "inputs",
-];
+const STATE_EDITOR_MODES: ReadonlyArray<
+  DecisionRequestDraft["stateEditorMode"]
+> = ["text", "json", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
@@ -130,7 +128,10 @@ export function DecisionRequestEditor({
     update({
       questions: [
         ...request.questions,
-        createDecisionQuestion({ type: "noul", name: `question_${suffix}` }),
+        createDecisionQuestion({
+          type: "predicate",
+          name: `question_${suffix}`,
+        }),
       ],
     });
   };
@@ -150,13 +151,14 @@ export function DecisionRequestEditor({
           <Flex direction="row" gap="size-100" alignItems="center">
             <SegmentedControl
               size="S"
-              aria-label="State format"
-              selectedKey={request.stateFormat}
+              aria-label="State editor mode"
+              selectedKey={request.stateEditorMode}
               isDisabled={isRunning}
               onSelectionChange={(key) =>
                 update({
-                  stateFormat:
-                    STATE_FORMATS.find((format) => format === key) ?? "text",
+                  stateEditorMode:
+                    STATE_EDITOR_MODES.find((format) => format === key) ??
+                    "text",
                 })
               }
             >
@@ -182,7 +184,7 @@ export function DecisionRequestEditor({
             {errors.state}
           </Alert>
         ) : null}
-        {request.stateFormat === "inputs" ? (
+        {request.stateEditorMode === "inputs" ? (
           <View padding="size-100">
             <TextField
               size="S"
@@ -200,7 +202,7 @@ export function DecisionRequestEditor({
               </Text>
             </TextField>
           </View>
-        ) : request.stateFormat === "json" ? (
+        ) : request.stateEditorMode === "json" ? (
           <div css={jsonEditorCSS}>
             <JSONEditor
               aria-label="Decision state"

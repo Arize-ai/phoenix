@@ -122,7 +122,7 @@ are in [Open Questions](#open-questions).
 | [Reference answers in datasets](#reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and projection policies](#output-configs-and-projection-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
+| [Output configs and scoring policies](#output-configs-and-scoring-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
 
 All but the last choose a format at a boundary: the stored version, the run
 output, the span, a dataset's reference answers, the SDK arguments handed to
@@ -183,7 +183,7 @@ follow both providers without adopting either format. Phoenix avoided the name
 on purpose, though. Every annotation already has a `score`, and a judge's
 annotation carries its answer in `metadata.decision.answer`, so one record would
 use `score` for two different things: the annotation's score, which the
-projection policy decides, and the answer's expected level. By default the two
+scoring policy decides, and the answer's expected level. By default the two
 values happen to match, which makes the shared name easier to misread, not
 safer (see [Questions](#questions)).
 
@@ -358,8 +358,8 @@ Pydantic models in `decision_evaluators.py` that both writers build from:
 
 - **Answered or refused:** `status` (`answered` or `refused`), `question` (`name`,
   `type`, a choice's `choices` and a scale's `levels`, since the answer and
-  projection refer to them by value or position only), `answer` (Phoenix's normalized answer, with confidence and
-  probabilities), `projection` (the question's applied scoring settings),
+  scoring refer to them by value or position only), `answer` (Phoenix's normalized answer, with confidence and
+  probabilities), `scoring` (the question's applied scoring settings),
   `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
   `source` (evaluator, decision, version, and binding IDs).
 - **Error:** only `status: error` and `source`; the message is the annotation's
@@ -403,10 +403,10 @@ before this is decided, readers handle forever.
 **Decide before** a release stores judge results, together with [Answer
 Format](#answer-format).
 
-### Output Configs and Projection Policies
+### Output Configs and Scoring Policies
 
 Every evaluator kind carries `output_configs`, the generic scoring contract that
-the UI, the SDK, and annotation views read. A decision judge also has a projection
+the UI, the SDK, and annotation views read. A decision judge also has a scoring
 policy, which says the same thing in more detail (thresholds, choice scores, scale
 labels), and its output configs are derived from the policy and its questions. So
 for decisions, `output_configs` is read-only in effect.
@@ -419,7 +419,7 @@ for decisions, `output_configs` is read-only in effect.
 | Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Derived configs on bindings, and beside the policy on evaluators |
 
 A decision binding's `output_configs` can therefore only repeat the server's own
-answer. Bindings have no `projection_policy`: scoring is the judge's own (see
+answer. Bindings have no `scoring_policy`: scoring is the judge's own (see
 [Bindings](#bindings)).
 
 **Alternatives and tradeoffs:**
@@ -952,7 +952,7 @@ app SDK formatters, image inputs, `box`, or online evaluation.
 | Table | `Evaluator` subtype, `kind = 'LLM'` | `Evaluator` subtype, `kind = 'DECISION'` |
 | Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, with deletion restricted |
 | Version | A prompt version tag the evaluator owns | A decision version tag created with the evaluator |
-| Outputs | Stored categorical `output_configs`, turned into tools | Derived from questions plus a stored projection policy |
+| Outputs | Stored categorical `output_configs`, turned into tools | Derived from questions plus a stored scoring policy |
 | Explanation | The judge may return one | No generated rationale; Phoenix explains terminal refusals |
 | Annotator kind | `LLM` | `LLM` |
 
@@ -971,7 +971,7 @@ One saved judge can serve several datasets or projects with different mappings.
 Preserve structured input types and reuse decision state rendering; descriptive
 input JSON schemas do not become new runtime coercion or validation rules.
 
-Store a projection policy on the evaluator for predicate thresholds,
+Store a scoring policy on the evaluator for predicate thresholds,
 choice scores, scale-label mode, and optimization direction. Bindings don't
 override it, dataset and project bindings alike, so a judge scores the same
 wherever it runs, and an edit to its policy reaches every binding. Scoring one
@@ -979,7 +979,7 @@ judge differently in two places takes two judges. A per-binding override could b
 added later as a nullable binding column without breaking anything. A decision
 binding stores no `output_configs`: they are derived from the judge whenever they
 are read; how requests may still send them is under [Output Configs and
-Projection Policies](#output-configs-and-projection-policies).
+Scoring Policies](#output-configs-and-scoring-policies).
 
 The policy's GraphQL shape is under [GraphQL](#graphql).
 
@@ -998,7 +998,7 @@ execution snapshots.
 ### Answer Mapping
 
 Derive one `OutputConfigType` per question from the selected version, then apply
-the effective projection policy. Annotation names use `result_annotation_names`:
+the effective scoring policy. Annotation names use `result_annotation_names`:
 one question writes under the binding's name, several under
 `{binding}.{question}`. The runner's rule for other evaluators, that a lone output
 writes under its config's name, does not apply: a decision's configs are named
@@ -1021,7 +1021,7 @@ not normalized to 0–1. Optimization direction defaults to `NONE`. A predicate'
 label threshold is distinct from a consumer's flag/optimization threshold.
 
 Confidence and full probabilities are retained as metadata. Confidence is not a
-quality score and never replaces a class score. Projection requires no extra
+quality score and never replaces a class score. Scoring requires no extra
 model call. Editing a threshold does not automatically rewrite historical
 annotations; historical rescoring is a separate workflow.
 
@@ -1060,7 +1060,7 @@ judge's own client. Retries then differ by where a judge runs:
 
 Each annotation records, under `metadata.decision`, its outcome status, the
 question's identity and type, the normalized answer (including native
-uncertainty), the applied projection policy, and provenance: the selected
+uncertainty), the applied scoring policy, and provenance: the selected
 decision and version when available, the requested and resolved model, and a
 non-secret connection identity. Request usage belongs on the DECISION span rather
 than being repeated per annotation. The current shape is provisional; see
@@ -1069,7 +1069,7 @@ than being repeated per annotation. The current shape is provisional; see
 ### Experiment Snapshots and Resume
 
 Freeze a dataset evaluator's resolved decision definition/version, effective
-projection policy, derived output configs, input mapping, binding name and source
+scoring policy, derived output configs, input mapping, binding name and source
 IDs when attaching it to an experiment. Store an execution snapshot on
 the experiment's evaluator binding. Persist no credentials; resolve them through
 the connection system at execution time. Legacy experiments without a snapshot
@@ -1160,21 +1160,21 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   given. Unlike `Prompt.version` it is null when there is no such version, so
   asking for a missing tag doesn't null the rest of the query. `decisions`
   also filters by `labelIds`, and `decisionLabels` lists the labels.
-- Projection policies are typed objects, on judges and on frozen experiment
-  definitions. `DecisionProjectionPolicyInput`
+- Scoring policies are typed objects, on judges and on frozen experiment
+  definitions. `DecisionScoringPolicyInput`
   accepts a list of question settings. Each question setting
   selects exactly one of `predicate`, `choice`, or `scale`, following the decision
   question input pattern. For example:
 
   ```graphql
-  projectionPolicy: {
+  scoringPolicy: {
     questions: [{ predicate: { name: "accuracy", threshold: 0.8 } }]
   }
   ```
 
   Every variant carries the question `name` and `optimizationDirection`. Predicates
   have `threshold`, choices have typed `{choice, score}` entries, and scales have
-  `includeLabel`. Output questions implement `DecisionQuestionProjection`; clients
+  `includeLabel`. Output questions implement `DecisionQuestionScoring`; clients
   select variant fields through inline fragments. Output questions and choice
   scores follow the decision's declared order, since the stored map's key order
   differs across databases. Reject duplicate question names and choice-score
@@ -1218,7 +1218,7 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   changes existing behavior, so it is a separate change.
 - **A deleted custom provider, for prompts.** Decisions are settled: deleting
   a custom provider that a decision version or a decision experiment task uses
-  is refused, and a frozen judge whose provider is gone fails with not found
+  is refused, and an evaluator snapshot whose provider is gone fails with not found
   rather than falling back. Prompts still fall back: deleting a provider sets
   `custom_provider_id` to null on prompt versions and prompt tasks, so a saved
   prompt or a resumed task silently runs on the built-in provider of the same
@@ -1246,7 +1246,7 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   names, sends their values from the Inputs panel as `object`, and is how a
   saved `object` state loads.
 
-  The state mode and template format control different things. **Text, JSON,
+  The state editor mode and template format control different things. **Text, JSON,
   and Inputs choose how to construct the state. Mustache, F-string, and None
   choose whether and how to substitute template variables.** Their interaction
   in the current playground is:
@@ -1414,7 +1414,7 @@ first.
    danger zone.
 
 **Judging track**, in [three delivery milestones](#milestones). Shared runtime,
-derived outputs, projection policy, and tracing support all three.
+derived outputs, scoring policy, and tracing support all three.
 
 1. **Dataset evaluators.** Saved decision evaluators and dataset bindings,
    including UI, preview, experiment evaluation and resume. *Needs:* Saved
@@ -1433,12 +1433,12 @@ specified above; this is the checklist the code is held to.
 ### Runtime and Integration Points
 
 Implement one `DecisionEvaluator(BaseEvaluator)` runtime with shared output
-schema derivation and answer projection. Use it from saved-row loaders, previews,
+schema derivation and answer scoring. Use it from saved-row loaders, previews,
 experiment reconstruction, and online hydration. Provider translation remains in
 `decision_clients.py`; do not reuse the chat evaluator's tool validation.
 
 - **Persistence.** Add the joined evaluator subtype, owned-tag references,
-  projection policy, and experiment snapshots. Keep
+  scoring policy, and experiment snapshots. Keep
   deletion and concurrent edits consistent with existing evaluator services and
   lock ordering. Extend
   `evaluators.kind`; milestone 3 also extends
@@ -1464,7 +1464,7 @@ experiment reconstruction, and online hydration. Provider translation remains in
   tracer so no-op previews work. Preserve failed/cancelled traces and result links.
 - **Connections.** A deleted custom provider must make its saved definition
   unavailable or be blocked from deletion; never fall back to a built-in host.
-  An execution snapshot freezes the judge configuration, not an external service.
+  An execution snapshot captures the evaluator configuration, not an external service.
 - **Frontend.** Add evaluator kind/discovery and dataset create/edit/attach flows,
   mapping, scoring, preview and experiment result details in milestone 1. Reuse
   decision editors and annotation views without chat/tool assumptions. Show
@@ -1486,7 +1486,7 @@ exclusion; a new queue or consumer is unnecessary.
 Milestone 1 is complete when users can author a saved decision evaluator, attach
 it to a dataset through UI/API mapping and scoring controls, preview it, run it
 against prompt or decision task outputs, and inspect annotations and traces.
-Evaluation resume must work after task completion and server restart, with frozen
+Evaluation resume must work after task completion and server restart, with captured
 configuration and explicit refusals. It does not depend on calibration or project
 bindings.
 

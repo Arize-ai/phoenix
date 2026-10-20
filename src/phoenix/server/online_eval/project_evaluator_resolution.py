@@ -40,7 +40,7 @@ async def resolve_project_evaluators_bulk(
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
     evaluators, the latest CodeEvaluatorVersion id for CODE,
     (key, synced_at, implementation_version) for BUILTIN, and for DECISION the tagged
-    DecisionVersion id with the judge's projection policy, which scores its answers. A
+    DecisionVersion id with the judge's scoring policy, which scores its answers. A
     custom provider adds (provider id, updated_at) for LLM and DECISION. Each unresolved
     row produces None.
     """
@@ -223,7 +223,7 @@ async def resolve_project_evaluators_bulk(
                     resolved.append(None)
                     continue
                 provider_ref = [decision_version.custom_provider_id, updated_at]
-            version_ref = [decision_version.id, evaluator.projection_policy, provider_ref]
+            version_ref = [decision_version.id, evaluator.scoring_policy, provider_ref]
         else:
             resolved.append(None)
             continue

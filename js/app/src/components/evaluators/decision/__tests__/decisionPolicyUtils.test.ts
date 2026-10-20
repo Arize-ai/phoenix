@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
 } from "../decisionPolicyUtils";
 import {
   buildDefaultPolicy,
   normalizePolicy,
   policyOutputToInput,
-  questionProjectionsEqual,
+  questionScoringEqual,
   toDecisionQuestionDefinitions,
   validatePolicy,
 } from "../decisionPolicyUtils";
@@ -19,7 +19,7 @@ const questions: DecisionQuestionDefinition[] = [
   { type: "scale", name: "clarity", levels: ["low", "high"] },
 ];
 
-const base: DecisionProjectionPolicyValue = {
+const base: DecisionScoringPolicyValue = {
   questions: [
     {
       predicate: {
@@ -54,19 +54,19 @@ describe("decisionPolicyUtils", () => {
       policyOutputToInput({
         questions: [
           {
-            __typename: "DecisionPredicateProjection",
+            __typename: "DecisionPredicateScoring",
             name: "accurate",
             optimizationDirection: "MAXIMIZE",
             threshold: 0.7,
           },
           {
-            __typename: "DecisionChoiceProjection",
+            __typename: "DecisionChoiceScoring",
             name: "tone",
             optimizationDirection: "NONE",
             scores: [{ choice: "good", score: 1 }],
           },
           {
-            __typename: "DecisionScaleProjection",
+            __typename: "DecisionScaleScoring",
             name: "clarity",
             optimizationDirection: "MINIMIZE",
             includeLabel: true,
@@ -171,7 +171,7 @@ describe("decisionPolicyUtils", () => {
 
   it("treats choice scores as equal regardless of order and detects score changes", () => {
     expect(
-      questionProjectionsEqual(base.questions[1], {
+      questionScoringEqual(base.questions[1], {
         choice: {
           name: "tone",
           scores: [
@@ -183,7 +183,7 @@ describe("decisionPolicyUtils", () => {
       })
     ).toBe(true);
     expect(
-      questionProjectionsEqual(base.questions[1], {
+      questionScoringEqual(base.questions[1], {
         choice: {
           name: "tone",
           scores: [

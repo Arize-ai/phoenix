@@ -40,7 +40,8 @@ function addEvaluatorInstance(
 ) {
   const instanceId = playgroundStore.getState().addInstance({
     type: "new",
-    kind,
+    taskType: "evaluator",
+    evaluatorKind: kind,
   });
 
   if (instanceId == null) {
@@ -266,7 +267,7 @@ describe("getExperimentsOverDatasetInput", () => {
     const store = createStore();
     const decisionId = store.playgroundStore
       .getState()
-      .addInstance({ type: "new", kind: "decision" });
+      .addInstance({ type: "new", taskType: "decision" });
 
     if (decisionId == null) throw new Error("Could not add a decision");
 

@@ -26,7 +26,7 @@ from phoenix.server.api.types.DecisionDefinition import (
     to_gql_decision_question,
     to_gql_decision_state,
 )
-from phoenix.server.api.types.DecisionProjectionPolicy import DecisionProjectionPolicy
+from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluatorOutputConfig,
     _to_gql_output_config,
@@ -216,7 +216,7 @@ class StoredCodeEvaluatorDefinition:
 
 @strawberry.type
 class InlineDecisionEvaluatorDefinition:
-    """A native decision judge frozen with its effective scoring settings."""
+    """A self-contained decision evaluator definition with its resolved scoring settings."""
 
     name: str
     description: Optional[str]
@@ -226,7 +226,7 @@ class InlineDecisionEvaluatorDefinition:
     model_provider: GenerativeProviderKey
     model_name: str
     custom_provider_id: Optional[GlobalID]
-    projection_policy: DecisionProjectionPolicy
+    scoring_policy: DecisionScoringPolicy
     output_configs: list[BuiltInEvaluatorOutputConfig]
     source: Optional[EvaluatorTaskSource]
 
@@ -243,11 +243,9 @@ class InlineDecisionEvaluatorDefinition:
             model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
             model_name=obj.model_name,
             custom_provider_id=_global_id("GenerativeModelCustomProvider", obj.custom_provider_id),
-            projection_policy=DecisionProjectionPolicy.from_orm(
-                obj.projection_policy, obj.questions
-            ),
+            scoring_policy=DecisionScoringPolicy.from_orm(obj.scoring_policy, obj.questions),
             output_configs=_to_gql_output_configs(
-                derive_decision_output_configs(obj.questions, obj.projection_policy), evaluator_id
+                derive_decision_output_configs(obj.questions, obj.scoring_policy), evaluator_id
             ),
             source=to_gql_evaluator_source(obj.source, "DecisionEvaluator"),
         )

@@ -8,7 +8,6 @@ import type {
 } from "@phoenix/store/playground";
 import {
   getPlaygroundMode,
-  getTaskTypeForNewSource,
   isPlaygroundModeLocked,
   PLAYGROUND_MODE_BY_TASK_TYPE,
 } from "@phoenix/store/playground";
@@ -25,7 +24,7 @@ export function getTaskSourceMode(
 ): PlaygroundMode {
   switch (source.type) {
     case "new":
-      return PLAYGROUND_MODE_BY_TASK_TYPE[getTaskTypeForNewSource(source.kind)];
+      return PLAYGROUND_MODE_BY_TASK_TYPE[source.taskType];
     case "prompt":
     case "decision":
       return "task";

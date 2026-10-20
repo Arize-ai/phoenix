@@ -1,6 +1,6 @@
 import type {
-  DecisionProjectionPolicyOutput,
-  DecisionProjectionPolicyValue,
+  DecisionScoringPolicyOutput,
+  DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
   DecisionVersionQuestionsOutput,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
@@ -8,21 +8,21 @@ import {
   buildDefaultPolicy,
   normalizePolicy,
   policyOutputToInput,
-  questionProjectionsEqual,
+  questionScoringEqual,
   toDecisionQuestionDefinitions,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**
- * A decision judge as the create and edit slideovers need it. Structural so a
+ * A decision evaluator as the create and edit slideovers need it. Structural so a
  * query node and a mutation payload that select these fields are both accepted.
  */
-export type DecisionJudgeData = {
+export type DecisionEvaluatorData = {
   readonly id: string;
   readonly name: string;
   readonly inputSchema: unknown;
-  readonly projectionPolicy: DecisionProjectionPolicyOutput;
+  readonly scoringPolicy: DecisionScoringPolicyOutput;
   readonly decisionVersion: {
     readonly id: string;
     readonly sequenceNumber: number;
@@ -31,16 +31,16 @@ export type DecisionJudgeData = {
   };
 };
 
-/** What a binding form needs to know about the judge it is bound to. */
-export type DecisionJudgeView = {
-  /** Null for a judge that has not been created yet. */
+/** What a binding form needs to know about the evaluator it is bound to. */
+export type DecisionEvaluatorView = {
+  /** Null for a evaluator that has not been created yet. */
   id: string | null;
   name: string;
   /** The declared input names, in declared order. */
   variables: string[];
   questions: DecisionQuestionDefinition[];
-  /** The judge's own policy, one entry per question in declared order. */
-  policy: DecisionProjectionPolicyValue;
+  /** The evaluator's own policy, one entry per question in declared order. */
+  policy: DecisionScoringPolicyValue;
 };
 
 /** The property names of a JSON schema object, in declared order. */
@@ -50,34 +50,34 @@ export function inputNamesFromSchema(schema: unknown): string[] {
   return isStringKeyedObject(properties) ? Object.keys(properties) : [];
 }
 
-/** Describes a saved judge for a binding form. */
-export function toDecisionJudgeView(
-  judge: DecisionJudgeData
-): DecisionJudgeView {
+/** Describes a saved evaluator for a binding form. */
+export function toDecisionEvaluatorView(
+  evaluator: DecisionEvaluatorData
+): DecisionEvaluatorView {
   const questions = toDecisionQuestionDefinitions(
-    judge.decisionVersion.questions
+    evaluator.decisionVersion.questions
   );
   return {
-    id: judge.id,
-    name: judge.name,
-    variables: inputNamesFromSchema(judge.inputSchema),
+    id: evaluator.id,
+    name: evaluator.name,
+    variables: inputNamesFromSchema(evaluator.inputSchema),
     questions,
     policy: normalizePolicy(
       questions,
-      policyOutputToInput(judge.projectionPolicy)
+      policyOutputToInput(evaluator.scoringPolicy)
     ),
   };
 }
 
 /** Whether two full policies hold the same settings, question by question. */
 export function policiesEqual(
-  a: DecisionProjectionPolicyValue,
-  b: DecisionProjectionPolicyValue
+  a: DecisionScoringPolicyValue,
+  b: DecisionScoringPolicyValue
 ): boolean {
   return (
     a.questions.length === b.questions.length &&
     a.questions.every((question, index) =>
-      questionProjectionsEqual(question, b.questions[index])
+      questionScoringEqual(question, b.questions[index])
     )
   );
 }
@@ -128,10 +128,10 @@ export function commitAsync<TResponse, TVariables>(
   });
 }
 
-/** "Defaults" while a judge's policy matches the defaults, else "Customized". */
-export function judgePolicySummary(
+/** "Defaults" while a evaluator's policy matches the defaults, else "Customized". */
+export function evaluatorPolicySummary(
   questions: readonly DecisionQuestionDefinition[],
-  policy: DecisionProjectionPolicyValue | null | undefined
+  policy: DecisionScoringPolicyValue | null | undefined
 ): string {
   return !policy ||
     policiesEqual(

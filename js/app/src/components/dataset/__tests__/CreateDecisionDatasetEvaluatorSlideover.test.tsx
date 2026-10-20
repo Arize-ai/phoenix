@@ -72,25 +72,25 @@ vi.mock(
 );
 
 vi.mock(
-  "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor",
+  "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor",
   () => ({
-    DecisionProjectionPolicyEditor: ({
+    DecisionScoringPolicyEditor: ({
       onChange,
     }: {
       onChange: (value: unknown) => void;
     }) => (
       <button onClick={() => onChange({ questions: [] })}>
-        Edit judge scoring
+        Edit evaluator scoring
       </button>
     ),
   })
 );
 
-const createdJudge = {
-  id: "judge-new",
-  name: "quality_judge",
+const createdEvaluator = {
+  id: "evaluator-new",
+  name: "quality_evaluator",
   inputSchema: { properties: { question: {} } },
-  projectionPolicy: { questions: [] },
+  scoringPolicy: { questions: [] },
   decisionVersion: {
     id: "version-1",
     sequenceNumber: 1,
@@ -98,11 +98,11 @@ const createdJudge = {
     questions: [{ __typename: "DecisionPredicateQuestion", name: "accurate" }],
   },
 };
-const existingJudge = {
-  ...createdJudge,
+const existingEvaluator = {
+  ...createdEvaluator,
   __typename: "DecisionEvaluator",
-  id: "judge-1",
-  name: "saved_judge",
+  id: "evaluator-1",
+  name: "saved_evaluator",
 };
 
 describe("CreateDecisionDatasetEvaluatorSlideover", () => {
@@ -172,15 +172,16 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     type('input[placeholder="e.g. decision_eval"]', "quality");
   const mutationCalls = (name: string) =>
     commit.mock.calls.filter(([mutation]) => mutation === name);
-  const JUDGE = "CreateDecisionDatasetEvaluatorSlideover_createJudgeMutation";
+  const JUDGE =
+    "CreateDecisionDatasetEvaluatorSlideover_createEvaluatorMutation";
   const BINDING =
     "CreateDecisionDatasetEvaluatorSlideover_createBindingMutation";
 
-  it("creates a new judge from a version, then binds it with the input mapping", async () => {
+  it("creates a new evaluator from a version, then binds it with the input mapping", async () => {
     await render();
     await type(
-      '[data-testid="decision-evaluator-judge-name-input"] input, input[data-testid="decision-evaluator-judge-name-input"]',
-      "quality_judge"
+      '[data-testid="decision-evaluator-evaluator-name-input"] input, input[data-testid="decision-evaluator-evaluator-name-input"]',
+      "quality_evaluator"
     );
     await click("Pick version");
     expect(
@@ -193,18 +194,18 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(mutationCalls(JUDGE)[0][1]).toMatchObject({
       variables: {
         input: {
-          name: "quality_judge",
+          name: "quality_evaluator",
           decisionVersionId: "version-1",
           description: null,
-          projectionPolicy: null,
+          scoringPolicy: null,
         },
       },
     });
-    // The binding waits for the judge.
+    // The binding waits for the evaluator.
     expect(mutationCalls(BINDING)).toHaveLength(0);
     await act(async () =>
       mutationCalls(JUDGE)[0][1].onCompleted(
-        { createDecisionEvaluator: { evaluator: createdJudge } },
+        { createDecisionEvaluator: { evaluator: createdEvaluator } },
         null
       )
     );
@@ -212,7 +213,7 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(mutationCalls(BINDING)[0][1].variables).toEqual({
       input: {
         datasetId: "dataset-1",
-        evaluatorId: "judge-new",
+        evaluatorId: "evaluator-new",
         name: "quality",
         description: null,
         inputMapping: {
@@ -234,12 +235,14 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(notifySuccess).toHaveBeenCalledWith({ title: "Evaluator created" });
   });
 
-  it("binds an existing judge without creating one", async () => {
-    queryData.current = { evaluators: { edges: [{ judge: existingJudge }] } };
+  it("binds an existing evaluator without creating one", async () => {
+    queryData.current = {
+      evaluators: { edges: [{ evaluator: existingEvaluator }] },
+    };
     await render();
-    await click("Select a decision judge");
+    await click("Select a decision evaluator");
     const option = document.querySelector<HTMLElement>('[role="option"]');
-    expect(option?.textContent).toContain("saved_judge");
+    expect(option?.textContent).toContain("saved_evaluator");
     await act(async () => option?.click());
     await fillBindingName();
     await click("Map question");
@@ -248,19 +251,19 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(mutationCalls(JUDGE)).toHaveLength(0);
     expect(mutationCalls(BINDING)).toHaveLength(1);
     expect(mutationCalls(BINDING)[0][1].variables.input).toMatchObject({
-      evaluatorId: "judge-1",
+      evaluatorId: "evaluator-1",
       name: "quality",
     });
     expect(mutationCalls(BINDING)[0][1].variables.input).not.toHaveProperty(
-      "projectionPolicy"
+      "scoringPolicy"
     );
   });
 
-  it("keeps a created judge selected when the binding fails, so a retry does not duplicate it", async () => {
+  it("keeps a created evaluator selected when the binding fails, so a retry does not duplicate it", async () => {
     await render();
     await type(
-      '[data-testid="decision-evaluator-judge-name-input"] input, input[data-testid="decision-evaluator-judge-name-input"]',
-      "quality_judge"
+      '[data-testid="decision-evaluator-evaluator-name-input"] input, input[data-testid="decision-evaluator-evaluator-name-input"]',
+      "quality_evaluator"
     );
     await click("Pick version");
     await fillBindingName();
@@ -268,7 +271,7 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     await submit();
     await act(async () =>
       mutationCalls(JUDGE)[0][1].onCompleted(
-        { createDecisionEvaluator: { evaluator: createdJudge } },
+        { createDecisionEvaluator: { evaluator: createdEvaluator } },
         null
       )
     );
@@ -287,7 +290,7 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(mutationCalls(JUDGE)).toHaveLength(1);
     expect(mutationCalls(BINDING)).toHaveLength(2);
     expect(mutationCalls(BINDING)[1][1].variables.input.evaluatorId).toBe(
-      "judge-new"
+      "evaluator-new"
     );
   });
 });

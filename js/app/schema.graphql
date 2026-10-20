@@ -1045,7 +1045,7 @@ input CreateDecisionEvaluatorInput {
   name: Identifier!
   decisionVersionId: ID!
   description: String = null
-  projectionPolicy: DecisionProjectionPolicyInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
 }
 
 input CreateDecisionInput {
@@ -1742,7 +1742,7 @@ type DecisionAnnotation {
   answer: DecisionAnswer
 
   """The scoring settings applied to the answer; null when the call failed."""
-  projection: DecisionQuestionProjection
+  scoring: DecisionQuestionScoring
   requestedModel: String
   resolvedModel: String
   modelProvider: GenerativeProviderKey
@@ -1787,29 +1787,6 @@ type DecisionChoiceOption {
   description: String
 }
 
-"""
-A choice's label is the chosen value. Its score is the chosen value's configured score, or null when the value has none.
-"""
-type DecisionChoiceProjection implements DecisionQuestionProjection {
-  """The question's name."""
-  name: String!
-
-  """Whether a higher or lower score is better, for comparisons and charts."""
-  optimizationDirection: OptimizationDirection!
-
-  """Scores for some or all of the question's choices, in declared order."""
-  scores: [DecisionChoiceScore!]!
-}
-
-"""Scoring for a choice question."""
-input DecisionChoiceProjectionInput {
-  name: String!
-
-  """Scores by choice; a choice left out gets a null score."""
-  scores: [DecisionChoiceScoreInput!]! = []
-  optimizationDirection: OptimizationDirection! = NONE
-}
-
 """One option from a fixed set."""
 type DecisionChoiceQuestion {
   name: String!
@@ -1828,6 +1805,29 @@ type DecisionChoiceScore {
 input DecisionChoiceScoreInput {
   choice: String!
   score: Float!
+}
+
+"""
+A choice's label is the chosen value. Its score is the chosen value's configured score, or null when the value has none.
+"""
+type DecisionChoiceScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """Scores for some or all of the question's choices, in declared order."""
+  scores: [DecisionChoiceScore!]!
+}
+
+"""Scoring for a choice question."""
+input DecisionChoiceScoringInput {
+  name: String!
+
+  """Scores by choice; a choice left out gets a null score."""
+  scores: [DecisionChoiceScoreInput!]! = []
+  optimizationDirection: OptimizationDirection! = NONE
 }
 
 """A connection to a list of items."""
@@ -1870,7 +1870,7 @@ type DecisionEvaluator implements Evaluator & Node {
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
   inputSchema: JSON!
-  projectionPolicy: DecisionProjectionPolicy!
+  scoringPolicy: DecisionScoringPolicy!
   decisionVersion: DecisionVersion!
   decisionVersionTag: DecisionVersionTag!
 }
@@ -1878,6 +1878,25 @@ type DecisionEvaluator implements Evaluator & Node {
 type DecisionEvaluatorMutationPayload {
   evaluator: DecisionEvaluator!
   query: Query!
+}
+
+"""
+A decision evaluator configuration captured when the experiment was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
+"""
+type DecisionEvaluatorSnapshot {
+  """The binding name captured when the experiment was created."""
+  name: String!
+
+  """
+  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
+  """
+  datasetEvaluatorId: ID!
+
+  """The captured evaluator definition, including its scoring settings."""
+  definition: InlineDecisionEvaluatorDefinition!
+
+  """Names of the annotations this evaluator writes."""
+  annotationNames: [String!]!
 }
 
 """The filter key and value for decision connections"""
@@ -1964,10 +1983,17 @@ type DecisionPredicateCriteria {
   false: String
 }
 
+"""A statement answered with the probability that it is true."""
+type DecisionPredicateQuestion {
+  name: String!
+  instructions: String!
+  criteria: DecisionPredicateCriteria
+}
+
 """
 A predicate's score is the probability that it is true. Its label is `true` when that probability is at least the threshold, otherwise `false`.
 """
-type DecisionPredicateProjection implements DecisionQuestionProjection {
+type DecisionPredicateScoring implements DecisionQuestionScoring {
   """The question's name."""
   name: String!
 
@@ -1979,34 +2005,12 @@ type DecisionPredicateProjection implements DecisionQuestionProjection {
 }
 
 """Scoring for a predicate question."""
-input DecisionPredicateProjectionInput {
+input DecisionPredicateScoringInput {
   name: String!
 
   """The probability, in [0, 1], at or above which the label is `true`."""
   threshold: Float! = 0.5
   optimizationDirection: OptimizationDirection! = NONE
-}
-
-"""A statement answered with the probability that it is true."""
-type DecisionPredicateQuestion {
-  name: String!
-  instructions: String!
-  criteria: DecisionPredicateCriteria
-}
-
-"""How a decision judge's answers become annotations, by question."""
-type DecisionProjectionPolicy {
-  """
-  Settings by question, in the order the decision declares its questions.
-  """
-  questions: [DecisionQuestionProjection!]!
-}
-
-"""
-Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting.
-"""
-input DecisionProjectionPolicyInput {
-  questions: [DecisionQuestionProjectionInput!]! = []
 }
 
 union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
@@ -2021,7 +2025,7 @@ input DecisionQuestionInput @oneOf {
 """
 How one decision question's answer becomes an annotation's label and score.
 """
-interface DecisionQuestionProjection {
+interface DecisionQuestionScoring {
   """The question's name."""
   name: String!
 
@@ -2030,10 +2034,10 @@ interface DecisionQuestionProjection {
 }
 
 """Scoring settings for one named decision question."""
-input DecisionQuestionProjectionInput @oneOf {
-  predicate: DecisionPredicateProjectionInput
-  choice: DecisionChoiceProjectionInput
-  scale: DecisionScaleProjectionInput
+input DecisionQuestionScoringInput @oneOf {
+  predicate: DecisionPredicateScoringInput
+  choice: DecisionChoiceScoringInput
+  scale: DecisionScaleScoringInput
 }
 
 """A successful decision run."""
@@ -2051,10 +2055,17 @@ type DecisionScaleLevel {
   description: String
 }
 
+"""Ordered levels; a level's position, from zero, is its value."""
+type DecisionScaleQuestion {
+  name: String!
+  instructions: String!
+  levels: [DecisionScaleLevel!]!
+}
+
 """
 A scale's score is its expected level, from 0 to the number of levels minus one.
 """
-type DecisionScaleProjection implements DecisionQuestionProjection {
+type DecisionScaleScoring implements DecisionQuestionScoring {
   """The question's name."""
   name: String!
 
@@ -2068,7 +2079,7 @@ type DecisionScaleProjection implements DecisionQuestionProjection {
 }
 
 """Scoring for a scale question; its score is the expected level."""
-input DecisionScaleProjectionInput {
+input DecisionScaleScoringInput {
   name: String!
 
   """Also label the annotation with the most probable level."""
@@ -2076,11 +2087,19 @@ input DecisionScaleProjectionInput {
   optimizationDirection: OptimizationDirection! = NONE
 }
 
-"""Ordered levels; a level's position, from zero, is its value."""
-type DecisionScaleQuestion {
-  name: String!
-  instructions: String!
-  levels: [DecisionScaleLevel!]!
+"""How a decision evaluator's answers become annotations, by question."""
+type DecisionScoringPolicy {
+  """
+  Settings by question, in the order the decision declares its questions.
+  """
+  questions: [DecisionQuestionScoring!]!
+}
+
+"""
+Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting.
+"""
+input DecisionScoringPolicyInput {
+  questions: [DecisionQuestionScoringInput!]! = []
 }
 
 union DecisionState = DecisionObjectState | DecisionTextState | DecisionInputState
@@ -2962,7 +2981,7 @@ input EvaluatorPreviewItemInput {
   inputMapping: EvaluatorInputMappingInput!
 
   """
-  Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name with the binding's scoring override, as an experiment would. Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to preview the judge on its own, under its own name and policy.
+  Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to preview the judge on its own, under its own name and policy.
   """
   datasetEvaluatorId: ID = null
 
@@ -3181,9 +3200,9 @@ type ExperimentJob implements Node {
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
 
   """
-  Decision judges frozen into this experiment, with the binding name, scoring, and annotation names the runner uses. Unlike datasetEvaluators, these remain after a binding is deleted.
+  Decision evaluator configurations captured for this experiment, with binding names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a binding is deleted.
   """
-  frozenDecisionEvaluators: [FrozenDecisionEvaluator!]!
+  decisionEvaluatorSnapshots: [DecisionEvaluatorSnapshot!]!
 }
 
 """A connection to a list of items."""
@@ -3471,7 +3490,7 @@ input ExperimentsOverDatasetInput {
   createEphemeralExperiment: Boolean = false
 
   """
-  One experiment is created per task, in this order. The tasks must all be tested tasks (prompts and decisions, which may be mixed) or all evaluators.
+  One experiment is created per task, in this order. The tasks must all be prompt or decision tasks (which may be mixed) or all evaluators.
   """
   tasks: [ExperimentTaskInput!]!
 }
@@ -3526,25 +3545,6 @@ input FreeformAnnotationConfigInput {
   threshold: Float = null
   lowerBound: Float = null
   upperBound: Float = null
-}
-
-"""
-A decision judge frozen into an experiment when it was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
-"""
-type FrozenDecisionEvaluator {
-  """The binding name at the time the experiment froze."""
-  name: String!
-
-  """
-  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
-  """
-  datasetEvaluatorId: ID!
-
-  """The frozen judge, with the binding's effective scoring."""
-  definition: InlineDecisionEvaluatorDefinition!
-
-  """Names of the annotations this judge writes."""
-  annotationNames: [String!]!
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
@@ -3808,7 +3808,7 @@ type InlineDecisionEvaluatorDefinition {
   modelProvider: GenerativeProviderKey!
   modelName: String!
   customProviderId: ID
-  projectionPolicy: DecisionProjectionPolicy!
+  scoringPolicy: DecisionScoringPolicy!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   source: EvaluatorTaskSource
 }
@@ -3935,7 +3935,7 @@ enum ModelType {
   LLM
 
   """
-  Decision models that answer typed questions (choice, noul, score) about a state and return probabilities rather than text.
+  Decision models that answer typed questions (predicate, choice, scale) about a state and return probabilities rather than text.
   """
   DECISION
 }
@@ -4322,7 +4322,7 @@ input PatchDecisionEvaluatorInput {
   name: Identifier
   description: String
   decisionVersionId: ID
-  projectionPolicy: DecisionProjectionPolicyInput
+  scoringPolicy: DecisionScoringPolicyInput
 }
 
 input PatchDecisionInput {

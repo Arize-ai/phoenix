@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e70d685882f4eeee5cfab29acc04b82>>
+ * @generated SignedSource<<404a468e274332426a598d292e532443>>
  * @lightSyntaxTransform
  */
 
@@ -9,11 +9,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type CreateDecisionDatasetEvaluatorSlideover_judgesQuery$variables = Record<PropertyKey, never>;
-export type CreateDecisionDatasetEvaluatorSlideover_judgesQuery$data = {
+export type CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery$variables = Record<PropertyKey, never>;
+export type CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
-      readonly judge: {
+      readonly evaluator: {
         readonly __typename: string;
         readonly decisionVersion?: {
           readonly decision: {
@@ -46,7 +46,7 @@ export type CreateDecisionDatasetEvaluatorSlideover_judgesQuery$data = {
         readonly id: string;
         readonly inputSchema?: any;
         readonly name: string;
-        readonly projectionPolicy?: {
+        readonly scoringPolicy?: {
           readonly questions: ReadonlyArray<{
             readonly __typename: string;
             readonly includeLabel?: boolean;
@@ -63,9 +63,9 @@ export type CreateDecisionDatasetEvaluatorSlideover_judgesQuery$data = {
     }>;
   };
 };
-export type CreateDecisionDatasetEvaluatorSlideover_judgesQuery = {
-  response: CreateDecisionDatasetEvaluatorSlideover_judgesQuery$data;
-  variables: CreateDecisionDatasetEvaluatorSlideover_judgesQuery$variables;
+export type CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery = {
+  response: CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery$data;
+  variables: CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -114,7 +114,7 @@ v3 = [
         "plural": true,
         "selections": [
           {
-            "alias": "judge",
+            "alias": "evaluator",
             "args": null,
             "concreteType": null,
             "kind": "LinkedField",
@@ -137,9 +137,9 @@ v3 = [
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "DecisionProjectionPolicy",
+                    "concreteType": "DecisionScoringPolicy",
                     "kind": "LinkedField",
-                    "name": "projectionPolicy",
+                    "name": "scoringPolicy",
                     "plural": false,
                     "selections": [
                       {
@@ -170,7 +170,7 @@ v3 = [
                                 "storageKey": null
                               }
                             ],
-                            "type": "DecisionPredicateProjection",
+                            "type": "DecisionPredicateScoring",
                             "abstractKey": null
                           },
                           {
@@ -202,7 +202,7 @@ v3 = [
                                 "storageKey": null
                               }
                             ],
-                            "type": "DecisionChoiceProjection",
+                            "type": "DecisionChoiceScoring",
                             "abstractKey": null
                           },
                           {
@@ -216,7 +216,7 @@ v3 = [
                                 "storageKey": null
                               }
                             ],
-                            "type": "DecisionScaleProjection",
+                            "type": "DecisionScaleScoring",
                             "abstractKey": null
                           }
                         ],
@@ -348,7 +348,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateDecisionDatasetEvaluatorSlideover_judgesQuery",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery",
     "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
@@ -357,20 +357,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "CreateDecisionDatasetEvaluatorSlideover_judgesQuery",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery",
     "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "ed90a87bc1a7a35544a91ebfce753543",
+    "cacheID": "79b94d8d6babb7ad708f56c8ac3e5825",
     "id": null,
     "metadata": {},
-    "name": "CreateDecisionDatasetEvaluatorSlideover_judgesQuery",
+    "name": "CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery",
     "operationKind": "query",
-    "text": "query CreateDecisionDatasetEvaluatorSlideover_judgesQuery {\n  evaluators(first: 200) {\n    edges {\n      judge: node {\n        __typename\n        id\n        name\n        ... on DecisionEvaluator {\n          inputSchema\n          projectionPolicy {\n            questions {\n              __typename\n              name\n              optimizationDirection\n              ... on DecisionPredicateProjection {\n                threshold\n              }\n              ... on DecisionChoiceProjection {\n                scores {\n                  choice\n                  score\n                }\n              }\n              ... on DecisionScaleProjection {\n                includeLabel\n              }\n            }\n          }\n          decisionVersion {\n            id\n            sequenceNumber\n            decision {\n              id\n              name\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                choices {\n                  value\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                levels {\n                  label\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query CreateDecisionDatasetEvaluatorSlideover_evaluatorsQuery {\n  evaluators(first: 200) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        ... on DecisionEvaluator {\n          inputSchema\n          scoringPolicy {\n            questions {\n              __typename\n              name\n              optimizationDirection\n              ... on DecisionPredicateScoring {\n                threshold\n              }\n              ... on DecisionChoiceScoring {\n                scores {\n                  choice\n                  score\n                }\n              }\n              ... on DecisionScaleScoring {\n                includeLabel\n              }\n            }\n          }\n          decisionVersion {\n            id\n            sequenceNumber\n            decision {\n              id\n              name\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                choices {\n                  value\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                levels {\n                  label\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4b8cf562f70aab059cb99feadb1305a5";
+(node as any).hash = "705f8b4ed10ecdfdf94a6af88fe1463b";
 
 export default node;

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from opentelemetry.context import Context
 
-from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.decisions import DecisionInput, InputState
 from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
@@ -44,7 +44,7 @@ def definition() -> InlineDecisionEvaluatorDefinition:
         questions=questions(),
         model_provider=ModelProvider.TYPESAFE,
         model_name="jev-latest",
-        projection_policy=DecisionProjectionPolicy.model_validate(
+        scoring_policy=DecisionScoringPolicy.model_validate(
             {
                 "questions": {
                     "correct": {"type": "predicate", "threshold": 0.8},
@@ -168,7 +168,7 @@ def test_scale_label_is_omitted_unless_requested(
 ) -> None:
     definition = definition.model_copy(
         update={
-            "projection_policy": DecisionProjectionPolicy.model_validate(
+            "scoring_policy": DecisionScoringPolicy.model_validate(
                 {"questions": {"quality": {"type": "scale", "include_label": False}}}
             )
         }
@@ -187,7 +187,7 @@ def test_unscored_choice_has_a_label_and_no_score(
 ) -> None:
     definition = definition.model_copy(
         update={
-            "projection_policy": DecisionProjectionPolicy.model_validate(
+            "scoring_policy": DecisionScoringPolicy.model_validate(
                 {"questions": {"route": {"type": "choice", "scores": {"accept": 1}}}}
             )
         }

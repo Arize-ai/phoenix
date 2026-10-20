@@ -495,7 +495,7 @@ export const DatasetEvaluatorsTable = ({
             justifyContent="end"
             width="100%"
           >
-            {/* TODO: support opening a decision judge as a playground evaluator task. */}
+            {/* TODO: support opening a decision evaluator as a playground evaluator task. */}
             {row.original.evaluator.kind !== "BUILTIN" &&
             row.original.evaluator.kind !== "DECISION" ? (
               <StopPropagation>

@@ -1150,7 +1150,7 @@ async def patch_dataset_evaluator(
                 validate_decision_input_mapping,
             )
             from phoenix.server.api.helpers.decision_evaluators import (
-                freeze_decision_evaluator,
+                capture_decision_evaluator_definition,
                 validate_decision_output_overrides,
             )
 
@@ -1164,7 +1164,7 @@ async def patch_dataset_evaluator(
                     decision.selected_version, patch.input_mapping or row.input_mapping
                 )
                 try:
-                    definition = freeze_decision_evaluator(decision)
+                    definition = capture_decision_evaluator_definition(decision)
                     validate_decision_output_overrides(
                         definition, values.get("output_configs", row.output_configs)
                     )

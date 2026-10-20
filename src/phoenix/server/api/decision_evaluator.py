@@ -58,7 +58,7 @@ class DecisionEvaluator(BaseEvaluator):
     @property
     def output_configs(self) -> Sequence[OutputConfigType]:
         return derive_decision_output_configs(
-            self.definition.questions, self.definition.projection_policy
+            self.definition.questions, self.definition.scoring_policy
         )
 
     @property

@@ -3,7 +3,7 @@ import { graphql } from "react-relay";
 import type { decisionAnnotation_annotation$data } from "./__generated__/decisionAnnotation_annotation.graphql";
 
 /**
- * A decision judge's typed result on an experiment-run annotation. Spread it
+ * A decision evaluator's typed result on an experiment-run annotation. Spread it
  * unmasked (`@relay(mask: false)`) beside an annotation's other fields, so the
  * `decision` field travels with the annotation to the shared annotation views.
  */

@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-    freeze_dataset_decision_evaluators,
+    capture_dataset_decision_evaluators,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.daemons.experiment_runner import EvalWorkItem, ExperimentRunner
@@ -123,7 +123,7 @@ async def test_resume_queues_incomplete_judges_once(
                     experiment_id=experiment.id, dataset_evaluator_id=binding_id
                 )
             )
-        await freeze_dataset_decision_evaluators(session, experiment.id)
+        await capture_dataset_decision_evaluators(session, experiment.id)
         session.add(
             models.ExperimentDatasetExample(
                 experiment_id=experiment.id, dataset_example_id=1, dataset_example_revision_id=1

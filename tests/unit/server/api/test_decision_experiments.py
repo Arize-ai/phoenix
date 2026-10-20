@@ -455,7 +455,7 @@ async def test_a_decision_cannot_share_a_run_with_an_evaluator(
             }
         }
     )
-    with pytest.raises(Exception, match="Tasks must all be tested tasks"):
+    with pytest.raises(Exception, match="Tasks must all be prompt or decision tasks"):
         await collect(gql_client, variables)
     async with db() as session:
         assert await session.scalar(select(func.count(models.Experiment.id))) == 0

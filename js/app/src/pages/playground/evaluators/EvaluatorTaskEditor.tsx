@@ -72,8 +72,8 @@ import { EvaluatorTaskSaveButton } from "./EvaluatorTaskSaveButton";
 import {
   buildEvaluatorTaskFromStore,
   createEvaluatorTaskStoreState,
-  getEvaluatorTaskPreview,
-  getEvaluatorTaskRevision,
+  buildEvaluatorTaskDefinition,
+  getEvaluatorTaskContentKey,
 } from "./evaluatorTaskSnapshot";
 import {
   getDefaultSandboxConfigId,
@@ -108,7 +108,7 @@ function getTaskValidationError({
     evaluator,
     sandboxConfigs,
     buildPreview: () =>
-      getEvaluatorTaskPreview({
+      buildEvaluatorTaskDefinition({
         evaluator,
         name: evaluator.name.trim() || "evaluator",
         playgroundStore,
@@ -371,7 +371,7 @@ function EvaluatorTaskEditorContent({
       );
 
       if (
-        getEvaluatorTaskRevision(next) !== getEvaluatorTaskRevision(current)
+        getEvaluatorTaskContentKey(next) !== getEvaluatorTaskContentKey(current)
       ) {
         playgroundStore.getState().updateInstance({
           instanceId,
@@ -724,7 +724,7 @@ function getEvaluatorTaskStatus({
 }): string | null {
   if (isDirty) return "Unsaved changes";
 
-  return evaluator.savedRevision != null ? "Saved" : null;
+  return evaluator.savedContentKey != null ? "Saved" : null;
 }
 
 // Warning-toned inline notice; the icon and text share the color.

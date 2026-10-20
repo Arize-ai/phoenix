@@ -1447,7 +1447,7 @@ CREATE TABLE public.decision_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'DECISION'::character varying,
     decision_id BIGINT NOT NULL,
     decision_version_tag_id BIGINT NOT NULL,
-    projection_policy JSONB NOT NULL,
+    scoring_policy JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_decision_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'DECISION'::text)),

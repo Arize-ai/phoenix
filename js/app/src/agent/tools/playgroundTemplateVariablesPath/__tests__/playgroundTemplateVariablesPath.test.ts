@@ -121,7 +121,7 @@ describe("playground template variables path agent tool", () => {
     const [instance] = playgroundStore.getState().instances;
     playgroundStore.getState().replaceInstance({
       instanceId: instance.id,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
     const action = createSetTemplateVariablesPathClientAction({
       playgroundStore,

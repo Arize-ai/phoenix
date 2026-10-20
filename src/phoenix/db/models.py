@@ -3510,7 +3510,7 @@ class DecisionEvaluator(Evaluator):
     decision_version_tag_id: Mapped[int] = mapped_column(
         ForeignKey("decision_version_tags.id", ondelete="RESTRICT"), index=True, unique=True
     )
-    projection_policy: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    scoring_policy: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
@@ -3527,13 +3527,13 @@ class DecisionEvaluator(Evaluator):
     @property
     def output_configs(self) -> list[OutputConfigType]:
         from phoenix.db.types.decision_evaluators import (
-            DecisionProjectionPolicy,
+            DecisionScoringPolicy,
             derive_decision_output_configs,
         )
 
         return derive_decision_output_configs(
             self.selected_version.questions,
-            DecisionProjectionPolicy.model_validate(self.projection_policy),
+            DecisionScoringPolicy.model_validate(self.scoring_policy),
         )
 
     __mapper_args__ = {"polymorphic_identity": "DECISION"}

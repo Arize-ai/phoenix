@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<653408ce499fded62a231552f15f7edb>>
+ * @generated SignedSource<<8a6319640df83b92437fce8510c340fe>>
  * @lightSyntaxTransform
  */
 
@@ -53,7 +53,7 @@ export type EditDecisionDatasetEvaluatorSlideover_evaluatorQuery$data = {
         readonly id: string;
         readonly inputSchema?: any;
         readonly name: string;
-        readonly projectionPolicy?: {
+        readonly scoringPolicy?: {
           readonly questions: ReadonlyArray<{
             readonly __typename: string;
             readonly includeLabel?: boolean;
@@ -207,9 +207,9 @@ v6 = {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "DecisionProjectionPolicy",
+                  "concreteType": "DecisionScoringPolicy",
                   "kind": "LinkedField",
-                  "name": "projectionPolicy",
+                  "name": "scoringPolicy",
                   "plural": false,
                   "selections": [
                     {
@@ -240,7 +240,7 @@ v6 = {
                               "storageKey": null
                             }
                           ],
-                          "type": "DecisionPredicateProjection",
+                          "type": "DecisionPredicateScoring",
                           "abstractKey": null
                         },
                         {
@@ -272,7 +272,7 @@ v6 = {
                               "storageKey": null
                             }
                           ],
-                          "type": "DecisionChoiceProjection",
+                          "type": "DecisionChoiceScoring",
                           "abstractKey": null
                         },
                         {
@@ -286,7 +286,7 @@ v6 = {
                               "storageKey": null
                             }
                           ],
-                          "type": "DecisionScaleProjection",
+                          "type": "DecisionScaleScoring",
                           "abstractKey": null
                         }
                       ],
@@ -465,16 +465,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bd1f62a7ddd8250ffb357c7341c94ce8",
+    "cacheID": "972469734145c6646466106a78f49c5e",
     "id": null,
     "metadata": {},
     "name": "EditDecisionDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            projectionPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateProjection {\n                  threshold\n                }\n                ... on DecisionChoiceProjection {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleProjection {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              sequenceNumber\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            scoringPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateScoring {\n                  threshold\n                }\n                ... on DecisionChoiceScoring {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleScoring {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              sequenceNumber\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "386274af4761a560fc582cabffcc0842";
+(node as any).hash = "b5c7d420b6a62f9ac6450cb8e0dbef01";
 
 export default node;

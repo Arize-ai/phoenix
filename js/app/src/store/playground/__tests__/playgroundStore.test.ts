@@ -1430,7 +1430,7 @@ describe("addInstance", () => {
       provider: "ANTHROPIC",
       modelConfigByProvider: {},
     });
-    store.getState().addInstance({ type: "new", kind: "prompt" });
+    store.getState().addInstance({ type: "new", taskType: "prompt" });
     const second = store.getState().instances[1];
 
     expect(second.task).toEqual({ type: "prompt" });
@@ -1442,7 +1442,7 @@ describe("addInstance", () => {
   it("adds a new decision beside a prompt, keeping the page's chat model to switch back to", () => {
     const store = createStore();
     const [prompt] = store.getState().instances;
-    store.getState().addInstance({ type: "new", kind: "decision" });
+    store.getState().addInstance({ type: "new", taskType: "decision" });
     const [first, second] = store.getState().instances;
 
     expect(first.task).toEqual({ type: "prompt" });
@@ -1480,7 +1480,7 @@ describe("addInstance", () => {
     const { id } = store.getState().instances[0];
     const decisionId = store.getState().replaceInstance({
       instanceId: id,
-      source: { type: "new", kind: "decision" },
+      source: { type: "new", taskType: "decision" },
     });
 
     expect(store.getState().instances).toHaveLength(1);
@@ -1490,7 +1490,7 @@ describe("addInstance", () => {
 
     store.getState().replaceInstance({
       instanceId: decisionId!,
-      source: { type: "new", kind: "prompt" },
+      source: { type: "new", taskType: "prompt" },
     });
 
     expect(store.getState().instances[0].task.type).toBe("prompt");
@@ -1503,18 +1503,18 @@ describe("addInstance", () => {
     store.getState().setTemplateFormat("NONE");
     const decisionId = store.getState().replaceInstance({
       instanceId: store.getState().instances[0].id,
-      source: { type: "new", kind: "decision" },
+      source: { type: "new", taskType: "decision" },
     });
 
     const codeId = store.getState().replaceInstance({
       instanceId: decisionId!,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
     expect(store.getState().templateFormat).toBe("NONE");
 
     store.getState().replaceInstance({
       instanceId: codeId!,
-      source: { type: "new", kind: "LLM" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
     });
 
     expect(store.getState().instances[0].task.type).toBe("evaluator");
@@ -1524,7 +1524,7 @@ describe("addInstance", () => {
 
   it("keeps a decision's model out of the chat parameter adapters", () => {
     const store = createStore();
-    store.getState().addInstance({ type: "new", kind: "decision" });
+    store.getState().addInstance({ type: "new", taskType: "decision" });
     const { id } = store.getState().instances[1];
 
     expect(() =>
@@ -1540,7 +1540,11 @@ describe("addInstance", () => {
 
   it("adds a new LLM evaluator draft with the judge prompt as its template", () => {
     const store = createStore();
-    store.getState().addInstance({ type: "new", kind: "LLM" });
+    store.getState().addInstance({
+      type: "new",
+      taskType: "evaluator",
+      evaluatorKind: "LLM",
+    });
     const second = store.getState().instances[1];
 
     expect(second.task.type).toBe("evaluator");
@@ -1557,7 +1561,11 @@ describe("addInstance", () => {
 
   it("adds a new code evaluator draft with an empty template and placeholder code", () => {
     const store = createStore();
-    store.getState().addInstance({ type: "new", kind: "CODE" });
+    store.getState().addInstance({
+      type: "new",
+      taskType: "evaluator",
+      evaluatorKind: "CODE",
+    });
     const second = store.getState().instances[1];
 
     expect(
@@ -1626,7 +1634,7 @@ describe("replaceInstance", () => {
 
     const replacementId = store.getState().replaceInstance({
       instanceId: first.id,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
 
     const instances = store.getState().instances;

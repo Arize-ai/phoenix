@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ac6d060b8ed582e02515bc9cb7e65ce1>>
+ * @generated SignedSource<<6305e70136d02b76033f177696dbe63e>>
  * @lightSyntaxTransform
  */
 
@@ -51,7 +51,7 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
       }>;
       readonly sequenceNumber: number;
     };
-    readonly projectionPolicy: {
+    readonly scoringPolicy: {
       readonly questions: ReadonlyArray<{
         readonly __typename: string;
         readonly includeLabel?: boolean;
@@ -159,9 +159,9 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "DecisionProjectionPolicy",
+              "concreteType": "DecisionScoringPolicy",
               "kind": "LinkedField",
-              "name": "projectionPolicy",
+              "name": "scoringPolicy",
               "plural": false,
               "selections": [
                 {
@@ -192,7 +192,7 @@ return {
                           "storageKey": null
                         }
                       ],
-                      "type": "DecisionPredicateProjection",
+                      "type": "DecisionPredicateScoring",
                       "abstractKey": null
                     },
                     {
@@ -224,7 +224,7 @@ return {
                           "storageKey": null
                         }
                       ],
-                      "type": "DecisionChoiceProjection",
+                      "type": "DecisionChoiceScoring",
                       "abstractKey": null
                     },
                     {
@@ -238,7 +238,7 @@ return {
                           "storageKey": null
                         }
                       ],
-                      "type": "DecisionScaleProjection",
+                      "type": "DecisionScaleScoring",
                       "abstractKey": null
                     }
                   ],
@@ -406,6 +406,6 @@ return {
 };
 })();
 
-(node as any).hash = "ad4406178a6e40818c1438128375d982";
+(node as any).hash = "b733bb19e540a2c4fd1603d3dc8031cd";
 
 export default node;

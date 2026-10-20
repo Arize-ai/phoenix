@@ -36,14 +36,14 @@ import type {
 import {
   createChoiceOption,
   createDecisionQuestion,
-  createScoreLevel,
+  createScaleLevel,
   DECISION_QUESTION_TYPES,
   decisionFieldId,
   type DecisionQuestionErrors,
   MAX_CHOICE_OPTIONS,
-  MAX_SCORE_LEVELS,
+  MAX_SCALE_LEVELS,
   MIN_CHOICE_OPTIONS,
-  MIN_SCORE_LEVELS,
+  MIN_SCALE_LEVELS,
 } from "./decisionUtils";
 
 const hiddenLabelCSS = css`
@@ -104,7 +104,7 @@ type Props = {
 };
 
 function isQuestionType(key: unknown): key is DecisionQuestionType {
-  return key === "choice" || key === "noul" || key === "score";
+  return key === "choice" || key === "predicate" || key === "scale";
 }
 
 /**
@@ -244,8 +244,8 @@ export function DecisionQuestionEditor({
               onTouch={onTouch}
               onChange={onChange}
             />
-          ) : question.type === "score" ? (
-            <ScoreCriteriaEditor
+          ) : question.type === "scale" ? (
+            <ScaleCriteriaEditor
               question={question}
               errors={errors}
               isDisabled={isDisabled}
@@ -254,7 +254,7 @@ export function DecisionQuestionEditor({
               onChange={onChange}
             />
           ) : (
-            <NoulCriteriaEditor
+            <PredicateCriteriaEditor
               question={question}
               isDisabled={isDisabled}
               templateFormat={templateFormat}
@@ -394,7 +394,7 @@ function ChoiceCriteriaEditor({
   );
 }
 
-function ScoreCriteriaEditor({
+function ScaleCriteriaEditor({
   question,
   errors,
   isDisabled,
@@ -409,8 +409,8 @@ function ScoreCriteriaEditor({
     levels.splice(toIndex, 0, level);
     onChange({ levels });
   };
-  const canAddLevel = question.levels.length < MAX_SCORE_LEVELS;
-  const canRemoveLevel = question.levels.length > MIN_SCORE_LEVELS;
+  const canAddLevel = question.levels.length < MAX_SCALE_LEVELS;
+  const canRemoveLevel = question.levels.length > MIN_SCALE_LEVELS;
   // Removing a level removes the focused button; focus moves to "Level".
   const addLevelButtonRef = useRef<HTMLButtonElement>(null);
   return (
@@ -425,7 +425,7 @@ function ScoreCriteriaEditor({
             leadingVisual={<Icon svg={<Icons.Plus />} />}
             isDisabled={isDisabled || !canAddLevel}
             onPress={() =>
-              onChange({ levels: [...question.levels, createScoreLevel()] })
+              onChange({ levels: [...question.levels, createScaleLevel()] })
             }
           >
             Level
@@ -433,7 +433,7 @@ function ScoreCriteriaEditor({
         }
       />
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
-      <ol css={listCSS} aria-label="Score levels">
+      <ol css={listCSS} aria-label="Scale levels">
         {question.levels.map((level, levelIndex) => {
           const levelError = errors?.levelLabels?.[level.id];
           return (
@@ -526,7 +526,7 @@ function ScoreCriteriaEditor({
   );
 }
 
-function NoulCriteriaEditor({
+function PredicateCriteriaEditor({
   question,
   isDisabled,
   templateFormat,
@@ -540,22 +540,22 @@ function NoulCriteriaEditor({
           key={`${question.id}-true-${templateFormat}`}
           aria-label="True when"
           templateFormat={templateFormat}
-          defaultValue={question.noul.trueDescription}
+          defaultValue={question.predicate.trueDescription}
           placeholder="true when…"
           readOnly={isDisabled}
           onChange={(trueDescription) =>
-            onChange({ noul: { ...question.noul, trueDescription } })
+            onChange({ predicate: { ...question.predicate, trueDescription } })
           }
         />
         <TemplateInput
           key={`${question.id}-false-${templateFormat}`}
           aria-label="False when"
           templateFormat={templateFormat}
-          defaultValue={question.noul.falseDescription}
+          defaultValue={question.predicate.falseDescription}
           placeholder="false when…"
           readOnly={isDisabled}
           onChange={(falseDescription) =>
-            onChange({ noul: { ...question.noul, falseDescription } })
+            onChange({ predicate: { ...question.predicate, falseDescription } })
           }
         />
       </div>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7d3f7ebfd0c6579a3cbcb790a299b7ec>>
+ * @generated SignedSource<<fc05b006bbff017debbfecf22d2bb0e4>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type DecisionJudgeSummary_evaluator$data = {
+export type DecisionEvaluatorSummary_evaluator$data = {
   readonly decisionVersion: {
     readonly decision: {
       readonly name: string;
@@ -25,7 +25,7 @@ export type DecisionJudgeSummary_evaluator$data = {
   readonly decisionVersionTag: {
     readonly name: string;
   };
-  readonly projectionPolicy: {
+  readonly scoringPolicy: {
     readonly questions: ReadonlyArray<{
       readonly __typename: string;
       readonly includeLabel?: boolean;
@@ -38,11 +38,11 @@ export type DecisionJudgeSummary_evaluator$data = {
       readonly threshold?: number;
     }>;
   };
-  readonly " $fragmentType": "DecisionJudgeSummary_evaluator";
+  readonly " $fragmentType": "DecisionEvaluatorSummary_evaluator";
 };
-export type DecisionJudgeSummary_evaluator$key = {
-  readonly " $data"?: DecisionJudgeSummary_evaluator$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DecisionJudgeSummary_evaluator">;
+export type DecisionEvaluatorSummary_evaluator$key = {
+  readonly " $data"?: DecisionEvaluatorSummary_evaluator$data;
+  readonly " $fragmentSpreads": FragmentRefs<"DecisionEvaluatorSummary_evaluator">;
 };
 
 const node: ReaderFragment = (function(){
@@ -60,7 +60,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "DecisionJudgeSummary_evaluator",
+  "name": "DecisionEvaluatorSummary_evaluator",
   "selections": [
     {
       "alias": null,
@@ -131,9 +131,9 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "DecisionProjectionPolicy",
+      "concreteType": "DecisionScoringPolicy",
       "kind": "LinkedField",
-      "name": "projectionPolicy",
+      "name": "scoringPolicy",
       "plural": false,
       "selections": [
         {
@@ -170,7 +170,7 @@ return {
                   "storageKey": null
                 }
               ],
-              "type": "DecisionPredicateProjection",
+              "type": "DecisionPredicateScoring",
               "abstractKey": null
             },
             {
@@ -202,7 +202,7 @@ return {
                   "storageKey": null
                 }
               ],
-              "type": "DecisionChoiceProjection",
+              "type": "DecisionChoiceScoring",
               "abstractKey": null
             },
             {
@@ -216,7 +216,7 @@ return {
                   "storageKey": null
                 }
               ],
-              "type": "DecisionScaleProjection",
+              "type": "DecisionScaleScoring",
               "abstractKey": null
             }
           ],
@@ -231,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "9d2daca22b750aebf3ef0c5cf3122980";
+(node as any).hash = "87afbaf2e86f16eb4cb0f3d8317c5702";
 
 export default node;

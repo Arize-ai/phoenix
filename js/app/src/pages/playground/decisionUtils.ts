@@ -10,7 +10,7 @@ import type {
   DecisionQuestionDraft,
   DecisionQuestionType,
   DecisionRequestDraft,
-  DecisionScoreLevelDraft,
+  DecisionScaleLevelDraft,
   PlaygroundInstance,
 } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
@@ -19,11 +19,10 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
 
 /*
- * The playground edits a provider-independent draft and converts at the
- * boundary. The canonical wire shape is TypeSafe System One, which is also
- * what the server validates; OpenAI's Decisions API is a lossless rename of
- * it (predicate ↔ noul, choices array ↔ criteria map, levels ↔ ordered
- * criteria). Span replay reads either shape back into a draft.
+ * The playground edits Phoenix question types: predicate, choice, and scale.
+ * Provider adapters translate at import/export boundaries. TypeSafe uses noul
+ * and score; OpenAI uses predicate and score. Neither is Phoenix's canonical
+ * model. Span replay accepts provider payloads and Phoenix run outputs.
  */
 
 export type DecisionDraft = DecisionRequestDraft;
@@ -31,11 +30,11 @@ export type DecisionDraft = DecisionRequestDraft;
 /** Limits mirrored from the server's request validation. */
 export const MIN_CHOICE_OPTIONS = 2;
 export const MAX_CHOICE_OPTIONS = 255;
-export const MIN_SCORE_LEVELS = 2;
-export const MAX_SCORE_LEVELS = 10;
+export const MIN_SCALE_LEVELS = 2;
+export const MAX_SCALE_LEVELS = 10;
 export const MAX_DECISION_QUESTIONS = 255;
 
-/** A System One request body, the canonical shape the server accepts. */
+/** A TypeSafe System One request body for provider export. */
 export type SystemOneRequest = {
   state: unknown;
   questions: Record<string, SystemOneQuestion>;
@@ -62,14 +61,14 @@ export const DECISION_QUESTION_TYPES: ReadonlyArray<{
       "Pick one option from a fixed list. Returns a probability per option.",
   },
   {
-    id: "noul",
-    label: "Noul / Predicate",
+    id: "predicate",
+    label: "Yes / No",
     description: "Is a condition true? Returns a probability.",
   },
   {
-    id: "score",
-    label: "Score",
-    description: `Place the state on an ordered scale of ${MIN_SCORE_LEVELS}–${MAX_SCORE_LEVELS} described levels.`,
+    id: "scale",
+    label: "Scale",
+    description: `Place the state on an ordered scale of ${MIN_SCALE_LEVELS}–${MAX_SCALE_LEVELS} described levels.`,
   },
 ];
 
@@ -88,10 +87,10 @@ export function createChoiceOption({
   return { id: generateDecisionDraftId(), value, description };
 }
 
-export function createScoreLevel({
+export function createScaleLevel({
   label = "",
   description = "",
-}: { label?: string; description?: string } = {}): DecisionScoreLevelDraft {
+}: { label?: string; description?: string } = {}): DecisionScaleLevelDraft {
   return { id: generateDecisionDraftId(), label, description };
 }
 
@@ -100,8 +99,8 @@ export function createScoreLevel({
  * there is none. Only the rubric is a template; a label names the level in
  * annotations, so it is sent as written.
  */
-function scoreLevelCriteria(
-  level: DecisionScoreLevelDraft,
+function scaleLevelCriteria(
+  level: DecisionScaleLevelDraft,
   formatText: TextFormatter
 ): string {
   return level.description.trim()
@@ -112,10 +111,10 @@ function scoreLevelCriteria(
 /**
  * A new question seeded with a valid, editable starting point, so switching
  * type never opens on a validation error; the user replaces the seeds.
- * @param overrides - fields to set on the new question; `type` defaults to noul
+ * @param overrides - fields to set on the new question; `type` defaults to predicate
  */
 export function createDecisionQuestion({
-  type = "noul",
+  type = "predicate",
   ...overrides
 }: Partial<Omit<DecisionQuestionDraft, "id">> = {}): DecisionQuestionDraft {
   return {
@@ -131,13 +130,13 @@ export function createDecisionQuestion({
           ]
         : [],
     levels:
-      type === "score"
+      type === "scale"
         ? [
-            createScoreLevel({ label: "Low" }),
-            createScoreLevel({ label: "High" }),
+            createScaleLevel({ label: "Low" }),
+            createScaleLevel({ label: "High" }),
           ]
         : [],
-    noul: { trueDescription: "", falseDescription: "" },
+    predicate: { trueDescription: "", falseDescription: "" },
     ...overrides,
   };
 }
@@ -147,7 +146,7 @@ export function createDecisionDraft(): DecisionRequestDraft {
   return {
     state:
       "I was charged twice for my order. Please refund the duplicate payment.",
-    stateFormat: "text",
+    stateEditorMode: "text",
     questions: [
       createDecisionQuestion({
         type: "choice",
@@ -221,15 +220,15 @@ function getChoiceQuestionErrors(
   return errors;
 }
 
-function getScoreQuestionErrors(
+function getScaleQuestionErrors(
   question: DecisionQuestionDraft
 ): Pick<DecisionQuestionErrors, "levels" | "levelLabels"> {
   const errors: Pick<DecisionQuestionErrors, "levels" | "levelLabels"> = {};
   const levelCount = question.levels.length;
-  if (levelCount < MIN_SCORE_LEVELS) {
-    errors.levels = `Add at least ${MIN_SCORE_LEVELS} levels`;
-  } else if (levelCount > MAX_SCORE_LEVELS) {
-    errors.levels = `At most ${MAX_SCORE_LEVELS} levels`;
+  if (levelCount < MIN_SCALE_LEVELS) {
+    errors.levels = `Add at least ${MIN_SCALE_LEVELS} levels`;
+  } else if (levelCount > MAX_SCALE_LEVELS) {
+    errors.levels = `At most ${MAX_SCALE_LEVELS} levels`;
   }
   const levelErrors: Partial<Record<string, string>> = {};
   for (const level of question.levels) {
@@ -256,8 +255,8 @@ function getQuestionErrors({
   if (question.type === "choice") {
     Object.assign(errors, getChoiceQuestionErrors(question));
   }
-  if (question.type === "score") {
-    Object.assign(errors, getScoreQuestionErrors(question));
+  if (question.type === "scale") {
+    Object.assign(errors, getScaleQuestionErrors(question));
   }
   return errors;
 }
@@ -272,7 +271,7 @@ export function parseStateInputNames(state: string): string[] {
 
 function getStateError(draft: DecisionRequestDraft): string | undefined {
   if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
-  if (draft.stateFormat === "inputs") {
+  if (draft.stateEditorMode === "inputs") {
     const names = parseStateInputNames(draft.state);
     if (names.length === 0) return STATE_REQUIRED_ERROR;
     const duplicate = names.find(
@@ -280,7 +279,7 @@ function getStateError(draft: DecisionRequestDraft): string | undefined {
     );
     return duplicate ? `Input "${duplicate}" is listed twice` : undefined;
   }
-  if (draft.stateFormat !== "json") return undefined;
+  if (draft.stateEditorMode !== "json") return undefined;
   try {
     const parsed: unknown = JSON.parse(draft.state);
     if (
@@ -498,7 +497,7 @@ function createTextFormatter({
 }
 
 /**
- * Build the canonical System One body from a draft, applying template
+ * Build a TypeSafe System One export from a draft, applying template
  * variables to the state and to every question's instructions.
  *
  * Throws on an invalid draft; call {@link validateDecisionDraft} first to
@@ -507,7 +506,7 @@ function createTextFormatter({
  * @param params.templateFormat - template syntax used by the text fields
  * @param params.variables - values to substitute for template variables
  */
-export function buildDecisionRequest({
+export function buildSystemOneRequest({
   draft,
   templateFormat,
   variables,
@@ -516,9 +515,9 @@ export function buildDecisionRequest({
   if (error) throw new Error(error);
   const formatText = createTextFormatter({ templateFormat, variables });
   const state: unknown =
-    draft.stateFormat === "inputs"
+    draft.stateEditorMode === "inputs"
       ? inputValuesOf(parseStateInputNames(draft.state), variables)
-      : draft.stateFormat === "json"
+      : draft.stateEditorMode === "json"
         ? parseJsonState(
             templateFormat === TemplateFormats.Mustache
               ? formatText(draft.state)
@@ -581,17 +580,17 @@ export function toSystemOneQuestion({
     }
     return { type: "choice", instructions, criteria };
   }
-  if (question.type === "score") {
+  if (question.type === "scale") {
     return {
       type: "score",
       instructions,
       criteria: question.levels.map((level) =>
-        scoreLevelCriteria(level, formatText)
+        scaleLevelCriteria(level, formatText)
       ),
     };
   }
-  const trueDescription = question.noul.trueDescription.trim();
-  const falseDescription = question.noul.falseDescription.trim();
+  const trueDescription = question.predicate.trueDescription.trim();
+  const falseDescription = question.predicate.falseDescription.trim();
   const hasCriteria = Boolean(trueDescription || falseDescription);
   return {
     type: "noul",
@@ -723,7 +722,7 @@ function toStateInput({
   draft: DecisionRequestDraft;
   formatText: TextFormatter;
 }): Omit<DecisionRunInput, "questions"> {
-  if (draft.stateFormat === "inputs") {
+  if (draft.stateEditorMode === "inputs") {
     const names = parseStateInputNames(draft.state);
     return {
       inputs: names.map((name) => ({ name })),
@@ -731,7 +730,7 @@ function toStateInput({
       inputValues: inputValuesOf(names, variables),
     };
   }
-  if (draft.stateFormat === "json") {
+  if (draft.stateEditorMode === "json") {
     const parsed = parseJsonState(
       templateFormat === TemplateFormats.Mustache
         ? formatText(draft.state)
@@ -792,7 +791,7 @@ function toQuestionInput({
           })),
         },
       };
-    case "score":
+    case "scale":
       return {
         scale: {
           name,
@@ -803,10 +802,13 @@ function toQuestionInput({
           })),
         },
       };
-    case "noul": {
-      const trueText = optionalText(question.noul.trueDescription, formatText);
+    case "predicate": {
+      const trueText = optionalText(
+        question.predicate.trueDescription,
+        formatText
+      );
       const falseText = optionalText(
-        question.noul.falseDescription,
+        question.predicate.falseDescription,
         formatText
       );
       return {
@@ -876,9 +878,9 @@ export function getDecisionDatasetProblem({
 }): string | null {
   const when = purpose === "dataset" ? "Over a dataset" : "To save";
   const filler = purpose === "dataset" ? "each example" : "each caller";
-  if (draft.stateFormat !== "inputs") {
+  if (draft.stateEditorMode !== "inputs") {
     const serverFormat = toServerTemplateFormat(templateFormat);
-    if (draft.stateFormat !== "text" || !serverFormat) {
+    if (draft.stateEditorMode !== "text" || !serverFormat) {
       return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
     }
     const names = stateTemplateVariables(draft.state, templateFormat);
@@ -969,7 +971,7 @@ export function buildDecisionTaskDefinition({
   const questions = draft.questions.map((question) =>
     toQuestionInput({ question, formatText })
   );
-  if (draft.stateFormat === "inputs") {
+  if (draft.stateEditorMode === "inputs") {
     return {
       inputs: parseStateInputNames(draft.state).map((name) => ({ name })),
       state: { object: true },
@@ -1094,7 +1096,7 @@ export function toDecisionOutput(result: DecisionRunResult): {
   answers: Record<string, unknown>;
   usage: { input_tokens: number | null; output_tokens: number | null };
 } {
-  // Null-prototype, as in buildDecisionRequest.
+  // Null-prototype, as in buildSystemOneRequest.
   const answers: Record<string, unknown> = Object.create(null);
   for (const answer of result.answers) {
     answers[answer.name] = toOutputAnswer(answer);
@@ -1201,9 +1203,9 @@ export type DecisionImportResult = {
 
 function toStateDraft(
   state: unknown
-): Pick<DecisionRequestDraft, "state" | "stateFormat"> {
-  if (typeof state === "string") return { state, stateFormat: "text" };
-  return { state: JSON.stringify(state, null, 2), stateFormat: "json" };
+): Pick<DecisionRequestDraft, "state" | "stateEditorMode"> {
+  if (typeof state === "string") return { state, stateEditorMode: "text" };
+  return { state: JSON.stringify(state, null, 2), stateEditorMode: "json" };
 }
 
 type OpenAIDecisionsBody = z.infer<typeof openAIDecisionsSchema>;
@@ -1228,11 +1230,11 @@ function toDraftFromOpenAIDecisions(
     }
     if (question.type === "score") {
       return createDecisionQuestion({
-        type: "score",
+        type: "scale",
         name: question.name,
         instructions: question.instructions,
         levels: question.levels.map((level) =>
-          createScoreLevel({
+          createScaleLevel({
             label: level.label,
             description: level.description ?? "",
           })
@@ -1240,14 +1242,14 @@ function toDraftFromOpenAIDecisions(
       });
     }
     return createDecisionQuestion({
-      type: "noul",
+      type: "predicate",
       name: question.name,
       instructions: question.instructions,
     });
   });
   return {
     ...(typeof body.input === "string"
-      ? { state: body.input, stateFormat: "text" as const }
+      ? { state: body.input, stateEditorMode: "text" as const }
       : toStateDraft(body.input)),
     questions,
   };
@@ -1273,19 +1275,19 @@ function toDraftFromSystemOne(body: SystemOneBody): DecisionRequestDraft {
       }
       if (question.type === "score") {
         return createDecisionQuestion({
-          type: "score",
+          type: "scale",
           name,
           instructions,
           levels: question.criteria.map((criteria) =>
-            createScoreLevel({ label: toText(criteria) })
+            createScaleLevel({ label: toText(criteria) })
           ),
         });
       }
       return createDecisionQuestion({
-        type: "noul",
+        type: "predicate",
         name,
         instructions,
-        noul: {
+        predicate: {
           trueDescription:
             question.criteria?.true != null
               ? toText(question.criteria.true)
@@ -1359,7 +1361,7 @@ function describeCriteria(question: DecisionQuestionDraft): string[] {
         const description = option.description.trim();
         return description ? `- ${value}: ${description}` : `- ${value}`;
       });
-    case "score":
+    case "scale":
       return question.levels.map((level, index) => {
         const label = level.label.trim();
         const description = level.description.trim();
@@ -1367,10 +1369,10 @@ function describeCriteria(question: DecisionQuestionDraft): string[] {
           ? `${index}: ${label}: ${description}`
           : `${index}: ${label}`;
       });
-    case "noul": {
+    case "predicate": {
       const lines: string[] = [];
-      const trueDescription = question.noul.trueDescription.trim();
-      const falseDescription = question.noul.falseDescription.trim();
+      const trueDescription = question.predicate.trueDescription.trim();
+      const falseDescription = question.predicate.falseDescription.trim();
       if (trueDescription) lines.push(`True when: ${trueDescription}`);
       if (falseDescription) lines.push(`False when: ${falseDescription}`);
       return lines;
@@ -1403,13 +1405,13 @@ export function toQuestionJsonSchema(
         enum: question.choices.map((option) => option.value.trim()),
         ...described,
       };
-    case "score":
+    case "scale":
       return {
         type: "integer",
         enum: question.levels.map((_, index) => index),
         ...described,
       };
-    case "noul":
+    case "predicate":
       return { type: "boolean", ...described };
     default:
       return assertUnreachable(question.type);
@@ -1420,7 +1422,7 @@ export function toQuestionJsonSchema(
 export function toDecisionJsonSchema(
   questions: readonly DecisionQuestionDraft[]
 ): DecisionJsonSchema {
-  // Null-prototype, as in buildDecisionRequest, so a question named
+  // Null-prototype, as in buildSystemOneRequest, so a question named
   // "__proto__" is a property rather than a prototype assignment.
   const properties: Record<string, JsonSchemaObject> = Object.create(null);
   for (const question of questions) {
@@ -1449,13 +1451,13 @@ function describeQuestionForPrompt(question: DecisionQuestionDraft): string {
         ...describeCriteria(question)
       );
       break;
-    case "score":
+    case "scale":
       lines.push(
         `Answer with a level from 0 to ${question.levels.length - 1}, low to high:`,
         ...describeCriteria(question)
       );
       break;
-    case "noul":
+    case "predicate":
       lines.push("Answer true or false.", ...describeCriteria(question));
       break;
     default:
@@ -1471,7 +1473,7 @@ function chatStateContent({
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
 }): string {
-  if (draft.stateFormat !== "inputs") return draft.state;
+  if (draft.stateEditorMode !== "inputs") return draft.state;
   const variable = (name: string) =>
     templateFormat === TemplateFormats.FString
       ? `{${name}}`
@@ -1538,7 +1540,7 @@ export function extractDecisionVariables({
 }): string[] {
   if (!draft) return [];
   const found = new Set<string>();
-  if (draft.stateFormat === "inputs") {
+  if (draft.stateEditorMode === "inputs") {
     parseStateInputNames(draft.state).forEach((name) => found.add(name));
   }
   if (templateFormat === TemplateFormats.NONE) {
@@ -1547,12 +1549,12 @@ export function extractDecisionVariables({
   const { extractVariables } = getTemplateFormatUtils(templateFormat);
   const addVariablesFrom = (text: string) =>
     extractVariables(text).forEach((variable) => found.add(variable));
-  if (draft.stateFormat === "text") {
+  if (draft.stateEditorMode === "text") {
     stateTemplateVariables(draft.state, templateFormat).forEach((variable) =>
       found.add(variable)
     );
   } else if (
-    draft.stateFormat === "json" &&
+    draft.stateEditorMode === "json" &&
     templateFormat === TemplateFormats.Mustache
   ) {
     addVariablesFrom(draft.state);
@@ -1561,8 +1563,8 @@ export function extractDecisionVariables({
     addVariablesFrom(question.instructions);
     question.choices.forEach((option) => addVariablesFrom(option.description));
     question.levels.forEach((level) => addVariablesFrom(level.description));
-    addVariablesFrom(question.noul.trueDescription);
-    addVariablesFrom(question.noul.falseDescription);
+    addVariablesFrom(question.predicate.trueDescription);
+    addVariablesFrom(question.predicate.falseDescription);
   }
   return Array.from(found);
 }
@@ -1580,9 +1582,9 @@ export type NormalizedDecisionAnswer =
       probabilities: Array<{ value: string; probability: number }>;
     }
   | {
-      kind: "score";
+      kind: "scale";
       name: string;
-      score: number | null;
+      expectedLevel: number | null;
       confidence: number | null;
       /** One entry per level, in order. */
       levels: Array<{
@@ -1591,7 +1593,7 @@ export type NormalizedDecisionAnswer =
         probability: number | null;
       }>;
     }
-  | { kind: "noul"; name: string; probability: number | null }
+  | { kind: "predicate"; name: string; probability: number | null }
   | { kind: "refusal"; name: string }
   | { kind: "unknown"; name: string };
 
@@ -1645,7 +1647,7 @@ function normalizeChoiceAnswer({
   };
 }
 
-function getScoreLevelLabel({
+function getScaleLevelLabel({
   index,
   reportedLabel,
   legend,
@@ -1666,7 +1668,7 @@ function getScoreLevelLabel({
   return level.label.trim() || level.description.trim() || String(index);
 }
 
-function normalizeScoreAnswer({
+function normalizeScaleAnswer({
   name,
   answer,
   question,
@@ -1687,7 +1689,7 @@ function normalizeScoreAnswer({
       const index = toFiniteNumber(entry.value) ?? position;
       levels.push({
         index,
-        label: getScoreLevelLabel({
+        label: getScaleLevelLabel({
           index,
           reportedLabel: entry.label,
           legend,
@@ -1701,7 +1703,7 @@ function normalizeScoreAnswer({
       const index = Number(key);
       levels.push({
         index,
-        label: getScoreLevelLabel({
+        label: getScaleLevelLabel({
           index,
           reportedLabel: undefined,
           legend,
@@ -1710,7 +1712,7 @@ function normalizeScoreAnswer({
         probability: toFiniteNumber(rawProbability),
       });
     }
-  } else if (question?.type === "score") {
+  } else if (question?.type === "scale") {
     question.levels.forEach((level, index) =>
       levels.push({
         index,
@@ -1721,9 +1723,9 @@ function normalizeScoreAnswer({
   }
   levels.sort((left, right) => left.index - right.index);
   return {
-    kind: "score",
+    kind: "scale",
     name,
-    score: toFiniteNumber(answer.score),
+    expectedLevel: toFiniteNumber(answer.score),
     confidence: toFiniteNumber(answer.confidence),
     levels,
   };
@@ -1751,10 +1753,10 @@ export function normalizeDecisionAnswer({
     case "choice":
       return normalizeChoiceAnswer({ name, answer, question });
     case "score":
-      return normalizeScoreAnswer({ name, answer, question });
+      return normalizeScaleAnswer({ name, answer, question });
     // An experiment run's output: Phoenix's own answer shape.
     case "scale":
-      return normalizeScoreAnswer({
+      return normalizeScaleAnswer({
         name,
         answer: { ...answer, score: answer.expected_level },
         question,
@@ -1762,7 +1764,7 @@ export function normalizeDecisionAnswer({
     case "noul":
     case "predicate":
       return {
-        kind: "noul",
+        kind: "predicate",
         name,
         probability:
           toFiniteNumber(answer.noul) ?? toFiniteNumber(answer.probability),

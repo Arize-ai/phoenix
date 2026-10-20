@@ -232,10 +232,11 @@ export function addPromptInstance({
 
   const pageMode = getPlaygroundMode(state.instances);
 
-  const resolvedSource: PlaygroundInstanceSource = source ?? {
-    type: "new",
-    kind: pageMode === "evaluator" ? "LLM" : "prompt",
-  };
+  const resolvedSource: PlaygroundInstanceSource =
+    source ??
+    (pageMode === "evaluator"
+      ? { type: "new", taskType: "evaluator", evaluatorKind: "LLM" }
+      : { type: "new", taskType: "prompt" });
 
   if (
     resolvedSource.type !== "duplicate" &&

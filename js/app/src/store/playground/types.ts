@@ -108,7 +108,7 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
-export type DecisionQuestionType = "choice" | "noul" | "score";
+export type DecisionQuestionType = "choice" | "predicate" | "scale";
 
 export type DecisionChoiceOptionDraft = {
   id: string;
@@ -116,7 +116,7 @@ export type DecisionChoiceOptionDraft = {
   description: string;
 };
 
-export type DecisionScoreLevelDraft = {
+export type DecisionScaleLevelDraft = {
   id: string;
   /** Short name, such as "low". OpenAI requires it; TypeSafe sends it when there is no description. */
   label: string;
@@ -134,8 +134,8 @@ export type DecisionQuestionDraft = {
   type: DecisionQuestionType;
   instructions: string;
   choices: DecisionChoiceOptionDraft[];
-  levels: DecisionScoreLevelDraft[];
-  noul: { trueDescription: string; falseDescription: string };
+  levels: DecisionScaleLevelDraft[];
+  predicate: { trueDescription: string; falseDescription: string };
 };
 
 /**
@@ -151,7 +151,7 @@ export type DecisionRequestDraft = {
    * (`inputs`).
    */
   state: string;
-  stateFormat: "text" | "json" | "inputs";
+  stateEditorMode: "text" | "json" | "inputs";
   questions: DecisionQuestionDraft[];
 };
 
@@ -337,8 +337,8 @@ export type PlaygroundEvaluatorTask = {
   includeExplanation: boolean;
   code: PlaygroundEvaluatorTaskCode | null;
   source: PlaygroundEvaluatorTaskSource;
-  /** The task revision the last save wrote, for the "Saved" status. */
-  savedRevision: string | null;
+  /** The evaluator content key captured by the last save, for the "Saved" status. */
+  savedContentKey: string | null;
 };
 
 /**
@@ -359,7 +359,12 @@ export type PlaygroundInstanceSource =
   | { type: "duplicate" }
   | {
       type: "new";
-      kind: "prompt" | "decision" | PlaygroundEvaluatorTaskKind;
+      taskType: "prompt" | "decision";
+    }
+  | {
+      type: "new";
+      taskType: "evaluator";
+      evaluatorKind: PlaygroundEvaluatorTaskKind;
     }
   | {
       type: "prompt";

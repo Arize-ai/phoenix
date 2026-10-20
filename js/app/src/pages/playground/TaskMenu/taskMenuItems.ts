@@ -220,12 +220,13 @@ export function parseTaskMenuKey(
 
   switch (type) {
     case "new":
-      return value === "prompt" ||
-        value === "decision" ||
-        value === "LLM" ||
-        value === "CODE"
-        ? { type: "new", kind: value }
-        : null;
+      if (value === "prompt" || value === "decision") {
+        return { type: "new", taskType: value };
+      }
+      if (value === "LLM" || value === "CODE") {
+        return { type: "new", taskType: "evaluator", evaluatorKind: value };
+      }
+      return null;
     case "prompt":
       return {
         type: "prompt",

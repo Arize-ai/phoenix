@@ -14,8 +14,8 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import decision_evaluator_service as service
-from phoenix.server.api.input_types.DecisionProjectionPolicyInput import (
-    DecisionProjectionPolicyInput,
+from phoenix.server.api.input_types.DecisionScoringPolicyInput import (
+    DecisionScoringPolicyInput,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.mutations.evaluator_mutations import (
@@ -27,7 +27,7 @@ from phoenix.server.api.types.Evaluator import DatasetEvaluator, DecisionEvaluat
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
-def _projection_policy(value: Optional[DecisionProjectionPolicyInput]) -> Optional[dict[str, Any]]:
+def _scoring_policy(value: Optional[DecisionScoringPolicyInput]) -> Optional[dict[str, Any]]:
     """The stored form of a policy; an omitted patch field stays UNSET."""
     if value is UNSET:
         return cast(Optional[dict[str, Any]], UNSET)
@@ -41,7 +41,7 @@ class CreateDecisionEvaluatorInput:
     name: Identifier
     decision_version_id: GlobalID
     description: Optional[str] = None
-    projection_policy: Optional[DecisionProjectionPolicyInput] = None
+    scoring_policy: Optional[DecisionScoringPolicyInput] = None
 
 
 @strawberry.input
@@ -50,7 +50,7 @@ class PatchDecisionEvaluatorInput:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     decision_version_id: Optional[GlobalID] = UNSET
-    projection_policy: Optional[DecisionProjectionPolicyInput] = UNSET
+    scoring_policy: Optional[DecisionScoringPolicyInput] = UNSET
 
 
 @strawberry.input
@@ -98,7 +98,7 @@ class DecisionEvaluatorMutationMixin:
                 name=input.name,
                 decision_version_id=input.decision_version_id,
                 description=input.description,
-                projection_policy=_projection_policy(input.projection_policy),
+                scoring_policy=_scoring_policy(input.scoring_policy),
             ),
         )
         return DecisionEvaluatorMutationPayload(
@@ -116,7 +116,7 @@ class DecisionEvaluatorMutationMixin:
                 name=input.name,
                 description=input.description,
                 decision_version_id=input.decision_version_id,
-                projection_policy=_projection_policy(input.projection_policy),
+                scoring_policy=_scoring_policy(input.scoring_policy),
             ),
         )
         return DecisionEvaluatorMutationPayload(

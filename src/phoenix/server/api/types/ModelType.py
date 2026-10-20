@@ -13,7 +13,7 @@ class ModelType(Enum):
     DECISION = strawberry.enum_value(
         "DECISION",
         description=(
-            "Decision models that answer typed questions (choice, noul, score) about a state "
+            "Decision models that answer typed questions (predicate, choice, scale) about a state "
             "and return probabilities rather than text."
         ),
     )

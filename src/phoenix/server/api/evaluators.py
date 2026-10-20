@@ -1033,10 +1033,12 @@ async def get_evaluators(
             from phoenix.server.api.helpers.decision_evaluator_service import (
                 build_decision_evaluator,
             )
-            from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+            from phoenix.server.api.helpers.decision_evaluators import (
+                capture_decision_evaluator_definition,
+            )
 
             binding = dataset_evaluators_by_id[de_id][0]
-            definition = freeze_decision_evaluator(
+            definition = capture_decision_evaluator_definition(
                 ev,
                 name=binding.name.root,
                 description=binding.description,
@@ -1360,9 +1362,11 @@ async def pin_evaluator_definition(
 
     if isinstance(definition, StoredDecisionEvaluatorDefinition):
         from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
-        from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+        from phoenix.server.api.helpers.decision_evaluators import (
+            capture_decision_evaluator_definition,
+        )
 
-        return freeze_decision_evaluator(
+        return capture_decision_evaluator_definition(
             await get_decision_evaluator(session, definition.decision_evaluator_id)
         )
     if not isinstance(definition, StoredCodeEvaluatorDefinition) or (

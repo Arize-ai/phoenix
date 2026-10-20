@@ -22,7 +22,7 @@ import {
 } from "./decisionUtils";
 import {
   getEvaluatorTaskName,
-  getEvaluatorTaskPreview,
+  buildEvaluatorTaskDefinition,
 } from "./evaluators/evaluatorTaskSnapshot";
 import {
   getPromptTaskInput,
@@ -157,7 +157,7 @@ function getExperimentTaskInput({
   // evaluator, and what runs must be what the editor shows.
   return {
     evaluator: {
-      evaluator: getEvaluatorTaskPreview({
+      evaluator: buildEvaluatorTaskDefinition({
         evaluator,
         name: getEvaluatorTaskName(evaluator, position),
         playgroundStore,
