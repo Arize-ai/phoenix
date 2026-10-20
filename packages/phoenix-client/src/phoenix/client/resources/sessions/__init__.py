@@ -169,6 +169,8 @@ class Sessions:
             raise ValueError("Only one of project_id or project_name can be provided.")
         project_identifier = project_name if project_name else project_id
         assert project_identifier
+        if limit is not None and limit <= 0:
+            return []
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
         all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
@@ -756,6 +758,8 @@ class AsyncSessions:
             raise ValueError("Only one of project_id or project_name can be provided.")
         project_identifier = project_name if project_name else project_id
         assert project_identifier
+        if limit is not None and limit <= 0:
+            return []
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
         all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
