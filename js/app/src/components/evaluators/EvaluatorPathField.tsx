@@ -4,9 +4,7 @@ import type {
   CompletionSection,
   CompletionSource,
 } from "@codemirror/autocomplete";
-import { acceptCompletion } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
-import { keymap } from "@codemirror/view";
 import { css } from "@emotion/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -16,7 +14,6 @@ import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluato
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
-import { closeCompletionOnEscape } from "./completionKeys";
 import type { MaterializedEvaluatorContext } from "./evaluatorContext";
 import {
   EVALUATOR_METADATA_SLOT,
@@ -45,17 +42,14 @@ import {
   toMemberPreview,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
+import { evaluatorPathFieldKeys } from "./evaluatorPathFieldKeys";
 import {
   getEvaluatorPathIdeas,
   MAPPING_PATH_SYNTAX,
 } from "./evaluatorPathIdeas";
 import type { EvaluatorPathMenuCompletion } from "./evaluatorPathMenu";
-import {
-  evaluatorPathMenu,
-  matchDisplayedKey,
-  renderPreviewPanel,
-  renderSubmenuPanel,
-} from "./evaluatorPathMenu";
+import { matchDisplayedKey, renderPreviewPanel } from "./evaluatorPathMenu";
+import { renderSubmenuPanel } from "./evaluatorPathPanel";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 const INVALID_PATH_MESSAGE = "Not a valid path";
@@ -285,7 +279,7 @@ export function EvaluatorPathField({
       onChange={onChange}
       completions={NO_COMPLETIONS}
       completionSources={completionSources}
-      extensions={pathFieldKeys}
+      extensions={evaluatorPathFieldKeys}
       selectOnOpen
       validateCondition={validatePath}
       validationRetryKey={blurCount}
@@ -299,16 +293,6 @@ export function EvaluatorPathField({
 }
 
 function noop() {}
-
-/**
- * Tab accepts the highlighted row; with no menu open it leaves the field.
- * The menu's own chrome — badges, side panels, ArrowRight — rides along.
- */
-const pathFieldKeys = [
-  keymap.of([{ key: "Tab", run: acceptCompletion }]),
-  closeCompletionOnEscape,
-  evaluatorPathMenu(),
-];
 
 /**
  * Offers the level of the evaluation context the cursor sits in.
