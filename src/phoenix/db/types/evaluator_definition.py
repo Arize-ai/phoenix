@@ -2,7 +2,7 @@
 Pydantic models describing the evaluator a request asked to run.
 
 A definition is either an inline draft (an LLM judge prompt or a piece of code) or a
-reference to a stored evaluator. It is what the ``evaluatorPreviews`` mutation receives, and
+reference to a stored evaluator. It is what the ``evaluatorPreview`` subscription receives, and
 what an experiment evaluator task freezes in its ``definition`` JSON column so the experiment
 runner can rebuild the same evaluator when it starts or resumes the experiment.
 """
