@@ -15,6 +15,7 @@ Follow the two-phase approach below: first analyze, then implement.
 
 - **Phoenix Docs:** https://arize.com/docs/phoenix
 - **Full integration list:** https://arize.com/docs/phoenix/integrations
+- **Migrating historical Phoenix data to Arize AX?** Follow https://arize.com/docs/ax/cookbooks/migrate/migrate-from-phoenix and its `arize-phoenix-migration` skill. This is separate from setting up Phoenix tracing for new application data.
 
 ---
 
