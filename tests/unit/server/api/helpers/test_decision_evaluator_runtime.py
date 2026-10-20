@@ -25,7 +25,10 @@ from phoenix.server.api.helpers.decision_clients import (
     ScaleAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.api.helpers.decision_evaluators import project_decision_response
+from phoenix.server.api.helpers.decision_evaluators import (
+    parse_decision_annotation,
+    project_decision_response,
+)
 from phoenix.tracers import Tracer
 
 from .test_decision_evaluator_policy import questions
@@ -147,7 +150,17 @@ def test_scale_metadata_keeps_the_asked_levels(
     assert results["quality"]["metadata"]["decision"]["question"]["levels"] == [
         {"label": level.label, "description": level.description} for level in scale.levels
     ]
-    assert "levels" not in results["correct"]["metadata"]["decision"]["question"]
+    assert results["correct"]["metadata"]["decision"]["question"]["levels"] is None
+    route = results["route"]["metadata"]["decision"]["question"]
+    assert [choice["value"] for choice in route["choices"]] == ["accept", "review"]
+    for result in results.values():
+        assert parse_decision_annotation(result["metadata"]) is not None
+
+
+def test_metadata_that_does_not_match_the_format_is_not_a_decision() -> None:
+    assert parse_decision_annotation({}) is None
+    assert parse_decision_annotation({"decision": {"status": "answered"}}) is None
+    assert parse_decision_annotation({"decision": {"status": "error"}}) is not None
 
 
 def test_scale_label_is_omitted_unless_requested(

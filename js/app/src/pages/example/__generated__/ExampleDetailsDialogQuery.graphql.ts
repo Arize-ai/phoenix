@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<65bef52b9d9fc95822ef931690aebe0d>>
+ * @generated SignedSource<<f7a51dd71589c69ce43414a53c049993>>
  * @lightSyntaxTransform
  */
 
@@ -235,6 +235,41 @@ v16 = {
     }
   ],
   "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -378,15 +413,175 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*:: as any*/),
-                                      (v10/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "label",
+                                        "concreteType": "DecisionAnnotation",
+                                        "kind": "LinkedField",
+                                        "name": "decision",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "status",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "DecisionAnnotationQuestion",
+                                            "kind": "LinkedField",
+                                            "name": "question",
+                                            "plural": false,
+                                            "selections": [
+                                              (v10/*:: as any*/),
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "kind": "ScalarField",
+                                                "name": "type",
+                                                "storageKey": null
+                                              },
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "concreteType": "DecisionChoiceOption",
+                                                "kind": "LinkedField",
+                                                "name": "choices",
+                                                "plural": true,
+                                                "selections": [
+                                                  (v17/*:: as any*/),
+                                                  (v18/*:: as any*/)
+                                                ],
+                                                "storageKey": null
+                                              },
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "concreteType": "DecisionScaleLevel",
+                                                "kind": "LinkedField",
+                                                "name": "levels",
+                                                "plural": true,
+                                                "selections": [
+                                                  (v19/*:: as any*/),
+                                                  (v18/*:: as any*/)
+                                                ],
+                                                "storageKey": null
+                                              }
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": null,
+                                            "kind": "LinkedField",
+                                            "name": "answer",
+                                            "plural": false,
+                                            "selections": [
+                                              (v14/*:: as any*/),
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  (v20/*:: as any*/)
+                                                ],
+                                                "type": "PredicateAnswer",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "kind": "ScalarField",
+                                                    "name": "choice",
+                                                    "storageKey": null
+                                                  },
+                                                  (v21/*:: as any*/),
+                                                  {
+                                                    "alias": "choiceProbabilities",
+                                                    "args": null,
+                                                    "concreteType": "ChoiceProbability",
+                                                    "kind": "LinkedField",
+                                                    "name": "probabilities",
+                                                    "plural": true,
+                                                    "selections": [
+                                                      (v17/*:: as any*/),
+                                                      (v20/*:: as any*/)
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ChoiceAnswer",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "kind": "ScalarField",
+                                                    "name": "expectedLevel",
+                                                    "storageKey": null
+                                                  },
+                                                  (v21/*:: as any*/),
+                                                  {
+                                                    "alias": "levelProbabilities",
+                                                    "args": null,
+                                                    "concreteType": "LevelProbability",
+                                                    "kind": "LinkedField",
+                                                    "name": "probabilities",
+                                                    "plural": true,
+                                                    "selections": [
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "kind": "ScalarField",
+                                                        "name": "level",
+                                                        "storageKey": null
+                                                      },
+                                                      (v20/*:: as any*/)
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ScaleAnswer",
+                                                "abstractKey": null
+                                              }
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "requestedModel",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "resolvedModel",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "modelProvider",
+                                            "storageKey": null
+                                          }
+                                        ],
                                         "storageKey": null
                                       },
+                                      (v3/*:: as any*/),
+                                      (v10/*:: as any*/),
+                                      (v19/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -492,12 +687,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0c30383396134dceb680b057f240be11",
+    "cacheID": "82d837c92ad88c8491f4ba440b5540ad",
     "id": null,
     "metadata": {},
     "name": "ExampleDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n  $datasetVersionId: ID\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      externalId\n      dataset {\n        id\n      }\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        output\n        metadata\n      }\n      datasetSplits {\n        id\n        name\n        color\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n  $datasetVersionId: ID\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      externalId\n      dataset {\n        id\n      }\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        output\n        metadata\n      }\n      datasetSplits {\n        id\n        name\n        color\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              decision {\n                status\n                question {\n                  name\n                  type\n                  choices {\n                    value\n                    description\n                  }\n                  levels {\n                    label\n                    description\n                  }\n                }\n                answer {\n                  __typename\n                  ... on PredicateAnswer {\n                    probability\n                  }\n                  ... on ChoiceAnswer {\n                    choice\n                    confidence\n                    choiceProbabilities: probabilities {\n                      value\n                      probability\n                    }\n                  }\n                  ... on ScaleAnswer {\n                    expectedLevel\n                    confidence\n                    levelProbabilities: probabilities {\n                      level\n                      probability\n                    }\n                  }\n                }\n                requestedModel\n                resolvedModel\n                modelProvider\n              }\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

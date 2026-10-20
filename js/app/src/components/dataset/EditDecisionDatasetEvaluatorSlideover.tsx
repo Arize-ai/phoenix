@@ -807,6 +807,7 @@ const DecisionJudgePreview = ({
           results {
             evaluatorName
             annotation {
+              ...decisionAnnotation_annotation @relay(mask: false)
               id
               name
               label

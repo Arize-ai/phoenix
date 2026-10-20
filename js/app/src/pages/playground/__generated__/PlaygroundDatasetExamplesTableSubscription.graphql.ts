@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b6525f4dfe99c279061927dc8ff7298e>>
+ * @generated SignedSource<<8a37071b96aad390b6ca8c7ac179ea91>>
  * @lightSyntaxTransform
  */
 
@@ -10,6 +10,8 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
+export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
+export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
 export type DecisionQuestionFormat = "OPENAI" | "PHOENIX" | "SYSTEM_ONE";
 export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
@@ -520,6 +522,48 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly experimentId: string | null;
     readonly experimentRunEvaluation: {
       readonly annotatorKind: ExperimentRunAnnotatorKind;
+      readonly decision: {
+        readonly answer: {
+          readonly __typename: "ChoiceAnswer";
+          readonly choice: string;
+          readonly choiceProbabilities: ReadonlyArray<{
+            readonly probability: number;
+            readonly value: string;
+          }>;
+          readonly confidence: number;
+        } | {
+          readonly __typename: "PredicateAnswer";
+          readonly probability: number;
+        } | {
+          readonly __typename: "ScaleAnswer";
+          readonly confidence: number;
+          readonly expectedLevel: number;
+          readonly levelProbabilities: ReadonlyArray<{
+            readonly level: number;
+            readonly probability: number;
+          }>;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        } | null;
+        readonly modelProvider: GenerativeProviderKey | null;
+        readonly question: {
+          readonly choices: ReadonlyArray<{
+            readonly description: string | null;
+            readonly value: string;
+          }> | null;
+          readonly levels: ReadonlyArray<{
+            readonly description: string | null;
+            readonly label: string;
+          }> | null;
+          readonly name: string;
+          readonly type: DecisionAnnotationQuestionType;
+        } | null;
+        readonly requestedModel: string | null;
+        readonly resolvedModel: string | null;
+        readonly status: DecisionAnnotationStatus;
+      } | null;
       readonly explanation: string | null;
       readonly id: string;
       readonly label: string | null;
@@ -837,20 +881,215 @@ v16 = {
 v17 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
+},
+v22 = {
+  "alias": null,
+  "args": null,
   "concreteType": "ExperimentRunAnnotation",
   "kind": "LinkedField",
   "name": "experimentRunEvaluation",
   "plural": false,
   "selections": [
-    (v7/*:: as any*/),
-    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "label",
+      "concreteType": "DecisionAnnotation",
+      "kind": "LinkedField",
+      "name": "decision",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "status",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DecisionAnnotationQuestion",
+          "kind": "LinkedField",
+          "name": "question",
+          "plural": false,
+          "selections": [
+            (v8/*:: as any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "type",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DecisionChoiceOption",
+              "kind": "LinkedField",
+              "name": "choices",
+              "plural": true,
+              "selections": [
+                (v17/*:: as any*/),
+                (v18/*:: as any*/)
+              ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DecisionScaleLevel",
+              "kind": "LinkedField",
+              "name": "levels",
+              "plural": true,
+              "selections": [
+                (v19/*:: as any*/),
+                (v18/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": null,
+          "kind": "LinkedField",
+          "name": "answer",
+          "plural": false,
+          "selections": [
+            (v2/*:: as any*/),
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v20/*:: as any*/)
+              ],
+              "type": "PredicateAnswer",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "choice",
+                  "storageKey": null
+                },
+                (v21/*:: as any*/),
+                {
+                  "alias": "choiceProbabilities",
+                  "args": null,
+                  "concreteType": "ChoiceProbability",
+                  "kind": "LinkedField",
+                  "name": "probabilities",
+                  "plural": true,
+                  "selections": [
+                    (v17/*:: as any*/),
+                    (v20/*:: as any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "ChoiceAnswer",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "expectedLevel",
+                  "storageKey": null
+                },
+                (v21/*:: as any*/),
+                {
+                  "alias": "levelProbabilities",
+                  "args": null,
+                  "concreteType": "LevelProbability",
+                  "kind": "LinkedField",
+                  "name": "probabilities",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "level",
+                      "storageKey": null
+                    },
+                    (v20/*:: as any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "ScaleAnswer",
+              "abstractKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "requestedModel",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "resolvedModel",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "modelProvider",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
+    (v7/*:: as any*/),
+    (v8/*:: as any*/),
+    (v19/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -889,14 +1128,14 @@ v17 = {
   ],
   "storageKey": null
 },
-v18 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "projectId",
   "storageKey": null
 },
-v19 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -931,7 +1170,7 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v16/*:: as any*/),
-              (v17/*:: as any*/),
+              (v22/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -941,11 +1180,11 @@ return {
                 "plural": false,
                 "selections": [
                   (v12/*:: as any*/),
-                  (v18/*:: as any*/)
+                  (v23/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v19/*:: as any*/)
+              (v24/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -984,7 +1223,7 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v16/*:: as any*/),
-              (v17/*:: as any*/),
+              (v22/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -994,12 +1233,12 @@ return {
                 "plural": false,
                 "selections": [
                   (v12/*:: as any*/),
-                  (v18/*:: as any*/),
+                  (v23/*:: as any*/),
                   (v7/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v19/*:: as any*/)
+              (v24/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -1010,16 +1249,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7086d17e19386a5e23ff008c25e53308",
+    "cacheID": "cf957554717ace4a3fe77968c57e28ba",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ExperimentsOverDatasetInput!\n) {\n  experimentsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experimentId\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n        output\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ExperimentsOverDatasetInput!\n) {\n  experimentsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experimentId\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n        output\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "baa2e4a4462a57a738da2b85ce0c4c99";
+(node as any).hash = "f4d73ed0794af955b9a72c108c037a66";
 
 export default node;

@@ -27,7 +27,10 @@ from phoenix.server.api.evaluators import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+from phoenix.server.api.helpers.decision_evaluators import (
+    freeze_decision_evaluator,
+    parse_decision_annotation,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
@@ -96,9 +99,10 @@ def _to_evaluation_result(
             error=eval_result["error"],
             trace=trace,
         )
+    decision = parse_decision_annotation(eval_result["metadata"])
     return EvaluationResult(
         evaluator_name=evaluator_name,
-        status=eval_result["metadata"].get("decision", {}).get("status", "answered"),
+        status=decision.status if decision is not None else "answered",
         annotation=_to_annotation(eval_result),
         trace=trace,
     )

@@ -37,6 +37,7 @@ function evaluation(
       fields.error != null
         ? null
         : {
+            decision: null,
             id: "annotation-1",
             name: evaluatorName,
             label: fields.label ?? null,

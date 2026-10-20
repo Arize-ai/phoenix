@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 import strawberry
 
@@ -86,19 +86,40 @@ def to_gql_decision_answer(
     question: StoredDecisionQuestion, answer: decision_clients.DecisionAnswer
 ) -> DecisionAnswer:
     """Convert a validated answer; ``question`` supplies its name and probability order."""
-    name = question.name
+    if isinstance(answer, decision_clients.ChoiceAnswer) and not isinstance(
+        question, ChoiceQuestion
+    ):
+        raise ValueError(f"Unexpected answer type {answer.type!r} for {question.name}")
+    return to_gql_answer(
+        question.name,
+        answer,
+        [option.value for option in question.choices]
+        if isinstance(question, ChoiceQuestion)
+        else None,
+    )
+
+
+def to_gql_answer(
+    name: str,
+    answer: decision_clients.DecisionAnswer,
+    choice_order: Optional[Sequence[str]] = None,
+) -> DecisionAnswer:
+    """Convert an answer to the question ``name``. A choice's probabilities follow
+    ``choice_order`` when given, and the answer's own order otherwise."""
     if isinstance(answer, decision_clients.PredicateAnswer):
         return PredicateAnswer(name=name, probability=answer.probability)
-    if isinstance(answer, decision_clients.ChoiceAnswer) and isinstance(question, ChoiceQuestion):
+    if isinstance(answer, decision_clients.ChoiceAnswer):
+        order = list(choice_order or [])
+        values = [value for value in order if value in answer.probabilities] + [
+            value for value in answer.probabilities if value not in order
+        ]
         return ChoiceAnswer(
             name=name,
             choice=answer.choice,
             confidence=answer.confidence,
             probabilities=[
-                ChoiceProbability(
-                    value=option.value, probability=answer.probabilities[option.value]
-                )
-                for option in question.choices
+                ChoiceProbability(value=value, probability=answer.probabilities[value])
+                for value in values
             ],
         )
     if isinstance(answer, decision_clients.ScaleAnswer):

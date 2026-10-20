@@ -14,6 +14,8 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.evaluators import BaseEvaluator, EvaluationResult, apply_input_mapping
 from phoenix.server.api.helpers.decision_clients import DecisionClient, DecisionRequest
 from phoenix.server.api.helpers.decision_evaluators import (
+    ErroredDecisionAnnotation,
+    decision_annotation_metadata,
     decision_input_schema,
     project_decision_response,
     validate_decision_output_overrides,
@@ -51,13 +53,9 @@ class DecisionEvaluator(BaseEvaluator):
 
     @property
     def error_metadata(self) -> dict[str, Any]:
-        source = self.definition.source
-        return {
-            "decision": {
-                "status": "error",
-                "source": source.model_dump(mode="json") if source else None,
-            }
-        }
+        return decision_annotation_metadata(
+            ErroredDecisionAnnotation(status="error", source=self.definition.source)
+        )
 
     @property
     def annotator_kind(self) -> str:

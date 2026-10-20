@@ -2235,6 +2235,7 @@ graphql`
         repetitionNumber
         evaluatorName
         experimentRunEvaluation {
+          ...decisionAnnotation_annotation @relay(mask: false)
           id
           name
           label

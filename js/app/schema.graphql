@@ -1735,6 +1735,53 @@ type Decision implements Node {
   versions(first: Int = 50, last: Int, after: String, before: String): DecisionVersionConnection!
 }
 
+"""
+A decision judge's result for one question, read from the annotation's `metadata.decision`. Metadata is ordinary JSON, so this describes its format, not which evaluator wrote it.
+"""
+type DecisionAnnotation {
+  status: DecisionAnnotationStatus!
+
+  """Null when the call failed."""
+  question: DecisionAnnotationQuestion
+
+  """The normalized answer, a refusal included; null when the call failed."""
+  answer: DecisionAnswer
+
+  """The scoring settings applied to the answer; null when the call failed."""
+  projection: DecisionQuestionProjection
+  requestedModel: String
+  resolvedModel: String
+  modelProvider: GenerativeProviderKey
+  customProviderId: ID
+
+  """The judge, decision version, and binding that produced the result."""
+  source: EvaluatorTaskSource
+}
+
+"""The question a decision judge asked, as it asked it."""
+type DecisionAnnotationQuestion {
+  name: String!
+  type: DecisionAnnotationQuestionType!
+
+  """A choice question's options, in order; null for other types."""
+  choices: [DecisionChoiceOption!]
+
+  """A scale's levels, from the lowest; null for other types."""
+  levels: [DecisionScaleLevel!]
+}
+
+enum DecisionAnnotationQuestionType {
+  PREDICATE
+  CHOICE
+  SCALE
+}
+
+enum DecisionAnnotationStatus {
+  ANSWERED
+  REFUSED
+  ERROR
+}
+
 """One answer, in Phoenix's vocabulary whatever the provider."""
 interface DecisionAnswer {
   """The name of the question this answers."""
@@ -3305,6 +3352,11 @@ type ExperimentRunAnnotation implements Node {
 
   """Metadata about the annotation."""
   metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """The date and time when the annotation was created."""
   startTime: DateTime!

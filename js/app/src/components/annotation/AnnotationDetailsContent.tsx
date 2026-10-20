@@ -6,10 +6,9 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationScoreText } from "./AnnotationScoreText";
 import {
-  type DecisionAnnotationSummary,
-  describeScaleLevel,
-  parseDecisionAnnotationMetadata,
-} from "./decisionAnnotationMetadata";
+  type DecisionAnnotation,
+  decisionProbabilities,
+} from "./decisionAnnotation";
 import type { Annotation } from "./types";
 
 function DecisionRow({
@@ -34,67 +33,63 @@ function DecisionRow({
   );
 }
 
+const DECISION_STATUS_LABELS: Partial<Record<string, string>> = {
+  ANSWERED: "Answered",
+  REFUSED: "Refused",
+  ERROR: "Error",
+};
+
 /**
  * Status, uncertainty and provenance for a decision evaluator's annotation.
  */
-function DecisionDetails({
-  decision,
-}: {
-  decision: DecisionAnnotationSummary;
-}) {
+function DecisionDetails({ decision }: { decision: DecisionAnnotation }) {
   const model = decision.resolvedModel ?? decision.requestedModel;
+  const answer = decision.answer;
   return (
     <View paddingTop="size-50" data-testid="decision-details">
       <Flex direction="column">
         <DecisionRow
           name="decision status"
-          value={
-            { answered: "Answered", refused: "Refused", error: "Error" }[
-              decision.status
-            ]
-          }
+          value={DECISION_STATUS_LABELS[decision.status] ?? decision.status}
         />
         {decision.question ? (
           <DecisionRow
             name="question"
-            value={`${decision.question.name} (${decision.question.type})`}
+            value={`${decision.question.name} (${decision.question.type.toLowerCase()})`}
           />
         ) : null}
-        {decision.probability != null ? (
+        {answer?.__typename === "PredicateAnswer" ? (
           <DecisionRow
             name="probability"
-            value={floatFormatter(decision.probability)}
+            value={floatFormatter(answer.probability)}
           />
         ) : null}
-        {decision.expectedLevel != null ? (
+        {answer?.__typename === "ScaleAnswer" ? (
           <DecisionRow
             name="expected level"
-            value={floatFormatter(decision.expectedLevel)}
+            value={floatFormatter(answer.expectedLevel)}
           />
         ) : null}
-        {decision.confidence != null ? (
+        {answer?.__typename === "ChoiceAnswer" ||
+        answer?.__typename === "ScaleAnswer" ? (
           <DecisionRow
             name="confidence"
-            value={floatFormatter(decision.confidence)}
+            value={floatFormatter(answer.confidence)}
           />
         ) : null}
-        {decision.probabilities.map(({ key, probability }) => {
-          const level =
-            decision.question?.type === "scale"
-              ? describeScaleLevel(key, decision.question.levels)
-              : null;
-          return (
+        {decisionProbabilities(decision).map(
+          ({ key, name, title, probability }) => (
             <DecisionRow
               key={key}
-              name={level ? `p(${level.name})` : `p(${key})`}
-              title={level?.title}
+              name={`p(${name})`}
+              title={title}
               value={floatFormatter(probability)}
             />
-          );
-        })}
+          )
+        )}
         {model ? <DecisionRow name="model" value={model} /> : null}
-        {decision.provider ? (
-          <DecisionRow name="provider" value={decision.provider} />
+        {decision.modelProvider ? (
+          <DecisionRow name="provider" value={decision.modelProvider} />
         ) : null}
       </Flex>
     </View>
@@ -109,7 +104,7 @@ export function AnnotationDetailsContent({
 }: {
   annotation: Annotation;
 }) {
-  const decision = parseDecisionAnnotationMetadata(annotation.metadata);
+  const decision = annotation.decision;
   return (
     <Flex
       direction="column"

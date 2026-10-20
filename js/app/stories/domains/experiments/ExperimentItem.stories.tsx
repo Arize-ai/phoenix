@@ -72,6 +72,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
       edges: [
         {
           annotation: {
+            decision: null,
             id: "ann-1",
             name: "answer_relevance",
             label: null,
@@ -85,6 +86,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
         },
         {
           annotation: {
+            decision: null,
             id: "ann-2",
             name: "column_coverage",
             label: null,
@@ -98,6 +100,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
         },
         {
           annotation: {
+            decision: null,
             id: "ann-3",
             name: "verbosity",
             label: null,
@@ -168,6 +171,7 @@ const mockRepetitionExperimentRepetition: ExperimentRepetition = {
       edges: [
         {
           annotation: {
+            decision: null,
             id: "ann-4",
             name: "answer_relevance",
             label: null,

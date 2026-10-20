@@ -10,7 +10,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationScoreText } from "./AnnotationScoreText";
-import { isRefusedDecisionAnnotation } from "./decisionAnnotationMetadata";
+import { isRefusedDecisionAnnotation } from "./decisionAnnotation";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`

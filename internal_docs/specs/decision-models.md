@@ -358,12 +358,12 @@ a fixed explanation. Everything a decision adds goes in `metadata.decision`,
 which is the only way a reader can tell a refusal from a missing score, or see
 the judge's uncertainty.
 
-**Current default:** the shape implemented ahead of this decision
-(`decision_evaluators.py`, `decision_evaluator.py`):
+**Current default:** the shape implemented ahead of this decision, defined by
+Pydantic models in `decision_evaluators.py` that both writers build from:
 
 - **Answered or refused:** `status` (`answered` or `refused`), `question` (`name`,
-  `type`, and for a scale its `levels`, each `{label, description}`, since the
-  answer and projection index levels by position only), `answer` (Phoenix's normalized answer, with confidence and
+  `type`, a choice's `choices` and a scale's `levels`, since the answer and
+  projection refer to them by value or position only), `answer` (Phoenix's normalized answer, with confidence and
   probabilities), `projection` (the question's applied scoring settings),
   `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
   `source` (evaluator, decision, version, and binding IDs).
@@ -372,8 +372,12 @@ the judge's uncertainty.
   carry the same metadata.
 - **Not recorded:** usage, which stays on the span.
 
-The preview already reads `status` (`chat_mutations.py`), and annotations are
-exported and read by other tools.
+GraphQL exposes it typed as `ExperimentRunAnnotation.decision`, parsed with the
+same models, and null when the metadata doesn't match. Metadata is ordinary JSON
+that any client can write, so a match identifies the format, not which evaluator
+wrote it. The preview reads `status` the same way (`chat_mutations.py`), and
+annotations are exported and read by other tools. Fields added later are
+optional, so earlier payloads still parse without a version field.
 
 **Alternatives,** one per part of the shape; each part can be decided on its own:
 

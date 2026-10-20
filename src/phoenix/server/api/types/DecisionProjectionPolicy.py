@@ -1,6 +1,6 @@
 """Typed projection policies for saved, dataset-bound, and frozen decision judges."""
 
-from typing import Sequence
+from typing import Optional, Sequence
 
 import strawberry
 from typing_extensions import assert_never
@@ -84,43 +84,49 @@ class DecisionProjectionPolicy:
         )
         result: list[DecisionQuestionProjection] = []
         for name in names:
-            projection = policy.questions[name]
-            if isinstance(projection, stored.PredicateProjection):
-                result.append(
-                    DecisionPredicateProjection(
-                        name=name,
-                        optimization_direction=projection.optimization_direction,
-                        threshold=projection.threshold,
-                    )
-                )
-            elif isinstance(projection, stored.ChoiceProjection):
-                question = declared.get(name)
-                order = (
+            question = declared.get(name)
+            result.append(
+                to_gql_question_projection(
+                    name,
+                    policy.questions[name],
                     [choice.value for choice in question.choices]
                     if isinstance(question, ChoiceQuestion)
-                    else []
+                    else None,
                 )
-                choices = [choice for choice in order if choice in projection.scores] + sorted(
-                    choice for choice in projection.scores if choice not in order
-                )
-                result.append(
-                    DecisionChoiceProjection(
-                        name=name,
-                        optimization_direction=projection.optimization_direction,
-                        scores=[
-                            DecisionChoiceScore(choice=choice, score=projection.scores[choice])
-                            for choice in choices
-                        ],
-                    )
-                )
-            elif isinstance(projection, stored.ScaleProjection):
-                result.append(
-                    DecisionScaleProjection(
-                        name=name,
-                        optimization_direction=projection.optimization_direction,
-                        include_label=projection.include_label,
-                    )
-                )
-            else:
-                assert_never(projection)
+            )
         return cls(questions=result)
+
+
+def to_gql_question_projection(
+    name: str,
+    projection: stored.DecisionQuestionProjection,
+    choice_order: Optional[Sequence[str]] = None,
+) -> DecisionQuestionProjection:
+    """One question's settings. A choice's scores follow ``choice_order`` when given,
+    then any other scored values sorted."""
+    if isinstance(projection, stored.PredicateProjection):
+        return DecisionPredicateProjection(
+            name=name,
+            optimization_direction=projection.optimization_direction,
+            threshold=projection.threshold,
+        )
+    if isinstance(projection, stored.ChoiceProjection):
+        order = list(choice_order or [])
+        choices = [choice for choice in order if choice in projection.scores] + sorted(
+            choice for choice in projection.scores if choice not in order
+        )
+        return DecisionChoiceProjection(
+            name=name,
+            optimization_direction=projection.optimization_direction,
+            scores=[
+                DecisionChoiceScore(choice=choice, score=projection.scores[choice])
+                for choice in choices
+            ],
+        )
+    if isinstance(projection, stored.ScaleProjection):
+        return DecisionScaleProjection(
+            name=name,
+            optimization_direction=projection.optimization_direction,
+            include_label=projection.include_label,
+        )
+    assert_never(projection)

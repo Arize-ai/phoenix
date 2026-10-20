@@ -66,7 +66,7 @@ class EvaluatorTaskSource:
     project_evaluator_id: Optional[GlobalID]
 
 
-def _to_gql_source(
+def to_gql_evaluator_source(
     source: Optional[definition_types.EvaluatorSource], evaluator_type_name: str
 ) -> Optional[EvaluatorTaskSource]:
     if source is None:
@@ -136,7 +136,7 @@ class InlineLLMEvaluatorDefinition:
                 prompt_version.invocation_parameters
             ),
             output_configs=_to_gql_output_configs(list(obj.output_configs), evaluator_id),
-            source=_to_gql_source(obj.source, "LLMEvaluator"),
+            source=to_gql_evaluator_source(obj.source, "LLMEvaluator"),
             custom_provider_id=prompt_version.custom_provider_id,
         )
 
@@ -189,7 +189,7 @@ class InlineCodeEvaluatorDefinition:
             source_code=obj.source_code,
             sandbox_config_id=GlobalID("SandboxConfig", str(obj.sandbox_config_id)),
             output_configs=_to_gql_output_configs(list(obj.output_configs), evaluator_id),
-            source=_to_gql_source(obj.source, "CodeEvaluator"),
+            source=to_gql_evaluator_source(obj.source, "CodeEvaluator"),
         )
 
 
@@ -210,7 +210,7 @@ class StoredCodeEvaluatorDefinition:
             code_evaluator_version_id=_global_id(
                 "CodeEvaluatorVersion", obj.code_evaluator_version_id
             ),
-            source=_to_gql_source(obj.source, "CodeEvaluator"),
+            source=to_gql_evaluator_source(obj.source, "CodeEvaluator"),
         )
 
 
@@ -249,7 +249,7 @@ class InlineDecisionEvaluatorDefinition:
             output_configs=_to_gql_output_configs(
                 derive_decision_output_configs(obj.questions, obj.projection_policy), evaluator_id
             ),
-            source=_to_gql_source(obj.source, "DecisionEvaluator"),
+            source=to_gql_evaluator_source(obj.source, "DecisionEvaluator"),
         )
 
 
@@ -266,7 +266,7 @@ class StoredDecisionEvaluatorDefinition:
     ) -> "StoredDecisionEvaluatorDefinition":
         return cls(
             decision_evaluator_id=GlobalID("DecisionEvaluator", str(obj.decision_evaluator_id)),
-            source=_to_gql_source(obj.source, "DecisionEvaluator"),
+            source=to_gql_evaluator_source(obj.source, "DecisionEvaluator"),
         )
 
 

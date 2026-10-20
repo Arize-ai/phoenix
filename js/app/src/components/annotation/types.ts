@@ -1,5 +1,7 @@
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
+import type { DecisionAnnotation } from "./decisionAnnotation";
+
 export type {
   AnnotationConfig,
   AnnotationConfigCategorical,
@@ -14,6 +16,8 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   metadata?: Record<string, unknown>;
+  /** A decision judge's typed result, for experiment-run annotations */
+  decision?: DecisionAnnotation | null;
   annotatorKind?: string;
   createdAt?: string;
   updatedAt?: string;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dea8091ce46283d8b34b14e9814cf870>>
+ * @generated SignedSource<<d38ca50f4d370f9680bf479ec13add24>>
  * @lightSyntaxTransform
  */
 
@@ -99,6 +99,48 @@ v5 = {
       "storageKey": null
     }
   ],
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
   "storageKey": null
 };
 return {
@@ -225,21 +267,175 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "DecisionAnnotation",
+                                        "kind": "LinkedField",
+                                        "name": "decision",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "status",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "DecisionAnnotationQuestion",
+                                            "kind": "LinkedField",
+                                            "name": "question",
+                                            "plural": false,
+                                            "selections": [
+                                              (v6/*:: as any*/),
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "kind": "ScalarField",
+                                                "name": "type",
+                                                "storageKey": null
+                                              },
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "concreteType": "DecisionChoiceOption",
+                                                "kind": "LinkedField",
+                                                "name": "choices",
+                                                "plural": true,
+                                                "selections": [
+                                                  (v7/*:: as any*/),
+                                                  (v8/*:: as any*/)
+                                                ],
+                                                "storageKey": null
+                                              },
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "concreteType": "DecisionScaleLevel",
+                                                "kind": "LinkedField",
+                                                "name": "levels",
+                                                "plural": true,
+                                                "selections": [
+                                                  (v9/*:: as any*/),
+                                                  (v8/*:: as any*/)
+                                                ],
+                                                "storageKey": null
+                                              }
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": null,
+                                            "kind": "LinkedField",
+                                            "name": "answer",
+                                            "plural": false,
+                                            "selections": [
+                                              (v3/*:: as any*/),
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  (v10/*:: as any*/)
+                                                ],
+                                                "type": "PredicateAnswer",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "kind": "ScalarField",
+                                                    "name": "choice",
+                                                    "storageKey": null
+                                                  },
+                                                  (v11/*:: as any*/),
+                                                  {
+                                                    "alias": "choiceProbabilities",
+                                                    "args": null,
+                                                    "concreteType": "ChoiceProbability",
+                                                    "kind": "LinkedField",
+                                                    "name": "probabilities",
+                                                    "plural": true,
+                                                    "selections": [
+                                                      (v7/*:: as any*/),
+                                                      (v10/*:: as any*/)
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ChoiceAnswer",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "kind": "ScalarField",
+                                                    "name": "expectedLevel",
+                                                    "storageKey": null
+                                                  },
+                                                  (v11/*:: as any*/),
+                                                  {
+                                                    "alias": "levelProbabilities",
+                                                    "args": null,
+                                                    "concreteType": "LevelProbability",
+                                                    "kind": "LinkedField",
+                                                    "name": "probabilities",
+                                                    "plural": true,
+                                                    "selections": [
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "kind": "ScalarField",
+                                                        "name": "level",
+                                                        "storageKey": null
+                                                      },
+                                                      (v10/*:: as any*/)
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ScaleAnswer",
+                                                "abstractKey": null
+                                              }
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "requestedModel",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "resolvedModel",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "modelProvider",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      },
                                       (v4/*:: as any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "name",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "label",
-                                        "storageKey": null
-                                      },
+                                      (v6/*:: as any*/),
+                                      (v9/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -351,16 +547,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fb9f9bd0ac0359a920eb76d9555e58dd",
+    "cacheID": "7687645cd2b0ce184692ecd656b8e6e0",
     "id": null,
     "metadata": {},
     "name": "ExampleExperimentRunsTableQuery",
     "operationKind": "query",
-    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              decision {\n                status\n                question {\n                  name\n                  type\n                  choices {\n                    value\n                    description\n                  }\n                  levels {\n                    label\n                    description\n                  }\n                }\n                answer {\n                  __typename\n                  ... on PredicateAnswer {\n                    probability\n                  }\n                  ... on ChoiceAnswer {\n                    choice\n                    confidence\n                    choiceProbabilities: probabilities {\n                      value\n                      probability\n                    }\n                  }\n                  ... on ScaleAnswer {\n                    expectedLevel\n                    confidence\n                    levelProbabilities: probabilities {\n                      level\n                      probability\n                    }\n                  }\n                }\n                requestedModel\n                resolvedModel\n                modelProvider\n              }\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5bb250cda11776bbac63021b8284fbca";
+(node as any).hash = "a208b6612c5c3f7dbf615529200ff0e5";
 
 export default node;

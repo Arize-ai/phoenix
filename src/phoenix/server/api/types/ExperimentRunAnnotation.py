@@ -1,7 +1,7 @@
 from datetime import datetime
 from math import isfinite
 from random import randint
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Dict, Optional
 
 import strawberry
 from strawberry import Info
@@ -12,6 +12,9 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
 from phoenix.server.api.types.Trace import Trace
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.DecisionAnnotation import DecisionAnnotation
 
 
 @strawberry.type
@@ -123,20 +126,39 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
+    async def _metadata(self, info: Info[Context, None]) -> Any:
+        if self._raw_annotation is not None:
+            return self._raw_annotation.get("metadata", {})
+        if self.db_record:
+            return self.db_record.metadata_
+        return await info.context.data_loaders.experiment_run_annotation_fields.load(
+            (self.id, models.ExperimentRunAnnotation.metadata_),
+        )
+
     @strawberry.field(description="Metadata about the annotation.")  # type: ignore
     async def metadata(
         self,
         info: Info[Context, None],
     ) -> JSON:
-        if self._raw_annotation is not None:
-            val = self._raw_annotation.get("metadata", {})
-        elif self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.experiment_run_annotation_fields.load(
-                (self.id, models.ExperimentRunAnnotation.metadata_),
-            )
-        return JSON(val)
+        return JSON(await self._metadata(info))
+
+    @strawberry.field(
+        description=(
+            "The decision judge's result, typed, when the metadata holds one in Phoenix's "
+            "decision format; null otherwise."
+        )
+    )  # type: ignore
+    async def decision(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
+        # Imported here: the decision clients import the playground clients, which import
+        # this type.
+        from phoenix.server.api.helpers.decision_evaluators import parse_decision_annotation
+        from phoenix.server.api.types.DecisionAnnotation import to_gql_decision_annotation
+
+        decision = parse_decision_annotation(await self._metadata(info))
+        return to_gql_decision_annotation(decision) if decision is not None else None
 
     @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
     async def start_time(

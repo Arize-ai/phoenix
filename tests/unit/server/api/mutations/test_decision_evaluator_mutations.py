@@ -115,7 +115,9 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
     result = await gql_client.execute(
         """
-      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName error annotation { name label score explanation metadata } } } }
+      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName error annotation { name label score explanation metadata
+        decision { status question { name type } answer { __typename ... on PredicateAnswer { probability } }
+          projection { __typename name } resolvedModel modelProvider } } } } }
     """,
         variables={
             "input": {
@@ -140,6 +142,16 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     assert refused["error"] is None
     assert refused["annotation"]["score"] is None and refused["annotation"]["label"] is None
     assert refused["annotation"]["metadata"]["decision"]["status"] == "refused"
+    assert answered["annotation"]["decision"] == {
+        "status": "ANSWERED",
+        "question": {"name": "urgent", "type": "PREDICATE"},
+        "answer": {"__typename": "PredicateAnswer", "probability": 0.7},
+        "projection": {"__typename": "DecisionPredicateProjection", "name": "urgent"},
+        "resolvedModel": "jev-resolved",
+        "modelProvider": "TYPESAFE",
+    }
+    assert refused["annotation"]["decision"]["status"] == "REFUSED"
+    assert refused["annotation"]["decision"]["answer"]["__typename"] == "RefusalAnswer"
     assert refused["annotation"]["explanation"] == "Decision model refused this question."
     assert invoke.await_count == 1
     assert invoke.call_args.args[0].state == {"id": 1}
