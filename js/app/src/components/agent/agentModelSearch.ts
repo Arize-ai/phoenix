@@ -1,7 +1,7 @@
 /**
  * Pure search and catalog logic for the PXI chat model picker: a flat catalog
  * of every model PXI can run, token search with ranking, provider guessing for
- * typed names, and the "Use `x` with <provider>" free-text target.
+ * typed names, and the provider list offered for a typed custom model name.
  *
  * Everything here works from the data `useModelMenuData` returns and from
  * server-side credentials only: PXI sends through the server proxy, so
@@ -74,21 +74,16 @@ export type AgentModelCatalogRow = {
   isProviderMissing?: boolean;
 };
 
-/**
- * Limits search to one provider. A built-in scope (`customProviderId: null`)
- * never includes custom providers that share its SDK.
- */
-export type AgentModelScope = {
-  provider: GenerativeProviderKey;
-  customProviderId: string | null;
-};
-
-/** The typed name to offer as a "Use `x` with <provider>" row. */
-export type AgentModelFreeTextTarget = {
+/** A typed name to offer as a custom model, with the providers it can use. */
+export type AgentModelCustomModelOption = {
   modelName: string;
-  provider: AgentModelProviderOption;
-  /** How the provider was chosen */
-  reason: "scope" | "guess" | "first-ready";
+  /**
+   * The providers to offer, in order: the one guessed from the name, then
+   * ready, may-work and no-key providers (otherwise in provider order)
+   */
+  providers: AgentModelProviderOption[];
+  /** Key of the provider guessed from the name, when it's offered */
+  guessedProviderKey: string | null;
 };
 
 export const DEFAULT_AGENT_MODEL_RESULT_LIMIT = 8;
@@ -299,25 +294,6 @@ export function resolveAgentModelRow({
   };
 }
 
-/** Whether a row or provider option falls inside a scope. */
-export function isInAgentModelScope({
-  provider,
-  customProvider,
-  scope,
-}: {
-  provider: GenerativeProviderKey;
-  customProvider: CustomProviderRef | null;
-  scope: AgentModelScope | null | undefined;
-}): boolean {
-  if (!scope) {
-    return true;
-  }
-  if (scope.customProviderId) {
-    return customProvider?.id === scope.customProviderId;
-  }
-  return customProvider == null && provider === scope.provider;
-}
-
 /**
  * Region prefixes of AWS Bedrock cross-region inference profiles, as in
  * `us.anthropic.claude-*` or `global.anthropic.claude-*`: the prefixes the
@@ -439,47 +415,33 @@ export function getCredentialStateOrder(
  * match quality, curated first, credential state (ready > may-work > no-key),
  * recency, then the shorter id, then catalog order.
  *
- * With an empty query this returns nothing unless a scope is set, in which
- * case it lists the scope's models in the same order (browsing a provider).
+ * An empty query returns nothing.
  *
  * @param params - search inputs
  * @param params.rows - the catalog from {@link buildAgentModelCatalog}
  * @param params.query - the search text
- * @param params.scope - optional provider to limit results to
  * @param params.recentModelKeys - row keys (see `getAgentModelKey`), newest first
  * @param params.limit - max rows returned (default 8)
  */
 export function rankAgentModels({
   rows,
   query,
-  scope = null,
   recentModelKeys = [],
   limit = DEFAULT_AGENT_MODEL_RESULT_LIMIT,
 }: {
   rows: readonly AgentModelCatalogRow[];
   query: string;
-  scope?: AgentModelScope | null;
   recentModelKeys?: readonly string[];
   limit?: number;
 }): AgentModelCatalogRow[] {
-  const isQueryEmpty = query.trim().length === 0;
-  if (isQueryEmpty && !scope) {
+  if (query.trim().length === 0) {
     return [];
   }
   const recencyByKey = new Map(
     recentModelKeys.map((key, index) => [key, index])
   );
   const scored = rows.flatMap((row, catalogIndex) => {
-    if (
-      !isInAgentModelScope({
-        provider: row.provider,
-        customProvider: row.customProvider,
-        scope,
-      })
-    ) {
-      return [];
-    }
-    const matchScore = isQueryEmpty ? 0 : getRowMatchScore({ row, query });
+    const matchScore = getRowMatchScore({ row, query });
     if (matchScore == null) {
       return [];
     }
@@ -558,82 +520,54 @@ export function inferProviderFromModelName(
 }
 
 /**
- * Works out whether to offer the query as a typed model name, and with which
- * provider. Returns null when there's nothing to offer:
- * - the query is empty or contains whitespace (no model id does, so it's a
- *   search)
- * - it exactly matches a catalog id within the scope, ignoring case
- * - no provider can take it
+ * The query as a custom model name, with the providers to offer it to.
+ * Returns null when there's nothing to offer: the query is empty, contains
+ * whitespace (no model id does, so it's a search), or there are no providers.
  *
- * The provider is, in order: the scope; the provider guessed from the name
- * (if it's installed, whatever its credentials, since a no-key pick goes to
- * the credential form); the first ready provider; the first may-work one.
+ * A name that matches a listed id is still offered: the same id can be sent
+ * to another provider (a gateway, an Azure deployment of the same name).
+ *
+ * The provider guessed from the name comes first if it's installed, whatever
+ * its credentials, since a no-key pick goes to the credential form. The rest
+ * follow by credential state (ready, may-work, no-key), in provider order.
  *
  * @param params - inputs
  * @param params.query - the search text
- * @param params.rows - the catalog from {@link buildAgentModelCatalog}
  * @param params.providers - from {@link buildAgentModelProviderOptions}
- * @param params.scope - optional provider the search is limited to
  */
-export function getAgentModelFreeTextTarget({
+export function getAgentModelCustomModelOption({
   query,
-  rows,
   providers,
-  scope = null,
 }: {
   query: string;
-  rows: readonly AgentModelCatalogRow[];
   providers: readonly AgentModelProviderOption[];
-  scope?: AgentModelScope | null;
-}): AgentModelFreeTextTarget | null {
+}): AgentModelCustomModelOption | null {
   const modelName = query.trim();
-  if (!modelName || /\s/.test(modelName)) {
+  if (!modelName || /\s/.test(modelName) || providers.length === 0) {
     return null;
-  }
-  // Case-insensitive, like `tokenMatchScore`'s exact tier: an id that differs
-  // only in case is the same model, so it shouldn't be offered as a new name
-  const lowerModelName = modelName.toLowerCase();
-  const hasExactMatch = rows.some(
-    (row) =>
-      row.modelName.toLowerCase() === lowerModelName &&
-      isInAgentModelScope({
-        provider: row.provider,
-        customProvider: row.customProvider,
-        scope,
-      })
-  );
-  if (hasExactMatch) {
-    return null;
-  }
-  if (scope) {
-    const scopedProvider = providers.find((option) =>
-      isInAgentModelScope({
-        provider: option.provider,
-        customProvider: option.customProvider,
-        scope,
-      })
-    );
-    return scopedProvider
-      ? { modelName, provider: scopedProvider, reason: "scope" }
-      : null;
   }
   const guessedProviderKey = inferProviderFromModelName(modelName);
   const guessedProvider = guessedProviderKey
-    ? providers.find(
+    ? (providers.find(
         (option) =>
           option.customProvider == null &&
           option.provider === guessedProviderKey
-      )
-    : undefined;
-  if (guessedProvider) {
-    return { modelName, provider: guessedProvider, reason: "guess" };
-  }
-  const fallbackProvider =
-    providers.find((option) => option.credentialState === "ready") ??
-    providers.find((option) => option.credentialState === "may-work");
-  return fallbackProvider
-    ? { modelName, provider: fallbackProvider, reason: "first-ready" }
+      ) ?? null)
     : null;
+  const otherProviders = providers
+    .filter((option) => option !== guessedProvider)
+    .toSorted(
+      (first, second) =>
+        getCredentialStateOrder(first.credentialState) -
+        getCredentialStateOrder(second.credentialState)
+    );
+  return {
+    modelName,
+    providers: guessedProvider
+      ? [guessedProvider, ...otherProviders]
+      : otherProviders,
+    guessedProviderKey: guessedProvider?.key ?? null,
+  };
 }
 
 /** A `[start, end)` character range to highlight. */

@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 import type { KeyboardEvent, RefObject } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
-import { MenuSection } from "react-aria-components";
+import { MenuSection, SubmenuTrigger } from "react-aria-components";
 
 import {
   Autocomplete,
@@ -39,13 +39,11 @@ import {
 } from "./AgentModelPickerRow";
 import {
   type AgentModelCatalogRow,
-  type AgentModelFreeTextTarget,
+  type AgentModelCustomModelOption,
   type AgentModelProviderOption,
-  type AgentModelScope,
   buildAgentModelCatalog,
   buildAgentModelProviderOptions,
-  getAgentModelFreeTextTarget,
-  getCredentialStateOrder,
+  getAgentModelCustomModelOption,
   rankAgentModels,
   resolveAgentModelRow,
   toAgentModelMenuValue,
@@ -57,8 +55,8 @@ const DEFAULT_POPOVER_MAX_WIDTH = 380;
 /** Joins a section id and a model key into a menu item id. */
 const ITEM_ID_SEPARATOR = "";
 
-/** The provider list's "no scope" entry. */
-const ALL_PROVIDERS_KEY = "all";
+/** The id of the "Use `x` as a custom model" row. */
+const CUSTOM_MODEL_ITEM_ID = "custom-model";
 
 type PickerModelItem = {
   kind: "model";
@@ -68,14 +66,13 @@ type PickerModelItem = {
   value: ModelMenuValue;
 };
 
-type PickerFreeTextItem = {
-  kind: "free-text";
+type PickerCustomModelItem = {
+  kind: "custom-model";
   id: string;
-  target: AgentModelFreeTextTarget;
-  value: ModelMenuValue;
+  option: AgentModelCustomModelOption;
 };
 
-type PickerItem = PickerModelItem | PickerFreeTextItem;
+type PickerItem = PickerModelItem | PickerCustomModelItem;
 
 type PickerSection = {
   id: string;
@@ -100,10 +97,10 @@ function toModelItem({
 
 /**
  * The picker's sections.
- * - Empty query and no scope: Current (always, even when it isn't in the
- *   catalog), Recent (without the current model) and Recommended.
- * - Otherwise: one flat ranked list (capped, except when browsing a scope
- *   with no query) plus the "Use `x` with <provider>" row.
+ * - Empty query: Current (always, even when it isn't in the catalog), Recent
+ *   (without the current model) and Recommended.
+ * - Otherwise: one flat ranked list, then the "Use `x` as a custom model" row
+ *   whose submenu lists the providers.
  *
  * @param params - inputs
  * @param params.rows - the catalog
@@ -113,7 +110,6 @@ function toModelItem({
  * @param params.recentRows - recent picks to show, without the current model
  * @param params.recentModelKeys - every stored recent pick's key, newest first
  * @param params.query - the search text
- * @param params.scope - the provider search is limited to, if any
  */
 function buildPickerSections({
   rows,
@@ -123,7 +119,6 @@ function buildPickerSections({
   recentRows,
   recentModelKeys,
   query,
-  scope,
 }: {
   rows: readonly AgentModelCatalogRow[];
   providers: readonly AgentModelProviderOption[];
@@ -132,10 +127,9 @@ function buildPickerSections({
   recentRows: readonly AgentModelCatalogRow[];
   recentModelKeys: readonly string[];
   query: string;
-  scope: AgentModelScope | null;
 }): PickerSection[] {
   const isQueryEmpty = query.trim().length === 0;
-  if (isQueryEmpty && !scope) {
+  if (isQueryEmpty) {
     const sections: PickerSection[] = [];
     if (currentRow) {
       sections.push({
@@ -164,19 +158,10 @@ function buildPickerSections({
     }
     return sections;
   }
-  const rankedRows = rankAgentModels({
-    rows,
+  const rankedRows = rankAgentModels({ rows, query, recentModelKeys });
+  const customModelOption = getAgentModelCustomModelOption({
     query,
-    scope,
-    recentModelKeys,
-    // Browsing a whole provider lists all of it; the list scrolls
-    ...(isQueryEmpty && { limit: Infinity }),
-  });
-  const freeTextTarget = getAgentModelFreeTextTarget({
-    query,
-    rows,
     providers,
-    scope,
   });
   const sections: PickerSection[] = [
     {
@@ -186,20 +171,14 @@ function buildPickerSections({
       ),
     },
   ];
-  if (freeTextTarget) {
-    const value = toAgentModelMenuValue({
-      provider: freeTextTarget.provider.provider,
-      customProvider: freeTextTarget.provider.customProvider,
-      modelName: freeTextTarget.modelName,
-    });
+  if (customModelOption) {
     sections.push({
-      id: "free-text",
+      id: "custom",
       items: [
         {
-          kind: "free-text",
-          id: `free-text${ITEM_ID_SEPARATOR}${getAgentModelKeyForValue(value)}`,
-          target: freeTextTarget,
-          value,
+          kind: "custom-model",
+          id: CUSTOM_MODEL_ITEM_ID,
+          option: customModelOption,
         },
       ],
     });
@@ -207,33 +186,24 @@ function buildPickerSections({
   return sections.filter((section) => section.items.length > 0);
 }
 
-function getScopeFromProviderOption(
-  option: AgentModelProviderOption
-): AgentModelScope {
-  return {
-    provider: option.provider,
-    customProviderId: option.customProvider?.id ?? null,
-  };
-}
-
-const FREE_TEXT_REASON_LABELS: Record<
-  AgentModelFreeTextTarget["reason"],
-  string
-> = {
-  guess: "Provider guessed from the name",
-  scope: "Not a listed model",
-  "first-ready": "First provider that's set up",
-};
-
-function getFreeTextReasonLabel(target: AgentModelFreeTextTarget): string {
-  return target.provider.provider === "AZURE_OPENAI"
-    ? "As a deployment name"
-    : FREE_TEXT_REASON_LABELS[target.reason];
-}
-
-/** What a typed name is called for a provider: Azure takes deployment names. */
-function getTypedNameNoun(option: AgentModelProviderOption | null): string {
-  return option?.provider === "AZURE_OPENAI" ? "deployment" : "model";
+/**
+ * The second line of a provider in the custom-model submenu: why it's first,
+ * that Azure takes deployment names, or that it's a custom provider.
+ */
+function getCustomModelProviderNote({
+  option,
+  isGuessed,
+}: {
+  option: AgentModelProviderOption;
+  isGuessed: boolean;
+}): string | undefined {
+  if (option.customProvider) {
+    return "Custom provider";
+  }
+  if (option.provider === "AZURE_OPENAI") {
+    return "As a deployment name";
+  }
+  return isGuessed ? "Guessed from the name" : undefined;
 }
 
 /**
@@ -283,29 +253,9 @@ const pickerCSS = css`
   min-height: 0;
 
   .agent-model-picker__header {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-50);
     flex-shrink: 0;
-    padding-left: var(--global-dimension-size-100);
     border-bottom: var(--global-border-size-thin) solid
       var(--global-menu-border-color);
-  }
-
-  .agent-model-picker__scope {
-    flex: none;
-    max-width: var(--global-dimension-size-1700);
-  }
-
-  .agent-model-picker__scope-name {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .agent-model-picker__search {
-    flex: 1 1 auto;
-    min-width: 0;
   }
 `;
 
@@ -325,9 +275,9 @@ export type AgentChatModelPickerProps = {
  * The PXI chat's model picker: a popover above the chat footer with search on
  * top. With no query it lists the current model, recent picks and the
  * curated models; typing searches every provider's models (see
- * `agentModelSearch`) and offers the query as a model name. A provider chip
- * at the start of the field scopes search and the typed name to one
- * provider.
+ * `agentModelSearch`). The last row of a search offers the query as a custom
+ * model name, with a submenu (on hover, ArrowRight or Enter) to pick the
+ * provider to send it to.
  */
 export function AgentChatModelPicker({
   value,
@@ -335,12 +285,8 @@ export function AgentChatModelPicker({
   popoverBoundaryRef,
 }: AgentChatModelPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<"models" | "providers">("models");
   const [query, setQuery] = useState("");
-  const [providerQuery, setProviderQuery] = useState("");
-  const [scopeKey, setScopeKey] = useState<string | null>(null);
   const [popoverWidth, setPopoverWidth] = useState(DEFAULT_POPOVER_MAX_WIDTH);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const isDisabled = useAgentContext((state) =>
     Object.values(state.chatStatusBySessionId).some(
@@ -397,11 +343,6 @@ export function AgentChatModelPicker({
     [recentModels, currentModel, rows, providers]
   );
 
-  const scopeOption = scopeKey
-    ? (providers.find((option) => option.key === scopeKey) ?? null)
-    : null;
-  const scope = scopeOption ? getScopeFromProviderOption(scopeOption) : null;
-
   const sections = buildPickerSections({
     rows,
     providers,
@@ -410,7 +351,6 @@ export function AgentChatModelPicker({
     recentRows,
     recentModelKeys,
     query,
-    scope,
   });
   const itemsById = new Map(
     sections.flatMap((section) => section.items.map((item) => [item.id, item]))
@@ -434,7 +374,8 @@ export function AgentChatModelPicker({
     : null;
   const selectedItemIds = [...itemsById.values()]
     .filter(
-      (item) =>
+      (item): item is PickerModelItem =>
+        item.kind === "model" &&
         currentKey != null &&
         (getAgentModelKeyForValue(item.value) === currentKey ||
           getAgentModelKeyForValue(applyPrefix(item.value)) === currentKey)
@@ -459,10 +400,7 @@ export function AgentChatModelPicker({
       return;
     }
     setIsOpen(false);
-    setMode("models");
     setQuery("");
-    setProviderQuery("");
-    setScopeKey(null);
   };
 
   const handleTriggerKeyDown = (event: KeyboardEvent) => {
@@ -480,77 +418,34 @@ export function AgentChatModelPicker({
     }
   };
 
-  const showModels = () => {
-    setMode("models");
-    setProviderQuery("");
-    inputRef.current?.focus();
-  };
-
-  const toggleProviders = () => {
-    if (mode === "providers") {
-      showModels();
-      return;
-    }
-    setMode("providers");
-    inputRef.current?.focus();
-  };
-
-  // Runs before the field's own handling: Escape steps back out of the
-  // provider list and the scope before the popover closes on the next press,
-  // and Backspace in an empty field opens the provider list
-  const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
-    const isFieldEmpty =
-      (mode === "providers" ? providerQuery : query).length === 0;
-    if (!isFieldEmpty) {
-      return;
-    }
-    if (event.key === "Escape") {
-      if (mode === "providers") {
-        event.preventDefault();
-        event.stopPropagation();
-        showModels();
-      } else if (scopeKey) {
-        event.preventDefault();
-        event.stopPropagation();
-        setScopeKey(null);
-      }
-      return;
-    }
-    if (
-      event.key === "Backspace" &&
-      mode === "models" &&
-      event.target === inputRef.current
-    ) {
-      event.preventDefault();
-      setMode("providers");
-    }
-  };
-
-  const handleModelAction = (key: Key) => {
-    const item = itemsById.get(String(key));
-    if (!item) {
-      return;
-    }
-    const model = applyPrefix(item.value);
+  const selectModel = (selection: ModelMenuValue) => {
+    const model = applyPrefix(selection);
     onChange(model);
     recordRecentModel(model);
   };
 
-  const handleProviderAction = (key: Key) => {
-    setScopeKey(key === ALL_PROVIDERS_KEY ? null : String(key));
-    showModels();
+  const handleModelAction = (key: Key) => {
+    const item = itemsById.get(String(key));
+    if (item?.kind === "model") {
+      selectModel(item.value);
+    }
   };
 
-  const isProviderMode = mode === "providers";
-  const placeholder = isProviderMode
-    ? "Filter providers"
-    : scopeOption
-      ? `Search ${scopeOption.name}, or type a ${getTypedNameNoun(scopeOption)} name`
-      : "Search, or type any model name";
-  const emptyDescription =
-    scopeOption && query.trim().length === 0
-      ? `${scopeOption.name} has no listed models. Type a ${getTypedNameNoun(scopeOption)} name.`
-      : "No models match";
+  const handleCustomModelProviderPick = ({
+    modelName,
+    provider,
+  }: {
+    modelName: string;
+    provider: AgentModelProviderOption;
+  }) => {
+    selectModel(
+      toAgentModelMenuValue({
+        provider: provider.provider,
+        customProvider: provider.customProvider,
+        modelName,
+      })
+    );
+  };
 
   return (
     <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
@@ -579,45 +474,25 @@ export function AgentChatModelPicker({
         minWidth={popoverWidth}
         maxWidth={popoverWidth}
       >
-        <div css={pickerCSS} onKeyDownCapture={handleKeyDownCapture}>
-          <Autocomplete
-            inputValue={isProviderMode ? providerQuery : query}
-            onInputChange={isProviderMode ? setProviderQuery : setQuery}
-          >
+        <div css={pickerCSS}>
+          <Autocomplete inputValue={query} onInputChange={setQuery}>
             <div className="agent-model-picker__header">
-              <AgentModelScopeChip
-                scopeOption={scopeOption}
-                isExpanded={isProviderMode}
-                onPress={toggleProviders}
-              />
               <SearchField
-                className="agent-model-picker__search"
-                aria-label={
-                  isProviderMode ? "Filter providers" : "Search models"
-                }
+                aria-label="Search models"
                 variant="quiet"
                 size="L"
                 autoFocus
               >
-                <Input ref={inputRef} placeholder={placeholder} />
+                <Input placeholder="Search, or type any model name" />
               </SearchField>
             </div>
-            {isProviderMode ? (
-              <AgentModelProviderMenu
-                providers={providers}
-                providerQuery={providerQuery}
-                scopeKey={scopeKey}
-                onAction={handleProviderAction}
-              />
-            ) : (
-              <AgentModelResultsMenu
-                sections={sections}
-                query={query}
-                selectedItemIds={selectedItemIds}
-                emptyDescription={emptyDescription}
-                onAction={handleModelAction}
-              />
-            )}
+            <AgentModelResultsMenu
+              sections={sections}
+              query={query}
+              selectedItemIds={selectedItemIds}
+              onAction={handleModelAction}
+              onCustomModelProviderPick={handleCustomModelProviderPick}
+            />
           </Autocomplete>
         </div>
       </MenuContainer>
@@ -647,122 +522,24 @@ function AgentModelTriggerContent({ row }: { row: AgentModelCatalogRow }) {
 }
 
 /**
- * The provider chip at the start of the search field. Pressing it toggles
- * the provider list that sets the search scope.
+ * The model list: the empty-query sections, or ranked results ending with
+ * the custom-model row.
  */
-function AgentModelScopeChip({
-  scopeOption,
-  isExpanded,
-  onPress,
-}: {
-  scopeOption: AgentModelProviderOption | null;
-  isExpanded: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Button
-      size="S"
-      className="agent-model-picker__scope"
-      aria-label={
-        scopeOption
-          ? `Provider: ${scopeOption.name}. Change provider`
-          : "Provider: all providers. Choose a provider"
-      }
-      aria-expanded={isExpanded}
-      leadingVisual={
-        scopeOption ? (
-          <AgentModelProviderIcon provider={scopeOption.provider} />
-        ) : undefined
-      }
-      trailingVisual={<Icon svg={<Icons.ChevronDownSmall />} />}
-      onPress={onPress}
-    >
-      <span className="agent-model-picker__scope-name">
-        {scopeOption?.name ?? "All"}
-      </span>
-    </Button>
-  );
-}
-
-/** The provider list shown in place of the models while choosing a scope. */
-function AgentModelProviderMenu({
-  providers,
-  providerQuery,
-  scopeKey,
-  onAction,
-}: {
-  providers: readonly AgentModelProviderOption[];
-  providerQuery: string;
-  scopeKey: string | null;
-  onAction: (key: Key) => void;
-}) {
-  const normalizedQuery = providerQuery.trim().toLowerCase();
-  // Ready providers first, then may-work, then no-key; otherwise in order
-  const filteredProviders = providers
-    .filter((option) => option.name.toLowerCase().includes(normalizedQuery))
-    .toSorted(
-      (first, second) =>
-        getCredentialStateOrder(first.credentialState) -
-        getCredentialStateOrder(second.credentialState)
-    );
-  return (
-    <Menu
-      aria-label="Providers"
-      selectionMode="single"
-      // The checked row is a setting, not a filter: Escape must close the
-      // picker rather than clear it
-      escapeKeyBehavior="none"
-      selectedKeys={[scopeKey ?? ALL_PROVIDERS_KEY]}
-      shouldCloseOnSelect={false}
-      onAction={onAction}
-      renderEmptyState={() => (
-        <CompactEmptyState
-          icon={<Icon svg={<Icons.Search />} />}
-          description="No providers match"
-        />
-      )}
-    >
-      {normalizedQuery ? null : (
-        <MenuItem id={ALL_PROVIDERS_KEY} textValue="All providers">
-          <AgentModelRowLayout
-            leadingVisual={<Icon svg={<Icons.Search />} />}
-            name="All providers"
-          />
-        </MenuItem>
-      )}
-      {filteredProviders.map((option) => (
-        <MenuItem key={option.key} id={option.key} textValue={option.name}>
-          <AgentModelRowLayout
-            leadingVisual={
-              <AgentModelProviderIcon provider={option.provider} />
-            }
-            name={option.name}
-            secondary={option.customProvider ? "Custom provider" : undefined}
-            trailing={
-              <AgentModelCredentialHint
-                credentialState={option.credentialState}
-              />
-            }
-          />
-        </MenuItem>
-      ))}
-    </Menu>
-  );
-}
-
-/** The model list: the empty-query sections, or ranked results. */
 function AgentModelResultsMenu({
   sections,
   query,
   selectedItemIds,
-  emptyDescription,
   onAction,
+  onCustomModelProviderPick,
 }: {
   sections: readonly PickerSection[];
   query: string;
   selectedItemIds: readonly string[];
-  emptyDescription: string;
   onAction: (key: Key) => void;
+  onCustomModelProviderPick: (pick: {
+    modelName: string;
+    provider: AgentModelProviderOption;
+  }) => void;
 }) {
   return (
     <Menu
@@ -776,7 +553,7 @@ function AgentModelResultsMenu({
       renderEmptyState={() => (
         <CompactEmptyState
           icon={<Icon svg={<Icons.Search />} />}
-          description={emptyDescription}
+          description="No models match"
         />
       )}
     >
@@ -797,30 +574,84 @@ function AgentModelResultsMenu({
                 />
               </MenuItem>
             ) : (
-              <MenuItem
+              <AgentCustomModelSubmenu
                 key={item.id}
                 id={item.id}
-                textValue={`Use ${item.target.modelName} with ${item.target.provider.name}`}
-              >
-                <AgentModelRowLayout
-                  leadingVisual={
-                    <AgentModelProviderIcon
-                      provider={item.target.provider.provider}
-                    />
-                  }
-                  name={`Use "${item.target.modelName}" with ${item.target.provider.name}`}
-                  secondary={getFreeTextReasonLabel(item.target)}
-                  trailing={
-                    <AgentModelCredentialHint
-                      credentialState={item.target.provider.credentialState}
-                    />
-                  }
-                />
-              </MenuItem>
+                option={item.option}
+                onPick={onCustomModelProviderPick}
+              />
             )
           )}
         </MenuSection>
       ))}
     </Menu>
+  );
+}
+
+/**
+ * The "Use `x` as a custom model" row and its provider submenu, which opens
+ * on hover, ArrowRight or Enter. Picking a provider sends the typed name to
+ * it.
+ */
+function AgentCustomModelSubmenu({
+  id,
+  option,
+  onPick,
+}: {
+  id: string;
+  option: AgentModelCustomModelOption;
+  onPick: (pick: {
+    modelName: string;
+    provider: AgentModelProviderOption;
+  }) => void;
+}) {
+  const handleAction = (key: Key) => {
+    const provider = option.providers.find(
+      (candidate) => candidate.key === String(key)
+    );
+    if (provider) {
+      onPick({ modelName: option.modelName, provider });
+    }
+  };
+  return (
+    <SubmenuTrigger>
+      <MenuItem id={id} textValue={`Use ${option.modelName} as a custom model`}>
+        <AgentModelRowLayout
+          leadingVisual={<Icon svg={<Icons.Edit />} />}
+          name={`Use "${option.modelName}" as a custom model`}
+          secondary="Choose a provider"
+        />
+      </MenuItem>
+      <MenuContainer minHeight={0} minWidth={260} maxWidth={320}>
+        <Menu
+          aria-label={`Providers for ${option.modelName}`}
+          onAction={handleAction}
+        >
+          {option.providers.map((provider) => (
+            <MenuItem
+              key={provider.key}
+              id={provider.key}
+              textValue={provider.name}
+            >
+              <AgentModelRowLayout
+                leadingVisual={
+                  <AgentModelProviderIcon provider={provider.provider} />
+                }
+                name={provider.name}
+                secondary={getCustomModelProviderNote({
+                  option: provider,
+                  isGuessed: provider.key === option.guessedProviderKey,
+                })}
+                trailing={
+                  <AgentModelCredentialHint
+                    credentialState={provider.credentialState}
+                  />
+                }
+              />
+            </MenuItem>
+          ))}
+        </Menu>
+      </MenuContainer>
+    </SubmenuTrigger>
   );
 }

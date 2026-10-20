@@ -197,6 +197,45 @@ describe("AgentChatModelPicker", () => {
     return item;
   };
   const isOpen = () => document.body.querySelector('[role="menu"]') != null;
+  const getMenus = () => [
+    ...document.body.querySelectorAll<HTMLElement>('[role="menu"]'),
+  ];
+  const getRootMenuRows = () => [
+    ...getMenus()[0].querySelectorAll<HTMLElement>(
+      '[role="menuitemradio"], [role="menuitem"]'
+    ),
+  ];
+  const getCustomModelRow = () =>
+    getRootMenuRows().find((row) => row.getAttribute("aria-haspopup")) ?? null;
+  /** The provider submenu, once it's open. */
+  const getSubmenu = () => (getMenus().length > 1 ? getMenus()[1] : null);
+  const getSubmenuItems = () => [
+    ...(getSubmenu()?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+  ];
+  const getSubmenuNames = () =>
+    getSubmenuItems().map(
+      (item) => item.querySelector(".agent-model-row__name")?.textContent
+    );
+  const findSubmenuItem = (name: string) => {
+    const item = getSubmenuItems().find(
+      (candidate) =>
+        candidate.querySelector(".agent-model-row__name")?.textContent === name
+    );
+    if (!item) {
+      throw new Error(`no provider "${name}" in ${getSubmenuNames().join()}`);
+    }
+    return item;
+  };
+
+  /** Types a name and opens the custom-model submenu with the pointer. */
+  async function openCustomModelSubmenu(query: string) {
+    const user = await openAndType(query);
+    const row = getCustomModelRow();
+    if (!row) throw new Error("no custom-model row");
+    await act(() => user.click(row));
+    await vi.waitFor(() => expect(getSubmenu()).not.toBeNull());
+    return user;
+  }
 
   async function openAndType(query: string) {
     const user = userEvent.setup();
@@ -352,114 +391,172 @@ describe("AgentChatModelPicker", () => {
     expect(isOpen()).toBe(false);
   });
 
-  it("offers a typed name with the guessed provider", async () => {
-    renderPicker();
-    const user = await openAndType("claude-opus-9");
-
-    const freeText = findItem('Use "claude-opus-9" with Anthropic');
-    expect(freeText.textContent).toContain("Provider guessed from the name");
-    await act(() => user.click(freeText));
-
-    expect(onChange).toHaveBeenCalledWith({
-      provider: "ANTHROPIC",
-      modelName: "claude-opus-9",
-    });
-    expect(store.getState().recentModels[0]).toEqual({
-      provider: "ANTHROPIC",
-      modelName: "claude-opus-9",
-    });
-  });
-
-  it("doesn't offer a typed name that differs from an id only in case", async () => {
-    renderPicker();
-    await openAndType("Claude-Opus-4-6");
-
-    expect(getItemTexts().some((text) => text.startsWith("Use"))).toBe(false);
-  });
-
-  it("scopes search to a provider and sends the typed name there", async () => {
+  it("has no provider scope chip", async () => {
     renderPicker();
     const user = userEvent.setup();
     await act(() => user.click(getTrigger()));
 
-    // Backspace in the empty field opens the provider list
-    await act(() => user.keyboard("{Backspace}"));
-    expect(getItemTexts()).toEqual([
-      expect.stringContaining("All providers"),
-      expect.stringContaining("OpenAI"),
-      expect.stringContaining("Anthropic"),
-      expect.stringContaining("Acme gateway"),
-      expect.stringContaining("AWS Bedrock"),
-      expect.stringContaining("Azure OpenAI"),
-      expect.stringContaining("Google"),
-    ]);
-    await act(() => user.click(findItem("Azure OpenAI")));
-
-    expect(isOpen()).toBe(true);
     expect(
-      document.body
-        .querySelector('button[aria-label^="Provider:"]')
-        ?.getAttribute("aria-label")
-    ).toBe("Provider: Azure OpenAI. Change provider");
+      document.body.querySelector('button[aria-label^="Provider:"]')
+    ).toBeNull();
+    // Backspace in the empty field no longer swaps in a provider list
+    await act(() => user.keyboard("{Backspace}"));
+    expect(getSectionTitles()).toEqual(["Current", "Recommended"]);
     expect(getSearchField()?.placeholder).toBe(
-      "Search Azure OpenAI, or type a deployment name"
+      "Search, or type any model name"
     );
+  });
 
-    await act(() => user.keyboard("my-deployment"));
-    const freeText = findItem('Use "my-deployment" with Azure OpenAI');
-    expect(freeText.textContent).toContain("As a deployment name");
-    await act(() => user.click(freeText));
+  it("ends a search with the custom-model row", async () => {
+    renderPicker();
+    await openAndType("claude-opus");
+
+    const rows = getRootMenuRows();
+    expect(rows.length).toBeGreaterThan(1);
+    const lastRow = rows[rows.length - 1];
+    expect(lastRow).toBe(getCustomModelRow());
+    expect(lastRow.textContent).toContain(
+      'Use "claude-opus" as a custom model'
+    );
+    expect(lastRow.getAttribute("aria-haspopup")).toBe("menu");
+  });
+
+  it("offers the custom-model row for a listed id too", async () => {
+    renderPicker();
+    await openAndType("gpt-5.4");
+
+    expect(getCustomModelRow()?.textContent).toContain(
+      'Use "gpt-5.4" as a custom model'
+    );
+  });
+
+  it("offers no custom-model row for a multi-word search", async () => {
+    renderPicker();
+    await openAndType("opus 5");
+
+    expect(getCustomModelRow()).toBeNull();
+  });
+
+  it("lists providers with the guessed one first", async () => {
+    renderPicker();
+    await openCustomModelSubmenu("gemini-4-pro");
+
+    expect(getSubmenuNames()).toEqual([
+      "Google",
+      "OpenAI",
+      "Anthropic",
+      "Acme gateway",
+      "AWS Bedrock",
+      "Azure OpenAI",
+    ]);
+    const google = findSubmenuItem("Google");
+    expect(google.textContent).toContain("Guessed from the name");
+    expect(google.textContent).toContain("Add key");
+    expect(findSubmenuItem("AWS Bedrock").textContent).toContain("May work");
+    expect(findSubmenuItem("Azure OpenAI").textContent).toContain(
+      "As a deployment name"
+    );
+    expect(findSubmenuItem("Acme gateway").textContent).toContain(
+      "Custom provider"
+    );
+  });
+
+  it("sends the typed name to the picked provider", async () => {
+    renderPicker();
+    const user = await openCustomModelSubmenu("claude-opus-9");
+
+    await act(() => user.click(findSubmenuItem("Anthropic")));
+
+    const expected = { provider: "ANTHROPIC", modelName: "claude-opus-9" };
+    expect(onChange).toHaveBeenCalledWith(expected);
+    expect(store.getState().recentModels[0]).toEqual(expected);
+    expect(isOpen()).toBe(false);
+  });
+
+  it("sends the typed name to a custom provider", async () => {
+    renderPicker();
+    const user = await openCustomModelSubmenu("acme/new-model");
+
+    await act(() => user.click(findSubmenuItem("Acme gateway")));
 
     expect(onChange).toHaveBeenCalledWith({
-      provider: "AZURE_OPENAI",
-      modelName: "my-deployment",
+      provider: "OPENAI",
+      modelName: "acme/new-model",
+      customProvider: { id: "custom-acme", name: "Acme gateway" },
     });
   });
 
-  it("lists the whole provider for a scope with no query", async () => {
-    renderPicker();
-    const user = userEvent.setup();
-    await act(() => user.click(getTrigger()));
-    await act(() =>
-      user.click(
-        document.body.querySelector<HTMLElement>(
-          'button[aria-label^="Provider:"]'
-        )!
-      )
-    );
-    await act(() => user.click(findItem("Anthropic")));
+  it("applies the Bedrock prefix to a typed AWS name", async () => {
+    renderPicker({ awsBedrockModelPrefix: "us" });
+    const user = await openCustomModelSubmenu("anthropic.claude-opus-9-v1:0");
 
-    expect(getItemTexts()).toHaveLength(4);
-    for (const text of getItemTexts()) {
-      expect(text).toContain("Anthropic");
-    }
+    expect(getSubmenuNames()[0]).toBe("AWS Bedrock");
+    await act(() => user.click(findSubmenuItem("AWS Bedrock")));
+
+    const expected = {
+      provider: "AWS",
+      modelName: "us.anthropic.claude-opus-9-v1:0",
+    };
+    expect(onChange).toHaveBeenCalledWith(expected);
+    expect(store.getState().recentModels).toEqual([expected]);
   });
 
-  it("clears the query, then the scope, then closes on Escape", async () => {
+  it("opens the submenu from the keyboard and picks with Enter", async () => {
     renderPicker();
-    const user = userEvent.setup();
-    await act(() => user.click(getTrigger()));
-    await act(() => user.keyboard("{Backspace}"));
-    await act(() => user.click(findItem("OpenAI")));
-    await act(() => user.keyboard("gpt"));
-    const getScopeLabel = () =>
-      document.body
-        .querySelector('button[aria-label^="Provider:"]')
-        ?.getAttribute("aria-label");
+    const user = await openAndType("claude-opus");
+    const rows = getRootMenuRows();
+    expect(rows.length).toBeGreaterThan(2);
 
-    await act(() => user.keyboard("{Escape}"));
-    expect(getSearchField()?.value).toBe("");
-    expect(getScopeLabel()).toBe("Provider: OpenAI. Change provider");
+    // Virtual focus moves from the field down to the last row
+    const isCustomRowFocused = () =>
+      getCustomModelRow()?.hasAttribute("data-focused") === true;
+    for (
+      let press = 0;
+      press <= rows.length && !isCustomRowFocused();
+      press++
+    ) {
+      await act(() => user.keyboard("{ArrowDown}"));
+    }
+    expect(isCustomRowFocused()).toBe(true);
+    expect(document.activeElement).toBe(getSearchField());
 
-    await act(() => user.keyboard("{Escape}"));
+    await act(() => user.keyboard("{ArrowRight}"));
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(findSubmenuItem("Anthropic"))
+    );
+
+    // ArrowLeft closes the submenu, back to the row; React Aria returns
+    // focus to the field on the next frame
+    await act(() => user.keyboard("{ArrowLeft}"));
+    await vi.waitFor(() => expect(getSubmenu()).toBeNull());
     expect(isOpen()).toBe(true);
-    expect(getScopeLabel()).toBe("Provider: all providers. Choose a provider");
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(getSearchField())
+    );
 
+    // ArrowRight again, then Escape closes only the submenu
+    await act(() => user.keyboard("{ArrowRight}"));
+    await vi.waitFor(() => expect(getSubmenu()).not.toBeNull());
     await act(() => user.keyboard("{Escape}"));
-    expect(isOpen()).toBe(false);
-    // React Aria restores focus to the trigger on the next frame
-    await vi.waitFor(() => expect(document.activeElement).toBe(getTrigger()));
+    await vi.waitFor(() => expect(getSubmenu()).toBeNull());
+    expect(isOpen()).toBe(true);
+    expect(getSearchField()?.value).toBe("claude-opus");
     expect(onChange).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(getSearchField())
+    );
+
+    // Enter on the row opens it too; ArrowDown, Enter picks the second one
+    await act(() => user.keyboard("{Enter}"));
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(findSubmenuItem("Anthropic"))
+    );
+    await act(() => user.keyboard("{ArrowDown}{Enter}"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      provider: "OPENAI",
+      modelName: "claude-opus",
+    });
   });
 
   it("is disabled while a session is streaming", () => {

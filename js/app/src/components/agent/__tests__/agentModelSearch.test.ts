@@ -5,7 +5,7 @@ import {
   type AgentModelCatalogInput,
   buildAgentModelCatalog,
   buildAgentModelProviderOptions,
-  getAgentModelFreeTextTarget,
+  getAgentModelCustomModelOption,
   getAgentModelHighlightRanges,
   inferProviderFromModelName,
   MATCH_SCORE,
@@ -289,33 +289,9 @@ describe("rankAgentModels", () => {
     ]);
   });
 
-  it("limits results to a built-in provider scope", () => {
-    expect(
-      search("gpt", { scope: { provider: "OPENAI", customProviderId: null } })
-    ).toEqual([
-      "OPENAI:gpt-5.4-mini",
-      "OPENAI:gpt-4o",
-      "OPENAI:gpt-5.4",
-      "OPENAI:gpt-4o-mini",
-    ]);
-  });
-
-  it("limits results to a custom provider scope", () => {
-    expect(
-      search("gpt", {
-        scope: { provider: "OPENAI", customProviderId: "custom-acme" },
-      })
-    ).toEqual([
-      "custom:custom-acme:gpt-4o",
-      "custom:custom-acme:acme/gpt-5.4-internal",
-    ]);
-  });
-
-  it("lists a scope's models with an empty query, and nothing without one", () => {
-    expect(
-      search("", { scope: { provider: "GOOGLE", customProviderId: null } })
-    ).toEqual(["GOOGLE:gemini-3.1-pro-preview", "GOOGLE:gemini-2.5-flash"]);
+  it("returns nothing for an empty query", () => {
     expect(search("")).toEqual([]);
+    expect(search("   ")).toEqual([]);
   });
 
   it("caps results at 8 by default", () => {
@@ -358,98 +334,74 @@ describe("inferProviderFromModelName", () => {
   });
 });
 
-describe("getAgentModelFreeTextTarget", () => {
-  function getTarget(
+describe("getAgentModelCustomModelOption", () => {
+  function getOption(
     query: string,
-    options: Partial<Parameters<typeof getAgentModelFreeTextTarget>[0]> = {}
+    providers: Parameters<
+      typeof getAgentModelCustomModelOption
+    >[0]["providers"] = PROVIDERS
   ) {
-    return getAgentModelFreeTextTarget({
-      query,
-      rows: ROWS,
-      providers: PROVIDERS,
-      ...options,
-    });
+    return getAgentModelCustomModelOption({ query, providers });
   }
+  const getProviderKeys = (query: string) =>
+    getOption(query)?.providers.map((option) => option.key);
 
   it("offers nothing for an empty query or one with spaces", () => {
-    expect(getTarget("  ")).toBeNull();
-    expect(getTarget("opus 5")).toBeNull();
+    expect(getOption("  ")).toBeNull();
+    expect(getOption("opus 5")).toBeNull();
   });
 
-  it("is suppressed by an exact catalog id", () => {
-    expect(getTarget("gpt-4o")).toBeNull();
-    expect(getTarget(" claude-opus-5 ")).toBeNull();
+  it("offers nothing without providers", () => {
+    expect(getOption("claude-opus-9", [])).toBeNull();
   });
 
-  it("treats an id that differs only in case as an exact match", () => {
-    expect(getTarget("Claude-Opus-4-6")).toBeNull();
-    expect(getTarget("GPT-4O")).toBeNull();
+  it("still offers a name that matches a listed id", () => {
+    expect(getOption(" gpt-4o ")).toMatchObject({ modelName: "gpt-4o" });
   });
 
-  it("only counts exact ids within the scope", () => {
-    expect(
-      getTarget("gpt-5.4", {
-        scope: { provider: "OPENAI", customProviderId: "custom-acme" },
-      })
-    ).toMatchObject({
-      modelName: "gpt-5.4",
-      reason: "scope",
-      provider: { key: "custom:custom-acme" },
+  it("puts the guessed provider first, even without a key", () => {
+    expect(getOption("gemini-4-pro")).toMatchObject({
+      guessedProviderKey: "GOOGLE",
     });
+    expect(getProviderKeys("gemini-4-pro")).toEqual([
+      "GOOGLE",
+      // Ollama needs no key, so it's ready
+      "OPENAI",
+      "ANTHROPIC",
+      "OLLAMA",
+      "custom:custom-acme",
+      "AWS",
+      "AZURE_OPENAI",
+    ]);
   });
 
-  it("targets the scope over a guess", () => {
-    expect(
-      getTarget("claude-opus-9", {
-        scope: { provider: "AWS", customProviderId: null },
-      })
-    ).toMatchObject({ reason: "scope", provider: { provider: "AWS" } });
+  it("orders by credential state when nothing is guessed", () => {
+    expect(getOption("my-azure-deployment")?.guessedProviderKey).toBeNull();
+    expect(getProviderKeys("my-azure-deployment")).toEqual([
+      "OPENAI",
+      "ANTHROPIC",
+      "OLLAMA",
+      "custom:custom-acme",
+      "AWS",
+      "AZURE_OPENAI",
+      "GOOGLE",
+    ]);
   });
 
-  it("targets the guessed provider, even without a key", () => {
-    expect(getTarget("claude-opus-9")).toMatchObject({
-      modelName: "claude-opus-9",
-      reason: "guess",
-      provider: { provider: "ANTHROPIC", customProvider: null },
-    });
-    expect(getTarget("gemini-4-pro")).toMatchObject({
-      reason: "guess",
-      provider: { provider: "GOOGLE", credentialState: "no-key" },
-    });
+  it("ignores a guess whose provider isn't installed", () => {
+    // xAI is guessed, but its dependencies aren't installed
+    const option = getOption("grok-5");
+    expect(option?.guessedProviderKey).toBeNull();
+    expect(option?.providers.map((provider) => provider.key)).not.toContain(
+      "XAI"
+    );
   });
 
-  it("falls back to the first ready provider", () => {
-    expect(getTarget("my-azure-deployment")).toMatchObject({
-      reason: "first-ready",
-      provider: { provider: "OPENAI" },
-    });
-    // xAI is guessed but not installed
-    expect(getTarget("grok-5")).toMatchObject({
-      reason: "first-ready",
-      provider: { provider: "OPENAI" },
-    });
-  });
-
-  it("falls back to a may-work provider when none is ready", () => {
-    const providers = buildAgentModelProviderOptions({
-      modelProviders: [
-        makeProvider({ key: "GOOGLE" }),
-        makeProvider({ key: "AZURE_OPENAI" }),
-      ],
-      customProviders: [],
-    });
-    expect(getTarget("my-deployment", { rows: [], providers })).toMatchObject({
-      reason: "first-ready",
-      provider: { provider: "AZURE_OPENAI" },
-    });
-    expect(
-      getTarget("my-deployment", {
-        rows: [],
-        providers: providers.filter(
-          (option) => option.credentialState === "no-key"
-        ),
-      })
-    ).toBeNull();
+  it("guesses a built-in provider, never a custom one on its SDK", () => {
+    expect(getProviderKeys("gpt-9")?.slice(0, 2)).toEqual([
+      "OPENAI",
+      "ANTHROPIC",
+    ]);
   });
 });
 
