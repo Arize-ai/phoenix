@@ -46,7 +46,8 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "positive",
     },
     {
-      conversation: "User: Did the refund go through?\nAssistant: Yes, this morning.",
+      conversation:
+        "User: Did the refund go through?\nAssistant: Yes, this morning.",
       userMessage: "Finally! I'm so glad this is sorted.",
       expectedLabel: "positive",
     },
@@ -56,13 +57,16 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "positive",
     },
     {
-      conversation: "User: Can you recommend a quiet hotel?\nAssistant: [lists three]",
-      userMessage: "The first one looks wonderful, I'm really excited for the trip.",
+      conversation:
+        "User: Can you recommend a quiet hotel?\nAssistant: [lists three]",
+      userMessage:
+        "The first one looks wonderful, I'm really excited for the trip.",
       expectedLabel: "positive",
     },
     {
       conversation: "",
-      userMessage: "Honestly the new update made my whole workflow so much smoother, love it.",
+      userMessage:
+        "Honestly the new update made my whole workflow so much smoother, love it.",
       expectedLabel: "positive",
     },
   ],
@@ -78,7 +82,8 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "positive",
     },
     {
-      conversation: "User: Summarize the report.\nAssistant: [provides summary]",
+      conversation:
+        "User: Summarize the report.\nAssistant: [provides summary]",
       userMessage: "Perfect, this is genuinely impressive work.",
       expectedLabel: "positive",
     },
@@ -96,29 +101,34 @@ const examplesByCategory: Record<string, Example[]> = {
     },
     {
       conversation: "User: Try reinstalling.\nAssistant: [steps]",
-      userMessage: "Ugh, I already did that and it's still broken. So frustrating.",
+      userMessage:
+        "Ugh, I already did that and it's still broken. So frustrating.",
       expectedLabel: "negative",
     },
     {
       conversation: "",
-      userMessage: "Worst customer service I have ever dealt with, absolutely furious.",
+      userMessage:
+        "Worst customer service I have ever dealt with, absolutely furious.",
       expectedLabel: "negative",
     },
   ],
   complaint_dissatisfaction: [
     {
       conversation: "",
-      userMessage: "My order still hasn't arrived and no one will give me a straight answer.",
+      userMessage:
+        "My order still hasn't arrived and no one will give me a straight answer.",
       expectedLabel: "negative",
     },
     {
       conversation: "User: How was the stay?\nAssistant: Glad you're back!",
-      userMessage: "The room was filthy and nothing like the photos. Really disappointed.",
+      userMessage:
+        "The room was filthy and nothing like the photos. Really disappointed.",
       expectedLabel: "negative",
     },
     {
       conversation: "",
-      userMessage: "Sad that they discontinued the only feature I actually used.",
+      userMessage:
+        "Sad that they discontinued the only feature I actually used.",
       expectedLabel: "negative",
     },
   ],
@@ -135,7 +145,8 @@ const examplesByCategory: Record<string, Example[]> = {
     },
     {
       conversation: "",
-      userMessage: "What's the process for filing a complaint about a late delivery?",
+      userMessage:
+        "What's the process for filing a complaint about a late delivery?",
       expectedLabel: "neutral",
     },
   ],
