@@ -623,6 +623,7 @@ export type DecisionRunInput = {
   inputs: Array<{ name: string }>;
   state:
     | { object: true }
+    | { input: string }
     | { text: { template: string; templateFormat: DecisionTemplateFormat } };
   inputValues: Record<string, unknown>;
   questions: DecisionQuestionInput[];
@@ -639,16 +640,22 @@ function toServerTemplateFormat(
   return null;
 }
 
-/** Send `value` as the whole state, through one input rendered on its own. */
+/**
+ * Send `value` as the whole state, through one input. An object or array is
+ * sent unchanged as an `input` state; any other value is rendered as text.
+ */
 function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
   return {
     inputs: [{ name: WHOLE_STATE_INPUT }],
-    state: {
-      text: {
-        template: `{{${WHOLE_STATE_INPUT}}}`,
-        templateFormat: "MUSTACHE",
-      },
-    },
+    state:
+      typeof value === "object" && value !== null
+        ? { input: WHOLE_STATE_INPUT }
+        : {
+            text: {
+              template: `{{${WHOLE_STATE_INPUT}}}`,
+              templateFormat: "MUSTACHE",
+            },
+          },
     inputValues: { [WHOLE_STATE_INPUT]: value },
   };
 }
@@ -1030,17 +1037,23 @@ function toOutputAnswer(
         type: "choice",
         choice: answer.choice,
         confidence: answer.confidence,
-        probabilities: (answer.choiceProbabilities ?? []).map(
-          ({ value, probability }) => ({ value, probability })
+        probabilities: Object.fromEntries(
+          (answer.choiceProbabilities ?? []).map(({ value, probability }) => [
+            value,
+            probability,
+          ])
         ),
       };
     case "ScaleAnswer":
       return {
-        type: "score",
-        score: answer.expectedLevel,
+        type: "scale",
+        expected_level: answer.expectedLevel,
         confidence: answer.confidence,
-        probabilities: (answer.levelProbabilities ?? []).map(
-          ({ level, probability }) => ({ value: level, probability })
+        probabilities: Object.fromEntries(
+          (answer.levelProbabilities ?? []).map(({ level, probability }) => [
+            level,
+            probability,
+          ])
         ),
       };
     case "RefusalAnswer":
@@ -1052,8 +1065,8 @@ function toOutputAnswer(
 
 /**
  * The run's output as stored on the repetition: answers keyed by question
- * name, in the response shape {@link normalizeDecisionResult} reads, so live
- * runs and replayed spans display the same way.
+ * name, in Phoenix's run-output vocabulary (the shape experiment runs store),
+ * which {@link normalizeDecisionResult} reads as it reads replayed spans.
  */
 export function toDecisionOutput(result: DecisionRunResult): {
   model: string;

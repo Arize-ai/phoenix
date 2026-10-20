@@ -625,6 +625,23 @@ describe("runDecision input", () => {
     expect(input.inputValues).toEqual({ plan: "pro", events: ["refund"] });
   });
 
+  it("sends a JSON array or empty object unchanged, as an input state", () => {
+    for (const [state, value] of [
+      ['["refund", "billing"]', ["refund", "billing"]],
+      ["{}", {}],
+    ] as const) {
+      const draft = {
+        ...createDecisionDraft(),
+        stateFormat: "json" as const,
+        state,
+      };
+      const input = buildDecisionInput({ draft });
+      expect(input.inputs).toEqual([{ name: "state" }]);
+      expect(input.state).toEqual({ input: "state" });
+      expect(input.inputValues).toEqual({ state: value });
+    }
+  });
+
   it("sends listed inputs as an object state, valued from the variables", () => {
     const draft = {
       ...createDecisionDraft(),
@@ -775,6 +792,16 @@ describe("runDecision output", () => {
         { __typename: "RefusalAnswer", name: "spam" },
       ],
       usage: { inputTokens: 12, outputTokens: 3 },
+    });
+    // Phoenix's run-output vocabulary, as experiment runs store it.
+    expect(output.answers.severity).toEqual({
+      type: "scale",
+      expected_level: 0.4,
+      confidence: 0.7,
+      probabilities: { 0: 0.6, 1: 0.4 },
+    });
+    expect(output.answers.department).toMatchObject({
+      probabilities: { billing: 0.8, technical: 0.2 },
     });
     const normalized = normalizeDecisionResult({
       result: JSON.parse(JSON.stringify(output)),
