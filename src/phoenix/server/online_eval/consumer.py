@@ -28,6 +28,7 @@ from phoenix.server.online_eval.coordinator import (
     HEARTBEAT_INTERVAL_SECONDS,
     ClaimedWorkUnit,
     EvalWorkCoordinator,
+    PublicationEvaluatorDisabledError,
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import (
@@ -35,6 +36,7 @@ from phoenix.server.online_eval.executor import (
     HydratedConfigurationSnapshot,
     HydratedWorkUnit,
     HydrationFailure,
+    HydrationFailureReason,
     OnlineEvalExecutor,
     OnlineEvalStoragePaused,
     SharedHydrationFailure,
@@ -361,6 +363,22 @@ class OnlineEvalConsumer(DaemonTask):
                 logger.warning(
                     f"Online-eval work unit {unit.work_unit_id} could not pause after its "
                     "claim was lost"
+                )
+        except PublicationEvaluatorDisabledError:
+            dropped = await self._retry_transition(
+                action="drop",
+                unit=unit,
+                transition=lambda: self._coordinator.expire(
+                    work_unit_id=unit.work_unit_id,
+                    claimed_by=unit.claimed_by,
+                    error=HydrationFailureReason.PROJECT_EVALUATOR_DISABLED.value,
+                    status="DROPPED",
+                ),
+            )
+            if not dropped:
+                logger.warning(
+                    f"Online-eval work unit {unit.work_unit_id} could not be dropped after "
+                    "its claim was lost"
                 )
         except Exception as exc:
             disposition = classify(exc, hydrated_work_unit)

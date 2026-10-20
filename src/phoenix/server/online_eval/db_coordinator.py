@@ -39,6 +39,7 @@ from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     EndedWorkCounts,
     PublicationClaimLostError,
+    PublicationEvaluatorDisabledError,
     PublicationWrite,
     RetiredWorkStatus,
 )
@@ -350,7 +351,7 @@ class DbEvalWorkCoordinator:
                 )
             )
             if project_evaluator_enabled is not True:
-                raise PublicationClaimLostError(
+                raise PublicationEvaluatorDisabledError(
                     f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
             await write(session)
