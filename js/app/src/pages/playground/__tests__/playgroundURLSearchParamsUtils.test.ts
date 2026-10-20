@@ -303,13 +303,13 @@ describe("getPlaygroundTaskParams", () => {
     expect(
       getPlaygroundTaskParams([promptInstance("P1"), promptInstance(null)])
     ).toEqual({
-      role: "tested",
+      mode: "task",
       prompts: [{ promptId: "P1", promptVersionId: "P1-v", tagName: null }],
       decisions: [],
     });
   });
 
-  it("names saved decisions beside the prompts of a tested page", () => {
+  it("names saved decisions beside the prompts of a task page", () => {
     expect(
       getPlaygroundTaskParams([
         decisionInstance("D1", "prod"),
@@ -317,7 +317,7 @@ describe("getPlaygroundTaskParams", () => {
         decisionInstance(null),
       ])
     ).toEqual({
-      role: "tested",
+      mode: "task",
       prompts: [{ promptId: "P1", promptVersionId: "P1-v", tagName: null }],
       decisions: [
         { decisionId: "D1", decisionVersionId: "D1-v", tagName: "prod" },
@@ -335,7 +335,7 @@ describe("getPlaygroundTaskParams", () => {
         }),
       ])
     ).toEqual({
-      role: "judging",
+      mode: "evaluator",
       evaluators: [
         null,
         {
@@ -349,15 +349,15 @@ describe("getPlaygroundTaskParams", () => {
 });
 
 describe("arePlaygroundTaskParamsEqual", () => {
-  it("compares within a role and never across roles", () => {
+  it("compares within a mode and never across modes", () => {
     const prompts: PlaygroundTaskParams = {
-      role: "tested",
+      mode: "task",
       prompts: [{ promptId: "P1", promptVersionId: null, tagName: null }],
       decisions: [],
     };
 
     const evaluators: PlaygroundTaskParams = {
-      role: "judging",
+      mode: "evaluator",
       evaluators: [
         {
           evaluatorId: "E1",
@@ -371,7 +371,7 @@ describe("arePlaygroundTaskParamsEqual", () => {
     expect(arePlaygroundTaskParamsEqual(prompts, evaluators)).toBe(false);
     expect(
       arePlaygroundTaskParamsEqual(evaluators, {
-        role: "judging",
+        mode: "evaluator",
         evaluators: [
           {
             evaluatorId: "E1",
@@ -383,7 +383,7 @@ describe("arePlaygroundTaskParamsEqual", () => {
     ).toBe(true);
     expect(
       arePlaygroundTaskParamsEqual(evaluators, {
-        role: "judging",
+        mode: "evaluator",
         evaluators: [null],
       })
     ).toBe(false);
@@ -399,7 +399,7 @@ describe("setPlaygroundTaskParams", () => {
     const changed = setPlaygroundTaskParams({
       searchParams,
       tasks: {
-        role: "judging",
+        mode: "evaluator",
         evaluators: [
           null,
           {
@@ -427,7 +427,7 @@ describe("setPlaygroundTaskParams", () => {
     setPlaygroundTaskParams({
       searchParams,
       tasks: {
-        role: "judging",
+        mode: "evaluator",
         evaluators: [
           {
             evaluatorId: "E0",
@@ -459,7 +459,7 @@ describe("setPlaygroundTaskParams", () => {
       setPlaygroundTaskParams({
         searchParams,
         tasks: {
-          role: "judging",
+          mode: "evaluator",
           evaluators: [
             {
               evaluatorId: "E0",
@@ -480,7 +480,7 @@ describe("setPlaygroundTaskParams", () => {
     const changed = setPlaygroundTaskParams({
       searchParams,
       tasks: {
-        role: "tested",
+        mode: "task",
         prompts: [{ promptId: "P1", promptVersionId: "V1", tagName: null }],
         decisions: [],
       },
@@ -497,7 +497,7 @@ describe("setPlaygroundTaskParams", () => {
     expect(
       setPlaygroundTaskParams({
         searchParams,
-        tasks: { role: "tested", prompts: [], decisions: [] },
+        tasks: { mode: "task", prompts: [], decisions: [] },
       })
     ).toBe(false);
   });
@@ -532,14 +532,14 @@ describe("decision params", () => {
     expect(searchParams.toString()).toBe("datasetId=D");
   });
 
-  it("writes prompts and decisions of a tested page together, and clears both for a judging page", () => {
+  it("writes prompts and decisions of a task page together, and clears both for a evaluator page", () => {
     const searchParams = new URLSearchParams("datasetId=D");
 
     expect(
       setPlaygroundTaskParams({
         searchParams,
         tasks: {
-          role: "tested",
+          mode: "task",
           prompts: [{ promptId: "P1", promptVersionId: "V1", tagName: null }],
           decisions: [
             { decisionId: "D1", decisionVersionId: "DV1", tagName: "prod" },
@@ -554,15 +554,15 @@ describe("decision params", () => {
     expect(
       setPlaygroundTaskParams({
         searchParams,
-        tasks: { role: "judging", evaluators: [null] },
+        tasks: { mode: "evaluator", evaluators: [null] },
       })
     ).toBe(true);
     expect(searchParams.toString()).toBe("datasetId=D&taskKind=evaluator");
   });
 
-  it("compares decisions as part of a tested page", () => {
+  it("compares decisions as part of a task page", () => {
     const base: PlaygroundTaskParams = {
-      role: "tested",
+      mode: "task",
       prompts: [],
       decisions: [{ decisionId: "D1", decisionVersionId: "V1", tagName: null }],
     };
@@ -586,7 +586,7 @@ describe("decision params", () => {
       decisionInstance(null),
     ]);
     expect(decisionDraftParams).toEqual({
-      role: "tested",
+      mode: "task",
       prompts: [],
       decisions: [],
       hasDecisionDraft: true,

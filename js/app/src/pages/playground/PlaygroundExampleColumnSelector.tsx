@@ -7,7 +7,7 @@ import {
 } from "@phoenix/components";
 import { ColumnSelectorMenu } from "@phoenix/components/table/columnSelector";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { getPlaygroundTaskRole } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 
 import {
   EXAMPLE_COLUMNS,
@@ -43,7 +43,7 @@ export function PlaygroundExampleColumnSelector({
   });
 
   const columnLabels = usePlaygroundContext((state) =>
-    getExampleColumnLabels(getPlaygroundTaskRole(state.instances))
+    getExampleColumnLabels(getPlaygroundMode(state.instances))
   );
 
   return (

@@ -165,7 +165,7 @@ describe("playground prompt agent tools", () => {
     });
   });
 
-  it("rejects a source of the other role than the page's", async () => {
+  it("rejects a source of the other mode than the page's", async () => {
     const playgroundStore = createStore();
 
     const addAction = createAddPromptInstanceClientAction({

@@ -89,7 +89,7 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskRole,
+  getPlaygroundMode,
   getTemplateVariablesPath,
   isDecisionInstance,
 } from "@phoenix/store/playground";
@@ -855,7 +855,7 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.instances,
     arePlaygroundInstancesEqualExceptProgress
   );
-  const columnLabels = getExampleColumnLabels(getPlaygroundTaskRole(instances));
+  const columnLabels = getExampleColumnLabels(getPlaygroundMode(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -882,7 +882,7 @@ export function PlaygroundDatasetExamplesTable({
     getTemplateVariablesPath({
       stateByDatasetId: state.stateByDatasetId,
       datasetId,
-      taskRole: getPlaygroundTaskRole(state.instances),
+      mode: getPlaygroundMode(state.instances),
     })
   );
   const setAvailablePaths = usePlaygroundContext(

@@ -1,6 +1,6 @@
 import type { ColumnVisibilityState } from "@tanstack/react-table";
 
-import type { PlaygroundTaskRole } from "@phoenix/store/playground/types";
+import type { PlaygroundMode } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
@@ -18,11 +18,11 @@ export type ExampleColumn = (typeof EXAMPLE_COLUMNS)[number];
  * page's role.
  */
 export function getExampleColumnLabels(
-  taskRole: PlaygroundTaskRole
+  mode: PlaygroundMode
 ): Record<ExampleColumn, string> {
   return {
     input: "input",
-    output: taskRole === "judging" ? "output" : "reference output",
+    output: mode === "evaluator" ? "output" : "reference output",
     metadata: "metadata",
   };
 }

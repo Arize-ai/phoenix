@@ -134,7 +134,7 @@ describe("playground.task.select", () => {
     });
   });
 
-  it("rejects a source of the other role once the page's role is locked", async () => {
+  it("rejects a source of the other mode once the page's mode is locked", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
 

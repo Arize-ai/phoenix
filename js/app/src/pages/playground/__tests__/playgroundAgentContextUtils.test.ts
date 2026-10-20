@@ -260,7 +260,7 @@ describe("buildPlaygroundAgentContext", () => {
 
     expect(
       buildPlaygroundAgentContext({
-        taskRole: "tested",
+        mode: "task",
         recordExperiments: false,
         repetitions: 4,
         nextExperimentScaffold: null,
@@ -286,7 +286,7 @@ describe("buildPlaygroundAgentContext", () => {
 
     expect(
       buildPlaygroundAgentContext({
-        taskRole: "judging",
+        mode: "evaluator",
         recordExperiments: true,
         repetitions: 1,
         nextExperimentScaffold: scaffold,

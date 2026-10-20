@@ -13,17 +13,16 @@ import {
   DEFAULT_MAX_CONCURRENCY,
   getInitialInstances,
 } from "../playgroundStore";
-import { getPlaygroundTaskRole } from "../playgroundTask";
+import { getPlaygroundMode } from "../playgroundTask";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
-  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
   getTemplateVariablesPath,
 } from "../templateVariablesPath";
-import {
-  type CanonicalResponseFormat,
-  type InitialPlaygroundState,
-  type PlaygroundNormalizedInstance,
-  PlaygroundStateByDatasetIdSchema,
+import type {
+  CanonicalResponseFormat,
+  InitialPlaygroundState,
+  PlaygroundNormalizedInstance,
 } from "../types";
 
 /** The message ids of a chat template; every instance the store builds is one. */
@@ -1170,7 +1169,7 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value
     expect(store.getState().stateByDatasetId[datasetId]).toEqual({
-      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+      templateVariablesPathByMode: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1195,7 +1194,7 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value for the new dataset
     expect(store.getState().stateByDatasetId[newDatasetId]).toEqual({
-      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+      templateVariablesPathByMode: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1215,20 +1214,20 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: customPath,
       datasetId: datasetId1,
-      taskRole: "tested",
+      mode: "task",
     });
 
     // verify the custom path is set
     expect(
-      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByRole
-        .tested
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByMode
+        .task
     ).toBe(customPath);
 
     // switch to dataset 2
     store.getState().setDatasetId(datasetId2);
     expect(store.getState().datasetId).toBe(datasetId2);
     expect(store.getState().stateByDatasetId[datasetId2]).toEqual({
-      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+      templateVariablesPathByMode: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
 
@@ -1238,12 +1237,12 @@ describe("dataset-scoped state", () => {
 
     // verify the custom path is still preserved
     expect(
-      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByRole
-        .tested
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPathByMode
+        .task
     ).toBe(customPath);
   });
 
-  it("keeps a template variables path per role", () => {
+  it("keeps a template variables path per mode", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1253,31 +1252,31 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: "output",
       datasetId,
-      taskRole: "judging",
+      mode: "evaluator",
     });
 
     const { stateByDatasetId } = store.getState();
-    expect(stateByDatasetId[datasetId].templateVariablesPathByRole).toEqual({
-      tested: DEFAULT_TEMPLATE_VARIABLES_PATH,
-      judging: "output",
+    expect(stateByDatasetId[datasetId].templateVariablesPathByMode).toEqual({
+      task: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      evaluator: "output",
     });
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskRole: "tested",
+        mode: "task",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskRole: "judging",
+        mode: "evaluator",
       })
     ).toBe("output");
   });
 
-  it("starts tested tasks at input and judging tasks at the example root", () => {
+  it("starts prompt and decision tasks at input and evaluator tasks at the example root", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1289,14 +1288,14 @@ describe("dataset-scoped state", () => {
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskRole: "tested",
+        mode: "task",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskRole: "judging",
+        mode: "evaluator",
       })
     ).toBeNull();
     // A dataset without state yet reads the same defaults.
@@ -1304,19 +1303,19 @@ describe("dataset-scoped state", () => {
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId: "unseen",
-        taskRole: "tested",
+        mode: "task",
       })
     ).toBe("input");
     expect(
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId: "unseen",
-        taskRole: "judging",
+        mode: "evaluator",
       })
     ).toBeNull();
   });
 
-  it("keeps an explicit example-root choice for tested tasks", () => {
+  it("keeps an explicit example-root choice for prompt and decision tasks", () => {
     const datasetId = "dataset-1";
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
@@ -1326,14 +1325,14 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: null,
       datasetId,
-      taskRole: "tested",
+      mode: "task",
     });
 
     expect(
       getTemplateVariablesPath({
         stateByDatasetId: store.getState().stateByDatasetId,
         datasetId,
-        taskRole: "tested",
+        mode: "task",
       })
     ).toBeNull();
   });
@@ -1350,54 +1349,8 @@ describe("dataset-scoped state", () => {
 
     expect(store.getState().stateByDatasetId["dataset-1"]).toEqual({
       appendedMessagesPath: "messages",
-      templateVariablesPathByRole: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+      templateVariablesPathByMode: DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-    });
-  });
-
-  it("migrates persisted state that held one path, or a path per old kind of task", () => {
-    expect(
-      PlaygroundStateByDatasetIdSchema.parse({
-        custom: { templateVariablesPath: "payload.inputs", maxConcurrency: 4 },
-        root: { templateVariablesPath: null, maxConcurrency: 10 },
-        unset: { maxConcurrency: 10 },
-        // From when paths were kept per kind of task: prompt and evaluator.
-        perKind: {
-          templateVariablesPathByTaskKind: {
-            prompt: "input",
-            evaluator: "output",
-          },
-          maxConcurrency: 3,
-        },
-        current: {
-          templateVariablesPathByRole: { tested: "input", judging: "output" },
-          maxConcurrency: 2,
-        },
-      })
-    ).toEqual({
-      custom: {
-        templateVariablesPathByRole: {
-          tested: "payload.inputs",
-          judging: null,
-        },
-        maxConcurrency: 4,
-      },
-      root: {
-        templateVariablesPathByRole: { tested: null, judging: null },
-        maxConcurrency: 10,
-      },
-      unset: {
-        templateVariablesPathByRole: { tested: "input", judging: null },
-        maxConcurrency: 10,
-      },
-      perKind: {
-        templateVariablesPathByRole: { tested: "input", judging: "output" },
-        maxConcurrency: 3,
-      },
-      current: {
-        templateVariablesPathByRole: { tested: "input", judging: "output" },
-        maxConcurrency: 2,
-      },
     });
   });
 });
@@ -1503,7 +1456,7 @@ describe("addInstance", () => {
       modelName: null,
     });
     expect(second.llmModel).toEqual(prompt.model);
-    expect(getPlaygroundTaskRole(store.getState().instances)).toBe("tested");
+    expect(getPlaygroundMode(store.getState().instances)).toBe("task");
   });
 
   it("starts a saved decision as a decision draft that carries its loading source", () => {

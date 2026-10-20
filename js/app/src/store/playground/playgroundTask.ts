@@ -6,20 +6,19 @@ import type {
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
   PlaygroundTaskMember,
-  PlaygroundTaskRole,
+  PlaygroundMode,
 } from "./types";
 
 /**
- * The role each member plays, the one place that says so. A new member joins
- * a role with one line here.
+ * Maps each task member to its playground mode.
  */
-export const PLAYGROUND_TASK_ROLE_BY_MEMBER: Record<
+export const PLAYGROUND_MODE_BY_MEMBER: Record<
   PlaygroundTaskMember,
-  PlaygroundTaskRole
+  PlaygroundMode
 > = {
-  prompt: "tested",
-  decision: "tested",
-  evaluator: "judging",
+  prompt: "task",
+  decision: "task",
+  evaluator: "evaluator",
 };
 
 /** What an instance is: the one record of its member. */
@@ -37,26 +36,28 @@ export function isDecisionInstance(
 }
 
 /**
- * The role the page plays. Every instance shares it, so the first instance
- * decides; an empty page is a tested page.
+ * Returns the page's mode from its first instance. An empty page defaults
+ * to task mode.
  */
-export function getPlaygroundTaskRole(
+export function getPlaygroundMode(
   instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
-): PlaygroundTaskRole {
+): PlaygroundMode {
   const first = instances[0];
 
   return first
-    ? PLAYGROUND_TASK_ROLE_BY_MEMBER[getPlaygroundTaskMember(first)]
-    : "tested";
+    ? PLAYGROUND_MODE_BY_MEMBER[getPlaygroundTaskMember(first)]
+    : "task";
 }
 
 /**
- * Whether the page's role can still change. A lone instance may switch roles
- * by being replaced; once there is something to compare against, the role is
- * fixed until the other instances are removed. Members of the same role mix
+ * Whether the page's mode can still change. A lone instance may switch modes
+ * by being replaced; once there is something to compare against, the mode is
+ * fixed until the other instances are removed. Members of the same mode mix
  * freely: a decision can sit beside a prompt.
  */
-export function isTaskRoleLocked(instances: ReadonlyArray<unknown>): boolean {
+export function isPlaygroundModeLocked(
+  instances: ReadonlyArray<unknown>
+): boolean {
   return instances.length > 1;
 }
 
@@ -106,7 +107,7 @@ export function createPlaygroundEvaluatorTask({
   };
 }
 
-/** Narrows to the evaluator draft, or null for a tested instance. */
+/** Narrows to the evaluator draft, or null for a prompt or decision instance. */
 export function getPlaygroundEvaluatorTask(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): PlaygroundEvaluatorTask | null {

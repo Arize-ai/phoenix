@@ -17,8 +17,8 @@ import {
 } from "@phoenix/store/playground/playgroundStore";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
-  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
-  type TemplateVariablesPathByRole,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+  type TemplateVariablesPathByMode,
 } from "@phoenix/store/playground/templateVariablesPath";
 import type {
   ModelConfig,
@@ -219,7 +219,7 @@ export type ExperimentRehydrationResult = {
   stateByDatasetId: Record<
     string,
     {
-      templateVariablesPathByRole: TemplateVariablesPathByRole;
+      templateVariablesPathByMode: TemplateVariablesPathByMode;
       appendedMessagesPath?: string | null;
       maxConcurrency: number;
     }
@@ -303,9 +303,9 @@ function taskConfigToPlaygroundProps(
 
   // An experiment's playground config belongs to its prompt task; the
   // judging role keeps its default.
-  const templateVariablesPathByRole: TemplateVariablesPathByRole = {
-    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
-    tested:
+  const templateVariablesPathByMode: TemplateVariablesPathByMode = {
+    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+    task:
       taskConfig.playgroundConfig?.templateVariablesPath ??
       DEFAULT_TEMPLATE_VARIABLES_PATH,
   };
@@ -316,7 +316,7 @@ function taskConfigToPlaygroundProps(
     datasetId
       ? {
           [datasetId]: {
-            templateVariablesPathByRole,
+            templateVariablesPathByMode,
             appendedMessagesPath,
             maxConcurrency,
           },
@@ -418,9 +418,9 @@ export function decisionTaskConfigToPlaygroundProps({
     stateByDatasetId: datasetId
       ? {
           [datasetId]: {
-            templateVariablesPathByRole: {
-              ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
-              tested: taskConfig.inputValuesPath,
+            templateVariablesPathByMode: {
+              ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+              task: taskConfig.inputValuesPath,
             },
             appendedMessagesPath: null,
             maxConcurrency,

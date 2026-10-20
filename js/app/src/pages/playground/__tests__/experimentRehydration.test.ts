@@ -61,7 +61,7 @@ it("restores a decision's frozen definition, connection, and dataset settings", 
   });
   expect(result.selectedDatasetEvaluatorIds).toEqual(["judge-1"]);
   expect(result.stateByDatasetId["dataset-1"]).toMatchObject({
-    templateVariablesPathByRole: { tested: "metadata.inputs" },
+    templateVariablesPathByMode: { task: "metadata.inputs" },
     maxConcurrency: 3,
   });
 });

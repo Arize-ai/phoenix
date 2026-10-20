@@ -72,8 +72,9 @@ describe("playgroundPageLoader", () => {
 
   it("opens a fresh decision draft from the decisions library", async () => {
     const data = await load("newDecision=true");
-    expect(data?.source).toBe("tested");
-    if (data?.source !== "tested") throw new Error("Expected tested tasks");
+    expect(data?.source).toBe("task");
+    if (data?.source !== "task")
+      throw new Error("Expected prompt and decision tasks");
     expect(data.instances).toHaveLength(1);
     expect(data.instances[0].task.member).toBe("decision");
     expect(data.instances[0].model.modelType).toBe("DECISION");
@@ -179,7 +180,7 @@ describe("playgroundPageLoader", () => {
         promptVersion: { templateFormat: "MUSTACHE" },
       }) as never;
 
-    it("loads saved decisions as tested tasks, using the decision's own template format", async () => {
+    it("loads saved decisions as prompt and decision tasks, using the decision's own template format", async () => {
       fetchDecision.mockResolvedValue(decisionInstance("D1"));
 
       const data = await load(
@@ -193,7 +194,7 @@ describe("playgroundPageLoader", () => {
         templateFormat: null,
       });
       expect(fetchPrompt).not.toHaveBeenCalled();
-      if (data?.source !== "tested") throw new Error("unreachable");
+      if (data?.source !== "task") throw new Error("unreachable");
       expect(data.decisionParams).toEqual([
         { decisionId: "D1", decisionVersionId: "DV1", tagName: null },
       ]);
@@ -215,7 +216,7 @@ describe("playgroundPageLoader", () => {
         tagName: "prod",
         templateFormat: "MUSTACHE",
       });
-      if (data?.source !== "tested") throw new Error("unreachable");
+      if (data?.source !== "task") throw new Error("unreachable");
       expect(data.instances.map((i) => i.task.member)).toEqual([
         "prompt",
         "decision",
@@ -231,7 +232,7 @@ describe("playgroundPageLoader", () => {
       fetchPrompt.mockResolvedValue(promptInstance("P1"));
       const data = await load("promptId=P1&decisionId=gone");
 
-      if (data?.source !== "tested") throw new Error("unreachable");
+      if (data?.source !== "task") throw new Error("unreachable");
       expect(data.instances.map((i) => i.task.member)).toEqual(["prompt"]);
     });
   });

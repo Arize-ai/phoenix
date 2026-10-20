@@ -5,10 +5,10 @@ import {
   DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG,
   getPlaygroundEvaluatorTask,
   getPlaygroundTaskMember,
-  getPlaygroundTaskRole,
+  getPlaygroundMode,
   getTaskMemberForNewSource,
   isDecisionInstance,
-  isTaskRoleLocked,
+  isPlaygroundModeLocked,
 } from "../playgroundTask";
 import type { PlaygroundTask } from "../types";
 
@@ -31,32 +31,32 @@ describe("getPlaygroundTaskMember and isDecisionInstance", () => {
   });
 });
 
-describe("getPlaygroundTaskRole", () => {
-  it("is the role of the first instance's member", () => {
-    expect(getPlaygroundTaskRole([{ task: promptTask }])).toBe("tested");
-    expect(getPlaygroundTaskRole([{ task: decisionTask }])).toBe("tested");
+describe("getPlaygroundMode", () => {
+  it("is the mode of the first instance's member", () => {
+    expect(getPlaygroundMode([{ task: promptTask }])).toBe("task");
+    expect(getPlaygroundMode([{ task: decisionTask }])).toBe("task");
     expect(
-      getPlaygroundTaskRole([{ task: evaluatorTask }, { task: evaluatorTask }])
-    ).toBe("judging");
+      getPlaygroundMode([{ task: evaluatorTask }, { task: evaluatorTask }])
+    ).toBe("evaluator");
   });
 
-  it("treats a page of prompts and decisions as one tested page", () => {
+  it("treats a page of prompts and decisions as one task page", () => {
     expect(
-      getPlaygroundTaskRole([{ task: decisionTask }, { task: promptTask }])
-    ).toBe("tested");
+      getPlaygroundMode([{ task: decisionTask }, { task: promptTask }])
+    ).toBe("task");
   });
 
-  it("treats an empty page as a tested page", () => {
-    expect(getPlaygroundTaskRole([])).toBe("tested");
+  it("treats an empty page as a task page", () => {
+    expect(getPlaygroundMode([])).toBe("task");
   });
 });
 
-describe("isTaskRoleLocked", () => {
-  it("locks the role once there is more than one instance", () => {
-    expect(isTaskRoleLocked([])).toBe(false);
-    expect(isTaskRoleLocked([{ task: promptTask }])).toBe(false);
+describe("isPlaygroundModeLocked", () => {
+  it("locks the mode once there is more than one instance", () => {
+    expect(isPlaygroundModeLocked([])).toBe(false);
+    expect(isPlaygroundModeLocked([{ task: promptTask }])).toBe(false);
     expect(
-      isTaskRoleLocked([{ task: promptTask }, { task: decisionTask }])
+      isPlaygroundModeLocked([{ task: promptTask }, { task: decisionTask }])
     ).toBe(true);
   });
 });

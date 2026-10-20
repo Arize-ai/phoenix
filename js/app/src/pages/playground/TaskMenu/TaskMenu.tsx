@@ -24,8 +24,8 @@ import type {
   PlaygroundTaskMember,
 } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskRole,
-  isTaskRoleLocked,
+  getPlaygroundMode,
+  isPlaygroundModeLocked,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
@@ -43,22 +43,22 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
  * Picks what a playground instance is: a saved prompt, decision or
- * evaluator, or a new draft of any, from a tab per member, grouped by role:
- * prompts and decisions (tested), then evaluators (judging). With one
+ * evaluator, or a new draft of any, from a tab per member, grouped by mode:
+ * prompts and decisions (task mode), then evaluators (evaluator mode). With one
  * instance on the page every tab is offered and choosing from another
- * member's tab replaces the instance; with more, only the page's role's
+ * member's tab replaces the instance; with more, only the mode's
  * members are, so prompts and decisions can sit side by side. A prompt or
  * decision task keeps the version and tag pickers.
  */
 export function TaskMenu({ instanceId }: { instanceId: number }) {
   const instance = usePlaygroundContext(selectPlaygroundInstance(instanceId));
 
-  const taskRole = usePlaygroundContext((state) =>
-    getPlaygroundTaskRole(state.instances)
+  const mode = usePlaygroundContext((state) =>
+    getPlaygroundMode(state.instances)
   );
 
   const isLocked = usePlaygroundContext((state) =>
-    isTaskRoleLocked(state.instances)
+    isPlaygroundModeLocked(state.instances)
   );
 
   const isDirty = usePlaygroundContext(
@@ -99,13 +99,13 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   const member = instance.task.member;
   const isPromptTask = member === "prompt";
   const isDecisionTask = member === "decision";
-  const offersTested = !isLocked || taskRole === "tested";
-  const offersEvaluators = !isLocked || taskRole === "judging";
+  const offersTasks = !isLocked || mode === "task";
+  const offersEvaluators = !isLocked || mode === "evaluator";
 
   const { prompts, promptItems, decisions, evaluators } = useTaskMenuOptions({
     // A prompt task needs its prompt's versions before the menu opens.
-    includePrompts: offersTested && (isPromptTask || hasOpened),
-    includeDecisions: offersTested && hasOpened,
+    includePrompts: offersTasks && (isPromptTask || hasOpened),
+    includeDecisions: offersTasks && hasOpened,
     includeEvaluators: offersEvaluators && hasOpened,
     search: deferredSearch,
     promptsFetchKey: instance.prompt
@@ -115,7 +115,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   });
 
   const tabs = getTaskMenuTabs({
-    role: taskRole,
+    mode,
     isLocked,
     prompts: promptItems,
     decisions,

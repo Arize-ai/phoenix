@@ -27,7 +27,7 @@ import type {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
-import { getPlaygroundTaskRole } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
@@ -261,7 +261,7 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
   const isJudgingRole = usePlaygroundContext(
-    (state) => getPlaygroundTaskRole(state.instances) === "judging"
+    (state) => getPlaygroundMode(state.instances) === "evaluator"
   );
 
   // Reported by the table as examples load; the toolbar's column selector

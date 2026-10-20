@@ -4,13 +4,13 @@ import type {
   PlaygroundNormalizedInstance,
   PlaygroundState,
   PlaygroundStore,
-  PlaygroundTaskRole,
+  PlaygroundMode,
 } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskRole,
+  getPlaygroundMode,
   getTaskMemberForNewSource,
-  isTaskRoleLocked,
-  PLAYGROUND_TASK_ROLE_BY_MEMBER,
+  isPlaygroundModeLocked,
+  PLAYGROUND_MODE_BY_MEMBER,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
@@ -19,20 +19,18 @@ import type { PlaygroundTaskResult } from "./types";
 
 type TaskRejection = Extract<PlaygroundTaskResult<never>, { ok: false }>;
 
-/** The role a task made from a source plays. */
-export function getTaskSourceRole(
+/** Returns the playground mode for a task source. */
+export function getTaskSourceMode(
   source: Exclude<PlaygroundInstanceSource, { type: "duplicate" }>
-): PlaygroundTaskRole {
+): PlaygroundMode {
   switch (source.type) {
     case "new":
-      return PLAYGROUND_TASK_ROLE_BY_MEMBER[
-        getTaskMemberForNewSource(source.kind)
-      ];
+      return PLAYGROUND_MODE_BY_MEMBER[getTaskMemberForNewSource(source.kind)];
     case "prompt":
     case "decision":
-      return "tested";
+      return "task";
     default:
-      return "judging";
+      return "evaluator";
   }
 }
 
@@ -50,7 +48,7 @@ export function doesTaskSourceReplace(
 
 /**
  * Why the task menu would refuse `source` for the instance, or null: a run
- * in progress, a page whose role is locked to the other role, or unsaved
+ * in progress, a page whose mode is locked to the other mode, or unsaved
  * changes the caller has not agreed to discard.
  */
 export function getSelectTaskRejection({
@@ -74,15 +72,15 @@ export function getSelectTaskRejection({
     };
   }
 
-  const pageRole = getPlaygroundTaskRole(state.instances);
+  const pageMode = getPlaygroundMode(state.instances);
 
   if (
-    isTaskRoleLocked(state.instances) &&
-    getTaskSourceRole(source) !== pageRole
+    isPlaygroundModeLocked(state.instances) &&
+    getTaskSourceMode(source) !== pageMode
   ) {
     return {
       ok: false,
-      error: `This page holds ${describeRole(pageRole)} and has more than one instance, so its role is fixed. ${TASK_MENU_LOCK_NOTE}`,
+      error: `This page holds ${describeMode(pageMode)} and has more than one instance, so its mode is fixed. ${TASK_MENU_LOCK_NOTE}`,
     };
   }
 
@@ -100,9 +98,9 @@ export function getSelectTaskRejection({
   return null;
 }
 
-/** The role as the agent should say it. */
-export function describeRole(role: PlaygroundTaskRole): string {
-  return role === "tested" ? "prompt and decision tasks" : "evaluator tasks";
+/** Describes the tasks available in a playground mode. */
+export function describeMode(mode: PlaygroundMode): string {
+  return mode === "task" ? "prompt and decision tasks" : "evaluator tasks";
 }
 
 /**

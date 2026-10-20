@@ -66,7 +66,7 @@ export function TaskMenuList({
   search: string;
   onSearchChange: (search: string) => void;
   isLoading: boolean;
-  /** One line above the list, e.g. why the role cannot change. */
+  /** One line above the list, e.g. why the mode cannot change. */
   note?: string | null;
 }) {
   const selected = tabs.find((tab) => tab.member === selectedMember) ?? tabs[0];

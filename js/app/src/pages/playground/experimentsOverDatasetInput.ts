@@ -225,7 +225,7 @@ function getDecisionTaskInput({
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,
-        taskRole: "tested",
+        mode: "task",
       }) ?? "",
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({

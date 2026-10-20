@@ -21,7 +21,7 @@ import {
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import { createPlaygroundEvaluatorTask } from "./playgroundTask";
-import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE } from "./templateVariablesPath";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE } from "./templateVariablesPath";
 import {
   type ChatMessage,
   type ExperimentScaffold,
@@ -39,7 +39,7 @@ import {
   type PlaygroundState,
   type PlaygroundStateByDatasetId,
   PlaygroundStateByDatasetIdSchema,
-  type PlaygroundTaskRole,
+  type PlaygroundMode,
   type PlaygroundTextCompletionTemplate,
 } from "./types";
 
@@ -1414,11 +1414,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setTemplateVariablesPath: ({
       templateVariablesPath,
       datasetId,
-      taskRole,
+      mode,
     }: {
       templateVariablesPath: string | null;
       datasetId: string;
-      taskRole: PlaygroundTaskRole;
+      mode: PlaygroundMode;
     }) => {
       const datasetState =
         get().stateByDatasetId[datasetId] ?? createDatasetState();
@@ -1429,9 +1429,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().stateByDatasetId,
             [datasetId]: {
               ...datasetState,
-              templateVariablesPathByRole: {
-                ...datasetState.templateVariablesPathByRole,
-                [taskRole]: templateVariablesPath,
+              templateVariablesPathByMode: {
+                ...datasetState.templateVariablesPathByMode,
+                [mode]: templateVariablesPath,
               },
             },
           },
@@ -2023,8 +2023,8 @@ export const DEFAULT_MAX_CONCURRENCY = 10;
 /** A dataset's settings before anyone changes them. */
 function createDatasetState(): PlaygroundStateByDatasetId[string] {
   return {
-    templateVariablesPathByRole: {
-      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+    templateVariablesPathByMode: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
     },
     maxConcurrency: DEFAULT_MAX_CONCURRENCY,
   };

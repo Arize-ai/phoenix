@@ -5,7 +5,7 @@ import { useFilter } from "react-aria-components";
 import { Button, Icon, Icons, Popover, Select } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { PlaygroundTaskMember } from "@phoenix/store/playground";
-import { getPlaygroundTaskRole } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "../constants";
 import {
@@ -18,16 +18,16 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
  * Adds a task to compare against: a duplicate of the first task, a saved
- * prompt, decision or evaluator of the page's role, or a new draft of one.
- * The role is fixed here because the new task always joins an existing one;
- * a tested page offers prompts and decisions, so either can be compared with
+ * prompt, decision or evaluator of the page's mode, or a new draft of one.
+ * The mode is fixed here because the new task always joins an existing one;
+ * a task page offers prompts and decisions, so either can be compared with
  * the other.
  */
 export function PlaygroundCompareMenu() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
 
-  const taskRole = usePlaygroundContext((state) =>
-    getPlaygroundTaskRole(state.instances)
+  const mode = usePlaygroundContext((state) =>
+    getPlaygroundMode(state.instances)
   );
 
   const isFull = usePlaygroundContext(
@@ -55,18 +55,18 @@ export function PlaygroundCompareMenu() {
   const { contains } = useFilter({ sensitivity: "base" });
 
   const { promptItems, decisions, evaluators } = useTaskMenuOptions({
-    includePrompts: hasOpened && taskRole === "tested",
-    includeDecisions: hasOpened && taskRole === "tested",
-    includeEvaluators: hasOpened && taskRole === "judging",
+    includePrompts: hasOpened && mode === "task",
+    includeDecisions: hasOpened && mode === "task",
+    includeEvaluators: hasOpened && mode === "evaluator",
     search: deferredSearch,
     evaluatorsFetchKey: openCount,
   });
 
-  // Locked to the page's role: a tested page has a tab each for prompts and
-  // decisions, a judging page one list without a tab strip, the duplicate
+  // Locked to the page's mode: a task page has a tab each for prompts and
+  // decisions, a evaluator page one list without a tab strip, the duplicate
   // action ahead of either.
   const tabs = getTaskMenuTabs({
-    role: taskRole,
+    mode,
     isLocked: true,
     prompts: promptItems,
     decisions,

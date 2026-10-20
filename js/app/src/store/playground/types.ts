@@ -10,7 +10,6 @@ import type {
 } from "@phoenix/types";
 
 import type { AnnotationConfig } from "../evaluatorStore";
-import { migrateTemplateVariablesPath } from "./templateVariablesPath";
 
 /**
  * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
@@ -290,17 +289,17 @@ export type PlaygroundInstancePrompt = {
 };
 
 /**
- * The part a task plays. Tested tasks are what an experiment tests; judging
- * tasks evaluate them. A page holds the members of one role.
+ * Task mode runs prompts or decisions to produce outputs. Evaluator mode
+ * judges outputs. Every instance on a page shares the same mode.
  */
-export type PlaygroundTaskRole = "tested" | "judging";
+export type PlaygroundMode = "task" | "evaluator";
 
 /**
  * What a task is, one tab of the task menu each. The member decides the
- * role (see getPlaygroundTaskRole) and what the instance must hold: a
- * decision member holds a decision request and a decision model. New tested
+ * mode (see getPlaygroundMode) and what the instance must hold: a
+ * decision member holds a decision request and a decision model. New task-mode
  * members, such as a code task that holds no model, are added here and in
- * the role table.
+ * the mode table.
  */
 export type PlaygroundTaskMember = "prompt" | "decision" | "evaluator";
 
@@ -347,7 +346,7 @@ export type PlaygroundEvaluatorTask = {
 /**
  * What a playground instance is: a prompt, a decision, or an evaluator
  * judged over the dataset. The member is the only record of which; every
- * instance on a page plays one role, see getPlaygroundTaskRole.
+ * instance on a page plays one mode, see getPlaygroundMode.
  */
 export type PlaygroundTask =
   | { member: "prompt" }
@@ -583,59 +582,54 @@ export interface PlaygroundProps {
 }
 
 /**
- * A dot-notation path prefix for template variables per role, or null for the
- * example root. Tested tasks (prompts and decisions) start at "input", so
- * {{query}} resolves to input.query of the dataset example; judging tasks
+ * A dot-notation path prefix for template variables per mode, or null for the
+ * example root. Prompt and decision tasks start at "input", so
+ * {{query}} resolves to input.query of the dataset example; evaluator tasks
  * start at the root, where an evaluator's input mapping addresses input,
  * output and metadata.
  */
-const TemplateVariablesPathByRoleSchema = z.object({
-  tested: z.string().nullable(),
-  judging: z.string().nullable(),
+const TemplateVariablesPathByModeSchema = z.object({
+  task: z.string().nullable(),
+  evaluator: z.string().nullable(),
 });
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
   z.string(),
-  // Persisted state from before paths were kept per role is migrated
-  // on the way in.
-  z.preprocess(
-    migrateTemplateVariablesPath,
-    z.object({
-      /**
-       * Dot-notation path to messages in dataset example input to append to prompt.
-       * When set, messages at this path will be appended to the playground prompt
-       * after template variables are applied.
-       * @example "messages" or "input_messages"
-       * @default null
-       */
-      appendedMessagesPath: z.string().nullish(),
-      /**
-       * The maximum number of tasks/evals that will be run concurrently.
-       * @default 10
-       */
-      maxConcurrency: z.number().int().min(1).max(100).default(10),
-      /**
-       * Optional name for experiments created by the next dataset-backed run.
-       * Empty/null falls back to the server-generated playground experiment name.
-       */
-      experimentName: z.string().nullish(),
-      /**
-       * Optional description for experiments created by the next dataset-backed run.
-       */
-      experimentDescription: z.string().nullish(),
-      /**
-       * Where each role reads its template variables from when running
-       * over the dataset; see {@link TemplateVariablesPathByRoleSchema}.
-       */
-      templateVariablesPathByRole: TemplateVariablesPathByRoleSchema,
-      /**
-       * Available paths for template variable autocomplete.
-       * These are extracted from dataset examples and cached per dataset.
-       * Not persisted - computed at runtime when dataset is loaded.
-       */
-      availablePaths: z.array(z.string()).optional(),
-    })
-  )
+  z.object({
+    /**
+     * Dot-notation path to messages in dataset example input to append to prompt.
+     * When set, messages at this path will be appended to the playground prompt
+     * after template variables are applied.
+     * @example "messages" or "input_messages"
+     * @default null
+     */
+    appendedMessagesPath: z.string().nullish(),
+    /**
+     * The maximum number of tasks/evals that will be run concurrently.
+     * @default 10
+     */
+    maxConcurrency: z.number().int().min(1).max(100).default(10),
+    /**
+     * Optional name for experiments created by the next dataset-backed run.
+     * Empty/null falls back to the server-generated playground experiment name.
+     */
+    experimentName: z.string().nullish(),
+    /**
+     * Optional description for experiments created by the next dataset-backed run.
+     */
+    experimentDescription: z.string().nullish(),
+    /**
+     * Where each mode reads its template variables from when running
+     * over the dataset; see {@link TemplateVariablesPathByModeSchema}.
+     */
+    templateVariablesPathByMode: TemplateVariablesPathByModeSchema,
+    /**
+     * Available paths for template variable autocomplete.
+     * These are extracted from dataset examples and cached per dataset.
+     * Not persisted - computed at runtime when dataset is loaded.
+     */
+    availablePaths: z.array(z.string()).optional(),
+  })
 );
 
 export type PlaygroundStateByDatasetId = z.infer<
@@ -981,17 +975,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId: string;
   }) => void;
   /**
-   * Set the template variables path one role uses for dataset
-   * experiments; the other role's path is left alone.
+   * Set the template variables path one mode uses for dataset
+   * experiments; the other mode's path is left alone.
    */
   setTemplateVariablesPath: ({
     templateVariablesPath,
     datasetId,
-    taskRole,
+    mode,
   }: {
     templateVariablesPath: string | null;
     datasetId: string;
-    taskRole: PlaygroundTaskRole;
+    mode: PlaygroundMode;
   }) => void;
   /**
    * Set the available paths for template variable autocomplete.

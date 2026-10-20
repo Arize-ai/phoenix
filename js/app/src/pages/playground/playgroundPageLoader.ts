@@ -40,7 +40,7 @@ type PlaygroundInstanceWithoutId = Omit<PlaygroundInstance, "id">;
  */
 export type PlaygroundPageLoaderData =
   | {
-      source: "tested";
+      source: "task";
       promptParams: PromptParam[];
       decisionParams: DecisionParam[];
       instances: PlaygroundInstanceWithoutId[];
@@ -217,7 +217,7 @@ async function loadEvaluatorTaskInstances(
  * - experimentId URL param → load from experiment task config
  * - evaluator{n}/datasetEvaluator{n} URL params, or taskKind=evaluator → evaluator tasks
  * - promptId/promptVersionId/promptTagName and decisionId/decisionVersionId/
- *   decisionTagName URL params → tested tasks, loaded from prompt and
+ *   decisionTagName URL params → prompt and decision tasks, loaded from prompt and
  *   decision versions (prompts first, then decisions)
  *
  * Returns `null` when no params are present (default playground).
@@ -258,14 +258,14 @@ export function createPlaygroundPageLoader(
       );
     }
 
-    // Fall back to tested tasks: prompt and decision params
+    // Load task mode from prompt and decision params.
     const promptParams = parsePromptParams(url.searchParams);
     const decisionParams = parseDecisionParams(url.searchParams);
 
     if (!promptParams.length && !decisionParams.length) {
       if (url.searchParams.get("newDecision") === "true") {
         return {
-          source: "tested",
+          source: "task",
           promptParams: [],
           decisionParams: [],
           instances: [createDecisionTaskInstance()],
@@ -346,7 +346,7 @@ export function createPlaygroundPageLoader(
     }
 
     return {
-      source: "tested",
+      source: "task",
       promptParams,
       decisionParams,
       instances,

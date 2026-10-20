@@ -28,9 +28,9 @@ const matches = (text: string, search: string) =>
 const options = { prompts, decisions, evaluators, search: "", matches };
 
 describe("getTaskMenuTabs", () => {
-  it("offers a tab per member, grouped by role, each with its items and New actions, while the role is unlocked", () => {
+  it("offers a tab per member, grouped by mode, each with its items and New actions, while the mode is unlocked", () => {
     const tabs = getTaskMenuTabs({
-      role: "tested",
+      mode: "task",
       isLocked: false,
       ...options,
     });
@@ -68,9 +68,9 @@ describe("getTaskMenuTabs", () => {
     ]);
   });
 
-  it("keeps both members of the tested role when it is locked, and hides the judging role", () => {
+  it("keeps both members of the tested mode when it is locked, and hides the judging mode", () => {
     const tabs = getTaskMenuTabs({
-      role: "tested",
+      mode: "task",
       isLocked: true,
       ...options,
     });
@@ -78,9 +78,9 @@ describe("getTaskMenuTabs", () => {
     expect(tabs.map((tab) => tab.member)).toEqual(["prompt", "decision"]);
   });
 
-  it("keeps only the evaluator tab when the judging role is locked", () => {
+  it("keeps only the evaluator tab when the judging mode is locked", () => {
     const tabs = getTaskMenuTabs({
-      role: "judging",
+      mode: "evaluator",
       isLocked: true,
       ...options,
     });
@@ -94,7 +94,7 @@ describe("getTaskMenuTabs", () => {
 
   it("filters prompts by the search and drops an emptied section", () => {
     const [tab] = getTaskMenuTabs({
-      role: "tested",
+      mode: "task",
       isLocked: true,
       ...options,
       evaluators: [],
@@ -106,7 +106,7 @@ describe("getTaskMenuTabs", () => {
     ]);
     expect(
       getTaskMenuTabs({
-        role: "tested",
+        mode: "task",
         isLocked: true,
         ...options,
         evaluators: [],
@@ -117,7 +117,7 @@ describe("getTaskMenuTabs", () => {
 
   it("lists decisions as the server filtered them, and offers New when there are none", () => {
     const [, decisionTab] = getTaskMenuTabs({
-      role: "tested",
+      mode: "task",
       isLocked: true,
       ...options,
       decisions: [],

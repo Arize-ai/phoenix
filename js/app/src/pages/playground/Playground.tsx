@@ -136,7 +136,7 @@ import {
 } from "@phoenix/store/editableTableStore";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskRole,
+  getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
 
@@ -284,7 +284,7 @@ const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
 function getTaskPanelTitle(
   instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
 ): string {
-  if (getPlaygroundTaskRole(instances) === "judging") {
+  if (getPlaygroundMode(instances) === "evaluator") {
     return "Evaluators";
   }
 
@@ -324,8 +324,8 @@ function PlaygroundContent() {
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
 
-  const taskRole = usePlaygroundContext((state) =>
-    getPlaygroundTaskRole(state.instances)
+  const mode = usePlaygroundContext((state) =>
+    getPlaygroundMode(state.instances)
   );
 
   const panelTitle = usePlaygroundContext((state) =>
@@ -416,14 +416,14 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
-        taskRole,
+        mode,
         recordExperiments,
         repetitions,
         nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
     [
-      taskRole,
+      mode,
       playgroundInstancesForAgent,
       recordExperiments,
       repetitions,
@@ -840,10 +840,10 @@ function PlaygroundContent() {
       getPlaygroundPanelIds({
         isDatasetMode,
         templateFormat,
-        taskRole,
+        mode,
         hasDecisionInputState,
       }),
-    [isDatasetMode, templateFormat, taskRole, hasDecisionInputState]
+    [isDatasetMode, templateFormat, mode, hasDecisionInputState]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -889,9 +889,7 @@ function PlaygroundContent() {
           title={panelTitle}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              {taskRole === "tested" ? (
-                <TemplateFormatRadioGroup size="S" />
-              ) : null}
+              {mode === "task" ? <TemplateFormatRadioGroup size="S" /> : null}
               <PlaygroundCompareMenu />
             </Flex>
           }
@@ -964,7 +962,7 @@ function PlaygroundContent() {
               }
             />
           </Suspense>
-        ) : taskRole === "judging" ? (
+        ) : mode === "evaluator" ? (
           <TitledPanel
             ref={ioPanelRef}
             headingLevel={2}

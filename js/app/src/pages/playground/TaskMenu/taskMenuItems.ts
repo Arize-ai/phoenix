@@ -3,9 +3,9 @@ import type {
   PlaygroundInstance,
   PlaygroundInstanceSource,
   PlaygroundTaskMember,
-  PlaygroundTaskRole,
+  PlaygroundMode,
 } from "@phoenix/store/playground";
-import { PLAYGROUND_TASK_ROLE_BY_MEMBER } from "@phoenix/store/playground";
+import { PLAYGROUND_MODE_BY_MEMBER } from "@phoenix/store/playground";
 
 export type TaskMenuPrompt = {
   id: string;
@@ -46,7 +46,7 @@ export type TaskMenuTab = {
   sections: TaskMenuSection[];
 };
 
-/** The tabs in the order the menu shows them, grouped by role. */
+/** The tabs in the order the menu shows them, grouped by mode. */
 const TAB_MEMBERS: PlaygroundTaskMember[] = ["prompt", "decision", "evaluator"];
 
 const TAB_TITLES: Record<PlaygroundTaskMember, string> = {
@@ -79,16 +79,16 @@ const NEW_ITEMS: Record<PlaygroundTaskMember, TaskMenuItem[]> = {
 };
 
 /**
- * The tabs a task menu offers, one per member of the tasks. With the role
- * unlocked every member has a tab, grouped by role: prompts and decisions
- * (tested), then evaluators (judging). Locked, only the page's role's members
- * do, so a task of the other role cannot be mixed in; prompts and decisions
+ * The tabs a task menu offers, one per member of the tasks. With the mode
+ * unlocked every member has a tab, grouped by mode: prompts and decisions
+ * (task mode), then evaluators (evaluator mode). Locked, only the members available in the current mode
+ * do, so a task of the other mode cannot be mixed in; prompts and decisions
  * mix freely. Each tab lists that member's saved items, then its "New"
  * actions. Prompts are filtered here; decisions and evaluators arrive already
  * filtered by the server.
  */
 export function getTaskMenuTabs({
-  role,
+  mode,
   isLocked,
   prompts,
   decisions,
@@ -96,7 +96,7 @@ export function getTaskMenuTabs({
   search,
   matches,
 }: {
-  role: PlaygroundTaskRole;
+  mode: PlaygroundMode;
   isLocked: boolean;
   prompts: TaskMenuPrompt[];
   decisions: TaskMenuDecision[];
@@ -105,7 +105,7 @@ export function getTaskMenuTabs({
   matches: (text: string, search: string) => boolean;
 }): TaskMenuTab[] {
   const members = TAB_MEMBERS.filter(
-    (member) => !isLocked || PLAYGROUND_TASK_ROLE_BY_MEMBER[member] === role
+    (member) => !isLocked || PLAYGROUND_MODE_BY_MEMBER[member] === mode
   );
 
   return members.map((member) => ({

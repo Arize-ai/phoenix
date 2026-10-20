@@ -3,7 +3,7 @@ import type {
   ExperimentScaffold,
   PlaygroundInstance,
   PlaygroundTask,
-  PlaygroundTaskRole,
+  PlaygroundMode,
 } from "@phoenix/store/playground";
 
 import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
@@ -180,13 +180,13 @@ export function arePlaygroundInstancesForAgentEqual(
 }
 
 export function buildPlaygroundAgentContext({
-  taskRole,
+  mode,
   recordExperiments,
   repetitions,
   nextExperimentScaffold,
   instances,
 }: {
-  taskRole: PlaygroundTaskRole;
+  mode: PlaygroundMode;
   recordExperiments: boolean;
   repetitions: number;
   nextExperimentScaffold: PlaygroundAgentScaffold | null;
@@ -194,8 +194,8 @@ export function buildPlaygroundAgentContext({
 }): PlaygroundAgentContext {
   return {
     type: "playground",
-    // The agent's context speaks of the page's role as its kind of task.
-    taskKind: taskRole === "judging" ? "evaluator" : "prompt",
+    // The agent's context speaks of the page's mode as its kind of task.
+    taskKind: mode === "evaluator" ? "evaluator" : "prompt",
     recordExperiments,
     repetitions,
     nextExperimentScaffold: nextExperimentScaffold ?? undefined,

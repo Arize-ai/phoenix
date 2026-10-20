@@ -2369,7 +2369,7 @@ export const getPromptTaskInput = ({
     getTemplateVariablesPath({
       stateByDatasetId,
       datasetId,
-      taskRole: "tested",
+      mode: "task",
     }) ?? "";
 
   return {

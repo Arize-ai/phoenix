@@ -2,7 +2,7 @@ import { Suspense, useMemo } from "react";
 import { useLoaderData, useSearchParams } from "react-router";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { getPlaygroundTaskRole } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 
 import { Playground } from "./Playground";
 import type { PlaygroundPageLoaderData } from "./playgroundPageLoader";
@@ -26,10 +26,10 @@ export function PlaygroundPage() {
     }) != null;
   const templateFormat =
     playgroundProps.templateFormat ?? TemplateFormats.Mustache;
-  const taskRole = getPlaygroundTaskRole(playgroundProps.instances ?? []);
+  const mode = getPlaygroundMode(playgroundProps.instances ?? []);
   const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskRole }),
-    [isDatasetMode, templateFormat, taskRole]
+    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, mode }),
+    [isDatasetMode, templateFormat, mode]
   );
 
   return (

@@ -1,5 +1,5 @@
 import type { PlaygroundInstance } from "@phoenix/store/playground";
-import { getPlaygroundTaskRole } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 
 /**
  * A single prompt selection parsed from URL search params.
@@ -39,19 +39,19 @@ const EVALUATOR_PARAM_KEYS = {
 
 /**
  * Every task the page holds, in instance order within its member, as the URL
- * names it. The two roles never mix, so one role's params are written at a
- * time; a tested page's prompts and decisions are two families of params.
+ * names it. The two modes never mix, so one mode's params are written at a
+ * time; a task page's prompts and decisions are two families of params.
  */
 export type PlaygroundTaskParams =
   | {
-      role: "tested";
+      mode: "task";
       prompts: PromptParam[];
       decisions: DecisionParam[];
       hasDecisionDraft?: boolean;
     }
-  | { role: "judging"; evaluators: (EvaluatorTaskParam | null)[] };
+  | { mode: "evaluator"; evaluators: (EvaluatorTaskParam | null)[] };
 
-/** Marks a page of evaluator tasks; it is what keeps a fresh draft's role on reload. */
+/** Marks a page of evaluator tasks; it is what keeps a fresh draft's mode on reload. */
 export const TASK_KIND_PARAM = "taskKind";
 
 const EVALUATOR_TASK_KIND = "evaluator";
@@ -122,9 +122,9 @@ export function getPlaygroundTaskParams(
     Pick<PlaygroundInstance, "task" | "prompt" | "decision">
   >
 ): PlaygroundTaskParams {
-  if (getPlaygroundTaskRole(instances) === "judging") {
+  if (getPlaygroundMode(instances) === "evaluator") {
     return {
-      role: "judging",
+      mode: "evaluator",
       evaluators: instances.map((instance) => {
         if (instance.task.member !== "evaluator") {
           return null;
@@ -168,7 +168,7 @@ export function getPlaygroundTaskParams(
     instances.some((instance) => instance.task.member === "decision");
 
   return {
-    role: "tested",
+    mode: "task",
     prompts,
     decisions,
     ...(hasDecisionDraft ? { hasDecisionDraft: true } : {}),
@@ -179,10 +179,10 @@ export function arePlaygroundTaskParamsEqual(
   left: PlaygroundTaskParams,
   right: PlaygroundTaskParams
 ): boolean {
-  if (left.role === "tested" || right.role === "tested") {
+  if (left.mode === "task" || right.mode === "task") {
     return (
-      left.role === "tested" &&
-      right.role === "tested" &&
+      left.mode === "task" &&
+      right.mode === "task" &&
       Boolean(left.hasDecisionDraft) === Boolean(right.hasDecisionDraft) &&
       left.prompts.length === right.prompts.length &&
       left.prompts.every(
@@ -216,8 +216,8 @@ export function arePlaygroundTaskParamsEqual(
 }
 
 /**
- * Writes the page's tasks to the URL: the page's role's params, the other
- * role's removed. Returns whether anything changed.
+ * Writes the current mode's task selections to the URL and removes selections
+ * from the other mode. Returns whether anything changed.
  */
 export function setPlaygroundTaskParams({
   searchParams,
@@ -226,7 +226,7 @@ export function setPlaygroundTaskParams({
   searchParams: URLSearchParams;
   tasks: PlaygroundTaskParams;
 }): boolean {
-  if (tasks.role === "tested") {
+  if (tasks.mode === "task") {
     const clearedEvaluators = clearEvaluatorTaskParams(searchParams);
     const clearedNewDecision =
       !tasks.hasDecisionDraft && searchParams.has("newDecision");

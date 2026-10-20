@@ -15,7 +15,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import {
-  getPlaygroundTaskRole,
+  getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
@@ -84,7 +84,7 @@ export function PlaygroundRunButton() {
       : null);
 
   const isJudgingRole = usePlaygroundContext(
-    (state) => getPlaygroundTaskRole(state.instances) === "judging"
+    (state) => getPlaygroundMode(state.instances) === "evaluator"
   );
 
   const recordExperiments = usePlaygroundContext(
