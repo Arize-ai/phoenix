@@ -25,6 +25,7 @@ from harbor_verifiers.graphql.__generated__ import (
     ExperimentRunFields,
     FreeformAnnotationConfigInput,
     InlineCodeEvaluatorInput,
+    PreviewEvaluatorPreviewEvaluatorResults,
 )
 
 DATASET_NAME = "banking_saas_dataset_clean"
@@ -186,25 +187,26 @@ def preview_scores(
             for index, context in enumerate(contexts)
         ],
     )
-    results = phoenix_api.evaluator_preview(preview, timeout=300.0)
-    if len(results) != len(contexts):
-        raise ValueError(f"{len(contexts)} contexts produced {len(results)} results")
-    return [_as_score(results[str(index)]) for index in range(len(contexts))]
+    results = phoenix_api.graphql_client().preview_evaluator(preview, timeout=300.0)
+    by_id = {result.id: result for result in results.preview_evaluator.results}
+    if len(by_id) != len(contexts):
+        raise ValueError(f"{len(contexts)} contexts produced {len(by_id)} results")
+    return [_as_score(by_id[str(index)]) for index in range(len(contexts))]
 
 
-def _as_score(subject: dict[str, Any]) -> float:
+def _as_score(subject: PreviewEvaluatorPreviewEvaluatorResults) -> float:
     """The score of a subject's one result: its score, or a pass/fail label read as one."""
-    if subject["error"]:
-        raise ValueError(subject["error"])
-    if len(subject["results"]) != 1:
-        raise ValueError(f"expected one result per candidate, got {subject['results']!r}")
-    (result,) = subject["results"]
-    if result["error"]:
-        raise ValueError(result["error"])
-    annotation = result["annotation"] or {}
-    if annotation.get("score") is not None:
-        return float(annotation["score"])
-    label = (annotation.get("label") or "").lower()
+    if subject.error:
+        raise ValueError(subject.error)
+    if len(subject.results) != 1:
+        raise ValueError(f"expected one result per candidate, got {subject.results!r}")
+    (result,) = subject.results
+    if result.error:
+        raise ValueError(result.error)
+    annotation = result.annotation
+    if annotation is not None and annotation.score is not None:
+        return annotation.score
+    label = ((annotation.label if annotation is not None else None) or "").lower()
     if label in {"pass", "true", "correct", "match", "yes"}:
         return 1.0
     if label in {"fail", "false", "incorrect", "mismatch", "no"}:

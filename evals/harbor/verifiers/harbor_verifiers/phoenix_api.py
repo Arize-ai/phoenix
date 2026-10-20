@@ -14,7 +14,6 @@ import urllib.request
 from collections import defaultdict
 from typing import Any, Sequence
 
-import httpx
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
@@ -24,7 +23,6 @@ from harbor_verifiers.graphql.__generated__ import (
     DatasetEvaluatorFields,
     DatasetEvaluatorsNodeDataset,
     DatasetExperimentsNodeDataset,
-    EvaluatorPreviewInput,
     ExperimentFields,
 )
 from phoenix.server.api.types.node import from_global_id
@@ -137,51 +135,6 @@ def graphql(
         raise SystemExit(payload["errors"])
     data: dict[str, Any] = payload["data"]
     return data
-
-
-_EVALUATOR_PREVIEW = """
-subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
-  evaluatorPreview(input: $input) {
-    id
-    error
-    results { error annotation { score label } }
-  }
-}
-"""
-
-
-def evaluator_preview(
-    preview: EvaluatorPreviewInput, timeout: float = 300.0
-) -> dict[str, dict[str, Any]]:
-    """Each subject's ``evaluatorPreview`` result, keyed by subject id.
-
-    The generated client is synchronous, and ariadne-codegen only compiles subscriptions
-    for async clients, so this reads the multipart HTTP stream itself.
-    """
-    response = httpx.post(
-        f"{PHOENIX_URL}/graphql",
-        json={
-            "query": _EVALUATOR_PREVIEW,
-            "variables": {"input": preview.model_dump(by_alias=True, exclude_none=True)},
-        },
-        headers={"Accept": "multipart/mixed;subscriptionSpec=1.0,application/json"},
-        timeout=timeout,
-    )
-    response.raise_for_status()
-    results: dict[str, dict[str, Any]] = {}
-    for part in response.text.split("--graphql"):
-        _, _, body = part.partition("\r\n\r\n")
-        body = body.strip()
-        if not body.startswith("{"):
-            continue
-        payload = json.loads(body).get("payload")
-        if not payload:
-            continue
-        if payload.get("errors"):
-            raise SystemExit(payload["errors"])
-        result = payload["data"]["evaluatorPreview"]
-        results[result["id"]] = result
-    return results
 
 
 def span_costs(project: str) -> dict[SpanId, float]:
