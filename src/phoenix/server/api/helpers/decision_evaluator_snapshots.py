@@ -54,7 +54,6 @@ async def freeze_dataset_decision_evaluators(session: AsyncSession, experiment_i
         try:
             definition = freeze_decision_evaluator(
                 evaluator,
-                policy_override=binding.decision_projection_policy,
                 name=binding.name.root,
                 description=binding.description,
                 dataset_evaluator_id=binding.id,

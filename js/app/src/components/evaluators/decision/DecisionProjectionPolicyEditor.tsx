@@ -29,31 +29,16 @@ import type {
 import {
   getQuestionProjectionName,
   normalizePolicy,
-  questionProjectionsEqual,
   validatePolicy,
 } from "./decisionPolicyUtils";
 
 export type DecisionProjectionPolicyEditorProps = {
   /** The decision version's questions, in declared order. */
   questions: readonly DecisionQuestionDefinition[];
-  /**
-   * Without `inheritedPolicy`: the full policy being edited; missing questions
-   * show defaults. With `inheritedPolicy`: the sparse override, where each
-   * listed question replaces the inherited settings.
-   */
+  /** The policy being edited; missing questions show defaults. */
   value: DecisionProjectionPolicyValue | null | undefined;
-  /**
-   * Receives the next value. Without `inheritedPolicy` it lists every question
-   * in declared order. With it, it lists only the overridden questions, and an
-   * empty list means inherit everything (a binding stores that as null).
-   */
+  /** Receives the next value, listing every question in declared order. */
   onChange: (value: DecisionProjectionPolicyValue) => void;
-  /**
-   * The judge's own policy, for a dataset binding. Switches the editor to
-   * override mode: every question shows the inherited values until the user
-   * overrides it, and an overridden question can be reset to inherited.
-   */
-  inheritedPolicy?: DecisionProjectionPolicyValue | null;
   isDisabled?: boolean;
 };
 
@@ -95,66 +80,24 @@ const questionCSS = css`
  * per predicate, a score per declared choice, a label switch per scale, and an
  * optimization direction for each.
  *
- * Controlled. Pass `inheritedPolicy` to edit a dataset binding's sparse
- * override of the judge's policy.
+ * Controlled.
  */
 export function DecisionProjectionPolicyEditor({
   questions,
   value,
   onChange,
-  inheritedPolicy,
   isDisabled,
 }: DecisionProjectionPolicyEditorProps) {
-  const isOverrideMode = inheritedPolicy !== undefined;
-  const base = normalizePolicy(questions, inheritedPolicy);
-  const override = new Map(
-    (value?.questions ?? []).map((question) => [
-      getQuestionProjectionName(question),
-      question,
-    ])
-  );
-  const effective = isOverrideMode
-    ? {
-        questions: base.questions.map(
-          (question) =>
-            override.get(getQuestionProjectionName(question)) ?? question
-        ),
-      }
-    : normalizePolicy(questions, value);
+  const effective = normalizePolicy(questions, value);
   const validation = validatePolicy(effective);
 
-  const emit = (next: DecisionQuestionProjectionValue[]) => {
-    onChange({ questions: next });
-  };
   const updateQuestion = (
     index: number,
     updated: DecisionQuestionProjectionValue
   ) => {
-    if (!isOverrideMode) {
-      emit(effective.questions.map((q, i) => (i === index ? updated : q)));
-      return;
-    }
-    const name = getQuestionProjectionName(updated);
-    // Keep the override only while it differs from the inherited settings.
-    const isSameAsInherited = questionProjectionsEqual(
-      base.questions[index],
-      updated
-    );
-    emit(
-      base.questions.flatMap((question, i) => {
-        const questionName = getQuestionProjectionName(question);
-        if (questionName === name) return isSameAsInherited ? [] : [updated];
-        const existing = override.get(questionName);
-        return existing && i !== index ? [existing] : [];
-      })
-    );
-  };
-  const resetQuestion = (name: string) => {
-    emit(
-      (value?.questions ?? []).filter(
-        (question) => getQuestionProjectionName(question) !== name
-      )
-    );
+    onChange({
+      questions: effective.questions.map((q, i) => (i === index ? updated : q)),
+    });
   };
 
   return (
@@ -162,13 +105,11 @@ export function DecisionProjectionPolicyEditor({
       {effective.questions.map((question, index) => {
         const name = getQuestionProjectionName(question);
         const definition = questions[index];
-        const isOverridden = isOverrideMode && override.has(name);
         return (
           <li
             key={name}
             css={questionCSS}
             data-testid={`decision-policy-question-${name}`}
-            data-overridden={isOverrideMode ? isOverridden : undefined}
           >
             <Flex
               direction="row"
@@ -185,21 +126,8 @@ export function DecisionProjectionPolicyEditor({
                     : definition.type === "choice"
                       ? "Choice"
                       : "Scale"}
-                  {isOverrideMode
-                    ? ` · ${isOverridden ? "Overridden for this dataset" : "Inherited from the judge"}`
-                    : ""}
                 </Text>
               </Flex>
-              {isOverridden ? (
-                <Button
-                  size="S"
-                  isDisabled={isDisabled}
-                  onPress={() => resetQuestion(name)}
-                  data-testid={`decision-policy-reset-${name}-button`}
-                >
-                  Reset to inherited
-                </Button>
-              ) : null}
             </Flex>
             <QuestionFields
               definition={definition}

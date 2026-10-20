@@ -15,7 +15,6 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     DecisionProjectionPolicy,
-    effective_decision_policy,
     fit_projection_policy,
     resolve_projection_policy,
 )
@@ -159,7 +158,7 @@ async def validate_bound_decision_update(
     version: models.DecisionVersion,
     policy: dict[str, Any],
 ) -> None:
-    """Reject changes that invalidate a dataset binding or its scoring override."""
+    """Reject changes that invalidate a dataset binding."""
     bindings = list(
         await session.scalars(
             select(models.DatasetEvaluators).where(
@@ -173,7 +172,7 @@ async def validate_bound_decision_update(
     )
     # TODO: a judge with a single binding still can't change its inputs or questions from that
     # binding's editor. Allowing it needs one mutation that moves the version and rewrites that
-    # binding's input mapping and policy override together.
+    # binding's input mapping together.
     if bindings and _signature(original) != _signature(candidate):
         names = ", ".join(sorted(f"'{binding.name.root}'" for binding in bindings))
         raise Conflict(
@@ -185,30 +184,11 @@ async def validate_bound_decision_update(
             ],
         )
     try:
-        candidate = candidate.model_copy(
-            update={
-                "projection_policy": resolve_projection_policy(
-                    version.questions, DecisionProjectionPolicy.model_validate(policy)
-                )
-            }
+        resolve_projection_policy(
+            version.questions, DecisionProjectionPolicy.model_validate(policy)
         )
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    for binding in bindings:
-        try:
-            binding_policy = effective_decision_policy(
-                version.questions, policy, binding.decision_projection_policy
-            )
-            validate_decision_output_overrides(
-                candidate.model_copy(update={"projection_policy": binding_policy}),
-                binding.output_configs,
-            )
-        except ValueError as error:
-            raise Conflict(
-                f"Dataset evaluator '{binding.name.root}' is incompatible: {error}",
-                reason="incompatible_override",
-                dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(binding.id)))],
-            ) from error
 
 
 async def patch_decision_evaluator(
@@ -350,14 +330,13 @@ class CreateDatasetDecisionBindingInput:
     name: Identifier
     input_mapping: InputMapping
     description: Optional[str] = None
-    projection_policy: Optional[dict[str, Any]] = None
     output_configs: Optional[list[OutputConfigType]] = None
 
 
 async def create_dataset_decision_binding(
     context: EvaluatorServiceContext, input: CreateDatasetDecisionBindingInput
 ) -> models.DatasetEvaluators:
-    """Attach a judge with dataset-specific mapping and optional scoring settings."""
+    """Attach a judge with a dataset-specific input mapping; scoring is the judge's own."""
     from phoenix.server.api.helpers.dataset_evaluator_service import _dataset_binding_name_taken
 
     dataset_id = _id(input.dataset_id, "Dataset")
@@ -371,9 +350,7 @@ async def create_dataset_decision_binding(
             )
             if dataset_name is None:
                 raise NotFound("Dataset not found")
-            definition = freeze_decision_evaluator(
-                evaluator, policy_override=input.projection_policy
-            )
+            definition = freeze_decision_evaluator(evaluator)
             validate_decision_output_overrides(definition, input.output_configs)
             validate_decision_input_mapping(evaluator.selected_version, input.input_mapping)
             binding = models.DatasetEvaluators(
@@ -384,7 +361,6 @@ async def create_dataset_decision_binding(
                 # Derived from the judge whenever they are read, so they follow its edits.
                 output_configs=None,
                 description=input.description,
-                decision_projection_policy=input.projection_policy,
                 user_id=context.user_id,
                 project=get_project_for_dataset_evaluator(
                     dataset_name=dataset_name, dataset_evaluator_name=input.name.root

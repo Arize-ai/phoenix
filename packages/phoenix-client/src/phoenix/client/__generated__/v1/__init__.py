@@ -1911,7 +1911,6 @@ class PatchCodeEvaluatorRequest(TypedDict):
 
 
 class PatchDatasetEvaluatorRequest(TypedDict):
-    projection_policy: NotRequired[DecisionProjectionPolicy]
     name: NotRequired[str]
     input_mapping: NotRequired[InputMapping]
     description: NotRequired[str]
@@ -2342,7 +2341,6 @@ class CreateDatasetEvaluatorRequest(TypedDict):
     name: str
     evaluator_id: str
     input_mapping: InputMapping
-    projection_policy: NotRequired[DecisionProjectionPolicy]
     description: NotRequired[str]
     output_configs: NotRequired[
         Sequence[
@@ -2393,7 +2391,6 @@ class DatasetEvaluator(TypedDict):
             ]
         ]
     ]
-    projection_policy: NotRequired[DecisionProjectionPolicy]
 
 
 class DatasetEvaluatorResponseBody(TypedDict):

@@ -879,7 +879,6 @@ CREATE TABLE public.dataset_evaluators (
     project_id BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    decision_projection_policy JSONB,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name
         UNIQUE (dataset_id, name),

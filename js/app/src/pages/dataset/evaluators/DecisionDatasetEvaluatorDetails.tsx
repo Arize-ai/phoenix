@@ -6,7 +6,6 @@ import { describeQuestionScoring } from "@phoenix/components/evaluators/decision
 import {
   getQuestionProjectionName,
   getQuestionProjectionSettings,
-  mergePolicyOverride,
   policyOutputToInput,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
@@ -31,25 +30,6 @@ export function DecisionDatasetEvaluatorDetails({
         inputMapping {
           literalMapping
           pathMapping
-        }
-        decisionProjectionPolicy {
-          questions {
-            __typename
-            name
-            optimizationDirection
-            ... on DecisionPredicateProjection {
-              threshold
-            }
-            ... on DecisionChoiceProjection {
-              scores {
-                choice
-                score
-              }
-            }
-            ... on DecisionScaleProjection {
-              includeLabel
-            }
-          }
         }
         evaluator {
           __typename
@@ -122,16 +102,7 @@ export function DecisionDatasetEvaluatorDetails({
     );
   }
   const version = evaluator.decisionVersion;
-  const bindingPolicy = policyOutputToInput(
-    datasetEvaluator.decisionProjectionPolicy
-  );
-  const effective = mergePolicyOverride(
-    policyOutputToInput(evaluator.projectionPolicy),
-    bindingPolicy
-  );
-  const overriddenNames = new Set(
-    bindingPolicy.questions.map(getQuestionProjectionName)
-  );
+  const policy = policyOutputToInput(evaluator.projectionPolicy);
 
   return (
     <Flex direction="column" gap="size-300">
@@ -172,7 +143,7 @@ export function DecisionDatasetEvaluatorDetails({
         <Heading level={2}>Questions and Scoring</Heading>
         {version.questions.map((question) => {
           if (!("name" in question)) return null;
-          const scoring = effective.questions.find(
+          const scoring = policy.questions.find(
             (projection) =>
               getQuestionProjectionName(projection) === question.name
           );
@@ -190,11 +161,6 @@ export function DecisionDatasetEvaluatorDetails({
                       .replace("Decision", "")
                       .replace("Question", "")}
                   </Token>
-                  {overriddenNames.has(question.name) && (
-                    <Token size="S" color="var(--global-color-orange-500)">
-                      Overridden
-                    </Token>
-                  )}
                 </Flex>
                 {"instructions" in question && (
                   <Text size="S" color="text-700">

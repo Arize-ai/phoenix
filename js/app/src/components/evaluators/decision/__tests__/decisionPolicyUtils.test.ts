@@ -6,7 +6,6 @@ import type {
 } from "../decisionPolicyUtils";
 import {
   buildDefaultPolicy,
-  mergePolicyOverride,
   normalizePolicy,
   policyOutputToInput,
   questionProjectionsEqual,
@@ -168,24 +167,6 @@ describe("decisionPolicyUtils", () => {
       { choice: "good", score: 1 },
       { choice: "bad", score: 0 },
     ]);
-  });
-
-  it("merges a sparse override over the base", () => {
-    const override: DecisionProjectionPolicyValue = {
-      questions: [
-        {
-          predicate: {
-            name: "accurate",
-            threshold: 0.9,
-            optimizationDirection: "MAXIMIZE",
-          },
-        },
-      ],
-    };
-    const merged = mergePolicyOverride(base, override);
-    expect(merged.questions[0]).toEqual(override.questions[0]);
-    expect(merged.questions.slice(1)).toEqual(base.questions.slice(1));
-    expect(mergePolicyOverride(base, null)).toEqual(base);
   });
 
   it("treats choice scores as equal regardless of order and detects score changes", () => {

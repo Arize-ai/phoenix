@@ -9,11 +9,11 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     ChoiceProjection,
+    DecisionProjectionPolicy,
     DecisionQuestionProjection,
     PredicateProjection,
     ScaleProjection,
     derive_decision_output_configs,
-    effective_decision_policy,
     resolve_projection_policy,
 )
 from phoenix.db.types.decisions import (
@@ -50,7 +50,6 @@ def decision_input_schema(inputs: Sequence[DecisionInput]) -> dict[str, Any]:
 def freeze_decision_evaluator(
     evaluator: models.DecisionEvaluator,
     *,
-    policy_override: Optional[dict[str, Any]] = None,
     name: Optional[str] = None,
     description: Optional[str] = None,
     dataset_evaluator_id: Optional[int] = None,
@@ -58,8 +57,8 @@ def freeze_decision_evaluator(
     version = evaluator.selected_version
     if version is None:
         raise ValueError("The evaluator's pinned decision version was not found")
-    policy = effective_decision_policy(
-        version.questions, evaluator.projection_policy, policy_override
+    policy = resolve_projection_policy(
+        version.questions, DecisionProjectionPolicy.model_validate(evaluator.projection_policy)
     )
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",

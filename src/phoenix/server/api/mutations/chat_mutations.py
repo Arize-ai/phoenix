@@ -163,7 +163,6 @@ async def _freeze_as_binding(
     try:
         return freeze_decision_evaluator(
             judge,
-            policy_override=binding.decision_projection_policy,
             name=binding.name.root,
             description=binding.description,
             dataset_evaluator_id=binding.id,

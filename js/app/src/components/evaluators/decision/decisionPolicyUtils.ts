@@ -278,39 +278,6 @@ export function normalizePolicy(
   };
 }
 
-/**
- * The effective policy: each question the sparse `override` lists replaces the
- * `base` setting for that question and every other question keeps the base's.
- * A null override inherits everything. Order follows `base`; override-only
- * questions are appended.
- */
-export function mergePolicyOverride(
-  base: DecisionProjectionPolicyValue,
-  override: DecisionProjectionPolicyValue | null | undefined
-): DecisionProjectionPolicyValue {
-  if (!override || override.questions.length === 0) {
-    return { questions: [...base.questions] };
-  }
-  const overrides = new Map(
-    override.questions.map((question) => [
-      getQuestionProjectionName(question),
-      question,
-    ])
-  );
-  const baseNames = new Set(base.questions.map(getQuestionProjectionName));
-  return {
-    questions: [
-      ...base.questions.map(
-        (question) =>
-          overrides.get(getQuestionProjectionName(question)) ?? question
-      ),
-      ...override.questions.filter(
-        (question) => !baseNames.has(getQuestionProjectionName(question))
-      ),
-    ],
-  };
-}
-
 function numbersEqual(a: number, b: number): boolean {
   return Object.is(a, b) || a === b;
 }

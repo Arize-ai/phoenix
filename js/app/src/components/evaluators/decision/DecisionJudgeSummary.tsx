@@ -4,23 +4,14 @@ import { Flex, Text } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
 
 import type { DecisionJudgeSummary_evaluator$key } from "./__generated__/DecisionJudgeSummary_evaluator.graphql";
-import type {
-  DecisionProjectionPolicyValue,
-  DecisionQuestionProjectionValue,
-} from "./decisionPolicyUtils";
+import type { DecisionQuestionProjectionValue } from "./decisionPolicyUtils";
 import {
   getQuestionProjectionName,
-  mergePolicyOverride,
   policyOutputToInput,
 } from "./decisionPolicyUtils";
 
 export type DecisionJudgeSummaryProps = {
   evaluator: DecisionJudgeSummary_evaluator$key;
-  /**
-   * A dataset binding's sparse policy override (a question it lists replaces
-   * the judge's settings for that question). Omit for the judge alone.
-   */
-  bindingPolicy?: DecisionProjectionPolicyValue | null;
 };
 
 /** Describes one question's scoring in a short sentence. */
@@ -54,13 +45,9 @@ export function describeQuestionScoring(
 
 /**
  * Read-only description of a decision judge: the decision and version it runs
- * (linked), its model, and each question's effective scoring, with a binding's
- * override applied when given.
+ * (linked), its model, and each question's scoring.
  */
-export function DecisionJudgeSummary({
-  evaluator,
-  bindingPolicy,
-}: DecisionJudgeSummaryProps) {
+export function DecisionJudgeSummary({ evaluator }: DecisionJudgeSummaryProps) {
   const data = useFragment<DecisionJudgeSummary_evaluator$key>(
     graphql`
       fragment DecisionJudgeSummary_evaluator on DecisionEvaluator {
@@ -101,13 +88,7 @@ export function DecisionJudgeSummary({
     evaluator
   );
   const { decisionVersion } = data;
-  const effective = mergePolicyOverride(
-    policyOutputToInput(data.projectionPolicy),
-    bindingPolicy
-  );
-  const overriddenNames = new Set(
-    (bindingPolicy?.questions ?? []).map(getQuestionProjectionName)
-  );
+  const policy = policyOutputToInput(data.projectionPolicy);
 
   return (
     <Flex
@@ -130,15 +111,12 @@ export function DecisionJudgeSummary({
         </Text>
       </Flex>
       <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none" }}>
-        {effective.questions.map((question) => {
+        {policy.questions.map((question) => {
           const name = getQuestionProjectionName(question);
           return (
             <li key={name}>
               <Text weight="heavy">{name}</Text>{" "}
-              <Text color="text-700">
-                {describeQuestionScoring(question)}
-                {overriddenNames.has(name) ? " (overridden)" : ""}
-              </Text>
+              <Text color="text-700">{describeQuestionScoring(question)}</Text>
             </li>
           );
         })}

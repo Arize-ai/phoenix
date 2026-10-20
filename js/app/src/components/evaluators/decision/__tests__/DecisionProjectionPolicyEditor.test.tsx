@@ -17,7 +17,7 @@ const questions: DecisionQuestionDefinition[] = [
   { type: "scale", name: "clarity", levels: ["low", "high"] },
 ];
 
-const inherited: DecisionProjectionPolicyValue = {
+const initialPolicy: DecisionProjectionPolicyValue = {
   questions: [
     {
       predicate: {
@@ -45,11 +45,9 @@ const inherited: DecisionProjectionPolicyValue = {
 
 function Harness({
   initial,
-  inheritedPolicy,
   onChange,
 }: {
   initial: DecisionProjectionPolicyValue;
-  inheritedPolicy?: DecisionProjectionPolicyValue;
   onChange: (value: DecisionProjectionPolicyValue) => void;
 }) {
   const [value, setValue] = useState(initial);
@@ -57,7 +55,6 @@ function Harness({
     <DecisionProjectionPolicyEditor
       questions={questions}
       value={value}
-      inheritedPolicy={inheritedPolicy}
       onChange={(next) => {
         setValue(next);
         onChange(next);
@@ -103,7 +100,7 @@ describe("DecisionProjectionPolicyEditor", () => {
   };
 
   it("edits a predicate threshold", async () => {
-    render({ initial: inherited, onChange });
+    render({ initial: initialPolicy, onChange });
     expect(input("decision-policy-accurate-threshold").value).toBe("0.7");
     await typeInto("decision-policy-accurate-threshold", "0.4");
     expect(lastValue().questions[0]).toEqual({
@@ -116,7 +113,7 @@ describe("DecisionProjectionPolicyEditor", () => {
   });
 
   it("shows a validation message for an out-of-range threshold", async () => {
-    render({ initial: inherited, onChange });
+    render({ initial: initialPolicy, onChange });
     await typeInto("decision-policy-accurate-threshold", "3");
     expect(container.textContent).toContain(
       "Threshold must be a number from 0 to 1."
@@ -138,7 +135,7 @@ describe("DecisionProjectionPolicyEditor", () => {
   });
 
   it("toggles the scale label", async () => {
-    render({ initial: inherited, onChange });
+    render({ initial: initialPolicy, onChange });
     await act(async () => {
       await userEvent
         .setup()
@@ -149,45 +146,5 @@ describe("DecisionProjectionPolicyEditor", () => {
         );
     });
     expect(lastValue().questions[2]).toHaveProperty("scale.includeLabel", true);
-  });
-
-  it("overrides a question and resets it to inherited", async () => {
-    render({
-      initial: { questions: [] },
-      inheritedPolicy: inherited,
-      onChange,
-    });
-    expect(input("decision-policy-accurate-threshold").value).toBe("0.7");
-    expect(container.textContent).toContain("Inherited from the judge");
-    expect(container.textContent).not.toContain("Reset to inherited");
-
-    await typeInto("decision-policy-accurate-threshold", "0.2");
-    // Only the changed question is in the sparse override.
-    expect(lastValue().questions).toHaveLength(1);
-    expect(lastValue().questions[0]).toHaveProperty("predicate.threshold", 0.2);
-    expect(container.textContent).toContain("Overridden for this dataset");
-
-    await act(async () => {
-      await userEvent
-        .setup()
-        .click(
-          container.querySelector(
-            '[data-testid="decision-policy-reset-accurate-button"]'
-          )!
-        );
-    });
-    expect(lastValue().questions).toEqual([]);
-    expect(input("decision-policy-accurate-threshold").value).toBe("0.7");
-  });
-
-  it("drops an override that is edited back to the inherited value", async () => {
-    render({
-      initial: { questions: [] },
-      inheritedPolicy: inherited,
-      onChange,
-    });
-    await typeInto("decision-policy-accurate-threshold", "0.2");
-    await typeInto("decision-policy-accurate-threshold", "0.7");
-    expect(lastValue().questions).toEqual([]);
   });
 });

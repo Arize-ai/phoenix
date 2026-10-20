@@ -1350,9 +1350,7 @@ class DatasetEvaluator(Node):
                 from phoenix.db.types.decision_evaluators import derive_decision_output_configs
                 from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
 
-                definition = freeze_decision_evaluator(
-                    evaluator, policy_override=record.decision_projection_policy
-                )
+                definition = freeze_decision_evaluator(evaluator)
                 configs = derive_decision_output_configs(
                     definition.questions, definition.projection_policy
                 )
@@ -1380,30 +1378,6 @@ class DatasetEvaluator(Node):
                 config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
             )
         ]
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "A decision judge's scoring settings for this dataset, by question. Each question "
-            "listed replaces the judge's own settings for it; every other question keeps the "
-            "judge's. Null when the binding uses the judge's settings unchanged."
-        )
-    )
-    async def decision_projection_policy(
-        self, info: Info[Context, None]
-    ) -> Optional[DecisionProjectionPolicy]:
-        record = await self._get_record(info)
-        if record.decision_projection_policy is None:
-            return None
-        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
-        questions = (
-            evaluator.selected_version.questions
-            if isinstance(evaluator, models.DecisionEvaluator)
-            else []
-        )
-        return DecisionProjectionPolicy.from_orm(
-            StoredDecisionProjectionPolicy.model_validate(record.decision_projection_policy),
-            questions,
-        )
 
     @strawberry.field
     async def input_mapping(

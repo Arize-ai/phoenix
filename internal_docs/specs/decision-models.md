@@ -417,12 +417,11 @@ for decisions, `output_configs` is read-only in effect.
 | Binding field | REST create and patch | GraphQL |
 |---|---|---|
 | `output_configs` on a decision binding | Accepted only if equal to the derived configs; not stored | Not taken by decision mutations |
-| `projection_policy` on any other kind | Refused | Taken only by decision mutations |
-| Reads | A binding returns its stored overrides only, so `output_configs` is null and `projection_policy` is the override or null; `/v1/evaluators` returns the derived configs beside the policy | Derived configs beside the policy, on bindings and evaluators |
+| Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Derived configs on bindings, and beside the policy on evaluators |
 
 A decision binding's `output_configs` can therefore only repeat the server's own
-answer. The REST binding body has two sibling scoring fields, and each is
-writable for some kinds only.
+answer. Bindings have no `projection_policy`: scoring is the judge's own (see
+[Bindings](#bindings)).
 
 **Alternatives and tradeoffs:**
 
@@ -432,11 +431,10 @@ writable for some kinds only.
   and isn't.
 - **Type the binding bodies:** make the REST create and patch bodies a union
   keyed by `type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
-  `PatchDecisionEvaluatorRequest`). The decision variant has `projection_policy`
-  and no `output_configs`; the others have `output_configs` and no
-  `projection_policy`. Each field then exists only where it can be written, the
-  generated schema and SDK types state the rule, and the echo check and both
-  wrong-kind refusals go away. It costs three things:
+  `PatchDecisionEvaluatorRequest`). The decision variant has no
+  `output_configs`; the others keep it. The field then exists only where it can
+  be written, the generated schema and SDK types state the rule, and the echo
+  check goes away. It costs three things:
   - `type` repeats what `evaluator_id` implies, so the server must refuse a
     mismatch.
   - Patch bodies need `type` too (`minProperties: 2`, as for decision
@@ -975,7 +973,7 @@ there is no implicit latest-version fallback. Model, provider, inputs, state,
 and questions come from that version. A version's questions are fixed: bindings
 supply input values, not per-example questions or question templates.
 
-### Bindings and Overrides
+### Bindings
 
 Inputs are mapped by the **binding**, never the saved evaluator. A dataset
 binding maps experiment context into declared inputs through existing JSONPath
@@ -985,15 +983,14 @@ Preserve structured input types and reuse decision state rendering; descriptive
 input JSON schemas do not become new runtime coercion or validation rules.
 
 Store a projection policy on the evaluator for predicate thresholds,
-choice scores, scale-label mode, and optimization direction. Dataset bindings
-may override it per question: each question a binding's policy names replaces the
-evaluator's settings for that question, and every other question keeps the
-evaluator's, so a later edit to the evaluator still reaches them. Generic
-`output_configs` have no predicate threshold field, so a typed binding policy
-field holds the overrides, and one shared resolver derives the effective policy
-and output configs. A decision binding stores no `output_configs`; how requests
-may still send them is under [Output Configs and Projection
-Policies](#output-configs-and-projection-policies).
+choice scores, scale-label mode, and optimization direction. Bindings don't
+override it, dataset and project bindings alike, so a judge scores the same
+wherever it runs, and an edit to its policy reaches every binding. Scoring one
+judge differently in two places takes two judges. A per-binding override could be
+added later as a nullable binding column without breaking anything. A decision
+binding stores no `output_configs`: they are derived from the judge whenever they
+are read; how requests may still send them is under [Output Configs and
+Projection Policies](#output-configs-and-projection-policies).
 
 The policy's GraphQL shape is under [GraphQL](#graphql).
 
@@ -1001,7 +998,7 @@ The policy's GraphQL shape is under [GraphQL](#graphql).
 
 Guard owned-tag deletion and every move, including moves through version
 creation. Validate the proposed version and policy against binding inputs,
-question identities/types, choice values, scale meanings, and overrides. A
+question identities/types, choice values, and scale meanings. A
 breaking bound change must fail with the affected binding names and require an
 explicit migration or separate evaluator. Reordering inputs, questions, or choices
 is compatible; reordering a scale's levels is not, since a level's index is its
@@ -1174,8 +1171,8 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   given. Unlike `Prompt.version` it is null when there is no such version, so
   asking for a missing tag doesn't null the rest of the query. `decisions`
   also filters by `labelIds`, and `decisionLabels` lists the labels.
-- Projection policies are typed objects, including on dataset
-  bindings and frozen experiment definitions. `DecisionProjectionPolicyInput`
+- Projection policies are typed objects, on judges and on frozen experiment
+  definitions. `DecisionProjectionPolicyInput`
   accepts a list of question settings. Each question setting
   selects exactly one of `predicate`, `choice`, or `scale`, following the decision
   question input pattern. For example:
@@ -1193,8 +1190,8 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   scores follow the decision's declared order, since the stored map's key order
   differs across databases. Reject duplicate question names and choice-score
   entries; a validation error names the question. Omitting a patch policy
-  preserves it; a null dataset binding policy restores inheritance. This GraphQL representation maps to the
-  existing stored policy format without changing it.
+  preserves it. This GraphQL representation maps to the existing stored policy
+  format without changing it.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
   `prompt` and `evaluator`; see [Experiments](#experiments).
 
@@ -1331,7 +1328,7 @@ which now holds both.
 
 | Step | Built | Missing |
 |---|---|---|
-| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings and policy overrides, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI; PostgreSQL. |
+| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI; PostgreSQL. |
 | **Calibration** in the evaluator playground, milestone 2 (chat: evaluator tasks against expected outputs) | `EvaluatorDefinitionInput.decisionEvaluatorId` reaches the runner, untested. | An inline decision evaluator definition, its rebuild in the runner, its form; opening a judge as a playground evaluator task. |
 | **Online evaluation**, milestone 3 (chat: project bindings; sweeper, producer, executor) | Binding a judge to a project is refused. | Every [integration point](#runtime-and-integration-points). |
 | **Library**, outside this spec (chat: `phoenix-evals` `ClassificationEvaluator(llm: LLM)`) | Separate work (`llm: LLM \| Decision`). | — |
@@ -1394,7 +1391,7 @@ experiment reconstruction, and online hydration. Provider translation remains in
 `decision_clients.py`; do not reuse the chat evaluator's tool validation.
 
 - **Persistence.** Add the joined evaluator subtype, owned-tag references,
-  projection policy and binding overrides, and experiment snapshots. Keep
+  projection policy, and experiment snapshots. Keep
   deletion and concurrent edits consistent with existing evaluator services and
   lock ordering. Extend
   `evaluators.kind`; milestone 2 also extends
@@ -1448,7 +1445,7 @@ bindings.
 
 Verify output derivation, threshold/tie behavior, structured mapping, one-call
 multi-question execution, refused siblings, malformed responses, provider retries,
-cancellation, tracing, CRUD/discovery, owned-tag guards, compatible overrides, and
+cancellation, tracing, CRUD/discovery, owned-tag guards, compatible updates, and
 SQLite/PostgreSQL migrations. Resume tests cover mixed completed/pending judges,
 missing/errored outputs, terminal refusals, incomplete multi-output sets, tag/policy/
 mapping edits, live-binding deletion, and crashes around persistence, including

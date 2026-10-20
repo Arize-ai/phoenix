@@ -19,7 +19,10 @@ from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
 from tests.unit.graphql import AsyncGraphQLClient
-from tests.unit.server.api.mutations.test_decision_evaluator_mutations import saved_evaluator
+from tests.unit.server.api.mutations.test_decision_evaluator_mutations import (
+    PATCH_EVALUATOR,
+    saved_evaluator,
+)
 from tests.unit.server.api.mutations.test_saved_decision_mutations import (
     CREATE_VERSION,
     version_input,
@@ -40,9 +43,6 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
                 "evaluatorId": evaluator["id"],
                 "name": "judge",
                 "inputMapping": {"literalMapping": {"ticket": {"id": 1}}, "pathMapping": {}},
-                "projectionPolicy": {
-                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.4}}]
-                },
             }
         },
     )
@@ -86,6 +86,15 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
                 "datasetEvaluatorId": binding_id,
                 "name": "changed-judge",
                 "inputMapping": {"literalMapping": {"ticket": {"id": 2}}, "pathMapping": {}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    result = await gql_client.execute(
+        PATCH_EVALUATOR,
+        variables={
+            "input": {
+                "evaluatorId": evaluator["id"],
                 "projectionPolicy": {
                     "questions": [{"predicate": {"name": "urgent", "threshold": 0.9}}]
                 },
@@ -122,7 +131,8 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
         assert isinstance(spec.evaluator, DecisionEvaluator)
         assert spec.evaluator.definition.model_name == decision["version"]["modelName"]
         projection = spec.evaluator.definition.projection_policy.questions["urgent"]
-        assert isinstance(projection, PredicateProjection) and projection.threshold == 0.4
+        # The judge's policy as frozen, not its later edit.
+        assert isinstance(projection, PredicateProjection) and projection.threshold == 0.8
         assert await session.get(models.Project, spec.evaluator_project_id) is not None
         resumed = DecisionEvaluatorSnapshot.model_validate(job.decision_evaluator_snapshots[0])
         assert resumed.definition == original.definition

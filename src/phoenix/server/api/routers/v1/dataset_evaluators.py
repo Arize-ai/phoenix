@@ -12,7 +12,6 @@ from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -49,13 +48,6 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
         )
     )
     input_mapping: InputMapping
-    projection_policy: Optional[DecisionProjectionPolicy] = Field(
-        default=None,
-        description=(
-            "Decision evaluators only. Each question listed replaces the evaluator's scoring "
-            "settings for it; every other question keeps the evaluator's. Null inherits all."
-        ),
-    )
     description: Optional[str] = Field(
         default=None, description="Binding override. Null inherits the shared description."
     )
@@ -74,13 +66,6 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
 class PatchDatasetEvaluatorRequest(EvaluatorRequest):
     model_config = ConfigDict(json_schema_extra={"minProperties": 1})
 
-    projection_policy: Optional[DecisionProjectionPolicy] = Field(
-        default=UNDEFINED,
-        description=(
-            "Decision evaluators only. Omit to preserve; null inherits all of the evaluator's "
-            "scoring settings; otherwise each question listed replaces the evaluator's setting."
-        ),
-    )
     name: Identifier = Field(default=UNDEFINED)
     input_mapping: InputMapping = Field(default=UNDEFINED)
     description: Optional[str] = Field(
@@ -109,7 +94,6 @@ class DatasetEvaluator(V1RoutesBaseModel):
     dataset_id: str
     evaluator_id: str
     evaluator_type: Literal["llm", "code", "builtin", "decision"]
-    projection_policy: Optional[DecisionProjectionPolicy] = None
     trace_project_id: str
     name: Identifier
     input_mapping: InputMapping
@@ -157,9 +141,6 @@ def _binding_response(
         evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin", "DECISION": "decision"}[
             kind
         ],
-        projection_policy=DecisionProjectionPolicy.model_validate(row.decision_projection_policy)
-        if row.decision_projection_policy is not None
-        else None,
         trace_project_id=encode_global_id("Project", row.project_id),
         name=row.name,
         input_mapping=row.input_mapping,
@@ -224,8 +205,6 @@ async def create_dataset_evaluator(
             output_configs_to_db(body.output_configs) if body.output_configs is not None else None
         )
         evaluator_id = parse_global_id(body.evaluator_id)
-        if body.projection_policy is not None and evaluator_id.type_name != "DecisionEvaluator":
-            raise BadRequest("projection_policy is only supported for decision evaluators")
         row: models.DatasetEvaluators
         if evaluator_id.type_name == "DecisionEvaluator":
             row = await decision_service.create_dataset_decision_binding(
@@ -237,9 +216,6 @@ async def create_dataset_evaluator(
                     input_mapping=body.input_mapping,
                     description=body.description,
                     output_configs=configs,
-                    projection_policy=body.projection_policy.model_dump(mode="json")
-                    if body.projection_policy is not None
-                    else None,
                 ),
             )
         elif evaluator_id.type_name == "LLMEvaluator":
@@ -367,13 +343,6 @@ async def patch_dataset_evaluator(
         values = {name: getattr(body, name) for name in body.model_fields_set}
         if "output_configs" in values and body.output_configs is not None:
             values["output_configs"] = output_configs_to_db(body.output_configs)
-        if "projection_policy" in values:
-            values["decision_projection_policy"] = (
-                body.projection_policy.model_dump(mode="json")
-                if body.projection_policy is not None
-                else None
-            )
-            del values["projection_policy"]
         await service.patch_dataset_evaluator(
             evaluator_service_context(request),
             parse_global_id(dataset_evaluator_id),

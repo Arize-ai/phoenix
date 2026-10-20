@@ -14135,17 +14135,6 @@
           "input_mapping": {
             "$ref": "#/components/schemas/InputMapping"
           },
-          "projection_policy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DecisionProjectionPolicy"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Decision evaluators only. Each question listed replaces the evaluator's scoring settings for it; every other question keeps the evaluator's. Null inherits all."
-          },
           "description": {
             "anyOf": [
               {
@@ -15231,16 +15220,6 @@
               "decision"
             ],
             "title": "Evaluator Type"
-          },
-          "projection_policy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DecisionProjectionPolicy"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "trace_project_id": {
             "type": "string",
@@ -19242,17 +19221,6 @@
       },
       "PatchDatasetEvaluatorRequest": {
         "properties": {
-          "projection_policy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DecisionProjectionPolicy"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Decision evaluators only. Omit to preserve; null inherits all of the evaluator's scoring settings; otherwise each question listed replaces the evaluator's setting."
-          },
           "name": {
             "$ref": "#/components/schemas/Identifier"
           },

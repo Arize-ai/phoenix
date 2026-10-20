@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f9b63542c9158f0a6fea27a1203b80c>>
+ * @generated SignedSource<<6fd4eb9000165f9fae9c079402d7cd77>>
  * @lightSyntaxTransform
  */
 
@@ -9,53 +9,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateDatasetDecisionEvaluatorInput = {
   datasetId: string;
   description?: string | null;
   evaluatorId: string;
   inputMapping: EvaluatorInputMappingInput;
   name: string;
-  projectionPolicy?: DecisionProjectionPolicyInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;
   pathMapping: any;
-};
-export type DecisionProjectionPolicyInput = {
-  questions?: ReadonlyArray<DecisionQuestionProjectionInput>;
-};
-export type DecisionQuestionProjectionInput = {
-  choice?: never;
-  predicate: DecisionPredicateProjectionInput;
-  scale?: never;
-} | {
-  choice: DecisionChoiceProjectionInput;
-  predicate?: never;
-  scale?: never;
-} | {
-  choice?: never;
-  predicate?: never;
-  scale: DecisionScaleProjectionInput;
-};
-export type DecisionPredicateProjectionInput = {
-  name: string;
-  optimizationDirection?: OptimizationDirection;
-  threshold?: number;
-};
-export type DecisionChoiceProjectionInput = {
-  name: string;
-  optimizationDirection?: OptimizationDirection;
-  scores?: ReadonlyArray<DecisionChoiceScoreInput>;
-};
-export type DecisionChoiceScoreInput = {
-  choice: string;
-  score: number;
-};
-export type DecisionScaleProjectionInput = {
-  includeLabel?: boolean;
-  name: string;
-  optimizationDirection?: OptimizationDirection;
 };
 export type CreateDecisionDatasetEvaluatorSlideover_createBindingMutation$variables = {
   connectionIds: ReadonlyArray<string>;

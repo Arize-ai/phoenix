@@ -6,8 +6,6 @@ import type {
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
   buildDefaultPolicy,
-  fitQuestionProjection,
-  getQuestionProjectionName,
   normalizePolicy,
   policyOutputToInput,
   questionProjectionsEqual,
@@ -71,32 +69,6 @@ export function toDecisionJudgeView(
   };
 }
 
-/**
- * Drops override entries for questions the version does not declare, or that
- * are a different kind there, and scores for choices it no longer offers. An
- * empty override is null (inherit everything).
- */
-export function pruneBindingOverride(
-  override: DecisionProjectionPolicyValue | null | undefined,
-  questions: readonly DecisionQuestionDefinition[]
-): DecisionProjectionPolicyValue | null {
-  const definitionByName = new Map(questions.map((q) => [q.name, q]));
-  const kept = (override?.questions ?? []).flatMap((question) => {
-    const definition = definitionByName.get(
-      getQuestionProjectionName(question)
-    );
-    const isSameKind =
-      definition != null &&
-      ("predicate" in question
-        ? definition.type === "predicate"
-        : "choice" in question
-          ? definition.type === "choice"
-          : definition.type === "scale");
-    return isSameKind ? [fitQuestionProjection(definition, question)] : [];
-  });
-  return kept.length > 0 ? { questions: kept } : null;
-}
-
 /** Whether two full policies hold the same settings, question by question. */
 export function policiesEqual(
   a: DecisionProjectionPolicyValue,
@@ -108,13 +80,6 @@ export function policiesEqual(
       questionProjectionsEqual(question, b.questions[index])
     )
   );
-}
-
-/** A sparse override as a mutation sends it: null when it overrides nothing. */
-export function toBindingPolicyInput(
-  override: DecisionProjectionPolicyValue | null | undefined
-): DecisionProjectionPolicyValue | null {
-  return override && override.questions.length > 0 ? override : null;
 }
 
 /** The message of a failed mutation, from a network error or GraphQL errors. */
@@ -161,15 +126,6 @@ export function commitAsync<TResponse, TVariables>(
       onError: reject,
     });
   });
-}
-
-/** A one-line summary of a binding's override, e.g. "2 questions overridden". */
-export function overrideSummary(
-  override: DecisionProjectionPolicyValue | null | undefined
-): string {
-  const count = override?.questions.length ?? 0;
-  if (count === 0) return "Inherits the judge's settings";
-  return `${count} ${count === 1 ? "question" : "questions"} overridden`;
 }
 
 /** "Defaults" while a judge's policy matches the defaults, else "Customized". */

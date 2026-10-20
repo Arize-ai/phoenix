@@ -1038,7 +1038,6 @@ async def get_evaluators(
             binding = dataset_evaluators_by_id[de_id][0]
             definition = freeze_decision_evaluator(
                 ev,
-                policy_override=binding.decision_projection_policy,
                 name=binding.name.root,
                 description=binding.description,
                 dataset_evaluator_id=binding.id,

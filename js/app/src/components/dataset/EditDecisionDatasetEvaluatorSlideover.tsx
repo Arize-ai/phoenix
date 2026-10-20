@@ -33,10 +33,7 @@ import type { EditDecisionDatasetEvaluatorSlideover_versionQuery } from "@phoeni
 import {
   commitAsync,
   getMutationErrorMessage,
-  overrideSummary,
   policiesEqual,
-  pruneBindingOverride,
-  toBindingPolicyInput,
   toDecisionJudgeView,
 } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
 import type {
@@ -47,7 +44,6 @@ import {
   buildDefaultPolicy,
   isPolicyValid,
   normalizePolicy,
-  policyOutputToInput,
   toDecisionQuestionDefinitions,
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
@@ -150,25 +146,6 @@ const EditDecisionEvaluatorDialog = (
                 inputMapping {
                   literalMapping
                   pathMapping
-                }
-                decisionProjectionPolicy {
-                  questions {
-                    __typename
-                    name
-                    optimizationDirection
-                    ... on DecisionPredicateProjection {
-                      threshold
-                    }
-                    ... on DecisionChoiceProjection {
-                      scores {
-                        choice
-                        score
-                      }
-                    }
-                    ... on DecisionScaleProjection {
-                      includeLabel
-                    }
-                  }
                 }
                 evaluator {
                   __typename
@@ -285,7 +262,6 @@ const EditDecisionEvaluatorDialog = (
     <EvaluatorStoreProvider initialState={initialState}>
       <EditDecisionEvaluatorDialogContent
         {...props}
-        datasetEvaluator={datasetEvaluator}
         judge={{
           id: judge.id,
           name: judge.name,
@@ -302,20 +278,14 @@ const EditDecisionEvaluatorDialog = (
   );
 };
 
-type DatasetEvaluatorData = NonNullable<
-  EditDecisionDatasetEvaluatorSlideover_evaluatorQuery["response"]["dataset"]["datasetEvaluator"]
->;
-
 const EditDecisionEvaluatorDialogContent = ({
   datasetEvaluatorId,
   updateConnectionIds,
   onClose,
   onUpdate,
-  datasetEvaluator,
   judge,
   otherBindingCount,
 }: EditDecisionEvaluatorDialogProps & {
-  datasetEvaluator: DatasetEvaluatorData;
   judge: Parameters<typeof toDecisionJudgeView>[0];
   otherBindingCount: number;
 }) => {
@@ -401,14 +371,6 @@ const EditDecisionEvaluatorDialogContent = ({
   const [judgePolicy, setJudgePolicy] = useState<DecisionProjectionPolicyValue>(
     judgeView.policy
   );
-  const [bindingOverride, setBindingOverride] =
-    useState<DecisionProjectionPolicyValue | null>(() =>
-      datasetEvaluator.decisionProjectionPolicy
-        ? toBindingPolicyInput(
-            policyOutputToInput(datasetEvaluator.decisionProjectionPolicy)
-          )
-        : null
-    );
   const [versionError, setVersionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -508,7 +470,6 @@ const EditDecisionEvaluatorDialogContent = ({
         variables,
       });
       setJudgePolicy((current) => normalizePolicy(questions, current));
-      setBindingOverride((current) => pruneBindingOverride(current, questions));
     } catch (e) {
       setVersionError(getMutationErrorMessage(e));
     }
@@ -522,10 +483,7 @@ const EditDecisionEvaluatorDialogContent = ({
       return;
     }
     setShowValidationError(false);
-    if (
-      !isPolicyValid(validatePolicy(effectiveJudgePolicy)) ||
-      !isPolicyValid(validatePolicy(bindingOverride ?? { questions: [] }))
-    ) {
+    if (!isPolicyValid(validatePolicy(effectiveJudgePolicy))) {
       setError("Fix the scoring settings highlighted below before saving.");
       return;
     }
@@ -548,10 +506,6 @@ const EditDecisionEvaluatorDialogContent = ({
         name: evaluator.name,
         description: evaluator.description.trim(),
         inputMapping: normalizeInputMapping(evaluator.inputMapping),
-        // Null restores inheritance of every question.
-        projectionPolicy: toBindingPolicyInput(
-          pruneBindingOverride(bindingOverride, pinned.questions)
-        ),
       },
       connectionIds: updateConnectionIds ?? [],
       commitJudge: (input) =>
@@ -589,23 +543,6 @@ const EditDecisionEvaluatorDialogContent = ({
           />
           <EvaluatorInputMapping key={pinned.versionId} />
         </Flex>
-      </section>
-      <section aria-label="Scoring for this dataset">
-        <DecisionScoringDisclosure
-          id="decision-binding-scoring"
-          title="Scoring for this dataset"
-          description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
-          summary={overrideSummary(bindingOverride)}
-          defaultExpanded={(bindingOverride?.questions.length ?? 0) > 0}
-        >
-          <DecisionProjectionPolicyEditor
-            questions={pinned.questions}
-            value={bindingOverride}
-            inheritedPolicy={effectiveJudgePolicy}
-            onChange={(next) => setBindingOverride(toBindingPolicyInput(next))}
-            isDisabled={isSubmitting}
-          />
-        </DecisionScoringDisclosure>
       </section>
       <section aria-label="Decision judge">
         <Flex direction="column" gap="size-150">
@@ -781,9 +718,8 @@ type PreviewResult =
 
 /**
  * Runs the saved judge on the selected example as this dataset's evaluator, so
- * it is named and scored as experiments run it: with the saved version, the
- * judge's saved scoring, and this dataset's saved override. Unsaved edits made
- * in this dialog are not used.
+ * it is named and scored as experiments run it: with the saved version and the
+ * judge's saved scoring. Unsaved edits made in this dialog are not used.
  */
 const DecisionJudgePreview = ({
   judgeId,

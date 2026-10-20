@@ -11,7 +11,6 @@ from phoenix.db.types.decision_evaluators import (
     PredicateProjection,
     ScaleProjection,
     derive_decision_output_configs,
-    effective_decision_policy,
     fit_projection_policy,
     resolve_projection_policy,
 )
@@ -101,36 +100,6 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
 def test_invalid_policies(policy: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         resolve_projection_policy(questions(), DecisionProjectionPolicy.model_validate(policy))
-
-
-def test_effective_policy_override_replaces_only_named_questions() -> None:
-    policy = {
-        "questions": {
-            "correct": {"type": "predicate", "threshold": 0.9},
-            "route": {"type": "choice", "scores": {"accept": 1}},
-        }
-    }
-    override = {"questions": {"correct": {"type": "predicate", "threshold": 0.2}}}
-    effective = effective_decision_policy(questions(), policy, override)
-    assert effective.questions["correct"] == PredicateProjection(type="predicate", threshold=0.2)
-    assert effective.questions["route"] == ChoiceProjection(type="choice", scores={"accept": 1})
-    assert effective.questions["quality"] == ScaleProjection(type="scale")
-
-
-def test_effective_policy_without_override_inherits_all() -> None:
-    policy = {"questions": {"correct": {"type": "predicate", "threshold": 0.9}}}
-    assert effective_decision_policy(questions(), policy, None) == resolve_projection_policy(
-        questions(), DecisionProjectionPolicy.model_validate(policy)
-    )
-    assert effective_decision_policy(questions(), policy).questions["correct"] == (
-        PredicateProjection(type="predicate", threshold=0.9)
-    )
-
-
-def test_effective_policy_rejects_unknown_override_question() -> None:
-    override = {"questions": {"unknown": {"type": "scale"}}}
-    with pytest.raises(ValueError, match="Unknown projection questions: unknown"):
-        effective_decision_policy(questions(), {"questions": {}}, override)
 
 
 def test_fit_projection_policy_adapts_policy_to_updated_questions() -> None:

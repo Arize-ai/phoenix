@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71ce12ea795ad1530ff3c6193e61d0c7>>
+ * @generated SignedSource<<653408ce499fded62a231552f15f7edb>>
  * @lightSyntaxTransform
  */
 
@@ -16,19 +16,6 @@ export type EditDecisionDatasetEvaluatorSlideover_evaluatorQuery$variables = {
 export type EditDecisionDatasetEvaluatorSlideover_evaluatorQuery$data = {
   readonly dataset: {
     readonly datasetEvaluator?: {
-      readonly decisionProjectionPolicy: {
-        readonly questions: ReadonlyArray<{
-          readonly __typename: string;
-          readonly includeLabel?: boolean;
-          readonly name: string;
-          readonly optimizationDirection: OptimizationDirection;
-          readonly scores?: ReadonlyArray<{
-            readonly choice: string;
-            readonly score: number;
-          }>;
-          readonly threshold?: number;
-        }>;
-      } | null;
       readonly description: string | null;
       readonly evaluator: {
         readonly __typename: string;
@@ -133,89 +120,7 @@ v5 = {
   "name": "__typename",
   "storageKey": null
 },
-v6 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "questions",
-    "plural": true,
-    "selections": [
-      (v5/*:: as any*/),
-      (v4/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "optimizationDirection",
-        "storageKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionPredicateProjection",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "DecisionChoiceScore",
-            "kind": "LinkedField",
-            "name": "scores",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "choice",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "score",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionChoiceProjection",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "includeLabel",
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionScaleProjection",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v7 = {
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -269,16 +174,6 @@ v7 = {
         {
           "alias": null,
           "args": null,
-          "concreteType": "DecisionProjectionPolicy",
-          "kind": "LinkedField",
-          "name": "decisionProjectionPolicy",
-          "plural": false,
-          "selections": (v6/*:: as any*/),
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
           "concreteType": null,
           "kind": "LinkedField",
           "name": "evaluator",
@@ -316,7 +211,88 @@ v7 = {
                   "kind": "LinkedField",
                   "name": "projectionPolicy",
                   "plural": false,
-                  "selections": (v6/*:: as any*/),
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "questions",
+                      "plural": true,
+                      "selections": [
+                        (v5/*:: as any*/),
+                        (v4/*:: as any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "optimizationDirection",
+                          "storageKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "threshold",
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "DecisionPredicateProjection",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "DecisionChoiceScore",
+                              "kind": "LinkedField",
+                              "name": "scores",
+                              "plural": true,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "choice",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "score",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "DecisionChoiceProjection",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "includeLabel",
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "DecisionScaleProjection",
+                          "abstractKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -455,7 +431,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -481,7 +457,7 @@ return {
         "plural": false,
         "selections": [
           (v5/*:: as any*/),
-          (v7/*:: as any*/),
+          (v6/*:: as any*/),
           (v3/*:: as any*/)
         ],
         "storageKey": null
@@ -489,16 +465,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a6e83b060e35710b869fc9acb19e8d8f",
+    "cacheID": "bd1f62a7ddd8250ffb357c7341c94ce8",
     "id": null,
     "metadata": {},
     "name": "EditDecisionDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        decisionProjectionPolicy {\n          questions {\n            __typename\n            name\n            optimizationDirection\n            ... on DecisionPredicateProjection {\n              threshold\n            }\n            ... on DecisionChoiceProjection {\n              scores {\n                choice\n                score\n              }\n            }\n            ... on DecisionScaleProjection {\n              includeLabel\n            }\n          }\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            projectionPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateProjection {\n                  threshold\n                }\n                ... on DecisionChoiceProjection {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleProjection {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              sequenceNumber\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            projectionPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateProjection {\n                  threshold\n                }\n                ... on DecisionChoiceProjection {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleProjection {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              sequenceNumber\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "476b4a396488fd208605adc8a34e5841";
+(node as any).hash = "386274af4761a560fc582cabffcc0842";
 
 export default node;

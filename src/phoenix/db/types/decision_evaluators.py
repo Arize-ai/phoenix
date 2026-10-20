@@ -1,7 +1,7 @@
 """Versioned scoring policies for native decision evaluators."""
 
 import math
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
@@ -148,21 +148,3 @@ def derive_decision_output_configs(
                 )
             )
     return configs
-
-
-def effective_decision_policy(
-    questions: list[DecisionQuestion],
-    policy: dict[str, Any],
-    override: Optional[dict[str, Any]] = None,
-) -> DecisionProjectionPolicy:
-    """Resolve a binding's policy: each question it names replaces the evaluator's settings
-    for that question, and every other question inherits them."""
-    merged = DecisionProjectionPolicy.model_validate(policy)
-    if override is not None:
-        merged = DecisionProjectionPolicy(
-            questions={
-                **merged.questions,
-                **DecisionProjectionPolicy.model_validate(override).questions,
-            }
-        )
-    return resolve_projection_policy(questions, merged)

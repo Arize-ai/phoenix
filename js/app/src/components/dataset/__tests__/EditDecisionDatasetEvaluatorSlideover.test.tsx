@@ -51,17 +51,6 @@ vi.mock("@phoenix/pages/playground/DecisionVersionSelector", () => ({
   ),
 }));
 
-const bindingOverride: DecisionProjectionPolicyValue = {
-  questions: [
-    {
-      predicate: {
-        name: "accurate",
-        threshold: 0.9,
-        optimizationDirection: "MAXIMIZE",
-      },
-    },
-  ],
-};
 const judgeEdit: DecisionProjectionPolicyValue = {
   questions: [
     {
@@ -77,24 +66,11 @@ vi.mock(
   "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor",
   () => ({
     DecisionProjectionPolicyEditor: ({
-      inheritedPolicy,
       onChange,
     }: {
-      inheritedPolicy?: unknown;
       onChange: (value: unknown) => void;
     }) => (
-      <>
-        <button
-          onClick={() =>
-            onChange(inheritedPolicy ? bindingOverride : judgeEdit)
-          }
-        >
-          {inheritedPolicy ? "Override scoring" : "Edit judge scoring"}
-        </button>
-        {inheritedPolicy ? (
-          <button onClick={() => onChange(null)}>Reset override</button>
-        ) : null}
-      </>
+      <button onClick={() => onChange(judgeEdit)}>Edit judge scoring</button>
     ),
   })
 );
@@ -109,7 +85,7 @@ const versionQuestions = [
   { __typename: "DecisionPredicateQuestion", name: "accurate" },
 ];
 
-function buildQueryData(decisionProjectionPolicy: unknown = null) {
+function buildQueryData() {
   return {
     dataset: {
       datasetEvaluator: {
@@ -120,7 +96,6 @@ function buildQueryData(decisionProjectionPolicy: unknown = null) {
           literalMapping: {},
           pathMapping: { question: "input.question" },
         },
-        decisionProjectionPolicy,
         evaluator: {
           __typename: "DecisionEvaluator",
           id: "judge-1",
@@ -203,7 +178,7 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
   const calls = (name: string) =>
     commit.mock.calls.filter(([mutation]) => mutation === name);
 
-  it("updates only the binding and sends a null override when inheriting", async () => {
+  it("updates only the binding when the judge is unchanged", async () => {
     await render();
     await click("Update");
 
@@ -218,7 +193,6 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
           literalMapping: {},
           pathMapping: { question: "input.question" },
         },
-        projectionPolicy: null,
       },
       connectionIds: ["connection-1"],
     });
@@ -230,44 +204,6 @@ describe("EditDecisionDatasetEvaluatorSlideover", () => {
     );
     expect(notifySuccess).toHaveBeenCalledWith({ title: "Evaluator updated" });
     expect(onUpdate).toHaveBeenCalled();
-  });
-
-  it("sends the binding's scoring override and resets to null when none remains", async () => {
-    await render();
-    await click("Override scoring");
-    await click("Update");
-    expect(calls(BINDING)[0][1].variables.input.projectionPolicy).toEqual(
-      bindingOverride
-    );
-    await act(async () =>
-      calls(BINDING)[0][1].onCompleted(
-        { updateDatasetDecisionEvaluator: { evaluator: { id: "binding-1" } } },
-        null
-      )
-    );
-
-    await click("Reset override");
-    await click("Update");
-    expect(calls(BINDING)[1][1].variables.input.projectionPolicy).toBeNull();
-  });
-
-  it("keeps an existing override that the author did not touch", async () => {
-    queryData.current = buildQueryData({
-      questions: [{ ...predicateProjection, threshold: 0.9 }],
-    });
-    await render();
-    await click("Update");
-    expect(calls(BINDING)[0][1].variables.input.projectionPolicy).toEqual({
-      questions: [
-        {
-          predicate: {
-            name: "accurate",
-            threshold: 0.9,
-            optimizationDirection: "NONE",
-          },
-        },
-      ],
-    });
   });
 
   it("warns that judge changes affect every dataset using the judge", async () => {

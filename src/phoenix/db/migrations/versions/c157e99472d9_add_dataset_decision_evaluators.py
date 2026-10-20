@@ -85,9 +85,6 @@ def upgrade() -> None:
         ),
     )
     op.add_column(
-        "dataset_evaluators", sa.Column("decision_projection_policy", JSON_, nullable=True)
-    )
-    op.add_column(
         "experiment_jobs",
         sa.Column("decision_evaluator_snapshots", JSON_, nullable=False, server_default="[]"),
     )
@@ -103,6 +100,5 @@ def downgrade() -> None:
     ):
         raise ValueError("Cannot downgrade while decision evaluator snapshots exist")
     op.drop_column("experiment_jobs", "decision_evaluator_snapshots")
-    op.drop_column("dataset_evaluators", "decision_projection_policy")
     op.drop_table("decision_evaluators")
     _set_kinds(False)

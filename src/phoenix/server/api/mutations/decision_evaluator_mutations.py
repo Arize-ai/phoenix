@@ -65,7 +65,6 @@ class CreateDatasetDecisionEvaluatorInput:
     name: Identifier
     input_mapping: EvaluatorInputMappingInput
     description: Optional[str] = None
-    projection_policy: Optional[DecisionProjectionPolicyInput] = None
 
 
 @strawberry.input
@@ -74,7 +73,6 @@ class UpdateDatasetDecisionEvaluatorInput:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
-    projection_policy: Optional[DecisionProjectionPolicyInput] = UNSET
 
 
 @strawberry.type
@@ -146,7 +144,6 @@ class DecisionEvaluatorMutationMixin:
                 name=input.name,
                 input_mapping=input.input_mapping.to_orm(),
                 description=input.description,
-                projection_policy=_projection_policy(input.projection_policy),
             ),
         )
         return DatasetEvaluatorMutationPayload(
@@ -190,7 +187,6 @@ class DecisionEvaluatorMutationMixin:
                 input_mapping=input.input_mapping.to_orm()
                 if input.input_mapping is not UNSET and input.input_mapping is not None
                 else input.input_mapping,
-                decision_projection_policy=_projection_policy(input.projection_policy),
             ),
         )
         return DatasetEvaluatorMutationPayload(

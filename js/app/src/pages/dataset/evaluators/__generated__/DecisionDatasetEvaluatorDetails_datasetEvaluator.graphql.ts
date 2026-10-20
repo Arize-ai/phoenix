@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b33f3d9f9dc0a86d907351f55ef02e3>>
+ * @generated SignedSource<<ac6d060b8ed582e02515bc9cb7e65ce1>>
  * @lightSyntaxTransform
  */
 
@@ -12,19 +12,6 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CERE
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
-  readonly decisionProjectionPolicy: {
-    readonly questions: ReadonlyArray<{
-      readonly __typename: string;
-      readonly includeLabel?: boolean;
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly scores?: ReadonlyArray<{
-        readonly choice: string;
-        readonly score: number;
-      }>;
-      readonly threshold?: number;
-    }>;
-  } | null;
   readonly evaluator: {
     readonly __typename: "DecisionEvaluator";
     readonly decisionVersion: {
@@ -117,89 +104,7 @@ v2 = {
   "name": "__typename",
   "storageKey": null
 },
-v3 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "questions",
-    "plural": true,
-    "selections": [
-      (v2/*:: as any*/),
-      (v1/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "optimizationDirection",
-        "storageKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionPredicateProjection",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "DecisionChoiceScore",
-            "kind": "LinkedField",
-            "name": "scores",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "choice",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "score",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionChoiceProjection",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "includeLabel",
-            "storageKey": null
-          }
-        ],
-        "type": "DecisionScaleProjection",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -242,16 +147,6 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "DecisionProjectionPolicy",
-      "kind": "LinkedField",
-      "name": "decisionProjectionPolicy",
-      "plural": false,
-      "selections": (v3/*:: as any*/),
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
       "concreteType": null,
       "kind": "LinkedField",
       "name": "evaluator",
@@ -268,7 +163,88 @@ return {
               "kind": "LinkedField",
               "name": "projectionPolicy",
               "plural": false,
-              "selections": (v3/*:: as any*/),
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "questions",
+                  "plural": true,
+                  "selections": [
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "optimizationDirection",
+                      "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "threshold",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "DecisionPredicateProjection",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "DecisionChoiceScore",
+                          "kind": "LinkedField",
+                          "name": "scores",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "choice",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "score",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "DecisionChoiceProjection",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "includeLabel",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "DecisionScaleProjection",
+                      "abstractKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             },
             {
@@ -352,7 +328,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/)
+                        (v3/*:: as any*/)
                       ],
                       "type": "DecisionPredicateQuestion",
                       "abstractKey": null
@@ -361,7 +337,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -388,7 +364,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v4/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -430,6 +406,6 @@ return {
 };
 })();
 
-(node as any).hash = "d29f03b51f9d330392d8d13df8de0ab7";
+(node as any).hash = "ad4406178a6e40818c1438128375d982";
 
 export default node;

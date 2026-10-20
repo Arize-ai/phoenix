@@ -935,7 +935,6 @@ async def update_dataset_code_evaluator(
 
 @dataclass(kw_only=True)
 class DatasetEvaluatorPatch:
-    decision_projection_policy: Optional[dict[str, Any]] = UNSET
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
@@ -1164,13 +1163,8 @@ async def patch_dataset_evaluator(
                 validate_decision_input_mapping(
                     decision.selected_version, patch.input_mapping or row.input_mapping
                 )
-                policy = (
-                    row.decision_projection_policy
-                    if patch.decision_projection_policy is UNSET
-                    else patch.decision_projection_policy
-                )
                 try:
-                    definition = freeze_decision_evaluator(decision, policy_override=policy)
+                    definition = freeze_decision_evaluator(decision)
                     validate_decision_output_overrides(
                         definition, values.get("output_configs", row.output_configs)
                     )
@@ -1179,10 +1173,6 @@ async def patch_dataset_evaluator(
                 if "output_configs" in values:
                     # Derived from the judge whenever they are read, so they follow its edits.
                     values["output_configs"] = None
-                if patch.decision_projection_policy is not UNSET:
-                    values["decision_projection_policy"] = patch.decision_projection_policy
-            elif patch.decision_projection_policy is not UNSET:
-                raise BadRequest("Projection policy overrides require a decision evaluator")
             row = await _write_dataset_evaluator(session, row.id, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:

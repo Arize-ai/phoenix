@@ -3035,8 +3035,6 @@ export interface components {
              */
             evaluator_id: string;
             input_mapping: components["schemas"]["InputMapping"];
-            /** @description Decision evaluators only. Each question listed replaces the evaluator's scoring settings for it; every other question keeps the evaluator's. Null inherits all. */
-            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             /**
              * Description
              * @description Binding override. Null inherits the shared description.
@@ -3507,7 +3505,6 @@ export interface components {
              * @enum {string}
              */
             evaluator_type: "llm" | "code" | "builtin" | "decision";
-            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             /** Trace Project Id */
             trace_project_id: string;
             name: components["schemas"]["Identifier"];
@@ -5009,8 +5006,6 @@ export interface components {
         };
         /** PatchDatasetEvaluatorRequest */
         PatchDatasetEvaluatorRequest: {
-            /** @description Decision evaluators only. Omit to preserve; null inherits all of the evaluator's scoring settings; otherwise each question listed replaces the evaluator's setting. */
-            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             name?: components["schemas"]["Identifier"];
             input_mapping?: components["schemas"]["InputMapping"];
             /**

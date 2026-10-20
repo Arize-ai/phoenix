@@ -3785,9 +3785,6 @@ class DatasetEvaluators(HasId):
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
         _OutputConfigOverrideList, nullable=True
     )
-    decision_projection_policy: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JSON_, nullable=True
-    )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),

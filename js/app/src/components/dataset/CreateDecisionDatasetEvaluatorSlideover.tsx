@@ -35,9 +35,6 @@ import {
   commitAsync,
   getMutationErrorMessage,
   judgePolicySummary,
-  overrideSummary,
-  pruneBindingOverride,
-  toBindingPolicyInput,
   toDecisionJudgeView,
 } from "@phoenix/components/dataset/decisionDatasetEvaluatorUtils";
 import type {
@@ -338,8 +335,6 @@ const CreateDecisionEvaluatorDialogContent = ({
   const [createdJudge, setCreatedJudge] = useState<DecisionJudgeData | null>(
     null
   );
-  const [bindingOverride, setBindingOverride] =
-    useState<DecisionProjectionPolicyValue | null>(null);
   const [mappingKey, setMappingKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -371,7 +366,6 @@ const CreateDecisionEvaluatorDialogContent = ({
     const { setPathMapping, setLiteralMapping } = store.getState();
     setPathMapping({});
     setLiteralMapping({});
-    setBindingOverride(null);
     setMappingKey((key) => key + 1);
   }, [store]);
 
@@ -395,15 +389,12 @@ const CreateDecisionEvaluatorDialogContent = ({
     if (!createdJudge && judgeMode === "new" && judgeNameValidation !== true) {
       return { touchJudgeName: true };
     }
-    const isJudgeScoringValid =
+    const isScoringValid =
       createdJudge || judgeMode !== "new"
         ? true
         : isPolicyValid(
             judgePolicyDraft ? validatePolicy(judgePolicyDraft) : {}
           );
-    const isScoringValid =
-      isJudgeScoringValid &&
-      isPolicyValid(bindingOverride ? validatePolicy(bindingOverride) : {});
     return isScoringValid
       ? undefined
       : {
@@ -452,9 +443,6 @@ const CreateDecisionEvaluatorDialogContent = ({
       description: evaluator.description.trim() || null,
       bindingName: evaluator.globalName,
       inputMapping: normalizeInputMapping(evaluator.inputMapping),
-      projectionPolicy: toBindingPolicyInput(
-        pruneBindingOverride(bindingOverride, view?.questions ?? [])
-      ),
       datasetId,
       connectionIds: updateConnectionIds ?? [],
       commitJudge: (input) =>
@@ -556,7 +544,7 @@ const CreateDecisionEvaluatorDialogContent = ({
                 <DecisionScoringDisclosure
                   id="decision-judge-scoring"
                   title="Judge scoring (optional)"
-                  description="How the judge's answers become scores. Datasets can override this for themselves."
+                  description="How the judge's answers become scores, wherever the judge runs."
                   summary={judgePolicySummary(
                     selection.questions,
                     judgePolicyDraft
@@ -578,39 +566,17 @@ const CreateDecisionEvaluatorDialogContent = ({
         </Flex>
       </section>
       {view ? (
-        <>
-          <section aria-label="Input mapping">
-            <Flex direction="column" gap="size-150">
-              <EvaluatorSectionHeader
-                title="Input mapping"
-                description="Map the judge's inputs to fields of the dataset example, the task output, and the reference output."
-              />
-              <EvaluatorInputMapping key={mappingKey} />
-            </Flex>
-          </section>
-          <section aria-label="Scoring for this dataset">
-            <DecisionScoringDisclosure
-              id="decision-binding-scoring"
-              title="Scoring for this dataset"
-              description="Optional. Override how this dataset scores a question; every other question keeps the judge's settings."
-              summary={overrideSummary(bindingOverride)}
-            >
-              <DecisionProjectionPolicyEditor
-                questions={view.questions}
-                value={bindingOverride}
-                inheritedPolicy={view.policy}
-                onChange={(next) =>
-                  setBindingOverride(toBindingPolicyInput(next))
-                }
-                isDisabled={isSubmitting}
-              />
-            </DecisionScoringDisclosure>
-          </section>
-        </>
+        <section aria-label="Input mapping">
+          <Flex direction="column" gap="size-150">
+            <EvaluatorSectionHeader
+              title="Input mapping"
+              description="Map the judge's inputs to fields of the dataset example, the task output, and the reference output."
+            />
+            <EvaluatorInputMapping key={mappingKey} />
+          </Flex>
+        </section>
       ) : (
-        <Text color="text-500">
-          Choose a decision judge to map its inputs and set scoring.
-        </Text>
+        <Text color="text-500">Choose a decision judge to map its inputs.</Text>
       )}
     </Flex>
   );
@@ -689,7 +655,6 @@ async function runCreateDecisionEvaluator({
   description,
   bindingName,
   inputMapping,
-  projectionPolicy,
   datasetId,
   connectionIds,
   commitJudge,
@@ -705,7 +670,6 @@ async function runCreateDecisionEvaluator({
   description: string | null;
   bindingName: string;
   inputMapping: CreateBindingInput["inputMapping"];
-  projectionPolicy: DecisionProjectionPolicyValue | null;
   datasetId: string;
   connectionIds: string[];
   commitJudge: (input: CreateJudgeInput) => Promise<DecisionJudgeData>;
@@ -749,7 +713,6 @@ async function runCreateDecisionEvaluator({
       name: bindingName,
       description,
       inputMapping,
-      projectionPolicy,
     },
     connectionIds
   ).catch((e: unknown) => e);

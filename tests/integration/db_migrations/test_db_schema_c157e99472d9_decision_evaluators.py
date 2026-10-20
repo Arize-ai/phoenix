@@ -65,8 +65,8 @@ async def test_decision_evaluator_schema(
     assert await _run_async(
         _engine,
         lambda conn: (
-            "decision_projection_policy"
-            in {column["name"] for column in sa.inspect(conn).get_columns("dataset_evaluators")}
+            "decision_evaluator_snapshots"
+            in {column["name"] for column in sa.inspect(conn).get_columns("experiment_jobs")}
         ),
     )
     with pytest.raises(ValueError, match="decision evaluators exist"):

@@ -2,7 +2,6 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
 
-import type { DecisionProjectionPolicyValue } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import type { DecisionVersionSelection } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
@@ -72,33 +71,16 @@ vi.mock(
   })
 );
 
-const overridePolicy: DecisionProjectionPolicyValue = {
-  questions: [
-    {
-      predicate: {
-        name: "accurate",
-        threshold: 0.9,
-        optimizationDirection: "MAXIMIZE",
-      },
-    },
-  ],
-};
 vi.mock(
   "@phoenix/components/evaluators/decision/DecisionProjectionPolicyEditor",
   () => ({
     DecisionProjectionPolicyEditor: ({
-      inheritedPolicy,
       onChange,
     }: {
-      inheritedPolicy?: unknown;
       onChange: (value: unknown) => void;
     }) => (
-      <button
-        onClick={() =>
-          onChange(inheritedPolicy ? overridePolicy : { questions: [] })
-        }
-      >
-        {inheritedPolicy ? "Override scoring" : "Edit judge scoring"}
+      <button onClick={() => onChange({ questions: [] })}>
+        Edit judge scoring
       </button>
     ),
   })
@@ -206,7 +188,6 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     ).toBe("question");
     await fillBindingName();
     await click("Map question");
-    await click("Override scoring");
     await submit();
     expect(mutationCalls(JUDGE)).toHaveLength(1);
     expect(mutationCalls(JUDGE)[0][1]).toMatchObject({
@@ -238,7 +219,6 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
           literalMapping: {},
           pathMapping: { question: "input.question" },
         },
-        projectionPolicy: overridePolicy,
       },
       connectionIds: ["connection-1"],
     });
@@ -254,7 +234,7 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(notifySuccess).toHaveBeenCalledWith({ title: "Evaluator created" });
   });
 
-  it("binds an existing judge without creating one and sends a null override when inheriting", async () => {
+  it("binds an existing judge without creating one", async () => {
     queryData.current = { evaluators: { edges: [{ judge: existingJudge }] } };
     await render();
     await click("Select a decision judge");
@@ -270,8 +250,10 @@ describe("CreateDecisionDatasetEvaluatorSlideover", () => {
     expect(mutationCalls(BINDING)[0][1].variables.input).toMatchObject({
       evaluatorId: "judge-1",
       name: "quality",
-      projectionPolicy: null,
     });
+    expect(mutationCalls(BINDING)[0][1].variables.input).not.toHaveProperty(
+      "projectionPolicy"
+    );
   });
 
   it("keeps a created judge selected when the binding fails, so a retry does not duplicate it", async () => {

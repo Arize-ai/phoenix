@@ -54,18 +54,17 @@ async def test_decision_evaluator_and_binding_lifecycle(
             "name": "judge",
             "evaluator_id": evaluator_id,
             "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
-            "projection_policy": {"questions": {"urgent": {"type": "predicate", "threshold": 0.9}}},
         },
     )
     assert response.status_code == 201, response.text
     binding = response.json()["data"]
     assert binding["evaluator_type"] == "decision"
-    assert binding["projection_policy"]["questions"]["urgent"]["threshold"] == 0.9
+    # Scoring is the judge's own; a binding has no policy to set.
+    assert "projection_policy" not in binding
     response = await httpx_client.patch(
         f"v1/dataset_evaluators/{binding['id']}", json={"projection_policy": None}
     )
-    assert response.status_code == 200, response.text
-    assert response.json()["data"].get("projection_policy") is None
+    assert response.status_code == 422, response.text
     assert (await httpx_client.delete(route)).status_code == 409
     response = await httpx_client.delete(
         dataset_route, params={"dataset_evaluator_id": binding["id"]}
@@ -123,24 +122,6 @@ async def test_default_projection_policy_keeps_discriminators_in_responses(
         "team": "choice",
     }
     assert DecisionProjectionPolicy.model_validate(policy) == expected
-    response = await httpx_client.post(
-        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
-        json={
-            "name": "judge",
-            "evaluator_id": evaluator_id,
-            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
-            "projection_policy": {"questions": {"urgent": {"type": "predicate"}}},
-        },
-    )
-    assert response.status_code == 201, response.text
-    binding = response.json()["data"]
-    response = await httpx_client.get(f"v1/dataset_evaluators/{binding['id']}")
-    assert response.status_code == 200, response.text
-    binding_policy = response.json()["data"]["projection_policy"]
-    assert binding_policy["questions"]["urgent"]["type"] == "predicate"
-    assert DecisionProjectionPolicy.model_validate(binding_policy) == DecisionProjectionPolicy(
-        questions={"urgent": PredicateProjection(type="predicate")}
-    )
 
 
 async def test_binding_output_configs_must_match_the_derived_outputs(
