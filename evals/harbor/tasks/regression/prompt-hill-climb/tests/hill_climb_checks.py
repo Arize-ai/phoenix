@@ -19,9 +19,8 @@ from harbor_verifiers.graphql.__generated__ import (
     EvaluatorDefinitionInput,
     EvaluatorInputMappingInput,
     EvaluatorKind,
-    EvaluatorPreviewItemInput,
-    EvaluatorPreviewsEvaluatorPreviewsResults,
-    EvaluatorPreviewsInput,
+    EvaluatorPreviewInput,
+    EvaluatorPreviewSubjectInput,
     ExperimentFields,
     ExperimentRunFields,
     FreeformAnnotationConfigInput,
@@ -179,31 +178,36 @@ def preview_scores(
     """Score each context with the evaluator through Phoenix, on its own sandbox and with
     its own input mapping, exactly as an experiment run would."""
     input_mapping = EvaluatorInputMappingInput.model_validate(evaluator.input_mapping.model_dump())
-    previews = EvaluatorPreviewsInput(
-        previews=[
-            EvaluatorPreviewItemInput(
-                evaluator=_preview_ref(evaluator), context=context, input_mapping=input_mapping
-            )
-            for context in contexts
-        ]
+    preview = EvaluatorPreviewInput(
+        evaluator=_preview_ref(evaluator),
+        input_mapping=input_mapping,
+        subjects=[
+            EvaluatorPreviewSubjectInput(id=str(index), context=context)
+            for index, context in enumerate(contexts)
+        ],
     )
-    results = phoenix_api.graphql_client().evaluator_previews(previews, timeout=300.0)
-    scores = [_as_score(r) for r in results.evaluator_previews.results]
-    if len(scores) != len(contexts):
-        raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
-    return scores
+    results = phoenix_api.evaluator_preview(preview, timeout=300.0)
+    if len(results) != len(contexts):
+        raise ValueError(f"{len(contexts)} contexts produced {len(results)} results")
+    return [_as_score(results[str(index)]) for index in range(len(contexts))]
 
 
-def _as_score(result: EvaluatorPreviewsEvaluatorPreviewsResults) -> float:
-    if result.error:
-        raise ValueError(result.error)
-    annotation = result.annotation
-    if annotation is not None and annotation.score is not None:
-        return annotation.score
-    label = (annotation.label if annotation is not None else None) or ""
-    if label.lower() in {"pass", "true", "correct", "match", "yes"}:
+def _as_score(subject: dict[str, Any]) -> float:
+    """The score of a subject's one result: its score, or a pass/fail label read as one."""
+    if subject["error"]:
+        raise ValueError(subject["error"])
+    if len(subject["results"]) != 1:
+        raise ValueError(f"expected one result per candidate, got {subject['results']!r}")
+    (result,) = subject["results"]
+    if result["error"]:
+        raise ValueError(result["error"])
+    annotation = result["annotation"] or {}
+    if annotation.get("score") is not None:
+        return float(annotation["score"])
+    label = (annotation.get("label") or "").lower()
+    if label in {"pass", "true", "correct", "match", "yes"}:
         return 1.0
-    if label.lower() in {"fail", "false", "incorrect", "mismatch", "no"}:
+    if label in {"fail", "false", "incorrect", "mismatch", "no"}:
         return 0.0
     raise ValueError(f"unrecognized evaluator result {result!r}")
 
