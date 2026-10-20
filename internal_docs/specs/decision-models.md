@@ -400,8 +400,17 @@ for decisions, `output_configs` is read-only in effect.
 
 - **Accept and check** (current): one request shape for every kind, and a client
   can echo back what it read. But the field looks writable and isn't.
-- **Reject for decision judges:** clearer, and an error says to edit the policy;
-  REST clients need a branch per kind on write.
+- **Type the binding bodies:** make the REST create and patch bodies a union
+  keyed by `type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
+  `PatchDecisionEvaluatorRequest`). The decision variant has `projection_policy`
+  and no `output_configs`; the others have `output_configs` and no
+  `projection_policy`. Each field then exists only where it can be written, the
+  generated schema and SDK types state the rule, and the echo check and both
+  wrong-kind refusals go away. But `type` repeats what `evaluator_id` implies, so
+  the server must refuse a mismatch; patch bodies need it too (`minProperties: 2`,
+  as for decision evaluators); and existing clients binding LLM evaluators must
+  start sending it, unless it stays optional for them at the price of a looser
+  schema. Plain rejection, without the union, gets the clarity but not the types.
 - **Unify:** split every output config into its shape (annotation names, labels,
   score types), which is derived, and its scoring (label scores, direction,
   thresholds), which is authored. A decision already works this way: questions
@@ -413,23 +422,14 @@ for decisions, `output_configs` is read-only in effect.
   end state, and the largest change, since it reaches existing evaluators and
   their stored configs.
 
-Reads keep `output_configs` under every option, because annotation names and
-score types come from it. **Decide before** `/v1/evaluators` and
-`/v1/datasets/{id}/evaluators` ship decision judges in a release: the request
-bodies and the SDK's generated types freeze whichever shape ships.
-
-**TODO:** before that release, make the REST binding bodies a union keyed by
-`type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
-`PatchDecisionEvaluatorRequest`). The decision variant has `projection_policy` and
-no `output_configs`; the LLM, code, and built-in variant has `output_configs` and
-no `projection_policy`. Each field then exists only where it can be written, the
-generated schema and SDK types state the rule, and the echo check and both
-wrong-kind refusals go away. It doesn't block Unify: the decision variant is
-already its end state, and only the other variant would later shrink to scoring.
-Costs: `type` repeats what `evaluator_id` implies, so the server must refuse a
-mismatch; patch bodies need `type` too (`minProperties: 2`, as for decision
-evaluators); and existing clients binding LLM evaluators must send `type`, unless
-it stays optional for that variant at the price of a looser schema.
+Typing the bodies doesn't block unifying them later: its decision variant is
+already Unify's end state, and only the other variant would shrink to scoring. So
+the likely path is to type the bodies before release and leave Unify for when LLM
+evaluators are next reworked. Reads keep `output_configs` under every option,
+because annotation names and score types come from it. **Decide before**
+`/v1/evaluators` and `/v1/datasets/{id}/evaluators` ship decision judges in a
+release: the request bodies and the SDK's generated types freeze whichever shape
+ships.
 
 ## Goals
 
