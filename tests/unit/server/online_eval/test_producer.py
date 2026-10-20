@@ -35,7 +35,7 @@ from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.leases import MATERIALIZER_LEASE_TTL_SECONDS
-from phoenix.server.online_eval.producer import OnlineEvalProducer, _whole_span_batches
+from phoenix.server.online_eval.producer import OnlineEvalProducer, _span_batches
 from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluator,
     resolve_project_evaluators_bulk,
@@ -687,21 +687,56 @@ async def test_window_larger_than_the_queue_is_split_into_whole_span_batches(
 @pytest.mark.parametrize(
     "evaluator_counts_by_span, max_batch_size, expected",
     [
-        pytest.param({1: 2, 2: 2}, 4, [[1, 2]], id="window-fits-in-one-batch"),
-        pytest.param({3: 2, 1: 2, 2: 2}, 4, [[1, 2], [3]], id="split-in-arrival-order"),
-        pytest.param({1: 1, 2: 5, 3: 1}, 4, [[1], [2], [3]], id="oversized-span-stands-alone"),
+        pytest.param({1: 2, 2: 2}, 4, [[(1, [0, 1]), (2, [0, 1])]], id="window-fits-in-one-batch"),
+        pytest.param(
+            {3: 2, 1: 2, 2: 2},
+            4,
+            [[(1, [0, 1]), (2, [0, 1])], [(3, [0, 1])]],
+            id="split-in-arrival-order",
+        ),
+        pytest.param(
+            {1: 1, 2: 5, 3: 1},
+            4,
+            [[(1, [0])], [(2, [0, 1, 2, 3])], [(2, [4]), (3, [0])]],
+            id="oversized-span-is-split",
+        ),
         pytest.param({}, 4, [], id="empty-window"),
     ],
 )
-def test_whole_span_batches(
+def test_span_batches(
     evaluator_counts_by_span: dict[int, int],
     max_batch_size: int,
-    expected: list[list[int]],
+    expected: list[list[tuple[int, list[int]]]],
 ) -> None:
     evaluator_indexes_by_span = {
         span_id: list(range(count)) for span_id, count in evaluator_counts_by_span.items()
     }
-    assert _whole_span_batches(evaluator_indexes_by_span, max_batch_size) == expected
+    assert _span_batches(evaluator_indexes_by_span, max_batch_size) == expected
+
+
+async def test_span_with_more_evaluations_than_the_queue_still_queues_on_an_empty_queue(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    await OnlineEvalProducer(db)._tick()
+
+    assert await _work_unit_span_rowids(db) == [span.id]
+    cursor = await _get_cursor(db)
+    assert cursor.overflowed_through_id == span.id
+    assert sum(_recent_drops(cursor).values()) == 1
 
 
 async def test_admission_scans_only_until_the_room_is_found(
@@ -1323,6 +1358,25 @@ async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
     assert cursor.produced_through_id == rival_position
     assert cursor.overflowed_through_id is None
     assert cursor.overflowed_counts == {}
+
+
+async def test_clamp_lowers_the_drop_floor_to_the_live_high_water(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_cursor(db, produced_through_id=span.id + 10)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSpanCursor).values(overflowed_through_id=span.id + 10)
+        )
+
+    await OnlineEvalProducer(db)._tick()
+
+    cursor = await _get_cursor(db)
+    assert (cursor.produced_through_id, cursor.overflowed_through_id) == (span.id, span.id)
 
 
 async def test_stale_clamp_leaves_a_cursor_another_producer_moved(

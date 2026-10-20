@@ -656,12 +656,13 @@ def span_overflow_window(
     now: datetime,
 ) -> dict[datetime, dict[int, int]]:
     """The span cursor's drop counts, ``{minute: {project_evaluator_id: count}}`` as stored,
-    keeping the one-minute buckets that start within the last ``OVERFLOW_WINDOW``."""
+    keeping every one-minute bucket that overlaps the last ``OVERFLOW_WINDOW``, so a drop
+    counts for at least the full window, like trace and session drops."""
     since = now - OVERFLOW_WINDOW
     window: dict[datetime, dict[int, int]] = {}
     for minute, counts in overflowed_counts.items():
         start = datetime.fromisoformat(minute)
-        if start > since:
+        if start + timedelta(minutes=1) > since:
             window[start] = {
                 int(project_evaluator_id): int(count)
                 for project_evaluator_id, count in counts.items()
