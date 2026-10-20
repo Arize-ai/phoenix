@@ -100,7 +100,7 @@ core typed and pushes everything uncertain to additive types or to run time:
 | Stable enough for the schema | Likely to change |
 |---|---|
 | Named inputs and a named set of questions | Question types, such as `box` |
-| One model from one provider answers | Answer shapes |
+| One model from one provider answers | The fields each answer type returns |
 | One typed answer per question | Images, assets, and multipart uploads |
 | Versions, and tags that apps follow | Wire formats and model names ([Provider Wire Formats](#provider-wire-formats)) |
 | | Preview flags such as danger-zone headers; which providers exist |
@@ -118,15 +118,15 @@ and the rest of this spec is written assuming those defaults. Each needs a
 deliberate team decision before a release ships it. Smaller, reversible unknowns
 are in [Open Questions](#open-questions).
 
-| Decision | Current default | Decide before |
+| Decision | Current default | Must be decided before |
 |---|---|---|
-| [Answer format](#answer-format) | Phoenix's own | REST routes, `phoenix-client`, or built-in metrics |
+| [Answer format](#answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
 | [Stored question format](#stored-question-format) | Phoenix's own, close to OpenAI's | Saved decisions ship in a release |
-| [Span contents](#span-contents) | Raw provider bodies only | Apps instrument against `format` |
-| [Reference answers in datasets](#reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics |
+| [Span contents](#span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
+| [Reference answers in datasets](#reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and projection policies](#output-configs-and-projection-policies) | Accept and check | The evaluator REST routes ship decision judges |
+| [Output configs and projection policies](#output-configs-and-projection-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
 
 All but the last choose a format at a boundary: the stored version, the run
 output, the span, a dataset's reference answers, the SDK arguments handed to
@@ -151,7 +151,7 @@ scales (below).
 | Yes / no | `predicate`: `probability` | `noul`: `noul` | `predicate`: `probability` |
 | Choice | `choice`, `confidence`, `probabilities` (map) | Same as Phoenix | `choice`, `confidence`, `probabilities` (list of `{value, probability}`) |
 | Scale | `scale`: `expected_level`, `confidence`, `probabilities` (map) | `score`: `score`, `confidence`, `probabilities` (map), `legend` | `score`: `score`, `confidence`, `probabilities` (list of `{label, value, probability}`) |
-| Refusal | `refusal` | None | `refusal` |
+| Refusal | `refusal` | No refusal type | `refusal` |
 
 Phoenix's maps are the run-output form; GraphQL lists the same probabilities in
 the question's order (see "One vocabulary everywhere" below).
@@ -192,9 +192,8 @@ answer's expected level and the annotation's score (see [Questions](#questions))
 
 **Decide before** run outputs become a contract: before the REST routes and
 `phoenix-client` (the [Apps step](#build-order)) or the built-in decision
-metrics (the Measurement step),
-whichever comes first. Changing it after means migrating stored run outputs and
-every evaluator mapping written against them.
+metrics (the Measurement step), whichever comes first. Changing it after means
+migrating stored run outputs and every evaluator mapping written against them.
 
 ### Stored Question Format
 
@@ -669,8 +668,8 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 
 | Phoenix | OpenAI Decisions | System One | Lost |
 |---|---|---|---|
-| Questions: ordered list, `name` required | Ordered list, `name` optional | Object keyed by name | Nothing; Python keeps key order |
-| `predicate`: `instructions`, `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, `criteria` | OpenAI: criteria are folded into the instructions |
+| Questions: ordered list, `name` required | Ordered list, `name` optional | Object keyed by name | Nothing; the object keeps the list's order, since Python dicts are ordered |
+| `predicate`: `instructions`, `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, `criteria` | OpenAI: criteria as their own field, since they are folded into the instructions |
 | `choice`: `choices: [{value, description?}]`, `value` a string | `choices: [{value, description?}]`, `value` a string or boolean | `criteria: {value: description}` | Nothing when sending, since Phoenix's values are strings; but a version can't hold OpenAI's boolean values |
 | `scale`: `levels: [{label, description?}]` | `score`: `levels: [{label, description?}]` | `score`: `criteria: [description, ...]` | System One: the label when there is a description |
 | Text fields: strings | Strings | Strings, JSON, or null | Nothing when sending, since Phoenix's text is a string; but a version can't hold System One's JSON text, such as structured instructions |
@@ -685,11 +684,11 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 |---|---|---|---|
 | Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
 | `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
-| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing, while values are strings |
+| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value becomes a string ([open question](#open-questions)) |
 | `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the version |
 | `refusal` | `refusal`, with no reason | None | Nothing |
 | `box` (later): edges as fractions, optional `confidence` | None | The same | — |
-| Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's token details, except on the span |
+| Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
 | Resolved model | `model` | `model` | Nothing |
 
 **Imports** through `questionsPath` read System One and OpenAI questions back
@@ -808,7 +807,7 @@ The decision task mirrors `ExperimentPromptTask` field for field:
 | Prompt task | Decision task |
 |---|---|
 | A copy of the prompt version (template, tools, response format, parameters) | A copy of the decision version: `inputs`, `state`, `questions` |
-| `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, the same (`decisionVersionId` on the input; recorded, not read) |
+| `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, also optional with `ON DELETE SET NULL` (`decisionVersionId` on the input). Recorded for provenance only: the task runs its copy, not the version |
 | Model and connection, or a custom provider | Model and `connection`, or a custom provider |
 | `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `inputValuesPath` (default `input`): input `ticket` reads `input.ticket` |
 | `appendedMessagesPath`: messages from the example, appended | `questionsPath` and `questionsFormat`: questions from the example, used instead of the version's |
@@ -1275,7 +1274,8 @@ Providers and models are done: built-in TypeSafe, OpenAI, and Ollama; custom
 `openai` and `typesafe` providers with capability checks; credentials; the
 catalog; and decision models kept out of every chat path. The rest follows the
 [Build Order](#build-order)'s steps, one table per track. Each step names its
-chat equivalent in parentheses; "server" is PR #16875 and "UI" is PR #16876.
+chat equivalent in parentheses. "Server" and "UI" are the two halves of PR #16875,
+which now holds both.
 
 ### Tested
 
