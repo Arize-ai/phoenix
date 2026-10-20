@@ -514,9 +514,10 @@ that don't apply here.
 1. **Store Phoenix's own vocabulary; translate at the edge.** The server adapters
    and the client formatters both translate to provider SDK arguments. Saved
    decision definitions never store provider request bodies; only a run's
-   span keeps the raw bodies (see [Span Contents](#span-contents)). The two translations are tested against one shared
-   set of fixtures. This is the current default, under review: see [Answer
-   Format](#answer-format) and [Stored Question Format](#stored-question-format).
+   span keeps the raw bodies (see [Span Contents](#span-contents)). The two
+   translations are tested against one shared set of fixtures. This is the
+   current default, under review: see [Answer Format](#answer-format) and
+   [Stored Question Format](#stored-question-format).
 2. **New types are additive, and old clients fail clearly.** Questions and
    inputs are JSON discriminated by `type`. Writes are validated strictly. Apps
    can pin an old `phoenix-client`, so a client that meets a question, input,
@@ -1328,9 +1329,9 @@ which now holds both.
 
 | Step | Built | Missing |
 |---|---|---|
-| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI; PostgreSQL. |
-| **Calibration** in the evaluator playground, milestone 2 (chat: evaluator tasks against expected outputs) | `EvaluatorDefinitionInput.decisionEvaluatorId` reaches the runner, untested. | An inline decision evaluator definition, its rebuild in the runner, its form; opening a judge as a playground evaluator task. |
-| **Online evaluation**, milestone 3 (chat: project bindings; sweeper, producer, executor) | Server: binding a judge to a project over REST, with its inputs checked against what a span, trace, or session fills; judge changes that break a project binding are refused; the fingerprint pins the tagged version, the judge's policy, and a custom provider's revision; the executor runs the judge with server-side credentials and the online byte cap, lets refusals through result validation, and retries the provider's rate limits and transient failures without spending attempts; timeouts count as provider timeouts; the primary result and a typed `decision` field on span, trace, and session annotations. | A GraphQL mutation and UI for binding a judge to a project; decision details in span, trace, and session annotation views; PostgreSQL. |
+| **Dataset evaluators**, milestone 1 (chat: `LLMEvaluator` on a prompt and tag; dataset evaluator bindings) | Server: the `DecisionEvaluator` subtype, its owned tag, projection policy, and derived outputs, in GraphQL and REST; bindings with input mappings, previews (also as a binding), execution snapshots (`ExperimentJob.frozenDecisionEvaluators`), evaluation resume, refusals. UI: create, attach, and edit; mapping and scoring; preview; a details page; refusals and uncertainty on annotations; deleting a custom provider that judges use is refused. | Refused counts and coverage in summaries; the frozen judges in the UI. |
+| **Calibration** in the evaluator playground, milestone 2 (chat: evaluator tasks against expected outputs) | `EvaluatorDefinitionInput.decisionEvaluatorId` reaches the runner. | An inline decision evaluator definition, its rebuild in the runner, its form; opening a judge as a playground evaluator task. |
+| **Online evaluation**, milestone 3 (chat: project bindings; sweeper, producer, executor) | Server: binding a judge to a project over REST, with its inputs checked against what a span, trace, or session fills; judge changes that break a project binding are refused; the fingerprint pins the tagged version, the judge's policy, and a custom provider's revision; the executor runs the judge with server-side credentials and the online byte cap, lets refusals through result validation, and retries the provider's rate limits and transient failures without spending attempts; timeouts count as provider timeouts; the primary result and a typed `decision` field on span, trace, and session annotations. | A GraphQL mutation and UI for binding a judge to a project; decision details in span, trace, and session annotation views. |
 | **Library**, outside this spec (chat: `phoenix-evals` `ClassificationEvaluator(llm: LLM)`) | Separate work (`llm: LLM \| Decision`). | — |
 
 ### Cross-Cutting
