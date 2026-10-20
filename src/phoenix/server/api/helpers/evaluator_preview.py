@@ -4,7 +4,6 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from typing import Any, Optional, cast
-from uuid import uuid4
 
 import anyio
 from anyio.streams.memory import MemoryObjectSendStream
@@ -24,7 +23,6 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
-    CodeEvaluatorRunner,
     build_evaluator_from_definition,
 )
 from phoenix.server.api.evaluators import (
@@ -81,7 +79,8 @@ async def stream_evaluator_preview(
     becomes that subject's error and the others continue.
 
     Closing the stream (a client that disconnects) cancels the subjects still running,
-    with their LLM calls and sandbox executions, and releases the preview's sandbox.
+    with their LLM calls and sandbox executions; each sandbox is torn down as its
+    execution is cancelled.
     """
     subject_ids = [subject.id for subject in input.subjects]
     if len(set(subject_ids)) != len(subject_ids):
@@ -104,12 +103,15 @@ async def stream_evaluator_preview(
         if input.dataset_evaluator_id is not None
         else None
     )
-    sandbox_session_manager = context.sandbox_session_manager
-    # One sandbox session per request, shared by its subjects: the key is never reused,
-    # and the session is closed when the stream ends, so cleanup never depends on a
-    # later request reaching the same replica. The manager's idle sweep is the backstop
-    # if this replica dies first.
-    session_key = f"evaluator-preview:{uuid4().hex}:{sandbox_session_manager.replica_id}"
+    # Converted before the evaluator is built, so nothing that can fail sits between
+    # building it and the cleanup below.
+    input_mapping = input.input_mapping.to_orm()
+    # No sandbox session manager: each subject runs in an ephemeral sandbox that the
+    # backend creates and tears down inside the call. A shared session, as experiments
+    # use, would serialize subjects on backends that cannot run concurrently in one
+    # session, take slots from the per-provider session cap that online evaluations
+    # use, and leave a lock per request in the manager. Cleanup also never depends on
+    # a later request reaching the same replica.
     async with context.db() as session:
         if binding_id is not None:
             definition = await _capture_binding_definition(session, definition, binding_id)
@@ -121,13 +123,10 @@ async def stream_evaluator_preview(
             decrypt=context.decrypt,
             credentials=input.credentials or None,
             sandbox_runtime=context.sandbox_runtime,
-            sandbox_session_manager=sandbox_session_manager,
-            session_key=session_key,
             max_message_bytes=max_message_bytes,
             max_payload_bytes=max_payload_bytes,
             payload_limit_remediation=payload_limit_remediation,
         )
-    input_mapping = input.input_mapping.to_orm()
     send_stream, receive_stream = anyio.create_memory_object_stream[EvaluatorPreviewSubjectResult](
         max_buffer_size=len(input.subjects)
     )
@@ -151,8 +150,6 @@ async def stream_evaluator_preview(
             )
             producer.cancel()
         await asyncio.gather(producer, return_exceptions=True)
-        if isinstance(evaluator, CodeEvaluatorRunner):
-            evaluator.release_sandbox_session()
 
 
 async def _capture_binding_definition(

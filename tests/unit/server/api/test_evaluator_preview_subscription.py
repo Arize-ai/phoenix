@@ -10,7 +10,6 @@ from strawberry.scalars import JSON
 
 from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES
 from phoenix.db import models
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
 from phoenix.server.api.evaluators import EvaluationResult as EvaluationResultDict
 from phoenix.server.api.helpers import evaluator_preview
 from phoenix.server.api.helpers.evaluator_preview import (
@@ -391,7 +390,7 @@ class TestPreviewEvaluatorMutation:
 
 
 class TestEvaluatorPreviewCancellation:
-    async def test_cancelling_the_stream_cancels_running_subjects_and_releases_the_sandbox(
+    async def test_cancelling_the_stream_cancels_running_subjects(
         self,
     ) -> None:
         cancelled: list[str] = []
@@ -409,10 +408,7 @@ class TestEvaluatorPreviewCancellation:
                 raise
             raise AssertionError("unreachable")
 
-        runner = MagicMock(spec=CodeEvaluatorRunner)
-        runner.name = "fake"
-        runner.output_configs = []
-        runner.evaluate = evaluate
+        runner = _FakeEvaluator(evaluate)
         context = MagicMock()
         context.db.return_value.__aenter__ = AsyncMock()
         context.db.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -441,7 +437,6 @@ class TestEvaluatorPreviewCancellation:
                 await task
 
         assert sorted(cancelled) == ["slow-1", "slow-2"]
-        runner.release_sandbox_session.assert_called_once_with()
 
 
 class TestInlineCodeEvaluatorPreview:
@@ -487,12 +482,7 @@ class TestInlineCodeEvaluatorPreview:
     @staticmethod
     def _backend(stdout: str = f"{PHOENIX_RESULT_BEGIN}\n1.0\n{PHOENIX_RESULT_END}\n") -> Any:
         backend = AsyncMock()
-        # The session manager keys and routes sessions with these synchronous members.
-        backend.provider = "test"
-        backend.config_fingerprint = MagicMock(return_value="fingerprint")
-        backend.is_session_gone = MagicMock(return_value=False)
-        backend.supports_concurrent_session_execution = True
-        backend.execute_in_session = AsyncMock(
+        backend.execute_with_inputs = AsyncMock(
             return_value=ExecutionResult(stdout=stdout, stderr="", error=None)
         )
         return backend
@@ -577,10 +567,9 @@ class TestInlineCodeEvaluatorPreview:
                 source_code="function evaluate({ output }: EvaluatorParams) { return 1; }",
                 contexts=[{"output": "a"}, {"output": "b"}],
             )
-        backend.find_or_create_session.assert_not_called()
-        backend.execute_in_session.assert_not_called()
+        backend.execute_with_inputs.assert_not_called()
 
-    async def test_subjects_share_one_sandbox_session_closed_at_the_end(
+    async def test_each_subject_runs_in_its_own_ephemeral_sandbox(
         self,
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
@@ -593,26 +582,17 @@ class TestInlineCodeEvaluatorPreview:
                 sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
                 contexts=[{"output": "a"}, {"output": "b"}, {"output": "c"}],
             )
-            # The close is scheduled when the stream ends; let it run.
-            for _ in range(50):
-                if backend.close_session.await_count:
-                    break
-                await asyncio.sleep(0.01)
 
         assert {
             subject_id: r["results"][0]["annotation"]["score"] for subject_id, r in results.items()
-        } == {
-            "0": 1.0,
-            "1": 1.0,
-            "2": 1.0,
-        }
+        } == {"0": 1.0, "1": 1.0, "2": 1.0}
         assert results["0"]["results"][0]["evaluatorName"] == "inline_code_eval"
-        # One sandbox for the request, every subject executed in it, closed once the
-        # stream ends rather than waiting out the manager's idle TTL.
-        backend.find_or_create_session.assert_awaited_once()
-        assert backend.execute_in_session.await_count == 3
-        backend.close_session.assert_awaited_once()
-        backend.execute_with_inputs.assert_not_called()
+        # Previews stay off the session manager: no shared session to serialize on, no
+        # slot taken from the per-provider cap, nothing left behind to close.
+        assert backend.execute_with_inputs.await_count == 3
+        backend.find_or_create_session.assert_not_called()
+        backend.execute_in_session.assert_not_called()
+        backend.close_session.assert_not_called()
 
     async def test_applies_the_online_sandbox_payload_limit_on_request(
         self,
