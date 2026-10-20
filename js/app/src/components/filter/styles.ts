@@ -174,6 +174,15 @@ export const typeaheadMenuCSS = css`
         var(--global-dimension-size-50) - var(--global-dimension-size-300)
       );
     }
+    /* Read out, never drawn: what the chevron means */
+    .evaluator-path-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
     /* The pointer resting on a path-field row is what opens its side
        panel; the layer that notices sits over the whole row */
     & > ul > li:has(.evaluator-path-hover-target) {
@@ -286,8 +295,11 @@ export const typeaheadMenuCSS = css`
         border-radius: var(--global-rounding-small);
         color: var(--global-text-color-900);
         cursor: pointer;
+        /* The row the pointer or the keys rest on, and the row whose level
+           is open beside it, read as the menu's own highlighted row */
         &:hover,
-        &[data-open] {
+        &[data-open],
+        &[aria-selected="true"] {
           background-color: var(--global-menu-item-background-color-hover);
         }
       }
