@@ -1,9 +1,5 @@
 # Decision Models
 
-> **Status: draft for discussion, updated 2026-10-19.** The server is PR #16875
-> and the UI is PR #16876. What each has built is in
-> [Implementation Status](#implementation-status).
-
 ## Summary
 
 Decision models such as TypeSafe System One and OpenAI Decisions take an input
