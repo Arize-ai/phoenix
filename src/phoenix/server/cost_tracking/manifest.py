@@ -24,6 +24,7 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    model_validator,
 )
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,23 @@ class ManifestModel(_ManifestBaseModel):
     provider: Optional[str] = None
     source: Optional[str] = None
     token_prices: list[ManifestTokenPrice]
+
+    @model_validator(mode="after")
+    def _check_unique_token_prices(self) -> "ManifestModel":
+        # Two prices for the same token type and direction would violate the database's unique
+        # constraint and roll back the whole apply. Zero prices are not stored, so they can't
+        # collide.
+        seen: set[tuple[str, bool]] = set()
+        for token_price in self.token_prices:
+            if not token_price.base_rate:
+                continue
+            key = (token_price.token_type, token_price.is_prompt)
+            if key in seen:
+                raise ValueError(
+                    f"duplicate token price for token_type '{key[0]}' with is_prompt={key[1]}"
+                )
+            seen.add(key)
+        return self
 
 
 class ModelCostManifest(_ManifestBaseModel):

@@ -162,6 +162,17 @@ def test_rejected_manifest_does_not_warn_about_entries(caplog: pytest.LogCapture
             "'bad'",
             id="negative-rate",
         ),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[
+                    {"base_rate": 1e-6, "is_prompt": True, "token_type": "input"},
+                    {"base_rate": 2e-6, "is_prompt": True, "token_type": "input"},
+                ],
+            ),
+            "'bad'",
+            id="duplicate-token-price",
+        ),
         pytest.param("not an object", "at index 1", id="not-an-object"),
     ],
 )
@@ -177,6 +188,19 @@ def test_skips_invalid_entry_and_keeps_the_rest(
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
     assert f"Skipping model {expected_label}" in warnings[0]
+
+
+def test_accepts_duplicate_token_prices_when_all_but_one_are_zero() -> None:
+    # Zero prices aren't stored, so they can't collide with the one that is.
+    token_prices = [
+        {"base_rate": 0, "is_prompt": True, "token_type": "input"},
+        {"base_rate": 1e-6, "is_prompt": True, "token_type": "input"},
+        {"base_rate": 0, "is_prompt": True, "token_type": "input"},
+        {"base_rate": 1e-6, "is_prompt": False, "token_type": "input"},
+    ]
+    data = _manifest(models=[_model("model-a", token_prices=token_prices)])
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.name for model in manifest.models] == ["model-a"]
 
 
 def test_reports_names_of_skipped_entries() -> None:

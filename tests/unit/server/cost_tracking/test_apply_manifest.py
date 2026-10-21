@@ -675,6 +675,23 @@ class TestApplyManifestIfNewer:
             marker = await get_applied_manifest_version(session)
         assert marker is not None and marker.generated_at == _manifest_date(2)
 
+    async def test_model_with_duplicate_token_prices_keeps_its_prices(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+        duplicate = _manifest_model("model-a", input_rate=3e-6)
+        duplicate["token_prices"].append(
+            {"base_rate": 4e-6, "is_prompt": True, "token_type": "input"}
+        )
+        manifest = _manifest_of([duplicate, _manifest_model("model-b", input_rate=3e-6)], day=2)
+        assert manifest.skipped_model_names == {"model-a"}
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 3e-6}
+        model_a = (await _get_models(db, is_built_in=True))["model-a"]
+        assert _extract_token_prices(model_a) == {("input", True): 1e-6, ("output", False): 2e-6}
+
     async def test_unchanged_manifest_does_not_touch_models(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", "model-b", day=1))
