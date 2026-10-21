@@ -6,7 +6,6 @@ import strawberry
 from phoenix.server.api.schema import (
     RetainFieldDetailsExecutionContext,
     build_graphql_schema,
-    retain_field_details_lists,
 )
 
 
@@ -42,15 +41,17 @@ class Query:
         return _ITEM
 
 
-class TestRetainFieldDetailsLists:
+class TestRetainFieldDetailsExecutionContext:
     async def test_sibling_root_fields_keep_their_own_selection_sets(self) -> None:
         """
         Regression test for https://github.com/graphql-python/graphql-core/issues/284:
         a nested field returning the same type as a faster sibling root field must
         not reuse the sibling's cached subfield selection.
         """
-        schema = strawberry.Schema(query=Query)
-        retain_field_details_lists(schema)
+        schema = strawberry.Schema(
+            query=Query,
+            execution_context_class=RetainFieldDetailsExecutionContext,
+        )
         query = "query { slow { pad item { id name } } fast { extra } }"
         for _ in range(20):
             result = await schema.execute(query)
@@ -60,14 +61,5 @@ class TestRetainFieldDetailsLists:
                 "fast": {"extra": "DIST"},
             }
 
-    def test_is_idempotent(self) -> None:
-        schema = strawberry.Schema(query=Query)
-        retain_field_details_lists(schema)
-        execution_context_class = schema.execution_context_class
-        retain_field_details_lists(schema)
-        assert schema.execution_context_class is execution_context_class
-
     def test_applied_by_build_graphql_schema(self) -> None:
-        execution_context_class = build_graphql_schema().execution_context_class
-        assert execution_context_class is not None
-        assert issubclass(execution_context_class, RetainFieldDetailsExecutionContext)
+        assert build_graphql_schema().execution_context_class is RetainFieldDetailsExecutionContext

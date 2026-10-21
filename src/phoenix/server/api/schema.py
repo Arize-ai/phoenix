@@ -1,11 +1,13 @@
 from itertools import chain
-from typing import Any, Callable, Iterable, Iterator, Optional, Union, cast
+from typing import Any, Callable, Iterable, Iterator, Optional, Union
 
 import strawberry
-from graphql import Executor, GraphQLObjectType
+from graphql import GraphQLObjectType
+from graphql.execution.collect_fields import CollectedFields, FieldDetailsList
 from pydantic import SecretStr
 from strawberry.extensions import SchemaExtension
 from strawberry.schema.config import StrawberryConfig
+from strawberry.schema.schema import StrawberryGraphQLCoreExecutionContext
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
 from phoenix.db.types.identifier import Identifier
@@ -40,11 +42,12 @@ def build_graphql_schema(
     """
     Builds a strawberry schema.
     """
-    schema = strawberry.Schema(
+    return strawberry.Schema(
         query=Query,
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
+        execution_context_class=RetainFieldDetailsExecutionContext,
         config=StrawberryConfig(
             scalar_map={
                 Identifier: identifier_scalar_definition,
@@ -61,11 +64,9 @@ def build_graphql_schema(
             )
         ),
     )
-    retain_field_details_lists(schema)
-    return schema
 
 
-class RetainFieldDetailsExecutionContext(Executor[Any]):
+class RetainFieldDetailsExecutionContext(StrawberryGraphQLCoreExecutionContext):
     """
     Works around a use-after-free cache collision in graphql-core 3.3.0
     (https://github.com/graphql-python/graphql-core/issues/284).
@@ -83,33 +84,17 @@ class RetainFieldDetailsExecutionContext(Executor[Any]):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._retained_field_details_lists: dict[int, Any] = {}
+        self._retained_field_details_lists: dict[int, FieldDetailsList] = {}
 
     def collect_subfields(
         self,
         return_type: GraphQLObjectType,
-        field_details_list: Any,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
+        field_details_list: FieldDetailsList,
+    ) -> CollectedFields:
         # Keyed by id so lists shared across list items are retained only once;
         # the id is stable because the list itself is kept alive.
         self._retained_field_details_lists[id(field_details_list)] = field_details_list
-        return super().collect_subfields(return_type, field_details_list, *args, **kwargs)
-
-
-def retain_field_details_lists(schema: strawberry.Schema) -> None:
-    """
-    Layers `RetainFieldDetailsExecutionContext` on top of the schema's
-    configured execution context class, preserving any strawberry-specific
-    execution context behavior.
-    """
-    base = getattr(schema, "execution_context_class", None) or Executor
-    if issubclass(base, RetainFieldDetailsExecutionContext):
-        return
-    name = f"RetainFieldDetails{base.__name__}"
-    bases = (RetainFieldDetailsExecutionContext, base)
-    schema.execution_context_class = cast(type[Executor[Any]], type(name, bases, {}))
+        return super().collect_subfields(return_type, field_details_list)
 
 
 def _implementing_types(interface: Any) -> Iterator[StrawberryType]:
