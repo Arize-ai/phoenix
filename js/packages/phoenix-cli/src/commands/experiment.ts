@@ -59,6 +59,18 @@ interface ExperimentListOptions extends CommonOptions<ExperimentsOutputFormat> {
 }
 
 /**
+ * Options for `px experiment export <experiment-id>`.
+ */
+interface ExperimentExportOptions extends CommonOptions<"csv" | "json"> {
+  /**
+   * `--output <path>`: Write the export to a file instead of stdout.
+   *
+   * @example "./experiment.csv"
+   */
+  output?: string;
+}
+
+/**
  * Download experiment JSON data
  */
 async function downloadExperimentJson(
@@ -79,6 +91,46 @@ async function downloadExperimentJson(
   }
 
   return response.data as string;
+}
+
+/**
+ * Download experiment data as CSV
+ */
+async function downloadExperimentCsv(
+  client: PhoenixClient,
+  experimentId: string
+): Promise<string> {
+  const response = await client.GET("/v1/experiments/{experiment_id}/csv", {
+    params: {
+      path: {
+        experiment_id: experimentId,
+      },
+    },
+    parseAs: "text",
+  });
+
+  if (response.error || response.data === undefined) {
+    throw new Error(`Failed to download experiment: ${response.error}`);
+  }
+
+  return response.data as string;
+}
+
+/**
+ * Validate and normalize the `--format` flag for `experiment export`.
+ *
+ * Defaults to `"json"` when unset, lower-cases and trims the input, and throws
+ * a clear error for anything other than `csv` or `json` so the handler can turn
+ * it into an INVALID_ARGUMENT exit instead of a confusing downstream failure.
+ */
+export function normalizeExperimentExportFormat(
+  format: string | undefined
+): "csv" | "json" {
+  const normalized = (format ?? "json").trim().toLowerCase();
+  if (normalized === "csv" || normalized === "json") {
+    return normalized;
+  }
+  throw new Error(`Invalid --format "${format}". Supported formats: csv, json.`);
 }
 
 /**
@@ -245,6 +297,68 @@ async function experimentGetHandler(
 }
 
 /**
+ * Handler for `experiment export`
+ */
+async function experimentExportHandler(
+  experimentId: string,
+  options: ExperimentExportOptions
+): Promise<void> {
+  let format: "csv" | "json";
+  try {
+    format = normalizeExperimentExportFormat(options.format);
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Exporting experiment ${experimentId} as ${format}...`,
+      noProgress: !options.progress,
+    });
+
+    const data =
+      format === "csv"
+        ? await downloadExperimentCsv(client, experimentId)
+        : await downloadExperimentJson(client, experimentId);
+
+    if (options.output) {
+      fs.writeFileSync(options.output, data, "utf-8");
+      writeProgress({
+        message: `Wrote experiment ${experimentId} to ${options.output}`,
+        noProgress: !options.progress,
+      });
+    } else {
+      writeOutput({ message: data });
+    }
+  } catch (error) {
+    writeError({
+      message: `Error exporting experiment: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
  * Handler for `experiment list`
  */
 async function experimentListHandler(
@@ -364,6 +478,18 @@ export function createExperimentGetCommand(): Command {
     .action(experimentGetHandler);
 }
 
+export function createExperimentExportCommand(): Command {
+  return new Command("export")
+    .description("Export an experiment's runs as CSV or JSON")
+    .argument("<experiment-id>", "Experiment identifier")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--format <format>", "Export format: csv or json", "json")
+    .option("--output <path>", "Write export to a file instead of stdout")
+    .option("--no-progress", "Disable progress indicators")
+    .action(experimentExportHandler);
+}
+
 export function createExperimentListCommand(): Command {
   return new Command("list")
     .description("List experiments for a dataset")
@@ -453,6 +579,7 @@ export function createExperimentCommand(): Command {
   command.description("Manage Phoenix experiments");
   command.addCommand(createExperimentListCommand());
   command.addCommand(createExperimentGetCommand());
+  command.addCommand(createExperimentExportCommand());
   command.addCommand(createExperimentDeleteCommand());
   return command;
 }
