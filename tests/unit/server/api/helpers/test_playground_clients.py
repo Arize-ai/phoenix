@@ -2,6 +2,7 @@ import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from openai import AsyncOpenAI, AuthenticationError
@@ -40,6 +41,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers import playground_clients
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     OPENAI_CHAT_COMPLETIONS_MODELS,
@@ -728,6 +730,85 @@ class TestAnthropicStreamingClient:
         assert extra_headers == {
             "anthropic-beta": "computer-use-2025-01-24,computer-use-2025-11-24"
         }
+
+    async def test_stream_uses_the_final_snapshot_usage(self) -> None:
+        """message_delta can raise the input and cache counts (e.g. after server tools run).
+
+        The SDK folds those into the snapshot on `message_stop`, so the span has to take
+        the prompt, cache read, cache write and completion counts from there.
+        """
+        from types import SimpleNamespace
+
+        def usage(**counts: Any) -> SimpleNamespace:
+            fields = dict(
+                input_tokens=None,
+                output_tokens=None,
+                cache_creation_input_tokens=None,
+                cache_read_input_tokens=None,
+            )
+            return SimpleNamespace(**{**fields, **counts})
+
+        message_start = SimpleNamespace(
+            type="message_start",
+            message=SimpleNamespace(usage=usage(input_tokens=120, output_tokens=1)),
+        )
+        message_stop = SimpleNamespace(
+            type="message_stop",
+            message=SimpleNamespace(
+                usage=usage(
+                    input_tokens=5120,
+                    output_tokens=300,
+                    cache_read_input_tokens=64,
+                    cache_creation_input_tokens=32,
+                ),
+                model_dump_json=lambda **_: "{}",
+            ),
+        )
+
+        class _Stream:
+            async def __aiter__(self) -> Any:
+                for event in (message_start, message_stop):
+                    yield event
+
+        class _StreamManager:
+            async def __aenter__(self) -> _Stream:
+                return _Stream()
+
+            async def __aexit__(self, *_: Any) -> bool:
+                return False
+
+        class _Span:
+            def __init__(self) -> None:
+                self.attributes: dict[str, Any] = {}
+
+            def set_attribute(self, key: str, value: Any) -> None:
+                self.attributes[key] = value
+
+            def set_attributes(self, attributes: dict[str, Any]) -> None:
+                self.attributes.update(attributes)
+
+        @asynccontextmanager
+        async def client_factory() -> Any:
+            yield SimpleNamespace(_client=None)
+
+        client: Any = AnthropicClient(
+            client_factory=client_factory,
+            model_name="claude-sonnet-5-5",
+            provider="anthropic",
+        )
+        client._get_anthropic_message_stream_manager = lambda **_: _StreamManager()
+        span = _Span()
+
+        with patch.object(playground_clients, "_HttpxClient", lambda *_, **__: None):
+            async for _ in client._chat_completion_create(
+                messages=[], tools=None, response_format=None, span=span
+            ):
+                pass
+
+        assert span.attributes[LLM_TOKEN_COUNT_PROMPT] == 5120 + 64 + 32
+        assert span.attributes[LLM_TOKEN_COUNT_COMPLETION] == 300
+        assert span.attributes[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] == 64
+        assert span.attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 32
 
 
 # mime types
