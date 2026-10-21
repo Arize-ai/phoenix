@@ -782,6 +782,13 @@
                 ]
               },
               {
+                "group": "Pixeltable",
+                "pages": [
+                  "docs/phoenix/integrations/python/pixeltable",
+                  "docs/phoenix/integrations/python/pixeltable/pixeltable-tracing"
+                ]
+              },
+              {
                 "group": "Portkey",
                 "pages": [
                   "docs/phoenix/integrations/python/portkey",
