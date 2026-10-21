@@ -437,6 +437,51 @@ describe("rankAgentModels provider search", () => {
       true
     );
   });
+
+  describe("with a provider whose name contains another's", () => {
+    const rows = buildAgentModelCatalog({
+      playgroundModels: [
+        { providerKey: "OPENAI", name: "gpt-4o" },
+        { providerKey: "OPENAI", name: "gpt-4o-mini" },
+        ...Array.from({ length: 12 }, (_, index) => ({
+          providerKey: "AZURE_OPENAI" as const,
+          name: `azure-deployment-${index}`,
+        })),
+        { providerKey: "AZURE_OPENAI", name: "gpt-4o-mini" },
+      ],
+      modelProviders: MODEL_PROVIDERS,
+      customProviders: [],
+    });
+    const rank = (query: string) =>
+      rankAgentModels({ rows, query }).map((row) => row.key);
+
+    it("caps the word matches after the provider named in full", () => {
+      const results = rank("openai");
+      expect(results).toHaveLength(2 + 8);
+      expect(results.slice(0, 2)).toEqual([
+        "OPENAI:gpt-4o",
+        "OPENAI:gpt-4o-mini",
+      ]);
+      expect(
+        results.slice(2).every((key) => key.startsWith("AZURE_OPENAI:"))
+      ).toBe(true);
+    });
+
+    it("ranks the word matches with model-name matches for the other tokens", () => {
+      expect(rank("openai mini")).toEqual([
+        "OPENAI:gpt-4o-mini",
+        "AZURE_OPENAI:gpt-4o-mini",
+      ]);
+    });
+
+    it("doesn't cap a word match when no provider is named in full", () => {
+      const results = rank("azure");
+      expect(results).toHaveLength(13);
+      expect(results.every((key) => key.startsWith("AZURE_OPENAI:"))).toBe(
+        true
+      );
+    });
+  });
 });
 
 describe("inferProviderFromModelName", () => {

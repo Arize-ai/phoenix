@@ -466,7 +466,9 @@ function isCompleteProviderMatch(match: ProviderTermMatch | null): boolean {
  * lists that provider's models above every model-name match. A partly typed
  * one (`anth`) ranks with model-name matches as a prefix match, so the
  * provider's models show while typing without burying `gpt-5-mini` under
- * every MiniMax model for `mini`.
+ * every MiniMax model for `mini`. A word match ranks with model-name matches
+ * too when another provider's whole name is in the query, so `openai` lists
+ * OpenAI's models without every Azure OpenAI one.
  */
 const MATCH_TIER = {
   providerName: 3,
@@ -491,9 +493,12 @@ type RowMatch = { tier: number; score: number };
 function getRowMatch({
   row,
   query,
+  isProviderNameInQuery,
 }: {
   row: AgentModelCatalogRow;
   query: string;
+  /** Whether some provider's whole name is in the query, see {@link MATCH_TIER} */
+  isProviderNameInQuery: boolean;
 }): RowMatch | null {
   const nameScore = getRowMatchScore({ row, query });
   let best: RowMatch | null =
@@ -517,7 +522,10 @@ function getRowMatch({
     if (score == null) {
       return;
     }
-    const tier = PROVIDER_MATCH_TIER[providerMatch];
+    const tier =
+      providerMatch === "word" && isProviderNameInQuery
+        ? MATCH_TIER.model
+        : PROVIDER_MATCH_TIER[providerMatch];
     if (
       !best ||
       tier > best.tier ||
@@ -555,7 +563,11 @@ export function getCredentialStateOrder(
  * catalog order.
  *
  * Rows that match a whole provider name or word aren't capped, so `openai`
- * lists every OpenAI model; `limit` caps the rows after them.
+ * lists every OpenAI model; `limit` caps the rows after them. When some
+ * provider's whole name is in the query, word matches rank and are capped
+ * with model-name matches instead: `openai` lists every OpenAI model, then
+ * at most `limit` others, Azure OpenAI's among them. `azure`, which names no
+ * provider whole, still lists every Azure OpenAI model.
  *
  * An empty query returns nothing.
  *
@@ -582,8 +594,19 @@ export function rankAgentModels({
   const recencyByKey = new Map(
     recentModelKeys.map((key, index) => [key, index])
   );
+  const tokens = query.trim().split(/\s+/);
+  const isProviderNameInQuery = rows.some((row) =>
+    tokens.some(
+      (token) =>
+        matchProviderTerm({
+          providerName: row.providerName,
+          provider: row.customProvider ? null : row.provider,
+          term: token,
+        }) === "name"
+    )
+  );
   const scored = rows.flatMap((row, catalogIndex) => {
-    const match = getRowMatch({ row, query });
+    const match = getRowMatch({ row, query, isProviderNameInQuery });
     if (match == null) {
       return [];
     }
