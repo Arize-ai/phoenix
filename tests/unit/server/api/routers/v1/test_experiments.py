@@ -2030,3 +2030,26 @@ class TestPatchExperiment:
             json={"name": "x"},
         )
         assert response.status_code == 404
+
+
+async def test_create_experiment_404_detail_names_the_dataset_id(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    wrong_type_gid = GlobalID("Experiment", "1")
+    response = await httpx_client.post(
+        f"v1/datasets/{wrong_type_gid}/experiments", json={"version_id": None}
+    )
+    assert response.status_code == 404
+    assert str(wrong_type_gid) in response.text
+    assert "{dataset_globalid}" not in response.text
+
+
+async def test_get_experiment_404_detail_names_the_experiment_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    wrong_type_gid = GlobalID("Dataset", "1")
+    response = await httpx_client.get(f"v1/experiments/{wrong_type_gid}")
+    assert response.status_code == 404
+    assert str(wrong_type_gid) in response.text
+    assert "{experiment_globalid}" not in response.text
