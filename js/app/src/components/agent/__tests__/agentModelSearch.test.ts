@@ -43,6 +43,7 @@ const PLAYGROUND_MODELS: AgentModelCatalogInput["playgroundModels"] = [
   { providerKey: "OPENAI", name: "gpt-4o-mini" },
   { providerKey: "OPENAI", name: "gpt-5.4" },
   { providerKey: "OPENAI", name: "gpt-5.4-mini" },
+  { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
   { providerKey: "ANTHROPIC", name: "claude-opus-5" },
   { providerKey: "ANTHROPIC", name: "claude-opus-4-6" },
   { providerKey: "ANTHROPIC", name: "claude-opus-4-20250514" },
@@ -130,10 +131,10 @@ describe("buildAgentModelCatalog", () => {
   });
 
   it("marks curated rows and gives them display names", () => {
-    const curated = ROWS.find((row) => row.key === "ANTHROPIC:claude-opus-4-6");
+    const curated = ROWS.find((row) => row.key === "ANTHROPIC:claude-opus-5-5");
     expect(curated).toMatchObject({
       isCurated: true,
-      displayName: "Claude Opus 4.6",
+      displayName: "Claude Opus 5.5",
       providerName: "Anthropic",
       customProvider: null,
     });
@@ -229,7 +230,10 @@ describe("tokenMatchScore", () => {
 
 describe("rankAgentModels", () => {
   it("finds `opus 5` and `4o mini`", () => {
-    expect(search("opus 5")).toEqual(["ANTHROPIC:claude-opus-5"]);
+    expect(search("opus 5")).toEqual([
+      "ANTHROPIC:claude-opus-5-5",
+      "ANTHROPIC:claude-opus-5",
+    ]);
     expect(search("4o mini")).toEqual(["OPENAI:gpt-4o-mini"]);
   });
 
@@ -444,11 +448,11 @@ describe("resolveAgentModelRow", () => {
 
   it("keeps a curated display name for a model missing from the catalog", () => {
     expect(
-      resolve({ provider: "GOOGLE", modelName: "gemini-3.7-flash" })
+      resolve({ provider: "ANTHROPIC", modelName: "claude-sonnet-5-5" })
     ).toMatchObject({
       isCurated: true,
-      displayName: "Gemini 3.7 Flash",
-      credentialState: "no-key",
+      displayName: "Claude Sonnet 5.5",
+      credentialState: "ready",
     });
   });
 

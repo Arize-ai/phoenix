@@ -32,40 +32,15 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentCuratedBuiltInModel[] 
     },
     {
       provider: "ANTHROPIC",
-      modelName: "claude-opus-5",
-      displayName: "Claude Opus 5",
+      modelName: "claude-opus-5-5",
+      displayName: "Claude Opus 5.5",
     },
     {
       provider: "ANTHROPIC",
-      modelName: "claude-opus-4-6",
-      displayName: "Claude Opus 4.6",
+      modelName: "claude-sonnet-5-5",
+      displayName: "Claude Sonnet 5.5",
     },
-    {
-      provider: "ANTHROPIC",
-      modelName: "claude-sonnet-4-6",
-      displayName: "Claude Sonnet 4.6",
-    },
-    {
-      provider: "OPENAI",
-      modelName: "gpt-5.6-sol",
-      displayName: "GPT-5.6 Sol",
-    },
-    {
-      provider: "OPENAI",
-      modelName: "gpt-5.4-mini",
-      displayName: "GPT-5.4 mini",
-    },
-    { provider: "OPENAI", modelName: "gpt-5.5", displayName: "GPT-5.5" },
-    {
-      provider: "GOOGLE",
-      modelName: "gemini-3.7-flash",
-      displayName: "Gemini 3.7 Flash",
-    },
-    {
-      provider: "GOOGLE",
-      modelName: "gemini-3.1-pro-preview",
-      displayName: "Gemini 3.1 Pro (preview)",
-    },
+    { provider: "OPENAI", modelName: "gpt-6-sol", displayName: "GPT-6 Sol" },
   ];
 
 function findAgentCuratedBuiltInModel({

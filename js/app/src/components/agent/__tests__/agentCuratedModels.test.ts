@@ -15,7 +15,7 @@ describe("agent curated models", () => {
     expect(
       isAgentCuratedModelSelection({
         provider: "OPENAI",
-        modelName: "gpt-5.6-sol",
+        modelName: "gpt-6-sol",
       })
     ).toBe(true);
   });
@@ -45,13 +45,13 @@ describe("agent curated models", () => {
   it("filters curated models against registered playground models", () => {
     expect(
       getCuratedBuiltInModels([
-        { providerKey: "OPENAI", name: "gpt-5.6-sol" },
+        { providerKey: "OPENAI", name: "gpt-6-sol" },
         { providerKey: "OPENAI", name: "gpt-4o" },
-        { providerKey: "ANTHROPIC", name: "claude-sonnet-4-6" },
+        { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
       ])
     ).toEqual([
-      { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
-      { provider: "OPENAI", modelName: "gpt-5.6-sol" },
+      { provider: "ANTHROPIC", modelName: "claude-sonnet-5-5" },
+      { provider: "OPENAI", modelName: "gpt-6-sol" },
     ]);
   });
 });
@@ -67,21 +67,21 @@ describe("agent curated model display names", () => {
     expect(
       getAgentCuratedModelDisplayName({
         provider: "ANTHROPIC",
-        modelName: "claude-opus-4-6",
+        modelName: "claude-opus-5-5",
       })
-    ).toBe("Claude Opus 4.6");
+    ).toBe("Claude Opus 5.5");
     expect(
       getAgentCuratedModelDisplayName({
-        provider: "OPENAI",
-        modelName: "gpt-5.4-mini",
+        provider: "ANTHROPIC",
+        modelName: "claude-sonnet-5-5",
       })
-    ).toBe("GPT-5.4 mini");
+    ).toBe("Claude Sonnet 5.5");
     expect(
       getAgentCuratedModelDisplayName({
-        provider: "GOOGLE",
-        modelName: "gemini-3.1-pro-preview",
+        provider: "ANTHROPIC",
+        modelName: "claude-fable-5-1",
       })
-    ).toBe("Gemini 3.1 Pro (preview)");
+    ).toBe("Claude Fable 5.1");
   });
 
   it("has no display name for other or custom provider models", () => {
@@ -109,8 +109,8 @@ describe("agent curated model display names", () => {
 
   it("labels models by display name, falling back to the id", () => {
     expect(
-      getAgentModelLabel({ provider: "OPENAI", modelName: "gpt-5.6-sol" })
-    ).toBe("GPT-5.6 Sol");
+      getAgentModelLabel({ provider: "OPENAI", modelName: "gpt-6-sol" })
+    ).toBe("GPT-6 Sol");
     expect(
       getAgentModelLabel({ provider: "OPENAI", modelName: "gpt-4o" })
     ).toBe("gpt-4o");

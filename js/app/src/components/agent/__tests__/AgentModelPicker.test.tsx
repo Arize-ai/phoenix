@@ -62,10 +62,11 @@ const MODEL_MENU_DATA = {
       { providerKey: "OPENAI", name: "gpt-4o-mini" },
       { providerKey: "OPENAI", name: "gpt-5.4" },
       { providerKey: "OPENAI", name: "gpt-5.4-mini" },
+      { providerKey: "OPENAI", name: "gpt-6-sol" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5" },
-      { providerKey: "ANTHROPIC", name: "claude-opus-4-6" },
+      { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
       { providerKey: "ANTHROPIC", name: "claude-opus-4-5" },
-      { providerKey: "ANTHROPIC", name: "claude-sonnet-4-6" },
+      { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
       { providerKey: "AWS", name: "anthropic.claude-opus-4-6-v1:0" },
       { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
       { providerKey: "GOOGLE", name: "gemini-2.5-flash" },
@@ -110,7 +111,7 @@ class ViewlessKeyboardEvent extends KeyboardEvent {
 
 const CURRENT_MODEL: ModelMenuValue = {
   provider: "ANTHROPIC",
-  modelName: "claude-opus-4-6",
+  modelName: "claude-opus-5-5",
 };
 
 describe("AgentModelPicker", () => {
@@ -258,12 +259,12 @@ describe("AgentModelPicker", () => {
   it("labels the trigger with the display name, id and provider", () => {
     renderPicker();
     expect(getTrigger().getAttribute("aria-label")).toBe(
-      "Model: Claude Opus 4.6 (claude-opus-4-6), Anthropic"
+      "Model: Claude Opus 5.5 (claude-opus-5-5), Anthropic"
     );
     expect(
       getTrigger().querySelector(".agent-model-picker-trigger__name")
         ?.textContent
-    ).toBe("Claude Opus 4.6");
+    ).toBe("Claude Opus 5.5");
     expect(
       getTrigger().querySelector(".agent-model-picker-trigger__dot")
     ).toBeNull();
@@ -297,17 +298,15 @@ describe("AgentModelPicker", () => {
     expect(texts[0]).toContain("gpt-9-preview");
     // Recent: the top 3 without the current model
     expect(texts.slice(1, 4)).toEqual([
-      expect.stringContaining("Claude Opus 5"),
+      expect.stringContaining("claude-opus-5"),
       expect.stringContaining("my-typed-name"),
       expect.stringContaining("gemini-2.5-flash"),
     ]);
     // Recommended: the curated models the catalog has, in curated order
     expect(getItemNames().slice(4)).toEqual([
-      "Claude Opus 5",
-      "Claude Opus 4.6",
-      "Claude Sonnet 4.6",
-      "GPT-5.4 mini",
-      "Gemini 3.7 Flash",
+      "Claude Opus 5.5",
+      "Claude Sonnet 5.5",
+      "GPT-6 Sol",
     ]);
   });
 
@@ -340,7 +339,7 @@ describe("AgentModelPicker", () => {
     );
     expect(checked.length).toBeGreaterThan(0);
     for (const item of checked) {
-      expect(item.textContent).toContain("claude-opus-4-6");
+      expect(item.textContent).toContain("claude-opus-5-5");
     }
     expect(getItems()[0].getAttribute("aria-checked")).toBe("true");
   });
@@ -351,10 +350,10 @@ describe("AgentModelPicker", () => {
 
     expect(getSectionTitles()).toEqual([]);
     const texts = getItemTexts();
-    expect(texts[0]).toContain("Claude Opus 5");
-    expect(texts[0]).toContain("claude-opus-5 · Anthropic");
+    expect(texts[0]).toContain("Claude Opus 5.5");
+    expect(texts[0]).toContain("claude-opus-5-5 · Anthropic");
     expect(texts[0]).toContain("Recommended");
-    expect(texts[1]).toContain("claude-opus-4-5");
+    expect(texts[1]).toContain("claude-opus-5");
     expect(texts[1]).not.toContain("Recommended");
     expect(
       getItems()[0].querySelectorAll("mark").length
@@ -365,7 +364,7 @@ describe("AgentModelPicker", () => {
     renderPicker();
     await openAndType("gemini");
 
-    const gemini = findItem("Gemini 3.7 Flash");
+    const gemini = findItem("gemini-3.7-flash");
     expect(gemini.textContent).toContain("Add key");
     await act(() => userEvent.setup().click(gemini));
     expect(onChange).toHaveBeenCalledWith({
