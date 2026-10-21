@@ -6,8 +6,11 @@ run or a save, and can change without making stored rows unreadable.
 """
 
 import json
+import re
+from string import Formatter
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
+import pystache
 from pydantic import ValidationError
 
 from phoenix.db.types.decisions import (
@@ -133,115 +136,74 @@ def render_state(
     if isinstance(state, InputState):
         return values[state.name]
     template_format = PromptTemplateFormat(state.template_format)
-    formatter = get_template_formatter(template_format)
-    wrap = _json_view if template_format is PromptTemplateFormat.F_STRING else _rendered_as_json
+    bound = {name: values[name] for name in names}
     try:
         # A null input renders as `null` under Mustache too: structured inputs are JSON.
-        return formatter.format(state.template, **{name: wrap(values[name]) for name in names})
-    except TemplateFormatterError as error:
-        raise ValueError(str(error)) from error
+        if template_format is PromptTemplateFormat.F_STRING:
+            return _F_STRING_FORMATTER.vformat(state.template, (), bound)
+        return str(_MUSTACHE_RENDERER.render(state.template, bound))
     except (AttributeError, KeyError, IndexError, TypeError) as error:
-        # F-string paths raise these from str.format_map; Mustache renders a miss as empty.
+        # F-string paths raise these from Formatter.vformat; Mustache renders a miss as empty.
         detail = error.args[0] if error.args else type(error).__name__
         raise ValueError(
             f"The state template can't be rendered from these inputs: {detail}"
         ) from error
 
 
-class _JSONDict(dict[str, Any]):
-    def __str__(self) -> str:
-        return json.dumps(self, default=_unwrap, ensure_ascii=False)
+_FIELD_PART_RE = re.compile(r"\.([^.\[\]]+)|\[([^\[\]]+)\]")
 
 
-class _JSONList(list[Any]):
-    def __getattribute__(self, name: str) -> Any:
-        raise AttributeError(name)
+class _JSONMustacheRenderer(pystache.Renderer):  # type: ignore[misc]
+    def __init__(self) -> None:
+        super().__init__(escape=lambda x: x)
 
-    def __str__(self) -> str:
-        return json.dumps(self, default=_unwrap, ensure_ascii=False)
-
-
-class _JSONScalar:
-    """A boolean or null that renders as JSON but keeps its truthiness for sections.
-
-    It has no attributes: a Mustache section pushes it onto the context stack,
-    so a name inside the section must fall through to the inputs.
-    """
-
-    __slots__ = ("__value",)
-
-    def __init__(self, value: Any) -> None:
-        self.__value = value
-
-    def __getattribute__(self, name: str) -> Any:
-        raise AttributeError(name)
-
-    def __str__(self) -> str:
-        return json.dumps(object.__getattribute__(self, "_JSONScalar__value"))
-
-    def __bool__(self) -> bool:
-        return bool(object.__getattribute__(self, "_JSONScalar__value"))
+    def str_coerce(self, val: Any) -> str:
+        return json.dumps(val, ensure_ascii=False)
 
 
-def _unwrap(value: Any) -> Any:
-    if isinstance(value, _JSONScalar):
-        return object.__getattribute__(value, "_JSONScalar__value")
-    raise TypeError(f"{type(value).__name__} is not JSON serializable")
+class _JSONFStringFormatter(Formatter):
+    """Traverse only JSON object fields and array items, rendering non-strings as JSON."""
+
+    def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
+        first = re.match(r"^[^.\[\]]*", field_name).group(0)  # type: ignore[union-attr]
+        obj = kwargs[first]
+        for attr, index in _FIELD_PART_RE.findall(field_name[len(first) :]):
+            if attr:
+                if attr.startswith("_") or not isinstance(obj, dict) or attr not in obj:
+                    raise AttributeError(f"JSON value has no attribute {attr!r}")
+                obj = obj[attr]
+            elif isinstance(obj, dict):
+                if index not in obj:
+                    raise KeyError(f"no item {index!r}")
+                obj = obj[index]
+            elif isinstance(obj, list):
+                try:
+                    obj = obj[int(index)]
+                except (IndexError, ValueError):
+                    key = int(index) if index.lstrip("-").isdigit() else index
+                    raise KeyError(f"no item {key!r}") from None
+            else:
+                raise TypeError("JSON scalar is not subscriptable")
+        return obj, first
+
+    def convert_field(self, value: Any, conversion: str | None) -> Any:
+        if conversion is None:
+            return value
+        if conversion == "r":
+            return repr(value) if isinstance(value, str) else self.format_field(value, "")
+        return super().convert_field(
+            value if isinstance(value, str) else self.format_field(value, ""), conversion
+        )
+
+    def format_field(self, value: Any, format_spec: str) -> str:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return format(value, format_spec)
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        return format(text, format_spec)
 
 
-def _rendered_as_json(value: Any) -> Any:
-    """Wrap ``value`` so a template renders it as JSON, not as a Python repr."""
-    if isinstance(value, dict):
-        return _JSONDict({key: _rendered_as_json(item) for key, item in value.items()})
-    if isinstance(value, list):
-        return _JSONList(_rendered_as_json(item) for item in value)
-    if isinstance(value, bool) or value is None:
-        return _JSONScalar(value)
-    return value
-
-
-class _JSONView:
-    """A JSON value whose template paths expose only object fields and array items.
-
-    Scalars stay wrapped until formatting so Python attributes and string indexing
-    cannot turn an invalid JSON path into rendered text.
-    """
-
-    def __init__(self, data: Any) -> None:
-        self._data = data
-
-    def __getattr__(self, name: str) -> Any:
-        if name.startswith("_") or not isinstance(self._data, dict) or name not in self._data:
-            raise AttributeError(f"JSON value has no attribute {name!r}")
-        return _json_view(self._data[name])
-
-    def __getitem__(self, key: Any) -> Any:
-        if not isinstance(self._data, (dict, list)):
-            raise TypeError("JSON scalar is not subscriptable")
-        if isinstance(self._data, dict):
-            key = str(key)
-        try:
-            return _json_view(self._data[key])
-        except (KeyError, IndexError, TypeError):
-            raise KeyError(f"no item {key!r}") from None
-
-    def __str__(self) -> str:
-        if isinstance(self._data, str):
-            return self._data
-        return json.dumps(self._data, ensure_ascii=False)
-
-    def __repr__(self) -> str:
-        return repr(self._data) if isinstance(self._data, str) else str(self)
-
-    def __format__(self, spec: str) -> str:
-        if isinstance(self._data, (int, float)) and not isinstance(self._data, bool):
-            return format(self._data, spec)
-        return format(str(self), spec)
-
-
-def _json_view(value: Any) -> Any:
-    """Wrap every value so path traversal preserves JSON types until rendering."""
-    return _JSONView(value)
+_MUSTACHE_RENDERER = _JSONMustacheRenderer()
+_F_STRING_FORMATTER = _JSONFStringFormatter()
 
 
 _VALUE_ERROR_PREFIX = "Value error, "
