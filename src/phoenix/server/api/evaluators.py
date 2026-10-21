@@ -1029,26 +1029,6 @@ async def get_evaluators(
             if resolved is None:
                 raise NotFound(f"LLM evaluator with ID '{ev.id}' not found")
             evaluators.append(resolved)
-        elif isinstance(ev, models.DecisionEvaluator):
-            from phoenix.server.api.helpers.decision_evaluator_service import (
-                build_decision_evaluator,
-            )
-            from phoenix.server.api.helpers.decision_evaluators import (
-                capture_decision_evaluator_definition,
-            )
-
-            binding = dataset_evaluators_by_id[de_id][0]
-            definition = capture_decision_evaluator_definition(
-                ev,
-                name=binding.name.root,
-                description=binding.description,
-                dataset_evaluator_id=binding.id,
-            )
-            evaluators.append(
-                await build_decision_evaluator(
-                    definition, session=session, decrypt=decrypt, credentials=credentials
-                )
-            )
         elif isinstance(ev, models.BuiltinEvaluator):
             builtin_evaluator_cls = get_builtin_evaluator_by_key(ev.key)
             if builtin_evaluator_cls is None:

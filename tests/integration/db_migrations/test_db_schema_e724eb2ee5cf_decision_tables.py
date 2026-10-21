@@ -125,6 +125,46 @@ async def test_decision_tables_schema(
 
     # Without DECISION jobs it succeeds, drops the tables and narrows the CHECK again.
     await _run_async(_engine, lambda conn: _delete_job(conn, decision_experiment_id))
+
+    # Decision evaluators and snapshots also guard downgrade.
+    def create_judge(conn: Connection) -> int:
+        row_id = conn.execute(
+            text(
+                "INSERT INTO evaluators (name, kind, metadata) VALUES ('judge', 'DECISION', '{}') RETURNING id"
+            )
+        ).scalar_one()
+        conn.execute(
+            text(
+                "INSERT INTO decision_evaluators (id, decision_version_id, scoring_policy) VALUES (:id, :version, '{}')"
+            ),
+            {"id": row_id, "version": triage_version},
+        )
+        conn.commit()
+        assert isinstance(row_id, int)
+        return row_id
+
+    def delete_judge(conn: Connection, evaluator_id: int) -> None:
+        conn.execute(text("DELETE FROM decision_evaluators WHERE id = :id"), {"id": evaluator_id})
+        conn.execute(text("DELETE FROM evaluators WHERE id = :id"), {"id": evaluator_id})
+        conn.commit()
+
+    def set_snapshots(conn: Connection, value: str) -> None:
+        conn.execute(
+            text("UPDATE experiment_jobs SET decision_evaluator_snapshots = :value WHERE id = :id"),
+            {"value": value, "id": prompt_experiment_id},
+        )
+        conn.commit()
+
+    evaluator_id = await _run_async(_engine, create_judge)
+    with pytest.raises(ValueError, match="decision evaluators exist"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
+    await _run_async(_engine, lambda conn: delete_judge(conn, evaluator_id))
+
+    await _run_async(_engine, lambda conn: set_snapshots(conn, '[{"evaluator": "judge"}]'))
+    with pytest.raises(ValueError, match="decision evaluator snapshots exist"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
+    await _run_async(_engine, lambda conn: set_snapshots(conn, "[]"))
+
     await _down(_engine, _alembic_config, _DOWN, _schema)
     for table in (
         "decisions",
@@ -133,6 +173,7 @@ async def test_decision_tables_schema(
         "decision_labels",
         "decisions_decision_labels",
         "experiment_decision_tasks",
+        "decision_evaluators",
     ):
         assert not await _run_async(_engine, lambda conn: sa.inspect(conn).has_table(table))
     with pytest.raises(Exception, match="valid_type"):

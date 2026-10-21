@@ -3558,7 +3558,7 @@ class ExperimentRunner(DaemonTask):
                     name=snapshot.name,
                     evaluator=evaluator,
                     input_mapping=snapshot.input_mapping,
-                    output_configs=snapshot.output_configs,
+                    output_configs=list(evaluator.output_configs),
                     evaluator_project_id=project_id,
                 )
             )

@@ -40,6 +40,14 @@ def _(*args: Any, **kwargs: Any) -> str:
 JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB(), "sqlite")
 
 
+def _set_kinds(include_decision: bool) -> None:
+    kinds = "'LLM', 'CODE', 'BUILTIN'" + (", 'DECISION'" if include_decision else "")
+    for table, column in (("evaluators", "kind"), ("experiment_evaluator_tasks", "evaluator_kind")):
+        constraint = f'"ck_{table}_`valid_evaluator_kind`"'
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT {constraint}")
+        op.execute(f"ALTER TABLE {table} ADD CONSTRAINT {constraint} CHECK ({column} IN ({kinds}))")
+
+
 def _user_id() -> sa.Column[Any]:
     return sa.Column(
         "user_id",
@@ -220,13 +228,57 @@ def upgrade() -> None:
         ),
     )
 
+    _set_kinds(True)
+    op.create_table(
+        "decision_evaluators",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "kind",
+            sa.String(),
+            sa.CheckConstraint("kind = 'DECISION'", name="valid_evaluator_kind"),
+            nullable=False,
+            server_default="DECISION",
+        ),
+        sa.ForeignKeyConstraint(
+            ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
+        ),
+        sa.Column(
+            "decision_version_id",
+            _Integer,
+            sa.ForeignKey("decision_versions.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("scoring_policy", JSON_, nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
+    op.add_column(
+        "experiment_jobs",
+        sa.Column("decision_evaluator_snapshots", JSON_, nullable=False, server_default="[]"),
+    )
+
 
 def downgrade() -> None:
+    connection = op.get_bind()
     # Refuse before removing the existing constraint or any decision data.
-    if op.get_bind().scalar(
-        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE type = 'DECISION'")
-    ):
+    if connection.scalar(sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE type = 'DECISION'")):
         raise ValueError("Cannot restore valid_type while DECISION jobs exist")
+    for table, column in (("evaluators", "kind"), ("experiment_evaluator_tasks", "evaluator_kind")):
+        if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE {column} = 'DECISION'")):
+            raise ValueError("Cannot downgrade while decision evaluators exist")
+    if connection.scalar(
+        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE decision_evaluator_snapshots != '[]'")
+    ):
+        raise ValueError("Cannot downgrade while decision evaluator snapshots exist")
+    op.drop_column("experiment_jobs", "decision_evaluator_snapshots")
+    op.drop_table("decision_evaluators")
+    _set_kinds(False)
     op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
     op.execute(
         'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" '

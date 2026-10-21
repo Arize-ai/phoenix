@@ -197,33 +197,37 @@ async def get_fallback_project_names_for_experiments(
     are kept. The fallback's description names its experiment, which guards against a reused
     project id now belonging to something else.
     """
-    names: list[str] = []
-    for experiment_id in set(experiment_ids):
-        snapshots = await session.scalar(
-            select(models.ExperimentJob.decision_evaluator_snapshots).where(
-                models.ExperimentJob.id == experiment_id
+    if not experiment_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(
+                models.ExperimentJob.id,
+                models.ExperimentJob.decision_evaluator_snapshots,
+            ).where(models.ExperimentJob.id.in_(set(experiment_ids)))
+        )
+    ).all()
+    project_ids = {
+        snapshot["project_id"]
+        for _, snapshots in rows
+        for snapshot in snapshots or []
+        if isinstance(snapshot.get("project_id"), int)
+    }
+    if not project_ids:
+        return []
+    descriptions = {f"%on dataset: experiment {experiment_id}" for experiment_id, _ in rows}
+    return list(
+        await session.scalars(
+            select(models.Project.name)
+            .where(models.Project.id.in_(project_ids))
+            .where(or_(*(models.Project.description.like(d) for d in descriptions)))
+            .where(
+                ~select(models.DatasetEvaluators.id)
+                .where(models.DatasetEvaluators.project_id == models.Project.id)
+                .exists()
             )
         )
-        project_ids = {
-            snapshot["project_id"]
-            for snapshot in snapshots or []
-            if isinstance(snapshot.get("project_id"), int)
-        }
-        if not project_ids:
-            continue
-        names.extend(
-            await session.scalars(
-                select(models.Project.name)
-                .where(models.Project.id.in_(project_ids))
-                .where(models.Project.description.like(f"%on dataset: experiment {experiment_id}"))
-                .where(
-                    ~select(models.DatasetEvaluators.id)
-                    .where(models.DatasetEvaluators.project_id == models.Project.id)
-                    .exists()
-                )
-            )
-        )
-    return names
+    )
 
 
 _AnyT = TypeVar("_AnyT")
