@@ -270,6 +270,15 @@ describe("AgentModelPicker", () => {
     ).toBeNull();
   });
 
+  it("marks the trigger with a dot when the provider has no key", () => {
+    renderPicker({
+      value: { provider: "GOOGLE", modelName: "gemini-2.5-flash" },
+    });
+    expect(
+      getTrigger().querySelector(".agent-model-picker-trigger__dot")
+    ).not.toBeNull();
+  });
+
   it("shows Current, Recent and Recommended before typing", async () => {
     renderPicker({
       value: { provider: "OPENAI", modelName: "gpt-9-preview" },
@@ -283,13 +292,14 @@ describe("AgentModelPicker", () => {
         ],
       },
     });
-    // A non-curated current model: raw id in the trigger, with the dot
+    // A non-curated current model: raw id in the trigger, and no dot since
+    // OpenAI has a key
     expect(getTrigger().getAttribute("aria-label")).toBe(
       "Model: gpt-9-preview, OpenAI"
     );
     expect(
       getTrigger().querySelector(".agent-model-picker-trigger__dot")
-    ).not.toBeNull();
+    ).toBeNull();
 
     await act(() => userEvent.setup().click(getTrigger()));
 

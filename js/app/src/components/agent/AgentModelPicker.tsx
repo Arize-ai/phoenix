@@ -519,12 +519,14 @@ export function AgentModelPicker({
   );
 }
 
-/** The trigger's icon, label and the warning dot for unverified models. */
+/**
+ * The trigger's icon, label and a warning dot for a model that can't run: its
+ * provider has no key or no longer exists. Whether a model is recommended is
+ * left to the picker's badge.
+ */
 function AgentModelTriggerContent({ row }: { row: AgentModelCatalogRow }) {
   const showWarningDot =
-    !row.isCurated ||
-    row.credentialState === "no-key" ||
-    row.isProviderMissing === true;
+    row.credentialState === "no-key" || row.isProviderMissing === true;
   return (
     <span className="agent-model-picker-trigger__content">
       {row.isProviderMissing ? null : (
