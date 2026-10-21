@@ -16,7 +16,10 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import dataset_evaluator_service as service
+from phoenix.server.api.helpers import decision_evaluator_service as decision_service
+from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.routers.v1.evaluator_common import (
+    EVALUATOR_TYPE_BY_KIND,
     EvaluatorOutputConfig,
     EvaluatorRequest,
     decode_global_id,
@@ -42,8 +45,8 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
     name: Identifier = Field(description="Unique among this dataset's evaluators.")
     evaluator_id: str = Field(
         description=(
-            "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a "
-            "definition through POST /v1/evaluators first."
+            "GlobalID of the LLM, code, built-in, or decision evaluator definition to run. "
+            "Create a definition through POST /v1/evaluators first."
         )
     )
     input_mapping: InputMapping
@@ -55,7 +58,9 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
         min_length=1,
         description=(
             "Null inherits the shared output configs. An override needs at least one config; "
-            "an LLM binding's configs must be categorical and match the prompt's tool schema."
+            "an LLM binding's configs must be categorical and match the prompt's tool schema. "
+            "A decision binding's configs are derived from its scoring policy, so they are "
+            "accepted only if they equal the derived ones, and are not stored."
         ),
     )
 
@@ -74,7 +79,8 @@ class PatchDatasetEvaluatorRequest(EvaluatorRequest):
         description=(
             "Omit to preserve; null restores inheritance. An override needs at least one "
             "config; an LLM binding's configs must be categorical and match the prompt's tool "
-            "schema."
+            "schema. A decision binding's configs are derived from its scoring policy, so "
+            "they are accepted only if they equal the derived ones, and are not stored."
         ),
     )
 
@@ -89,7 +95,7 @@ class DatasetEvaluator(V1RoutesBaseModel):
     id: str
     dataset_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: Identifier
     input_mapping: InputMapping
@@ -125,11 +131,8 @@ def _binding_response(
     return DatasetEvaluator(
         id=encode_global_id("DatasetEvaluator", row.id),
         dataset_id=encode_global_id("Dataset", row.dataset_id),
-        evaluator_id=encode_global_id(
-            {"LLM": "LLMEvaluator", "CODE": "CodeEvaluator", "BUILTIN": "BuiltInEvaluator"}[kind],
-            row.evaluator_id,
-        ),
-        evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin"}[kind],
+        evaluator_id=encode_global_id(EVALUATOR_TYPENAME_BY_KIND[kind], row.evaluator_id),
+        evaluator_type=EVALUATOR_TYPE_BY_KIND[kind],
         trace_project_id=encode_global_id("Project", row.project_id),
         name=row.name,
         input_mapping=row.input_mapping,
@@ -195,7 +198,19 @@ async def create_dataset_evaluator(
         )
         evaluator_id = parse_global_id(body.evaluator_id)
         row: models.DatasetEvaluators
-        if evaluator_id.type_name == "LLMEvaluator":
+        if evaluator_id.type_name == "DecisionEvaluator":
+            row = await decision_service.create_dataset_decision_binding(
+                context,
+                decision_service.CreateDatasetDecisionBindingInput(
+                    dataset_id=dataset_id,
+                    evaluator_id=evaluator_id,
+                    name=body.name,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
+                ),
+            )
+        elif evaluator_id.type_name == "LLMEvaluator":
             row = await service.create_dataset_llm_binding(
                 context,
                 service.CreateDatasetLLMBindingInput(

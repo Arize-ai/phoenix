@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ea2783a13d3ba4ec6a631d34c1d4bc0c>>
+ * @generated SignedSource<<93905137f48323f7e530a10a7b6b5398>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type layoutLoaderQuery$variables = Record<PropertyKey, never>;
 export type layoutLoaderQuery$data = {
   readonly datasetCount: number;
+  readonly decisionCount: number;
   readonly evaluatorCount: number;
   readonly projectCount: number;
   readonly promptCount: number;
@@ -34,6 +35,13 @@ var v0 = [
     "args": null,
     "kind": "ScalarField",
     "name": "datasetCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "decisionCount",
     "storageKey": null
   },
   {
@@ -69,16 +77,16 @@ return {
     "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "bd9d561e7b62e792627d75e8eaef3b0d",
+    "cacheID": "81077b5476268dcae7d5b1127624c18b",
     "id": null,
     "metadata": {},
     "name": "layoutLoaderQuery",
     "operationKind": "query",
-    "text": "query layoutLoaderQuery {\n  projectCount\n  datasetCount\n  promptCount\n  evaluatorCount\n}\n"
+    "text": "query layoutLoaderQuery {\n  projectCount\n  datasetCount\n  decisionCount\n  promptCount\n  evaluatorCount\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e2893154dd0f4ebe5ece4c2ca10e2055";
+(node as any).hash = "f3fa05c07cefdaaebf9ee92437ca61c0";
 
 export default node;

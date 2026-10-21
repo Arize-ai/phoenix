@@ -324,12 +324,12 @@ export function AgentModelPicker({
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
   );
-  const { customProviders, data } = useModelMenuData({
+  const { chatModelProviders, customProviders, data } = useModelMenuData({
     credentialSource: "server",
   });
 
   const providers = buildAgentModelProviderOptions({
-    modelProviders: data.modelProviders,
+    modelProviders: chatModelProviders,
     customProviders,
   });
   const rows = buildAgentModelCatalog({

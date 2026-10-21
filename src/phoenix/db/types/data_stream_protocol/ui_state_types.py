@@ -128,7 +128,7 @@ class PlaygroundInstanceUIContext(BaseUIContext):
 class PlaygroundEvaluatorUIContext(BaseUIContext):
     dataset_evaluator_id: DatasetEvaluatorNodeId
     name: str
-    kind: Literal["LLM", "CODE", "BUILTIN"]
+    kind: Literal["LLM", "CODE", "BUILTIN", "DECISION"]
     is_builtin: bool
     is_applied: bool
 

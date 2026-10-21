@@ -31,7 +31,7 @@ function createEvaluatorPage() {
 
   const instanceId = playgroundStore.getState().replaceInstance({
     instanceId: prompt.id,
-    source: { type: "new", kind: "CODE" },
+    source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
   })!;
 
   return { playgroundStore, instanceId };

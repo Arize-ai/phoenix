@@ -41,7 +41,7 @@ export function createEvaluatorTaskStoreState(
 /**
  * The task the editor's state stands for: what the evaluator store owns,
  * the code fields the editor keeps beside it, and the reference and saved
- * revision the current task already carries.
+ * content key the current task already carries.
  */
 export function buildEvaluatorTaskFromStore({
   state,
@@ -61,16 +61,16 @@ export function buildEvaluatorTaskFromStore({
     includeExplanation: state.evaluator.includeExplanation,
     code: current.kind === "CODE" ? code : null,
     source: current.source,
-    savedRevision: current.savedRevision,
+    savedContentKey: current.savedContentKey,
   };
 }
 
 /**
- * A string that changes exactly when the evaluator's content does. The
- * reference and saved revision are left out: they describe where the
+ * A comparison key for the evaluator-owned fields, excluding the instance's prompt and model. The
+ * source and saved content key are left out: they describe where the
  * content came from, not what it is.
  */
-export function getEvaluatorTaskRevision(
+export function getEvaluatorTaskContentKey(
   evaluator: PlaygroundEvaluatorTask
 ): string {
   return JSON.stringify({
@@ -97,7 +97,7 @@ export function getEvaluatorTaskName(
  * reads the judge prompt from the instance's template and model; it throws
  * when the instance cannot be turned into a prompt version yet.
  */
-export function getEvaluatorTaskPreview({
+export function buildEvaluatorTaskDefinition({
   evaluator,
   name,
   playgroundStore,

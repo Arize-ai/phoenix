@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c214c3adfffbe4f003eba0a15cb9a2f>>
+ * @generated SignedSource<<01cd05664436b2941a36323b040657f0>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationConfigurationCard_projectEvaluator$data = {

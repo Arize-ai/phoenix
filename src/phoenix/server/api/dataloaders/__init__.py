@@ -205,6 +205,11 @@ class DataLoaders:
     dataset_fields: TableFieldsDataLoader
     dataset_split_fields: TableFieldsDataLoader
     dataset_version_fields: TableFieldsDataLoader
+    decision_authors: "VersionAuthorsDataLoader[models.DecisionVersion]"
+    decision_fields: TableFieldsDataLoader
+    decision_label_fields: TableFieldsDataLoader
+    decision_version_fields: TableFieldsDataLoader
+    decision_version_tag_fields: TableFieldsDataLoader
     document_annotation_fields: TableFieldsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
@@ -375,6 +380,16 @@ def build_data_loaders(
         ),
         dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
         dataset_label_usage_counts=DatasetLabelUsageCountsDataLoader(db),
+        decision_authors=VersionAuthorsDataLoader(
+            db,
+            models.DecisionVersion,
+            models.DecisionVersion.decision_id,
+            resolve_created_by=False,
+        ),
+        decision_fields=TableFieldsDataLoader(db, models.Decision),
+        decision_label_fields=TableFieldsDataLoader(db, models.DecisionLabel),
+        decision_version_fields=TableFieldsDataLoader(db, models.DecisionVersion),
+        decision_version_tag_fields=TableFieldsDataLoader(db, models.DecisionVersionTag),
         document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
             db,
             cache_map=(

@@ -1,6 +1,7 @@
 import { graphql, useMutation } from "react-relay";
 
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
+import type { EvaluatorKind } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/DeleteDatasetEvaluatorDialogMutation.graphql";
@@ -8,7 +9,7 @@ import type { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/Delet
 export type DeleteDatasetEvaluatorDialogProps = {
   datasetEvaluatorId: string;
   evaluatorName: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;

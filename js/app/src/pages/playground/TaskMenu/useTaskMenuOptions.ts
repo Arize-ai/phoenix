@@ -2,38 +2,46 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { PromptData } from "@phoenix/pages/playground/PromptMenu";
 
+import type { useTaskMenuOptionsDecisionsQuery } from "./__generated__/useTaskMenuOptionsDecisionsQuery.graphql";
 import type { useTaskMenuOptionsEvaluatorsQuery } from "./__generated__/useTaskMenuOptionsEvaluatorsQuery.graphql";
 import type { useTaskMenuOptionsPromptsQuery } from "./__generated__/useTaskMenuOptionsPromptsQuery.graphql";
-import type { TaskMenuEvaluator, TaskMenuPrompt } from "./taskMenuItems";
+import type {
+  TaskMenuDecision,
+  TaskMenuEvaluator,
+  TaskMenuPrompt,
+} from "./taskMenuItems";
 
-/** What a task menu lists: saved prompts with their versions, their menu items, and evaluators. */
+/** What a task menu lists: saved prompts with their versions, their menu items, decisions, and evaluators. */
 export type TaskMenuOptions = {
   prompts: PromptData[];
   promptItems: TaskMenuPrompt[];
+  decisions: TaskMenuDecision[];
   evaluators: TaskMenuEvaluator[];
 };
 
 /**
- * The saved prompts and evaluators a task menu lists. Prompts come with
- * their versions for the version picker and are filtered client-side;
- * evaluators are searched on the server. Two queries, so typing a search
- * does not refetch every prompt.
+ * The saved prompts, decisions and evaluators a task menu lists. Prompts come
+ * with their versions for the version picker and are filtered client-side;
+ * decisions and evaluators are searched on the server. Separate queries, so
+ * typing a search does not refetch every prompt.
  */
 export function useTaskMenuOptions({
   includePrompts,
+  includeDecisions,
   includeEvaluators,
   search,
   promptsFetchKey,
   evaluatorsFetchKey,
 }: {
   includePrompts: boolean;
+  includeDecisions: boolean;
   includeEvaluators: boolean;
   search: string;
   /** Bump to refetch the prompts, e.g. after a save adds a version. */
   promptsFetchKey?: string;
   /**
-   * Bump to refetch the evaluators. The menus bump it on every opening, so a
-   * save or a rename made since the last opening shows.
+   * Bump to refetch the decisions and evaluators. The menus bump it on every
+   * opening, so a save or a rename made since the last opening shows.
    */
   evaluatorsFetchKey?: string | number;
 }): TaskMenuOptions {
@@ -71,6 +79,29 @@ export function useTaskMenuOptions({
     `,
     { includePrompts },
     { fetchPolicy: "store-and-network", fetchKey: promptsFetchKey }
+  );
+
+  const decisionsData = useLazyLoadQuery<useTaskMenuOptionsDecisionsQuery>(
+    graphql`
+      query useTaskMenuOptionsDecisionsQuery(
+        $filter: DecisionFilter
+        $includeDecisions: Boolean!
+      ) {
+        decisions(first: 50, filter: $filter) @include(if: $includeDecisions) {
+          edges {
+            node {
+              id
+              name
+            }
+          }
+        }
+      }
+    `,
+    {
+      includeDecisions,
+      filter: search ? { col: "name", value: search } : null,
+    },
+    { fetchPolicy: "store-and-network", fetchKey: evaluatorsFetchKey }
   );
 
   const evaluatorsData = useLazyLoadQuery<useTaskMenuOptionsEvaluatorsQuery>(
@@ -125,6 +156,10 @@ export function useTaskMenuOptions({
       )?.id ?? null,
   }));
 
+  const decisions: TaskMenuDecision[] = (
+    decisionsData.decisions?.edges ?? []
+  ).map(({ node }) => ({ id: node.id, name: node.name }));
+
   const evaluators: TaskMenuEvaluator[] = (
     evaluatorsData.evaluators?.edges ?? []
   ).flatMap(({ node }) =>
@@ -134,5 +169,5 @@ export function useTaskMenuOptions({
       : []
   );
 
-  return { prompts, promptItems, evaluators };
+  return { prompts, promptItems, decisions, evaluators };
 }

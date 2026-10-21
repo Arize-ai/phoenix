@@ -13,6 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
@@ -124,14 +125,14 @@ export function ModelParametersConfigButton(
   const { playgroundInstanceId, disableEphemeralRouting } = props;
   const [isModelConfigValid, setIsModelConfigValid] = useState(true);
 
-  const model = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === playgroundInstanceId)
-        ?.model
+  const playgroundInstance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
+  const model = playgroundInstance?.model;
 
   const provider = model?.provider;
   const customProvider = model?.customProvider;
+  const isDecision = isDecisionInstance(playgroundInstance);
 
   // When a custom provider is selected, hide routing fields (they come from the provider config)
   const usingCustomProvider = !!customProvider;
@@ -166,77 +167,111 @@ export function ModelParametersConfigButton(
       >
         <PopoverArrow />
         <View padding="size-200" width="386px">
-          <div css={formFieldsCSS}>
-            {/* Model name field - shown for all providers */}
-            <ModelNameConfigFormField
+          {isDecision ? (
+            // Decision models take no sampling parameters. The only knobs
+            // are the model name (any model on a compatible host) and the
+            // endpoint, which mirrors how chat providers expose base URL.
+            <div css={formFieldsCSS}>
+              <ModelNameConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+              />
+              {customProvider ? (
+                // A custom provider brings its own endpoint and key.
+                <Flex direction="column" gap="size-50">
+                  <Text weight="heavy" size="S" color="text-700">
+                    Custom Provider
+                  </Text>
+                  <Text size="S">{customProvider.name}</Text>
+                </Flex>
+              ) : disableEphemeralRouting ? null : (
+                <BaseUrlConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                  description="Blank uses the provider default, or OLLAMA_BASE_URL for Ollama. Set it to run against a compatible host, such as a System One proxy or a local Ollama."
+                />
+              )}
+            </div>
+          ) : (
+            <div css={formFieldsCSS}>
+              {/* Model name field - shown for all providers */}
+              <ModelNameConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+              />
+
+              {/* OpenAI / Azure API type - built-in only, and only where the selection is sent */}
+              {canConfigureOpenAIApiType && (
+                <OpenAIApiTypeConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              )}
+
+              {/* Custom provider info - shown when a custom provider is selected */}
+              {customProvider && (
+                <Flex direction="column" gap="size-50">
+                  <Text weight="heavy" size="S" color="text-700">
+                    Custom Provider
+                  </Text>
+                  <Text size="S">{customProvider.name}</Text>
+                </Flex>
+              )}
+
+              {/* OpenAI / Ollama specific fields */}
+              {showBaseUrl && (
+                <BaseUrlConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              )}
+
+              {/* Azure OpenAI specific fields */}
+              {showAzureFields && (
+                <EndpointConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              )}
+              {showEnvVarInfo && canConfigureAzureFields && (
+                <EnvVarRoutingInfo
+                  label="Endpoint"
+                  envVarName="AZURE_OPENAI_ENDPOINT"
+                />
+              )}
+
+              {/* AWS Bedrock specific fields */}
+              {showRegion && (
+                <AWSRegionConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              )}
+              {showEnvVarInfo && canConfigureRegion && (
+                <EnvVarRoutingInfo label="Region" envVarName="AWS_REGION" />
+              )}
+
+              <Suspense>
+                <ModelInvocationParametersFormFields
+                  playgroundInstanceId={playgroundInstanceId}
+                  onValidityChange={setIsModelConfigValid}
+                />
+              </Suspense>
+            </div>
+          )}
+        </View>
+        {/* A saved default is a chat configuration for the provider; a decision
+            instance's model name and endpoint would send new chat instances to
+            a decision endpoint, so decision instances do not offer it. */}
+        {!isDecision ? (
+          <View
+            padding="size-100"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
+            <SaveModelConfigButton
               playgroundInstanceId={playgroundInstanceId}
+              variant="quiet"
+              isDisabled={!isModelConfigValid}
+              style={{
+                width: "100%",
+              }}
             />
-
-            {/* OpenAI / Azure API type - built-in only, and only where the selection is sent */}
-            {canConfigureOpenAIApiType && (
-              <OpenAIApiTypeConfigFormField
-                playgroundInstanceId={playgroundInstanceId}
-              />
-            )}
-
-            {/* Custom provider info - shown when a custom provider is selected */}
-            {customProvider && (
-              <Flex direction="column" gap="size-50">
-                <Text weight="heavy" size="S" color="text-700">
-                  Custom Provider
-                </Text>
-                <Text size="S">{customProvider.name}</Text>
-              </Flex>
-            )}
-
-            {/* OpenAI / Ollama specific fields */}
-            {showBaseUrl && (
-              <BaseUrlConfigFormField
-                playgroundInstanceId={playgroundInstanceId}
-              />
-            )}
-
-            {/* Azure OpenAI specific fields */}
-            {showAzureFields && (
-              <EndpointConfigFormField
-                playgroundInstanceId={playgroundInstanceId}
-              />
-            )}
-            {showEnvVarInfo && canConfigureAzureFields && (
-              <EnvVarRoutingInfo
-                label="Endpoint"
-                envVarName="AZURE_OPENAI_ENDPOINT"
-              />
-            )}
-
-            {/* AWS Bedrock specific fields */}
-            {showRegion && (
-              <AWSRegionConfigFormField
-                playgroundInstanceId={playgroundInstanceId}
-              />
-            )}
-            {showEnvVarInfo && canConfigureRegion && (
-              <EnvVarRoutingInfo label="Region" envVarName="AWS_REGION" />
-            )}
-
-            <Suspense>
-              <ModelInvocationParametersFormFields
-                playgroundInstanceId={playgroundInstanceId}
-                onValidityChange={setIsModelConfigValid}
-              />
-            </Suspense>
-          </div>
-        </View>
-        <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
-          <SaveModelConfigButton
-            playgroundInstanceId={playgroundInstanceId}
-            variant="quiet"
-            isDisabled={!isModelConfigValid}
-            style={{
-              width: "100%",
-            }}
-          />
-        </View>
+          </View>
+        ) : null}
       </Popover>
     </DialogTrigger>
   );

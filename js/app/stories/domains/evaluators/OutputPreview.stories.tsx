@@ -34,6 +34,7 @@ function annotationResult({
   return {
     evaluatorName: name,
     annotation: {
+      decision: null,
       id,
       name,
       label,

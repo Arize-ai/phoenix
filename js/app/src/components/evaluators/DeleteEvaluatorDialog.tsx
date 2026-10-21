@@ -21,10 +21,11 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { useNotifySuccess } from "@phoenix/contexts";
+import type { EvaluatorKind } from "@phoenix/types";
 
 export type DeleteEvaluatorDialogProps = {
   evaluatorName: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   target: "project" | "dataset";
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
@@ -101,7 +102,9 @@ export function DeleteEvaluatorDialog({
                   traces are deleted with it.
                   {evaluatorKind === "BUILTIN"
                     ? " The built-in evaluator remains available elsewhere."
-                    : " The evaluator is deleted only if it isn't used anywhere else."}
+                    : evaluatorKind === "DECISION"
+                      ? " The decision evaluator remains available elsewhere."
+                      : " The evaluator is deleted only if it isn't used anywhere else."}
                 </Text>
                 {evaluatorKind === "LLM" ? (
                   <Checkbox

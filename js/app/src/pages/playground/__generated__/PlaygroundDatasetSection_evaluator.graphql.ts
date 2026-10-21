@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<05f1584a82cf6383f33740fc8b2f3771>>
+ * @generated SignedSource<<c92d9da2f3afbef49efa0a2800cb8fb1>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetSection_evaluator$data = {

@@ -21,6 +21,7 @@ import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import {
   ConnectedTimeRangeSelector,
@@ -39,6 +40,7 @@ import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/C
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
+import { DecisionDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/DecisionDatasetEvaluatorDetails";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -133,6 +135,7 @@ function DatasetEvaluatorDetailsPageContent({
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
+  const isDecisionEvaluator = evaluator.__typename === "DecisionEvaluator";
   const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
   const versionsCount = isCodeEvaluator ? evaluator.versionCount : 0;
 
@@ -183,6 +186,11 @@ function DatasetEvaluatorDetailsPageContent({
                     datasetEvaluatorRef={datasetEvaluator}
                   />
                 )}
+                {isDecisionEvaluator && (
+                  <DecisionDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                  />
+                )}
                 {isBuiltInEvaluator && (
                   <BuiltInDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
@@ -214,6 +222,15 @@ function DatasetEvaluatorDetailsPageContent({
       </Tabs>
       {isLLMEvaluator && (
         <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
+      {isDecisionEvaluator && (
+        <EditDecisionDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluator.id}
           datasetId={datasetId}
           isOpen={isEditSlideoverOpen}
