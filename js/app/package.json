@@ -179,7 +179,7 @@
     "vitest-canvas-mock": "^1.2.0"
   },
   "engines": {
-    "node": ">=24.20.0"
+    "node": "^24.22.1 || >=26.12.1"
   },
   "url": "https://github.com/Arize-ai/phoenix/issues"
 }
