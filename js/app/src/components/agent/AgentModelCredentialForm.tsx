@@ -5,6 +5,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
+import { getDefaultCredentialChainSource } from "@phoenix/components/generative/modelProviderUtils";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
@@ -89,15 +90,6 @@ export function useAgentModelCredentialStatus(value: ModelMenuValue | null): {
 }
 
 /**
- * Where a "may-work" provider's ambient credentials come from, for the note
- * shown in place of the credential form.
- */
-const AMBIENT_CREDENTIAL_SOURCES: Partial<Record<string, string>> = {
-  AWS: "the AWS credential chain, such as an IAM role",
-  AZURE_OPENAI: "an Azure managed identity",
-};
-
-/**
  * The credential form for a provider without server-side credentials: a
  * blocking form for "no-key", or a non-blocking note with the form collapsed
  * for "may-work".
@@ -177,7 +169,8 @@ function AgentModelAmbientCredentialNote({
   const [isFormExpanded, setIsFormExpanded] = useState(false);
   const formId = useId();
   const ambientSource =
-    AMBIENT_CREDENTIAL_SOURCES[provider.key] ?? "its default credential chain";
+    getDefaultCredentialChainSource({ providerKey: provider.key }) ??
+    "its default credential chain";
 
   return (
     <section
@@ -195,6 +188,12 @@ function AgentModelAmbientCredentialNote({
               {modelName} will only work if the server environment supplies
               credentials through {ambientSource}.
             </Text>
+            {isAdmin ? null : (
+              <Text size="XS" color="text-700">
+                If it doesn&apos;t, contact an administrator to configure{" "}
+                {provider.name} credentials, or select a different model below.
+              </Text>
+            )}
           </Flex>
         </Flex>
         {isAdmin ? (

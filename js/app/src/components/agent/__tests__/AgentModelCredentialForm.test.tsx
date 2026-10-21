@@ -160,6 +160,9 @@ describe("AgentModelCredentialForm", () => {
     expect(container.textContent).toContain(
       "AWS Bedrock credentials aren't configured in Phoenix"
     );
+    expect(container.textContent).toContain(
+      "contact an administrator to configure AWS Bedrock credentials"
+    );
     expect(container.querySelector("button")).toBeNull();
   });
 

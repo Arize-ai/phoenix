@@ -627,6 +627,14 @@ export function ChatView({
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentials, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
+  const credentialForm =
+    hasAcknowledgedConsent && missingCredentials ? (
+      <AgentModelCredentialForm
+        missingCredentials={missingCredentials}
+        modelName={modelMenuValue.modelName}
+        onCredentialsUpdated={refreshCredentialStatus}
+      />
+    ) : null;
   const isWaitingForAssistant =
     status === "submitted" || status === "streaming";
   // A "may-work" provider (AWS, Azure) can still authenticate on the server
@@ -843,13 +851,7 @@ export function ChatView({
                     quickActions={quickActions}
                     onQuickAction={handleQuickAction}
                   >
-                    {hasAcknowledgedConsent && missingCredentials ? (
-                      <AgentModelCredentialForm
-                        missingCredentials={missingCredentials}
-                        modelName={modelMenuValue.modelName}
-                        onCredentialsUpdated={refreshCredentialStatus}
-                      />
-                    ) : undefined}
+                    {credentialForm}
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
@@ -980,14 +982,8 @@ export function ChatView({
           ) : null}
           {/* The empty state shows the credential form in place of the hero;
               once a conversation has started, show it above the input. */}
-          {!showsEmptyState && hasAcknowledgedConsent && missingCredentials ? (
-            <div className="chat__credential-form">
-              <AgentModelCredentialForm
-                missingCredentials={missingCredentials}
-                modelName={modelMenuValue.modelName}
-                onCredentialsUpdated={refreshCredentialStatus}
-              />
-            </div>
+          {!showsEmptyState && credentialForm ? (
+            <div className="chat__credential-form">{credentialForm}</div>
           ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">

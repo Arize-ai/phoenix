@@ -44,19 +44,37 @@ export type ProviderCredentialStatus = {
  * Bedrock, or DefaultAzureCredential (Managed Identity / AD token) for Azure
  * OpenAI. The server cannot detect these, so absence of explicit credentials
  * does not mean the provider is unusable.
+ *
+ * Each maps to a description of where its ambient credentials come from, so
+ * a provider can't be added here without one.
  */
-const PROVIDERS_WITH_DEFAULT_CREDENTIAL_CHAIN: ReadonlySet<ModelProvider> =
-  new Set(["AWS", "AZURE_OPENAI"]);
+const DEFAULT_CREDENTIAL_CHAIN_SOURCES: Partial<Record<ModelProvider, string>> =
+  {
+    AWS: "the AWS credential chain, such as an IAM role",
+    AZURE_OPENAI: "an Azure managed identity",
+  };
+
+/**
+ * Where a provider's ambient default credentials come from, or null if it
+ * has no default credential chain.
+ */
+export function getDefaultCredentialChainSource({
+  providerKey,
+}: {
+  providerKey: string;
+}): string | null {
+  if (!isModelProvider(providerKey)) {
+    return null;
+  }
+  return DEFAULT_CREDENTIAL_CHAIN_SOURCES[providerKey] ?? null;
+}
 
 export function providerSupportsDefaultCredentialChain({
   providerKey,
 }: {
   providerKey: string;
 }): boolean {
-  return (
-    isModelProvider(providerKey) &&
-    PROVIDERS_WITH_DEFAULT_CREDENTIAL_CHAIN.has(providerKey)
-  );
+  return getDefaultCredentialChainSource({ providerKey }) !== null;
 }
 
 /**
