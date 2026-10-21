@@ -8,7 +8,10 @@ from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.config import getenv
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    SDK_TO_MODEL_PROVIDER,
+    ModelProvider,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
@@ -150,12 +153,8 @@ assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProvider
 
 CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
     {
-        "openai": GenerativeProviderKey.OPENAI,
-        "azure_openai": GenerativeProviderKey.AZURE_OPENAI,
-        "anthropic": GenerativeProviderKey.ANTHROPIC,
-        "aws_bedrock": GenerativeProviderKey.AWS,
-        "google_genai": GenerativeProviderKey.GOOGLE,
-        "typesafe": GenerativeProviderKey.TYPESAFE,
+        sdk: GenerativeProviderKey.from_model_provider(provider)
+        for sdk, provider in SDK_TO_MODEL_PROVIDER.items()
     }
 )
 

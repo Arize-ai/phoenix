@@ -7,8 +7,11 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.models import GenerativeModelSDK
-from phoenix.db.types.model_provider import ModelProvider, sdk_offers_chat
+from phoenix.db.types.model_provider import (
+    ModelProvider,
+    model_provider_from_sdk,
+    sdk_offers_chat,
+)
 from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
@@ -45,22 +48,7 @@ def is_turn_active(heartbeat_at: Optional[datetime], *, now: datetime) -> bool:
     return heartbeat_at is not None and heartbeat_at >= now - TURN_LOCK_STALENESS
 
 
-def model_provider_from_generative_model_sdk(
-    sdk: GenerativeModelSDK,
-) -> ModelProvider:
-    if sdk == "openai":
-        return ModelProvider.OPENAI
-    if sdk == "azure_openai":
-        return ModelProvider.AZURE_OPENAI
-    if sdk == "anthropic":
-        return ModelProvider.ANTHROPIC
-    if sdk == "google_genai":
-        return ModelProvider.GOOGLE
-    if sdk == "aws_bedrock":
-        return ModelProvider.AWS
-    if sdk == "typesafe":
-        return ModelProvider.TYPESAFE
-    assert_never(sdk)
+model_provider_from_generative_model_sdk = model_provider_from_sdk
 
 
 class AgentModelRouting(NamedTuple):

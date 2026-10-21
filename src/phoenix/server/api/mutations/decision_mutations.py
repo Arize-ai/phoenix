@@ -15,6 +15,8 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
     DecisionRequest,
+    get_custom_provider_decision_client,
+    get_decision_client,
 )
 from phoenix.server.api.helpers.decision_versions import (
     render_state,
@@ -23,8 +25,6 @@ from phoenix.server.api.helpers.decision_versions import (
 )
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.DecisionConnectionInput import (
-    BuiltInDecisionConnectionInput,
-    CustomProviderDecisionConnectionInput,
     DecisionConnectionInput,
 )
 from phoenix.server.api.input_types.DecisionVersionInput import (
@@ -34,7 +34,6 @@ from phoenix.server.api.input_types.DecisionVersionInput import (
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decision_result
-from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -212,45 +211,30 @@ class DecisionMutationMixin:
             if version is None:
                 raise NotFound(f"Decision version not found: {input.decision_version_id}")
             request = version_decision_request(version, input.input_values)
-            connection = _version_connection(version, input.credentials, input.base_url)
-            client = await connection.resolve_client(
-                model_name=version.model_name,
-                session=session,
-                decrypt=info.context.decrypt,
-                allowed_provider_names=info.context.allowed_provider_names,
-            )
+            if version.custom_provider_id is not None:
+                if input.base_url is not None:
+                    raise BadRequest(
+                        "This version runs on a custom provider, which brings its own endpoint; "
+                        "baseUrl is for built-in providers."
+                    )
+                client = await get_custom_provider_decision_client(
+                    custom_provider_id=version.custom_provider_id,
+                    model_name=version.model_name,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                )
+            else:
+                client = await get_decision_client(
+                    provider=GenerativeProviderKey.from_model_provider(version.model_provider),
+                    model_name=version.model_name,
+                    base_url=input.base_url,
+                    credentials=input.credentials,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    allowed_provider_names=info.context.allowed_provider_names,
+                )
             project_id = await get_or_create_playground_project_id(session)
         return await _run(info, client=client, request=request, project_id=project_id)
-
-
-def _version_connection(
-    version: models.DecisionVersion,
-    credentials: Optional[list[GenerativeCredentialInput]],
-    base_url: Optional[str],
-) -> DecisionConnectionInput:
-    """Where a saved version runs: its custom provider, or its built-in provider.
-
-    Raises:
-        BadRequest: An endpoint is given for a version on a custom provider.
-    """
-    if version.custom_provider_id is not None:
-        if base_url is not None:
-            raise BadRequest(
-                "This version runs on a custom provider, which brings its own endpoint; "
-                "baseUrl is for built-in providers."
-            )
-        return DecisionConnectionInput(
-            custom_provider=CustomProviderDecisionConnectionInput(
-                id=GlobalID(GenerativeModelCustomProvider.__name__, str(version.custom_provider_id))
-            )
-        )
-    return DecisionConnectionInput(
-        built_in=BuiltInDecisionConnectionInput(
-            provider_key=GenerativeProviderKey.from_model_provider(version.model_provider),
-            base_url=base_url,
-            credentials=credentials,
-        )
-    )
 
 
 async def _run(

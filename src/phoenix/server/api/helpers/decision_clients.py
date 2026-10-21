@@ -53,6 +53,8 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
 )
 from phoenix.db.types.model_provider import (
+    OPENAI_DEFAULT_BASE_URL,
+    TYPESAFE_DEFAULT_BASE_URL,
     GenerativeModelCustomerProviderConfig,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
@@ -420,9 +422,6 @@ class DecisionClient(ABC):
                     span, f"{self.provider_key.value} returned an invalid decision response."
                 ) from error
 
-
-TYPESAFE_DEFAULT_BASE_URL = "https://api.typesafe.ai"
-OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 TYPESAFE_DECISION_MODELS: tuple[str, ...] = (
     "jev-latest",
@@ -802,6 +801,7 @@ async def get_decision_client(
     credentials: Sequence[GenerativeCredentialInput] | None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    allowed_provider_names: Optional[frozenset[str]] = None,
 ) -> DecisionClient:
     """Resolve the client for a built-in ``provider`` and its credentials.
 
@@ -810,6 +810,8 @@ async def get_decision_client(
     server-key endpoint guard in ``resolve_provider_api_key`` still applies: a
     server-configured key is never sent to a caller-supplied base URL.
     """
+    if allowed_provider_names is not None and provider.name not in allowed_provider_names:
+        raise BadRequest("This decision provider is not permitted by the server configuration.")
     client_class = DECISION_CLIENTS.get(provider)
     if client_class is None:
         raise BadRequest(f"{provider.value} does not offer decision models.")

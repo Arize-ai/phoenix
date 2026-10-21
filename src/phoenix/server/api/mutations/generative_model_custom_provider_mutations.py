@@ -7,6 +7,7 @@ import sqlalchemy as sa
 import strawberry
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry import UNSET, Info
@@ -31,7 +32,6 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.decision_clients import TYPESAFE_DEFAULT_BASE_URL
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
 )
@@ -109,25 +109,6 @@ def _redact_provider_error(
     return message
 
 
-def _get_sdk_from_config(
-    config: GenerativeModelCustomerProviderConfig,
-) -> models.GenerativeModelSDK:
-    """Determine the SDK type from a client configuration."""
-    if isinstance(config.root, AWSBedrockCustomProviderConfig):
-        return "aws_bedrock"
-    if isinstance(config.root, GoogleGenAICustomProviderConfig):
-        return "google_genai"
-    if isinstance(config.root, AnthropicCustomProviderConfig):
-        return "anthropic"
-    if isinstance(config.root, OpenAICustomProviderConfig):
-        return "openai"
-    if isinstance(config.root, AzureOpenAICustomProviderConfig):
-        return "azure_openai"
-    if isinstance(config.root, TypeSafeCustomProviderConfig):
-        return "typesafe"
-    assert_never(config.root)
-
-
 # openai and azure_openai use the same underlying SDK, so switching between them is safe.
 # All other SDKs have different invocation parameters and are incompatible.
 _COMPATIBLE_SDKS: Mapping[models.GenerativeModelSDK, Sequence[models.GenerativeModelSDK]] = {
@@ -166,20 +147,14 @@ async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Ex
     No model runs, so nothing is billed.
     """
     try:
-        from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy, TypeSafeAPIError
-    except ImportError:
-        return RuntimeError("Install typesafe-sdk to use a TypeSafe provider.")
-    kwargs = config.typesafe_client_kwargs
+        from typesafe_sdk import TypeSafeAPIError
+
+        client_factory = config.get_client_factory(timeout=10)
+    except ImportError as error:
+        return RuntimeError(str(error))
     try:
         with anyio.move_on_after(10) as scope:
-            async with AsyncTypeSafeClient(
-                api_key=config.typesafe_authentication_method.api_key,
-                # Never the server's TYPESAFE_BASE_URL: the key goes only where it's configured.
-                base_url=(kwargs.base_url if kwargs else None) or TYPESAFE_DEFAULT_BASE_URL,
-                headers=kwargs.default_headers if kwargs else None,
-                retry=RetryPolicy(max_retries=0),
-                timeout=10,
-            ) as client:
+            async with client_factory() as client:
                 await client.system_one(
                     "Credential check",
                     {"check": {"type": "noul", "instructions": "Is this a credential check?"}},
@@ -195,6 +170,47 @@ async def _test_typesafe_credentials(config: TypeSafeCustomProviderConfig) -> Ex
     except Exception as error:
         return error
     return None
+
+
+async def _check_decision_references(
+    session: AsyncSession,
+    provider_id: int,
+    *,
+    new_sdk: models.GenerativeModelSDK | None = None,
+) -> None:
+    if decision_names := (
+        await session.scalars(
+            sa.select(models.Decision.name)
+            .join(models.DecisionVersion)
+            .where(models.DecisionVersion.custom_provider_id == provider_id)
+            .distinct()
+            .order_by(models.Decision.name)
+        )
+    ).all():
+        names = ", ".join(str(name) for name in decision_names)
+        if new_sdk is not None:
+            raise BadRequest(
+                f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
+                f"by saved decision versions ({names}) and that SDK cannot serve "
+                "decision models"
+            )
+        raise BadRequest(
+            f"This provider is referenced by saved decision versions ({names}) "
+            "and cannot be deleted"
+        )
+    if await session.scalar(
+        sa.select(models.ExperimentDecisionTask.id)
+        .where(models.ExperimentDecisionTask.custom_provider_id == provider_id)
+        .limit(1)
+    ):
+        if new_sdk is not None:
+            raise BadRequest(
+                f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
+                "by decision experiment tasks and that SDK cannot serve decision models"
+            )
+        raise BadRequest(
+            "This provider is referenced by decision experiment tasks and cannot be deleted"
+        )
 
 
 @strawberry.input
@@ -218,7 +234,7 @@ class CreateGenerativeModelCustomProviderMutationInput:
             name=self.name,
             description=self.description or None,
             provider=self.provider,
-            sdk=_get_sdk_from_config(config),
+            sdk=config.root.type,
             config=config,
         )
 
@@ -297,7 +313,7 @@ class GenerativeModelCustomProviderMutationMixin:
             name=input.name,
             description=input.description or None,
             provider=input.provider,
-            sdk=_get_sdk_from_config(config_obj),
+            sdk=config_obj.root.type,
             config=encrypted_config,
             user_id=user_id,
         )
@@ -349,7 +365,7 @@ class GenerativeModelCustomProviderMutationMixin:
                     new_config = input.client_config.to_orm()
                 except ValidationError as e:
                     raise BadRequest(f"Invalid client config: {e}") from e
-                new_sdk = _get_sdk_from_config(new_config)
+                new_sdk = new_config.root.type
 
                 # Block incompatible SDK changes to prevent breaking existing prompts.
                 # Prompts store invocation parameters in un-normalized form, so switching
@@ -363,23 +379,8 @@ class GenerativeModelCustomProviderMutationMixin:
                         f"Please create a new provider with the desired SDK instead."
                     )
 
-                if not sdk_offers_decisions(new_sdk) and (
-                    decision_names := (
-                        await session.scalars(
-                            sa.select(models.Decision.name)
-                            .join(models.DecisionVersion)
-                            .where(models.DecisionVersion.custom_provider_id == provider.id)
-                            .distinct()
-                            .order_by(models.Decision.name)
-                        )
-                    ).all()
-                ):
-                    names = ", ".join(str(name) for name in decision_names)
-                    raise BadRequest(
-                        f"Cannot change the SDK to '{new_sdk}': this provider is referenced "
-                        f"by saved decision versions ({names}) and that SDK cannot serve "
-                        "decision models"
-                    )
+                if not sdk_offers_decisions(new_sdk):
+                    await _check_decision_references(session, provider.id, new_sdk=new_sdk)
 
                 if new_sdk != provider.sdk:
                     provider.sdk = new_sdk
@@ -544,22 +545,7 @@ class GenerativeModelCustomProviderMutationMixin:
             # TODO: prompt tasks have the same flaw as decision tasks did: a task's
             # custom_provider_id is cleared (ON DELETE SET NULL) when the provider is
             # deleted, and a resumed task then silently runs on the built-in provider.
-            if await session.scalar(
-                sa.select(models.DecisionVersion.id)
-                .where(models.DecisionVersion.custom_provider_id == provider_id)
-                .limit(1)
-            ):
-                raise BadRequest(
-                    "This provider is referenced by saved decision versions and cannot be deleted"
-                )
-            if await session.scalar(
-                sa.select(models.ExperimentDecisionTask.id)
-                .where(models.ExperimentDecisionTask.custom_provider_id == provider_id)
-                .limit(1)
-            ):
-                raise BadRequest(
-                    "This provider is referenced by decision experiment tasks and cannot be deleted"
-                )
+            await _check_decision_references(session, provider_id)
             await session.execute(stmt)
 
         return DeleteGenerativeModelCustomProviderMutationPayload(

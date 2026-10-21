@@ -107,11 +107,6 @@ class DecisionConnectionInput:
                 decrypt=decrypt,
             )
         built_in = self.built_in_provider()
-        if (
-            allowed_provider_names is not None
-            and built_in.provider_key.name not in allowed_provider_names
-        ):
-            raise BadRequest("This decision provider is not permitted by the server configuration.")
         return await get_decision_client(
             provider=built_in.provider_key,
             model_name=model_name,
@@ -119,4 +114,5 @@ class DecisionConnectionInput:
             credentials=[*(built_in.credentials or ()), *credentials] or None,
             session=session,
             decrypt=decrypt,
+            allowed_provider_names=allowed_provider_names,
         )

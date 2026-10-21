@@ -220,12 +220,8 @@ async def validate_decision_custom_provider(
     from strawberry.relay import GlobalID
 
     from phoenix.db import models
-    from phoenix.db.types.model_provider import sdk_offers_decisions
+    from phoenix.db.types.model_provider import model_provider_from_sdk, sdk_offers_decisions
     from phoenix.server.api.exceptions import BadRequest, NotFound
-    from phoenix.server.api.types.GenerativeProvider import (
-        CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
-        GenerativeProviderKey,
-    )
 
     if (provider_id := version.custom_provider_id) is None:
         return
@@ -235,10 +231,9 @@ async def validate_decision_custom_provider(
         raise NotFound(f"Custom provider not found: {global_id}")
     if not sdk_offers_decisions(provider.sdk):
         raise BadRequest(f"Custom provider '{provider.name}' does not serve decision models.")
-    provider_key = CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[provider.sdk]
-    version_key = GenerativeProviderKey.from_model_provider(version.model_provider)
-    if provider_key is not version_key:
+    provider_model_provider = model_provider_from_sdk(provider.sdk)
+    if provider_model_provider is not version.model_provider:
         raise BadRequest(
-            f"Custom provider '{provider.name}' speaks the {provider_key.name} API, not "
-            f"{version_key.name}."
+            f"Custom provider '{provider.name}' speaks the {provider_model_provider.name} API, not "
+            f"{version.model_provider.name}."
         )
