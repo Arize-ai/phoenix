@@ -15,9 +15,11 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherRecordKindPathMappings,
   formatEvaluationTarget,
+  getDefaultProjectEvaluatorFilterCondition,
   hasEvaluationDelay,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
+  PROJECT_EVALUATOR_TARGETS,
   toEvaluatorRecordKind,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorRecordKind,
@@ -59,10 +61,20 @@ export const ProjectEvaluatorScopeFieldGroup = ({
 }) => {
   const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
+  // Each target speaks its own filter language, so a switch cannot carry the
+  // condition across. It is kept here instead and restored on the way back,
+  // so a span filter the author wrote survives a look at the session level.
+  const [filterByTarget, setFilterByTarget] = useState<
+    Partial<Record<ProjectEvaluatorTarget, string>>
+  >({});
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;
     }
+    setFilterByTarget((current) => ({
+      ...current,
+      [scope.targetType]: scope.filterCondition,
+    }));
     const recordKind = toEvaluatorRecordKind(targetType);
     if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
       const state = evaluatorStore.getState();
@@ -74,8 +86,19 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         ).pathMapping
       );
     }
-    onScopeChange(withProjectEvaluatorTarget({ scope, targetType }));
+    const next = withProjectEvaluatorTarget({ scope, targetType });
+    onScopeChange({
+      ...next,
+      filterCondition: filterByTarget[targetType] ?? next.filterCondition,
+    });
   };
+  const rememberedFilters = PROJECT_EVALUATOR_TARGETS.filter(
+    (target) =>
+      target !== scope.targetType &&
+      (filterByTarget[target] ?? "").trim() !== "" &&
+      filterByTarget[target] !==
+        getDefaultProjectEvaluatorFilterCondition(target)
+  );
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="row" gap="size-400" wrap alignItems="start">
@@ -117,6 +140,13 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         }
         onValidityChange={onFilterValidityChange}
       />
+      {rememberedFilters.length > 0 ? (
+        <Text size="XS" color="text-500">
+          {`Your ${rememberedFilters
+            .map((target) => formatEvaluationTarget(target).toLowerCase())
+            .join(" and ")} filter is kept and comes back if you switch back.`}
+        </Text>
+      ) : null}
     </Flex>
   );
 };

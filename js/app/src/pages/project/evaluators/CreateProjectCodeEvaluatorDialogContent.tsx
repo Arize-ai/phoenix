@@ -24,7 +24,10 @@ import {
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { CreateProjectCodeEvaluatorDialogContentMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentMutation.graphql";
 import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentQuery.graphql";
-import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import {
+  ProjectCodeEvaluatorFormSections,
+  ProjectEvaluatorInputMappingDock,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   formatUnboundVariablesHint,
@@ -172,6 +175,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const onSubmit = () => {
     setError(undefined);
     const state = store.getState();
+    // Lets the name field show its own empty error beside the message below.
+    void state.validateAll();
     const name = state.evaluator.globalName.trim();
     const outputConfigErrors = getOutputConfigValidationErrors(
       state.outputConfigs
@@ -292,7 +297,6 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
           onFieldChange={clearValidationMessage}
-          requiredVariables={requiredVariables}
           codeDefinition={
             <CodeAuthoringFields
               language={language}
@@ -314,6 +318,13 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
               }
             />
           }
+        />
+      }
+      leftDock={
+        <ProjectEvaluatorInputMappingDock
+          recordKind={toEvaluatorRecordKind(scope.targetType)}
+          requiredVariables={requiredVariables}
+          evaluatorKind="code"
         />
       }
       right={

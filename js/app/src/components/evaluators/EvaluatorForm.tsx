@@ -1,10 +1,13 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  GRIP_RESIZE_TARGET_MINIMUM_SIZE,
+  GripResizeHandle,
+} from "@phoenix/components/resize";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import type {
@@ -86,6 +89,10 @@ export const EvaluatorFormProvider = ({
  * The two-panel resizable layout for configuring evaluators. Callers provide
  * the content of each panel.
  *
+ * `leftDock` pins a region to the bottom of the left panel. The panel then
+ * splits into a scrolling region for `left` and a fixed footer for the dock,
+ * so the dock stays in view however far the configuration above it scrolls.
+ *
  * @example
  * ```tsx
  * <EvaluatorForm
@@ -96,6 +103,7 @@ export const EvaluatorFormProvider = ({
  */
 export const EvaluatorForm = ({
   left,
+  leftDock,
   right,
 }: {
   /**
@@ -103,29 +111,44 @@ export const EvaluatorForm = ({
    */
   left: ReactNode;
   /**
+   * Pinned to the bottom of the left panel, outside its scroll region.
+   */
+  leftDock?: ReactNode;
+  /**
    * The content of the right (test) panel.
    */
   right: ReactNode;
 }) => {
   return (
-    <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
+    <Group
+      orientation="horizontal"
+      style={{ flex: 1, minHeight: 0 }}
+      resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
+    >
+      {leftDock != null ? (
+        <Panel
+          defaultSize={50}
+          minSize={LEFT_PANEL_MIN_SIZE}
+          style={dockedPanelStyle}
+          css={dockedLeftCSS}
+        >
+          <div className="evaluator-form__left-scroll">{left}</div>
+          <div className="evaluator-form__left-dock">{leftDock}</div>
+        </Panel>
+      ) : (
+        <Panel
+          defaultSize={50}
+          minSize={LEFT_PANEL_MIN_SIZE}
+          style={panelStyle}
+          css={leftCSS}
+        >
+          {left}
+        </Panel>
+      )}
+      <GripResizeHandle />
       <Panel
         defaultSize={50}
-        style={panelStyle}
-        css={css`
-          display: flex;
-          flex-direction: column;
-          padding: var(--global-dimension-size-100)
-            var(--global-dimension-size-200);
-          padding-bottom: var(--global-dimension-size-600);
-          box-sizing: border-box;
-        `}
-      >
-        {left}
-      </Panel>
-      <Separator css={compactResizeHandleCSS} />
-      <Panel
-        defaultSize={50}
+        minSize={RIGHT_PANEL_MIN_SIZE}
         style={panelStyle}
         css={css`
           display: flex;
@@ -141,10 +164,68 @@ export const EvaluatorForm = ({
   );
 };
 
+/**
+ * Floors in pixels, so on a laptop neither side can be dragged down to a
+ * sliver: the form keeps room for its two-up fields, the test side for its
+ * table's columns.
+ */
+const LEFT_PANEL_MIN_SIZE = "420px";
+const RIGHT_PANEL_MIN_SIZE = "480px";
+
+const leftCSS = css`
+  display: flex;
+  flex-direction: column;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  padding-bottom: var(--global-dimension-size-600);
+  box-sizing: border-box;
+`;
+
+const dockedLeftCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  .evaluator-form__left-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    // No bounce at the ends, and no scroll chaining out to the dialog.
+    overscroll-behavior: none;
+    // Both regions reserve the same scrollbar gutter, so where scrollbars
+    // take up space the dock's right edge lines up with the form's above it
+    // whether or not either region is scrolling.
+    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
+      var(--global-dimension-size-300);
+    box-sizing: border-box;
+  }
+  .evaluator-form__left-dock {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    // The dock grows with its content up to half the panel, then scrolls;
+    // the configuration above always keeps the other half.
+    max-height: 50%;
+    overflow-y: auto;
+    overscroll-behavior: none;
+    scrollbar-gutter: stable;
+    border-top: 1px solid var(--global-border-color-default);
+    background-color: var(--global-background-color-default);
+  }
+`;
+
 const panelStyle = {
   height: "100%",
   overflowY: "auto",
-  // keep trackpad overscroll from chaining to the dialog and
-  // dragging the header/footer with it
-  overscrollBehavior: "contain",
+  // keep trackpad overscroll from chaining to the dialog and dragging the
+  // header/footer with it, and from bouncing at the ends
+  overscrollBehavior: "none",
+} as const;
+
+/** The docked variant scrolls its own region, not the panel. */
+const dockedPanelStyle = {
+  height: "100%",
+  overflow: "hidden",
 } as const;
