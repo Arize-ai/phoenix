@@ -746,12 +746,9 @@ CREATE INDEX ix_decisions_user_id ON public.decisions
 -- Table: decisions_decision_labels
 -- --------------------------------
 CREATE TABLE public.decisions_decision_labels (
-    id bigserial NOT NULL,
     decision_label_id BIGINT NOT NULL,
     decision_id BIGINT NOT NULL,
-    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (id),
-    CONSTRAINT uq_decisions_decision_labels_decision_label_id_decision_id
-        UNIQUE (decision_label_id, decision_id),
+    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (decision_label_id, decision_id),
     CONSTRAINT fk_decisions_decision_labels_decision_id_decisions
         FOREIGN KEY (decision_id)
         REFERENCES public.decisions (id)

@@ -719,12 +719,9 @@ CREATE INDEX ix_decisions_user_id ON decisions (user_id);
 -- Table: decisions_decision_labels
 -- --------------------------------
 CREATE TABLE decisions_decision_labels (
-    id INTEGER NOT NULL,
     decision_label_id INTEGER NOT NULL,
     decision_id INTEGER NOT NULL,
-    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (id),
-    CONSTRAINT uq_decisions_decision_labels_decision_label_id_decision_id
-        UNIQUE (decision_label_id, decision_id),
+    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (decision_label_id, decision_id),
     CONSTRAINT fk_decisions_decision_labels_decision_id_decisions
         FOREIGN KEY (decision_id)
         REFERENCES decisions (id)

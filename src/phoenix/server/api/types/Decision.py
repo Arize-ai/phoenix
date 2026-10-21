@@ -66,7 +66,7 @@ class DecisionLabel(Node):
     async def usage_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
             count = await session.scalar(
-                select(func.count(models.DecisionDecisionLabel.id)).where(
+                select(func.count(models.DecisionDecisionLabel.decision_id)).where(
                     models.DecisionDecisionLabel.decision_label_id == self.id
                 )
             )

@@ -716,8 +716,8 @@ decision_version_tags
 decision_labels                        -- shared across decisions, as prompt labels are
   id, name (unique), description, color
 decisions_decision_labels
-  id, decision_label_id, decision_id
-  UNIQUE (decision_label_id, decision_id)
+  decision_label_id, decision_id
+  PRIMARY KEY (decision_label_id, decision_id)
 
 experiment_decision_tasks              -- ExperimentJob subtype, type = 'DECISION'
   -- see Experiments: a copy of the version's fields, the connection,

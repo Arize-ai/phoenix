@@ -73,7 +73,6 @@ def capture_decision_evaluator_definition(
         scoring_policy=policy,
         source=EvaluatorSource(
             evaluator_id=evaluator.id,
-            decision_id=version.decision_id,
             decision_version_id=version.id,
             dataset_evaluator_id=dataset_evaluator_id,
         ),

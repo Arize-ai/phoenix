@@ -3178,10 +3178,10 @@ class DecisionLabel(HasId):
     __tablename__ = "decision_labels"
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
-    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(_HexColor, nullable=True)
 
 
-class DecisionDecisionLabel(HasId):
+class DecisionDecisionLabel(Base):
     __tablename__ = "decisions_decision_labels"
     decision_label_id: Mapped[int] = mapped_column(
         ForeignKey("decision_labels.id", ondelete="CASCADE"), nullable=False
@@ -3189,7 +3189,7 @@ class DecisionDecisionLabel(HasId):
     decision_id: Mapped[int] = mapped_column(
         ForeignKey("decisions.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    __table_args__ = (UniqueConstraint("decision_label_id", "decision_id"),)
+    __table_args__ = (PrimaryKeyConstraint("decision_label_id", "decision_id"),)
 
 
 class Decision(HasId):

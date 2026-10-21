@@ -3061,7 +3061,6 @@ input EvaluatorTaskInput {
 type EvaluatorTaskSource {
   evaluatorId: ID
   promptVersionId: ID
-  decisionId: ID
   decisionVersionId: ID
   datasetEvaluatorId: ID
   projectEvaluatorId: ID

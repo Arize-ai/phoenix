@@ -60,7 +60,6 @@ def _global_id(type_name: str, rowid: Optional[int]) -> Optional[GlobalID]:
 class EvaluatorTaskSource:
     evaluator_id: Optional[GlobalID]
     prompt_version_id: Optional[GlobalID]
-    decision_id: Optional[GlobalID]
     decision_version_id: Optional[GlobalID]
     dataset_evaluator_id: Optional[GlobalID]
     project_evaluator_id: Optional[GlobalID]
@@ -74,7 +73,6 @@ def to_gql_evaluator_source(
     return EvaluatorTaskSource(
         evaluator_id=_global_id(evaluator_type_name, source.evaluator_id),
         prompt_version_id=_global_id("PromptVersion", source.prompt_version_id),
-        decision_id=_global_id("Decision", source.decision_id),
         decision_version_id=_global_id("DecisionVersion", source.decision_version_id),
         dataset_evaluator_id=_global_id("DatasetEvaluator", source.dataset_evaluator_id),
         project_evaluator_id=_global_id("ProjectEvaluator", source.project_evaluator_id),

@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+import sqlalchemy
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -12,7 +13,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import Conflict, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Decision import Decision, DecisionLabel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -82,6 +83,8 @@ class DecisionLabelMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A decision label named '{input.name}' already exists.")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
 
             return DecisionLabelMutationPayload(
                 decision_labels=[DecisionLabel(id=label_orm.id, db_record=label_orm)],

@@ -40,7 +40,6 @@ class EvaluatorSource(DBBaseModel):
 
     evaluator_id: int | None = None
     prompt_version_id: int | None = None
-    decision_id: int | None = None
     decision_version_id: int | None = None
     dataset_evaluator_id: int | None = None
     project_evaluator_id: int | None = None
@@ -136,6 +135,8 @@ class InlineDecisionEvaluatorDefinition(DBBaseModel):
 
 
 class StoredDecisionEvaluatorDefinition(DBBaseModel):
+    model_config = ConfigDict(frozen=True)
+
     type: Literal["decision_evaluator"]
     decision_evaluator_id: int
     source: EvaluatorSource | None = None

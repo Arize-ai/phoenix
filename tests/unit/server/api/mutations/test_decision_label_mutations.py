@@ -52,6 +52,12 @@ async def test_decision_labels(gql_client: AsyncGraphQLClient) -> None:
       } }
     """)
     assert duplicate.errors and "already exists" in duplicate.errors[0].message
+    invalid_color = await gql_client.execute("""
+      mutation { createDecisionLabel(input: {name: "bad-color", color: "not-hex"}) {
+        decisionLabels { id }
+      } }
+    """)
+    assert invalid_color.errors and "Expected a hex color" in invalid_color.errors[0].message
     for decision_id in (decision["id"], other["id"]):
         result = await gql_client.execute(
             _SET_LABELS,

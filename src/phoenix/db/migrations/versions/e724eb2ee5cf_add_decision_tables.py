@@ -151,7 +151,6 @@ def upgrade() -> None:
     op.create_index("ix_decision_labels_name", "decision_labels", ["name"], unique=True)
     op.create_table(
         "decisions_decision_labels",
-        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "decision_label_id",
             _Integer,
@@ -164,7 +163,7 @@ def upgrade() -> None:
             sa.ForeignKey("decisions.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.UniqueConstraint("decision_label_id", "decision_id"),
+        sa.PrimaryKeyConstraint("decision_label_id", "decision_id"),
     )
     op.create_index(
         "ix_decisions_decision_labels_decision_id", "decisions_decision_labels", ["decision_id"]
