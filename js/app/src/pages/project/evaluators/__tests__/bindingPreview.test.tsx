@@ -431,6 +431,7 @@ describe("the evaluator inputs", () => {
                           explanation: "It answers the question.",
                         },
                       ],
+                      errors: [],
                       isStale: false,
                     },
                   },
@@ -441,6 +442,24 @@ describe("the evaluator inputs", () => {
                     resultState: {
                       kind: "failed",
                       message: "No sandbox configuration selected",
+                      isStale: false,
+                    },
+                  },
+                  {
+                    row: tableRow("c", "half-failed span"),
+                    missingCount: 0,
+                    run: undefined,
+                    resultState: {
+                      kind: "annotated",
+                      annotations: [
+                        {
+                          name: "correctness",
+                          label: "true",
+                          score: 1,
+                          explanation: "It answers the question.",
+                        },
+                      ],
+                      errors: ["tone output failed"],
                       isStale: false,
                     },
                   },
@@ -464,13 +483,19 @@ describe("the evaluator inputs", () => {
     expect(details.map((node) => node.textContent)).toEqual([
       "It answers the question.",
       "No sandbox configuration selected",
+      // A failed output's message outranks a passing one's explanation.
+      "tone output failed",
     ]);
     // The whole of a cut line is a hover away.
     expect(details.map((node) => node.getAttribute("title"))).toEqual([
       "It answers the question.",
       "No sandbox configuration selected",
+      "tone output failed",
     ]);
     expect(details[1]?.getAttribute("data-variant")).toBe("danger");
+    expect(details[2]?.getAttribute("data-variant")).toBe("danger");
+    const halfFailedRow = [...container.querySelectorAll("tbody tr")][2];
+    expect(halfFailedRow?.textContent).toContain("1 error");
   });
   it("shows the last result beside the inspector's Test button", async () => {
     const renderInspector = (
@@ -519,6 +544,7 @@ describe("the evaluator inputs", () => {
       annotations: [
         { name: "correctness", label: "true", score: 1, explanation: null },
       ],
+      errors: [],
       isStale: true,
     });
     expect(segment()?.textContent).toContain("Last result (stale)");
@@ -613,7 +639,12 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v1",
       })
-    ).toEqual({ kind: "annotated", annotations: [annotation], isStale: false });
+    ).toEqual({
+      kind: "annotated",
+      annotations: [annotation],
+      errors: [],
+      isStale: false,
+    });
     expect(
       getRecordedRunResultState({
         run: annotatedRun,
@@ -621,7 +652,57 @@ describe("the recorded run result state", () => {
         isUnavailable: false,
         currentFingerprint: "v2",
       })
-    ).toEqual({ kind: "annotated", annotations: [annotation], isStale: true });
+    ).toEqual({
+      kind: "annotated",
+      annotations: [annotation],
+      errors: [],
+      isStale: true,
+    });
+  });
+
+  it("keeps a failed output's error beside the verdict of one that annotated", () => {
+    const annotation = {
+      name: "correctness",
+      label: "true",
+      score: 1,
+      explanation: "It answers the question.",
+    };
+    const state = getRecordedRunResultState({
+      run: {
+        status: "done",
+        fingerprint: "v1",
+        results: [
+          { evaluatorName: "correctness", annotation, error: null },
+          { evaluatorName: "tone", annotation: null, error: "boom" },
+        ],
+      },
+      missingCount: 0,
+      isUnavailable: false,
+      currentFingerprint: "v1",
+    });
+    expect(state).toEqual({
+      kind: "annotated",
+      annotations: [annotation],
+      errors: ["boom"],
+      isStale: false,
+    });
+    // An output that failed fails the record in the bench's count.
+    expect(
+      summarizeRecordedRuns([
+        {
+          row: {
+            key: "a",
+            name: "a",
+            recordId: "a",
+            context: {},
+            isSample: false,
+          },
+          missingCount: 0,
+          run: undefined,
+          resultState: state,
+        },
+      ])
+    ).toMatchObject({ tested: 0, failed: 1 });
   });
 
   it("reads a run without a verdict as failed, and no run as idle or missing", () => {
@@ -684,6 +765,7 @@ describe("the bench summary and bulk button", () => {
         resultState: {
           kind: "annotated",
           annotations: [{ name: "n", label: "l", score: 1, explanation: null }],
+          errors: [],
           isStale: false,
         },
       },
@@ -694,6 +776,7 @@ describe("the bench summary and bulk button", () => {
         resultState: {
           kind: "annotated",
           annotations: [{ name: "n", label: "l", score: 1, explanation: null }],
+          errors: [],
           isStale: true,
         },
       },

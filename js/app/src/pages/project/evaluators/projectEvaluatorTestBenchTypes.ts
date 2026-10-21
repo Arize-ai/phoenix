@@ -79,6 +79,12 @@ export type RecordedRunResultState =
       kind: "annotated";
       /** Every annotation the run produced, one per output, in order. */
       annotations: RecordedRunAnnotation[];
+      /**
+       * What the outputs that produced no annotation said instead. An
+       * evaluator with several outputs can annotate with one and fail with
+       * another; the failure is kept so it is shown beside the verdict.
+       */
+      errors: string[];
       isStale: boolean;
     }
   | {
@@ -122,10 +128,12 @@ export function getRecordedRunResultState({
     const annotations = run.results.flatMap(({ annotation }) =>
       annotation != null ? [annotation] : []
     );
+    const errors = run.results.flatMap(({ annotation, error }) =>
+      annotation == null && error ? [error] : []
+    );
     if (annotations.length > 0) {
-      return { kind: "annotated", annotations, isStale };
+      return { kind: "annotated", annotations, errors, isStale };
     }
-    const errors = run.results.flatMap(({ error }) => (error ? [error] : []));
     return {
       kind: "failed",
       message:
@@ -182,6 +190,9 @@ export function summarizeRecordedRuns(
       case "annotated":
         if (resultState.isStale) {
           summary.stale += 1;
+        } else if (resultState.errors.length > 0) {
+          // An output that failed fails the record, whatever the others said.
+          summary.failed += 1;
         } else {
           summary.tested += 1;
         }

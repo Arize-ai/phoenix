@@ -22,7 +22,10 @@ import { AnnotationPreviewPopoverButton } from "@phoenix/components/evaluators/E
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
-import { getRowTestBlocker } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
+import {
+  getRowTestBlocker,
+  OutputErrorsNote,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
   type RecordedRunEntry,
   getRecordedRunResultState,
@@ -338,11 +341,16 @@ function LastTestResultValue({
   state: Extract<RecordedRunResultState, { kind: "annotated" | "failed" }>;
 }) {
   if (state.kind === "annotated") {
-    return state.annotations.map((annotation, index) => (
-      <span key={index} className="record-inspector__last-result-chip">
-        <AnnotationPreviewPopoverButton annotation={annotation} compact />
-      </span>
-    ));
+    return (
+      <>
+        {state.annotations.map((annotation, index) => (
+          <span key={index} className="record-inspector__last-result-chip">
+            <AnnotationPreviewPopoverButton annotation={annotation} compact />
+          </span>
+        ))}
+        <OutputErrorsNote errors={state.errors} />
+      </>
+    );
   }
   return (
     <TooltipTrigger delay={300}>

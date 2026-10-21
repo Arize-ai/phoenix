@@ -434,6 +434,9 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
   const { resultState: state } = entry;
   switch (state.kind) {
     case "annotated": {
+      // A failed output says more than a passing one's explanation, so its
+      // message takes the line under the chips when there is one.
+      const firstError = state.errors[0];
       const explanation = state.annotations.find(
         ({ explanation }) => explanation
       )?.explanation;
@@ -448,9 +451,18 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
                 />
               </span>
             ))}
+            <OutputErrorsNote errors={state.errors} />
             {state.isStale ? <StaleNote /> : null}
           </div>
-          {explanation ? (
+          {firstError ? (
+            <span
+              className="result-cell__detail"
+              data-variant="danger"
+              title={state.errors.join("\n")}
+            >
+              {firstError}
+            </span>
+          ) : explanation ? (
             <span className="result-cell__detail" title={explanation}>
               {explanation}
             </span>
@@ -514,6 +526,30 @@ function RecordedRunResultValue({ entry }: { entry: RecordedRunEntry }) {
     default:
       return assertUnreachable(state);
   }
+}
+
+/**
+ * The outputs of a run that produced no annotation, beside the chips of the
+ * ones that did: their count, with each one's message on hover. Nothing when
+ * every output annotated.
+ */
+export function OutputErrorsNote({ errors }: { errors: readonly string[] }) {
+  if (errors.length === 0) {
+    return null;
+  }
+  return (
+    <TooltipTrigger delay={300}>
+      <TriggerWrap>
+        <Text size="XS" color="danger">
+          {errors.length === 1 ? "1 error" : `${errors.length} errors`}
+        </Text>
+      </TriggerWrap>
+      <Tooltip placement="top">
+        <TooltipArrow />
+        {errors.join("\n")}
+      </Tooltip>
+    </TooltipTrigger>
+  );
 }
 
 function StaleNote() {
