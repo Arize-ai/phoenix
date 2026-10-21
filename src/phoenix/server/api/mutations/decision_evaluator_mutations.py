@@ -1,12 +1,15 @@
 """GraphQL lifecycle and dataset attachment for native decision evaluators."""
 
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 import strawberry
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy as StoredDecisionScoringPolicy,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -24,13 +27,15 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Evaluator import DatasetEvaluator, DecisionEvaluator
 
 
-def _scoring_policy(value: Optional[DecisionScoringPolicyInput]) -> Optional[dict[str, Any]]:
+def _scoring_policy(
+    value: Optional[DecisionScoringPolicyInput],
+) -> Optional[StoredDecisionScoringPolicy]:
     """The stored form of a policy; an omitted patch field stays UNSET."""
     if value is UNSET:
-        return cast(Optional[dict[str, Any]], UNSET)
+        return cast(Optional[StoredDecisionScoringPolicy], UNSET)
     if value is None:
         return None
-    return value.to_orm().model_dump(mode="json")
+    return value.to_orm()
 
 
 @strawberry.input

@@ -12,6 +12,7 @@ from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, PredicateScoring
 from phoenix.db.types.decisions import DecisionInput, InputState
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -74,9 +75,9 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
             description=None,
             metadata_={},
             decision_version_id=version.id,
-            scoring_policy={
-                "questions": {"correct": {"type": "predicate", "threshold": threshold}}
-            },
+            scoring_policy=DecisionScoringPolicy(
+                questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
+            ),
         )
         session.add(judge)
         await session.flush()
@@ -200,7 +201,9 @@ async def test_editing_the_judges_policy_changes_its_fingerprint(
     async with db() as session:
         judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None
-        judge.scoring_policy = {"questions": {"correct": {"type": "predicate", "threshold": 0.5}}}
+        judge.scoring_policy = DecisionScoringPolicy(
+            questions={"correct": PredicateScoring(type="predicate", threshold=0.5)}
+        )
     assert await _fingerprint(db, judge_id, binding_id) != before
 
 

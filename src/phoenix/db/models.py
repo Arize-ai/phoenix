@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeVar, cast
 
 import orjson
 import sqlalchemy as sa
@@ -77,13 +77,11 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
 )
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.decisions import (
     DecisionInput,
-    DecisionInputsRootModel,
     DecisionQuestion,
-    DecisionQuestionsRootModel,
     DecisionState,
-    DecisionStateRootModel,
     DecisionTaskConfig,
 )
 from phoenix.db.types.evaluator_definition import (
@@ -682,76 +680,48 @@ class _HexColor(TypeDecorator[str]):
         return value
 
 
-class _DecisionInputs(TypeDecorator[list[DecisionInput]]):
+_PydanticJSONT = TypeVar("_PydanticJSONT")
+
+
+class _PydanticJSON(TypeDecorator[_PydanticJSONT]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
+    _adapter: TypeAdapter[Any]
+    _label: str
 
-    def process_bind_param(
-        self, value: Optional[list[DecisionInput]], _: Dialect
-    ) -> Optional[list[dict[str, Any]]]:
+    def process_bind_param(self, value: Optional[_PydanticJSONT], _: Dialect) -> Any:
         if value is None:
-            raise ValueError("Decision inputs cannot be None")
-        return [input.model_dump() for input in value]
+            raise ValueError(f"{self._label} cannot be None")
+        return self._adapter.dump_python(value, mode="json", exclude_unset=True, by_alias=True)
 
-    def process_result_value(
-        self, value: Optional[list[dict[str, Any]]], _: Dialect
-    ) -> Optional[list[DecisionInput]]:
-        return DecisionInputsRootModel.model_validate(value).root if value is not None else None
+    def process_result_value(self, value: Any, _: Dialect) -> Optional[_PydanticJSONT]:
+        return self._adapter.validate_python(value) if value is not None else None
 
 
-class _DecisionState(TypeDecorator[DecisionState]):
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self, value: Optional[DecisionState], _: Dialect
-    ) -> Optional[dict[str, Any]]:
-        if value is None:
-            raise ValueError("Decision state cannot be None")
-        return value.model_dump()
-
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[DecisionState]:
-        return DecisionStateRootModel.model_validate(value).root if value is not None else None
+class _DecisionInputs(_PydanticJSON[list[DecisionInput]]):
+    _adapter = TypeAdapter(list[DecisionInput])
+    _label = "Decision inputs"
 
 
-class _DecisionQuestions(TypeDecorator[list[DecisionQuestion]]):
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self, value: Optional[list[DecisionQuestion]], _: Dialect
-    ) -> Optional[list[dict[str, Any]]]:
-        if value is None:
-            raise ValueError("Decision questions cannot be None")
-        return [question.model_dump() for question in value]
-
-    def process_result_value(
-        self, value: Optional[list[dict[str, Any]]], _: Dialect
-    ) -> Optional[list[DecisionQuestion]]:
-        return DecisionQuestionsRootModel.model_validate(value).root if value is not None else None
+class _DecisionState(_PydanticJSON[DecisionState]):
+    _adapter = TypeAdapter(DecisionState)
+    _label = "Decision state"
 
 
-class _DecisionTaskConfig(TypeDecorator[DecisionTaskConfig]):
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    cache_ok = True
-    impl = JSON_
+class _DecisionQuestions(_PydanticJSON[list[DecisionQuestion]]):
+    _adapter = TypeAdapter(list[DecisionQuestion])
+    _label = "Decision questions"
 
-    def process_bind_param(
-        self, value: Optional[DecisionTaskConfig], _: Dialect
-    ) -> Optional[dict[str, Any]]:
-        if value is None:
-            raise ValueError("Decision task config cannot be None")
-        return value.model_dump()
 
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[DecisionTaskConfig]:
-        return DecisionTaskConfig.model_validate(value) if value is not None else None
+class _DecisionTaskConfig(_PydanticJSON[DecisionTaskConfig]):
+    _adapter = TypeAdapter(DecisionTaskConfig)
+    _label = "Decision task config"
+
+
+class _DecisionScoringPolicy(_PydanticJSON[DecisionScoringPolicy]):
+    _adapter = TypeAdapter(DecisionScoringPolicy)
+    _label = "Decision scoring policy"
 
 
 class _InputMapping(TypeDecorator[InputMapping]):
@@ -3507,7 +3477,9 @@ class DecisionEvaluator(Evaluator):
     decision_version_id: Mapped[int] = mapped_column(
         ForeignKey("decision_versions.id", ondelete="RESTRICT"), index=True
     )
-    scoring_policy: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    scoring_policy: Mapped[DecisionScoringPolicy] = mapped_column(
+        _DecisionScoringPolicy, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
@@ -3519,14 +3491,11 @@ class DecisionEvaluator(Evaluator):
 
     @property
     def output_configs(self) -> list[OutputConfigType]:
-        from phoenix.db.types.decision_evaluators import (
-            DecisionScoringPolicy,
-            derive_decision_output_configs,
-        )
+        from phoenix.db.types.decision_evaluators import derive_decision_output_configs
 
         return derive_decision_output_configs(
             self.selected_version.questions,
-            DecisionScoringPolicy.model_validate(self.scoring_policy),
+            self.scoring_policy,
         )
 
     __mapper_args__ = {"polymorphic_identity": "DECISION"}

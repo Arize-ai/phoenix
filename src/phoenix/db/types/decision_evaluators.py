@@ -3,7 +3,7 @@
 import math
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from phoenix.db.types.annotation_configs import (
@@ -13,20 +13,17 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
+from phoenix.db.types.db_helper_types import DBBaseModel
 from phoenix.db.types.decisions import ChoiceQuestion, DecisionQuestion, PredicateQuestion
 
 
-class _ScoringModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
-
-class PredicateScoring(_ScoringModel):
+class PredicateScoring(DBBaseModel):
     type: Literal["predicate"]
     threshold: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
 
 
-class ChoiceScoring(_ScoringModel):
+class ChoiceScoring(DBBaseModel):
     type: Literal["choice"]
     scores: dict[str, float] = Field(default_factory=dict)
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
@@ -38,7 +35,7 @@ class ChoiceScoring(_ScoringModel):
         return self
 
 
-class ScaleScoring(_ScoringModel):
+class ScaleScoring(DBBaseModel):
     type: Literal["scale"]
     include_label: bool = False
     optimization_direction: OptimizationDirection = OptimizationDirection.NONE
@@ -49,10 +46,18 @@ DecisionQuestionScoring = Annotated[
 ]
 
 
-class DecisionScoringPolicy(_ScoringModel):
+class DecisionScoringPolicy(DBBaseModel):
     """Question thresholds, choice scores, scale labels, and comparison direction."""
 
     questions: dict[str, DecisionQuestionScoring] = Field(default_factory=dict)
+
+
+def _default_scoring(question: DecisionQuestion) -> DecisionQuestionScoring:
+    if question.type == "predicate":
+        return PredicateScoring(type="predicate")
+    if question.type == "choice":
+        return ChoiceScoring(type="choice")
+    return ScaleScoring(type="scale")
 
 
 def resolve_scoring_policy(
@@ -65,12 +70,7 @@ def resolve_scoring_policy(
     for question in questions:
         scoring = policy.questions.get(question.name)
         if scoring is None:
-            if question.type == "predicate":
-                scoring = PredicateScoring(type="predicate")
-            elif question.type == "choice":
-                scoring = ChoiceScoring(type="choice")
-            else:
-                scoring = ScaleScoring(type="scale")
+            scoring = _default_scoring(question)
         if scoring.type != question.type:
             raise ValueError(f"Scoring type for {question.name} must be {question.type}")
         if isinstance(scoring, ChoiceScoring) and isinstance(question, ChoiceQuestion):
@@ -81,7 +81,7 @@ def resolve_scoring_policy(
                     f"Unknown scored choices for {question.name}: "
                     f"{', '.join(sorted(unknown_choices))}"
                 )
-        resolved[question.name] = type(scoring).model_validate(scoring.model_dump())
+        resolved[question.name] = scoring
     return DecisionScoringPolicy(questions=resolved)
 
 
@@ -93,13 +93,12 @@ def adapt_scoring_policy(
     Settings for a question that is gone or changed type are dropped, as are scores for
     choices the question no longer offers; a new question gets defaults.
     """
-    by_name = {question.name: question for question in questions}
-    kept: dict[str, DecisionQuestionScoring] = {}
-    for name, scoring in policy.questions.items():
-        question = by_name.get(name)
-        if question is None or question.type != scoring.type:
-            continue
-        if isinstance(scoring, ChoiceScoring) and isinstance(question, ChoiceQuestion):
+    resolved: dict[str, DecisionQuestionScoring] = {}
+    for question in questions:
+        scoring = policy.questions.get(question.name)
+        if scoring is None or scoring.type != question.type:
+            scoring = _default_scoring(question)
+        elif isinstance(scoring, ChoiceScoring) and isinstance(question, ChoiceQuestion):
             offered = {choice.value for choice in question.choices}
             scoring = scoring.model_copy(
                 update={
@@ -110,8 +109,8 @@ def adapt_scoring_policy(
                     }
                 }
             )
-        kept[name] = scoring
-    return resolve_scoring_policy(questions, DecisionScoringPolicy(questions=kept))
+        resolved[question.name] = scoring
+    return DecisionScoringPolicy(questions=resolved)
 
 
 def derive_decision_output_configs(

@@ -75,7 +75,7 @@ class CreateDecisionEvaluatorInput:
     name: Identifier
     decision_version_id: GlobalID
     description: Optional[str] = None
-    scoring_policy: Optional[dict[str, Any]] = None
+    scoring_policy: Optional[DecisionScoringPolicy] = None
 
 
 async def create_decision_evaluator(
@@ -87,7 +87,7 @@ async def create_decision_evaluator(
             version = await _version(session, input.decision_version_id)
             policy = resolve_scoring_policy(
                 version.questions,
-                DecisionScoringPolicy.model_validate(input.scoring_policy or {}),
+                input.scoring_policy or DecisionScoringPolicy(),
             )
             evaluator = models.DecisionEvaluator(
                 name=input.name,
@@ -96,7 +96,7 @@ async def create_decision_evaluator(
                 user_id=context.user_id,
                 kind="DECISION",
                 decision_version_id=version.id,
-                scoring_policy=policy.model_dump(mode="json"),
+                scoring_policy=policy,
             )
             session.add(evaluator)
             await session.flush()
@@ -113,7 +113,7 @@ class DecisionEvaluatorPatch:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     decision_version_id: Optional[GlobalID] = UNSET
-    scoring_policy: Optional[dict[str, Any]] = UNSET
+    scoring_policy: Optional[DecisionScoringPolicy] = UNSET
 
 
 def _signature(definition: InlineDecisionEvaluatorDefinition) -> tuple[Any, ...]:
@@ -144,7 +144,6 @@ async def validate_bound_decision_update(
     session: AsyncSession,
     evaluator: models.DecisionEvaluator,
     version: models.DecisionVersion,
-    policy: dict[str, Any],
     *,
     editing_binding_id: Optional[int] = None,
 ) -> None:
@@ -187,10 +186,6 @@ async def validate_bound_decision_update(
                 str(GlobalID("ProjectEvaluator", str(binding.id))) for binding in project_bindings
             ],
         )
-    try:
-        resolve_scoring_policy(version.questions, DecisionScoringPolicy.model_validate(policy))
-    except ValueError as error:
-        raise BadRequest(str(error)) from error
 
 
 async def patch_decision_evaluator(
@@ -221,10 +216,8 @@ async def patch_decision_evaluator(
             resolve = (
                 adapt_scoring_policy if patch.scoring_policy is UNSET else resolve_scoring_policy
             )
-            policy = resolve(
-                version.questions, DecisionScoringPolicy.model_validate(policy)
-            ).model_dump(mode="json")
-            await validate_bound_decision_update(session, evaluator, version, policy)
+            policy = resolve(version.questions, policy)
+            await validate_bound_decision_update(session, evaluator, version)
             evaluator.decision_version_id = version.id
             evaluator.scoring_policy = policy
             if patch.name is not UNSET and patch.name is not None:
@@ -432,7 +425,7 @@ async def create_dataset_decision_evaluator(
     evaluator_name: Optional[Identifier] = None,
     decision_version_id: Optional[GlobalID] = None,
     decision_version: Optional[models.DecisionVersion] = None,
-    scoring_policy: Optional[dict[str, Any]] = None,
+    scoring_policy: Optional[DecisionScoringPolicy] = None,
 ) -> models.DatasetEvaluators:
     """Create a dataset binding and optionally its Decision and evaluator, atomically."""
     from phoenix.server.api.helpers.decision_versions import validate_decision_custom_provider
@@ -499,7 +492,7 @@ async def create_dataset_decision_evaluator(
                     assert decision_version_id is not None
                     version = await _version(session, decision_version_id)
                 policy = resolve_scoring_policy(
-                    version.questions, DecisionScoringPolicy.model_validate(scoring_policy or {})
+                    version.questions, scoring_policy or DecisionScoringPolicy()
                 )
                 evaluator = models.DecisionEvaluator(
                     name=evaluator_name,
@@ -508,7 +501,7 @@ async def create_dataset_decision_evaluator(
                     user_id=context.user_id,
                     kind="DECISION",
                     decision_version_id=version.id,
-                    scoring_policy=policy.model_dump(mode="json"),
+                    scoring_policy=policy,
                 )
                 session.add(evaluator)
                 await session.flush()
@@ -545,7 +538,7 @@ async def update_dataset_decision_evaluator(
     input_mapping: Optional[InputMapping] = UNSET,
     decision_version_id: Optional[GlobalID] = UNSET,
     decision_version: Optional[models.DecisionVersion] = None,
-    scoring_policy: Optional[dict[str, Any]] = UNSET,
+    scoring_policy: Optional[DecisionScoringPolicy] = UNSET,
 ) -> models.DatasetEvaluators:
     """Save a Decision version, shared scoring, and this dataset's mapping together.
 
@@ -595,12 +588,10 @@ async def update_dataset_decision_evaluator(
                 raise BadRequest("A decision evaluator can only use versions of its own Decision")
             policy = (adapt_scoring_policy if scoring_policy is UNSET else resolve_scoring_policy)(
                 version.questions,
-                DecisionScoringPolicy.model_validate(
-                    evaluator.scoring_policy if scoring_policy is UNSET else scoring_policy
-                ),
-            ).model_dump(mode="json")
+                evaluator.scoring_policy if scoring_policy is UNSET else scoring_policy,
+            )
             await validate_bound_decision_update(
-                session, evaluator, version, policy, editing_binding_id=binding.id
+                session, evaluator, version, editing_binding_id=binding.id
             )
             mapping = binding.input_mapping if input_mapping is UNSET else input_mapping
             validate_decision_input_mapping(version, mapping)

@@ -10,7 +10,6 @@ from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     ChoiceScoring,
     DecisionQuestionScoring,
-    DecisionScoringPolicy,
     PredicateScoring,
     ScaleScoring,
     derive_decision_output_configs,
@@ -57,9 +56,7 @@ def capture_decision_evaluator_definition(
     version = evaluator.selected_version
     if version is None:
         raise ValueError("The evaluator's pinned decision version was not found")
-    policy = resolve_scoring_policy(
-        version.questions, DecisionScoringPolicy.model_validate(evaluator.scoring_policy)
-    )
+    policy = resolve_scoring_policy(version.questions, evaluator.scoring_policy)
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
         name=name if name is not None else evaluator.name.root,

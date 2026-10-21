@@ -12,7 +12,7 @@ provider's wire format.
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import Field, RootModel
+from pydantic import Field
 
 from phoenix.db.types.db_helper_types import DBBaseModel
 
@@ -100,24 +100,6 @@ class ScaleQuestion(DBBaseModel):
 DecisionQuestion = Annotated[
     Union[PredicateQuestion, ChoiceQuestion, ScaleQuestion], Field(discriminator="type")
 ]
-
-
-class DecisionQuestionsRootModel(RootModel[list[DecisionQuestion]]):
-    """An ordered list of questions, for reading and writing the column."""
-
-    root: list[DecisionQuestion]
-
-
-class DecisionInputsRootModel(RootModel[list[DecisionInput]]):
-    """An ordered list of inputs, for reading and writing the column."""
-
-    root: list[DecisionInput]
-
-
-class DecisionStateRootModel(RootModel[DecisionState]):
-    """The state, for reading and writing the column."""
-
-    root: DecisionState
 
 
 class DecisionTaskConfig(DBBaseModel):

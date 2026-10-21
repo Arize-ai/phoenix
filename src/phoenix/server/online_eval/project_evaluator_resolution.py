@@ -223,7 +223,11 @@ async def resolve_project_evaluators_bulk(
                     resolved.append(None)
                     continue
                 provider_ref = [decision_version.custom_provider_id, updated_at]
-            version_ref = [decision_version.id, evaluator.scoring_policy, provider_ref]
+            version_ref = [
+                decision_version.id,
+                evaluator.scoring_policy.model_dump(mode="json"),
+                provider_ref,
+            ]
         else:
             resolved.append(None)
             continue

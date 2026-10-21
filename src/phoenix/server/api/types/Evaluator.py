@@ -22,9 +22,6 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
-from phoenix.db.types.decision_evaluators import (
-    DecisionScoringPolicy as StoredDecisionScoringPolicy,
-)
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
@@ -779,7 +776,7 @@ class DecisionEvaluator(Evaluator, Node):
     async def scoring_policy(self, info: Info[Context, None]) -> DecisionScoringPolicy:
         record = await self._record(info)
         return DecisionScoringPolicy.from_orm(
-            StoredDecisionScoringPolicy.model_validate(record.scoring_policy),
+            record.scoring_policy,
             record.selected_version.questions,
         )
 

@@ -258,7 +258,7 @@ def _decision_evaluator_definition(
         description=row.description,
         decision_id=encode_global_id("Decision", row.selected_version.decision_id),
         decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
-        scoring_policy=DecisionScoringPolicy.model_validate(row.scoring_policy),
+        scoring_policy=row.scoring_policy,
         output_configs=output_configs_from_db(row.output_configs),
     )
 
@@ -624,7 +624,7 @@ async def create_evaluator(
                     name=body.name,
                     decision_version_id=parse_global_id(body.decision_version_id),
                     description=body.description,
-                    scoring_policy=body.scoring_policy.model_dump(mode="json"),
+                    scoring_policy=body.scoring_policy,
                 ),
             )
             return EvaluatorDefinitionResponseBody(
@@ -718,8 +718,6 @@ async def patch_evaluator(
         if isinstance(body, PatchDecisionEvaluatorRequest):
             if "decision_version_id" in fields:
                 values["decision_version_id"] = parse_global_id(body.decision_version_id)
-            if "scoring_policy" in fields:
-                values["scoring_policy"] = body.scoring_policy.model_dump(mode="json")
             await decision_service.patch_decision_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),

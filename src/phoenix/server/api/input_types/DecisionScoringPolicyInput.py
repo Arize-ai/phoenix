@@ -54,30 +54,39 @@ class DecisionQuestionScoringInput:
 
     def to_orm(self) -> tuple[str, stored.DecisionQuestionScoring]:
         """Convert the selected question settings to the stored policy representation."""
-        if self.predicate:
-            return self.predicate.name, stored.PredicateScoring(
-                type="predicate",
-                threshold=self.predicate.threshold,
-                optimization_direction=self.predicate.optimization_direction,
-            )
-        if self.choice:
-            scores = {}
-            for value in self.choice.scores:
-                if value.choice in scores:
-                    raise BadRequest(f"Duplicate score for choice '{value.choice}'")
-                scores[value.choice] = value.score
-            return self.choice.name, stored.ChoiceScoring(
-                type="choice",
-                scores=scores,
-                optimization_direction=self.choice.optimization_direction,
-            )
-        if self.scale:
+        setting = self.predicate or self.choice or self.scale
+        if setting is None:
+            raise BadRequest("Exactly one scoring type must be provided")
+        try:
+            if self.predicate:
+                return self.predicate.name, stored.PredicateScoring(
+                    type="predicate",
+                    threshold=self.predicate.threshold,
+                    optimization_direction=self.predicate.optimization_direction,
+                )
+            if self.choice:
+                scores = {}
+                for value in self.choice.scores:
+                    if value.choice in scores:
+                        raise BadRequest(f"Duplicate score for choice '{value.choice}'")
+                    scores[value.choice] = value.score
+                return self.choice.name, stored.ChoiceScoring(
+                    type="choice",
+                    scores=scores,
+                    optimization_direction=self.choice.optimization_direction,
+                )
+            assert self.scale is not None
             return self.scale.name, stored.ScaleScoring(
                 type="scale",
                 include_label=self.scale.include_label,
                 optimization_direction=self.scale.optimization_direction,
             )
-        raise BadRequest("Exactly one scoring type must be provided")
+        except ValidationError as error:
+            detail = "; ".join(
+                f"{'.'.join(map(str, e['loc']))}: {e['msg']}" if e["loc"] else str(e["msg"])
+                for e in error.errors(include_input=False)
+            )
+            raise BadRequest(f"Scoring for question '{setting.name}': {detail}") from error
 
 
 @strawberry.input(
@@ -91,22 +100,9 @@ class DecisionScoringPolicyInput:
 
     def to_orm(self) -> stored.DecisionScoringPolicy:
         """Validate typed settings without silently dropping duplicate question names."""
-        # TODO: policies are validated several times per request (to_orm -> model_dump ->
-        # model_validate). Harmless; tidy when touching this.
         questions: dict[str, stored.DecisionQuestionScoring] = {}
         for value in self.questions:
-            settings = (value.predicate, value.choice, value.scale)
-            name = next((setting.name for setting in settings if setting), None)
-            if name is None:
-                raise BadRequest("Exactly one scoring type must be provided")
-            try:
-                _, scoring = value.to_orm()
-            except ValidationError as error:
-                detail = "; ".join(
-                    f"{'.'.join(map(str, e['loc']))}: {e['msg']}" if e["loc"] else str(e["msg"])
-                    for e in error.errors(include_input=False)
-                )
-                raise BadRequest(f"Scoring for question '{name}': {detail}") from error
+            name, scoring = value.to_orm()
             if name in questions:
                 raise BadRequest(f"Duplicate scoring question '{name}'")
             questions[name] = scoring
