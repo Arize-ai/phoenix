@@ -333,8 +333,10 @@ test.describe.serial("Projects", () => {
       name: "Create new LLM evaluator",
     });
     await expect(createDialog).toBeVisible();
+    // The test bench's inspector reads the evaluator's inputs off a record:
+    // the sample span, in a project with no spans yet.
     await expect(
-      createDialog.getByRole("tab", { name: "Values" })
+      createDialog.getByRole("heading", { name: "Evaluator inputs" })
     ).toBeVisible();
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
