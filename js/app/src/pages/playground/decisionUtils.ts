@@ -270,7 +270,7 @@ function getStateError(draft: DecisionRequestDraft): string | undefined {
     const names = parseStateInputNames(draft.state);
     if (names.length === 0) return STATE_REQUIRED_ERROR;
     return names.length > 1
-      ? "Input state takes one input name; use Inputs to send several"
+      ? "Value takes one input name; use Object to combine several"
       : undefined;
   }
   if (draft.stateEditorMode === "inputs") {
@@ -880,7 +880,7 @@ export function getDecisionDatasetProblem({
   if (draft.stateEditorMode !== "input" && draft.stateEditorMode !== "inputs") {
     const serverFormat = toServerTemplateFormat(templateFormat);
     if (draft.stateEditorMode !== "text" || !serverFormat) {
-      return `${when}, write the state as text with template variables, as an input, or as inputs; an input state passes the ${owner} value as is.`;
+      return `${when}, use Text with template variables, Value for one ${owner} input, or Object to combine named inputs.`;
     }
     const names = textStateInputNames(draft, templateFormat);
     if (names.length === 0) {

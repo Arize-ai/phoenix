@@ -291,7 +291,7 @@ bodies.
   - **State representation:** TypeSafe records a structured state as a JSON
     object or array in `input.value.state` (which replays into the playground's
     `JSON` mode and cannot be saved or run over a dataset without choosing
-    `Input` or `Inputs`), whereas OpenAI serializes structured state into a JSON
+    `Value` or `Object`), whereas OpenAI serializes structured state into a JSON
     string in `input.value.input` (which replays into `Text` mode, sending a
     JSON-encoded string if the user switches the model to TypeSafe).
   - **Question fields:** OpenAI folds predicate `criteria` (`true` / `false`)
@@ -799,8 +799,12 @@ sections; a missing key or dotted path resolves to `""` in Mustache (whereas
 F-string raises). Names inside a Mustache section aren't checked on write, since
 they may be the input's own fields.
 
-There is no JSON template. Reshaping data belongs in the app or the dataset, so
-the rules for substituting into JSON never have to exist.
+The current design has no reusable JSON skeleton with input references:
+reshaping data happens in the app or the dataset. This avoids substituting text
+into JSON source and then reparsing it. Whether Phoenix should instead support
+typed value references inside a structured state is an open authoring question
+in §16. That would be a new construction capability, not Mustache or F-string
+substitution into JSON text.
 
 ### 10.2 Questions
 
@@ -1479,7 +1483,7 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   version runs only where the server sets `OLLAMA_BASE_URL`. A custom provider
   pointed at Ollama brings its own endpoint and avoids this.
 - **State authoring ergonomics in the playground.** The entire `Text`, `JSON`,
-  `Input`, `Inputs` interaction is under deliberation: whether these should be
+  `Value`, `Object` interaction is under deliberation: whether these should be
   modes at all, how many controls users need, where they supply example values,
   and how an ad-hoc draft becomes a reusable decision. The backend state variants
   (`text`, `input`, `object`) define execution semantics; they do not require
@@ -1504,26 +1508,26 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
     expressed separately through input declarations and state construction?
     How should users promote either into a reusable decision without rebuilding
     their draft? Any design must distinguish a JSON value from a string
-    containing JSON and keep JSON substitution out of the state contract.
+    containing JSON. The structured-construction question below considers
+    inserting typed values into a skeleton separately from text interpolation.
   - **Template controls.** Mustache, F-string, and None currently sit beside
     modes for which they have no effect. Decide where template syntax belongs,
     whether it should appear only when rendering text, and how literal braces
     stay literal when switching workflows or replaying a span.
-  - **How to expose direct values versus objects.** `Input` and `Inputs` differ
-    by only one letter but construct different states: given
-    `ticket = {"subject": "Refund"}`, Input `ticket` sends
-    `{"subject": "Refund"}`, while Inputs `ticket` sends
-    `{"ticket": {"subject": "Refund"}}`. The distinction must remain explicit,
-    including when an object has only one input. Options are separate modes
-    with clearer labels, such as **Input value** and **Object**, or one mode
-    with an explicit choice between passing a value directly and building an
-    object. Separate modes make the construction visible in the mode selector;
+  - **How to expose direct values versus objects.** The current **Value** and
+    **Object** labels replace the ambiguous Input / Inputs pair. Given
+    `ticket = {"subject": "Refund"}`, Value `ticket` sends
+    `{"subject": "Refund"}`, while Object `ticket` sends
+    `{"ticket": {"subject": "Refund"}}`. The preview makes this distinction
+    visible even when an object has only one input. Whether these remain
+    separate modes or become one mode with an explicit wrapping choice is
+    still open. Separate modes make the construction visible in the mode selector;
     one mode reduces the number of modes but needs another control to show the
     wrapping choice. Do not infer wrapping from the number of inputs: adding a
     second input must not silently change the first input's nesting. Whichever
     UI is chosen must preserve the state variant when loading and saving.
   - Inputs-panel values are currently strings, so an ad-hoc playground run
-    sends strings for `Input` and `Inputs` where a dataset or API run can send
+    sends strings for `Value` and `Object` where a dataset or API run can send
     structured JSON objects or arrays. An explicit text/JSON value toggle (or
     typing panel fields from each input's `json_schema`) would let ad-hoc runs
     supply structured panel values without guessing JSON from braces.
@@ -1532,6 +1536,81 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
     `customer_name` appears only inside a boolean Mustache section) requires UI
     controls on the input declarations; today they can be authored via the API
     and are preserved when loaded and re-saved in the playground.
+- **Structured state construction.** A user may want to define a JSON skeleton
+  and place input values at chosen locations: nested object fields, array
+  elements, renamed fields, or several locations using the same input. Neither
+  literal **JSON**, a direct **Value**, nor the current flat **Object** mode
+  expresses that. A Text template can produce a string containing JSON, but
+  does not preserve a structured state. Should this use case be supported in
+  Phoenix, and how should it fit into the overall authoring experience?
+
+  For example, given `ticket = {"subject": "Refund"}`, `attempts = 3`, and
+  `note = "Customer asked for a refund"`, the user could author:
+
+  ```json
+  {
+    "ticket": {"$input": "ticket"},
+    "context": {
+      "attempts": {"$input": "attempts"},
+      "note": {"$input": "note"}
+    },
+    "audit": [{"$input": "ticket"}]
+  }
+  ```
+
+  The constructed state would be:
+
+  ```json
+  {
+    "ticket": {"subject": "Refund"},
+    "context": {
+      "attempts": 3,
+      "note": "Customer asked for a refund"
+    },
+    "audit": [{"subject": "Refund"}]
+  }
+  ```
+
+  `{"$input": "name"}` is illustrative, not a selected syntax. A reference
+  replaces a whole value node with the input's JSON value. Objects remain
+  objects, strings remain strings, and numbers, arrays, booleans, and null keep
+  their types. Repeated references insert the same value at each location.
+  Quotes or newlines inside a string do not require the user to escape them
+  for insertion into JSON source. OpenAI's adapter would still serialize the
+  completed state to text, as it does for other structured states.
+
+  Options to discuss together:
+  - **Keep reshaping outside Phoenix.** Callers and datasets supply the finished
+    value through Value mode. This keeps Phoenix small, but makes users prepare
+    data elsewhere to combine literals and inputs, rename keys, or repeat values.
+  - **Add a structured builder.** Let users mix literal nodes and explicit input
+    references, with a preview showing actual value types. It could be an
+    extension of the JSON editor or a unified state editor; it need not become
+    a fifth mode. Direct Value and flat Object construction could be convenient
+    forms of the same builder, provided existing saved states retain their meaning.
+  - **Choose reference and literal notation.** Tagged nodes, a separate binding
+    map from output locations to inputs, or visual reference chips have different
+    editing and storage costs. An ordinary literal object such as
+    `{"$input": "ticket"}` must remain expressible if that spelling is reserved.
+    Decide escaping or an unambiguous literal/reference representation before
+    choosing the notation.
+  - **Bound the feature.** Are references limited to whole named inputs or can
+    they select nested fields? What happens for missing inputs or paths, and how
+    are they distinguished from a present null? Does an array reference insert
+    one array value or splice elements? Are dynamic keys, mixed text/reference
+    strings, conditionals, or loops useful enough to include, or should those
+    stay in application code? Do not silently stringify values or guess that
+    JSON-looking strings should become objects.
+  - **Make reuse consistent.** If adopted for saved decisions, the construction
+    needs an explicit stored representation, validation, and the same semantics
+    in ad-hoc runs, datasets, judges, and client formatting. Define input
+    discovery and how errors identify the failing output location. Keep the
+    current whole-state type restrictions unless changing them is a separate
+    decision. UI notation alone must not introduce a client-only saved-state rule.
+
+  Until this is decided and implemented, **JSON mode remains literal**. Adding
+  typed references must not reinterpret existing literal JSON or bring back
+  textual Mustache substitution as a shortcut.
 - **What an input's `json_schema` is for.** Nothing acts on it: a call doesn't
   enforce it ([Inputs and State](#101-inputs-and-state)), the playground preserves
   it on load/save but does not expose it for editing, and its only reader is a decision evaluator's
@@ -1580,8 +1659,8 @@ identified. Optional enhancements beyond completing these steps are listed under
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
-| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab (`Text`, `JSON`, `Input`, `Inputs` state modes), custom providers, Ollama, free-text model names, span replay (with `templateFormat = None`), and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. A way to supply structured example values without a dataset; the editor interaction is under [state-authoring deliberation](#16-open-questions). |
-| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load (preserving `Text`, `Input`, and `Inputs` state variants and existing input descriptions/schemas), the decisions library, version pages and diffs, labels, cloning. | A way to author input descriptions, JSON schemas, and section-scoped declarations without the API; design this with the overall [state-authoring workflow](#16-open-questions). |
+| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab (`Text`, `JSON`, `Value`, `Object` state modes), custom providers, Ollama, free-text model names, span replay (with `templateFormat = None`), and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. A way to supply structured example values without a dataset; the editor interaction is under [state-authoring deliberation](#16-open-questions). |
+| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load (preserving text, direct-value, and object state variants and existing input descriptions/schemas), the decisions library, version pages and diffs, labels, cloning. | A way to author input descriptions, JSON schemas, and section-scoped declarations without the API; design this with the overall [state-authoring workflow](#16-open-questions). |
 | **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; recording the saved decision version on app-generated spans; resolve [whether Phoenix translates](#55-translating-for-apps). |
 | **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts in their raw attributes. Standard token fields and aggregates still read LLM counters. | Token fields for individual spans and their descendants; totals on traces, experiment runs, sessions, and projects; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#54-reference-answers-in-datasets). |
 | **Images, message inputs, and spatial answers** (chat: messages with image inputs) | Image evidence can support typed spatial questions with bounding-box answers. | Not implemented. | Message and image inputs, including asset handling and message-based state; bounding-box questions and answer rendering. |
@@ -1763,16 +1842,17 @@ construction is visible.
 - **JSON** supplies a concrete literal JSON value for a one-off playground
   run: a non-empty object is sent as `object`, an array or `{}` unchanged as
   `input`, and a JSON string as text. It performs no template substitution
-  under any template format (matching [Inputs and State](#101-inputs-and-state),
-  "There is no JSON template") and cannot be saved or run over a dataset.
-- **Input** names a single declared input (`input`), passes its value through
+  under any template format and cannot be saved or run over a dataset. A JSON
+  skeleton with typed input references is a separate deliberation in §16;
+  this mode does not currently interpret references.
+- **Value** names a single declared input (`input`), passes its value through
   unchanged, and is how a saved `input` state loads under any template format.
-- **Inputs** lists comma-separated input names (`object`), builds an object
+- **Object** lists comma-separated input names (`object`), builds an object
   from their values in the Inputs panel, and is how a saved `object` state
   loads under any template format.
 
 In the current UI, state mode and template format control different things.
-**Text, JSON, Input, and Inputs choose how to construct the state. Mustache,
+**Text, JSON, Value, and Object choose how to construct the state. Mustache,
 F-string, and None choose whether and how to substitute template variables in
 a Text state.** Question instructions and criteria are always literal across
 ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
@@ -1781,21 +1861,26 @@ ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
 |---|---|---|---|
 | **Text** | Substitutes `{{name}}` in the text template (`text`). | Substitutes `{name}` in the text template (`text`). | Uses the text literally, including any placeholder braces. |
 | **JSON** | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. |
-| **Input** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
-| **Inputs** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
+| **Value** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
+| **Object** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
 
 For example, Text `Reference: {{reference}}` with Mustache and input
-`reference = A` produces the string `Reference: A`. Input `ticket` sends the
+`reference = A` produces the string `Reference: A`. Value `ticket` sends the
 caller's `ticket` value unchanged without wrapping it in an outer object.
-Inputs `reference, output`, with values `A` and `B`, produces
+Object `reference, output`, with values `A` and `B`, produces
 `{"reference": "A", "output": "B"}` under all three template settings.
 
 Loading a saved version preserves existing input descriptions, JSON schemas,
 and explicitly declared additional inputs, including section-scoped inputs.
+Value and Object show a compact state preview from manual input values, or a
+symbolic shape such as `<ticket>` / `{ "ticket": <ticket> }` when values are
+unavailable or a dataset supplies them. JSON pasted into the Inputs panel stays
+a string; the preview does not guess its type.
+
 Those declarations and example values still need better authoring controls;
 see the ergonomics discussion in §16.
 
-### 20.1 Inputs: Preserve a Nested Ticket and Policy
+### 20.1 Object: Preserve a Nested Ticket and Policy
 
 Suppose a decision asks whether a support ticket requires urgent attention under
 the customer's support policy. The question's instructions are fixed:
@@ -1803,7 +1888,7 @@ the customer's support policy. The question's instructions are fixed:
 > Does this ticket require urgent attention under the policy for the customer's
 > plan? Use the reported impact and workaround availability.
 
-First, select **Inputs** in the state editor and enter:
+First, select **Object** in the state editor and enter:
 
 ```text
 ticket, policy
@@ -1906,31 +1991,31 @@ and `{policy.plans.enterprise.urgent_when}`. With None, the placeholder text
 stays literal instead.
 
 Dotted paths have meaning here because the text formatter interprets them.
-Entering `ticket.customer.plan` in **Inputs** instead declares one literal input
+Entering `ticket.customer.plan` in **Object** instead declares one literal input
 name. It requires a separately supplied value under that exact key and produces
 an object such as `{"ticket.customer.plan": "enterprise"}`; it does not traverse
 the `ticket` object.
 
 To pass a single input's value unchanged (for example, the whole `ticket` object
 without wrapping it in `{"ticket": ...}` or rendering it to a string), select
-**Input** and enter `ticket`. That saves as `state: {input: "ticket"}`, whereas
+**Value** and enter `ticket`. That saves as `state: {input: "ticket"}`, whereas
 **Text** `{{ticket}}` saves as a `text` template and renders to a string, and
-**Inputs** `ticket` produces `{"ticket": <ticket value>}`.
+**Object** `ticket` produces `{"ticket": <ticket value>}`.
 
 ### 20.3 JSON: Supply a Concrete Structured State
 
 For a one-off playground run, select **JSON**, then paste the first
-JSON object from the Inputs example into the state editor. The playground parses
+JSON object from the Object example into the state editor. The playground parses
 it literally and sends its non-empty top-level object using
 `state: {object: true}`, with `ticket` and `policy` as the inputs and the parsed
 objects as their values. The final state is the same nested object as in the
-Inputs example.
+Object example.
 
 The difference is how those values are supplied and reused. JSON mode supplies
 the literal values written in the editor for that run and performs no template
-substitution under any template format. Input and Inputs declare names whose
+substitution under any template format. Value and Object declare names whose
 values come from the panel, dataset rows, or callers. JSON mode cannot be saved
-as a reusable decision or run over a dataset; Input and Inputs can.
+as a reusable decision or run over a dataset; Value and Object can.
 
 ## 21. References
 

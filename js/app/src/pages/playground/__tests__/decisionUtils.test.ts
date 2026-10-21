@@ -828,7 +828,7 @@ describe("runDecision input", () => {
     ).toEqual(["ticket"]);
     expect(
       validateDecisionDraft({ ...draft, state: "ticket, other" }).state
-    ).toBe("Input state takes one input name; use Inputs to send several");
+    ).toBe("Value takes one input name; use Object to combine several");
   });
 
   it("builds one @oneOf input per question with literal question text", () => {
@@ -1131,7 +1131,7 @@ describe("decision tasks over a dataset", () => {
         draft: { ...draft, state: '{"state": 1}', stateEditorMode: "json" },
         templateFormat: mustache,
       })
-    ).toContain("write the state as text");
+    ).toContain("use Text with template variables");
   });
 
   it("lets decisions and prompts share a dataset run, checking only the decisions", () => {

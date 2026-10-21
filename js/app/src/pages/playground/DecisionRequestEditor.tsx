@@ -41,6 +41,7 @@ import {
   decisionFieldId,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
+  parseStateInputNames,
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
@@ -61,6 +62,55 @@ const questionListCSS = css`
 `;
 
 const FOOTER_MIN_HEIGHT = 32;
+
+const statePreviewCSS = css`
+  margin: 0;
+  font-size: var(--global-font-size-s);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+`;
+
+function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
+  const variables = usePlaygroundContext(
+    (state) => state.input.variablesValueCache
+  );
+  const isDatasetMode = usePlaygroundContext(
+    (state) => state.datasetId != null
+  );
+  const names = parseStateInputNames(request.state);
+  const isValueMode = request.stateEditorMode === "input";
+  const hasValidNames =
+    names.length > 0 && (!isValueMode || names.length === 1);
+  if (!hasValidNames) return null;
+
+  const hasValues =
+    !isDatasetMode && names.every((name) => variables?.[name] != null);
+  const getValue = (name: string) => variables?.[name] ?? "";
+  const preview = hasValues
+    ? JSON.stringify(
+        isValueMode
+          ? getValue(names[0])
+          : Object.fromEntries(names.map((name) => [name, getValue(name)]))
+      )
+    : isValueMode
+      ? `<${names[0]}>`
+      : `{ ${names.map((name) => `${JSON.stringify(name)}: <${name}>`).join(", ")} }`;
+
+  return (
+    <Flex direction="column" gap="size-50">
+      <Text size="S" color="text-700">
+        {hasValues ? "State preview" : "State shape"}
+      </Text>
+      <pre css={statePreviewCSS} aria-label="Decision state preview">
+        <code>{preview}</code>
+      </pre>
+    </Flex>
+  );
+}
 
 /**
  * One instance's decision request, laid out like a chat template: the state
@@ -168,11 +218,11 @@ export function DecisionRequestEditor({
               <SegmentedControlItem id="json" aria-label="JSON">
                 JSON
               </SegmentedControlItem>
-              <SegmentedControlItem id="input" aria-label="Input">
-                Input
+              <SegmentedControlItem id="input" aria-label="Value">
+                Value
               </SegmentedControlItem>
-              <SegmentedControlItem id="inputs" aria-label="Inputs">
-                Inputs
+              <SegmentedControlItem id="inputs" aria-label="Object">
+                Object
               </SegmentedControlItem>
             </SegmentedControl>
             <CopyToClipboardButton
@@ -189,39 +239,41 @@ export function DecisionRequestEditor({
         ) : null}
         {request.stateEditorMode === "input" ? (
           <View padding="size-100">
-            <TextField
-              size="S"
-              value={request.state}
-              onChange={(state) => update({ state })}
-              onBlur={() => touch(decisionFieldId.state())}
-              isDisabled={isRunning}
-              isInvalid={!!errors.state}
-            >
-              <Label>Input</Label>
-              <Input placeholder="ticket" />
-              <Text slot="description">
-                One input name. Its value is sent unchanged; fill it in the
-                Inputs panel.
-              </Text>
-            </TextField>
+            <Flex direction="column" gap="size-100">
+              <TextField
+                size="S"
+                value={request.state}
+                onChange={(state) => update({ state })}
+                onBlur={() => touch(decisionFieldId.state())}
+                isDisabled={isRunning}
+                isInvalid={!!errors.state}
+              >
+                <Label>Input name</Label>
+                <Input placeholder="ticket" />
+                <Text slot="description">Use this input's value directly.</Text>
+              </TextField>
+              <DecisionStatePreview request={request} />
+            </Flex>
           </View>
         ) : request.stateEditorMode === "inputs" ? (
           <View padding="size-100">
-            <TextField
-              size="S"
-              value={request.state}
-              onChange={(state) => update({ state })}
-              onBlur={() => touch(decisionFieldId.state())}
-              isDisabled={isRunning}
-              isInvalid={!!errors.state}
-            >
-              <Label>Inputs</Label>
-              <Input placeholder="reference, output" />
-              <Text slot="description">
-                Comma-separated names. The model gets them together as one JSON
-                object; fill them in the Inputs panel.
-              </Text>
-            </TextField>
+            <Flex direction="column" gap="size-100">
+              <TextField
+                size="S"
+                value={request.state}
+                onChange={(state) => update({ state })}
+                onBlur={() => touch(decisionFieldId.state())}
+                isDisabled={isRunning}
+                isInvalid={!!errors.state}
+              >
+                <Label>Input names</Label>
+                <Input placeholder="reference, output" />
+                <Text slot="description">
+                  Build an object keyed by these comma-separated names.
+                </Text>
+              </TextField>
+              <DecisionStatePreview request={request} />
+            </Flex>
           </View>
         ) : request.stateEditorMode === "json" ? (
           <div css={jsonEditorCSS}>
