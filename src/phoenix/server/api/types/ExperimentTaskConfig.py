@@ -348,6 +348,7 @@ class DecisionTaskConfig(Node):
         description="Where input values were read, as a prompt task's templateVariablesPath."
     )
     decision_version_id: Private[Optional[int]] = None
+    custom_provider_id: Private[Optional[int]] = None
 
     @classmethod
     def from_orm(cls, obj: models.ExperimentDecisionTask) -> "DecisionTaskConfig":
@@ -362,6 +363,7 @@ class DecisionTaskConfig(Node):
             questions=[to_gql_decision_question(question) for question in config.questions],
             input_values_path=config.input_values_path,
             decision_version_id=obj.decision_version_id,
+            custom_provider_id=obj.custom_provider_id,
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -384,7 +386,7 @@ class DecisionTaskConfig(Node):
         description="The custom provider this experiment ran on, if any.",
     )
     async def custom_provider(
-        self, info: Info[Context, None]
+        self,
     ) -> (
         Annotated[
             "GenerativeModelCustomProvider",
@@ -392,20 +394,13 @@ class DecisionTaskConfig(Node):
         ]
         | None
     ):
+        if self.custom_provider_id is None:
+            return None
         from phoenix.server.api.types.GenerativeModelCustomProvider import (
             GenerativeModelCustomProvider,
         )
 
-        async with info.context.db.read() as session:
-            decision_task = await session.get(models.ExperimentDecisionTask, self.id)
-            if decision_task is None or decision_task.custom_provider_id is None:
-                return None
-            provider = await session.get(
-                models.GenerativeModelCustomProvider, decision_task.custom_provider_id
-            )
-            if provider is None:
-                return None
-            return GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+        return GenerativeModelCustomProvider(id=self.custom_provider_id)
 
 
 ExperimentTaskConfig = Annotated[

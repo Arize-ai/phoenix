@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from strawberry.scalars import JSON
@@ -11,11 +11,42 @@ from .AnnotationSource import AnnotationSource
 from .AnnotatorKind import AnnotatorKind
 
 if TYPE_CHECKING:
+    from .DecisionAnnotation import DecisionAnnotation
     from .User import User
 
 
+class AnnotationMetadataMixin:
+    async def _metadata(self, info: Info[Context, None]) -> Any:
+        raise NotImplementedError
+
+    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        return JSON(await self._metadata(info))
+
+    @strawberry.field(
+        description=(
+            "The decision judge's result, typed, when the metadata holds one in Phoenix's "
+            "decision format; null otherwise."
+        )
+    )  # type: ignore
+    async def decision(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
+        # Imported here: the decision clients import the playground clients, which import
+        # the annotation types.
+        from phoenix.server.api.types.DecisionAnnotation import (
+            decision_annotation_from_metadata,
+        )
+
+        return decision_annotation_from_metadata(await self._metadata(info))
+
+
 @strawberry.interface
-class Annotation:
+class Annotation(AnnotationMetadataMixin):
     @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")  # type: ignore
     async def name(
         self,
@@ -53,13 +84,6 @@ class Annotation:
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        raise NotImplementedError
-
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
         raise NotImplementedError
 
     @strawberry.field(description="The source of the annotation.")  # type: ignore

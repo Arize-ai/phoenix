@@ -17,7 +17,6 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.DecisionDefinition import (
     DecisionInputDefinition,
     DecisionQuestion,
@@ -48,19 +47,41 @@ def _user(user_id: Optional[int]) -> Optional["User"]:
 @strawberry.type
 class DecisionLabel(Node):
     id: NodeID[int]
-    db_record: Private[models.DecisionLabel]
+    db_record: Private[Optional[models.DecisionLabel]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("DecisionLabel ID mismatch")
 
     @strawberry.field
-    def name(self) -> str:
-        return self.db_record.name
+    async def name(self, info: Info[Context, None]) -> str:
+        if self.db_record:
+            val = self.db_record.name
+        else:
+            val = await info.context.data_loaders.decision_label_fields.load(
+                (self.id, models.DecisionLabel.name),
+            )
+        return val
 
     @strawberry.field
-    def description(self) -> Optional[str]:
-        return self.db_record.description
+    async def description(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.description
+        else:
+            val = await info.context.data_loaders.decision_label_fields.load(
+                (self.id, models.DecisionLabel.description),
+            )
+        return val
 
     @strawberry.field
-    def color(self) -> Optional[str]:
-        return self.db_record.color
+    async def color(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.color
+        else:
+            val = await info.context.data_loaders.decision_label_fields.load(
+                (self.id, models.DecisionLabel.color),
+            )
+        return val
 
     @strawberry.field
     async def usage_count(self, info: Info[Context, None]) -> int:
@@ -76,23 +97,52 @@ class DecisionLabel(Node):
 @strawberry.type(description="A movable name for one of a decision's versions.")
 class DecisionVersionTag(Node):
     id: NodeID[int]
-    db_record: Private[models.DecisionVersionTag]
+    db_record: Private[Optional[models.DecisionVersionTag]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("DecisionVersionTag ID mismatch")
 
     @strawberry.field
-    def name(self) -> Identifier:
-        return self.db_record.name
+    async def name(self, info: Info[Context, None]) -> Identifier:
+        if self.db_record:
+            return self.db_record.name
+        val = await info.context.data_loaders.decision_version_tag_fields.load(
+            (self.id, models.DecisionVersionTag.name),
+        )
+        return Identifier(val.root)
 
     @strawberry.field
-    def description(self) -> Optional[str]:
-        return self.db_record.description
+    async def description(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.description
+        else:
+            val = await info.context.data_loaders.decision_version_tag_fields.load(
+                (self.id, models.DecisionVersionTag.description),
+            )
+        return val
 
     @strawberry.field
-    def decision_version_id(self) -> GlobalID:
-        return GlobalID(DecisionVersion.__name__, str(self.db_record.decision_version_id))
+    async def decision_version_id(self, info: Info[Context, None]) -> GlobalID:
+        if self.db_record:
+            version_id = self.db_record.decision_version_id
+        else:
+            version_id = await info.context.data_loaders.decision_version_tag_fields.load(
+                (self.id, models.DecisionVersionTag.decision_version_id),
+            )
+        return GlobalID(DecisionVersion.__name__, str(version_id))
 
     @strawberry.field
-    def user(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        return _user(self.db_record.user_id)
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.decision_version_tag_fields.load(
+                (self.id, models.DecisionVersionTag.user_id),
+            )
+        return _user(user_id)
 
 
 @strawberry.type(
@@ -109,12 +159,8 @@ class DecisionVersion(Node):
         return GlobalID(Decision.__name__, str(self.db_record.decision_id))
 
     @strawberry.field(description="The decision this version belongs to.")  # type: ignore[untyped-decorator]
-    async def decision(self, info: Info[Context, None]) -> "Decision":
-        async with info.context.db.read() as session:
-            decision = await session.get(models.Decision, self.db_record.decision_id)
-        if decision is None:
-            raise NotFound(f"Decision not found: {self.db_record.decision_id}")
-        return Decision(id=decision.id, db_record=decision)
+    def decision(self) -> "Decision":
+        return Decision(id=self.db_record.decision_id)
 
     @strawberry.field
     def description(self) -> Optional[str]:
@@ -153,8 +199,8 @@ class DecisionVersion(Node):
         return _user(self.db_record.user_id)
 
     @strawberry.field(description="The custom provider this version runs on, if any.")  # type: ignore
-    async def custom_provider(
-        self, info: Info[Context, None]
+    def custom_provider(
+        self,
     ) -> Optional[
         Annotated[
             "GenerativeModelCustomProvider",
@@ -167,13 +213,7 @@ class DecisionVersion(Node):
             GenerativeModelCustomProvider,
         )
 
-        async with info.context.db.read() as session:
-            provider = await session.get(
-                models.GenerativeModelCustomProvider, self.db_record.custom_provider_id
-            )
-        if provider is None:
-            return None
-        return GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+        return GenerativeModelCustomProvider(id=self.db_record.custom_provider_id)
 
     @strawberry.field
     async def sequence_number(self, info: Info[Context, None]) -> int:
@@ -220,49 +260,105 @@ class DecisionVersion(Node):
 )
 class Decision(Node):
     id: NodeID[int]
-    db_record: Private[models.Decision]
+    db_record: Private[Optional[models.Decision]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("Decision ID mismatch")
 
     @strawberry.field
-    def name(self) -> Identifier:
-        return self.db_record.name
+    async def name(self, info: Info[Context, None]) -> Identifier:
+        if self.db_record:
+            return self.db_record.name
+        val = await info.context.data_loaders.decision_fields.load(
+            (self.id, models.Decision.name),
+        )
+        return Identifier(val.root)
 
     @strawberry.field
-    def description(self) -> Optional[str]:
-        return self.db_record.description
+    async def description(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.description
+        else:
+            val = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.description),
+            )
+        return val
 
     @strawberry.field
-    def metadata(self) -> JSON:
-        return JSON(self.db_record.metadata_)
+    async def metadata(self, info: Info[Context, None]) -> JSON:
+        if self.db_record:
+            val = self.db_record.metadata_
+        else:
+            val = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.metadata_),
+            )
+        return JSON(val)
 
     @strawberry.field
-    def created_at(self) -> datetime:
-        return self.db_record.created_at
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.created_at),
+            )
+        return val
 
     @strawberry.field
-    def updated_at(self) -> datetime:
-        return self.db_record.updated_at
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        if self.db_record:
+            val = self.db_record.updated_at
+        else:
+            val = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.updated_at),
+            )
+        return val
+
+    async def _user_id(self, info: Info[Context, None]) -> Optional[int]:
+        if self.db_record:
+            val = self.db_record.user_id
+        else:
+            val = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.user_id),
+            )
+        return val
 
     @strawberry.field
-    def user(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        return _user(self.db_record.user_id)
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        return _user(await self._user_id(info))
 
     @strawberry.field
-    def created_by(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        return _user(self.db_record.user_id)
+    async def created_by(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        return _user(await self._user_id(info))
 
     @strawberry.field
     async def updated_by(
         self, info: Info[Context, None]
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        version = await self.version(info)
-        return _user(version.db_record.user_id) if version else _user(self.db_record.user_id)
+        authors = await info.context.data_loaders.decision_authors.load(self.id)
+        if authors.updated_by is not None:
+            from .User import to_gql_user
+
+            return to_gql_user(authors.updated_by)
+        return _user(await self._user_id(info))
 
     @strawberry.field
     async def source_decision(self, info: Info[Context, None]) -> Optional["Decision"]:
-        if self.db_record.source_decision_id is None:
+        if self.db_record:
+            source_id = self.db_record.source_decision_id
+        else:
+            source_id = await info.context.data_loaders.decision_fields.load(
+                (self.id, models.Decision.source_decision_id),
+            )
+        if source_id is None:
             return None
         async with info.context.db.read() as session:
-            decision = await session.get(models.Decision, self.db_record.source_decision_id)
+            decision = await session.get(models.Decision, source_id)
         return Decision(id=decision.id, db_record=decision) if decision else None
 
     @strawberry.field

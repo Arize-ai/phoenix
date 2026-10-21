@@ -1199,20 +1199,16 @@ class Query:
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
         elif type_name == DecisionLabel.__name__:
-            async with info.context.db.read() as session:
-                label = await session.get(models.DecisionLabel, node_id)
-            if label is None:
-                raise NotFound(f"Decision label not found: {id}")
-            return DecisionLabel(id=label.id, db_record=label)
+            return DecisionLabel(id=node_id)
         elif type_name == PromptLabel.__name__:
             return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
             return PromptVersionTag(id=node_id)
-        elif type_name in (
-            Decision.__name__,
-            DecisionVersion.__name__,
-            DecisionVersionTag.__name__,
-        ):
+        elif type_name == Decision.__name__:
+            return Decision(id=node_id)
+        elif type_name == DecisionVersionTag.__name__:
+            return DecisionVersionTag(id=node_id)
+        elif type_name == DecisionVersion.__name__:
             return await _decision_node(info, type_name, node_id, id)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)

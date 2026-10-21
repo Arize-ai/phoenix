@@ -214,11 +214,11 @@ class ExperimentJob(Node):
             InlineDecisionEvaluatorDefinition,
         )
 
-        async with info.context.db.read() as session:
-            values = await session.scalar(
-                select(models.ExperimentJob.decision_evaluator_snapshots).where(
-                    models.ExperimentJob.id == self.id
-                )
+        if self.db_record:
+            values = self.db_record.decision_evaluator_snapshots
+        else:
+            values = await info.context.data_loaders.experiment_job_fields.load(
+                (self.id, models.ExperimentJob.decision_evaluator_snapshots),
             )
         result = []
         for value in values or []:

@@ -1,24 +1,22 @@
 from datetime import datetime
 from math import isfinite
 from random import randint
-from typing import TYPE_CHECKING, Annotated, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
 import strawberry
 from strawberry import Info
 from strawberry.relay import GlobalID, Node, NodeID
-from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
 from phoenix.server.api.types.Trace import Trace
 
-if TYPE_CHECKING:
-    from phoenix.server.api.types.DecisionAnnotation import DecisionAnnotation
+from .Annotation import AnnotationMetadataMixin
 
 
 @strawberry.type
-class ExperimentRunAnnotation(Node):
+class ExperimentRunAnnotation(Node, AnnotationMetadataMixin):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.ExperimentRunAnnotation]] = None
     _raw_annotation: strawberry.Private[Optional[Dict[str, Any]]] = None
@@ -134,31 +132,6 @@ class ExperimentRunAnnotation(Node):
         return await info.context.data_loaders.experiment_run_annotation_fields.load(
             (self.id, models.ExperimentRunAnnotation.metadata_),
         )
-
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
-        return JSON(await self._metadata(info))
-
-    @strawberry.field(
-        description=(
-            "The decision judge's result, typed, when the metadata holds one in Phoenix's "
-            "decision format; null otherwise."
-        )
-    )  # type: ignore
-    async def decision(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[Annotated["DecisionAnnotation", strawberry.lazy(".DecisionAnnotation")]]:
-        # Imported here: the decision clients import the playground clients, which import
-        # this type.
-        from phoenix.server.api.types.DecisionAnnotation import (
-            decision_annotation_from_metadata,
-        )
-
-        return decision_annotation_from_metadata(await self._metadata(info))
 
     @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
     async def start_time(
