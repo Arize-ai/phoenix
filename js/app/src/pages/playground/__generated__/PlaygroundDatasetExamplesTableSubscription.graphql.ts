@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ea2ed19d0be9fb1a5d1a98f0ea16830>>
+ * @generated SignedSource<<3a1cef5661a062a44bee856ac6f6a1e7>>
  * @lightSyntaxTransform
  */
 
@@ -10,8 +10,11 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
+export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
+export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
+export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
@@ -38,10 +41,16 @@ export type GenerativeCredentialInput = {
   value: string;
 };
 export type ExperimentTaskInput = {
+  decision?: never;
   evaluator?: never;
   prompt: PromptTaskInput;
 } | {
+  decision?: never;
   evaluator: EvaluatorTaskInput;
+  prompt?: never;
+} | {
+  decision: DecisionTaskInput;
+  evaluator?: never;
   prompt?: never;
 };
 export type PromptTaskInput = {
@@ -305,25 +314,160 @@ export type EvaluatorTaskInput = {
   source?: EvaluatorTaskSourceInput | null;
 };
 export type EvaluatorDefinitionInput = {
-  builtInEvaluatorId: string;
+  builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId: string;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId: string;
+  codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator: InlineLLMEvaluatorInput;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId: string;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator: InlineCodeEvaluatorInput;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
+};
+export type InlineDecisionEvaluatorInput = {
+  decisionVersion: DecisionVersionInput;
+  description?: string | null;
+  name: string;
+  scoringPolicy?: DecisionScoringPolicyInput | null;
+};
+export type DecisionVersionInput = {
+  customProviderId?: string | null;
+  description?: string | null;
+  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  metadata?: any | null;
+  modelName: string;
+  modelProvider: GenerativeProviderKey;
+  questions: ReadonlyArray<DecisionQuestionInput>;
+  state: DecisionStateInput;
+};
+export type DecisionInputDefinitionInput = {
+  description?: string | null;
+  jsonSchema?: any | null;
+  name: string;
+};
+export type DecisionStateInput = {
+  input?: never;
+  object: boolean;
+  text?: never;
+} | {
+  input?: never;
+  object?: never;
+  text: TextStateInput;
+} | {
+  input: string;
+  object?: never;
+  text?: never;
+};
+export type TextStateInput = {
+  template: string;
+  templateFormat: DecisionTemplateFormat;
+};
+export type DecisionQuestionInput = {
+  choice?: never;
+  predicate: PredicateQuestionInput;
+  scale?: never;
+} | {
+  choice: ChoiceQuestionInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: ScaleQuestionInput;
+};
+export type PredicateQuestionInput = {
+  criteria?: PredicateCriteriaInput | null;
+  instructions: string;
+  name: string;
+};
+export type PredicateCriteriaInput = {
+  false?: string | null;
+  true?: string | null;
+};
+export type ChoiceQuestionInput = {
+  choices: ReadonlyArray<ChoiceOptionInput>;
+  instructions: string;
+  name: string;
+};
+export type ChoiceOptionInput = {
+  description?: string | null;
+  value: string;
+};
+export type ScaleQuestionInput = {
+  instructions: string;
+  levels: ReadonlyArray<ScaleLevelInput>;
+  name: string;
+};
+export type ScaleLevelInput = {
+  description?: string | null;
+  label: string;
+};
+export type DecisionScoringPolicyInput = {
+  questions?: ReadonlyArray<DecisionQuestionScoringInput>;
+};
+export type DecisionQuestionScoringInput = {
+  choice?: never;
+  predicate: DecisionPredicateScoringInput;
+  scale?: never;
+} | {
+  choice: DecisionChoiceScoringInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: DecisionScaleScoringInput;
+};
+export type DecisionPredicateScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  threshold?: number;
+};
+export type DecisionChoiceScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  scores?: ReadonlyArray<DecisionChoiceScoreInput>;
+};
+export type DecisionChoiceScoreInput = {
+  choice: string;
+  score: number;
+};
+export type DecisionScaleScoringInput = {
+  includeLabel?: boolean;
+  name: string;
+  optimizationDirection?: OptimizationDirection;
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
@@ -344,6 +488,31 @@ export type EvaluatorTaskSourceInput = {
   evaluatorId?: string | null;
   projectEvaluatorId?: string | null;
   promptVersionId?: string | null;
+};
+export type DecisionTaskInput = {
+  connection: DecisionConnectionInput;
+  decisionVersionId?: string | null;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  inputValuesPath?: string | null;
+  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  modelName: string;
+  questions: ReadonlyArray<DecisionQuestionInput>;
+  state: DecisionStateInput;
+};
+export type DecisionConnectionInput = {
+  builtIn: BuiltInDecisionConnectionInput;
+  customProvider?: never;
+} | {
+  builtIn?: never;
+  customProvider: CustomProviderDecisionConnectionInput;
+};
+export type BuiltInDecisionConnectionInput = {
+  baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  providerKey: GenerativeProviderKey;
+};
+export type CustomProviderDecisionConnectionInput = {
+  id: string;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ExperimentsOverDatasetInput;
@@ -386,6 +555,7 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly experimentId: string | null;
     readonly experimentRun: {
       readonly id: string;
+      readonly output: any | null;
     } | null;
     readonly repetitionNumber: number | null;
     readonly span: {
@@ -412,6 +582,48 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly experimentId: string | null;
     readonly experimentRunEvaluation: {
       readonly annotatorKind: ExperimentRunAnnotatorKind;
+      readonly decision: {
+        readonly answer: {
+          readonly __typename: "ChoiceAnswer";
+          readonly choice: string;
+          readonly choiceProbabilities: ReadonlyArray<{
+            readonly probability: number;
+            readonly value: string;
+          }>;
+          readonly confidence: number;
+        } | {
+          readonly __typename: "PredicateAnswer";
+          readonly probability: number;
+        } | {
+          readonly __typename: "ScaleAnswer";
+          readonly confidence: number;
+          readonly expectedLevel: number;
+          readonly levelProbabilities: ReadonlyArray<{
+            readonly level: number;
+            readonly probability: number;
+          }>;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        } | null;
+        readonly modelProvider: GenerativeProviderKey | null;
+        readonly question: {
+          readonly choices: ReadonlyArray<{
+            readonly description: string | null;
+            readonly value: string;
+          }> | null;
+          readonly levels: ReadonlyArray<{
+            readonly description: string | null;
+            readonly label: string;
+          }> | null;
+          readonly name: string;
+          readonly type: DecisionAnnotationQuestionType;
+        } | null;
+        readonly requestedModel: string | null;
+        readonly resolvedModel: string | null;
+        readonly status: DecisionAnnotationStatus;
+      } | null;
       readonly explanation: string | null;
       readonly id: string;
       readonly label: string | null;
@@ -662,28 +874,36 @@ v13 = {
   "storageKey": null
 },
 v14 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "ExperimentRun",
-  "kind": "LinkedField",
-  "name": "experimentRun",
-  "plural": false,
-  "selections": (v10/*:: as any*/),
-  "storageKey": null
-},
-v15 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
     (v4/*:: as any*/),
     (v5/*:: as any*/),
     (v13/*:: as any*/),
-    (v14/*:: as any*/)
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ExperimentRun",
+      "kind": "LinkedField",
+      "name": "experimentRun",
+      "plural": false,
+      "selections": [
+        (v7/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "output",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
   ],
   "type": "ChatCompletionSubscriptionResult",
   "abstractKey": null
 },
-v16 = {
+v15 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
@@ -697,19 +917,63 @@ v16 = {
       "storageKey": null
     },
     (v13/*:: as any*/),
-    (v14/*:: as any*/)
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ExperimentRun",
+      "kind": "LinkedField",
+      "name": "experimentRun",
+      "plural": false,
+      "selections": (v10/*:: as any*/),
+      "storageKey": null
+    }
   ],
   "type": "ChatCompletionSubscriptionError",
   "abstractKey": null
 },
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluatorName",
   "storageKey": null
 },
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
 v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
+},
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": "ExperimentRunAnnotation",
@@ -717,15 +981,175 @@ v18 = {
   "name": "experimentRunEvaluation",
   "plural": false,
   "selections": [
-    (v7/*:: as any*/),
-    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "label",
+      "concreteType": "DecisionAnnotation",
+      "kind": "LinkedField",
+      "name": "decision",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "status",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DecisionAnnotationQuestion",
+          "kind": "LinkedField",
+          "name": "question",
+          "plural": false,
+          "selections": [
+            (v8/*:: as any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "type",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DecisionChoiceOption",
+              "kind": "LinkedField",
+              "name": "choices",
+              "plural": true,
+              "selections": [
+                (v17/*:: as any*/),
+                (v18/*:: as any*/)
+              ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DecisionScaleLevel",
+              "kind": "LinkedField",
+              "name": "levels",
+              "plural": true,
+              "selections": [
+                (v19/*:: as any*/),
+                (v18/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": null,
+          "kind": "LinkedField",
+          "name": "answer",
+          "plural": false,
+          "selections": [
+            (v2/*:: as any*/),
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v20/*:: as any*/)
+              ],
+              "type": "PredicateAnswer",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "choice",
+                  "storageKey": null
+                },
+                (v21/*:: as any*/),
+                {
+                  "alias": "choiceProbabilities",
+                  "args": null,
+                  "concreteType": "ChoiceProbability",
+                  "kind": "LinkedField",
+                  "name": "probabilities",
+                  "plural": true,
+                  "selections": [
+                    (v17/*:: as any*/),
+                    (v20/*:: as any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "ChoiceAnswer",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "expectedLevel",
+                  "storageKey": null
+                },
+                (v21/*:: as any*/),
+                {
+                  "alias": "levelProbabilities",
+                  "args": null,
+                  "concreteType": "LevelProbability",
+                  "kind": "LinkedField",
+                  "name": "probabilities",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "level",
+                      "storageKey": null
+                    },
+                    (v20/*:: as any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "ScaleAnswer",
+              "abstractKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "requestedModel",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "resolvedModel",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "modelProvider",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
+    (v7/*:: as any*/),
+    (v8/*:: as any*/),
+    (v19/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -764,14 +1188,14 @@ v18 = {
   ],
   "storageKey": null
 },
-v19 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "projectId",
   "storageKey": null
 },
-v20 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -797,16 +1221,16 @@ return {
           (v6/*:: as any*/),
           (v9/*:: as any*/),
           (v11/*:: as any*/),
+          (v14/*:: as any*/),
           (v15/*:: as any*/),
-          (v16/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v17/*:: as any*/),
-              (v18/*:: as any*/),
+              (v16/*:: as any*/),
+              (v22/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -816,11 +1240,11 @@ return {
                 "plural": false,
                 "selections": [
                   (v12/*:: as any*/),
-                  (v19/*:: as any*/)
+                  (v23/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v20/*:: as any*/)
+              (v24/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -850,16 +1274,16 @@ return {
           (v6/*:: as any*/),
           (v9/*:: as any*/),
           (v11/*:: as any*/),
+          (v14/*:: as any*/),
           (v15/*:: as any*/),
-          (v16/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v17/*:: as any*/),
-              (v18/*:: as any*/),
+              (v16/*:: as any*/),
+              (v22/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -869,12 +1293,12 @@ return {
                 "plural": false,
                 "selections": [
                   (v12/*:: as any*/),
-                  (v19/*:: as any*/),
+                  (v23/*:: as any*/),
                   (v7/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v20/*:: as any*/)
+              (v24/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -885,16 +1309,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ef702999b5fc30945054e610dd4b0cc5",
+    "cacheID": "cf957554717ace4a3fe77968c57e28ba",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ExperimentsOverDatasetInput!\n) {\n  experimentsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experimentId\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ExperimentsOverDatasetInput!\n) {\n  experimentsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experimentId\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n        output\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "923946b95ed51fc7866c415bbcc2392f";
+(node as any).hash = "f4d73ed0794af955b9a72c108c037a66";
 
 export default node;

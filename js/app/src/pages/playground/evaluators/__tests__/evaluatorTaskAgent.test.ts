@@ -40,9 +40,13 @@ function createPage(kinds: PlaygroundEvaluatorTaskKind[]) {
     index === 0
       ? playgroundStore.getState().replaceInstance({
           instanceId: first.id,
-          source: { type: "new", kind },
+          source: { type: "new", taskType: "evaluator", evaluatorKind: kind },
         })!
-      : playgroundStore.getState().addInstance({ type: "new", kind })!
+      : playgroundStore.getState().addInstance({
+          type: "new",
+          taskType: "evaluator",
+          evaluatorKind: kind,
+        })!
   );
 
   return { playgroundStore, instanceIds };
@@ -63,7 +67,7 @@ function createHost({
     .getState()
     .instances.find((candidate) => candidate.id === instanceId)!;
 
-  if (instance.task.kind !== "evaluator") throw new Error("not an evaluator");
+  if (instance.task.type !== "evaluator") throw new Error("not an evaluator");
   const evaluator = instance.task.evaluator;
   const store = createEvaluatorStore(createEvaluatorTaskStoreState(evaluator));
 

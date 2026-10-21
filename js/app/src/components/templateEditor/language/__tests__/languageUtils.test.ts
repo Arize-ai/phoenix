@@ -238,6 +238,8 @@ can you help with this json?
 {{ "name": "John", "age": {age} }}`,
         expected: ["name", "age"],
       },
+      { input: "{name} {name}", expected: ["name"] },
+      { input: "{} {name}", expected: ["name"] },
       { input: "\\{test}", expected: [] },
     ] as const;
     tests.forEach(({ input, expected }) => {

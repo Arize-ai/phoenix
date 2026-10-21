@@ -1,6 +1,6 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import type { PlaygroundTaskKind } from "@phoenix/store/playground/types";
+import type { PlaygroundMode } from "@phoenix/store/playground/types";
 
 export const PLAYGROUND_PANEL_LAYOUT_ID = "playground-panels-v2";
 
@@ -12,16 +12,20 @@ export const PLAYGROUND_PANEL_LAYOUT_ID = "playground-panels-v2";
 export function getPlaygroundPanelIds({
   isDatasetMode,
   templateFormat,
-  taskKind = "prompt",
+  mode = "task",
+  hasDecisionInputState = false,
 }: {
   isDatasetMode: boolean;
   templateFormat: TemplateFormat;
-  taskKind?: PlaygroundTaskKind;
+  mode?: PlaygroundMode;
+  hasDecisionInputState?: boolean;
 }): string[] {
-  if (isDatasetMode || taskKind === "evaluator") {
+  // Evaluator tasks have no manual input, so without a dataset they show the
+  // same two panels as a dataset does.
+  if (isDatasetMode || mode === "evaluator") {
     return ["prompts", "io"];
   }
-  return templateFormat !== TemplateFormats.NONE
+  return templateFormat !== TemplateFormats.NONE || hasDecisionInputState
     ? ["prompts", "input", "output"]
     : ["prompts", "output"];
 }

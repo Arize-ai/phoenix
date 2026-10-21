@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<19c8c87552f2b7dd20325061b24ed895>>
+ * @generated SignedSource<<358fc60c783ba8313ed3560634c89773>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,9 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
+export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type ExperimentCompareDetailsQuery$variables = {
   datasetExampleId: string;
@@ -72,6 +75,48 @@ export type ExperimentCompareDetailsQuery$data = {
           readonly annotations: {
             readonly edges: ReadonlyArray<{
               readonly annotation: {
+                readonly decision: {
+                  readonly answer: {
+                    readonly __typename: "ChoiceAnswer";
+                    readonly choice: string;
+                    readonly choiceProbabilities: ReadonlyArray<{
+                      readonly probability: number;
+                      readonly value: string;
+                    }>;
+                    readonly confidence: number;
+                  } | {
+                    readonly __typename: "PredicateAnswer";
+                    readonly probability: number;
+                  } | {
+                    readonly __typename: "ScaleAnswer";
+                    readonly confidence: number;
+                    readonly expectedLevel: number;
+                    readonly levelProbabilities: ReadonlyArray<{
+                      readonly level: number;
+                      readonly probability: number;
+                    }>;
+                  } | {
+                    // This will never be '%other', but we need some
+                    // value in case none of the concrete values match.
+                    readonly __typename: "%other";
+                  } | null;
+                  readonly modelProvider: GenerativeProviderKey | null;
+                  readonly question: {
+                    readonly choices: ReadonlyArray<{
+                      readonly description: string | null;
+                      readonly value: string;
+                    }> | null;
+                    readonly levels: ReadonlyArray<{
+                      readonly description: string | null;
+                      readonly label: string;
+                    }> | null;
+                    readonly name: string;
+                    readonly type: DecisionAnnotationQuestionType;
+                  } | null;
+                  readonly requestedModel: string | null;
+                  readonly resolvedModel: string | null;
+                  readonly status: DecisionAnnotationStatus;
+                } | null;
                 readonly id: string;
                 readonly label: string | null;
                 readonly metadata: any;
@@ -301,36 +346,237 @@ v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "value",
   "storageKey": null
 },
 v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "score",
+  "name": "description",
   "storageKey": null
 },
 v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v22 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v23 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
+},
+v24 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DecisionAnnotation",
+  "kind": "LinkedField",
+  "name": "decision",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "status",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DecisionAnnotationQuestion",
+      "kind": "LinkedField",
+      "name": "question",
+      "plural": false,
+      "selections": [
+        (v17/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "type",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DecisionChoiceOption",
+          "kind": "LinkedField",
+          "name": "choices",
+          "plural": true,
+          "selections": [
+            (v18/*:: as any*/),
+            (v19/*:: as any*/)
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DecisionScaleLevel",
+          "kind": "LinkedField",
+          "name": "levels",
+          "plural": true,
+          "selections": [
+            (v20/*:: as any*/),
+            (v19/*:: as any*/)
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "answer",
+      "plural": false,
+      "selections": [
+        (v21/*:: as any*/),
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v22/*:: as any*/)
+          ],
+          "type": "PredicateAnswer",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "choice",
+              "storageKey": null
+            },
+            (v23/*:: as any*/),
+            {
+              "alias": "choiceProbabilities",
+              "args": null,
+              "concreteType": "ChoiceProbability",
+              "kind": "LinkedField",
+              "name": "probabilities",
+              "plural": true,
+              "selections": [
+                (v18/*:: as any*/),
+                (v22/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "type": "ChoiceAnswer",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "expectedLevel",
+              "storageKey": null
+            },
+            (v23/*:: as any*/),
+            {
+              "alias": "levelProbabilities",
+              "args": null,
+              "concreteType": "LevelProbability",
+              "kind": "LinkedField",
+              "name": "probabilities",
+              "plural": true,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "level",
+                  "storageKey": null
+                },
+                (v22/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "type": "ScaleAnswer",
+          "abstractKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "requestedModel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "resolvedModel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelProvider",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v25 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v26 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "metadata",
   "storageKey": null
 },
-v21 = [
+v27 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v22 = {
+v28 = {
   "kind": "Literal",
   "name": "includeEphemeral",
   "value": true
 },
-v23 = {
+v29 = {
   "alias": null,
   "args": [
     {
@@ -338,7 +584,7 @@ v23 = {
       "name": "filterIds",
       "variableName": "experimentIds"
     },
-    (v22/*:: as any*/)
+    (v28/*:: as any*/)
   ],
   "concreteType": "ExperimentConnection",
   "kind": "LinkedField",
@@ -379,10 +625,10 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v30 = {
   "alias": null,
   "args": [
-    (v22/*:: as any*/)
+    (v28/*:: as any*/)
   ],
   "concreteType": "DatasetExperimentAnnotationSummary",
   "kind": "LinkedField",
@@ -413,32 +659,25 @@ v24 = {
   ],
   "storageKey": "experimentAnnotationSummaries(includeEphemeral:true)"
 },
-v25 = [
+v31 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v26 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v27 = {
+v32 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v28 = {
+v33 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v27/*:: as any*/),
+    (v32/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -447,8 +686,8 @@ v28 = {
       "name": "values",
       "plural": true,
       "selections": [
-        (v18/*:: as any*/),
-        (v19/*:: as any*/)
+        (v20/*:: as any*/),
+        (v25/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -456,36 +695,36 @@ v28 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v29 = {
+v34 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v30 = {
+v35 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v31 = {
+v36 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v27/*:: as any*/),
-    (v29/*:: as any*/),
-    (v30/*:: as any*/)
+    (v32/*:: as any*/),
+    (v34/*:: as any*/),
+    (v35/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v32 = {
+v37 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v27/*:: as any*/),
+    (v32/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -493,13 +732,13 @@ v32 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v29/*:: as any*/),
-    (v30/*:: as any*/)
+    (v34/*:: as any*/),
+    (v35/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v33 = {
+v38 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -593,11 +832,12 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
+                                      (v24/*:: as any*/),
                                       (v7/*:: as any*/),
                                       (v17/*:: as any*/),
-                                      (v18/*:: as any*/),
-                                      (v19/*:: as any*/),
                                       (v20/*:: as any*/),
+                                      (v25/*:: as any*/),
+                                      (v26/*:: as any*/),
                                       (v15/*:: as any*/)
                                     ],
                                     "storageKey": null
@@ -626,7 +866,7 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v21/*:: as any*/),
+        "args": (v27/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -635,11 +875,11 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v23/*:: as any*/),
-              (v24/*:: as any*/),
+              (v29/*:: as any*/),
+              (v30/*:: as any*/),
               {
                 "alias": null,
-                "args": (v25/*:: as any*/),
+                "args": (v31/*:: as any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "datasetEvaluators",
@@ -670,10 +910,10 @@ return {
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
-                              (v26/*:: as any*/),
-                              (v28/*:: as any*/),
-                              (v31/*:: as any*/),
-                              (v32/*:: as any*/)
+                              (v21/*:: as any*/),
+                              (v33/*:: as any*/),
+                              (v36/*:: as any*/),
+                              (v37/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -716,7 +956,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v26/*:: as any*/),
+          (v21/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -751,7 +991,7 @@ return {
                           (v10/*:: as any*/),
                           (v11/*:: as any*/),
                           (v12/*:: as any*/),
-                          (v33/*:: as any*/),
+                          (v38/*:: as any*/),
                           (v16/*:: as any*/),
                           {
                             "alias": null,
@@ -777,12 +1017,13 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
+                                      (v24/*:: as any*/),
                                       (v7/*:: as any*/),
                                       (v17/*:: as any*/),
-                                      (v18/*:: as any*/),
-                                      (v19/*:: as any*/),
                                       (v20/*:: as any*/),
-                                      (v33/*:: as any*/)
+                                      (v25/*:: as any*/),
+                                      (v26/*:: as any*/),
+                                      (v38/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -811,21 +1052,21 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v21/*:: as any*/),
+        "args": (v27/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v26/*:: as any*/),
+          (v21/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v23/*:: as any*/),
-              (v24/*:: as any*/),
+              (v29/*:: as any*/),
+              (v30/*:: as any*/),
               {
                 "alias": null,
-                "args": (v25/*:: as any*/),
+                "args": (v31/*:: as any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "datasetEvaluators",
@@ -856,10 +1097,10 @@ return {
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
-                              (v26/*:: as any*/),
-                              (v28/*:: as any*/),
-                              (v31/*:: as any*/),
-                              (v32/*:: as any*/),
+                              (v21/*:: as any*/),
+                              (v33/*:: as any*/),
+                              (v36/*:: as any*/),
+                              (v37/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -892,16 +1133,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "21be26b14ebce359231991b6a4bc1e5a",
+    "cacheID": "c985a9a444427206c2e2a34245c7e9f8",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries(includeEphemeral: true) {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  decision {\n                    status\n                    question {\n                      name\n                      type\n                      choices {\n                        value\n                        description\n                      }\n                      levels {\n                        label\n                        description\n                      }\n                    }\n                    answer {\n                      __typename\n                      ... on PredicateAnswer {\n                        probability\n                      }\n                      ... on ChoiceAnswer {\n                        choice\n                        confidence\n                        choiceProbabilities: probabilities {\n                          value\n                          probability\n                        }\n                      }\n                      ... on ScaleAnswer {\n                        expectedLevel\n                        confidence\n                        levelProbabilities: probabilities {\n                          level\n                          probability\n                        }\n                      }\n                    }\n                    requestedModel\n                    resolvedModel\n                    modelProvider\n                  }\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries(includeEphemeral: true) {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c4011de72dea4cef7e86a037f3fb95c0";
+(node as any).hash = "39a861c44102c69435739f4167c3d394";
 
 export default node;

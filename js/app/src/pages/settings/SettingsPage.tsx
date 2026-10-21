@@ -79,6 +79,7 @@ const TABS = [
   { id: "secrets", label: "Secrets", icon: <Icons.Lock /> },
   { id: "datasets", label: "Datasets", icon: <Icons.Database /> },
   { id: "annotations", label: "Annotations", icon: <Icons.Edit2 /> },
+  { id: "decisions", label: "Decisions", icon: <Icons.GitBranch /> },
   { id: "prompts", label: "Prompts", icon: <Icons.MessageSquare /> },
   { id: "data", label: "Data Retention", icon: <Icons.HardDrive /> },
   { id: "agents", label: "Assistant", icon: <PxiGlyphOutline /> },

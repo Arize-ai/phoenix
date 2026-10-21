@@ -34,6 +34,7 @@ function evaluation(exampleId: string, score: number | null): EvaluationChunk {
       score == null
         ? null
         : {
+            decision: null,
             id: `annotation-${exampleId}`,
             name: "judge",
             label: null,

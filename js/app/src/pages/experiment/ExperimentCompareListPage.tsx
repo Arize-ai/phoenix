@@ -295,6 +295,7 @@ export function ExperimentCompareListPage({
                     annotations {
                       edges {
                         annotation: node {
+                          ...decisionAnnotation_annotation @relay(mask: false)
                           name
                           score
                           label
@@ -328,6 +329,8 @@ export function ExperimentCompareListPage({
                           annotations {
                             edges {
                               annotation: node {
+                                ...decisionAnnotation_annotation
+                                  @relay(mask: false)
                                 name
                                 score
                                 label

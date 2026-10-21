@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c61f314c168553ea85f73721a691c124>>
+ * @generated SignedSource<<e945118873577441ac5b0ac399cf800f>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type AddProjectCodeEvaluatorInput = {
   enabled?: boolean;
   evaluationDelaySeconds?: number | null;

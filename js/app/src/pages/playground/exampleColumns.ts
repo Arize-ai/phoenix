@@ -1,6 +1,6 @@
 import type { ColumnVisibilityState } from "@tanstack/react-table";
 
-import type { PlaygroundTaskKind } from "@phoenix/store/playground/types";
+import type { PlaygroundMode } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
@@ -13,16 +13,16 @@ export type ExampleColumn = (typeof EXAMPLE_COLUMNS)[number];
 
 /**
  * Column labels as the table's headers spell them. The example's output is
- * the reference a prompt task's output is judged against, but for an
+ * the reference a tested task's output is judged against, but for an
  * evaluator task it is the output being judged, so the label follows the
- * page's kind of task.
+ * page's role.
  */
 export function getExampleColumnLabels(
-  taskKind: PlaygroundTaskKind
+  mode: PlaygroundMode
 ): Record<ExampleColumn, string> {
   return {
     input: "input",
-    output: taskKind === "evaluator" ? "output" : "reference output",
+    output: mode === "evaluator" ? "output" : "reference output",
     metadata: "metadata",
   };
 }

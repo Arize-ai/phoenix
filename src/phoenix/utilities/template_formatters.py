@@ -278,7 +278,7 @@ class _SafeFieldFormatter(Formatter):
     def get_field(self, field_name: str, args: Any, kwargs: Any) -> Any:
         first = re.match(r"^[^.\[\]]*", field_name).group(0)  # type: ignore[union-attr]
         rest = field_name[len(first) :]
-        key: Any = int(first) if first.isdigit() else first
+        key: Any = int(first) if first.isdigit() and first not in kwargs else first
         obj = self.get_value(key, args, kwargs)
         for attr, index in _FIELD_NAME_PART_RE.findall(rest):
             if attr:

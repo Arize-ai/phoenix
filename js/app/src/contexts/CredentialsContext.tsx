@@ -25,12 +25,21 @@ export function CredentialsProvider({
   );
 }
 
+/**
+ * The credentials store itself, for reading the current credentials outside
+ * of render (for example when a run starts) without subscribing to changes.
+ */
+export function useCredentialsStore(): CredentialsStore {
+  const store = useContext(CredentialsContext);
+  if (!store)
+    throw new Error("Missing CredentialsContext.Provider in the tree");
+  return store;
+}
+
 export function useCredentialsContext<T>(
   selector: (state: CredentialsState) => T,
   equalityFn?: (left: T, right: T) => boolean
 ): T {
-  const store = useContext(CredentialsContext);
-  if (!store)
-    throw new Error("Missing CredentialsContext.Provider in the tree");
+  const store = useCredentialsStore();
   return useZustand(store, selector, equalityFn);
 }

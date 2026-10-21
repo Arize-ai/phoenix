@@ -89,7 +89,10 @@ describe("createExperimentsOverDatasetRouter", () => {
           datasetExampleId: "example-1",
           repetitionNumber: null,
           span: SPAN,
-          experimentRun: { id: "run-1" },
+          experimentRun: {
+            id: "run-1",
+            output: { urgent: { type: "predicate", probability: 0.9 } },
+          },
         })
       )
     ).toEqual({
@@ -99,6 +102,8 @@ describe("createExperimentsOverDatasetRouter", () => {
       repetitionNumber: 1,
       span: SPAN,
       experimentRunId: "run-1",
+      // A decision run's answers come with the run, not as chunks.
+      output: { urgent: { type: "predicate", probability: 0.9 } },
     });
     expect(
       router.route(

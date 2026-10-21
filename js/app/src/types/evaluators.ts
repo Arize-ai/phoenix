@@ -139,7 +139,7 @@ export type FreeformEvaluatorAnnotationConfig = {
 /**
  * The kind of evaluator
  */
-export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
+export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN" | "DECISION";
 
 // Runtime tuple so the code-evaluator draft Zod schema derives its enum from this same source.
 export const CODE_EVALUATOR_LANGUAGES = ["PYTHON", "TYPESCRIPT"] as const;
