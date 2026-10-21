@@ -65,7 +65,7 @@ from phoenix.server.api.helpers.playground_registry import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk, ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
@@ -244,6 +244,118 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
 
         assert not attributes
+
+    async def test_stream_keeps_content_and_tool_calls_of_the_chunk_with_finish_reason(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tracer: Tracer,
+        in_memory_span_exporter: InMemorySpanExporter,
+    ) -> None:
+        """Some servers put the last text or tool call fragment in the same chunk as finish_reason."""
+        from openai.types.chat import ChatCompletionChunk
+        from openai.types.chat.chat_completion_chunk import (
+            Choice,
+            ChoiceDelta,
+            ChoiceDeltaToolCall,
+            ChoiceDeltaToolCallFunction,
+        )
+
+        def make_chunk(
+            *,
+            content: str | None = None,
+            tool_calls: list[ChoiceDeltaToolCall] | None = None,
+            finish_reason: Any = None,
+        ) -> ChatCompletionChunk:
+            return ChatCompletionChunk(
+                id="chatcmpl-test",
+                object="chat.completion.chunk",
+                created=0,
+                model="test-model",
+                choices=[
+                    Choice(
+                        index=0,
+                        delta=ChoiceDelta(content=content, tool_calls=tool_calls),
+                        finish_reason=finish_reason,
+                    )
+                ],
+            )
+
+        fake_chunks = [
+            make_chunk(content="Hello"),
+            make_chunk(content=" world", finish_reason="stop"),
+        ]
+        tool_chunks = [
+            make_chunk(
+                tool_calls=[
+                    ChoiceDeltaToolCall(
+                        index=0,
+                        id="call_1",
+                        function=ChoiceDeltaToolCallFunction(
+                            name="get_weather", arguments='{"city"'
+                        ),
+                    )
+                ]
+            ),
+            make_chunk(
+                tool_calls=[
+                    ChoiceDeltaToolCall(
+                        index=0,
+                        function=ChoiceDeltaToolCallFunction(arguments=': "Paris"}'),
+                    )
+                ],
+                finish_reason="tool_calls",
+            ),
+        ]
+
+        @asynccontextmanager
+        async def factory() -> AsyncIterator[Any]:
+            yield AsyncOpenAI(api_key="test-key", max_retries=0)
+
+        client = OpenAICompatibleClient(
+            client_factory=factory,
+            model_name="test-model",
+            provider="openai",
+        )
+
+        async def stream_of(
+            chunks: list[ChatCompletionChunk],
+        ) -> AsyncIterator[ChatCompletionChunk]:
+            for chunk in chunks:
+                yield chunk
+
+        for chunks in (fake_chunks, tool_chunks):
+
+            async def fake_create_stream(*_: Any, _chunks: Any = chunks, **__: Any) -> Any:
+                return stream_of(_chunks)
+
+            monkeypatch.setattr(client, "_openai_chat_completion_create_stream", fake_create_stream)
+            received = [
+                chunk
+                async for chunk in client.chat_completion_create(
+                    messages=[create_playground_message(ChatCompletionMessageRole.USER, "Hi")],
+                    tools=None,
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai",
+                        openai=PromptOpenAIInvocationParametersContent(),
+                    ),
+                    tracer=tracer,
+                )
+            ]
+            if chunks is fake_chunks:
+                assert "".join(c.content for c in received if isinstance(c, TextChunk)) == (
+                    "Hello world"
+                )
+            else:
+                tool_call_chunks = [c for c in received if isinstance(c, ToolCallChunk)]
+                assert [
+                    (c.id, c.function.name, c.function.arguments) for c in tool_call_chunks
+                ] == [
+                    ("call_1", "get_weather", '{"city"'),
+                    ("call_1", "", ': "Paris"}'),
+                ]
+
+        spans = in_memory_span_exporter.get_finished_spans()
+        assert len(spans) == 2
 
     async def test_tool_call_response_records_expected_attributes(
         self,

@@ -765,29 +765,28 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     continue
                 choice = oai_chunk.choices[0]
                 delta = choice.delta
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        tc = TextChunk(content=chunk_content)
-                        text_chunks.append(tc)
-                        yield tc
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if tool_call.id is not None
-                                else tool_call_ids[tool_call_index]
+                if isinstance(chunk_content := delta.content, str):
+                    tc = TextChunk(content=chunk_content)
+                    text_chunks.append(tc)
+                    yield tc
+                if (tool_calls := delta.tool_calls) is not None:
+                    for tool_call_index, tool_call in enumerate(tool_calls):
+                        tool_call_id = (
+                            tool_call.id
+                            if tool_call.id is not None
+                            else tool_call_ids[tool_call_index]
+                        )
+                        tool_call_ids[tool_call_index] = tool_call_id
+                        if (function := tool_call.function) is not None:
+                            tcc = ToolCallChunk(
+                                id=tool_call_id,
+                                function=FunctionCallChunk(
+                                    name=function.name or "",
+                                    arguments=function.arguments or "",
+                                ),
                             )
-                            tool_call_ids[tool_call_index] = tool_call_id
-                            if (function := tool_call.function) is not None:
-                                tcc = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
-                                )
-                                tool_call_chunks[tcc.id].append(tcc)
-                                yield tcc
+                            tool_call_chunks[tcc.id].append(tcc)
+                            yield tcc
 
             if token_usage is not None:
                 span.set_attributes(dict(self._llm_token_counts(token_usage)))
