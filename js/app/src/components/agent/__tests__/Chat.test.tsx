@@ -26,16 +26,28 @@ vi.mock("../AgentEditPermissionMenu", () => ({
   getNextEditPermissionMode: () => "bypass",
 }));
 
+type MockMissingCredentials = {
+  provider: { name: string };
+  credentialState: "may-work" | "no-key";
+};
+
 const credentialStatus = vi.hoisted(() => ({
-  missingCredentialsProvider: null as { name: string } | null,
+  missingCredentials: null as MockMissingCredentials | null,
 }));
 
 vi.mock("../AgentModelCredentialForm", () => ({
-  AgentModelCredentialForm: ({ provider }: { provider: { name: string } }) => (
-    <section aria-label={`${provider.name} credentials`} />
+  AgentModelCredentialForm: ({
+    missingCredentials: { provider, credentialState },
+  }: {
+    missingCredentials: MockMissingCredentials;
+  }) => (
+    <section
+      aria-label={`${provider.name} credentials`}
+      data-credential-state={credentialState}
+    />
   ),
   useAgentModelCredentialStatus: () => ({
-    missingCredentialsProvider: credentialStatus.missingCredentialsProvider,
+    missingCredentials: credentialStatus.missingCredentials,
     refreshCredentialStatus: () => undefined,
   }),
 }));
@@ -278,11 +290,14 @@ describe("ChatView", () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    credentialStatus.missingCredentialsProvider = null;
+    credentialStatus.missingCredentials = null;
   });
 
   it("shows the credential form in the empty state for a model without a key", () => {
-    credentialStatus.missingCredentialsProvider = { name: "Anthropic" };
+    credentialStatus.missingCredentials = {
+      provider: { name: "Anthropic" },
+      credentialState: "no-key",
+    };
     renderChatView(root);
 
     const forms = container.querySelectorAll(
@@ -293,14 +308,57 @@ describe("ChatView", () => {
   });
 
   it("shows the credential form above the input mid-conversation for a model without a key", () => {
-    credentialStatus.missingCredentialsProvider = { name: "Anthropic" };
+    credentialStatus.missingCredentials = {
+      provider: { name: "Anthropic" },
+      credentialState: "no-key",
+    };
     renderChatView(root, { chatMessages: messages });
 
     const forms = container.querySelectorAll(
       'section[aria-label="Anthropic credentials"]'
     );
     expect(forms).toHaveLength(1);
+    expect(forms[0]?.closest(".chat__credential-form")).not.toBeNull();
     expect(forms[0]?.closest(".chat__input")).not.toBeNull();
+  });
+
+  it("doesn't send for a model without a key", () => {
+    credentialStatus.missingCredentials = {
+      provider: { name: "Anthropic" },
+      credentialState: "no-key",
+    };
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { chatMessages: messages, sendMessage });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    setTextareaValue(textarea!, "hello");
+    pressEnter(textarea!);
+
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("sends for a provider that may use ambient credentials, with the note shown", () => {
+    credentialStatus.missingCredentials = {
+      provider: { name: "AWS Bedrock" },
+      credentialState: "may-work",
+    };
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { chatMessages: messages, sendMessage });
+
+    expect(
+      container
+        .querySelector('section[aria-label="AWS Bedrock credentials"]')
+        ?.getAttribute("data-credential-state")
+    ).toBe("may-work");
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    setTextareaValue(textarea!, "hello");
+    pressEnter(textarea!);
+
+    expect(sendMessage).toHaveBeenCalledWith({ text: "hello" }, undefined);
   });
 
   it("focuses the prompt textarea when requested", () => {
