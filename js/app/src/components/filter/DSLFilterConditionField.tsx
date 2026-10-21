@@ -27,6 +27,7 @@ import CodeMirror, {
 import type { ReactNode, Ref } from "react";
 import {
   startTransition,
+  useCallback,
   useEffect,
   useEffectEvent,
   useId,
@@ -552,6 +553,16 @@ export function DSLFilterConditionField<
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
   const editorViewRef = useRef<EditorView | null>(null);
+  // CodeMirror reconfigures the editor, closing its dropdown, whenever
+  // onChange changes identity.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const handleChange = useCallback(
+    (condition: string) => onChangeRef.current(condition),
+    []
+  );
   // Caches the loadCompletions result so the dropdown doesn't refetch every
   // time it opens; invalidated on focus so names created elsewhere in the
   // app (e.g. a new annotation) appear when the user returns to filter
@@ -903,7 +914,7 @@ export function DSLFilterConditionField<
             onFocusChange?.(false);
           }}
           value={value}
-          onChange={onChange}
+          onChange={handleChange}
           height="36px"
           width="100%"
           theme={codeMirrorTheme}
