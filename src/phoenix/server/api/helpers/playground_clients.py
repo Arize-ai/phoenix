@@ -85,7 +85,11 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
-from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
+from phoenix.server.api.helpers.playground_registry import (
+    PROVIDER_DEFAULT,
+    register_llm_client,
+    require_chat_provider,
+)
 from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -3276,7 +3280,7 @@ def _get_credential_from_input(
     )
 
 
-async def _resolve_provider_api_key(
+async def resolve_provider_api_key(
     *,
     credentials: Sequence[GenerativeCredentialInput] | None,
     session: AsyncSession,
@@ -3420,6 +3424,9 @@ async def _get_builtin_provider_client(
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
     provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
 
+    # Chat completion needs a registered chat client; decision-only providers have none.
+    require_chat_provider(provider_key)
+
     sdk = _builtin_sdk_fields_from_connection(model_provider, connection)
     base_url = sdk.base_url
     # The client-supplied base URL, captured before any environment-variable fallback.
@@ -3435,7 +3442,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3682,7 +3689,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3723,7 +3730,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3795,7 +3802,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3835,7 +3842,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3877,7 +3884,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3917,7 +3924,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3957,7 +3964,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3997,7 +4004,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -4037,7 +4044,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -4077,7 +4084,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -4117,7 +4124,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -4150,6 +4157,11 @@ async def _get_builtin_provider_client(
             model_name=model_name,
             provider=provider,
         )
+
+    elif provider_key is GenerativeProviderKey.TYPESAFE:
+        # Decision-only provider: rejected by require_chat_provider above. The
+        # branch exists only so the dispatch stays exhaustive over the enum.
+        raise AssertionError("decision-only provider reached chat client dispatch")
 
     else:
         assert_never(provider_key)
@@ -4265,6 +4277,11 @@ async def _get_custom_provider_client(
             client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,
+        )
+    elif cfg.type == "typesafe":
+        raise BadRequest(
+            f"Custom provider '{provider_record.name}' serves decision models only; "
+            "choose a provider with chat models."
         )
     else:
         assert_never(cfg)

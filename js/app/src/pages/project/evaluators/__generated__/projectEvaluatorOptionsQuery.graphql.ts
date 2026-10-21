@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d57846e48016fee8f882df5e6fa4e9f>>
+ * @generated SignedSource<<4ee4261c0c008803ba3aff803558f691>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type projectEvaluatorOptionsQuery$variables = Record<PropertyKey, never>;
 export type projectEvaluatorOptionsQuery$data = {
   readonly evaluators: {

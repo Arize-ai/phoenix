@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15dccd423890117f3f85ccc3b984c123>>
+ * @generated SignedSource<<2929224dcf344631e9ee911ee1efcbd7>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";

@@ -382,6 +382,19 @@ function SideNavContent({
               isExpanded={isExpanded}
             />
           </li>
+          <li key="decisions">
+            <NavLink
+              to="/decisions"
+              text="Decisions"
+              leadingVisual={<Icon svg={<Icons.GitBranch />} />}
+              trailingVisual={
+                counts?.decisionCount != null ? (
+                  <Counter variant="quiet">{counts.decisionCount}</Counter>
+                ) : undefined
+              }
+              isExpanded={isExpanded}
+            />
+          </li>
           <li key="playground">
             <NavLink
               to="/playground"

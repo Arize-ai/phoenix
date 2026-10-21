@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2677ba9c0fe1d005a3300059d0c97ec1>>
+ * @generated SignedSource<<7ef402260637b490625a5d4647ffd9c4>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type ModelType = "DECISION" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type GenerativeProvidersCard_data$data = {
   readonly modelProviders: ReadonlyArray<{
@@ -20,6 +21,7 @@ export type GenerativeProvidersCard_data$data = {
     readonly dependencies: ReadonlyArray<string>;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
+    readonly modelTypes: ReadonlyArray<ModelType>;
     readonly name: string;
   }>;
   readonly " $fragmentType": "GenerativeProvidersCard_data";
@@ -102,6 +104,13 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "credentialsSet",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "modelTypes",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -111,6 +120,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "4062531cfa3f77e541172a44101f5331";
+(node as any).hash = "545f655289e75a1bae84b26801b1e6d2";
 
 export default node;

@@ -14,8 +14,16 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import {
+  getPlaygroundMode,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
+import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
+import {
+  getDecisionDatasetBlockedReason,
+  getDecisionValidationError,
+} from "./decisionUtils";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
@@ -23,6 +31,31 @@ import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
 const EXAMPLES_ARE_BEING_EDITED = "Save or cancel the example edits to run";
+/** Instance labels match the A, B, C shown in each instance header. */
+function getInstanceLabel(index: number): string {
+  return String.fromCharCode("A".charCodeAt(0) + index);
+}
+
+/** The first reason a decision instance cannot run, or null when all can. */
+function getInvalidDecisionReason(
+  instances: readonly Pick<
+    PlaygroundNormalizedInstance,
+    "model" | "decisionRequest" | "task"
+  >[]
+): string | null {
+  for (const [index, instance] of instances.entries()) {
+    if (!isDecisionInstance(instance)) continue;
+    const label = getInstanceLabel(index);
+    if (!instance.model.modelName?.trim()) {
+      return `Instance ${label}: pick a decision model.`;
+    }
+    const problem = instance.decisionRequest
+      ? getDecisionValidationError(instance.decisionRequest)
+      : "no decision request";
+    if (problem) return `Instance ${label}: ${problem}`;
+  }
+  return null;
+}
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
@@ -36,9 +69,22 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const isDatasetMode = usePlaygroundContext(
+    (state) => state.datasetId != null
+  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  // An invalid decision request is refused with its first problem as the
+  // reason, since the error may sit in a collapsed card. Over a dataset, a
+  // decision the examples can't fill is refused the same way.
+  const invalidDecisionReason = getInvalidDecisionReason(instances);
+  const blockedReason =
+    invalidDecisionReason ??
+    (isDatasetMode
+      ? getDecisionDatasetBlockedReason({ instances, templateFormat })
+      : null);
 
-  const isEvaluatorKind = usePlaygroundContext(
-    (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  const isJudgingRole = usePlaygroundContext(
+    (state) => getPlaygroundMode(state.instances) === "evaluator"
   );
 
   const recordExperiments = usePlaygroundContext(
@@ -58,15 +104,19 @@ export function PlaygroundRunButton() {
   // Evaluators judge dataset examples; prompts can also run on manual input.
   // Neither runs while the examples are being edited: the server would judge
   // the saved examples, not the ones on screen.
-  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples;
+  const canRun =
+    (!isJudgingRole || hasDataset) &&
+    !isEditingExamples &&
+    blockedReason == null;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
       cancelPlaygroundRun({ instances, cancelPlaygroundInstances });
-    } else if (canRun) {
+    } else if (canRun && blockedReason == null) {
       runPlaygroundInstances();
     }
   }, [
+    blockedReason,
     isRunning,
     canRun,
     cancelPlaygroundInstances,
@@ -120,7 +170,9 @@ export function PlaygroundRunButton() {
         reason={
           isEditingExamples
             ? EXAMPLES_ARE_BEING_EDITED
-            : EVALUATORS_NEED_A_DATASET
+            : blockedReason != null
+              ? blockedReason
+              : EVALUATORS_NEED_A_DATASET
         }
       >
         {button}

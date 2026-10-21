@@ -25,7 +25,8 @@ export type EvaluatorItem = {
 type EvaluatorMenuItemProps = {
   evaluator: EvaluatorItem;
   isSelected?: boolean;
-  onEdit: () => void;
+  /** Omit for an evaluator that cannot be edited from here. */
+  onEdit?: () => void;
   onOpenPlayground?: () => void;
 };
 
@@ -83,9 +84,11 @@ export function EvaluatorSelectMenuItem({
               <Icon svg={<Icons.PlayCircle />} />
             </IconButton>
           ) : null}
-          <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
-            <Icon svg={<Icons.Edit />} />
-          </IconButton>
+          {onEdit ? (
+            <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
+              <Icon svg={<Icons.Edit />} />
+            </IconButton>
+          ) : null}
         </Flex>
       }
     >

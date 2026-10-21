@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<facefa990dad31ac53ebee529ddbd8fb>>
+ * @generated SignedSource<<7e19012e6479de27a608e36286dbb5e9>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,9 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorsTable_row$data = {
   readonly createdAt: string;
@@ -37,6 +38,15 @@ export type EvaluatorsTable_row$data = {
         readonly name: string;
       };
     }>;
+  };
+  readonly decisionVersion?: {
+    readonly decision: {
+      readonly name: string;
+    };
+    readonly decisionId: string;
+    readonly id: string;
+    readonly modelName: string;
+    readonly modelProvider: GenerativeProviderKey;
   };
   readonly description: string | null;
   readonly id: string;
@@ -80,6 +90,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "f354a35aaba4addcc82ffe1329768138";
+(node as any).hash = "6f948a5c620ec3695506fcd4b636300a";
 
 export default node;

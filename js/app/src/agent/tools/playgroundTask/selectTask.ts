@@ -1,14 +1,15 @@
 import { TASK_MENU_LOCK_NOTE } from "@phoenix/pages/playground/TaskMenu/taskMenuItems";
 import type {
+  PlaygroundInstanceSource,
   PlaygroundNormalizedInstance,
   PlaygroundState,
   PlaygroundStore,
-  PlaygroundTaskKind,
+  PlaygroundMode,
 } from "@phoenix/store/playground";
 import {
-  getPlaygroundTaskKind,
-  getTaskKindForNewSource,
-  isTaskKindLocked,
+  getPlaygroundMode,
+  isPlaygroundModeLocked,
+  PLAYGROUND_MODE_BY_TASK_TYPE,
 } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 
@@ -17,13 +18,16 @@ import type { PlaygroundTaskResult } from "./types";
 
 type TaskRejection = Extract<PlaygroundTaskResult<never>, { ok: false }>;
 
-/** The kind of task a source produces. */
-export function getTaskSourceKind(source: TaskSource): PlaygroundTaskKind {
+/** Returns the playground mode for a task source. */
+export function getTaskSourceMode(
+  source: Exclude<PlaygroundInstanceSource, { type: "duplicate" }>
+): PlaygroundMode {
   switch (source.type) {
     case "new":
-      return getTaskKindForNewSource(source.kind);
+      return PLAYGROUND_MODE_BY_TASK_TYPE[source.taskType];
     case "prompt":
-      return "prompt";
+    case "decision":
+      return "task";
     default:
       return "evaluator";
   }
@@ -38,12 +42,12 @@ export function doesTaskSourceReplace(
   instance: Pick<PlaygroundNormalizedInstance, "task">,
   source: TaskSource
 ): boolean {
-  return !(instance.task.kind === "prompt" && source.type === "prompt");
+  return !(instance.task.type === "prompt" && source.type === "prompt");
 }
 
 /**
  * Why the task menu would refuse `source` for the instance, or null: a run
- * in progress, a page whose kind is locked to the other kind, or unsaved
+ * in progress, a page whose mode is locked to the other mode, or unsaved
  * changes the caller has not agreed to discard.
  */
 export function getSelectTaskRejection({
@@ -67,15 +71,15 @@ export function getSelectTaskRejection({
     };
   }
 
-  const pageKind = getPlaygroundTaskKind(state.instances);
+  const pageMode = getPlaygroundMode(state.instances);
 
   if (
-    isTaskKindLocked(state.instances) &&
-    getTaskSourceKind(source) !== pageKind
+    isPlaygroundModeLocked(state.instances) &&
+    getTaskSourceMode(source) !== pageMode
   ) {
     return {
       ok: false,
-      error: `This page holds ${pageKind} tasks and has more than one instance, so its kind is fixed. ${TASK_MENU_LOCK_NOTE}`,
+      error: `This page holds ${describeMode(pageMode)} and has more than one instance, so its mode is fixed. ${TASK_MENU_LOCK_NOTE}`,
     };
   }
 
@@ -91,6 +95,11 @@ export function getSelectTaskRejection({
   }
 
   return null;
+}
+
+/** Describes the tasks available in a playground mode. */
+export function describeMode(mode: PlaygroundMode): string {
+  return mode === "task" ? "prompt and decision tasks" : "evaluator tasks";
 }
 
 /**
@@ -115,7 +124,7 @@ export function applyTaskSource({
     return null;
   }
 
-  if (instance.task.kind === "prompt" && source.type === "prompt") {
+  if (instance.task.type === "prompt" && source.type === "prompt") {
     state.updateInstance({
       instanceId,
       patch: { loadingSource: source },

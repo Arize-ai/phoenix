@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d63e7a88574edede3f8753d3b06c5417>>
+ * @generated SignedSource<<794f01db621f13f53213586bd93922a0>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type AddEvaluatorMenu_codeEvaluatorTemplates$data = {
   readonly builtInEvaluators: ReadonlyArray<{

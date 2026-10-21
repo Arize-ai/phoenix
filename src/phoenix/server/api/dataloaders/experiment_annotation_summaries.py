@@ -108,6 +108,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.min(models.ExperimentRunAnnotation.score).label("min_score"),
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
+                # TODO: count refusals (score, label, and error all null) here and in the other
+                # summaries; the mean also skips unscored choices without saying how many.
                 func.count().label("count"),
                 func.count(models.ExperimentRunAnnotation.error).label("error_count"),
                 func.count(models.ExperimentRunAnnotation.score).label("score_count"),

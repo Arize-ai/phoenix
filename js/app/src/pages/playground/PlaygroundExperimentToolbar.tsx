@@ -26,7 +26,7 @@ import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundE
 import { PlaygroundExampleColumnSelector } from "@phoenix/pages/playground/PlaygroundExampleColumnSelector";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
 import { getEditableTableChangeCount } from "@phoenix/store/editableTableStore";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 import type { EditableTableStore } from "@phoenix/types/table";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -96,9 +96,9 @@ export function PlaygroundExperimentToolbar({
     }
   };
   const instances = usePlaygroundContext((state) => state.instances);
-  // Dataset evaluators score a prompt's outputs; an evaluator task is the
+  // Dataset evaluators score a tested task's outputs; an evaluator task is the
   // judge itself, so there is nothing to attach to it.
-  const isPromptKind = getPlaygroundTaskKind(instances) === "prompt";
+  const isTaskMode = getPlaygroundMode(instances) === "task";
 
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
@@ -147,7 +147,7 @@ export function PlaygroundExperimentToolbar({
           Record
         </Switch>
       )}
-      {isPromptKind ? (
+      {isTaskMode ? (
         <PlaygroundEvaluatorSelect
           evaluators={datasetEvaluators}
           selectedIds={selectedDatasetEvaluatorIds}

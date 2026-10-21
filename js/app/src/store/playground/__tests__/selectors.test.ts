@@ -70,7 +70,7 @@ describe("arePlaygroundInstancesEqualExceptProgress", () => {
     expect(
       arePlaygroundInstancesEqualExceptProgress(
         [base],
-        [{ ...base, task: { kind: "prompt" } as never }]
+        [{ ...base, task: { type: "prompt" } as never }]
       )
     ).toBe(false);
   });

@@ -18,7 +18,10 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { DEFAULT_MAX_CONCURRENCY } from "@phoenix/store/playground";
+import {
+  DEFAULT_MAX_CONCURRENCY,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
@@ -63,6 +66,9 @@ export function PlaygroundConfigButton() {
     (state) => state.setMaxConcurrency
   );
 
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some(isDecisionInstance)
+  );
   return (
     <DialogTrigger>
       <Button
@@ -118,19 +124,20 @@ export function PlaygroundConfigButton() {
                 <Flex direction="row" justifyContent="start">
                   <Switch
                     labelPlacement="start"
-                    isSelected={streaming}
+                    isSelected={streaming && !hasDecisionInstance}
                     onChange={() => {
                       setStreaming(!streaming);
                       setPlaygroundStreamingEnabled(!streaming);
                     }}
-                    isDisabled={isRunning}
+                    isDisabled={isRunning || hasDecisionInstance}
                   >
                     <Text size="M">Streaming</Text>
                   </Switch>
                 </Flex>
                 <Text color="text-700" size="XS">
-                  Enable streaming to view experiment task output as it is
-                  generated in real time.
+                  {hasDecisionInstance
+                    ? "Decision models return a complete typed response and do not stream."
+                    : "Enable streaming to view experiment task output as it is generated in real time."}
                 </Text>
                 <ComboBox
                   aria-label="AWS Bedrock Model Prefix"

@@ -106,8 +106,8 @@ export const addPromptInstanceOperation = defineUIOperation({
   description:
     "Add a comparison instance to the mounted playground (at most 4; rejected while " +
     "a run is active). `source` defaults to a new task of the page's kind: " +
-    '{type:"new",kind:"prompt"} on a prompt page, {type:"new",kind:"LLM"} on an ' +
-    'evaluator page. Other sources: {type:"new",kind:"CODE"}; a saved prompt ' +
+    '{type:"new",taskType: "prompt"} on a prompt page, {type:"new",taskType: "evaluator", evaluatorKind: "LLM"} on an ' +
+    'evaluator page. Other sources: {type:"new",taskType: "evaluator", evaluatorKind: "CODE"}; a saved prompt ' +
     '{type:"prompt",promptId,promptVersionId?,tagName?}; a saved evaluator ' +
     '{type:"evaluator",evaluatorId} or {type:"datasetEvaluator",datasetEvaluatorId}; ' +
     'or {type:"duplicate"} for a copy of the first instance. The page holds one kind ' +

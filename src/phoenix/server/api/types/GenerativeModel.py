@@ -354,10 +354,10 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.ZAI
     if semconv_provider == OpenInferenceLLMProviderValues.MINIMAX:
         return GenerativeProviderKey.MINIMAX
+    if semconv_provider == OpenInferenceLLMProviderValues.TYPESAFE:
+        return GenerativeProviderKey.TYPESAFE
     if semconv_provider == OpenInferenceLLMProviderValues.ORACLE:
         return None  # TODO
-    if semconv_provider == OpenInferenceLLMProviderValues.TYPESAFE:
-        return None  # No playground provider integration yet.
     if semconv_provider == OpenInferenceLLMProviderValues.IBM:
         return None  # No playground provider integration yet.
     if semconv_provider == OpenInferenceLLMProviderValues.DOUBLEWORD:

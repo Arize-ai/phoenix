@@ -182,6 +182,8 @@ def _to_model_kwargs(
             ans["tools"] = tool_kwargs["tools"]
             if "tool_choice" in tool_kwargs:
                 ans["tool_choice"] = tool_kwargs["tool_choice"]
+            if "parallel_tool_calls" in tool_kwargs:
+                ans["parallel_tool_calls"] = tool_kwargs["parallel_tool_calls"]
     if "response_format" in obj:
         response_format = obj["response_format"]
         if response_format["type"] == "json_schema":
