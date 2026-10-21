@@ -174,6 +174,11 @@ export type EvaluatorVariableBinding = {
   hasValue: boolean;
   /** What the binding check said, for the shared wording of a failure. */
   diagnostic: ProjectEvaluatorMappingDiagnostic;
+  /**
+   * A path that does not parse while its field has focus is still being
+   * typed, so it is shown without a verdict rather than flagged.
+   */
+  isBeingTyped?: boolean;
 };
 
 /**
@@ -217,7 +222,17 @@ type BindingStatus = {
 function getBindingStatus(
   binding: EvaluatorVariableBinding,
   recordKind: ProjectEvaluatorRecordKind
-): BindingStatus {
+): BindingStatus | null {
+  if (binding.isBeingTyped) {
+    return null;
+  }
+  if (binding.status === "invalid") {
+    return {
+      label: "Not a valid path",
+      icon: <Icons.CloseCircle />,
+      color: "danger",
+    };
+  }
   if (binding.status === "missing") {
     return {
       label:
@@ -295,7 +310,17 @@ export function EvaluatorInputsView({
     declaredVariables,
     requiredVariables,
   });
-  const bindings = sortFailingFirst(getEvaluatorVariableBindings(inputs));
+  const focusedMappingVariable = useEvaluatorStore(
+    (state) => state.focusedMappingVariable ?? null
+  );
+  const bindings = sortFailingFirst(
+    getEvaluatorVariableBindings(inputs).map((binding) => ({
+      ...binding,
+      isBeingTyped:
+        binding.status === "invalid" &&
+        binding.variable === focusedMappingVariable,
+    }))
+  );
   const isPromptEvaluator = useEvaluatorStore(
     (state) => state.evaluator.kind === "LLM"
   );
@@ -361,12 +386,23 @@ export function EvaluatorInputsView({
   );
 }
 
+/**
+ * Whether the variable fails the run as it stands: nothing to read, or a
+ * path the server rejects that is not still being typed.
+ */
+function isFailing(binding: EvaluatorVariableBinding): boolean {
+  return (
+    binding.status === "missing" ||
+    (binding.status === "invalid" && !binding.isBeingTyped)
+  );
+}
+
 /** The variables that fail the run first; otherwise declaration order. */
 function sortFailingFirst(
   bindings: EvaluatorVariableBinding[]
 ): EvaluatorVariableBinding[] {
   const fails = (binding: EvaluatorVariableBinding) =>
-    binding.status === "missing" ? 0 : 1;
+    isFailing(binding) ? 0 : 1;
   return [...bindings].sort((a, b) => fails(a) - fails(b));
 }
 
@@ -381,13 +417,19 @@ function EvaluatorVariableBindingItem({
   const isMissing = binding.status === "missing";
   const token = SOURCE_TOKEN[binding.sourceKind];
   return (
-    <li className="inputs-view__item" data-status={binding.status}>
+    <li
+      className="inputs-view__item"
+      data-status={binding.isBeingTyped ? "typing" : binding.status}
+      data-failing={isFailing(binding) || undefined}
+    >
       <div className="inputs-view__name">
         <code className="inputs-view__variable">{`{{${binding.variable}}}`}</code>
-        <span className="inputs-view__status" data-color={status.color}>
-          <Icon svg={status.icon} />
-          {status.label}
-        </span>
+        {status ? (
+          <span className="inputs-view__status" data-color={status.color}>
+            <Icon svg={status.icon} />
+            {status.label}
+          </span>
+        ) : null}
       </div>
       <div className="inputs-view__detail">
         {binding.sourceKind === "unmapped" ? (
@@ -410,6 +452,11 @@ function EvaluatorVariableBindingItem({
         {isMissing && binding.sourceKind === "mapped" ? (
           <Text size="XS" color="danger">
             {formatMissingBindingMessage(binding.diagnostic, recordKind)}
+          </Text>
+        ) : null}
+        {binding.status === "invalid" && !binding.isBeingTyped ? (
+          <Text size="XS" color="danger">
+            {`${binding.path} is not a valid path`}
           </Text>
         ) : null}
         {binding.status === "unverified" ? (
@@ -521,7 +568,7 @@ const inputsViewCSS = css`
     }
     // A variable that fails the run is marked at the edge of its row, so the
     // rows that need the author read apart at a glance.
-    &[data-status="missing"] {
+    &[data-failing] {
       box-shadow: inset 2px 0 0 var(--global-color-danger);
     }
   }

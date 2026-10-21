@@ -116,10 +116,13 @@ describe("the evaluator inputs", () => {
   async function renderInputsView({
     variables,
     evaluatorKind = "LLM",
+    focusedMappingVariable = null,
     ...props
   }: Omit<ComponentProps<typeof EvaluatorInputsView>, "isSampleContext"> & {
     variables: string[];
     evaluatorKind?: "LLM" | "CODE";
+    /** The variable whose path field has focus, if any. */
+    focusedMappingVariable?: string | null;
   }) {
     await act(async () => {
       root.render(
@@ -131,6 +134,7 @@ describe("the evaluator inputs", () => {
                 ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
                 kind: evaluatorKind,
               },
+              focusedMappingVariable,
             }}
           >
             <EvaluatorInputVariablesContext.Provider value={variables}>
@@ -186,39 +190,72 @@ describe("the evaluator inputs", () => {
     );
   });
 
-  it("marks a path only the server can check as checked at run, not as failing", async () => {
+  it("flags a path the server rejects, unless its field is being typed in", async () => {
     await renderInputsView({
       variables: ["input", "output", "metadata", "citations"],
       context: getSampleSpanEvaluationContext().context,
       recordKind: "span",
       inputMapping: {
         pathMapping: {
-          // A wildcard is the server's to resolve, so this side can only
-          // defer — unlike `nope`, which is checked and wrong.
-          input: "metadata.attributes.llm.input_messages[*].message",
+          input: "metadata.attributes[]",
           output: "nope",
-          citations: "metadata.annotations[*]",
+          citations: "metadata.annotations[",
         },
         literalMapping: {},
       },
       requiredVariables: ["input", "output", "metadata", "citations"],
+      focusedMappingVariable: "input",
     });
 
-    expect(itemFor("input")?.getAttribute("data-status")).toBe("unverified");
-    expect(itemFor("input")?.textContent).toContain(
-      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs"
+    // Rejected and not being typed: flagged, with the path named.
+    expect(itemFor("citations")?.getAttribute("data-status")).toBe("invalid");
+    expect(itemFor("citations")?.textContent).toContain("Not a valid path");
+    expect(itemFor("citations")?.textContent).toContain(
+      "metadata.annotations[ is not a valid path"
     );
-    expect(itemFor("citations")?.getAttribute("data-status")).toBe(
-      "unverified"
-    );
-    expect(itemFor("output")?.getAttribute("data-status")).toBe("missing");
-    expect(itemFor("metadata")?.getAttribute("data-status")).toBe("resolved");
-    // What fails the run leads the list.
+    // Rejected but its field has focus: the path, and no verdict yet.
+    const typing = itemFor("input");
+    expect(typing?.getAttribute("data-status")).toBe("typing");
+    expect(typing?.querySelector(".inputs-view__status")).toBeNull();
+    expect(typing?.textContent).toContain("metadata.attributes[]");
+    expect(typing?.textContent).not.toContain("not a valid path");
+    expect(typing?.hasAttribute("data-failing")).toBe(false);
+    // What fails the run leads the list: the missing path and the rejected
+    // one, not the one still being typed.
     expect(
-      items()[0]?.querySelector(".inputs-view__variable")?.textContent
-    ).toBe("{{output}}");
+      items()
+        .filter((item) => item.hasAttribute("data-failing"))
+        .map(
+          (item) => item.querySelector(".inputs-view__variable")?.textContent
+        )
+    ).toEqual(["{{output}}", "{{citations}}"]);
+    expect(
+      items()
+        .slice(0, 2)
+        .map(
+          (item) => item.querySelector(".inputs-view__variable")?.textContent
+        )
+    ).toEqual(["{{output}}", "{{citations}}"]);
     // Nothing here is a banner.
     expect(container.querySelector(".alert__icon-title-wrap")).toBeNull();
+  });
+
+  it("previews a wildcard path in the browser rather than deferring it", async () => {
+    await renderInputsView({
+      variables: ["citations"],
+      context: getSampleSpanEvaluationContext().context,
+      recordKind: "span",
+      inputMapping: {
+        pathMapping: { citations: "metadata.annotations[*]" },
+        literalMapping: {},
+      },
+    });
+    expect(itemFor("citations")?.getAttribute("data-status")).not.toBe(
+      "unverified"
+    );
+    expect(itemFor("citations")?.textContent).not.toContain(
+      "checked when the evaluator runs"
+    );
   });
 
   it("shows each variable's source and value, and the whole record below them", async () => {
