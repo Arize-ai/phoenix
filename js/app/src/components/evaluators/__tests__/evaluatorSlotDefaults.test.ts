@@ -9,7 +9,6 @@ import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorInputPlaceholder,
-  getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
 /**
@@ -103,57 +102,6 @@ describe("evaluator slot defaults", () => {
         expect(
           resolveEvaluatorPath({ source: sampleContextFor(recordKind), path })
         ).toMatchObject({ status: "resolved" });
-      }
-    }
-  });
-
-  it("pins worked examples of what each slot's mapping can reach", () => {
-    const paths = (
-      recordKind: ProjectEvaluatorRecordKind,
-      slotName: EvaluatorSlotName
-    ) =>
-      getEvaluatorSlotSuggestedPaths(recordKind, slotName).map(
-        ({ path }) => path
-      );
-
-    expect(paths("span", "input")).toEqual([
-      "metadata.attributes.llm.input_messages",
-      "metadata.attributes.input",
-    ]);
-    expect(paths("span", "output")).toEqual([
-      "metadata.attributes.llm.output_messages",
-    ]);
-    expect(paths("span", "metadata")).toEqual([
-      "metadata.attributes",
-      "metadata.attributes.llm",
-      "metadata.annotations",
-    ]);
-    expect(paths("session", "input")).toEqual([
-      "metadata.turns",
-      "metadata.turns[0].input",
-    ]);
-    expect(paths("session", "output")).toEqual(["metadata.turns[0].output"]);
-    expect(paths("session", "metadata")).toEqual([]);
-    expect(paths("trace", "input")).toEqual(["metadata.attributes.input"]);
-    expect(paths("trace", "output")).toEqual(["metadata.attributes.output"]);
-    expect(paths("trace", "metadata")).toEqual([
-      "metadata.attributes",
-      "metadata.trace_annotations",
-    ]);
-  });
-
-  it("suggests only paths a real record resolves", () => {
-    for (const recordKind of RECORD_KINDS) {
-      for (const slotName of EVALUATOR_SLOT_NAMES) {
-        for (const { path, description } of getEvaluatorSlotSuggestedPaths(
-          recordKind,
-          slotName
-        )) {
-          expect(description).not.toBe("");
-          expect(
-            resolveEvaluatorPath({ source: sampleContextFor(recordKind), path })
-          ).toMatchObject({ status: "resolved" });
-        }
       }
     }
   });

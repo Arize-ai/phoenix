@@ -77,16 +77,30 @@ async function createProject(
 /**
  * Gives each prompt variable beyond input, output and metadata a path. The
  * record has no field of the same name for those, so Create waits on them.
+ * Fields that already hold a path (a template default, a copied mapping) are
+ * left alone. Returns how many arrived filled in.
  */
-async function fillDeclaredVariablePaths(page: Page, dialog: Locator) {
+async function fillDeclaredVariablePaths(
+  page: Page,
+  dialog: Locator
+): Promise<number> {
   const declaredVariablePaths = dialog.getByRole("textbox", {
     name: /^(?!(input|output|metadata) ).+ path mapping$/,
   });
   await expect(declaredVariablePaths.first()).toBeVisible();
+  let prefilled = 0;
   for (const pathField of await declaredVariablePaths.all()) {
+    // The field is a CodeMirror editor: its placeholder is rendered as text,
+    // so an empty field is recognized by the placeholder being shown.
+    const isEmpty = (await pathField.locator(".cm-placeholder").count()) > 0;
+    if (!isEmpty) {
+      prefilled += 1;
+      continue;
+    }
     await pathField.click();
     await page.keyboard.insertText("input");
   }
+  return prefilled;
 }
 
 // The evaluator slideovers are routes, so the test asserts on them. Each ends
@@ -319,8 +333,10 @@ test.describe.serial("Projects", () => {
       name: "Create new LLM evaluator",
     });
     await expect(createDialog).toBeVisible();
+    // The test bench's inspector reads the evaluator's inputs off a record:
+    // the sample span, in a project with no spans yet.
     await expect(
-      createDialog.getByRole("tab", { name: "Values" })
+      createDialog.getByRole("heading", { name: "Evaluator inputs" })
     ).toBeVisible();
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
@@ -481,8 +497,11 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
-    // Every template here declares such a variable.
-    await fillDeclaredVariablePaths(page, createDialog);
+    // Every template here declares such a variable, and ships a default path
+    // for it, so at least one field arrives filled in.
+    expect(await fillDeclaredVariablePaths(page, createDialog)).toBeGreaterThan(
+      0
+    );
     await createDialog
       .getByRole("button", { name: "Create", exact: true })
       .click();

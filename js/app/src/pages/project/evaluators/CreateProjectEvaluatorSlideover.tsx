@@ -31,18 +31,21 @@ import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pa
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import {
+  ProjectEvaluatorInputMappingDock,
+  ProjectLlmEvaluatorFormSections,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
+  getDefaultProjectEvaluatorFilterCondition,
   isSameInputMapping,
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
-  withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -77,6 +80,9 @@ type CopiedLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
 
 type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
   targetType: ProjectEvaluatorTarget;
+  /** The template's own filter, or the target's default when it has none. */
+  filterCondition: string;
+  inputMapping: EvaluatorInputMapping;
 };
 
 type SeededCodeEvaluatorInitialState = {
@@ -209,21 +215,17 @@ const CreateProjectEvaluatorDialog = ({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
-  const initialTargetType =
-    creationMode.kind === "template"
-      ? creationMode.initialState.targetType
-      : "SPAN";
-  const [scope, setScope] = useState<ProjectEvaluatorScope>(() =>
-    withProjectEvaluatorTarget({
-      scope: {
-        targetType: initialTargetType,
-        filterCondition: "",
-        samplingRate: 1,
-        evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
-      },
-      targetType: initialTargetType,
-    })
-  );
+  const templateState =
+    creationMode.kind === "template" ? creationMode.initialState : null;
+  const initialTargetType = templateState?.targetType ?? "SPAN";
+  const [scope, setScope] = useState<ProjectEvaluatorScope>(() => ({
+    targetType: initialTargetType,
+    filterCondition:
+      templateState?.filterCondition ??
+      getDefaultProjectEvaluatorFilterCondition(initialTargetType),
+    samplingRate: 1,
+    evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+  }));
 
   // oxlint-disable-next-line complexity
   const initialState = (() => {
@@ -279,7 +281,10 @@ const CreateProjectEvaluatorDialog = ({
         inputMapping:
           creationMode.kind === "code"
             ? creationMode.inputMapping
-            : { pathMapping: {}, literalMapping: {} },
+            : (templateState?.inputMapping ?? {
+                pathMapping: {},
+                literalMapping: {},
+              }),
         kind: creationMode.kind === "code" ? "CODE" : "LLM",
         includeExplanation:
           seededState?.includeExplanation ??
@@ -655,6 +660,12 @@ const ScratchLlmDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={onFilterValidityChange}
+        />
+      }
+      formLeftDock={
+        <ProjectEvaluatorInputMappingDock
+          recordKind={toEvaluatorRecordKind(scope.targetType)}
+          evaluatorKind="prompt"
         />
       }
       formRightPanel={

@@ -37,4 +37,10 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         ),
         "tool_selection": EvaluatorInput(description="The tool or tools called by the LLM."),
     },
+    default_filter_condition="span_kind == 'LLM' and attributes['llm']['tools'] is not None",
+    default_path_mapping={
+        "input": "input.messages",
+        "available_tools": "input.tools",
+        "tool_selection": "output.messages",
+    },
 )

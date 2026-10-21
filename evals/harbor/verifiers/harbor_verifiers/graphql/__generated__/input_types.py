@@ -217,13 +217,13 @@ class EvaluatorInputMappingInput(BaseModel):
 
 
 class EvaluatorPreviewItemInput(BaseModel):
-    evaluator: "EvaluatorDefinitionInput"
+    evaluator: Optional["EvaluatorDefinitionInput"] = None
     context: Any
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
     dataset_evaluator_id: Optional[str] = Field(
         alias="datasetEvaluatorId", default=None
     )
-    "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to preview the judge on its own, under its own name and policy."
+    "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy."
     apply_online_evaluation_limits: bool = Field(
         alias="applyOnlineEvaluationLimits", default=False
     )

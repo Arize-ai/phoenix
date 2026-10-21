@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<036740bb671435aa2e209afc0c687088>>
+ * @generated SignedSource<<c175782b7a714b56c1826a2d4b4ba258>>
  * @lightSyntaxTransform
  */
 
@@ -26,7 +26,7 @@ export type EvaluatorPreviewItemInput = {
   applyOnlineEvaluationLimits?: boolean;
   context: any;
   datasetEvaluatorId?: string | null;
-  evaluator: EvaluatorDefinitionInput;
+  evaluator?: EvaluatorDefinitionInput | null;
   inputMapping: EvaluatorInputMappingInput;
 };
 export type EvaluatorDefinitionInput = {
@@ -431,10 +431,10 @@ export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
 };
-export type ProjectEvaluatorScopePanelPreviewMutation$variables = {
+export type ProjectEvaluatorTestBenchPreviewMutation$variables = {
   input: EvaluatorPreviewsInput;
 };
-export type ProjectEvaluatorScopePanelPreviewMutation$data = {
+export type ProjectEvaluatorTestBenchPreviewMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
       readonly annotation: {
@@ -448,9 +448,9 @@ export type ProjectEvaluatorScopePanelPreviewMutation$data = {
     }>;
   };
 };
-export type ProjectEvaluatorScopePanelPreviewMutation = {
-  response: ProjectEvaluatorScopePanelPreviewMutation$data;
-  variables: ProjectEvaluatorScopePanelPreviewMutation$variables;
+export type ProjectEvaluatorTestBenchPreviewMutation = {
+  response: ProjectEvaluatorTestBenchPreviewMutation$data;
+  variables: ProjectEvaluatorTestBenchPreviewMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -515,7 +515,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluatorScopePanelPreviewMutation",
+    "name": "ProjectEvaluatorTestBenchPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -564,7 +564,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ProjectEvaluatorScopePanelPreviewMutation",
+    "name": "ProjectEvaluatorTestBenchPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -615,16 +615,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "673843a8001914f07a9d3731de4e21a2",
+    "cacheID": "8923d2c97dd83ae4993f719a499a6567",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluatorScopePanelPreviewMutation",
+    "name": "ProjectEvaluatorTestBenchPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorScopePanelPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorTestBenchPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6bed2f6739b42055417e32c2e5f23233";
+(node as any).hash = "de5a5e6b880e62da01a9813bcf579180";
 
 export default node;

@@ -29,7 +29,10 @@ import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import {
+  ProjectEvaluatorInputMappingDock,
+  ProjectLlmEvaluatorFormSections,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
@@ -374,7 +377,7 @@ function EditLlmProjectEvaluatorContent({
     ),
   } satisfies EvaluatorStoreProps;
 
-  const submit = (
+  const submit = async (
     store: EvaluatorStoreInstance
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
@@ -385,7 +388,7 @@ function EditLlmProjectEvaluatorContent({
     if (validationErrors.length) {
       const message = validationErrors.join("\n");
       setError(message);
-      return Promise.resolve({ ok: false, error: message });
+      return { ok: false, error: message };
     }
     const payload = createLLMEvaluatorPayload({
       playgroundStore,
@@ -453,6 +456,12 @@ function EditLlmProjectEvaluatorContent({
                 onScopeChange={setScope}
                 onFilterValidityChange={setIsFilterValid}
                 isTargetDisabled
+              />
+            }
+            formLeftDock={
+              <ProjectEvaluatorInputMappingDock
+                recordKind={toEvaluatorRecordKind(scope.targetType)}
+                evaluatorKind="prompt"
               />
             }
             formRightPanel={

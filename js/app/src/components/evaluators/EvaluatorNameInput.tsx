@@ -106,21 +106,30 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
-  const { control, trigger } = form;
+  const { control, trigger, getValues } = form;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
-  // An untouched empty name is not an error until the user edits it or tries
-  // to submit; the placeholder says what belongs there.
+  // An untouched empty name is not an error until the user edits and leaves it
+  // or tries to save; the placeholder says what belongs there, and the rest of
+  // the form (including test runs) works without a name.
   const hasChangedRef = useRef(false);
-  const [hasSubmitAttempt, setHasSubmitAttempt] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Register with the evaluator store so the parent can trigger
   // validation on submit. Also forces deferred (blur-only) errors to display.
   const triggerValidation = useCallback(async () => {
     hasBlurredRef.current = true;
-    setHasSubmitAttempt(true);
-    return trigger(FIELD_NAME);
-  }, [trigger]);
+    setHasSubmitted(true);
+    const isValid = await trigger(FIELD_NAME);
+    const isFilled = getValues(FIELD_NAME).trim().length > 0;
+    if (!isValid || !isFilled) {
+      // The field sits at the top of a panel the author has likely scrolled
+      // past; bring the error to them rather than leaving it off-screen.
+      inputRef.current?.scrollIntoView?.({ block: "center" });
+      inputRef.current?.focus();
+    }
+    return isValid && isFilled;
+  }, [trigger, getValues]);
   useEffect(() => {
     const unregister = store
       .getState()
@@ -128,9 +137,14 @@ export const EvaluatorNameInput = ({
     return unregister;
   }, [store, triggerValidation]);
 
-  // Validates the name field.
-  // Display of blur-specific errors is handled separately in render.
+  // Validates the name field. Emptiness is left to render/submit (see
+  // `hasSubmitted`), so a cleared field still syncs its empty value to the
+  // store rather than leaving the previous name behind. Display of
+  // blur-specific errors is handled separately in render.
   const validate = (value: string): ValidateResult => {
+    if (value.trim().length === 0) {
+      return true;
+    }
     return validateIdentifier(value);
   };
 
@@ -143,10 +157,17 @@ export const EvaluatorNameInput = ({
         // Only show blur-specific errors after the field has been blurred
         const shouldShowError =
           error?.message &&
-          (hasChangedRef.current || hasSubmitAttempt) &&
+          (hasChangedRef.current || hasSubmitted) &&
           (hasBlurredRef.current ||
+            hasSubmitted ||
             error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
-        const displayedError = shouldShowError ? error.message : undefined;
+        const emptyError =
+          (hasSubmitted || (hasChangedRef.current && hasBlurredRef.current)) &&
+          field.value.trim().length === 0
+            ? IDENTIFIER_ERROR_MESSAGES.empty
+            : undefined;
+        const displayedError =
+          emptyError ?? (shouldShowError ? error.message : undefined);
 
         const handleChange = (value: string) => {
           const input = inputRef.current;
