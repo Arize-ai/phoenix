@@ -4,6 +4,7 @@ import { useTimeRange } from "@phoenix/components/datetime";
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
 import type { DeleteProjectEvaluatorDialogMutation } from "@phoenix/pages/project/evaluators/__generated__/DeleteProjectEvaluatorDialogMutation.graphql";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import type { EvaluatorKind } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function DeleteProjectEvaluatorDialog({
@@ -17,7 +18,7 @@ export function DeleteProjectEvaluatorDialog({
   projectEvaluatorId: string;
   projectId: string;
   evaluatorName: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }) {

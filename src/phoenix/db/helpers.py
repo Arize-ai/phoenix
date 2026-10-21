@@ -187,6 +187,49 @@ def get_project_names_for_experiments(*experiment_ids: int) -> Select[Optional[s
     )
 
 
+async def get_fallback_project_names_for_experiments(
+    session: AsyncSession, *experiment_ids: int
+) -> list[str]:
+    """Names of trace projects only an experiment's frozen decision judges still reference.
+
+    When a frozen judge resumes after its binding (and project) was deleted, the runner creates
+    a fallback project recorded only in the job's snapshots. Projects a live binding references
+    are kept. The fallback's description names its experiment, which guards against a reused
+    project id now belonging to something else.
+    """
+    if not experiment_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(
+                models.ExperimentJob.id,
+                models.ExperimentJob.decision_evaluator_snapshots,
+            ).where(models.ExperimentJob.id.in_(set(experiment_ids)))
+        )
+    ).all()
+    project_ids = {
+        snapshot["project_id"]
+        for _, snapshots in rows
+        for snapshot in snapshots or []
+        if isinstance(snapshot.get("project_id"), int)
+    }
+    if not project_ids:
+        return []
+    descriptions = {f"%on dataset: experiment {experiment_id}" for experiment_id, _ in rows}
+    return list(
+        await session.scalars(
+            select(models.Project.name)
+            .where(models.Project.id.in_(project_ids))
+            .where(or_(*(models.Project.description.like(d) for d in descriptions)))
+            .where(
+                ~select(models.DatasetEvaluators.id)
+                .where(models.DatasetEvaluators.project_id == models.Project.id)
+                .exists()
+            )
+        )
+    )
+
+
 _AnyT = TypeVar("_AnyT")
 _KeyT = TypeVar("_KeyT", bound=Hashable)
 

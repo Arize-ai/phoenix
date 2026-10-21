@@ -22,7 +22,7 @@ import { getEvaluatorTaskAnnotation } from "../evaluatorCells/evaluatorCellResul
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import {
   buildEvaluatorTaskFromStore,
-  getEvaluatorTaskRevision,
+  getEvaluatorTaskContentKey,
 } from "./evaluatorTaskSnapshot";
 import { getDefaultSandboxConfigId } from "./evaluatorTaskValidation";
 
@@ -213,7 +213,7 @@ export function createEvaluatorTaskAgentHost({
       instanceId,
       index,
       label: getInstanceLabel(index),
-      revision: toRevisionToken(getEvaluatorTaskRevision(task)),
+      revision: toRevisionToken(getEvaluatorTaskContentKey(task)),
       dirty,
       kind: task.kind,
       name: task.name,

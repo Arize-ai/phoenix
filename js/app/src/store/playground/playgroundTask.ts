@@ -3,27 +3,60 @@ import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import type {
   PlaygroundEvaluatorTask,
-  PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
-  PlaygroundTaskKind,
+  PlaygroundTaskType,
+  PlaygroundMode,
 } from "./types";
 
 /**
- * The kind of task the page holds. Every instance shares it, so the first
- * instance decides; an empty page is a prompt page.
+ * Maps each task type to its playground mode.
  */
-export function getPlaygroundTaskKind(
-  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
-): PlaygroundTaskKind {
-  return instances[0]?.task.kind ?? "prompt";
+export const PLAYGROUND_MODE_BY_TASK_TYPE: Record<
+  PlaygroundTaskType,
+  PlaygroundMode
+> = {
+  prompt: "task",
+  decision: "task",
+  evaluator: "evaluator",
+};
+
+/** Returns the instance's task type. */
+export function getPlaygroundTaskType(
+  instance: Pick<PlaygroundInstance, "task">
+): PlaygroundTaskType {
+  return instance.task.type;
+}
+
+/** Whether the instance runs a decision rather than a chat prompt. */
+export function isDecisionInstance(
+  instance: Pick<PlaygroundInstance, "task"> | undefined
+): boolean {
+  return instance?.task.type === "decision";
 }
 
 /**
- * Whether the page's kind can still change. A lone instance may switch
- * kinds by being replaced; once there is something to compare against, the
- * kind is fixed until the other instances are removed.
+ * Returns the page's mode from its first instance. An empty page defaults
+ * to task mode.
  */
-export function isTaskKindLocked(instances: ReadonlyArray<unknown>): boolean {
+export function getPlaygroundMode(
+  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
+): PlaygroundMode {
+  const first = instances[0];
+
+  return first
+    ? PLAYGROUND_MODE_BY_TASK_TYPE[getPlaygroundTaskType(first)]
+    : "task";
+}
+
+/**
+ * Whether the page's mode can still change. A lone instance may switch modes
+ * by being replaced; once there is something to compare against, the mode is
+ * fixed until the other instances are removed. Task types in the same mode mix
+ * freely: a decision can sit beside a prompt.
+ */
+export function isPlaygroundModeLocked(
+  instances: ReadonlyArray<unknown>
+): boolean {
   return instances.length > 1;
 }
 
@@ -68,21 +101,14 @@ export function createPlaygroundEvaluatorTask({
       datasetEvaluatorId: null,
       projectEvaluatorId: null,
     },
-    savedRevision: null,
+    savedContentKey: null,
     ...overrides,
   };
 }
 
-/** Narrows to the evaluator draft, or null for a prompt instance. */
+/** Narrows to the evaluator draft, or null for a prompt or decision instance. */
 export function getPlaygroundEvaluatorTask(
   instance: Pick<PlaygroundInstance, "task"> | undefined
 ): PlaygroundEvaluatorTask | null {
-  return instance?.task.kind === "evaluator" ? instance.task.evaluator : null;
-}
-
-/** The kind a "new task" source of the given kind belongs to. */
-export function getTaskKindForNewSource(
-  kind: "prompt" | PlaygroundEvaluatorTaskKind
-): PlaygroundTaskKind {
-  return kind === "prompt" ? "prompt" : "evaluator";
+  return instance?.task.type === "evaluator" ? instance.task.evaluator : null;
 }

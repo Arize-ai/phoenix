@@ -52,11 +52,11 @@ export function waitForInstanceLoad(
 
 /**
  * Whether the instance holds what `source` names. A fresh draft always
- * does; a saved source must have landed its prompt or evaluator reference,
+ * does; a saved source must have landed its prompt, decision or evaluator reference,
  * which a failed load leaves unset.
  */
 export function hasInstanceLoaded(
-  instance: Pick<PlaygroundNormalizedInstance, "prompt" | "task">,
+  instance: Pick<PlaygroundNormalizedInstance, "prompt" | "decision" | "task">,
   source: PlaygroundInstanceSource
 ): boolean {
   switch (source.type) {
@@ -68,6 +68,13 @@ export function hasInstanceLoaded(
         instance.prompt?.id === source.promptId &&
         (source.promptVersionId == null ||
           instance.prompt.version === source.promptVersionId)
+      );
+    case "decision":
+      return (
+        instance.task.type === "decision" &&
+        instance.decision?.id === source.decisionId &&
+        (source.decisionVersionId == null ||
+          instance.decision.versionId === source.decisionVersionId)
       );
     case "evaluator":
       return (
@@ -93,6 +100,8 @@ function describeLoadFailure(source: PlaygroundInstanceSource): string {
   switch (source.type) {
     case "prompt":
       return `Prompt ${source.promptId} could not be loaded. It may have been deleted, or it is not a chat prompt.`;
+    case "decision":
+      return `Decision ${source.decisionId} could not be loaded. It may have been deleted, or that version may no longer exist.`;
     case "evaluator":
       return `Evaluator ${source.evaluatorId} could not be loaded. It may have been deleted, or it is a built-in evaluator, which the playground cannot edit.`;
     case "datasetEvaluator":

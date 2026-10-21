@@ -3,13 +3,13 @@ import {
   type ChatMessage,
   generateInstanceId,
   generateMessageId,
-  getPlaygroundTaskKind,
+  getPlaygroundMode,
   type PlaygroundInstanceSource,
   type PlaygroundNormalizedInstance,
   type PlaygroundStore,
 } from "@phoenix/store/playground";
 
-import { getTaskSourceKind } from "../playgroundTask/selectTask";
+import { describeMode, getTaskSourceMode } from "../playgroundTask/selectTask";
 import { parsePromptMessageRole } from "./roles";
 import type {
   EditPromptOperation,
@@ -230,20 +230,21 @@ export function addPromptInstance({
     };
   }
 
-  const pageKind = getPlaygroundTaskKind(state.instances);
+  const pageMode = getPlaygroundMode(state.instances);
 
-  const resolvedSource: PlaygroundInstanceSource = source ?? {
-    type: "new",
-    kind: pageKind === "evaluator" ? "LLM" : "prompt",
-  };
+  const resolvedSource: PlaygroundInstanceSource =
+    source ??
+    (pageMode === "evaluator"
+      ? { type: "new", taskType: "evaluator", evaluatorKind: "LLM" }
+      : { type: "new", taskType: "prompt" });
 
   if (
     resolvedSource.type !== "duplicate" &&
-    getTaskSourceKind(resolvedSource) !== pageKind
+    getTaskSourceMode(resolvedSource) !== pageMode
   ) {
     return {
       ok: false,
-      error: `This page holds ${pageKind} tasks, so a comparison instance must be a ${pageKind} task too. To switch kinds, remove the other instances and call playground.task.select on the one that remains.`,
+      error: `This page holds ${describeMode(pageMode)}, so a comparison instance must be one too. To switch modes, remove the other instances and call playground.task.select on the one that remains.`,
     };
   }
 

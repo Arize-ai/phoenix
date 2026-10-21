@@ -1,10 +1,9 @@
 from datetime import datetime
 from math import isfinite
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -97,18 +96,12 @@ class ProjectSessionAnnotation(Node, Annotation):
             )
         return val
 
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
+    async def _metadata(self, info: Info[Context, None]) -> Any:
         if self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.project_session_annotation_fields.load(
-                (self.id, models.ProjectSessionAnnotation.metadata_),
-            )
-        return JSON(val)
+            return self.db_record.metadata_
+        return await info.context.data_loaders.project_session_annotation_fields.load(
+            (self.id, models.ProjectSessionAnnotation.metadata_),
+        )
 
     @strawberry.field(description="The identifier of the annotation.")  # type: ignore
     async def identifier(

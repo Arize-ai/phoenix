@@ -56,6 +56,7 @@ import {
   generateMessageId,
   generateToolId,
   getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
@@ -85,6 +86,11 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import {
+  buildDecisionInstanceFromSpanAttributes,
+  extractDecisionVariables,
+  isDecisionSpanAttributes,
+} from "./decisionUtils";
 import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
@@ -1107,6 +1113,7 @@ export function transformSpanAttributesToPlaygroundInstance(
    */
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
+  templateFormat?: TemplateFormat;
 } {
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
   const basePlaygroundInstance: PlaygroundInstance = {
@@ -1135,6 +1142,17 @@ export function transformSpanAttributesToPlaygroundInstance(
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
+  }
+
+  // A decision span replays as a decision instance: the request body on the
+  // span becomes the editable request and the response its first output.
+  if (isDecisionSpanAttributes(parsedAttributes)) {
+    return buildDecisionInstanceFromSpanAttributes({
+      base: basePlaygroundInstance,
+      spanId: span.id,
+      attributes: parsedAttributes,
+      status: { code: span.statusCode, message: span.statusMessage },
+    });
   }
 
   const baseModelConfigResult =
@@ -1256,6 +1274,14 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateFormat: TemplateFormat;
 }) => {
+  // A decision instance carries its variables in the request's text fields;
+  // its chat template is the one it restores when switched back to an LLM.
+  if (isDecisionInstance(instance)) {
+    return extractDecisionVariables({
+      draft: instance.decisionRequest,
+      templateFormat,
+    });
+  }
   if (templateFormat === TemplateFormats.NONE) {
     return [];
   }
@@ -1302,9 +1328,6 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
@@ -1345,13 +1368,13 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return { variablesMap: {}, variableKeys: [] };
-  }
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateFormat,
   });
+  if (variableKeys.length === 0) {
+    return { variablesMap: {}, variableKeys: [] };
+  }
 
   const variableValueCache = input.variablesValueCache ?? {};
 
@@ -1464,6 +1487,8 @@ export const createToolCallForProvider = (
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();
+    case "TYPESAFE":
+      throw new Error("Decision models do not support chat tool calls");
     default:
       return assertUnreachable(provider);
   }
@@ -2345,7 +2370,7 @@ export const getPromptTaskInput = ({
     getTemplateVariablesPath({
       stateByDatasetId,
       datasetId,
-      taskKind: "prompt",
+      mode: "task",
     }) ?? "";
 
   return {

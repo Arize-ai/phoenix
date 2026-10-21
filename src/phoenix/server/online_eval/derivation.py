@@ -37,6 +37,19 @@ class ResolvedProjectEvaluator:
     sampling_rate: float
     session_policy_fingerprint: str | None = None
 
+    @property
+    def version_id(self) -> int | None:
+        if isinstance(self.version_ref, int) and not isinstance(self.version_ref, bool):
+            return self.version_ref
+        if (
+            isinstance(self.version_ref, list)
+            and self.version_ref
+            and isinstance(self.version_ref[0], int)
+            and not isinstance(self.version_ref[0], bool)
+        ):
+            return self.version_ref[0]
+        return None
+
 
 def _canonical_default(obj: Any) -> Any:
     # Evaluator config model_dump() output carries enum members (e.g.

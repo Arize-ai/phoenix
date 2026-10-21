@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
+import type { EvaluatorKind } from "@phoenix/types";
 
 enum ProjectEvaluatorAction {
   EDIT = "edit",
@@ -28,7 +29,7 @@ export function ProjectEvaluatorActionMenu({
 }: {
   projectEvaluatorId: string;
   projectId: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   evaluatorName: string;
   /** Passed in by the table, so the edit path is derived once per render and
    * not once per row. */

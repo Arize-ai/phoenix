@@ -78,9 +78,9 @@ function describeAddedInstance(source: PlaygroundInstanceSource): string {
     case "duplicate":
       return "Duplicate of the first task added for comparison.";
     case "new":
-      return source.kind === "prompt"
-        ? "Default prompt instance added for comparison."
-        : `New ${source.kind} evaluator task added for comparison.`;
+      return source.taskType === "evaluator"
+        ? `New ${source.evaluatorKind} evaluator task added for comparison.`
+        : `Default ${source.taskType} instance added for comparison.`;
     default:
       return "Saved task loaded into a new instance for comparison.";
   }

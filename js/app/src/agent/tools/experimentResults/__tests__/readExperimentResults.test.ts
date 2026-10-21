@@ -136,6 +136,26 @@ describe("toExperimentResults", () => {
     expect(results.truncatedToFirstRuns).toBeUndefined();
   });
 
+  it("identifies decision experiments as decision tasks", () => {
+    const data = experimentData([]);
+    if (data.experiment?.__typename !== "Experiment" || !data.experiment.job) {
+      throw new Error("Expected an experiment job");
+    }
+    const decisionData = {
+      ...data,
+      experiment: {
+        ...data.experiment,
+        job: {
+          ...data.experiment.job,
+          taskConfig: { __typename: "DecisionTaskConfig" as const },
+        },
+      },
+    };
+    expect(
+      toExperimentResults({ data: decisionData }).experiment.taskKind
+    ).toBe("decision");
+  });
+
   it("reports an example without expected outputs as an empty list", () => {
     const results = toExperimentResults({
       data: experimentData([runNode({ id: "1", score: 1, label: "pass" })]),

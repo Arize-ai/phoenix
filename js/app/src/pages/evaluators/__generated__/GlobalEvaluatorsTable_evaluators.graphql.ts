@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<73e75f8a22d681863bfcc1c065bcd97e>>
+ * @generated SignedSource<<286ac4e6284d5cdcc830f5bc864d1986>>
  * @lightSyntaxTransform
  */
 
@@ -100,6 +100,23 @@ v8 = {
       "storageKey": null
     }
   ],
+  "storageKey": null
+},
+v9 = [
+  (v2/*:: as any*/)
+],
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -340,9 +357,7 @@ return {
                           "kind": "LinkedField",
                           "name": "promptVersionTag",
                           "plural": false,
-                          "selections": [
-                            (v2/*:: as any*/)
-                          ],
+                          "selections": (v9/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -353,26 +368,53 @@ return {
                           "name": "promptVersion",
                           "plural": false,
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "modelName",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "modelProvider",
-                              "storageKey": null
-                            }
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/)
                           ],
                           "storageKey": null
                         },
                         (v8/*:: as any*/)
                       ],
                       "type": "LLMEvaluator",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "DecisionVersion",
+                          "kind": "LinkedField",
+                          "name": "decisionVersion",
+                          "plural": false,
+                          "selections": [
+                            (v1/*:: as any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "decisionId",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Decision",
+                              "kind": "LinkedField",
+                              "name": "decision",
+                              "plural": false,
+                              "selections": (v9/*:: as any*/),
+                              "storageKey": null
+                            },
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/)
+                          ],
+                          "storageKey": null
+                        },
+                        (v8/*:: as any*/)
+                      ],
+                      "type": "DecisionEvaluator",
                       "abstractKey": null
                     },
                     {

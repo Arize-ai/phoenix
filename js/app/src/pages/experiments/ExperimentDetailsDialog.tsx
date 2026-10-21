@@ -40,6 +40,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
+import { toSavedDecisionVersion } from "@phoenix/pages/playground/fetchPlaygroundDecision";
 import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import {
   errorRateFormatter,
@@ -443,6 +444,59 @@ function ExperimentDetailsDialogContent({
               ...ExperimentDetailsDialog_jobErrors
               taskConfig {
                 __typename
+                ... on DecisionTaskConfig {
+                  modelProvider
+                  modelName
+                  baseUrl
+                  customProvider {
+                    id
+                    name
+                  }
+                  inputValuesPath
+                  inputs {
+                    name
+                  }
+                  state {
+                    __typename
+                    ... on DecisionObjectState {
+                      object
+                    }
+                    ... on DecisionInputState {
+                      input
+                    }
+                    ... on DecisionTextState {
+                      template
+                      templateFormat
+                    }
+                  }
+                  questions {
+                    __typename
+                    ... on DecisionPredicateQuestion {
+                      name
+                      instructions
+                      criteria {
+                        true
+                        false
+                      }
+                    }
+                    ... on DecisionChoiceQuestion {
+                      name
+                      instructions
+                      choices {
+                        value
+                        description
+                      }
+                    }
+                    ... on DecisionScaleQuestion {
+                      name
+                      instructions
+                      levels {
+                        label
+                        description
+                      }
+                    }
+                  }
+                }
                 ... on PromptTaskConfig {
                   id
                   streamModelOutput
@@ -511,6 +565,11 @@ function ExperimentDetailsDialogContent({
   const taskConfig =
     job?.taskConfig?.__typename === "PromptTaskConfig" ? job.taskConfig : null;
 
+  const decisionTaskConfig =
+    job?.taskConfig?.__typename === "DecisionTaskConfig"
+      ? job.taskConfig
+      : null;
+
   return (
     <>
       <DialogHeader>
@@ -540,7 +599,7 @@ function ExperimentDetailsDialogContent({
         <DisclosureGroup
           defaultExpandedKeys={[
             "overview",
-            ...(taskConfig ? ["task-config"] : []),
+            ...(taskConfig || decisionTaskConfig ? ["task-config"] : []),
             "errors",
           ]}
         >
@@ -679,6 +738,55 @@ function ExperimentDetailsDialogContent({
               </DisclosurePanel>
             </Disclosure>
           )}
+
+          {decisionTaskConfig ? (
+            <Disclosure id="task-config">
+              <DisclosureTrigger arrowPosition="start">
+                <Heading level={3} weight="heavy">
+                  Task Configuration
+                </Heading>
+              </DisclosureTrigger>
+              <DisclosurePanel>
+                <View padding="size-200">
+                  <DetailRow label="Task Type">Decision</DetailRow>
+                  <DetailRow label="Model Provider">
+                    {decisionTaskConfig.modelProvider}
+                  </DetailRow>
+                  <DetailRow label="Model Name">
+                    {decisionTaskConfig.modelName}
+                  </DetailRow>
+                  {decisionTaskConfig.customProvider ? (
+                    <DetailRow label="Custom Provider">
+                      {decisionTaskConfig.customProvider.name}
+                    </DetailRow>
+                  ) : null}
+                  {decisionTaskConfig.baseUrl ? (
+                    <DetailRow label="Base URL">
+                      {decisionTaskConfig.baseUrl}
+                    </DetailRow>
+                  ) : null}
+                  <DetailRow label="Input Values Path">
+                    {decisionTaskConfig.inputValuesPath}
+                  </DetailRow>
+                  {job?.maxConcurrency != null ? (
+                    <DetailRow label="Max Concurrency">
+                      {intFormatter(job.maxConcurrency)}
+                    </DetailRow>
+                  ) : null}
+                  <Text weight="heavy" size="S" color="text-700">
+                    Decision Definition
+                  </Text>
+                  <JSONBlock
+                    value={JSON.stringify(
+                      toSavedDecisionVersion(decisionTaskConfig),
+                      null,
+                      2
+                    )}
+                  />
+                </View>
+              </DisclosurePanel>
+            </Disclosure>
+          ) : null}
 
           {/* Errors */}
           {job && <JobErrorsSection jobRef={job} />}

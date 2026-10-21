@@ -63,7 +63,7 @@ import {
 const baseTestPlaygroundInstance: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  task: { kind: "prompt" },
+  task: { type: "prompt" },
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -91,7 +91,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
 const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  task: { kind: "prompt" },
+  task: { type: "prompt" },
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -766,6 +766,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
+  it("should not infer a decision-only provider for a chat span with an unknown provider", () => {
+    const { modelConfig, parsingErrors } = getBaseModelConfigFromAttributes({
+      llm: { model_name: "jev-latest", provider: "unknown" },
+    });
+    expect(parsingErrors).toEqual([]);
+    expect(modelConfig?.provider).toEqual(DEFAULT_MODEL_PROVIDER);
+    expect(modelConfig?.modelName).toEqual("jev-latest");
+  });
+
   it("should return invocation parameters parsing errors if they are malformed", () => {
     const parsedAttributes = {
       llm: {
@@ -909,7 +918,7 @@ describe("processAttributeToolCalls", () => {
   ];
 
   type ProviderToolCallTestMap = {
-    [P in ModelProvider]: ProviderToolCallTuple<P>;
+    [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolCallTuple<P>;
   };
 
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
@@ -1307,7 +1316,7 @@ describe("getVariablesMapFromInstances", () => {
   const baseTestPlaygroundInstance: PlaygroundInstance = {
     id: 0,
     activeRunId: null,
-    task: { kind: "prompt" },
+    task: { type: "prompt" },
     model: {
       provider: "OPENAI",
       modelName: "gpt-3.5-turbo",
@@ -1511,7 +1520,7 @@ type ProviderToolTestTuple<T extends ModelProvider> = [
 ];
 
 type ProviderToolTestMap = {
-  [P in ModelProvider]: ProviderToolTestTuple<P>;
+  [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolTestTuple<P>;
 };
 
 describe("getToolsFromAttributes", () => {
