@@ -2,30 +2,16 @@ import type { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templa
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 const SYSTEM_PROMPT = `
-First, describe the persona of your evaluator (e.g. "You are an expert at evaluating the quality of an LLM application's responses").
+Describe your evaluator's persona, e.g. "You are an expert at evaluating the quality of an LLM application's responses".
 
 <rubric>
-Provide bullet points for how the LLM should score both good and bad responses, e.g.:
-A good response:
-- Directly addresses the request in the input
-- etc.
-
-A bad response:
-- Ignores or contradicts the request in the input
-- etc.
+A good response directly addresses the request in the input.
+A bad response ignores or contradicts the request in the input.
 </rubric>
 
 <instructions>
-Provide instructions for how the LLM should process the example, e.g.:
-- Read the input to understand what was asked
-- Judge whether the output satisfies the request
-- etc.
+Read the input to understand what was asked, then judge whether the output satisfies it. Judge only what is present in the input and output.
 </instructions>
-
-<reminder>
-Provide any remaining important reminders for the LLM to keep in mind while grading, e.g.:
-- Judge only what is present in the input and output
-</reminder>
 `;
 
 const USER_PROMPT = `

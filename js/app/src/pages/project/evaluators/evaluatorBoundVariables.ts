@@ -14,9 +14,6 @@ export type EvaluatorBoundVariable = {
 };
 
 const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
-  { name: "span_id", type: "text" },
-  { name: "trace_id", type: "text" },
-  { name: "parent_id", type: "text" },
   { name: "name", type: "text" },
   { name: "span_kind", type: "text", description: "LLM, TOOL, CHAIN, …" },
   { name: "status_code", type: "text", description: "OK, ERROR, or UNSET." },
@@ -37,10 +34,12 @@ const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
     type: "number",
     description: "Includes descendants.",
   },
+  { name: "span_id", type: "text" },
+  { name: "trace_id", type: "text" },
+  { name: "parent_id", type: "text" },
 ];
 
 const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
-  { name: "session_id", type: "text" },
   {
     name: "user_id",
     type: "text",
@@ -59,10 +58,10 @@ const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   { name: "prompt_cost", type: "number" },
   { name: "completion_cost", type: "number" },
   { name: "total_cost", type: "number" },
+  { name: "session_id", type: "text" },
 ];
 
 const TRACE_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
-  { name: "trace_id", type: "text" },
   { name: "latency_ms", type: "number" },
   { name: "num_spans", type: "number" },
   {
@@ -78,6 +77,7 @@ const TRACE_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   { name: "prompt_cost", type: "number" },
   { name: "completion_cost", type: "number" },
   { name: "total_cost", type: "number" },
+  { name: "trace_id", type: "text" },
 ];
 
 /** Mirrors the server's per-record-kind `<RECORD_KIND>_METADATA_FIELD_NAMES` via the same test as above. */
@@ -151,8 +151,10 @@ export const EVALUATOR_RECORD_KINDS = Object.keys(
 ) as ProjectEvaluatorRecordKind[];
 
 /**
- * Ordered for reading: identity first, then status, then measures. The server
- * returns them unordered, so the order is this list's to decide.
+ * Ordered for a prompt author: what the record says and measures first, its
+ * ids last. An id is the least likely thing to bind into a prompt, and it is
+ * what a reader skips past to find the attributes. The server returns them
+ * unordered, so the order is this list's to decide.
  */
 export function getEvaluatorBoundVariables(
   recordKind: ProjectEvaluatorRecordKind

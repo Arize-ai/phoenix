@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import { ProjectEvaluatorInputMappingDock } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
@@ -131,5 +132,74 @@ describe("a project evaluator's mapping as its variables change", () => {
       )
     ).toEqual(["question path mapping", "rubric path mapping"]);
     expect(container.querySelector("select")).toBeNull();
+  });
+
+  const renderDock = (
+    declaredVariables: string[],
+    evaluatorKind: "prompt" | "code" = "prompt"
+  ) =>
+    act(async () => {
+      root.render(
+        <EvaluatorStoreProvider
+          initialState={{
+            evaluator: {
+              kind: "LLM",
+              globalName: "",
+              name: "",
+              description: "",
+              isBuiltin: false,
+              includeExplanation: false,
+              inputMapping: { pathMapping: STORED_PATHS, literalMapping: {} },
+            },
+          }}
+        >
+          {({ store: storeInstance }) => {
+            store = storeInstance;
+            return (
+              <EvaluatorInputVariablesContext.Provider
+                value={declaredVariables}
+              >
+                <ProjectEvaluatorInputMappingDock
+                  recordKind="span"
+                  evaluatorKind={evaluatorKind}
+                />
+              </EvaluatorInputVariablesContext.Provider>
+            );
+          }}
+        </EvaluatorStoreProvider>
+      );
+    });
+
+  const dockBody = () => container.querySelector(".mapping-dock__body");
+
+  it("opens the dock even when every variable already reads something", async () => {
+    await renderDock(["input"]);
+    expect(
+      container.querySelector(".disclosure")?.getAttribute("data-expanded")
+    ).toBe("true");
+    expect(dockBody()?.textContent).toContain("Map evaluator variables");
+  });
+
+  it("says what the dock is for when nothing is declared", async () => {
+    await renderDock([]);
+    const text = dockBody()?.textContent ?? "";
+    expect(text).toContain(
+      "Variables in the prompt appear here, each mapped to the span data it reads."
+    );
+    // The mapping description is for rows; with none, it is left out.
+    expect(text).not.toContain("Map evaluator variables");
+  });
+
+  it("words the dock's empty state for a code evaluator", async () => {
+    await renderDock([], "code");
+    expect(dockBody()?.textContent).toContain(
+      "Parameters of the evaluator's function appear here"
+    );
+  });
+
+  it("drops the last variable's path when the dock goes empty", async () => {
+    await renderDock(["context", "input"]);
+    await renderDock([]);
+    expect(store!.getState().evaluator.inputMapping.pathMapping).toEqual({});
   });
 });

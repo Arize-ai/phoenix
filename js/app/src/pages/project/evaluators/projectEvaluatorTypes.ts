@@ -235,6 +235,13 @@ export function formatEvaluationTarget(target: EvaluationTarget): string {
   return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
 }
 
+/** "span" -> "Span", for a column or token that names the record kind. */
+export function formatEvaluationRecordKind(
+  recordKind: ProjectEvaluatorRecordKind
+): string {
+  return `${recordKind.charAt(0).toUpperCase()}${recordKind.slice(1)}`;
+}
+
 /** "SPAN" -> "spans", for prose that names what an evaluator runs on. */
 export function formatEvaluationTargetPlural(target: EvaluationTarget): string {
   return `${target.toLowerCase()}s`;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<56b4c5a64fd4077133b695f93351d37c>>
+ * @generated SignedSource<<bf54e74f78a1acc2b43876ca6ce19b21>>
  * @lightSyntaxTransform
  */
 
@@ -26,8 +26,14 @@ export type ProjectEvaluatorScopePanelSpansQuery$data = {
         readonly span: {
           readonly evaluationContext: any;
           readonly id: string;
+          readonly latencyMs: number | null;
           readonly name: string;
+          readonly spanId: string;
           readonly spanKind: SpanKind;
+          readonly startTime: string;
+          readonly trace: {
+            readonly traceId: string;
+          };
         };
       }>;
       readonly pageInfo: {
@@ -69,116 +75,104 @@ v4 = [
     "variableName": "projectId"
   }
 ],
-v5 = {
+v5 = [
+  {
+    "kind": "Variable",
+    "name": "filterCondition",
+    "variableName": "filterCondition"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  },
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "startTime",
+      "dir": "desc"
+    }
+  },
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
+  }
+],
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v6 = {
-  "kind": "InlineFragment",
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "spanId",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "spanKind",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "startTime",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "evaluationContext",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceId",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PageInfo",
+  "kind": "LinkedField",
+  "name": "pageInfo",
+  "plural": false,
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "filterCondition",
-          "variableName": "filterCondition"
-        },
-        {
-          "kind": "Variable",
-          "name": "first",
-          "variableName": "first"
-        },
-        {
-          "kind": "Literal",
-          "name": "sort",
-          "value": {
-            "col": "startTime",
-            "dir": "desc"
-          }
-        },
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "SpanConnection",
-      "kind": "LinkedField",
-      "name": "spans",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "SpanEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": "span",
-              "args": null,
-              "concreteType": "Span",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                (v5/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "spanKind",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "evaluationContext",
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "PageInfo",
-          "kind": "LinkedField",
-          "name": "pageInfo",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "hasNextPage",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hasNextPage",
       "storageKey": null
     }
   ],
-  "type": "Project",
-  "abstractKey": null
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -200,7 +194,66 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*:: as any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v5/*:: as any*/),
+                "concreteType": "SpanConnection",
+                "kind": "LinkedField",
+                "name": "spans",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "span",
+                        "args": null,
+                        "concreteType": "Span",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Trace",
+                            "kind": "LinkedField",
+                            "name": "trace",
+                            "plural": false,
+                            "selections": [
+                              (v13/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  (v14/*:: as any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -234,24 +287,84 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v6/*:: as any*/),
-          (v5/*:: as any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v5/*:: as any*/),
+                "concreteType": "SpanConnection",
+                "kind": "LinkedField",
+                "name": "spans",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "span",
+                        "args": null,
+                        "concreteType": "Span",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Trace",
+                            "kind": "LinkedField",
+                            "name": "trace",
+                            "plural": false,
+                            "selections": [
+                              (v13/*:: as any*/),
+                              (v6/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  (v14/*:: as any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          },
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "504241f06c3f81499d5962f57931c91f",
+    "cacheID": "cc2dca3893b1f715cbb1af68d2028cf1",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelSpansQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelSpansQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            spanKind\n            evaluationContext\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelSpansQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            spanId\n            spanKind\n            startTime\n            latencyMs\n            evaluationContext\n            trace {\n              traceId\n              id\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e351471a45f96a10387e23a9aab373d";
+(node as any).hash = "77315d0b5fc026c2752b80932c0e7554";
 
 export default node;

@@ -26,6 +26,7 @@ export const EvaluatorFormDialogContent = ({
   errorTitle,
   banner,
   left,
+  leftDock,
   right,
   renderInputVariables,
   submitButtonProps,
@@ -42,6 +43,8 @@ export const EvaluatorFormDialogContent = ({
   errorTitle: string;
   banner?: ReactNode;
   left: ReactNode;
+  /** Pinned under the left panel's scroll region; see {@link EvaluatorForm}. */
+  leftDock?: ReactNode;
   right: ReactNode;
   renderInputVariables: (form: ReactNode) => ReactNode;
   submitButtonProps?: { [key: `data-${string}`]: string };
@@ -73,7 +76,9 @@ export const EvaluatorFormDialogContent = ({
             {error}
           </Alert>
         ) : null}
-        {renderInputVariables(<EvaluatorForm left={left} right={right} />)}
+        {renderInputVariables(
+          <EvaluatorForm left={left} leftDock={leftDock} right={right} />
+        )}
       </fieldset>
       <DialogFooter>
         {submitHint ? (
