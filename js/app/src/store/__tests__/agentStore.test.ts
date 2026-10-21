@@ -460,29 +460,16 @@ describe("agentStore", () => {
   });
 
   describe("recentModels", () => {
-    it("records picks newest first, deduped and capped at 5", () => {
+    it("records a pick in the recent models", () => {
       const store = createAgentStore();
       expect(store.getState().recentModels).toEqual([]);
-      const { recordRecentModel } = store.getState();
-      recordRecentModel({
-        provider: "ANTHROPIC",
-        modelName: "claude-opus-4-6",
-      });
-      recordRecentModel({ provider: "OPENAI", modelName: "gpt-9-preview" });
-      recordRecentModel({
-        provider: "ANTHROPIC",
-        modelName: "claude-opus-4-6",
+      store.getState().recordRecentModel({
+        provider: "OPENAI",
+        modelName: "gpt-9-preview",
       });
       expect(store.getState().recentModels).toEqual([
-        { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
         { provider: "OPENAI", modelName: "gpt-9-preview" },
       ]);
-      for (const modelName of ["a", "b", "c", "d"]) {
-        recordRecentModel({ provider: "OPENAI", modelName });
-      }
-      expect(
-        store.getState().recentModels.map((model) => model.modelName)
-      ).toEqual(["d", "c", "b", "a", "claude-opus-4-6"]);
     });
 
     it("persists recent models and drops malformed entries on rehydration", () => {

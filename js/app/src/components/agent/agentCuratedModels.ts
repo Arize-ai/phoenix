@@ -53,7 +53,7 @@ function findAgentCuratedBuiltInModel({
   );
 }
 
-export function isAgentCuratedBuiltInModel({
+function isAgentCuratedBuiltInModel({
   provider,
   modelName,
 }: AgentBuiltInModelSelection): boolean {
@@ -85,7 +85,7 @@ export function isAgentCuratedModelSelection(
 }
 
 /**
- * The display name of a curated model (e.g. "Claude Opus 4.6"), or null for
+ * The display name of a curated model (e.g. "Claude Opus 5.5"), or null for
  * custom provider models and built-in models outside the curated list.
  */
 export function getAgentCuratedModelDisplayName(
@@ -100,12 +100,4 @@ export function getAgentCuratedModelDisplayName(
       modelName: model.modelName,
     })?.displayName ?? null
   );
-}
-
-/**
- * The label to show for a model: its curated display name when it has one,
- * otherwise the raw model id.
- */
-export function getAgentModelLabel(model: ModelMenuValue): string {
-  return getAgentCuratedModelDisplayName(model) ?? model.modelName;
 }

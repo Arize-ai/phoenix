@@ -30,7 +30,7 @@ import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePromp
 import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
 import {
   addRecentAgentModel,
-  type AgentRecentModel,
+  DEFAULT_MODEL_MENU_VALUE,
   normalizeRecentAgentModels,
 } from "@phoenix/components/agent/agentModelConfig";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
@@ -227,9 +227,11 @@ export function selectIsSessionOccupied(
 export const DRAFT_SESSION_ID = "pxi:draft-session";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
-  provider: "ANTHROPIC",
-  modelName: "claude-opus-5-5",
-  invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
+  provider: DEFAULT_MODEL_MENU_VALUE.provider,
+  modelName: DEFAULT_MODEL_MENU_VALUE.modelName,
+  invocationParameters: getDefaultInvocationConfig(
+    DEFAULT_MODEL_MENU_VALUE.provider
+  ),
 };
 
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
@@ -358,7 +360,7 @@ export interface AgentProps {
    * deduped and capped at 5 (see {@link addRecentAgentModel}). Typed names
    * outside the catalog are kept too. Persisted.
    */
-  recentModels: AgentRecentModel[];
+  recentModels: ModelMenuValue[];
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */

@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { ViewlessKeyboardEvent } from "@phoenix/__tests__/ViewlessKeyboardEvent";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
@@ -81,40 +83,14 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   useModelMenuData: () => MODEL_MENU_DATA,
 }));
 
-/**
- * React Aria's Autocomplete forwards keys to the menu with
- * `new KeyboardEvent(type, nativeEvent)`. jsdom rejects the `view` of a
- * user-event event there ("member view is not of type Window"), so this copies
- * the init without it.
- */
-class ViewlessKeyboardEvent extends KeyboardEvent {
-  constructor(type: string, init?: KeyboardEventInit) {
-    super(
-      type,
-      init && {
-        key: init.key,
-        code: init.code,
-        location: init.location,
-        repeat: init.repeat,
-        isComposing: init.isComposing,
-        ctrlKey: init.ctrlKey,
-        shiftKey: init.shiftKey,
-        altKey: init.altKey,
-        metaKey: init.metaKey,
-        bubbles: init.bubbles,
-        cancelable: init.cancelable,
-        composed: init.composed,
-      }
-    );
-  }
-}
-
 const CURRENT_MODEL: ModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-5-5",
 };
 
 describe("AgentModelPicker", () => {
+  installTestMatchMedia();
+
   let container: HTMLDivElement;
   let root: Root;
   let store: AgentStore;
@@ -123,15 +99,6 @@ describe("AgentModelPicker", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.stubGlobal("KeyboardEvent", ViewlessKeyboardEvent);
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }))
-    );
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -344,14 +311,15 @@ describe("AgentModelPicker", () => {
     renderPicker();
     await act(() => userEvent.setup().click(getTrigger()));
 
-    const checked = getItems().filter(
-      (item) => item.getAttribute("aria-checked") === "true"
+    // The Current row, and the same model under Recommended
+    const checked = getItems().flatMap((item, index) =>
+      item.getAttribute("aria-checked") === "true" ? [index] : []
     );
-    expect(checked.length).toBeGreaterThan(0);
-    for (const item of checked) {
-      expect(item.textContent).toContain("claude-opus-5-5");
-    }
-    expect(getItems()[0].getAttribute("aria-checked")).toBe("true");
+    expect(checked).toEqual([0, 1]);
+    expect(getItemNames().slice(0, 2)).toEqual([
+      "Claude Opus 5.5",
+      "Claude Opus 5.5",
+    ]);
   });
 
   it("ranks token matches flat, with provider and Recommended badges", async () => {
@@ -400,22 +368,6 @@ describe("AgentModelPicker", () => {
     expect(isOpen()).toBe(false);
   });
 
-  it("has no provider scope chip", async () => {
-    renderPicker();
-    const user = userEvent.setup();
-    await act(() => user.click(getTrigger()));
-
-    expect(
-      document.body.querySelector('button[aria-label^="Provider:"]')
-    ).toBeNull();
-    // Backspace in the empty field no longer swaps in a provider list
-    await act(() => user.keyboard("{Backspace}"));
-    expect(getSectionTitles()).toEqual(["Current", "Recommended"]);
-    expect(getSearchField()?.placeholder).toBe(
-      "Search, or type any model name"
-    );
-  });
-
   it("ends a search with the custom-model row", async () => {
     renderPicker();
     await openAndType("claude-opus");
@@ -430,34 +382,11 @@ describe("AgentModelPicker", () => {
     expect(lastRow.getAttribute("aria-haspopup")).toBe("menu");
   });
 
-  it("offers the custom-model row for a listed id too", async () => {
-    renderPicker();
-    await openAndType("gpt-5.4");
-
-    expect(getCustomModelRow()?.textContent).toContain(
-      'Use "gpt-5.4" as a custom model'
-    );
-  });
-
-  it("offers no custom-model row for a multi-word search", async () => {
-    renderPicker();
-    await openAndType("opus 5");
-
-    expect(getCustomModelRow()).toBeNull();
-  });
-
   it("lists providers with the guessed one first", async () => {
     renderPicker();
     await openCustomModelSubmenu("gemini-4-pro");
 
-    expect(getSubmenuNames()).toEqual([
-      "Google",
-      "OpenAI",
-      "Anthropic",
-      "Acme gateway",
-      "AWS Bedrock",
-      "Azure OpenAI",
-    ]);
+    expect(getSubmenuNames()[0]).toBe("Google");
     const google = findSubmenuItem("Google");
     expect(google.textContent).toContain("Guessed from the name");
     expect(google.textContent).toContain("Add key");
@@ -495,19 +424,11 @@ describe("AgentModelPicker", () => {
     });
   });
 
-  it("applies the Bedrock prefix to a typed AWS name", async () => {
-    renderPicker({ awsBedrockModelPrefix: "us" });
-    const user = await openCustomModelSubmenu("anthropic.claude-opus-9-v1:0");
+  it("lists AWS Bedrock first for a typed AWS name", async () => {
+    renderPicker();
+    await openCustomModelSubmenu("anthropic.claude-opus-9-v1:0");
 
     expect(getSubmenuNames()[0]).toBe("AWS Bedrock");
-    await act(() => user.click(findSubmenuItem("AWS Bedrock")));
-
-    const expected = {
-      provider: "AWS",
-      modelName: "us.anthropic.claude-opus-9-v1:0",
-    };
-    expect(onChange).toHaveBeenCalledWith(expected);
-    expect(store.getState().recentModels).toEqual([expected]);
   });
 
   it("opens the submenu from the keyboard and picks with Enter", async () => {

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Badge, Icon, Icons, Text } from "@phoenix/components";
+import { Badge, Icon, Icons } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -28,7 +28,7 @@ const highlightCSS = css`
  * Renders `text` with the parts that match `query` marked, see
  * {@link getAgentModelHighlightRanges}.
  */
-export function AgentModelHighlight({
+function AgentModelHighlight({
   text,
   query,
 }: {
@@ -89,9 +89,9 @@ export function AgentModelCredentialHint({
   }
   if (credentialState === "may-work") {
     return (
-      <Text size="XS" color="text-500">
+      <Badge size="S" variant="info">
         May work
-      </Text>
+      </Badge>
     );
   }
   if (credentialState === "no-key") {
@@ -136,6 +136,12 @@ const modelRowCSS = css`
     display: inline-flex;
     align-items: center;
     gap: var(--global-dimension-size-75);
+  }
+
+  /* A row with no badges renders an empty trailing slot; drop it so it adds
+     no gap */
+  .agent-model-row__trailing:empty {
+    display: none;
   }
 `;
 
@@ -196,12 +202,6 @@ export function AgentModelRow({
       }
     />
   );
-  const credentialHint = (
-    <AgentModelCredentialHint
-      credentialState={row.credentialState}
-      isProviderMissing={row.isProviderMissing}
-    />
-  );
   return (
     <AgentModelRowLayout
       leadingVisual={
@@ -229,18 +229,17 @@ export function AgentModelRow({
         )
       }
       trailing={
-        isRecommendedBadgeVisible ||
-        row.isProviderMissing ||
-        row.credentialState !== "ready" ? (
-          <>
-            {isRecommendedBadgeVisible ? (
-              <Badge size="S" variant="success">
-                Recommended
-              </Badge>
-            ) : null}
-            {credentialHint}
-          </>
-        ) : null
+        <>
+          {isRecommendedBadgeVisible ? (
+            <Badge size="S" variant="success">
+              Recommended
+            </Badge>
+          ) : null}
+          <AgentModelCredentialHint
+            credentialState={row.credentialState}
+            isProviderMissing={row.isProviderMissing}
+          />
+        </>
       }
     />
   );

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { KeyboardEvent, RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { Key, PopoverProps } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 
@@ -12,6 +12,7 @@ import {
   Input,
   Menu,
   MenuContainer,
+  MenuHeader,
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
@@ -19,6 +20,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { SearchIcon } from "@phoenix/components/core/field";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { applyBedrockModelPrefix } from "@phoenix/components/generative/modelProviderUtils";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
@@ -52,8 +54,11 @@ import {
 /** The popover's width when the boundary is wider (or not given). */
 const DEFAULT_POPOVER_MAX_WIDTH = 380;
 
-/** Joins a section id and a model key into a menu item id. */
-const ITEM_ID_SEPARATOR = "";
+/**
+ * Joins a section id and a model key into a menu item id. A private-use
+ * character, so it can't occur in a model key.
+ */
+const ITEM_ID_SEPARATOR = "\uE000";
 
 /** The id of the "Use `x` as a custom model" row. */
 const CUSTOM_MODEL_ITEM_ID = "custom-model";
@@ -77,6 +82,8 @@ type PickerItem = PickerModelItem | PickerCustomModelItem;
 type PickerSection = {
   id: string;
   title?: string;
+  /** Whether curated rows show the "Recommended" badge */
+  showRecommendedBadge: boolean;
   items: PickerItem[];
 };
 
@@ -135,6 +142,7 @@ function buildPickerSections({
       sections.push({
         id: "current",
         title: "Current",
+        showRecommendedBadge: false,
         items: [toModelItem({ sectionId: "current", row: currentRow })],
       });
     }
@@ -142,6 +150,7 @@ function buildPickerSections({
       sections.push({
         id: "recent",
         title: "Recent",
+        showRecommendedBadge: false,
         items: recentRows.map((row) =>
           toModelItem({ sectionId: "recent", row })
         ),
@@ -151,6 +160,7 @@ function buildPickerSections({
       sections.push({
         id: "recommended",
         title: "Recommended",
+        showRecommendedBadge: false,
         items: recommendedRows.map((row) =>
           toModelItem({ sectionId: "recommended", row })
         ),
@@ -166,6 +176,7 @@ function buildPickerSections({
   const sections: PickerSection[] = [
     {
       id: "results",
+      showRecommendedBadge: true,
       items: rankedRows.map((row) =>
         toModelItem({ sectionId: "results", row })
       ),
@@ -174,6 +185,7 @@ function buildPickerSections({
   if (customModelOption) {
     sections.push({
       id: "custom",
+      showRecommendedBadge: false,
       items: [
         {
           kind: "custom-model",
@@ -251,12 +263,6 @@ const pickerCSS = css`
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-
-  .agent-model-picker__header {
-    flex-shrink: 0;
-    border-bottom: var(--global-border-size-thin) solid
-      var(--global-menu-border-color);
-  }
 `;
 
 export type AgentModelPickerProps = {
@@ -321,46 +327,31 @@ export function AgentModelPicker({
     credentialSource: "server",
   });
 
-  const rows = useMemo(
-    () =>
-      buildAgentModelCatalog({
-        playgroundModels: data.playgroundModels,
-        modelProviders: data.modelProviders,
-        customProviders,
-      }),
-    [data.playgroundModels, data.modelProviders, customProviders]
-  );
-  const providers = useMemo(
-    () =>
-      buildAgentModelProviderOptions({
-        modelProviders: data.modelProviders,
-        customProviders,
-      }),
-    [data.modelProviders, customProviders]
-  );
-  const recommendedRows = useMemo(() => {
-    const rowsByKey = new Map(rows.map((row) => [row.key, row]));
-    return getCuratedBuiltInModels(data.playgroundModels).flatMap((model) => {
-      const row = rowsByKey.get(getAgentModelKey(model));
-      return row ? [row] : [];
-    });
-  }, [rows, data.playgroundModels]);
+  const providers = buildAgentModelProviderOptions({
+    modelProviders: data.modelProviders,
+    customProviders,
+  });
+  const rows = buildAgentModelCatalog({
+    playgroundModels: data.playgroundModels,
+    providers,
+    customProviders,
+  });
+  const rowsByKey = new Map(rows.map((row) => [row.key, row]));
+  const recommendedRows = getCuratedBuiltInModels(
+    data.playgroundModels
+  ).flatMap((model) => {
+    const row = rowsByKey.get(getAgentModelKey(model));
+    return row ? [row] : [];
+  });
 
   const currentModel = value.modelName ? value : null;
   const currentRow = currentModel
     ? resolveAgentModelRow({ model: currentModel, rows, providers })
     : null;
-  // `recentModels` is selected as stored, so the selector never returns a
-  // fresh array; what the picker shows is derived here
-  const { recentRows, recentModelKeys } = useMemo(
-    () => ({
-      recentRows: getRecentAgentModels({ recentModels, currentModel }).map(
-        (model) => resolveAgentModelRow({ model, rows, providers })
-      ),
-      recentModelKeys: recentModels.map(getAgentModelKeyForValue),
-    }),
-    [recentModels, currentModel, rows, providers]
+  const recentRows = getRecentAgentModels({ recentModels, currentModel }).map(
+    (model) => resolveAgentModelRow({ model, rows, providers })
   );
+  const recentModelKeys = recentModels.map(getAgentModelKeyForValue);
 
   const sections = buildPickerSections({
     rows,
@@ -495,16 +486,17 @@ export function AgentModelPicker({
       >
         <div css={pickerCSS}>
           <Autocomplete inputValue={query} onInputChange={setQuery}>
-            <div className="agent-model-picker__header">
+            <MenuHeader>
               <SearchField
                 aria-label="Search models"
                 variant="quiet"
                 size="L"
                 autoFocus
               >
+                <SearchIcon />
                 <Input placeholder="Search, or type any model name" />
               </SearchField>
-            </div>
+            </MenuHeader>
             <AgentModelResultsMenu
               sections={sections}
               query={query}
@@ -591,7 +583,7 @@ function AgentModelResultsMenu({
                 <AgentModelRow
                   row={item.row}
                   query={query}
-                  showRecommendedBadge={section.id === "results"}
+                  showRecommendedBadge={section.showRecommendedBadge}
                 />
               </MenuItem>
             ) : (

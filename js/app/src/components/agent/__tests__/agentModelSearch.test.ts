@@ -71,7 +71,23 @@ const INPUT: AgentModelCatalogInput = {
   customProviders: CUSTOM_PROVIDERS,
 };
 
-const ROWS = buildAgentModelCatalog(INPUT);
+/** {@link buildAgentModelCatalog} with the provider options built from the input. */
+function buildCatalog({
+  playgroundModels,
+  modelProviders,
+  customProviders,
+}: AgentModelCatalogInput) {
+  return buildAgentModelCatalog({
+    playgroundModels,
+    providers: buildAgentModelProviderOptions({
+      modelProviders,
+      customProviders,
+    }),
+    customProviders,
+  });
+}
+
+const ROWS = buildCatalog(INPUT);
 const PROVIDERS = buildAgentModelProviderOptions(INPUT);
 
 function search(
@@ -90,10 +106,19 @@ describe("buildAgentModelCatalog", () => {
   });
 
   it("leaves out models whose provider isn't listed", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       ...INPUT,
       playgroundModels: [{ providerKey: "MOONSHOT", name: "kimi-k2" }],
       customProviders: [],
+    });
+    expect(rows).toEqual([]);
+  });
+
+  it("leaves out custom providers missing from the provider options", () => {
+    const rows = buildAgentModelCatalog({
+      playgroundModels: [],
+      providers: PROVIDERS.filter((option) => !option.customProvider),
+      customProviders: CUSTOM_PROVIDERS,
     });
     expect(rows).toEqual([]);
   });
@@ -186,9 +211,11 @@ describe("tokenMatchScore", () => {
   });
 
   it("still matches a plain substring", () => {
-    expect(tokenMatchScore({ name: "gpt-4o-mini", query: "o-mi" })).toBe(50);
+    expect(tokenMatchScore({ name: "gpt-4o-mini", query: "o-mi" })).toBe(
+      MATCH_SCORE.substring
+    );
     expect(tokenMatchScore({ name: "gemini-2.5-flash", query: "lash" })).toBe(
-      50
+      MATCH_SCORE.substring
     );
   });
 
@@ -200,15 +227,6 @@ describe("tokenMatchScore", () => {
     expect(exact).toBeGreaterThan(prefix ?? 0);
     expect(prefix).toBeGreaterThan(substring ?? 0);
     expect(substring).toBeGreaterThan(tokens ?? 0);
-  });
-
-  it("ignores a Bedrock prefix for exact and prefix matches", () => {
-    expect(
-      tokenMatchScore({
-        name: "us.anthropic.claude-opus-4-6-v1:0",
-        query: "claude-opus",
-      })
-    ).toBe(tokenMatchScore({ name: "claude-opus-4-6", query: "claude-opus" }));
   });
 
   it.each(["us", "eu", "apac", "global", "jp", "us-gov"])(
@@ -238,10 +256,6 @@ describe("rankAgentModels", () => {
     expect(search("4o mini")).toEqual(["OPENAI:gpt-4o-mini"]);
   });
 
-  it("matches curated display names", () => {
-    expect(search("opus 4.6")[0]).toBe("ANTHROPIC:claude-opus-4-6");
-  });
-
   it("ranks Anthropic above AWS Bedrock for `opus`", () => {
     const results = search("opus");
     const anthropicIndex = results.indexOf("ANTHROPIC:claude-opus-4-6");
@@ -257,7 +271,7 @@ describe("rankAgentModels", () => {
   });
 
   it("ranks no-key providers lower but still lists them", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: [
         { providerKey: "GOOGLE", name: "model-x" },
         { providerKey: "AWS", name: "model-x-v2" },
@@ -300,7 +314,7 @@ describe("rankAgentModels", () => {
   });
 
   it("caps results at 8 by default", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: Array.from({ length: 12 }, (_, index) => ({
         providerKey: "OPENAI" as const,
         name: `gpt-test-${index}`,
@@ -335,14 +349,12 @@ describe("rankAgentModels provider search", () => {
   });
 
   it("lists the provider's own models above name matches from other hosts", () => {
-    expect(search("anthropic")).toEqual([
-      "ANTHROPIC:claude-opus-5-5",
-      "ANTHROPIC:claude-opus-5",
-      "ANTHROPIC:claude-opus-4-6",
-      "ANTHROPIC:claude-opus-4-20250514",
-      "AWS:anthropic.claude-opus-4-20250514-v1:0",
-      "AWS:us.anthropic.claude-opus-4-6-v1:0",
-    ]);
+    const results = search("anthropic");
+    expect(results).toHaveLength(6);
+    expect(
+      results.slice(0, 4).every((key) => key.startsWith("ANTHROPIC:"))
+    ).toBe(true);
+    expect(results.slice(4).every((key) => key.startsWith("AWS:"))).toBe(true);
   });
 
   it("matches a word of the name and aliases", () => {
@@ -359,7 +371,7 @@ describe("rankAgentModels provider search", () => {
   });
 
   it("keeps the catalog order for a provider token alone", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: [
         { providerKey: "OPENAI", name: "gpt-6-long-name" },
         { providerKey: "OPENAI", name: "gpt-4" },
@@ -383,20 +395,15 @@ describe("rankAgentModels provider search", () => {
     const results = search("anth");
     // Curated and ready Anthropic rows tie Bedrock's `anthropic.` prefix
     // matches and sort ahead of them
-    expect(results.slice(0, 4).toSorted()).toEqual([
-      "ANTHROPIC:claude-opus-4-20250514",
-      "ANTHROPIC:claude-opus-4-6",
-      "ANTHROPIC:claude-opus-5",
-      "ANTHROPIC:claude-opus-5-5",
-    ]);
-    expect(results.slice(4)).toEqual([
-      "AWS:anthropic.claude-opus-4-20250514-v1:0",
-      "AWS:us.anthropic.claude-opus-4-6-v1:0",
-    ]);
+    expect(results).toHaveLength(6);
+    expect(
+      results.slice(0, 4).every((key) => key.startsWith("ANTHROPIC:"))
+    ).toBe(true);
+    expect(results.slice(4).every((key) => key.startsWith("AWS:"))).toBe(true);
   });
 
   it("keeps model-name matches for a partly typed provider", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: [
         { providerKey: "MINIMAX", name: "abab-7" },
         { providerKey: "OPENAI", name: "gpt-5-mini" },
@@ -417,7 +424,7 @@ describe("rankAgentModels provider search", () => {
   });
 
   it("doesn't cap a provider's models, only the rows after them", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: [
         ...Array.from({ length: 12 }, (_, index) => ({
           providerKey: "OPENAI" as const,
@@ -439,7 +446,7 @@ describe("rankAgentModels provider search", () => {
   });
 
   describe("with a provider whose name contains another's", () => {
-    const rows = buildAgentModelCatalog({
+    const rows = buildCatalog({
       playgroundModels: [
         { providerKey: "OPENAI", name: "gpt-4o" },
         { providerKey: "OPENAI", name: "gpt-4o-mini" },

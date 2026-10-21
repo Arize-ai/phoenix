@@ -1,30 +1,31 @@
 import { describe, expect, it } from "vitest";
 
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+
 import {
   addRecentAgentModel,
-  type AgentRecentModel,
   getAgentModelKey,
   getRecentAgentModels,
   normalizeRecentAgentModels,
 } from "../agentModelConfig";
 
-const OPUS: AgentRecentModel = {
+const OPUS: ModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-4-6",
 };
-const GPT: AgentRecentModel = { provider: "OPENAI", modelName: "gpt-5.4" };
-const TYPED: AgentRecentModel = {
+const GPT: ModelMenuValue = { provider: "OPENAI", modelName: "gpt-5.4" };
+const TYPED: ModelMenuValue = {
   provider: "OPENAI",
   modelName: "gpt-9-preview",
 };
-const CUSTOM_GPT: AgentRecentModel = {
+const CUSTOM_GPT: ModelMenuValue = {
   provider: "OPENAI",
   modelName: "gpt-5.4",
   customProvider: { id: "custom-acme", name: "Acme" },
 };
 
-function pick(models: readonly AgentRecentModel[]) {
-  return models.reduce<AgentRecentModel[]>(
+function pick(models: readonly ModelMenuValue[]) {
+  return models.reduce<ModelMenuValue[]>(
     (recentModels, model) => addRecentAgentModel({ recentModels, model }),
     []
   );
@@ -82,6 +83,15 @@ describe("addRecentAgentModel", () => {
       customProvider: { id: "custom-acme", name: "Acme v2" },
     };
     expect(pick([CUSTOM_GPT, renamed])).toEqual([renamed]);
+  });
+
+  it("ignores a pick with an empty model name", () => {
+    expect(
+      addRecentAgentModel({
+        recentModels: [OPUS],
+        model: { provider: "OPENAI", modelName: "" },
+      })
+    ).toEqual([OPUS]);
   });
 });
 

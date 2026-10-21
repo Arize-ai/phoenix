@@ -32,7 +32,11 @@ import {
   getAgentCuratedModelDisplayName,
   isAgentCuratedModelSelection,
 } from "./agentCuratedModels";
-import { getAgentModelKey, getAgentModelKeyForValue } from "./agentModelConfig";
+import {
+  getAgentModelKey,
+  getAgentModelKeyForValue,
+  getAgentProviderKey,
+} from "./agentModelConfig";
 
 /**
  * Whether PXI can authenticate with a provider:
@@ -87,7 +91,7 @@ export type AgentModelCustomModelOption = {
   guessedProviderKey: string | null;
 };
 
-export const DEFAULT_AGENT_MODEL_RESULT_LIMIT = 8;
+const DEFAULT_AGENT_MODEL_RESULT_LIMIT = 8;
 
 /** The data `useModelMenuData` returns that the catalog is built from. */
 export type AgentModelCatalogInput = {
@@ -151,7 +155,7 @@ export function buildAgentModelProviderOptions({
     .filter((provider) => provider.dependenciesInstalled)
     .map(
       (provider): AgentModelProviderOption => ({
-        key: provider.key,
+        key: getAgentProviderKey({ provider: provider.key }),
         provider: provider.key,
         customProvider: null,
         name: provider.name,
@@ -159,39 +163,49 @@ export function buildAgentModelProviderOptions({
       })
     );
   const custom = customProviders.map(
-    (customProvider): AgentModelProviderOption => ({
-      key: `custom:${customProvider.id}`,
-      provider: getProviderKeyForGenerativeModelSDK(customProvider.sdk),
-      customProvider: { id: customProvider.id, name: customProvider.name },
-      name: customProvider.name,
-      credentialState: "ready",
-    })
+    (customProvider): AgentModelProviderOption => {
+      const provider = getProviderKeyForGenerativeModelSDK(customProvider.sdk);
+      return {
+        key: getAgentProviderKey({
+          provider,
+          customProviderId: customProvider.id,
+        }),
+        provider,
+        customProvider: { id: customProvider.id, name: customProvider.name },
+        name: customProvider.name,
+        credentialState: "ready",
+      };
+    }
   );
   return [...builtIn, ...custom];
 }
 
 /**
- * The flat model catalog: built-in playground models for providers with
- * dependencies installed, then each custom provider's model names. Rows keep
- * the server's order; ranking happens in {@link rankAgentModels}.
+ * The flat model catalog: built-in playground models, then each custom
+ * provider's model names, for the providers in `providers` (so built-in
+ * providers without their dependencies are left out). Rows keep the server's
+ * order; ranking happens in {@link rankAgentModels}.
+ *
+ * @param params - inputs
+ * @param params.playgroundModels - built-in models, from `useModelMenuData`
+ * @param params.providers - from {@link buildAgentModelProviderOptions}
+ * @param params.customProviders - custom providers with their model names
  */
 export function buildAgentModelCatalog({
   playgroundModels,
-  modelProviders,
+  providers,
   customProviders,
-}: AgentModelCatalogInput): AgentModelCatalogRow[] {
-  const providerOptions = buildAgentModelProviderOptions({
-    modelProviders,
-    customProviders,
-  });
-  const builtInOptionsByKey = new Map(
-    providerOptions
-      .filter((option) => option.customProvider == null)
-      .map((option) => [option.provider, option])
+}: Pick<AgentModelCatalogInput, "playgroundModels" | "customProviders"> & {
+  providers: readonly AgentModelProviderOption[];
+}): AgentModelCatalogRow[] {
+  const providersByKey = new Map(
+    providers.map((option) => [option.key, option])
   );
   const builtInRows = playgroundModels.flatMap(
     (model): AgentModelCatalogRow[] => {
-      const option = builtInOptionsByKey.get(model.providerKey);
+      const option = providersByKey.get(
+        getAgentProviderKey({ provider: model.providerKey })
+      );
       if (!option) {
         return [];
       }
@@ -213,31 +227,36 @@ export function buildAgentModelCatalog({
       ];
     }
   );
-  const customRows = providerOptions.flatMap((option) => {
-    const customProvider = option.customProvider;
-    if (!customProvider) {
-      return [];
-    }
-    const modelNames =
-      customProviders.find((provider) => provider.id === customProvider.id)
-        ?.modelNames ?? [];
-    return modelNames.map(
-      (modelName): AgentModelCatalogRow => ({
-        key: getAgentModelKey({
-          provider: option.provider,
+  const customRows = customProviders.flatMap(
+    (customProvider): AgentModelCatalogRow[] => {
+      const option = providersByKey.get(
+        getAgentProviderKey({
+          provider: getProviderKeyForGenerativeModelSDK(customProvider.sdk),
           customProviderId: customProvider.id,
+        })
+      );
+      if (!option?.customProvider) {
+        return [];
+      }
+      const optionCustomProvider = option.customProvider;
+      return customProvider.modelNames.map(
+        (modelName): AgentModelCatalogRow => ({
+          key: getAgentModelKey({
+            provider: option.provider,
+            customProviderId: optionCustomProvider.id,
+            modelName,
+          }),
+          provider: option.provider,
+          customProvider: optionCustomProvider,
+          providerName: option.name,
           modelName,
-        }),
-        provider: option.provider,
-        customProvider,
-        providerName: option.name,
-        modelName,
-        isCurated: false,
-        displayName: null,
-        credentialState: option.credentialState,
-      })
-    );
-  });
+          isCurated: false,
+          displayName: null,
+          credentialState: option.credentialState,
+        })
+      );
+    }
+  );
   return [...builtInRows, ...customRows];
 }
 
@@ -301,7 +320,7 @@ export function resolveAgentModelRow({
  * Bedrock preference can apply. Shared by matching (which ignores them) and
  * provider guessing (which reads them as AWS).
  */
-export const BEDROCK_REGION_PREFIXES: readonly string[] =
+const BEDROCK_REGION_PREFIXES: readonly string[] =
   awsBedrockModelPrefixes.filter((prefix) => prefix !== "");
 
 // The prefixes are lowercase letters and hyphens, so they need no escaping
@@ -319,6 +338,10 @@ const normalizeWords = (text: string) =>
     .trim();
 const collapseSeparators = (text: string) =>
   text.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/** The whitespace-separated tokens of a search query. */
+const tokenizeQuery = (query: string) =>
+  query.trim().split(/\s+/).filter(Boolean);
 
 /** Match-quality tiers returned by {@link tokenMatchScore}. */
 export const MATCH_SCORE = {
@@ -416,7 +439,7 @@ const PROVIDER_SEARCH_ALIASES: Partial<
  * Shortest query token that can name a provider, so `o3` or `gp` never
  * filter by provider.
  */
-export const MIN_PROVIDER_TERM_LENGTH = 3;
+const MIN_PROVIDER_TERM_LENGTH = 3;
 
 /**
  * How a query token names a provider:
@@ -427,22 +450,33 @@ export const MIN_PROVIDER_TERM_LENGTH = 3;
  */
 type ProviderTermMatch = "name" | "word" | "prefix";
 
+/** The provider of a row or provider option, as matched by search. */
+type ProviderSearchTarget = Pick<
+  AgentModelCatalogRow,
+  "providerName" | "provider" | "customProvider"
+>;
+
+/**
+ * How a query token names a provider, or null if it doesn't. Aliases apply
+ * to built-in providers only, so a custom provider on the AWS SDK isn't
+ * matched by `bedrock`.
+ */
 function matchProviderTerm({
-  providerName,
-  provider,
+  target,
   term,
 }: {
-  providerName: string;
-  /** The built-in provider whose aliases apply, or null for none */
-  provider: GenerativeProviderKey | null;
+  target: ProviderSearchTarget;
   term: string;
 }): ProviderTermMatch | null {
   const normalizedTerm = collapseSeparators(term);
   if (normalizedTerm.length < MIN_PROVIDER_TERM_LENGTH) {
     return null;
   }
+  const { providerName } = target;
   const collapsedName = collapseSeparators(providerName);
-  const aliases = (provider && PROVIDER_SEARCH_ALIASES[provider]) ?? [];
+  const aliases = target.customProvider
+    ? []
+    : (PROVIDER_SEARCH_ALIASES[target.provider] ?? []);
   if (collapsedName === normalizedTerm || aliases.includes(normalizedTerm)) {
     return "name";
   }
@@ -493,23 +527,22 @@ type RowMatch = { tier: number; score: number };
 function getRowMatch({
   row,
   query,
+  tokens,
   isProviderNameInQuery,
 }: {
   row: AgentModelCatalogRow;
+  /** The trimmed search text */
   query: string;
+  /** The query's tokens, see {@link tokenizeQuery} */
+  tokens: readonly string[];
   /** Whether some provider's whole name is in the query, see {@link MATCH_TIER} */
   isProviderNameInQuery: boolean;
 }): RowMatch | null {
   const nameScore = getRowMatchScore({ row, query });
   let best: RowMatch | null =
     nameScore == null ? null : { tier: MATCH_TIER.model, score: nameScore };
-  const tokens = query.trim().split(/\s+/).filter(Boolean);
   tokens.forEach((token, tokenIndex) => {
-    const providerMatch = matchProviderTerm({
-      providerName: row.providerName,
-      provider: row.customProvider ? null : row.provider,
-      term: token,
-    });
+    const providerMatch = matchProviderTerm({ target: row, term: token });
     if (!providerMatch) {
       return;
     }
@@ -537,18 +570,12 @@ function getRowMatch({
   return best;
 }
 
+/** Sort order of credential states: ready, then may-work, then no-key. */
 const CREDENTIAL_STATE_ORDER: Record<AgentModelCredentialState, number> = {
   ready: 0,
   "may-work": 1,
   "no-key": 2,
 };
-
-/** Sort order of credential states: ready, then may-work, then no-key. */
-export function getCredentialStateOrder(
-  state: AgentModelCredentialState
-): number {
-  return CREDENTIAL_STATE_ORDER[state];
-}
 
 /**
  * Searches and ranks the catalog. A query token that names a provider
@@ -588,25 +615,38 @@ export function rankAgentModels({
   recentModelKeys?: readonly string[];
   limit?: number;
 }): AgentModelCatalogRow[] {
-  if (query.trim().length === 0) {
+  const trimmedQuery = query.trim();
+  const tokens = tokenizeQuery(trimmedQuery);
+  if (tokens.length === 0) {
     return [];
   }
   const recencyByKey = new Map(
     recentModelKeys.map((key, index) => [key, index])
   );
-  const tokens = query.trim().split(/\s+/);
-  const isProviderNameInQuery = rows.some((row) =>
+  // One row per provider, so each provider's name is matched once
+  const providerTargets = [
+    ...new Map(
+      rows.map((row) => [
+        getAgentProviderKey({
+          provider: row.provider,
+          customProviderId: row.customProvider?.id,
+        }),
+        row,
+      ])
+    ).values(),
+  ];
+  const isProviderNameInQuery = providerTargets.some((target) =>
     tokens.some(
-      (token) =>
-        matchProviderTerm({
-          providerName: row.providerName,
-          provider: row.customProvider ? null : row.provider,
-          term: token,
-        }) === "name"
+      (token) => matchProviderTerm({ target, term: token }) === "name"
     )
   );
   const scored = rows.flatMap((row, catalogIndex) => {
-    const match = getRowMatch({ row, query, isProviderNameInQuery });
+    const match = getRowMatch({
+      row,
+      query: trimmedQuery,
+      tokens,
+      isProviderNameInQuery,
+    });
     if (match == null) {
       return [];
     }
@@ -615,7 +655,8 @@ export function rankAgentModels({
         row,
         matchTier: match.tier,
         matchScore: match.score,
-        recency: recencyByKey.get(row.key) ?? Number.POSITIVE_INFINITY,
+        // Never picked sorts after every recent pick
+        recency: recencyByKey.get(row.key) ?? recentModelKeys.length,
         catalogIndex,
       },
     ];
@@ -625,9 +666,9 @@ export function rankAgentModels({
       second.matchTier - first.matchTier ||
       second.matchScore - first.matchScore ||
       Number(second.row.isCurated) - Number(first.row.isCurated) ||
-      getCredentialStateOrder(first.row.credentialState) -
-        getCredentialStateOrder(second.row.credentialState) ||
-      compareRecency(first.recency, second.recency) ||
+      CREDENTIAL_STATE_ORDER[first.row.credentialState] -
+        CREDENTIAL_STATE_ORDER[second.row.credentialState] ||
+      first.recency - second.recency ||
       // A provider token alone scores 0 and keeps the server's order
       (first.matchScore > 0
         ? first.row.modelName.length - second.row.modelName.length
@@ -639,14 +680,6 @@ export function rankAgentModels({
     ({ matchTier }) => matchTier >= MATCH_TIER.providerWord
   ).length;
   return scored.slice(0, providerMatchCount + limit).map(({ row }) => row);
-}
-
-/** Lower index is more recent; Infinity (never picked) ties with itself. */
-function compareRecency(first: number, second: number): number {
-  if (first === second) {
-    return 0;
-  }
-  return first < second ? -1 : 1;
 }
 
 /**
@@ -724,8 +757,11 @@ export function getAgentModelCustomModelOption({
   const isProviderSearch = providers.some((option) =>
     isCompleteProviderMatch(
       matchProviderTerm({
-        providerName: option.name,
-        provider: option.customProvider ? null : option.provider,
+        target: {
+          providerName: option.name,
+          provider: option.provider,
+          customProvider: option.customProvider,
+        },
         term: modelName,
       })
     )
@@ -745,8 +781,8 @@ export function getAgentModelCustomModelOption({
     .filter((option) => option !== guessedProvider)
     .toSorted(
       (first, second) =>
-        getCredentialStateOrder(first.credentialState) -
-        getCredentialStateOrder(second.credentialState)
+        CREDENTIAL_STATE_ORDER[first.credentialState] -
+        CREDENTIAL_STATE_ORDER[second.credentialState]
     );
   return {
     modelName,
@@ -771,22 +807,13 @@ export function getAgentModelProviderHighlightQuery({
   >;
   query: string;
 }): string {
-  return query
-    .trim()
-    .split(/\s+/)
-    .filter(
-      (token) =>
-        matchProviderTerm({
-          providerName: row.providerName,
-          provider: row.customProvider ? null : row.provider,
-          term: token,
-        }) != null
-    )
+  return tokenizeQuery(query)
+    .filter((token) => matchProviderTerm({ target: row, term: token }) != null)
     .join(" ");
 }
 
 /** A `[start, end)` character range to highlight. */
-export type AgentModelHighlightRange = readonly [start: number, end: number];
+type AgentModelHighlightRange = readonly [start: number, end: number];
 
 const isWordCharacter = (char: string | undefined) =>
   char != null && /[a-z0-9]/i.test(char);
@@ -821,8 +848,7 @@ export function getAgentModelHighlightRanges({
     return [[wholeIndex, wholeIndex + wholeQuery.length]];
   }
   const ranges: AgentModelHighlightRange[] = [];
-  const tokens = wholeQuery.split(/\s+/).filter(Boolean);
-  for (const token of tokens) {
+  for (const token of tokenizeQuery(wholeQuery)) {
     const occurrences: number[] = [];
     for (
       let index = lowerText.indexOf(token);

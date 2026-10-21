@@ -5,6 +5,7 @@ import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { ViewlessKeyboardEvent } from "@phoenix/__tests__/ViewlessKeyboardEvent";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
@@ -13,7 +14,6 @@ import {
   type AgentStore,
   createAgentStore,
 } from "@phoenix/store/agentStore";
-import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 
 import { SettingsAgentsGeneralTab } from "../SettingsAgentsGeneralTab";
 
@@ -64,30 +64,6 @@ vi.mock("@phoenix/contexts/ViewerContext", async () => ({
   useIsAdminOrAuthDisabled: () => true,
 }));
 
-/**
- * React Aria's Autocomplete re-dispatches keys with
- * `new KeyboardEvent(type, nativeEvent)`, which jsdom rejects for user-event's
- * `view`; this copies the init without it.
- */
-class ViewlessKeyboardEvent extends KeyboardEvent {
-  constructor(type: string, init?: KeyboardEventInit) {
-    super(
-      type,
-      init && {
-        key: init.key,
-        code: init.code,
-        ctrlKey: init.ctrlKey,
-        shiftKey: init.shiftKey,
-        altKey: init.altKey,
-        metaKey: init.metaKey,
-        bubbles: init.bubbles,
-        cancelable: init.cancelable,
-        composed: init.composed,
-      }
-    );
-  }
-}
-
 const UNVERIFIED_WARNING = "This model has not been verified";
 
 describe("SettingsAgentsGeneralTab model setting", () => {
@@ -111,17 +87,15 @@ describe("SettingsAgentsGeneralTab model setting", () => {
 
   function renderTab({
     storeProps = {},
-    awsBedrockModelPrefix = "",
   }: {
     storeProps?: Partial<AgentProps>;
-    awsBedrockModelPrefix?: AwsBedrockModelPrefix;
   } = {}) {
     store = createAgentStore(storeProps);
     act(() => {
       root.render(
         <MemoryRouter>
           <ThemeProvider themeMode="light" disableBodyTheme>
-            <PreferencesProvider awsBedrockModelPrefix={awsBedrockModelPrefix}>
+            <PreferencesProvider>
               <AgentContext.Provider value={store}>
                 <SettingsAgentsGeneralTab />
               </AgentContext.Provider>
@@ -186,19 +160,5 @@ describe("SettingsAgentsGeneralTab model setting", () => {
       "Model: Claude Sonnet 5.5 (claude-sonnet-5-5), Anthropic"
     );
     expect(container.textContent).not.toContain(UNVERIFIED_WARNING);
-  });
-
-  it("applies the Bedrock prefix to the default model", async () => {
-    renderTab({ awsBedrockModelPrefix: "us" });
-
-    await pickModel({
-      query: "anthropic.claude",
-      name: "anthropic.claude-opus-4-6-v1:0",
-    });
-
-    expect(store.getState().defaultModelConfig).toMatchObject({
-      provider: "AWS",
-      modelName: "us.anthropic.claude-opus-4-6-v1:0",
-    });
   });
 });

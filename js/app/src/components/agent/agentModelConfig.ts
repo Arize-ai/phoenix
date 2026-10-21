@@ -70,6 +70,24 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
 }
 
 /**
+ * The stable id of a provider: the built-in provider key, or `custom:<id>`
+ * for a custom provider.
+ *
+ * @param params - the provider
+ * @param params.provider - built-in provider key (the SDK's key for custom providers)
+ * @param params.customProviderId - custom provider id, if any
+ */
+export function getAgentProviderKey({
+  provider,
+  customProviderId,
+}: {
+  provider: string;
+  customProviderId?: string | null;
+}): string {
+  return customProviderId ? `custom:${customProviderId}` : provider;
+}
+
+/**
  * The stable id of a model selection, used for picker row keys, recency
  * lookups and recent-model dedupe.
  *
@@ -87,10 +105,7 @@ export function getAgentModelKey({
   customProviderId?: string | null;
   modelName: string;
 }): string {
-  const providerKey = customProviderId
-    ? `custom:${customProviderId}`
-    : provider;
-  return `${providerKey}:${modelName}`;
+  return `${getAgentProviderKey({ provider, customProviderId })}:${modelName}`;
 }
 
 /** {@link getAgentModelKey} for a picker value. */
@@ -108,6 +123,11 @@ export const DEFAULT_RECENT_AGENT_MODELS_LIMIT = 5;
 /** How many recent models the picker shows. */
 export const DEFAULT_RECENT_AGENT_MODELS_SHOWN = 3;
 
+/**
+ * A recently picked model, newest first in the store. Any model name is
+ * allowed, so typed names that aren't in the catalog are kept too. Parsing
+ * strips extra fields, so only the selection itself is stored.
+ */
 const AGENT_RECENT_MODEL_SCHEMA = z.object({
   provider: modelProviderSchema,
   modelName: z.string().min(1),
@@ -115,15 +135,11 @@ const AGENT_RECENT_MODEL_SCHEMA = z.object({
 });
 
 /**
- * A recently picked model, newest first in the store. Any model name is
- * allowed, so typed names that aren't in the catalog are kept too.
- */
-export type AgentRecentModel = ModelMenuValue;
-
-/**
  * Records a pick in the recent-models list: moves it to the front (dropping
  * any earlier entry for the same provider, custom provider and model name)
- * and keeps at most `limit` entries.
+ * and keeps at most `limit` entries. A pick that isn't a valid entry (an
+ * empty model name) leaves the list as is, since it would be dropped on
+ * rehydrate anyway.
  *
  * @param params - inputs
  * @param params.recentModels - the current list, newest first
@@ -135,23 +151,17 @@ export function addRecentAgentModel({
   model,
   limit = DEFAULT_RECENT_AGENT_MODELS_LIMIT,
 }: {
-  recentModels: readonly AgentRecentModel[];
+  recentModels: readonly ModelMenuValue[];
   model: ModelMenuValue;
   limit?: number;
-}): AgentRecentModel[] {
-  const key = getAgentModelKeyForValue(model);
-  const entry: AgentRecentModel = {
-    provider: model.provider,
-    modelName: model.modelName,
-    ...(model.customProvider && {
-      customProvider: {
-        id: model.customProvider.id,
-        name: model.customProvider.name,
-      },
-    }),
-  };
+}): ModelMenuValue[] {
+  const parsed = AGENT_RECENT_MODEL_SCHEMA.safeParse(model);
+  if (!parsed.success) {
+    return recentModels.slice(0, limit);
+  }
+  const key = getAgentModelKeyForValue(parsed.data);
   return [
-    entry,
+    parsed.data,
     ...recentModels.filter(
       (recentModel) => getAgentModelKeyForValue(recentModel) !== key
     ),
@@ -172,10 +182,10 @@ export function getRecentAgentModels({
   currentModel,
   limit = DEFAULT_RECENT_AGENT_MODELS_SHOWN,
 }: {
-  recentModels: readonly AgentRecentModel[];
+  recentModels: readonly ModelMenuValue[];
   currentModel?: ModelMenuValue | null;
   limit?: number;
-}): AgentRecentModel[] {
+}): ModelMenuValue[] {
   const currentKey = currentModel
     ? getAgentModelKeyForValue(currentModel)
     : null;
@@ -200,13 +210,13 @@ export function normalizeRecentAgentModels({
 }: {
   value: unknown;
   limit?: number;
-}): AgentRecentModel[] {
+}): ModelMenuValue[] {
   if (!Array.isArray(value)) {
     return [];
   }
   const seenKeys = new Set<string>();
   return value
-    .flatMap((entry): AgentRecentModel[] => {
+    .flatMap((entry): ModelMenuValue[] => {
       const parsed = AGENT_RECENT_MODEL_SCHEMA.safeParse(entry);
       if (!parsed.success) {
         return [];
