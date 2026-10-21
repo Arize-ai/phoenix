@@ -29,7 +29,7 @@ from typing import (
 from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
+from sqlalchemy.orm import joinedload, selectinload
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
@@ -92,7 +92,10 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition, is_transient_error
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    PolymorphicEvaluator,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
 )
@@ -208,19 +211,6 @@ class _HydratedEvaluatorSnapshot:
 
 
 @dataclass(frozen=True)
-class HydratedConfigurationSnapshot:
-    """Immutable evaluator configuration observed for one claim batch."""
-
-    project_id: int
-    identifier: str
-    annotation_name: str
-    evaluator: _HydratedEvaluatorSnapshot
-    input_mapping: InputMapping
-    context: dict[str, Any]
-    annotation_metadata: dict[str, Any]
-
-
-@dataclass(frozen=True)
 class SharedHydrationFailure:
     """A batch-level database failure that must not consume any unit's retry budget."""
 
@@ -234,7 +224,7 @@ def _batch_hydration_failure(error: Exception) -> SharedHydrationFailure | Excep
 
 
 ConfigurationSnapshotOutcome = (
-    HydratedConfigurationSnapshot | HydrationFailure | SharedHydrationFailure | Exception
+    HydratedWorkUnit | HydrationFailure | SharedHydrationFailure | Exception
 )
 
 
@@ -660,9 +650,7 @@ class OnlineEvalExecutor:
             raise configuration.error
         if isinstance(configuration, Exception):
             raise configuration
-        if isinstance(configuration, HydrationFailure):
-            return configuration
-        return self.hydrate_from_snapshot(configuration)
+        return configuration
 
     async def hydrate_configuration_snapshots(
         self,
@@ -683,21 +671,12 @@ class OnlineEvalExecutor:
         units: Sequence[ClaimedWorkUnit],
     ) -> list[ConfigurationSnapshotOutcome]:
         project_evaluator_ids = {unit.project_evaluator_id for unit in units}
-        polymorphic = with_polymorphic(
-            models.Evaluator,
-            [
-                models.LLMEvaluator,
-                models.CodeEvaluator,
-                models.BuiltinEvaluator,
-                models.DecisionEvaluator,
-            ],
-        )
         rows = (
             await session.execute(
-                select(models.ProjectEvaluator, polymorphic)
+                select(models.ProjectEvaluator, PolymorphicEvaluator)
                 .outerjoin(
-                    polymorphic,
-                    models.ProjectEvaluator.evaluator_id == polymorphic.id,
+                    PolymorphicEvaluator,
+                    models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                 )
                 .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
             )
@@ -833,7 +812,7 @@ class OnlineEvalExecutor:
                     hydrated_evaluator_snapshot = await self._hydrate_evaluator_snapshot(
                         session,
                         evaluator,
-                        resolved.version_ref,
+                        resolved.version_id,
                     )
             except Exception as error:
                 evaluator_snapshots[evaluator.id] = error
@@ -847,7 +826,7 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            project_evaluator, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
+            _, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
             evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
             if isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception)):
                 outcomes[index] = evaluator_snapshot_outcome
@@ -873,12 +852,14 @@ class OnlineEvalExecutor:
             except Exception as error:
                 outcomes[index] = error
                 continue
-            outcomes[index] = HydratedConfigurationSnapshot(
-                project_id=project_evaluator.project_id,
-                identifier=identifier,
+            outcomes[index] = HydratedWorkUnit(
                 annotation_name=resolved.name,
-                evaluator=evaluator_snapshot_outcome,
+                identifier=identifier,
+                annotator_kind=evaluator_snapshot_outcome.annotator_kind,
+                evaluator_kind=evaluator_snapshot_outcome.evaluator_kind,
+                evaluator=evaluator_snapshot_outcome.evaluator,
                 input_mapping=snapshot_input_mapping,
+                output_configs=evaluator_snapshot_outcome.output_configs,
                 context=snapshot_context,
                 annotation_metadata=annotation_metadata,
             )
@@ -922,66 +903,27 @@ class OnlineEvalExecutor:
             target_vocabularies=target_vocabularies,
         )
 
-    def hydrate_from_snapshot(
-        self,
-        configuration: HydratedConfigurationSnapshot,
-    ) -> HydratedWorkUnit:
-        return HydratedWorkUnit(
-            annotation_name=configuration.annotation_name,
-            identifier=configuration.identifier,
-            annotator_kind=configuration.evaluator.annotator_kind,
-            evaluator_kind=configuration.evaluator.evaluator_kind,
-            evaluator=configuration.evaluator.evaluator,
-            input_mapping=configuration.input_mapping,
-            output_configs=configuration.evaluator.output_configs,
-            context=configuration.context,
-            annotation_metadata=configuration.annotation_metadata,
-        )
-
     async def _hydrate_evaluator_snapshot(
         self,
         session: AsyncSession,
         evaluator_orm: models.Evaluator,
-        version_ref: Any,
+        version_id: Optional[int],
     ) -> Optional[_HydratedEvaluatorSnapshot]:
-        if isinstance(evaluator_orm, models.LLMEvaluator):
-            if isinstance(version_ref, int):
-                prompt_version_id = version_ref
-            elif (
-                isinstance(version_ref, list)
-                and len(version_ref) == 3
-                and isinstance(version_ref[0], int)
-                and isinstance(version_ref[1], int)
-                and isinstance(version_ref[2], str)
-            ):
-                prompt_version_id = version_ref[0]
-            else:
-                return None
-            return await self._hydrate_llm(session, evaluator_orm, prompt_version_id)
-        if isinstance(evaluator_orm, models.CodeEvaluator):
-            if (
-                not isinstance(version_ref, list)
-                or len(version_ref) != 2
-                or not isinstance(version_ref[0], int)
-                or not isinstance(version_ref[1], str)
-            ):
-                return None
-            return await self._hydrate_code(
-                session,
-                evaluator_orm,
-                version_ref[0],
-                max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
-            )
         if isinstance(evaluator_orm, models.BuiltinEvaluator):
             return self._hydrate_builtin(evaluator_orm)
         if isinstance(evaluator_orm, models.DecisionEvaluator):
-            if (
-                not isinstance(version_ref, list)
-                or len(version_ref) != 3
-                or not isinstance(version_ref[0], int)
-            ):
-                return None
-            return await self._hydrate_decision(session, evaluator_orm, version_ref[0])
+            return await self._hydrate_decision(session, evaluator_orm)
+        if version_id is None:
+            return None
+        if isinstance(evaluator_orm, models.LLMEvaluator):
+            return await self._hydrate_llm(session, evaluator_orm, version_id)
+        if isinstance(evaluator_orm, models.CodeEvaluator):
+            return await self._hydrate_code(
+                session,
+                evaluator_orm,
+                version_id,
+                max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
+            )
         return None
 
     async def _hydrate_llm(
@@ -1110,15 +1052,11 @@ class OnlineEvalExecutor:
         self,
         session: AsyncSession,
         evaluator_orm: models.DecisionEvaluator,
-        decision_version_id: int,
     ) -> Optional[_HydratedEvaluatorSnapshot]:
-        """A judge runs the version its tag selected when its fingerprint was resolved,
-        scored by its own policy. It has no request credentials, so the provider key
-        comes from the server's secrets or environment, as for LLM judges."""
-        if (
-            evaluator_orm.selected_version is None
-            or evaluator_orm.selected_version.id != decision_version_id
-        ):
+        """A judge runs its pinned decision version, scored by its own policy. It has no
+        request credentials, so the provider key comes from the server's secrets or
+        environment, as for LLM judges."""
+        if evaluator_orm.selected_version is None:
             return None
         definition = capture_decision_evaluator_definition(evaluator_orm)
         evaluator = await build_decision_evaluator(

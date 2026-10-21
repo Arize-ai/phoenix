@@ -31,7 +31,7 @@ from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, with_polymorphic
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
 from typing_extensions import assert_never
 
@@ -49,7 +49,10 @@ from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    load_enabled_project_evaluator_pairs,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
@@ -426,31 +429,9 @@ class EvalSweeper(DaemonTask):
             await self._publish_eligibility_metrics(eligible_pair_count)
 
     async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
-        polymorphic_evaluator = with_polymorphic(
-            models.Evaluator,
-            [
-                models.LLMEvaluator,
-                models.CodeEvaluator,
-                models.BuiltinEvaluator,
-                models.DecisionEvaluator,
-            ],
+        project_evaluator_pairs = await load_enabled_project_evaluator_pairs(
+            session, self._evaluation_target
         )
-        rows = (
-            await session.execute(
-                select(models.ProjectEvaluator, polymorphic_evaluator)
-                .join(
-                    polymorphic_evaluator,
-                    models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
-                )
-                .where(
-                    models.ProjectEvaluator.enabled,
-                    models.ProjectEvaluator.evaluation_target == self._evaluation_target,
-                )
-            )
-        ).all()
-        project_evaluator_pairs = [
-            (project_evaluator, evaluator) for project_evaluator, evaluator in rows
-        ]
         project_evaluator_rows: list[_SweepProjectEvaluator] = []
         resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
         for (project_evaluator, evaluator), resolved in zip(

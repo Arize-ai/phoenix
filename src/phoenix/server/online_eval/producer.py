@@ -30,7 +30,6 @@ from typing import Optional
 from sqlalchemy import Select, delete, exists, func, select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
 
 from phoenix.config import (
     get_env_enable_prometheus,
@@ -46,7 +45,10 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    load_enabled_project_evaluator_pairs,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
@@ -286,33 +288,9 @@ class OnlineEvalProducer(DaemonTask):
         deliberately skipped the window, and a project evaluator that failed to load
         transiently did neither.
         """
-        polymorphic_evaluator = with_polymorphic(
-            models.Evaluator,
-            [
-                models.LLMEvaluator,
-                models.CodeEvaluator,
-                models.BuiltinEvaluator,
-                models.DecisionEvaluator,
-            ],
-        )
         active: list[_ActiveProjectEvaluator] = []
         async with self._db() as session:
-            rows = (
-                await session.execute(
-                    select(models.ProjectEvaluator, polymorphic_evaluator)
-                    .join(
-                        polymorphic_evaluator,
-                        models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
-                    )
-                    .where(
-                        models.ProjectEvaluator.enabled,
-                        models.ProjectEvaluator.evaluation_target == "SPAN",
-                    )
-                )
-            ).all()
-            project_evaluator_pairs = [
-                (project_evaluator, evaluator) for project_evaluator, evaluator in rows
-            ]
+            project_evaluator_pairs = await load_enabled_project_evaluator_pairs(session, "SPAN")
             resolved_project_evaluators = await resolve_project_evaluators_bulk(
                 session, project_evaluator_pairs
             )
