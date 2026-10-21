@@ -5,7 +5,7 @@ description: "Trace Pixeltable table operations in Phoenix. Pixeltable exports o
 
 [Pixeltable](https://docs.pixeltable.com) is declarative data infrastructure for multimodal AI apps. Images, video, audio, documents, and model calls live in tables. A transform is a computed column, and it runs when you insert or update a row.
 
-Pixeltable's OpenTelemetry bridge exports spans for that work. The spans name the operation, the row, the column, and the UDF. Attributes include `pxt.column`, `pxt.udf_path`, and, when a resource pool runs the call, `pxt.resource_pool` and `pxt.retries`. Pixeltable spans do not set `openinference.span.kind`, do not use `gen_ai.*` attributes, and do not carry token usage, so Phoenix shows them as unknown. An OpenInference instrumentor for the model provider adds the LLM span. Pixeltable sets the active OpenTelemetry context for every UDF call, including work it runs on its thread pools and async scheduler, so that LLM span nests under the UDF span.
+The Pixeltable instrumentor (`opentelemetry-instrumentation-pixeltable`) exports spans for that work. The spans name the operation, the row, the column, and the UDF. Attributes include `pxt.column`, `pxt.udf_path`, and, when a resource pool runs the call, `pxt.resource_pool` and `pxt.retries`. Pixeltable spans carry no `openinference.span.kind` and no `gen_ai.*` attributes, so Phoenix labels them unknown. Their token counts are a `pixeltable.udf.tokens` span event, which Phoenix does not count as token usage. An OpenInference instrumentor for the model provider adds the LLM span. Pixeltable sets the active OpenTelemetry context for every UDF call, including work it runs on its thread pools and async scheduler, so that LLM span nests under the UDF span.
 
 With `span_level="debug"` the insert trace looks like this. Catalog and plan spans are on the same trace and left out of the diagram:
 
@@ -55,7 +55,7 @@ PixeltableInstrumentor().instrument(span_level="debug")
 
 If you use the HTTP `register()` call further down, keep `PixeltableInstrumentor().instrument(span_level="debug")` after it. `project_name` is exported as the `openinference.project.name` resource attribute. That is what selects the Phoenix project for the gRPC export `register()` uses by default (`localhost:4317`).
 
-For Phoenix Cloud, or any Phoenix with authentication, copy the collector URL and API key from that space's Settings page and export them before calling `register()`. `register()` sends `Authorization: Bearer` with `PHOENIX_API_KEY`. There is no single shared Cloud hostname in these docs. See [Environments](/docs/phoenix/environments).
+For Phoenix Cloud, or any Phoenix with authentication, copy the collector URL and API key from that space's Settings page and export them before calling `register()`. `register()` sends `Authorization: Bearer` with `PHOENIX_API_KEY`. See [Environments](/docs/phoenix/environments).
 
 ```bash
 export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
@@ -63,7 +63,7 @@ export PHOENIX_API_KEY="your-api-key"
 export OPENAI_API_KEY="your-openai-api-key"
 ```
 
-If gRPC to the server is blocked, give `register()` the OTLP/HTTP URL. Passing a `/v1/traces` URL without `protocol="http/protobuf"` makes the Python SDK rewrite the port to `4317` and keep the path, and no spans arrive.
+If gRPC to the server is blocked, give `register()` the OTLP/HTTP URL and pass `protocol="http/protobuf"`. Without it, a `PHOENIX_COLLECTOR_ENDPOINT` that ends in `/v1/traces` is sent to port `4317` with that path, and no spans arrive.
 
 ```python
 register(
@@ -92,14 +92,15 @@ pxt_otel.init(
 OpenAIInstrumentor().instrument()
 ```
 
-The `x-project-name` header routes the whole export to a project. Phoenix reads it on OTLP/HTTP only, in version 15.5.0 and later, and it takes precedence over the resource attribute. See [OTLP project routing](/docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header). gRPC does not read that header. Set the resource attribute instead. `init()` builds its resource with `Resource.create`, which merges `OTEL_RESOURCE_ATTRIBUTES`:
+The `x-project-name` header routes the whole export to a project. Phoenix reads it on OTLP/HTTP only, in version 15.5.0 and later, and it takes precedence over the resource attribute. See [OTLP project routing](/docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header). gRPC does not read that header. Set the resource attribute instead. `pxt_otel.init()` builds its resource with `Resource.create`, which merges `OTEL_RESOURCE_ATTRIBUTES`:
 
 ```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:6006"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
 export OTEL_RESOURCE_ATTRIBUTES="openinference.project.name=pixeltable-app"
 ```
 
-`init()` only creates a provider when an endpoint resolves from the argument, from `OTEL_EXPORTER_OTLP_ENDPOINT`, or from Pixeltable config. Setting only `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` does not start export. Arguments left as `None` also fall back to `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, and the `[otel]` section of `~/.pixeltable/config.toml`.
+`pxt_otel.init()` only creates a provider when an endpoint resolves from the argument, from `OTEL_EXPORTER_OTLP_ENDPOINT`, or from Pixeltable config. Setting only `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` does not start export. Arguments left as `None` also fall back to `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, and the `[otel]` section of `~/.pixeltable/config.toml`.
 
 For an authenticated deployment, put the bearer token in the same header string. Use the collector URL from Settings as the endpoint.
 
@@ -114,7 +115,7 @@ pxt_otel.init(
 
 ## Run Pixeltable
 
-Import Pixeltable after the provider and the instrumentors are in place. `pixeltable.functions.openai` needs `OPENAI_API_KEY`. `if_exists="replace"` lets you run the snippet again.
+Run this after the setup above. `pixeltable.functions.openai` needs `OPENAI_API_KEY`. `if_exists="replace"` lets you run the snippet again.
 
 ```python
 from opentelemetry import trace
@@ -146,7 +147,7 @@ trace.get_tracer_provider().force_flush()
 
 A computed column can be your own UDF. The span name is `pixeltable.udf.` plus the function name, and `pxt.udf_path` is the qualified name. Define `@pxt.udf` functions in an importable module. Pixeltable rejects a UDF defined in `__main__` when the file is run as a script.
 
-`force_flush()` sends spans before a short process exits. `init()` uses a batch span processor, so a script can finish while spans are still queued. `register()` uses a simple processor unless you pass `batch=True`. Flush either way.
+`force_flush()` sends spans before a short process exits. `pxt_otel.init()` uses a batch span processor, so a script can finish while spans are still queued. `register()` uses a simple processor unless you pass `batch=True`. Flush either way.
 
 ## View traces
 
@@ -159,7 +160,7 @@ Open the `pixeltable-app` project and select the `pixeltable.insert` trace.
   />
 </Frame>
 
-The screenshot is an insert whose computed column is a Python UDF, `word_count`. Phoenix labels `pixeltable.udf.word_count` as unknown and shows `pxt.udf_path` (`my_udfs.word_count`) and `pxt.column` (`words`). A `chat_completions` column uses the same Pixeltable span names, with `pixeltable.udf.chat_completions` nested under `pixeltable.row`. The LLM span under that UDF span comes from OpenInference: the instrumentor records the model call as a child of the active span, and Pixeltable makes the UDF span active for that call. Pixeltable's own span still has no token counts and no LLM span kind.
+The screenshot is an insert whose computed column is a Python UDF, `word_count`. Phoenix labels `pixeltable.udf.word_count` as unknown and shows `pxt.udf_path` (`my_udfs.word_count`) and `pxt.column` (`words`). A `chat_completions` column uses the same Pixeltable span names, with `pixeltable.udf.chat_completions` nested under `pixeltable.row`. The LLM span under that UDF span comes from OpenInference: the instrumentor records the model call as a child of the active span, and Pixeltable makes the UDF span active for that call.
 
 ```bash
 curl -s http://localhost:6006/v1/projects
@@ -168,10 +169,9 @@ curl -s "http://localhost:6006/v1/projects/pixeltable-app/spans?limit=100"
 
 ## Caveats
 
-- With the bridge on, every Pixeltable call is its own trace, including `create_table`, `add_computed_column`, `get_table`, and `collect`. Use `span_level="info"` to drop per-row and per-UDF spans. Operation, catalog, store, and SQL spans remain.
+- With the instrumentor on, every Pixeltable call is its own trace, including `create_table`, `add_computed_column`, `get_table`, and `collect`. Use `span_level="info"` to drop per-row and per-UDF spans. Operation, catalog, store, and SQL spans remain.
 - Computed values are stored. `collect()` records a Pixeltable span and does not run the UDF or the model again. Model calls show up on `insert`, on `update`, and when `add_computed_column` backfills rows already in the table.
-- Call `register()` or `pxt_otel.init()`, and enable instrumentors, before the first Pixeltable operation. `init()` runs once per process.
-- Don't instrument one provider twice. The Anthropic SDK's native spans plus OpenInference Anthropic is the usual case.
+- Call `register()` or `pxt_otel.init()`, and enable instrumentors, before the first Pixeltable operation. `pxt_otel.init()` runs once per process.
 - Prompts and completions leave the process on the OpenInference LLM span. Pixeltable log export stays off unless you pass `logs=True`. Leave it off unless the logs are redacted.
 
 ## Resources
