@@ -29,13 +29,10 @@ import { IdTruncate } from "./PromptMenu";
  */
 export function DecisionVersionSelector({
   decision,
-  sequenceNumber,
   onSelectVersion,
   onSelectTag,
 }: {
   decision: PlaygroundInstanceDecision;
-  /** The selected version's number; shown as "v{n}" instead of the raw id. */
-  sequenceNumber?: number | null;
   onSelectVersion: (versionId: string) => void;
   onSelectTag: (tagName: string) => void;
 }) {
@@ -50,14 +47,13 @@ export function DecisionVersionSelector({
           flex-shrink: 0;
         `}
       >
-        {sequenceNumber != null ? <Text>v{sequenceNumber}</Text> : null}
         {decision.tag ? (
           <TagVersionLabel size="S" maxWidth="10ch">
             {decision.tag}
           </TagVersionLabel>
-        ) : sequenceNumber == null ? (
+        ) : (
           <IdTruncate id={decision.versionId} />
-        ) : null}
+        )}
         <SelectChevronUpDownIcon />
       </Button>
       <MenuContainer placement="bottom start" minHeight={0}>
@@ -100,7 +96,6 @@ function DecisionVersionList({
               edges {
                 version: node {
                   id
-                  sequenceNumber
                   description
                   modelName
                   createdAt
@@ -150,16 +145,18 @@ function DecisionVersionList({
           const versionTags = tags
             .filter((tag) => tag.decisionVersionId === version.id)
             .map((tag) => tag.name);
-          const label = `v${version.sequenceNumber}${index === 0 ? " (latest)" : ""}`;
 
           return (
             <MenuItem
               key={version.id}
               id={`version:${version.id}`}
-              textValue={label}
+              textValue={version.id}
             >
               <Flex direction="column">
-                <Text>{label}</Text>
+                <Flex alignItems="center" gap="size-100">
+                  <IdTruncate id={version.id} textProps={{ size: "S" }} />
+                  {index === 0 ? <Text size="S">(latest)</Text> : null}
+                </Flex>
                 <Text size="XS" color="text-700">
                   {[
                     ...versionTags,

@@ -1877,7 +1877,6 @@ type DecisionEvaluator implements Evaluator & Node {
   inputSchema: JSON!
   scoringPolicy: DecisionScoringPolicy!
   decisionVersion: DecisionVersion!
-  decisionVersionTag: DecisionVersionTag!
 }
 
 type DecisionEvaluatorMutationPayload {

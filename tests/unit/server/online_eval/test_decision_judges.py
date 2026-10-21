@@ -69,19 +69,11 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
         )
         session.add(version)
         await session.flush()
-        tag = models.DecisionVersionTag(
-            name=Identifier(f"judge-{token_hex(4)}"),
-            decision_id=decision.id,
-            decision_version_id=version.id,
-        )
-        session.add(tag)
-        await session.flush()
         judge = models.DecisionEvaluator(
             name=Identifier(f"judge-{token_hex(4)}"),
             description=None,
             metadata_={},
-            decision_id=decision.id,
-            decision_version_tag_id=tag.id,
+            decision_version_id=version.id,
             scoring_policy={
                 "questions": {"correct": {"type": "predicate", "threshold": threshold}}
             },
@@ -280,7 +272,7 @@ async def test_a_project_binding_blocks_breaking_judge_changes(
         judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None
         breaking = models.DecisionVersion(
-            decision_id=judge.decision_id,
+            decision_id=judge.selected_version.decision_id,
             inputs=[DecisionInput(name="output")],
             state=InputState(type="input", name="output"),
             questions=questions()[:1],

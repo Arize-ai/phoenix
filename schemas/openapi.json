@@ -15649,10 +15649,6 @@
             "type": "string",
             "title": "Decision Version Id"
           },
-          "decision_version_tag_id": {
-            "type": "string",
-            "title": "Decision Version Tag Id"
-          },
           "scoring_policy": {
             "$ref": "#/components/schemas/DecisionScoringPolicy"
           },
@@ -15690,7 +15686,6 @@
           "description",
           "decision_id",
           "decision_version_id",
-          "decision_version_tag_id",
           "scoring_policy",
           "output_configs"
         ],

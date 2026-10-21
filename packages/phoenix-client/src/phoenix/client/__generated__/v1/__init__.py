@@ -2407,7 +2407,6 @@ class DecisionEvaluatorDefinition(TypedDict):
     description: Optional[str]
     decision_id: str
     decision_version_id: str
-    decision_version_tag_id: str
     scoring_policy: DecisionScoringPolicy
     output_configs: Sequence[
         Union[

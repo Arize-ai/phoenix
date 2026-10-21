@@ -2,11 +2,11 @@ import { css } from "@emotion/react";
 
 import { Flex, Link, Text, Token } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export type DecisionCellVersion = {
   id: string;
   decisionId: string;
-  sequenceNumber: number;
   /** The decision; select `decision { name }` next to the version. */
   decision?: { name: string } | null;
 };
@@ -28,7 +28,7 @@ export const DecisionCell = ({
   if (!decisionVersion) {
     return null;
   }
-  const { decisionId, id, sequenceNumber, decision } = decisionVersion;
+  const { decisionId, id, decision } = decisionVersion;
   return (
     <Link
       to={`/decisions/${decisionId}/versions/${id}`}
@@ -51,7 +51,7 @@ export const DecisionCell = ({
         <Flex alignItems="center">
           <Text color="text-300">{wrapWidth != null ? "@ " : " @ "}</Text>
           <Token size="S" color="var(--global-color-gray-700)">
-            {`v${sequenceNumber}`}
+            <IdTruncate id={id} />
           </Token>
         </Flex>
       </Flex>

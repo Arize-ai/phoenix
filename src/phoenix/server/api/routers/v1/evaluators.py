@@ -244,7 +244,6 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
     description: Optional[str]
     decision_id: str
     decision_version_id: str
-    decision_version_tag_id: str
     scoring_policy: DecisionScoringPolicy
     output_configs: list[EvaluatorOutputConfig]
 
@@ -257,9 +256,8 @@ def _decision_evaluator_definition(
         id=evaluator_id,
         name=row.name,
         description=row.description,
-        decision_id=encode_global_id("Decision", row.decision_id),
+        decision_id=encode_global_id("Decision", row.selected_version.decision_id),
         decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
-        decision_version_tag_id=encode_global_id("DecisionVersionTag", row.decision_version_tag_id),
         scoring_policy=DecisionScoringPolicy.model_validate(row.scoring_policy),
         output_configs=output_configs_from_db(row.output_configs),
     )

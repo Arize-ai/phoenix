@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab965b361c826f4d55176e051722d3a7>>
+ * @generated SignedSource<<9b641efebf862001e6bb372836d96e37>>
  * @lightSyntaxTransform
  */
 
@@ -293,13 +293,6 @@ return {
                                   "name": "decision",
                                   "plural": false,
                                   "selections": (v4/*:: as any*/),
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "sequenceNumber",
                                   "storageKey": null
                                 },
                                 (v5/*:: as any*/),

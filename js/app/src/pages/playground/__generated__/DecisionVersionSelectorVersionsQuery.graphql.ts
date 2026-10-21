@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aec54cbc4756dbe593a5aee92fecf402>>
+ * @generated SignedSource<<fad23d8b7219cca47b2fe5235040c8bd>>
  * @lightSyntaxTransform
  */
 
@@ -24,7 +24,6 @@ export type DecisionVersionSelectorVersionsQuery$data = {
           readonly description: string | null;
           readonly id: string;
           readonly modelName: string;
-          readonly sequenceNumber: number;
         };
       }>;
     };
@@ -102,13 +101,6 @@ v5 = {
           "plural": false,
           "selections": [
             (v4/*:: as any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "sequenceNumber",
-              "storageKey": null
-            },
             {
               "alias": null,
               "args": null,
@@ -232,16 +224,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3595c9350ea0c96eb4a0a991cd03b03",
+    "cacheID": "f1f7ad844e2a20167dcde14d25e32126",
     "id": null,
     "metadata": {},
     "name": "DecisionVersionSelectorVersionsQuery",
     "operationKind": "query",
-    "text": "query DecisionVersionSelectorVersionsQuery(\n  $decisionId: ID!\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      versionTags {\n        name\n        decisionVersionId\n        id\n      }\n      versions(first: 100) {\n        edges {\n          version: node {\n            id\n            sequenceNumber\n            description\n            modelName\n            createdAt\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query DecisionVersionSelectorVersionsQuery(\n  $decisionId: ID!\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      versionTags {\n        name\n        decisionVersionId\n        id\n      }\n      versions(first: 100) {\n        edges {\n          version: node {\n            id\n            description\n            modelName\n            createdAt\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f53cd5215c2f925984f3848de49a8f7";
+(node as any).hash = "f985114eca884f6acd20f90cb813c54f";
 
 export default node;

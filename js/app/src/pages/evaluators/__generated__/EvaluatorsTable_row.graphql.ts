@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ba2b038a199e5dfdcd5f64d8896fb22>>
+ * @generated SignedSource<<7e19012e6479de27a608e36286dbb5e9>>
  * @lightSyntaxTransform
  */
 
@@ -47,7 +47,6 @@ export type EvaluatorsTable_row$data = {
     readonly id: string;
     readonly modelName: string;
     readonly modelProvider: GenerativeProviderKey;
-    readonly sequenceNumber: number;
   };
   readonly description: string | null;
   readonly id: string;
@@ -91,6 +90,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "5b900671f88e46999070fcd30ffc0fd6";
+(node as any).hash = "6f948a5c620ec3695506fcd4b636300a";
 
 export default node;

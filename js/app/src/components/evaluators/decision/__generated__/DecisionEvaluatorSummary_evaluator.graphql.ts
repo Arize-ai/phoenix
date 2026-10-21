@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc05b006bbff017debbfecf22d2bb0e4>>
+ * @generated SignedSource<<c6318e52373938343bf556af078d1215>>
  * @lightSyntaxTransform
  */
 
@@ -20,10 +20,6 @@ export type DecisionEvaluatorSummary_evaluator$data = {
     readonly id: string;
     readonly modelName: string;
     readonly modelProvider: GenerativeProviderKey;
-    readonly sequenceNumber: number;
-  };
-  readonly decisionVersionTag: {
-    readonly name: string;
   };
   readonly scoringPolicy: {
     readonly questions: ReadonlyArray<{
@@ -52,10 +48,7 @@ var v0 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v1 = [
-  (v0/*:: as any*/)
-];
+};
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -91,14 +84,9 @@ return {
           "kind": "LinkedField",
           "name": "decision",
           "plural": false,
-          "selections": (v1/*:: as any*/),
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "sequenceNumber",
+          "selections": [
+            (v0/*:: as any*/)
+          ],
           "storageKey": null
         },
         {
@@ -116,16 +104,6 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DecisionVersionTag",
-      "kind": "LinkedField",
-      "name": "decisionVersionTag",
-      "plural": false,
-      "selections": (v1/*:: as any*/),
       "storageKey": null
     },
     {
@@ -231,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "87afbaf2e86f16eb4cb0f3d8317c5702";
+(node as any).hash = "05f9365473e1766b29ac322f730d47f1";
 
 export default node;

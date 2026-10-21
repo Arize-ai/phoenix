@@ -29,7 +29,6 @@ mutation ($input: CreateDecisionEvaluatorInput!) {
         ... on DecisionScaleScoring { includeLabel }
       }
     } inputSchema decisionVersion { id }
-    decisionVersionTag { id name }
     outputConfigs { ... on ContinuousAnnotationConfig { name lowerBound upperBound } ... on CategoricalAnnotationConfig { name values { label score } } }
   } }
 }
@@ -68,11 +67,6 @@ async def test_saved_decision_evaluator_discovery_and_owned_tag(
     assert result.data and not result.errors, result.errors
     assert result.data["node"] == {"name": "triage-judge", "kind": "DECISION"}
     assert any(edge["node"]["kind"] == "DECISION" for edge in result.data["evaluators"]["edges"])
-    result = await gql_client.execute(
-        "mutation($input: DeleteDecisionVersionTagInput!){ deleteDecisionVersionTag(input:$input){ query { __typename } } }",
-        variables={"input": {"decisionVersionTagId": evaluator["decisionVersionTag"]["id"]}},
-    )
-    assert result.errors and "owned by a decision evaluator" in result.errors[0].message
     result = await gql_client.execute(
         "mutation($input: DeleteDecisionInput!){ deleteDecision(input:$input){ query { __typename } } }",
         variables={"input": {"decisionId": decision["id"]}},
@@ -157,7 +151,7 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     assert invoke.call_args.args[0].state == {"id": 1}
 
 
-async def test_bound_tag_move_rejects_breaking_questions(
+async def test_bound_repin_rejects_breaking_questions(
     gql_client: AsyncGraphQLClient, empty_dataset: None
 ) -> None:
     decision, evaluator = await saved_evaluator(gql_client)
@@ -173,7 +167,7 @@ async def test_bound_tag_move_rejects_breaking_questions(
         },
     )
     assert binding.data and not binding.errors, binding.errors
-    result = await gql_client.execute(
+    created = await gql_client.execute(
         CREATE_VERSION,
         variables={
             "input": {
@@ -181,9 +175,14 @@ async def test_bound_tag_move_rejects_breaking_questions(
                 "version": version_input(
                     questions=[{"predicate": {"name": "renamed", "instructions": "New question?"}}]
                 ),
-                "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
             }
         },
+    )
+    assert created.data and not created.errors, created.errors
+    new_version_id = created.data["createDecisionVersion"]["version"]["id"]
+    result = await gql_client.execute(
+        PATCH_EVALUATOR,
+        variables={"input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}},
     )
     assert result.errors and "would break dataset evaluators 'judge'" in result.errors[0].message
     result = await gql_client.execute(
@@ -193,7 +192,7 @@ async def test_bound_tag_move_rejects_breaking_questions(
     assert result.errors and "still bound" in result.errors[0].message
 
 
-async def test_unbound_tag_move_carries_the_judges_policy_to_the_new_questions(
+async def test_unbound_repin_carries_the_judges_policy_to_the_new_questions(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     decision, evaluator = await saved_evaluator(gql_client)
@@ -207,8 +206,15 @@ async def test_unbound_tag_move_carries_the_judges_policy_to_the_new_questions(
                 "input": {
                     "decisionId": decision["id"],
                     "version": version_input(questions=questions),
-                    "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
                 }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        new_version_id = result.data["createDecisionVersion"]["version"]["id"]
+        result = await gql_client.execute(
+            PATCH_EVALUATOR,
+            variables={
+                "input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}
             },
         )
         assert result.data and not result.errors, result.errors
@@ -241,10 +247,8 @@ async def test_detaching_last_binding_keeps_the_standalone_judge(
     )
     assert result.data and not result.errors, result.errors
     judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
-    tag_id = int(GlobalID.from_id(evaluator["decisionVersionTag"]["id"]).node_id)
     async with db() as session:
         assert await session.get(models.Evaluator, judge_id) is not None
-        assert await session.get(models.DecisionVersionTag, tag_id) is not None
     result = await gql_client.execute(
         "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
         variables={"input": {"evaluatorId": evaluator["id"]}},
@@ -252,7 +256,6 @@ async def test_detaching_last_binding_keeps_the_standalone_judge(
     assert result.data and not result.errors, result.errors
     async with db() as session:
         assert await session.get(models.Evaluator, judge_id) is None
-        assert await session.get(models.DecisionVersionTag, tag_id) is None
 
 
 async def bind(
@@ -840,15 +843,20 @@ async def test_reordering_bound_questions_is_compatible(
     assert binding.data and not binding.errors, binding.errors
     questions = version_input()["questions"]
     questions[1]["choice"]["choices"].reverse()
-    result = await gql_client.execute(
+    created = await gql_client.execute(
         CREATE_VERSION,
         variables={
             "input": {
                 "decisionId": decision["id"],
                 "version": version_input(questions=questions[::-1]),
-                "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
             }
         },
+    )
+    assert created.data and not created.errors, created.errors
+    new_version_id = created.data["createDecisionVersion"]["version"]["id"]
+    result = await gql_client.execute(
+        PATCH_EVALUATOR,
+        variables={"input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}},
     )
     assert result.data and not result.errors, result.errors
 
@@ -970,14 +978,21 @@ async def test_bound_scale_description_edits_preserve_the_contract(
         ([{"label": "high"}, {"label": "low"}], False),
         ([{"label": "minor"}, {"label": "high"}], False),
     ]:
-        result = await gql_client.execute(
+        created = await gql_client.execute(
             CREATE_VERSION,
             variables={
                 "input": {
                     "decisionId": decision["id"],
                     "version": scale_version(changed_levels),
-                    "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
                 }
+            },
+        )
+        assert created.data and not created.errors, created.errors
+        new_version_id = created.data["createDecisionVersion"]["version"]["id"]
+        result = await gql_client.execute(
+            PATCH_EVALUATOR,
+            variables={
+                "input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}
             },
         )
         if compatible:

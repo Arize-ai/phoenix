@@ -38,8 +38,6 @@ export type DecisionVersionSelection = {
   decisionId: string;
   decisionName: string;
   versionId: string;
-  /** The version's number within its decision, shown as "v{n}". */
-  sequenceNumber: number;
   /** The tag the version was picked by, if any. */
   tagName: string | null;
   /** The version's questions, in declared order. */
@@ -71,7 +69,6 @@ const versionQuery = graphql`
         name
         version(versionId: $versionId, tagName: $tagName) {
           id
-          sequenceNumber
           inputs {
             name
             description
@@ -130,7 +127,7 @@ export function DecisionVersionPicker({
         { fetchPolicy: "network-only" }
       ).toPromise();
       const decision = data?.decision;
-      if (!decision?.version || !decision.id || decision.name == null) {
+      if (!decision?.version || !decision.id || !decision.name) {
         setError("That decision version could not be loaded.");
         return;
       }
@@ -138,7 +135,6 @@ export function DecisionVersionPicker({
         decisionId: decision.id,
         decisionName: decision.name,
         versionId: decision.version.id,
-        sequenceNumber: decision.version.sequenceNumber,
         tagName: version.tagName ?? null,
         questions: toDecisionQuestionDefinitions(decision.version.questions),
         inputs: decision.version.inputs.map(({ name, description }) => ({
@@ -164,7 +160,6 @@ export function DecisionVersionPicker({
         </Suspense>
         {value && !isDisabled ? (
           <DecisionVersionSelector
-            sequenceNumber={value.sequenceNumber}
             decision={{
               id: value.decisionId,
               name: value.decisionName,

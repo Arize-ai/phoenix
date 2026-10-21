@@ -36,7 +36,7 @@ describe("DecisionCell name", () => {
     });
   });
 
-  it("renders the decision name and version number", () => {
+  it("renders the decision name and version id", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     act(() =>
@@ -47,7 +47,6 @@ describe("DecisionCell name", () => {
               decisionVersion={{
                 id: "v1",
                 decisionId: "d1",
-                sequenceNumber: 3,
                 decision: { name: "triage" },
               }}
             />
@@ -56,7 +55,7 @@ describe("DecisionCell name", () => {
       )
     );
     expect(container.textContent).toContain("triage");
-    expect(container.textContent).toContain("v3");
+    expect(container.textContent).toContain("v1");
     act(() => root.unmount());
   });
 });

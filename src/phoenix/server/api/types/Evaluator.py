@@ -69,7 +69,7 @@ from phoenix.server.online_eval.queue_health import (
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
-    from .Decision import DecisionVersion, DecisionVersionTag
+    from .Decision import DecisionVersion
     from .Project import Project
     from .Prompt import Prompt
     from .PromptVersion import PromptVersion
@@ -791,19 +791,6 @@ class DecisionEvaluator(Evaluator, Node):
 
         version = (await self._record(info)).selected_version
         return DecisionVersion(id=version.id, db_record=version)
-
-    @strawberry.field
-    async def decision_version_tag(
-        self, info: Info[Context, None]
-    ) -> Annotated["DecisionVersionTag", strawberry.lazy(".Decision")]:
-        from .Decision import DecisionVersionTag
-
-        record = await self._record(info)
-        async with info.context.db.read() as session:
-            tag = await session.get(models.DecisionVersionTag, record.decision_version_tag_id)
-        if tag is None:
-            raise NotFound("Evaluator-owned decision tag not found")
-        return DecisionVersionTag(id=tag.id, db_record=tag)
 
     @strawberry.field
     async def output_configs(self, info: Info[Context, None]) -> list[BuiltInEvaluatorOutputConfig]:

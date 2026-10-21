@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a6319640df83b92437fce8510c340fe>>
+ * @generated SignedSource<<182c67b3b3042ccbfc988586a7bd3bf6>>
  * @lightSyntaxTransform
  */
 
@@ -48,7 +48,6 @@ export type EditDecisionDatasetEvaluatorSlideover_evaluatorQuery$data = {
             // value in case none of the concrete values match.
             readonly __typename: "%other";
           }>;
-          readonly sequenceNumber: number;
         };
         readonly id: string;
         readonly inputSchema?: any;
@@ -307,13 +306,6 @@ v6 = {
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "sequenceNumber",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
                       "concreteType": "Decision",
                       "kind": "LinkedField",
                       "name": "decision",
@@ -465,16 +457,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "972469734145c6646466106a78f49c5e",
+    "cacheID": "d4c9d5de6a6a3ee55d76836e981f68f9",
     "id": null,
     "metadata": {},
     "name": "EditDecisionDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            scoringPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateScoring {\n                  threshold\n                }\n                ... on DecisionChoiceScoring {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleScoring {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              sequenceNumber\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditDecisionDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          ... on DecisionEvaluator {\n            inputSchema\n            datasetEvaluators {\n              id\n            }\n            scoringPolicy {\n              questions {\n                __typename\n                name\n                optimizationDirection\n                ... on DecisionPredicateScoring {\n                  threshold\n                }\n                ... on DecisionChoiceScoring {\n                  scores {\n                    choice\n                    score\n                  }\n                }\n                ... on DecisionScaleScoring {\n                  includeLabel\n                }\n              }\n            }\n            decisionVersion {\n              id\n              decision {\n                id\n                name\n              }\n              questions {\n                __typename\n                ... on DecisionPredicateQuestion {\n                  name\n                }\n                ... on DecisionChoiceQuestion {\n                  name\n                  choices {\n                    value\n                  }\n                }\n                ... on DecisionScaleQuestion {\n                  name\n                  levels {\n                    label\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b5c7d420b6a62f9ac6450cb8e0dbef01";
+(node as any).hash = "f5ab1a2fe7844e7fe4a67656679194d9";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8f3419d10edab48d87e611c068cda4e>>
+ * @generated SignedSource<<14be38dce7d52f852e1fd905891120a2>>
  * @lightSyntaxTransform
  */
 
@@ -43,7 +43,6 @@ export type DecisionVersionPickerVersionQuery$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       }>;
-      readonly sequenceNumber: number;
     } | null;
   };
 };
@@ -116,13 +115,6 @@ v7 = {
   "plural": false,
   "selections": [
     (v4/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "sequenceNumber",
-      "storageKey": null
-    },
     {
       "alias": null,
       "args": null,
@@ -288,16 +280,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8bb78b0196e8ac2775aed679ce724fe0",
+    "cacheID": "ead8439ed461fa7642e3323358e558d0",
     "id": null,
     "metadata": {},
     "name": "DecisionVersionPickerVersionQuery",
     "operationKind": "query",
-    "text": "query DecisionVersionPickerVersionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        sequenceNumber\n        inputs {\n          name\n          description\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query DecisionVersionPickerVersionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        inputs {\n          name\n          description\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f55c0d33bf078544e1ddefd968b63c77";
+(node as any).hash = "415cf359c0139a7d18b0a3ab6c67ec6f";
 
 export default node;

@@ -14,7 +14,6 @@ from .test_db_schema_a7f1c3e9d2b4_experiment_evaluator_tasks import (
 )
 from .test_db_schema_e724eb2ee5cf_decision_tables import (
     _insert_decision,
-    _insert_tag,
     _insert_version,
 )
 
@@ -39,13 +38,8 @@ async def test_decision_evaluator_schema(
     await _up(_engine, _alembic_config, "c157e99472d9", _schema)
     decision_id = await _run_async(_engine, lambda conn: _insert_decision(conn, "judge"))
     version_id = await _run_async(_engine, lambda conn: _insert_version(conn, decision_id))
-    await _run_async(_engine, lambda conn: _insert_tag(conn, "evaluator", decision_id, version_id))
 
     def create_judge(conn: Connection) -> int:
-        tag_id = conn.execute(
-            text("SELECT id FROM decision_version_tags WHERE decision_id = :decision"),
-            {"decision": decision_id},
-        ).scalar_one()
         row_id = conn.execute(
             text(
                 "INSERT INTO evaluators (name, kind, metadata) VALUES ('judge', 'DECISION', '{}') RETURNING id"
@@ -53,9 +47,9 @@ async def test_decision_evaluator_schema(
         ).scalar_one()
         conn.execute(
             text(
-                "INSERT INTO decision_evaluators (id, decision_id, decision_version_tag_id, scoring_policy) VALUES (:id, :decision, :tag, '{}')"
+                "INSERT INTO decision_evaluators (id, decision_version_id, scoring_policy) VALUES (:id, :version, '{}')"
             ),
-            {"id": row_id, "decision": decision_id, "tag": tag_id},
+            {"id": row_id, "version": version_id},
         )
         conn.commit()
         assert isinstance(row_id, int)

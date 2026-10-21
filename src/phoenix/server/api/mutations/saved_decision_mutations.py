@@ -128,11 +128,6 @@ async def _upsert_tag(
         )
         session.add(tag)
     else:
-        from phoenix.server.api.helpers.decision_evaluator_service import (
-            guard_owned_decision_tag_move,
-        )
-
-        await guard_owned_decision_tag_move(session, tag, decision_version_id)
         tag.decision_version_id = decision_version_id
         if description is not None:
             tag.description = description
@@ -276,7 +271,11 @@ class SavedDecisionMutationMixin:
         async with info.context.db() as session:
             if await session.scalar(
                 select(models.DecisionEvaluator.id)
-                .where(models.DecisionEvaluator.decision_id == row_id)
+                .join(
+                    models.DecisionVersion,
+                    models.DecisionEvaluator.decision_version_id == models.DecisionVersion.id,
+                )
+                .where(models.DecisionVersion.decision_id == row_id)
                 .limit(1)
             ):
                 raise Conflict(
@@ -327,14 +326,6 @@ class SavedDecisionMutationMixin:
             tag = await session.get(models.DecisionVersionTag, tag_id)
             if tag is None:
                 raise NotFound(f"Decision version tag not found: {input.decision_version_tag_id}")
-            if await session.scalar(
-                select(models.DecisionEvaluator.id)
-                .where(models.DecisionEvaluator.decision_version_tag_id == tag.id)
-                .limit(1)
-            ):
-                raise Conflict(
-                    "This version tag is owned by a decision evaluator; delete the evaluator first"
-                )
             decision = await session.get(models.Decision, tag.decision_id)
             assert decision is not None
             await session.delete(tag)

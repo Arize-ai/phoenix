@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b7197fbbc516a1b8787aa6ca0e7e956>>
+ * @generated SignedSource<<b5b7b747c8df391785012d2593ab0467>>
  * @lightSyntaxTransform
  */
 
@@ -291,24 +291,17 @@ v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "sequenceNumber",
+  "name": "language",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "language",
-  "storageKey": null
-},
-v18 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v19 = [
+v18 = [
   (v3/*:: as any*/),
   (v2/*:: as any*/)
 ];
@@ -427,7 +420,6 @@ return {
                                 "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v16/*:: as any*/),
                               (v13/*:: as any*/),
                               (v14/*:: as any*/)
                             ],
@@ -440,7 +432,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v17/*:: as any*/),
+                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -459,7 +451,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v18/*:: as any*/)
+                                  (v17/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -559,7 +551,7 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v19/*:: as any*/),
+                        "selections": (v18/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -600,10 +592,9 @@ return {
                             "kind": "LinkedField",
                             "name": "decision",
                             "plural": false,
-                            "selections": (v19/*:: as any*/),
+                            "selections": (v18/*:: as any*/),
                             "storageKey": null
                           },
-                          (v16/*:: as any*/),
                           (v13/*:: as any*/),
                           (v14/*:: as any*/)
                         ],
@@ -616,7 +607,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v17/*:: as any*/),
+                      (v16/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -635,7 +626,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v18/*:: as any*/),
+                              (v17/*:: as any*/),
                               (v2/*:: as any*/)
                             ],
                             "storageKey": null
@@ -659,12 +650,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "07eee7ddf2008e378d74c904e8ba1d47",
+    "cacheID": "af3b0cce474847e3e9e7df27b6a2f95e",
     "id": null,
     "metadata": {},
     "name": "DecisionDatasetEvaluatorForm_updateMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionDatasetEvaluatorForm_updateMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation DecisionDatasetEvaluatorForm_updateMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

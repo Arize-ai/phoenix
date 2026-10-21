@@ -102,7 +102,6 @@ export function DecisionVersionDetails({
     graphql`
       fragment DecisionVersionDetails_version on DecisionVersion {
         id
-        sequenceNumber
         description
         createdAt
         metadata
@@ -175,10 +174,7 @@ export function DecisionVersionDetails({
           wrap
         >
           <Flex gap="size-100" alignItems="center">
-            <TitleWithID
-              title={`Version ${version.sequenceNumber}`}
-              id={version.id}
-            />
+            <TitleWithID title="Version" id={version.id} />
             {version.tags.map((tag) => (
               <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
             ))}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ab30cd3528fb59ab870b2deb8363010>>
+ * @generated SignedSource<<10c9e6ab7fa5e9d1bca3af2cd52a29e9>>
  * @lightSyntaxTransform
  */
 
@@ -267,24 +267,17 @@ v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "sequenceNumber",
+  "name": "language",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "language",
-  "storageKey": null
-},
-v18 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v19 = [
+v18 = [
   (v4/*:: as any*/),
   (v3/*:: as any*/)
 ];
@@ -403,7 +396,6 @@ return {
                                 "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v16/*:: as any*/),
                               (v13/*:: as any*/),
                               (v14/*:: as any*/)
                             ],
@@ -416,7 +408,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v17/*:: as any*/),
+                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -435,7 +427,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v18/*:: as any*/)
+                                  (v17/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -537,7 +529,7 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v19/*:: as any*/),
+                        "selections": (v18/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -578,10 +570,9 @@ return {
                             "kind": "LinkedField",
                             "name": "decision",
                             "plural": false,
-                            "selections": (v19/*:: as any*/),
+                            "selections": (v18/*:: as any*/),
                             "storageKey": null
                           },
-                          (v16/*:: as any*/),
                           (v13/*:: as any*/),
                           (v14/*:: as any*/)
                         ],
@@ -594,7 +585,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v17/*:: as any*/),
+                      (v16/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -613,7 +604,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v18/*:: as any*/),
+                              (v17/*:: as any*/),
                               (v3/*:: as any*/)
                             ],
                             "storageKey": null
@@ -658,12 +649,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bf1a03224e74e28465a9f1e7043dacff",
+    "cacheID": "87b18f6beb48e1e2d5733fef28530177",
     "id": null,
     "metadata": {},
     "name": "DecisionDatasetEvaluatorForm_createMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionDatasetEvaluatorForm_createMutation(\n  $input: CreateDatasetDecisionEvaluatorInput!\n) {\n  createDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        sequenceNumber\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation DecisionDatasetEvaluatorForm_createMutation(\n  $input: CreateDatasetDecisionEvaluatorInput!\n) {\n  createDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

@@ -21,6 +21,7 @@ import {
   TabList,
   Tabs,
   Text,
+  Token,
   View,
   ViewportModal,
   ViewportModalOverlay,
@@ -493,7 +494,12 @@ function DecisionVersions({
                     : undefined
                 }
               >
-                Version {version.sequenceNumber}
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <Token color="var(--global-color-blue-900)">
+                    {version.sequenceNumber}
+                  </Token>
+                  <span>{version.id}</span>
+                </Flex>
               </Link>
               <Text color="text-700">
                 {new Date(version.createdAt).toLocaleDateString()}

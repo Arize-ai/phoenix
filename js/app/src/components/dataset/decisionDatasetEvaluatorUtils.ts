@@ -25,7 +25,6 @@ export type DecisionEvaluatorData = {
   readonly scoringPolicy: DecisionScoringPolicyOutput;
   readonly decisionVersion: {
     readonly id: string;
-    readonly sequenceNumber: number;
     readonly decision: { readonly id: string; readonly name: string };
     readonly questions: DecisionVersionQuestionsOutput;
   };

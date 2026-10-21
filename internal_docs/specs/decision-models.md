@@ -1,6 +1,6 @@
 # Decision Models
 
-## Summary
+## 1. Summary
 
 Decision models such as TypeSafe System One and OpenAI Decisions take an input
 and a set of named questions, and return one typed answer per question: a
@@ -16,11 +16,11 @@ This spec assumes apps fetch saved decisions at run time, the way they fetch
 prompts; that assumption is what justifies a standalone family with tags.
 
 After one worked example, the choices still open come first, in [Decisions
-Before Release](#decisions-before-release); the rest of the spec assumes their
+Before Release](#5-decisions-before-release); the rest of the spec assumes their
 current defaults. The GraphQL catalog, what is built, and the build order come
 last.
 
-## A Decision, End to End
+## 2. A Decision, End to End
 
 The running example is a `triage` decision over a support ticket. Its version
 declares one input, sends it as the state, and asks three questions:
@@ -47,8 +47,8 @@ declares one input, sends it as the state, and asks three questions:
 
 An app fetches the version by tag and calls the provider with
 `{"ticket": "I was charged twice. Please refund one payment."}`
-([App Access](#app-access)); a dataset run does the same per example
-([Experiments](#experiments)). Either way, the answers come back by question
+([App Access](#11-app-access)); a dataset run does the same per example
+([Experiments](#13-experiments)). Either way, the answers come back by question
 name, in Phoenix's vocabulary:
 
 ```json
@@ -62,11 +62,11 @@ name, in Phoenix's vocabulary:
 ```
 
 These answers are the output being tested. A second decision can judge them:
-the `triage-accuracy` judge in [Decision Evaluators](#decision-evaluators)
+the `triage-accuracy` judge in [Decision Evaluators](#14-decision-evaluators)
 reads a run's answers beside the dataset's reference answers and writes one
 annotation per run.
 
-## Where Decisions Run
+## 3. Where Decisions Run
 
 A model plays one of two roles in Phoenix, and a decision model can be the model
 in either:
@@ -74,7 +74,7 @@ in either:
 | | Prompt (chat model) | Decision (decision model) |
 |---|---|---|
 | **Tested**: the regular playground and experiments | Prompt task. Exists. | Decision task. **This spec.** |
-| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [This spec](#decision-evaluators), dataset bindings first. |
+| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [This spec](#14-decision-evaluators), dataset bindings first. |
 
 In the tested role, a decision's answers are the output: what is being
 evaluated, never an evaluation. Evaluators judge them, exactly as they judge a
@@ -85,7 +85,7 @@ annotation form belong.
 The `phoenix-evals` work on decision models as the judging model
 (`ClassificationEvaluator(llm: LLM | Decision)`) is separate from this spec.
 
-## Stable and Volatile
+## 4. Stable and Volatile
 
 The decision APIs are new and change fast, TypeSafe's System One most of all.
 Its Jev 1.14 release added a `box` question type (where something is in an
@@ -98,7 +98,7 @@ core typed and pushes everything uncertain to additive types or to run time:
 | Named inputs and a named set of questions | Question types, such as `box` |
 | One model from one provider answers | The fields each answer type returns |
 | One typed answer per question | Images, assets, and multipart uploads |
-| Versions, and tags that apps follow | Wire formats and model names ([Provider Wire Formats](#provider-wire-formats)) |
+| Versions, and tags that apps follow | Wire formats and model names ([Provider Wire Formats](#103-provider-wire-formats)) |
 | | Preview flags such as danger-zone headers; which providers exist |
 
 "One typed answer per question" is a bet, not a fact: both providers agree on
@@ -106,34 +106,36 @@ it today. A multi-select choice, several boxes for one question, or questions
 asked about different parts of the state would each break it, and would need a
 new answer type or a change to the stable core.
 
-## Decisions Before Release
+## 5. Decisions Before Release
 
 These are one-way doors: cheap to change now, expensive once stored data, apps,
 and evaluators depend on them. Each has a current default so work can proceed,
 and the rest of this spec is written assuming those defaults. Each needs a
 deliberate team decision before a release ships it. Smaller, reversible unknowns
-are in [Open Questions](#open-questions).
+are in [Open Questions](#16-open-questions).
 
 | Decision | Current default | Must be decided before |
 |---|---|---|
-| [Answer format](#answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
-| [Stored question format](#stored-question-format) | Phoenix's own, close to OpenAI's | Saved decisions ship in a release |
-| [Span contents](#span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
-| [Reference answers in datasets](#reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
-| [Translating for apps](#translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
-| [Evaluator annotation metadata](#evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and scoring policies](#output-configs-and-scoring-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
+| [Answer format](#51-answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
+| [Stored question format](#52-stored-question-format) | Phoenix's own, close to OpenAI's | Saved decisions ship in a release |
+| [Span contents](#53-span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
+| [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
+| [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
+| [Evaluator annotation metadata](#56-evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
+| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
+| [Evaluator version pinning](#58-evaluator-version-pinning) | Direct `decision_version_id` (`NOT NULL`, `ON DELETE RESTRICT`) on `decision_evaluators` | A release ships `decision_evaluators` and `/v1/evaluators` for decision judges |
 
-All but the last choose a format at a boundary: the stored version, the run
+The first six choose a format at a boundary: the stored version, the run
 output, the span, a dataset's reference answers, the SDK arguments handed to
 apps, and a judge's annotations. At each, Phoenix can use a provider's format or
-its own, and they are related enough to decide together. The last is the shape
-of the evaluator API: how a judge's scoring is written.
+its own, and they are related enough to decide together. The last two are the
+shape and storage of the evaluator contract: how a judge's scoring is written,
+and how a judge records which decision version it runs.
 
 Each is laid out the same way: the **current default**, the **alternatives**,
 the **tradeoffs**, and the point to **decide before**.
 
-### Answer Format
+### 5.1 Answer Format
 
 **Current default:** answers are stored, returned by GraphQL, and written as
 experiment run outputs in Phoenix's own format.
@@ -185,20 +187,20 @@ annotation carries its answer in `metadata.decision.answer`, so one record would
 use `score` for two different things: the annotation's score, which the
 scoring policy decides, and the answer's expected level. By default the two
 values happen to match, which makes the shared name easier to misread, not
-safer (see [Questions](#questions)).
+safer (see [Questions](#102-questions)).
 
 **Decide before** run outputs become a contract: before the REST routes and
-`phoenix-client` (the [Apps step](#build-order)) or the built-in decision
+`phoenix-client` (the [Apps step](#18-build-order)) or the built-in decision
 metrics (the Measurement step), whichever comes first. Changing it after means
 migrating stored run outputs and every evaluator mapping written against them.
 
-### Stored Question Format
+### 5.2 Stored Question Format
 
 What `decision_versions.questions` (and the state and inputs beside them) is
 written in.
 
 **Current default:** Phoenix's own vocabulary, translated at the edge
-([principle 1](#principles)); this records the alternative, so the choice is made
+([principle 1](#9-principles)); this records the alternative, so the choice is made
 on purpose.
 
 **Alternative:** store System One's format.
@@ -240,7 +242,7 @@ For staying with the current (OpenAI-like) shape:
 - **Provider-neutral, and tied to neither vendor's pace.** Both providers
   translate from it, with one loss each way (OpenAI has no predicate criteria;
   System One has no level labels). Storing System One ties stored rows to the
-  faster-changing vendor (see [Stable and Volatile](#stable-and-volatile)), and
+  faster-changing vendor (see [Stable and Volatile](#4-stable-and-volatile)), and
   `noul` and an annotation-colliding `score` enter Phoenix's vocabulary.
 - **Datasets supply values, not question definitions.** Each decision task uses
   fixed Phoenix questions across its examples, independently of the provider.
@@ -250,9 +252,9 @@ measure to check here too: how much Phoenix users run each provider.
 
 **Decide before** saved decisions ship in a release. Until then, changing it means
 changing code; after, it means migrating stored versions and a new API version
-for clients ([principle 7](#principles)).
+for clients ([principle 7](#9-principles)).
 
-### Span Contents
+### 5.3 Span Contents
 
 **Current default:** a `DECISION` span's `input.value` and `output.value` are the
 provider's own request and response bodies (`_record_input` and `_record_output` in
@@ -269,7 +271,7 @@ bodies.
 - **Raw bodies only** (current): an exact record of what was sent and received,
   and nothing to design. What was sent is already translated, though, so a span
   holds what each provider's format kept ([Provider Wire
-  Formats](#provider-wire-formats)), not the version's own questions. And every
+  Formats](#103-provider-wire-formats)), not the version's own questions. And every
   reader of answers from traces (replaying a span into the playground, any
   metric over production traffic) has to parse each provider's format, and keep
   up with its changes. Adding a span to a dataset is one of those readers: the
@@ -285,11 +287,11 @@ bodies.
 
 Traces are stored in volume and are another tool's input, so whatever spans hold
 is what older traces hold forever. The version ID attribute (see
-[Open Questions](#open-questions)) is one piece of this. **Decide before** apps
-are instrumented against `format` (the [Apps step](#build-order)), with
+[Open Questions](#16-open-questions)) is one piece of this. **Decide before** apps
+are instrumented against `format` (the [Apps step](#18-build-order)), with
 OpenInference.
 
-### Reference Answers in Datasets
+### 5.4 Reference Answers in Datasets
 
 **Current default:** no convention says how a dataset holds reference answers;
 each evaluator maps paths. The typed-decisions dataset uses its own: `label`,
@@ -311,13 +313,13 @@ provider's.
   answer format as the reference; or keep requiring each evaluator to map
   paths, as today, with no convention.
 
-Whatever the built-in metrics (the [Measurement step](#build-order)) accept becomes
+Whatever the built-in metrics (the [Measurement step](#18-build-order)) accept becomes
 the format users build benchmark datasets in, including outside Phoenix. **Decide
 before** the built-in metrics, together with them.
 
-### Translating for Apps
+### 5.5 Translating for Apps
 
-**Current default:** [App Access](#app-access) has `phoenix-client`'s `format()`
+**Current default:** [App Access](#11-app-access) has `phoenix-client`'s `format()`
 turn a stored version into TypeSafe or OpenAI SDK arguments, in Python and
 TypeScript, held to the same fixtures as the server adapters.
 
@@ -335,18 +337,18 @@ with it.
   the state still does: neither SDK renders a `text` template or picks out an
   `input`, so `phoenix-client` still builds the state in both languages. And it
   only works if versions are stored in that vendor's format (see [Stored
-  Question Format](#stored-question-format)), so for apps on that vendor, this
+  Question Format](#52-stored-question-format)), so for apps on that vendor, this
   choice and the stored format are decided together.
 
 Once apps call `format()`, removing or narrowing it breaks them. **Decide
-before** `phoenix-client` ships it (the [Apps step](#build-order)).
+before** `phoenix-client` ships it (the [Apps step](#18-build-order)).
 
 A related choice, easier to reverse: a version pins its model, as a prompt
 version does. Changing or replacing a deprecated model means a new version, and
 an app following a tag gets whatever model that version names. A per-call
 override could be added later without breaking anything.
 
-### Evaluator Annotation Metadata
+### 5.6 Evaluator Annotation Metadata
 
 A decision judge writes ordinary annotations: a label, a score, and for a refusal
 a fixed explanation. Everything a decision adds goes in `metadata.decision`,
@@ -384,7 +386,7 @@ optional, so earlier payloads still parse without a version field.
   readers tolerating missing fields; or a version inside the namespace, so a
   reader can tell shapes apart without guessing.
 - **Answer shape:** `answer` embeds whichever format
-  [Answer Format](#answer-format) picks, so the two are one decision.
+  [Answer Format](#51-answer-format) picks, so the two are one decision.
 - **Error results:** the minimal shape (current), or the same fields with nulls,
   so readers handle one shape.
 - **Refusal status:** metadata only (current), or a first-class annotation field,
@@ -401,9 +403,9 @@ optional, so earlier payloads still parse without a version field.
 before this is decided, readers handle forever.
 
 **Decide before** a release stores judge results, together with [Answer
-Format](#answer-format).
+Format](#51-answer-format).
 
-### Output Configs and Scoring Policies
+### 5.7 Output Configs and Scoring Policies
 
 Every evaluator kind carries `output_configs`, the generic scoring contract that
 the UI, the SDK, and annotation views read. A decision judge also has a scoring
@@ -420,7 +422,7 @@ for decisions, `output_configs` is read-only in effect.
 
 A decision binding's `output_configs` can therefore only repeat the server's own
 answer. Bindings have no `scoring_policy`: scoring is the judge's own (see
-[Bindings](#bindings)).
+[Bindings](#143-bindings)).
 
 **Alternatives and tradeoffs:**
 
@@ -462,7 +464,156 @@ because annotation names and score types come from it. **Decide before**
 release: the request bodies and the SDK's generated types freeze whichever shape
 ships.
 
-## Goals
+### 5.8 Evaluator Version Pinning
+
+How `decision_evaluators` records the `DecisionVersion` a saved judge runs, and
+how that choice relates to `LLMEvaluator`'s tag history.
+
+**Current default:** `decision_evaluators` stores `decision_version_id`
+(`NOT NULL`, `ON DELETE RESTRICT`) directly, with no `decision_id` and no
+`decision_version_tag_id`. Every create or update API (GraphQL and REST) takes
+`decision_version_id`, and `selected_version` joins `DecisionVersion` via an
+`INNER JOIN`. `decision_version_tags` remains exclusively for user-managed
+release tags (`production`, `staging`) on saved decisions. We err on the side
+of simplicity for now given the complex deliberations below between direct
+version pinning, the original lightweight tag workflow (`ON DELETE SET NULL`),
+and the later `#16680` tag hardening.
+
+**How `LLMEvaluator` got here (and the hardening that flew under the radar):**
+
+1. **Original lightweight tag design (`02463bd83119`, PRs #9960 / #10694):**
+   `llm_evaluators` stored `prompt_id` (`NOT NULL`) and a nullable
+   `prompt_version_tag_id` (`ON DELETE SET NULL`). Creating an `LLMEvaluator`
+   minted a `{name}-evaluator-{hex}` tag on the prompt for two product reasons
+   (documented in `docs/phoenix/evaluation/server-evals/llm-evaluators.mdx`):
+   - *Playground promotion without new UI:* when saving a new prompt version in
+     the Playground, the existing **Save Prompt** modal listed `{name}-evaluator-{hex}`
+     as a tag checkbox; checking it advanced the evaluator to the new version.
+   - *Pin vs. `latest` visibility:* `PromptCell` (`js/app/src/pages/evaluators/PromptCell.tsx`)
+     rendered `prompt @ <tag>` when pinned (or `prompt @ latest` when unpinned)
+     and linked to `/redirects/prompts/{promptId}/tags/{tag}`, while the
+     Prompt's **Versions** tab showed the tag badge on the active version.
+   - Deleting the tag on the Prompt page set `prompt_version_tag_id = NULL`
+     (`ON DELETE SET NULL`), and the evaluator fell back to the prompt's latest
+     version.
+2. **Later hardening (`ef09e3bc213f`, PR #16680):**
+   In `LLMEvaluator`, the evaluator's contract is split across three places:
+   `prompt_versions.tools` (tool function names, descriptions, and label enums),
+   `llm_evaluators.output_configs` + `evaluators.description` (a duplicate copy
+   of those tool names, label-to-score maps, and description), and
+   `dataset_evaluators.output_configs` (optional per-dataset overrides), while
+   runtime loading (`api/evaluators.py:820–822`) bare-asserts that
+   `prompt_version.tools is not None`. Moving or deleting the tag from the
+   prompt side could therefore desynchronize `prompt_versions.tools` from
+   `llm_evaluators.output_configs` or `dataset_evaluators.output_configs`.
+   To prevent that drift without removing the duplicated columns, #16680 changed
+   `llm_evaluators.prompt_version_tag_id` from `ON DELETE SET NULL` to
+   `ON DELETE RESTRICT`, refused tag deletes with `409 Conflict`
+   (`validate_prompt_version_tag_delete`), wired evaluator locking and
+   `output_configs` / `description` validation into every prompt tag
+   create/upsert/move (`helpers/prompt_version_tags.py`), and hid the tag from
+   `/v1/evaluators` behind a `prompt_version_id` selector.
+   Because `create_llm_evaluator` unconditionally creates a tag, no API can
+   clear `prompt_version_tag_id` to `NULL`, and deleting the tag is refused,
+   **#16680 made `prompt_version_tag_id` effectively non-nullable for every
+   newly created evaluator** (only pre-existing rows whose tag had already been
+   deleted before `ef09e3bc213f` can ever have `prompt_version_tag_id IS NULL`,
+   and editing such a row's prompt version immediately mints a new undeletable
+   tag). That hardening flew under the radar: it contradicted the original
+   design and the public docs (`llm-evaluators.mdx:102`: *"If the evaluator has
+   no tag (or the tag is removed), Phoenix falls back to the latest prompt
+   version"*), rejected Playground tag promotions whenever the user edited the
+   tool description or label enum, left user-visible prompt tables with
+   undeletable machine-generated tags, and turned `prompt_version_tag_id` into
+   an over-constrained proxy for a direct `prompt_version_id` foreign key.    When `DecisionEvaluator` initially copied `LLMEvaluator`, it took that
+   hardened model to its literal conclusion (`decision_id` +
+   `decision_version_tag_id NOT NULL UNIQUE ON DELETE RESTRICT` +
+   `guard_owned_decision_tag_move`), and the UI commits built on top of it
+   (`9ea3949c05`, `640c5dc7bc`) treated the tag as an internal pin—rendering
+   `decision @ v{sequenceNumber}` in `DecisionCell` instead of `PromptCell`'s
+   `prompt @ {tag | latest}`—even though `DecisionEvaluator` does not store a
+   duplicate `output_configs` column or per-dataset overrides (it derives
+   `output_configs` from `DecisionVersion.questions` + `scoring_policy` and has
+   `adapt_scoring_policy` to reconcile question changes).
+
+**Options on the table:**
+
+- **Option 1: Direct `decision_version_id` (`NOT NULL`, `ON DELETE RESTRICT`),
+  no `decision_id`, no `decision_version_tag_id`** (current default):
+  - *Engineering:* matches what every GraphQL and REST create/update input
+    already takes (`decision_version_id`). Eliminates the redundant
+    `decision_id` column (`selected_version.decision_id` is the single source
+    of truth), the secondary join hop, the PostgreSQL outer-join `FOR UPDATE`
+    workaround, synthetic tag cleanup, and cross-module tag-move/delete guards
+    in `saved_decision_mutations`. Still blocks deleting a referenced `Decision`
+    (`decisions.id → decision_versions.decision_id ON DELETE CASCADE` +
+    `decision_evaluators.decision_version_id → decision_versions.id ON DELETE
+    RESTRICT`).
+  - *Product experience (gains):* keeps `decision.versionTags`,
+    `DecisionVersionSelector`, and the Playground's **Save decision** modal free
+    of machine-generated `{name}-evaluator-{4-hex}` checkboxes, and keeps
+    `/decisions/:id/config` free of undeletable tags or stale names after an
+    evaluator rename. Matches `DecisionCell` (`decision @ <versionId>`).
+  - *Product experience (what it gives up):* saving a new version in the
+    Playground does not offer a tag checkbox to repin the evaluator in the same
+    modal (retargeting happens from the Evaluator editor via
+    `DecisionVersionSelector` or inline editing), and `/decisions/:id/versions`
+    does not show a tag badge indicating which evaluator is pinned to a version
+    (if reverse visibility on `/decisions/:id` is desired, a read-only
+    `evaluators` field on `DecisionVersion` shows live evaluator names and links
+    without minting fake release tags). Because a `DecisionVersion` only defines
+    `questions` while `DecisionEvaluator` owns `scoring_policy` (thresholds,
+    choice scores, direction), repinning from the Evaluator editor also ensures
+    the user sees `DecisionScoringPolicyEditor` and `Test with an Example`
+    rather than silently applying default scoring from the Playground save modal.
+- **Option 2: Original lightweight tag (`decision_id NOT NULL` + nullable
+  `decision_version_tag_id ON DELETE SET NULL`, no 409 tag-move/delete guards):**
+  - *Product experience:* preserves the original `LLMEvaluator` workflow from
+    `llm-evaluators.mdx`—users can promote a Decision version to an evaluator by
+    checking `{name}-evaluator-{4-hex}` in the Playground's **Save decision**
+    modal, see the tag badge on `/decisions/:id/versions`, and delete the tag on
+    `/decisions/:id/config` to fall back to the latest version (which also
+    raises whether `LLMEvaluator`'s #16680 hardening should be relaxed to match).
+  - *Why `DecisionEvaluator` can support this cleanly without `LLMEvaluator`'s
+    failure modes:*
+    1. Every `DecisionVersion` is guaranteed by schema to have valid typed
+       `questions` (`predicate`, `choice`, `scale`)—unlike `PromptVersion`,
+       where `tools` can be `None` and crash `assert tools is not None`.
+    2. `DecisionEvaluator` stores no duplicate `output_configs` column and has
+       no per-dataset `output_configs` overrides; `output_configs` are derived
+       on read from `DecisionVersion.questions` + `scoring_policy`, and calling
+       `adapt_scoring_policy(version.questions, evaluator.scoring_policy)` at
+       read/capture time automatically preserves matching question/choice
+       settings and fills defaults for new questions.
+    3. Running and resumed experiments use `experiment_dataset_evaluators.frozen_definition`,
+       so moving or deleting a tag never mutates an in-flight or historical
+       experiment, and online evaluation resolves the tagged (or latest)
+       `decision_version_id` + adapted `scoring_policy` into its configuration
+       fingerprint.
+    4. If a new version adds an unmapped `input`, `DecisionEvaluator.evaluate()`
+       catches it and records a normal evaluation error on the span/annotation
+       (just as `LLMEvaluator` does for an unmapped template variable).
+  - *Remaining subtleties:* a newly added `choice` question produces labels with
+    `score = None` until choice scores are configured in the Evaluator editor;
+    switching between 1 and $K > 1$ questions changes future annotation names
+    between `{binding}` and `{binding}.{question}`; and every evaluator still
+    adds a `{name}-evaluator-{4-hex}` entry to `decision.versionTags`.
+- **Option 3: Hardened owned tag (`decision_id NOT NULL` +
+  `decision_version_tag_id NOT NULL UNIQUE ON DELETE RESTRICT` + tag-move/delete
+  `409` guards):**
+  - Combines the costs of both without the full benefits of either: injects
+    machine-generated `{name}-evaluator-{4-hex}` tags into user tag lists and
+    the Playground **Save decision** dialog, but forbids deleting them on
+    `/decisions/:id/config` (`409 Conflict`), fails Playground saves with `409`
+    if checked on a version whose inputs or questions break a binding, and adds
+    1:1 table indirection, 3NF redundancy (`decision_id`), cross-module mutation
+    guards, and outer-join locking workarounds—while `DecisionCell` and
+    `/v1/evaluators` hide the tag anyway.
+
+**Decide before** a release ships `decision_evaluators` and `/v1/evaluators` for
+decision judges.
+
+## 6. Goals
 
 - Save, version, and tag decisions.
 - Let apps fetch a version by tag and get ready-to-send SDK arguments, as
@@ -476,7 +627,7 @@ ships.
 - Add question types, input modalities, and providers without migrations.
 - Keep decision models out of every chat code path.
 
-## Non-Goals
+## 7. Non-Goals
 
 - Proxying app calls. Apps call the provider with their own keys.
 - Stored decision results. Runs are spans; evaluator results are annotations.
@@ -490,7 +641,7 @@ ships.
 - Built-in scoring of decision answers inside the task. Evaluators score runs,
   as they do for prompts.
 
-## Why a New Family, Not Prompts
+## 8. Why a New Family, Not Prompts
 
 Phoenix [prompts](./prompts.md) assume "something you format and send to a chat
 model". PR #16875 already guards prompts (GraphQL and REST), playground
@@ -508,15 +659,15 @@ because it has the same consumer: an app that wants "production" at run time.
 It doesn't borrow string templating or output configs, which exist for reasons
 that don't apply here.
 
-## Principles
+## 9. Principles
 
 1. **Store Phoenix's own vocabulary; translate at the edge.** The server adapters
    and the client formatters both translate to provider SDK arguments. Saved
    decision definitions never store provider request bodies; only a run's
-   span keeps the raw bodies (see [Span Contents](#span-contents)). The two
+   span keeps the raw bodies (see [Span Contents](#53-span-contents)). The two
    translations are tested against one shared set of fixtures. This is the
-   current default, under review: see [Answer Format](#answer-format) and
-   [Stored Question Format](#stored-question-format).
+   current default, under review: see [Answer Format](#51-answer-format) and
+   [Stored Question Format](#52-stored-question-format).
 2. **New types are additive, and old clients fail clearly.** Questions and
    inputs are JSON discriminated by `type`. Writes are validated strictly. Apps
    can pin an old `phoenix-client`, so a client that meets a question, input,
@@ -540,7 +691,7 @@ that don't apply here.
 8. **Questions are the only schema.** Questions define the outputs' schema;
    nothing else restates their names, choices, or levels.
 
-## Data Model
+## 10. Data Model
 
 ```text
 decisions
@@ -579,11 +730,11 @@ never point at another decision's version. `PromptVersionTag` doesn't do this
 today; it's cheap to add here. Labels group decisions in the library, and a
 clone records its source decision, so the UI can link back to it.
 
-### Inputs and State
+### 10.1 Inputs and State
 
 A version declares its inputs by name: `[{name, description?, json_schema?}]`.
 Apps pass them by name, and experiments fill them from each dataset example
-(`inputValuesPath`, see [Experiments](#experiments)). A call
+(`inputValuesPath`, see [Experiments](#13-experiments)). A call
 must pass exactly the declared inputs; a missing or undeclared one fails before
 anything reaches the provider. Any JSON value is allowed. `json_schema` only
 describes the value for the playground form and is not enforced on a call.
@@ -592,10 +743,10 @@ The state sent to the model is built from those inputs:
 
 | State | Meaning | Ships in |
 |---|---|---|
-| `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | [Build step 1](#build-order), Runs |
-| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters (rules below). | [Build step 1](#build-order), Runs |
-| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | [Build step 1](#build-order), Runs |
-| `messages` | A message list, for OpenAI's message-style `input` and for images. | [Build step 5](#build-order), with assets and `box` |
+| `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | [Build step 1](#18-build-order), Runs |
+| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters (rules below). | [Build step 1](#18-build-order), Runs |
+| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | [Build step 1](#18-build-order), Runs |
+| `messages` | A message list, for OpenAI's message-style `input` and for images. | [Build step 5](#18-build-order), with assets and `box` |
 
 A `text` template may only reference declared inputs, checked on write. An
 object, array, boolean, or null renders as JSON when named on its own, nested
@@ -606,7 +757,7 @@ be the input's own fields.
 There is no JSON template. Reshaping data belongs in the app or the dataset, so
 the rules for substituting into JSON never have to exist.
 
-### Questions
+### 10.2 Questions
 
 ```jsonc
 [
@@ -682,12 +833,12 @@ image input:
 - **Provider-specific options**, if one ever matters, go in an allow-listed
   `options` field on the question, not in free-form JSON.
 
-### Provider Wire Formats
+### 10.3 Provider Wire Formats
 
 Every translation in one place, from the installed SDKs (`openai`'s
 `decision_create_params` and `decision`, `typesafe_sdk`'s `SystemOneRequest`
 and `SystemOneResponse`). These are what the shared translation fixtures in the
-[Apps step](#build-order) must pin down.
+[Apps step](#18-build-order) must pin down.
 
 **Requests**, from Phoenix to each provider:
 
@@ -701,7 +852,7 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 | State: `object`, `text`, or `input` | `input`: text, or messages with images (HTTP or data URLs, at most 128) | `state`: text, object, or array, plus `assets` (multipart parts) | OpenAI: a structured state is serialized as text |
 | `box` (later) | None; refused | `box` | — |
 | — | `safety_identifier` (per call) | — | Not modeled |
-| — | — | Preview headers (danger zone) | Not stored ([Models and Preview Flags](#models-and-preview-flags)) |
+| — | — | Preview headers (danger zone) | Not stored ([Models and Preview Flags](#104-models-and-preview-flags)) |
 
 **Responses**, from each provider to Phoenix:
 
@@ -709,14 +860,14 @@ and `SystemOneResponse`). These are what the shared translation fixtures in the
 |---|---|---|---|
 | Keyed by question name | List, each with an optional `name` | Object keyed by name | Nothing |
 | `predicate`: `probability` | `predicate`: `probability` | `noul`: `noul` | Nothing |
-| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value fails the call, since Phoenix's answers hold strings ([open question](#open-questions)) |
+| `choice`: `choice`, `confidence`, `probabilities` (map) | `probabilities: [{value, probability}]`, values strings or booleans | The same as Phoenix | Nothing for string values; a boolean value fails the call, since Phoenix's answers hold strings ([open question](#16-open-questions)) |
 | `scale`: `expected_level`, `confidence`, `probabilities` (map by level) | `score`, `probabilities: [{label, value, probability}]` | `score`, `probabilities`, `legend` (level → criterion) | OpenAI's labels and System One's `legend`; both can be rebuilt from the questions asked (the task's or version's fixed questions), and a judge's annotation stores the asked levels beside the answer |
 | `refusal` | `refusal`, with no reason | None | Nothing |
 | `box` (later): edges as fractions, optional `confidence` | None | The same | — |
 | Usage: input and output tokens | Also cached, cache-write, and reasoning tokens | Input and output tokens | OpenAI's extra token counts, which are kept only on the span |
 | Resolved model | `model` | `model` | Nothing |
 
-### Models and Preview Flags
+### 10.4 Models and Preview Flags
 
 `model_name` is free text, and a version pins it. The catalog only suggests
 names, ideally from the provider's model-list endpoint. An app following a tag
@@ -724,7 +875,7 @@ gets whatever model that version names. A deprecated model shows up as the
 provider's error at run time, so the UI warns when a tagged version names a
 model the provider no longer lists.
 
-### Custom Providers
+### 10.5 Custom Providers
 
 A run reaches either a built-in provider or a custom provider, and a version's
 `custom_provider_id` names the second. What a custom provider can serve comes
@@ -748,14 +899,14 @@ The span's `decision.system` is the API family (`openai`, `typesafe`) and
 The catalog suggests model names per model type (`modelNames(modelType:)`); any
 name the endpoint accepts works.
 
-### Ollama
+### 10.6 Ollama
 
 Ollama serves its decision models through System One at `/v1/systemone`, so the
 built-in `OLLAMA` provider runs them with the TypeSafe adapter and serves both
 model types. It is configured the way Ollama chat is: no credentials (a
 placeholder key is sent, since the SDK requires one), and a base URL from the
 run or `OLLAMA_BASE_URL` with no default (an
-[open question](#open-questions)). That variable names chat's
+[open question](#16-open-questions)). That variable names chat's
 OpenAI-compatible root (`http://localhost:11434/v1`), so a trailing `/v1` is
 dropped. The span's `decision.system` is `typesafe` and `decision.provider` is
 `ollama`, a plain string until OpenInference has a value. Ollama's limits are
@@ -766,7 +917,7 @@ Preview flags such as `TypeSafe-Danger-Zone-Images` aren't stored at first. If
 they need to be, they go in an allow-listed per-provider `options` field, never
 as raw headers.
 
-## App Access
+## 11. App Access
 
 REST mirrors the prompt routes:
 
@@ -796,9 +947,9 @@ by version. The ID can't ride along in `format`'s result: both SDK calls reject
 unknown keyword arguments, and `**kwargs` unpacking keeps only the keys. So it
 needs its own channel, such as a context manager around the call, as
 OpenInference's `using_prompt_template` does for prompts. Which attribute holds
-it is an [open question](#open-questions).
+it is an [open question](#16-open-questions).
 
-## Execution in Phoenix
+## 12. Execution in Phoenix
 
 Unsaved playground runs and saved versions take the same `DecisionVersionInput`,
 so running and saving share one typed shape.
@@ -812,9 +963,9 @@ so running and saving share one typed shape.
 5. Normalize to the `DecisionAnswer` union.
 6. Record a `DECISION` span: input with assets left out, raw response, model,
    usage, and the decision version ID (once its attribute is chosen; see
-   [Open Questions](#open-questions)).
+   [Open Questions](#16-open-questions)).
 
-## Experiments
+## 13. Experiments
 
 A decision task runs a decision over a dataset as an experiment, the way a
 prompt task runs a prompt. The playground's dataset mode creates one experiment
@@ -857,17 +1008,17 @@ Requests are checked twice:
 Rate limits and transient failures go through the runner's backoff, with the
 SDK's own retries off.
 
-### Run Output
+### 13.1 Run Output
 
 A run's output is the answers by question name, with no decision rule applied,
 stored as `{"task_output": <answers>}` with the answers shown in [A Decision, End
-to End](#a-decision-end-to-end).
+to End](#2-a-decision-end-to-end).
 
 Keyed by name so evaluators reach values by path (`output.urgent.probability`),
 as a dataset's reference answers are usually keyed. The fields inside each
 answer are Phoenix's, though, and a dataset's need not match: the typed-decisions
 references carry `label` where a choice answer has `choice` (see
-[Decisions Before Release](#decisions-before-release)). The model that answered and
+[Decisions Before Release](#5-decisions-before-release)). The model that answered and
 the usage stay on the `DECISION` span, which goes to the experiment's project,
 as a prompt run's output is the response alone.
 
@@ -876,14 +1027,14 @@ answers and `reference` is the example's output, where a dataset keeps its
 reference answers. Thresholds and other decision rules belong to the evaluator,
 so changing one never needs a new model call.
 
-### Planned Decision Metrics
+### 13.2 Planned Decision Metrics
 
 - **Built-in decision metrics.** Accuracy, Brier score, level error, and
   distance from a reference distribution, as built-in evaluators, designed with
   an experiment-level report (calibration, confidence intervals, coverage of
   refusals and missing references).
 
-### Tokens and Cost
+### 13.3 Tokens and Cost
 
 Decision spans record `decision.token_count.*`, but everything downstream reads
 only LLM attributes:
@@ -908,7 +1059,7 @@ keys too. Cost is in scope only if a provider publishes per-token prices for
 decision models; until then, decision spans have no cost, and the UI shows none
 rather than zero.
 
-## Decision Evaluators
+## 14. Decision Evaluators
 
 A decision evaluator uses a decision model as a judge. It maps the target's
 fields into declared inputs, renders the state, asks fixed questions in one call, and projects the normalized answers into
@@ -926,10 +1077,10 @@ A judge pinned to that decision is bound to the triage dataset under the name
 `accuracy`. The binding maps `input` to the example's ticket, `output` to a
 triage run's answers, and `reference` to the example's reference answers. With
 one question, the annotation takes the binding's name (see [Answer
-Mapping](#answer-mapping)), so each run gets one `accuracy` annotation, scored
+Mapping](#145-answer-mapping)), so each run gets one `accuracy` annotation, scored
 with the probability of true and labeled by a threshold.
 
-### Milestones
+### 14.1 Milestones
 
 1. **Dataset evaluator.** Create a saved judge from a selected decision version,
    bind it to a dataset, configure input mapping and scoring, preview it, and run
@@ -945,24 +1096,26 @@ with the probability of true and labeled by a threshold.
 This is delivery order, not reduced scope. Dataset evaluation does not wait for
 app SDK formatters, image inputs, `box`, or online evaluation.
 
-### Definition
+### 14.2 Definition
 
 | | LLM evaluator | Decision evaluator |
 |---|---|---|
 | Table | `Evaluator` subtype, `kind = 'LLM'` | `Evaluator` subtype, `kind = 'DECISION'` |
 | Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, with deletion restricted |
-| Version | A prompt version tag the evaluator owns | A decision version tag created with the evaluator |
+| Version | A prompt version tag the evaluator owns | A pinned `decision_version_id` (`ON DELETE RESTRICT`) |
 | Outputs | Stored categorical `output_configs`, turned into tools | Derived from questions plus a stored scoring policy |
 | Explanation | The judge may return one | No generated rationale; Phoenix explains terminal refusals |
 | Annotator kind | `LLM` | `LLM` |
 
-Creating a decision evaluator requires a selected decision version and creates
-its owned tag transactionally. New decision evaluators require a valid pin;
-there is no implicit latest-version fallback. Model, provider, inputs, state,
-and questions come from that version. A version's questions are fixed: bindings
-supply input values, not per-example questions or question templates.
+Creating a decision evaluator requires a selected decision version and pins
+`decision_version_id` directly for now, erring on the side of simplicity while
+the tradeoff between direct version pinning and the lightweight tag workflow is
+deliberated under [Evaluator Version Pinning](#58-evaluator-version-pinning).
+Model, provider, inputs, state, and questions come from that version. A
+version's questions are fixed: bindings supply input values, not per-example
+questions or question templates.
 
-### Bindings
+### 14.3 Bindings
 
 Inputs are mapped by the **binding**, never the saved evaluator. A dataset
 binding maps experiment context into declared inputs through existing JSONPath
@@ -979,15 +1132,14 @@ judge differently in two places takes two judges. A per-binding override could b
 added later as a nullable binding column without breaking anything. A decision
 binding stores no `output_configs`: they are derived from the judge whenever they
 are read; how requests may still send them is under [Output Configs and
-Scoring Policies](#output-configs-and-scoring-policies).
+Scoring Policies](#57-output-configs-and-scoring-policies).
 
-The policy's GraphQL shape is under [GraphQL](#graphql).
+The policy's GraphQL shape is under [GraphQL](#15-graphql).
 
-### Compatible Updates
+### 14.4 Compatible Updates
 
-Guard owned-tag deletion and every move, including moves through version
-creation. Validate the proposed version and policy against binding inputs,
-question identities/types, choice values, and scale meanings. A
+Validate every evaluator version update and policy change against binding
+inputs, question identities/types, choice values, and scale meanings. A
 breaking bound change must fail with the affected binding names and require an
 explicit migration or separate evaluator. Reordering inputs, questions, or choices
 is compatible; reordering a scale's levels is not, since a level's index is its
@@ -995,7 +1147,7 @@ score. Input JSON schemas are descriptive, so changing them is compatible. A
 version of another decision can never be pinned. Compatible changes affect future
 execution snapshots.
 
-### Answer Mapping
+### 14.5 Answer Mapping
 
 Derive one `OutputConfigType` per question from the selected version, then apply
 the effective scoring policy. Annotation names use `result_annotation_names`:
@@ -1025,7 +1177,7 @@ quality score and never replaces a class score. Scoring requires no extra
 model call. Editing a threshold does not automatically rewrite historical
 annotations; historical rescoring is a separate workflow.
 
-### Refusals, Errors, and Metadata
+### 14.6 Refusals, Errors, and Metadata
 
 A normalized refusal is a terminal outcome for that question. Record no score or
 label, a structured refused status, and the system-generated explanation
@@ -1049,14 +1201,17 @@ records such a result as a failure without retrying. So the runner re-raises a
 decision judge's returned rate-limit or transient failure, as classified by the
 judge's own client. Retries then differ by where a judge runs:
 
-- **A decision judge in an experiment:** the runner retries it, and the judge
-  runs without SDK retries, so the two don't stack. As for any retried work, a
-  retried attempt's trace is not kept.
-- **A decision judge in a preview:** nothing retries a preview, so the judge
-  keeps its SDK retries.
-- **An LLM judge:** it returns failures the same way, but the runner doesn't
-  re-raise them, so it is recorded on the first failure. Giving it the same
-  retries is a separate change.
+- **A decision judge in an experiment or online evaluation:** `DecisionClient`
+  always disables provider SDK retries (`max_retries=0`, matching
+  `PlaygroundClient`), and the runner or online-eval executor owns retry backoff
+  so retries never stack. As for any retried work, a retried attempt's trace is
+  not kept.
+- **A decision judge in a preview:** `DecisionClient` still runs with
+  `max_retries=0` and nothing retries a preview, so a rate limit or transient
+  provider failure surfaces immediately to the caller.
+- **An LLM judge:** it returns failures the same way, but the experiment runner
+  doesn't re-raise them, so it is recorded on the first failure. Giving it the
+  same retries is a separate change.
 
 Each annotation records, under `metadata.decision`, its outcome status, the
 question's identity and type, the normalized answer (including native
@@ -1064,9 +1219,9 @@ uncertainty), the applied scoring policy, and provenance: the selected
 decision and version when available, the requested and resolved model, and a
 non-secret connection identity. Request usage belongs on the DECISION span rather
 than being repeated per annotation. The current shape is provisional; see
-[Evaluator Annotation Metadata](#evaluator-annotation-metadata).
+[Evaluator Annotation Metadata](#56-evaluator-annotation-metadata).
 
-### Experiment Snapshots and Resume
+### 14.7 Experiment Snapshots and Resume
 
 Freeze a dataset evaluator's resolved decision definition/version, effective
 scoring policy, derived output configs, input mapping, binding name and source
@@ -1076,8 +1231,8 @@ the connection system at execution time. Legacy experiments without a snapshot
 retain their existing semantics rather than claiming reconstructable history.
 
 On start or resume, rebuild the judge from the experiment snapshot, independently
-of live binding membership. Editing or deleting the dataset binding or moving the
-owned tag must not silently change or remove already-snapshotted work.
+of live binding membership. Editing or deleting the dataset binding or repinning
+the evaluator must not silently change or remove already-snapshotted work.
 
 The existing reconciliation scan identifies successful task runs whose expected
 annotation names are missing or have a non-null error. It then queues each
@@ -1103,9 +1258,9 @@ Preview and mapping controls must use the actual execution role, not assume the
 same mapping works for both.
 
 How the runtime reaches each part of Phoenix, and what completes each milestone,
-is in the [appendix](#appendix-decision-evaluator-implementation).
+is in the [appendix](#19-appendix-decision-evaluator-implementation).
 
-## GraphQL
+## 15. GraphQL
 
 - `DecisionQuestion`: a union of `Predicate`, `Choice`, `Scale`, later `Box`. The UI
   ships with the server, so it always knows every member and needs no
@@ -1134,7 +1289,7 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
     `credentials` and `baseUrl` serve a version on a built-in provider (a
     version stores no endpoint, so a local Ollama is named by the call); a
     custom provider brings its own key and endpoint (whether a version should
-    store one is an [open question](#open-questions)). It returns the same
+    store one is an [open question](#16-open-questions)). It returns the same
     payload as `runDecision`.
   - `createDecision`: a name, a description, metadata, the first
     version as a `DecisionVersionInput`, and tags. A name already in use is a
@@ -1151,7 +1306,7 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   - Judges: `createDecisionEvaluator`, `patchDecisionEvaluator`, and
     `deleteDecisionEvaluator`; dataset bindings through
     `createDatasetDecisionEvaluator` and `updateDatasetDecisionEvaluator`. See
-    [Decision Evaluators](#decision-evaluators).
+    [Decision Evaluators](#14-decision-evaluators).
   - A version is checked against the rules a run uses. A custom provider must
     serve decisions through the API the version names (`OPENAI` or `TYPESAFE`).
 - Queries: `decisions`, newest first and filtered by name as `prompts`
@@ -1182,9 +1337,9 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   preserves it. This GraphQL representation maps to the existing stored policy
   format without changing it.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
-  `prompt` and `evaluator`; see [Experiments](#experiments).
+  `prompt` and `evaluator`; see [Experiments](#13-experiments).
 
-## Open Questions
+## 16. Open Questions
 
 - **Span attribute for the version ID.** Whether OpenInference gets a
   `decision.version_id`-style attribute, or apps put it in span metadata the way
@@ -1208,13 +1363,13 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   - The custom provider. The span records its name, not its ID, so the user
     picks it from the model menu.
 
-  The first and third are part of [Span Contents](#span-contents), and are
+  The first and third are part of [Span Contents](#53-span-contents), and are
   decided by the same deadline, since older traces keep whatever spans hold.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
 - **Retries for LLM judges.** An LLM judge is recorded on its first returned
   failure, while a decision judge is retried (see [Refusals, Errors, and
-  Metadata](#refusals-errors-and-metadata)). Extending the retries to LLM judges
+  Metadata](#146-refusals-errors-and-metadata)). Extending the retries to LLM judges
   changes existing behavior, so it is a separate change.
 - **A deleted custom provider, for prompts.** Decisions are settled: deleting
   a custom provider that a decision version or a decision experiment task uses
@@ -1263,7 +1418,7 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   `{"reference": "A"}`. Inputs `reference, output`, with values `A` and `B`,
   produces `{"reference": "A", "output": "B"}` under all three template
   settings. Inputs names are lookup keys, so they need no placeholder braces.
-  See [State Construction Walkthroughs](#appendix-state-construction-walkthroughs)
+  See [State Construction Walkthroughs](#20-appendix-state-construction-walkthroughs)
   for nested input values, the wire payload, and a comparison with Text and JSON.
 
   F-string substitution is skipped for JSON because JSON's object braces
@@ -1294,14 +1449,14 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
     and the state would then no longer parse as JSON.
   - JSON mode fills template variables into the JSON text before parsing it,
     which is the client-side JSON template that
-    [Inputs and State](#inputs-and-state) rules out on the server. It is never
+    [Inputs and State](#101-inputs-and-state) rules out on the server. It is never
     saved, but it is the substitution behavior the rule was meant to avoid.
   - Inputs-panel values are always text, so a playground run sends strings
     where a dataset run sends real JSON values. Each input's `json_schema`
     could type the panel's fields. Saving also drops each input's
     `description` and `json_schema`, as Text mode does.
 - **What an input's `json_schema` is for.** Nothing acts on it: a call doesn't
-  enforce it ([Inputs and State](#inputs-and-state)), the playground neither
+  enforce it ([Inputs and State](#101-inputs-and-state)), the playground neither
   shows nor saves it, and its only reader is a decision evaluator's
   `inputSchema`, which copies it into each input's property. Options: check
   values against it on a run (a loose schema written only to describe the
@@ -1325,14 +1480,14 @@ is in the [appendix](#appendix-decision-evaluator-implementation).
   no place yet: a run's input, the connection, or `format()`'s arguments for
   apps.
 
-## Implementation Status
+## 17. Implementation Status
 
 Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
 Providers and models are done: built-in TypeSafe, OpenAI, and Ollama; custom
 `openai` and `typesafe` providers with capability checks; credentials; the
 catalog; and decision models kept out of every chat path. The server also
 blocks deleting a custom provider referenced by a saved decision version or a
-decision experiment task. The tables follow the [Build Order](#build-order),
+decision experiment task. The tables follow the [Build Order](#18-build-order),
 one per track, with the chat equivalent of each step in parentheses.
 
 **Decision-specific behavior** explains how each workflow differs from its chat
@@ -1342,19 +1497,19 @@ both LLM-equivalent functionality and decision-specific requirements.
 **Not implemented** means no implementation exists for that step;
 **No remaining work identified** means no unfinished requirements are currently
 identified. Optional enhancements beyond completing these steps are listed under
-[Additional Planned Work](#additional-planned-work).
+[Additional Planned Work](#173-additional-planned-work).
 
-### Tested
+### 17.1 Tested
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
 | **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab, custom providers, Ollama, free-text model names, span replay, and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. |
 | **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load, the decisions library, version pages and diffs, labels, cloning. | No remaining work identified. |
-| **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; recording the saved decision version on app-generated spans; resolve [whether Phoenix translates](#translating-for-apps). |
-| **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts in their raw attributes. Standard token fields and aggregates still read LLM counters. | Token fields for individual spans and their descendants; totals on traces, experiment runs, sessions, and projects; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#reference-answers-in-datasets). |
+| **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; recording the saved decision version on app-generated spans; resolve [whether Phoenix translates](#55-translating-for-apps). |
+| **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts in their raw attributes. Standard token fields and aggregates still read LLM counters. | Token fields for individual spans and their descendants; totals on traces, experiment runs, sessions, and projects; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#54-reference-answers-in-datasets). |
 | **Images, message inputs, and spatial answers** (chat: messages with image inputs) | Image evidence can support typed spatial questions with bounding-box answers. | Not implemented. | Message and image inputs, including asset handling and message-based state; bounding-box questions and answer rendering. |
 
-### Judging
+### 17.2 Judging
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
@@ -1362,7 +1517,7 @@ identified. Optional enhancements beyond completing these steps are listed under
 | **Online evaluation**, milestone 2 (chat: project bindings; sweeper, producer, executor) | Applies decision questions and scoring policies to live spans, traces, and sessions. | Server: REST project bindings with input validation and compatibility checks; configuration identity pins the decision version, scoring policy, and provider revision. Execution uses server credentials, enforces the request-size limit, handles refusals, retries transient provider failures, and records timeouts. GraphQL exposes typed decision results on span, trace, and session annotations. | GraphQL create/update mutations; project evaluator listing, overview, creation, and editing for decisions. Fetch decision metadata in span, trace, and session annotation queries and reuse the existing renderer. Enforce the online request-size limit in previews that simulate online evaluation; decision previews currently omit this check. |
 | **Calibration** in the evaluator playground, milestone 3 (chat: evaluator tasks against expected outputs) | Compares projected decision judgments with expected outputs to assess question and scoring choices. | Server: saved evaluator references resolve to captured decision definitions; experiments store those definitions and reconstruct them on start or resume; GraphQL exposes the captured definitions. | An API input for submitting an unsaved decision evaluator to previews or experiments. Playground authoring of unsaved evaluators, loading saved decision evaluators, and reopening decision evaluator experiments. |
 
-### Additional Planned Work
+### 17.3 Additional Planned Work
 
 These optional enhancements are beyond the requirements tracked in Missing:
 
@@ -1372,7 +1527,7 @@ These optional enhancements are beyond the requirements tracked in Missing:
   evaluator configuration captured when the experiment started. Attached LLM
   evaluators lack the same snapshot mechanism and inspection UI.
 
-### Cross-Cutting
+### 17.4 Cross-Cutting
 
 - **Traces.** Decision spans render as decisions and replay into the playground.
   Extracting normalized decision state and answers for dataset examples and
@@ -1380,20 +1535,20 @@ These optional enhancements are beyond the requirements tracked in Missing:
 - **Version provenance.** Prompt and decision experiment tasks already record
   their saved version. Neither playground LLM spans nor decision spans currently
   record a version ID. Recording the decision version on production app spans is
-  an [App Access](#app-access) requirement, with the attribute still an
-  [open question](#open-questions).
+  an [App Access](#11-app-access) requirement, with the attribute still an
+  [open question](#16-open-questions).
 - **The agent.** Not yet: its playground and experiment tools don't know
   decision panels or runs.
-- **Before shipping:** the [decisions before release](#decisions-before-release), to be
+- **Before shipping:** the [decisions before release](#5-decisions-before-release), to be
   decided as a team, and the PostgreSQL migration and tests, which have run only
   on SQLite.
-- **Renaming questions** ([an open question](#open-questions)) decides how the
+- **Renaming questions** ([an open question](#16-open-questions)) decides how the
   UI flags a rename; the tables don't depend on it, since a rename is a new
   version.
 
-## Build Order
+## 18. Build Order
 
-Two tracks, one per [role](#where-decisions-run). Each step lists what it needs
+Two tracks, one per [role](#3-where-decisions-run). Each step lists what it needs
 first.
 
 **Tested track**
@@ -1413,7 +1568,7 @@ first.
    and bounding-box questions together. *Needs:* TypeSafe moving them out of the
    danger zone.
 
-**Judging track**, in [three delivery milestones](#milestones). Shared runtime,
+**Judging track**, in [three delivery milestones](#141-milestones). Shared runtime,
 derived outputs, scoring policy, and tracing support all three.
 
 1. **Dataset evaluators.** Saved decision evaluators and dataset bindings,
@@ -1424,20 +1579,20 @@ derived outputs, scoring policy, and tracing support all three.
 3. **Calibration.** Inline evaluator authoring and evaluator-as-task
    calibration. *Needs:* Dataset evaluators.
 
-## Appendix: Decision Evaluator Implementation
+## 19. Appendix: Decision Evaluator Implementation
 
-Where the [decision evaluator](#decision-evaluators) runtime meets the rest of
+Where the [decision evaluator](#14-decision-evaluators) runtime meets the rest of
 Phoenix, and what completes each milestone. The behavior it implements is
 specified above; this is the checklist the code is held to.
 
-### Runtime and Integration Points
+### 19.1 Runtime and Integration Points
 
 Implement one `DecisionEvaluator(BaseEvaluator)` runtime with shared output
 schema derivation and answer scoring. Use it from saved-row loaders, previews,
 experiment reconstruction, and online hydration. Provider translation remains in
 `decision_clients.py`; do not reuse the chat evaluator's tool validation.
 
-- **Persistence.** Add the joined evaluator subtype, owned-tag references,
+- **Persistence.** Add the joined evaluator subtype, pinned version reference,
   scoring policy, and experiment snapshots. Keep
   deletion and concurrent edits consistent with existing evaluator services and
   lock ordering. Extend
@@ -1456,8 +1611,9 @@ experiment reconstruction, and online hydration. Provider translation remains in
   Audit rate-limit, retry, timeout and error paths: current LLM-only checks would
   otherwise leave decision judges unthrottled or mark errors as `CODE`.
 - **Retry ownership.** Use the decision client's rate-limit key and failure
-  classifiers. Disable SDK retries when the runner owns retries, propagate
-  cancellation, and make outbound calls without holding a database session.
+  classifiers. Disable provider SDK retries on `DecisionClient` (`max_retries=0`),
+  propagate cancellation, and make outbound calls without holding a database
+  session.
 - **Tracing.** Keep an EVALUATOR root with a child DECISION span. The client's
   current forced detached root must become composable; retain standalone-run
   behavior and centralized answer validation/accounting. Accept a common OTel
@@ -1475,13 +1631,13 @@ For online evaluation, extend subtype loads in `sweeper`, `producer`, `executor`
 and queries, project binding services, version resolution and hydration. Include
 resolved version, effective policy/configs/mapping, and custom-provider revision
 in the configuration fingerprint. Execute that resolved snapshot rather than
-rereading a moving tag. Extend provider-transient classification and consumer
+rereading the live evaluator. Extend provider-transient classification and consumer
 timeout categories, which currently special-case `LLM`. Enforce a rendered
 state-and-questions byte cap, including previews that simulate online limits.
 Reuse queue/admission/lease machinery, trace-project routing and evaluator-traffic
 exclusion; a new queue or consumer is unnecessary.
 
-### Completion and Verification
+### 19.2 Completion and Verification
 
 Milestone 1 is complete when users can author a saved decision evaluator, attach
 it to a dataset through UI/API mapping and scoring controls, preview it, run it
@@ -1492,9 +1648,9 @@ bindings.
 
 Verify output derivation, threshold/tie behavior, structured mapping, one-call
 multi-question execution, refused siblings, malformed responses, provider retries,
-cancellation, tracing, CRUD/discovery, owned-tag guards, compatible updates, and
+cancellation, tracing, CRUD/discovery, compatible updates, and
 SQLite/PostgreSQL migrations. Resume tests cover mixed completed/pending judges,
-missing/errored outputs, terminal refusals, incomplete multi-output sets, tag/policy/
+missing/errored outputs, terminal refusals, incomplete multi-output sets, version/policy/
 mapping edits, live-binding deletion, and crashes around persistence, including
 between the separate trace and annotation transactions. Exercise
 existing LLM/CODE/BUILTIN dataset evaluator flows for regressions.
@@ -1515,15 +1671,15 @@ context, including after resume.
 
 The complete feature includes all three milestones.
 
-## Appendix: State Construction Walkthroughs
+## 20. Appendix: State Construction Walkthroughs
 
 These examples follow the current behavior in the
-[playground matrix](#open-questions). They distinguish the editor's state mode,
+[playground matrix](#16-open-questions). They distinguish the editor's state mode,
 Phoenix's GraphQL run input, and the final state sent through a provider adapter.
 GraphQL snippets are excerpts: model configuration and question definitions are
 omitted so the state construction is visible.
 
-### Inputs: Preserve a Nested Ticket and Policy
+### 20.1 Inputs: Preserve a Nested Ticket and Policy
 
 Suppose a decision asks whether a support ticket requires urgent attention under
 the customer's support policy. The question's instructions are fixed:
@@ -1601,7 +1757,7 @@ JSON into a panel field supplies a string containing JSON, rather than the
 object shown here. Use structured dataset or API values for this example;
 typing JSON into the panel is not a substitute for that distinction.
 
-### Text: Read Nested Fields into a String
+### 20.2 Text: Read Nested Fields into a String
 
 Use the same input values, but select **Text** and **Mustache**, with this state:
 
@@ -1645,7 +1801,7 @@ decision or building a dataset task, a Text state consisting only of
 unchanged. Its final state is the ticket object itself, without an outer
 `ticket` field. Inputs `ticket` instead produces `{"ticket": <ticket value>}`.
 
-### JSON: Supply a Concrete Structured State
+### 20.3 JSON: Supply a Concrete Structured State
 
 For a one-off playground run, select **JSON** and **None**, then paste the first
 JSON object from the Inputs example into the state editor. The playground parses
@@ -1664,7 +1820,7 @@ valid JSON, and F-string substitution is skipped in JSON mode. These restriction
 are why a JSON template is not equivalent to directly passing nested values as
 Inputs.
 
-## References
+## 21. References
 
 - TypeSafe: [Jev 1.14 release notes](https://typesafe.ai/blog/jev-1-14),
   [images](https://docs.typesafe.ai/go/images),

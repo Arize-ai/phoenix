@@ -3670,8 +3670,6 @@ export interface components {
             decision_id: string;
             /** Decision Version Id */
             decision_version_id: string;
-            /** Decision Version Tag Id */
-            decision_version_tag_id: string;
             scoring_policy: components["schemas"]["DecisionScoringPolicy"];
             /** Output Configs */
             output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];

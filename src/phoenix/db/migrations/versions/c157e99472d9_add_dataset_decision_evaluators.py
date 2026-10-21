@@ -61,18 +61,10 @@ def upgrade() -> None:
             ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
         ),
         sa.Column(
-            "decision_id",
+            "decision_version_id",
             _Integer,
-            sa.ForeignKey("decisions.id", ondelete="RESTRICT"),
+            sa.ForeignKey("decision_versions.id", ondelete="RESTRICT"),
             nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "decision_version_tag_id",
-            _Integer,
-            sa.ForeignKey("decision_version_tags.id", ondelete="RESTRICT"),
-            nullable=False,
-            unique=True,
             index=True,
         ),
         sa.Column("scoring_policy", JSON_, nullable=False),

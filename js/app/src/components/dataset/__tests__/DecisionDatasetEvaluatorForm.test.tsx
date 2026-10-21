@@ -148,7 +148,6 @@ vi.mock(
             decisionId: "decision-1",
             decisionName: "saved-decision",
             versionId: "version-2",
-            sequenceNumber: 2,
             tagName: null,
             inputs: [],
             questions: [],
@@ -187,7 +186,6 @@ const saved: DecisionEvaluatorData = {
   },
   decisionVersion: {
     id: "version-1",
-    sequenceNumber: 1,
     decision: { id: "decision-1", name: "saved-decision" },
     questions: [{ __typename: "DecisionPredicateQuestion", name: "relevant" }],
   },

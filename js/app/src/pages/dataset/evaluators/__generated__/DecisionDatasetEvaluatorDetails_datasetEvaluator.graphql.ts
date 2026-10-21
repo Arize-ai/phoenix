@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6305e70136d02b76033f177696dbe63e>>
+ * @generated SignedSource<<efb6677a751b368bc28a1b2ef02533ab>>
  * @lightSyntaxTransform
  */
 
@@ -49,7 +49,6 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       }>;
-      readonly sequenceNumber: number;
     };
     readonly scoringPolicy: {
       readonly questions: ReadonlyArray<{
@@ -279,13 +278,6 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "sequenceNumber",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "modelName",
                   "storageKey": null
                 },
@@ -406,6 +398,6 @@ return {
 };
 })();
 
-(node as any).hash = "b733bb19e540a2c4fd1603d3dc8031cd";
+(node as any).hash = "a9b327765aaac913ec925721d1b38274";
 
 export default node;

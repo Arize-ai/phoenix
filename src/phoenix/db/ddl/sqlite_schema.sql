@@ -1319,6 +1319,31 @@ CREATE INDEX ix_decision_versions_decision_id ON decision_versions (decision_id)
 CREATE INDEX ix_decision_versions_user_id ON decision_versions (user_id);
 
 
+-- Table: decision_evaluators
+-- --------------------------
+CREATE TABLE decision_evaluators (
+    id INTEGER NOT NULL,
+    kind VARCHAR DEFAULT 'DECISION' NOT NULL
+        CONSTRAINT "ck_decision_evaluators_`valid_evaluator_kind`"
+        CHECK (kind = 'DECISION'),
+    decision_version_id INTEGER NOT NULL,
+    scoring_policy JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
+    CONSTRAINT fk_decision_evaluators_decision_version_id_decision_versions
+        FOREIGN KEY (decision_version_id)
+        REFERENCES decision_versions (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_decision_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
+        REFERENCES evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decision_evaluators_decision_version_id ON decision_evaluators
+    (decision_version_id);
+
+
 -- Table: decision_version_tags
 -- ----------------------------
 CREATE TABLE decision_version_tags (
@@ -1349,37 +1374,6 @@ CREATE INDEX ix_decision_version_tags_decision_id ON decision_version_tags
 CREATE INDEX ix_decision_version_tags_decision_version_id ON decision_version_tags
     (decision_version_id);
 CREATE INDEX ix_decision_version_tags_user_id ON decision_version_tags (user_id);
-
-
--- Table: decision_evaluators
--- --------------------------
-CREATE TABLE decision_evaluators (
-    id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'DECISION' NOT NULL
-        CONSTRAINT "ck_decision_evaluators_`valid_evaluator_kind`"
-        CHECK (kind = 'DECISION'),
-    decision_id INTEGER NOT NULL,
-    decision_version_tag_id INTEGER NOT NULL,
-    scoring_policy JSONB NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
-    CONSTRAINT fk_decision_evaluators_decision_id_decisions
-        FOREIGN KEY (decision_id)
-        REFERENCES decisions (id)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_decision_evaluators_decision_version_tag_id_decision_version_tags
-        FOREIGN KEY (decision_version_tag_id)
-        REFERENCES decision_version_tags (id)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_decision_evaluators_kind_evaluators
-        FOREIGN KEY (kind, id)
-        REFERENCES evaluators (kind, id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_decision_evaluators_decision_id ON decision_evaluators (decision_id);
-CREATE UNIQUE INDEX ix_decision_evaluators_decision_version_tag_id ON decision_evaluators
-    (decision_version_tag_id);
 
 
 -- Table: experiment_decision_tasks

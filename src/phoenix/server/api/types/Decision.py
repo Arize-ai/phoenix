@@ -102,6 +102,7 @@ class DecisionVersionTag(Node):
 class DecisionVersion(Node):
     id: NodeID[int]
     db_record: Private[models.DecisionVersion]
+    cached_sequence_number: Private[Optional[int]] = None
 
     @strawberry.field
     def decision_id(self) -> GlobalID:
@@ -176,14 +177,16 @@ class DecisionVersion(Node):
 
     @strawberry.field
     async def sequence_number(self, info: Info[Context, None]) -> int:
-        async with info.context.db.read() as session:
-            count = await session.scalar(
-                select(func.count(models.DecisionVersion.id)).where(
-                    models.DecisionVersion.decision_id == self.db_record.decision_id,
-                    models.DecisionVersion.id <= self.id,
+        if self.cached_sequence_number is None:
+            async with info.context.db.read() as session:
+                count = await session.scalar(
+                    select(func.count(models.DecisionVersion.id)).where(
+                        models.DecisionVersion.decision_id == self.db_record.decision_id,
+                        models.DecisionVersion.id <= self.id,
+                    )
                 )
-            )
-        return int(count or 0)
+            self.cached_sequence_number = int(count or 0)
+        return self.cached_sequence_number
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["DecisionVersion"]:
@@ -350,15 +353,22 @@ class Decision(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        row_number = func.row_number().over(order_by=models.DecisionVersion.id).label("row_number")
+        stmt = (
+            select(models.DecisionVersion, row_number)
+            .where(models.DecisionVersion.decision_id == self.id)
+            .order_by(models.DecisionVersion.id.desc())
+        )
         async with info.context.db.read() as session:
-            versions = (
-                await session.scalars(
-                    select(models.DecisionVersion)
-                    .where(models.DecisionVersion.decision_id == self.id)
-                    .order_by(models.DecisionVersion.id.desc())
+            data = [
+                DecisionVersion(
+                    id=version.id,
+                    db_record=version,
+                    cached_sequence_number=sequence_number,
                 )
-            ).all()
+                async for version, sequence_number in await session.stream(stmt)
+            ]
         return connection_from_list(
-            data=[DecisionVersion(id=version.id, db_record=version) for version in versions],
+            data=data,
             args=args,
         )

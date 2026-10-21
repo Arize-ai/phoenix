@@ -53,10 +53,7 @@ async def get_decision_evaluator(
     session: AsyncSession, row_id: int, *, lock: bool = False
 ) -> models.DecisionEvaluator:
     """Load a saved judge and its pinned version, optionally locking its definition."""
-    stmt = select(models.DecisionEvaluator).where(models.DecisionEvaluator.id == row_id)
-    if lock:
-        stmt = stmt.with_for_update(of=models.Evaluator)
-    evaluator = await session.scalar(stmt)
+    evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=lock)
     if evaluator is None:
         raise NotFound(f"Decision evaluator not found: {row_id}")
     return evaluator
@@ -84,7 +81,7 @@ class CreateDecisionEvaluatorInput:
 async def create_decision_evaluator(
     context: EvaluatorServiceContext, input: CreateDecisionEvaluatorInput
 ) -> models.DecisionEvaluator:
-    """Create a saved judge pinned to an explicit decision version by an owned tag."""
+    """Create a saved judge pinned to an explicit decision version."""
     try:
         async with context.db() as session:
             version = await _version(session, input.decision_version_id)
@@ -92,22 +89,13 @@ async def create_decision_evaluator(
                 version.questions,
                 DecisionScoringPolicy.model_validate(input.scoring_policy or {}),
             )
-            tag = models.DecisionVersionTag(
-                name=Identifier(f"{input.name.root}-evaluator-{token_hex(4)}"),
-                decision_id=version.decision_id,
-                decision_version_id=version.id,
-                user_id=context.user_id,
-            )
-            session.add(tag)
-            await session.flush()
             evaluator = models.DecisionEvaluator(
                 name=input.name,
                 description=input.description,
                 metadata_={},
                 user_id=context.user_id,
                 kind="DECISION",
-                decision_id=version.decision_id,
-                decision_version_tag_id=tag.id,
+                decision_version_id=version.id,
                 scoring_policy=policy.model_dump(mode="json"),
             )
             session.add(evaluator)
@@ -219,7 +207,7 @@ async def patch_decision_evaluator(
                 if patch.decision_version_id is not UNSET and patch.decision_version_id is not None
                 else evaluator.selected_version
             )
-            if version.decision_id != evaluator.decision_id:
+            if version.decision_id != evaluator.selected_version.decision_id:
                 raise BadRequest(
                     "A decision evaluator can only be pinned to versions of its own decision"
                 )
@@ -237,9 +225,7 @@ async def patch_decision_evaluator(
                 version.questions, DecisionScoringPolicy.model_validate(policy)
             ).model_dump(mode="json")
             await validate_bound_decision_update(session, evaluator, version, policy)
-            tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
-            assert tag is not None
-            tag.decision_version_id = version.id
+            evaluator.decision_version_id = version.id
             evaluator.scoring_policy = policy
             if patch.name is not UNSET and patch.name is not None:
                 evaluator.name = patch.name
@@ -259,44 +245,17 @@ async def patch_decision_evaluator(
 async def delete_decision_evaluator(
     context: EvaluatorServiceContext, evaluator_id: GlobalID
 ) -> None:
-    """Delete an unbound judge and release its owned version tag."""
+    """Delete an unbound judge."""
     async with context.db() as session:
         evaluator = await session.get(
-            models.DecisionEvaluator, _id(evaluator_id, "DecisionEvaluator")
+            models.DecisionEvaluator,
+            _id(evaluator_id, "DecisionEvaluator"),
+            with_for_update=True,
         )
         if evaluator is None:
             return
-        await get_decision_evaluator(session, evaluator.id, lock=True)
         await _refuse_bound_evaluator(session, evaluator.id, evaluator_id)
-        tag_id = evaluator.decision_version_tag_id
         await session.delete(evaluator)
-        await session.flush()
-        tag = await session.get(models.DecisionVersionTag, tag_id)
-        if tag is not None:
-            await session.delete(tag)
-
-
-async def guard_owned_decision_tag_move(
-    session: AsyncSession, tag: models.DecisionVersionTag, version_id: int
-) -> None:
-    """Validate generic tag moves against any evaluator that owns the tag.
-
-    The judge's saved policy is carried to the new version, as a patch would.
-    """
-    evaluator_id = await session.scalar(
-        select(models.DecisionEvaluator.id).where(
-            models.DecisionEvaluator.decision_version_tag_id == tag.id
-        )
-    )
-    if evaluator_id is None:
-        return
-    evaluator = await get_decision_evaluator(session, evaluator_id, lock=True)
-    version = await _version_by_rowid(session, version_id)
-    policy = adapt_scoring_policy(
-        version.questions, DecisionScoringPolicy.model_validate(evaluator.scoring_policy)
-    ).model_dump(mode="json")
-    await validate_bound_decision_update(session, evaluator, version, policy)
-    evaluator.scoring_policy = policy
 
 
 # The keys of the context a dataset evaluator judges a run with (see experiment_runner).
@@ -542,22 +501,13 @@ async def create_dataset_decision_evaluator(
                 policy = resolve_scoring_policy(
                     version.questions, DecisionScoringPolicy.model_validate(scoring_policy or {})
                 )
-                tag = models.DecisionVersionTag(
-                    name=Identifier(f"{evaluator_name.root}-evaluator-{token_hex(4)}"),
-                    decision_id=version.decision_id,
-                    decision_version_id=version.id,
-                    user_id=context.user_id,
-                )
-                session.add(tag)
-                await session.flush()
                 evaluator = models.DecisionEvaluator(
                     name=evaluator_name,
                     description=description,
                     metadata_={},
                     user_id=context.user_id,
                     kind="DECISION",
-                    decision_id=version.decision_id,
-                    decision_version_tag_id=tag.id,
+                    decision_version_id=version.id,
                     scoring_policy=policy.model_dump(mode="json"),
                 )
                 session.add(evaluator)
@@ -633,7 +583,7 @@ async def update_dataset_decision_evaluator(
             original = evaluator.selected_version
             if decision_version is not None:
                 await validate_decision_custom_provider(session, decision_version)
-                decision_version.decision_id = evaluator.decision_id
+                decision_version.decision_id = original.decision_id
                 session.add(decision_version)
                 await session.flush()
                 version = decision_version
@@ -641,7 +591,7 @@ async def update_dataset_decision_evaluator(
                 version = await _version(session, decision_version_id)
             else:
                 version = original
-            if version.decision_id != evaluator.decision_id:
+            if version.decision_id != original.decision_id:
                 raise BadRequest("A decision evaluator can only use versions of its own Decision")
             policy = (adapt_scoring_policy if scoring_policy is UNSET else resolve_scoring_policy)(
                 version.questions,
@@ -654,9 +604,7 @@ async def update_dataset_decision_evaluator(
             )
             mapping = binding.input_mapping if input_mapping is UNSET else input_mapping
             validate_decision_input_mapping(version, mapping)
-            tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
-            assert tag is not None
-            tag.decision_version_id = version.id
+            evaluator.decision_version_id = version.id
             evaluator.scoring_policy = policy
             values: dict[str, Any] = {"input_mapping": mapping, "user_id": context.user_id}
             if name is not UNSET:

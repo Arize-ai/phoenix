@@ -437,10 +437,6 @@ function DecisionDatasetEvaluatorFormContent({
       ) : null}
       {initialEvaluator ? (
         <DecisionVersionSelector
-          sequenceNumber={
-            selection?.sequenceNumber ??
-            initialEvaluator.decisionVersion.sequenceNumber
-          }
           decision={{
             id: initialEvaluator.decisionVersion.decision.id,
             name: initialEvaluator.decisionVersion.decision.name,
@@ -453,7 +449,6 @@ function DecisionDatasetEvaluatorFormContent({
               decisionId: initialEvaluator.decisionVersion.decision.id,
               decisionName: initialEvaluator.decisionVersion.decision.name,
               versionId,
-              sequenceNumber: 0,
               tagName: null,
               inputs: [],
               questions: [],

@@ -241,7 +241,6 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               decision {
                 name
               }
-              sequenceNumber
               modelName
               modelProvider
             }

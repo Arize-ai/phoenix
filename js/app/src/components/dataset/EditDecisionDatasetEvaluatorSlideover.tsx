@@ -114,7 +114,6 @@ const EditDecisionEvaluatorDialog = (
                     }
                     decisionVersion {
                       id
-                      sequenceNumber
                       decision {
                         id
                         name

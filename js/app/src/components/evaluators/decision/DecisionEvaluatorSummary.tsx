@@ -2,6 +2,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
+import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 import type { DecisionEvaluatorSummary_evaluator$key } from "./__generated__/DecisionEvaluatorSummary_evaluator.graphql";
 import type { DecisionQuestionScoringValue } from "./decisionPolicyUtils";
@@ -59,12 +60,8 @@ export function DecisionEvaluatorSummary({
           decision {
             name
           }
-          sequenceNumber
           modelProvider
           modelName
-        }
-        decisionVersionTag {
-          name
         }
         scoringPolicy {
           questions {
@@ -102,11 +99,8 @@ export function DecisionEvaluatorSummary({
         <Link
           to={`/decisions/${decisionVersion.decisionId}/versions/${decisionVersion.id}`}
         >
-          {decisionVersion.decision.name} · Version{" "}
-          {decisionVersion.sequenceNumber}
-          {data.decisionVersionTag.name
-            ? ` (${data.decisionVersionTag.name})`
-            : ""}
+          {decisionVersion.decision.name} ·{" "}
+          <IdTruncate id={decisionVersion.id} />
         </Link>
         <Text color="text-700">
           {decisionVersion.modelProvider} / {decisionVersion.modelName}

@@ -3504,11 +3504,8 @@ class DecisionEvaluator(Evaluator):
         server_default="DECISION",
         nullable=False,
     )
-    decision_id: Mapped[int] = mapped_column(
-        ForeignKey("decisions.id", ondelete="RESTRICT"), index=True
-    )
-    decision_version_tag_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_version_tags.id", ondelete="RESTRICT"), index=True, unique=True
+    decision_version_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_versions.id", ondelete="RESTRICT"), index=True
     )
     scoring_policy: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -3516,11 +3513,7 @@ class DecisionEvaluator(Evaluator):
     )
     selected_version: Mapped["DecisionVersion"] = relationship(
         "DecisionVersion",
-        secondary="decision_version_tags",
-        primaryjoin="DecisionEvaluator.decision_version_tag_id == DecisionVersionTag.id",
-        secondaryjoin="DecisionVersionTag.decision_version_id == DecisionVersion.id",
-        viewonly=True,
-        uselist=False,
+        innerjoin=True,
         lazy="joined",
     )
 

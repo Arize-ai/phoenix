@@ -59,7 +59,6 @@ export function DecisionDatasetEvaluatorDetails({
               decision {
                 name
               }
-              sequenceNumber
               modelName
               modelProvider
               inputs {

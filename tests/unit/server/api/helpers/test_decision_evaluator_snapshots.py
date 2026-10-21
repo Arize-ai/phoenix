@@ -74,11 +74,11 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
             "input": {
                 "decisionId": decision["id"],
                 "version": version_input(modelName="jev-new"),
-                "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
             }
         },
     )
     assert result.data and not result.errors, result.errors
+    new_version_id = result.data["createDecisionVersion"]["version"]["id"]
     result = await gql_client.execute(
         "mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
         variables={
@@ -95,6 +95,7 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
         variables={
             "input": {
                 "evaluatorId": evaluator["id"],
+                "decisionVersionId": new_version_id,
                 "scoringPolicy": {
                     "questions": [{"predicate": {"name": "urgent", "threshold": 0.9}}]
                 },

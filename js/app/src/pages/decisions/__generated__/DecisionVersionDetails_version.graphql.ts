@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<124ac76a3b536906ba203e93c0781600>>
+ * @generated SignedSource<<d0f144edb435c6cc0ea32dc53d72f37c>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,6 @@ export type DecisionVersionDetails_version$data = {
     readonly id: string;
     readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionDetails_definition">;
   } | null;
-  readonly sequenceNumber: number;
   readonly tags: ReadonlyArray<{
     readonly id: string;
     readonly name: string;
@@ -55,13 +54,6 @@ return {
   "name": "DecisionVersionDetails_version",
   "selections": [
     (v0/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "sequenceNumber",
-      "storageKey": null
-    },
     {
       "alias": null,
       "args": null,
@@ -147,6 +139,6 @@ return {
 };
 })();
 
-(node as any).hash = "8722ed95914c96a046df7dc145935c56";
+(node as any).hash = "ba3e8075ad8ceb87e96c03f458369923";
 
 export default node;
