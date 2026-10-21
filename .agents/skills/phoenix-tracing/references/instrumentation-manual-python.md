@@ -213,7 +213,9 @@ Signature: `log_spans(*, project_identifier: str, spans: Sequence[v1.Span], time
 Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS)`, returning a `CreateSpansResponseBody`
 dict with `total_received` / `total_queued` (equal on success). On any invalid or
 duplicate span, no spans are queued and `SpanCreationError` is raised carrying
-`invalid_spans`, `duplicate_spans`, `total_invalid`, and `total_duplicates`. Use
+`invalid_spans`, `duplicate_spans`, `total_invalid`, and `total_duplicates`. When the
+server's span ingestion queue is full it answers 503 and queues nothing; that surfaces
+as `httpx.HTTPStatusError`, so retry the same batch with backoff. Use
 `client.spans.log_spans_dataframe(project_identifier=..., spans_dataframe=df)` to log
 from a pandas DataFrame. The TypeScript client exposes the same feature as `logSpans`
 (see `instrumentation-manual-typescript.md`).
