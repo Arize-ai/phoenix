@@ -169,34 +169,6 @@ export function addRecentAgentModel({
 }
 
 /**
- * The recent models to show in the picker: newest first, without the current
- * model, at most `limit`.
- *
- * @param params - inputs
- * @param params.recentModels - the stored list, newest first
- * @param params.currentModel - the model currently selected, if any
- * @param params.limit - max entries returned (default 3)
- */
-export function getRecentAgentModels({
-  recentModels,
-  currentModel,
-  limit = DEFAULT_RECENT_AGENT_MODELS_SHOWN,
-}: {
-  recentModels: readonly ModelMenuValue[];
-  currentModel?: ModelMenuValue | null;
-  limit?: number;
-}): ModelMenuValue[] {
-  const currentKey = currentModel
-    ? getAgentModelKeyForValue(currentModel)
-    : null;
-  return recentModels
-    .filter(
-      (recentModel) => getAgentModelKeyForValue(recentModel) !== currentKey
-    )
-    .slice(0, limit);
-}
-
-/**
  * Validates a persisted recent-models list, dropping malformed entries and
  * duplicates, so a stale or hand-edited blob can't break the picker.
  *

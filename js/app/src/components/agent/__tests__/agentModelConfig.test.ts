@@ -5,7 +5,6 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import {
   addRecentAgentModel,
   getAgentModelKey,
-  getRecentAgentModels,
   normalizeRecentAgentModels,
 } from "../agentModelConfig";
 
@@ -92,18 +91,6 @@ describe("addRecentAgentModel", () => {
         model: { provider: "OPENAI", modelName: "" },
       })
     ).toEqual([OPUS]);
-  });
-});
-
-describe("getRecentAgentModels", () => {
-  it("returns the top 3, excluding the current model", () => {
-    const recentModels = pick([CUSTOM_GPT, TYPED, GPT, OPUS]);
-    expect(getRecentAgentModels({ recentModels })).toEqual([OPUS, GPT, TYPED]);
-    expect(getRecentAgentModels({ recentModels, currentModel: OPUS })).toEqual([
-      GPT,
-      TYPED,
-      CUSTOM_GPT,
-    ]);
   });
 });
 

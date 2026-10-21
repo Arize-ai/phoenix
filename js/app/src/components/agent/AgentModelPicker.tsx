@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import uniqBy from "lodash/uniqBy";
 import type { KeyboardEvent, RefObject } from "react";
 import { useState } from "react";
 import type { Key, PopoverProps } from "react-aria-components";
@@ -29,9 +30,9 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { getCuratedBuiltInModels } from "./agentCuratedModels";
 import {
+  DEFAULT_RECENT_AGENT_MODELS_SHOWN,
   getAgentModelKey,
   getAgentModelKeyForValue,
-  getRecentAgentModels,
 } from "./agentModelConfig";
 import {
   AgentModelCredentialHint,
@@ -348,9 +349,14 @@ export function AgentModelPicker({
   const currentRow = currentModel
     ? resolveAgentModelRow({ model: currentModel, rows, providers })
     : null;
-  const recentRows = getRecentAgentModels({ recentModels, currentModel }).map(
-    (model) => resolveAgentModelRow({ model, rows, providers })
-  );
+  // Recent rows resolve like the Current row, so drop the ones that resolve
+  // to the current row or to an earlier recent row
+  const recentRows = uniqBy(
+    recentModels
+      .map((model) => resolveAgentModelRow({ model, rows, providers }))
+      .filter((row) => row.key !== currentRow?.key),
+    (row) => row.key
+  ).slice(0, DEFAULT_RECENT_AGENT_MODELS_SHOWN);
   const recentModelKeys = recentModels.map(getAgentModelKeyForValue);
 
   const sections = buildPickerSections({
@@ -377,18 +383,14 @@ export function AgentModelPicker({
         }
       : model;
 
-  // A row is checked when it is the current model as stored or as it would
-  // be sent (a Bedrock row picked with the region prefix applied)
-  const currentKey = currentModel
-    ? getAgentModelKeyForValue(currentModel)
-    : null;
+  // A row is checked when it is the Current row, which a Bedrock id with a
+  // region prefix resolves to its catalog row
   const selectedItemIds = [...itemsById.values()]
     .filter(
       (item): item is PickerModelItem =>
         item.kind === "model" &&
-        currentKey != null &&
-        (getAgentModelKeyForValue(item.value) === currentKey ||
-          getAgentModelKeyForValue(applyPrefix(item.value)) === currentKey)
+        currentRow != null &&
+        item.row.key === currentRow.key
     )
     .map((item) => item.id);
 
@@ -429,9 +431,11 @@ export function AgentModelPicker({
   };
 
   const selectModel = (selection: ModelMenuValue) => {
-    const model = applyPrefix(selection);
-    onChange(model);
-    recordRecentModel(model);
+    onChange(applyPrefix(selection));
+    // Recorded before the prefix, so a recent catalog pick gets the region
+    // preference current when it's picked again. A typed name keeps the
+    // region it was typed with.
+    recordRecentModel(selection);
   };
 
   const handleModelAction = (key: Key) => {

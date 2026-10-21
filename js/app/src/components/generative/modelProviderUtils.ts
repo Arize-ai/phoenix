@@ -1,5 +1,6 @@
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import type { CredentialsProps } from "@phoenix/store/credentialsStore";
+import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
@@ -201,6 +202,37 @@ export function isProviderProvisioned({
   );
 }
 
+/**
+ * Region prefixes of AWS Bedrock cross-region inference profiles, as in
+ * `us.anthropic.claude-*` or `global.anthropic.claude-*`: the prefixes the
+ * Bedrock preference can apply.
+ */
+export const BEDROCK_REGION_PREFIXES: readonly string[] =
+  awsBedrockModelPrefixes.filter((prefix) => prefix !== "");
+
+/**
+ * The known region prefix a Bedrock model id starts with (`us-gov` for
+ * `us-gov.anthropic.x`, never `us`), or null.
+ */
+export function getBedrockRegionPrefix(modelName: string): string | null {
+  return (
+    BEDROCK_REGION_PREFIXES.find((prefix) =>
+      modelName.startsWith(`${prefix}.`)
+    ) ?? null
+  );
+}
+
+/** A Bedrock model id without its known region prefix, if it has one. */
+export function stripBedrockRegionPrefix(modelName: string): string {
+  const regionPrefix = getBedrockRegionPrefix(modelName);
+  return regionPrefix ? modelName.slice(regionPrefix.length + 1) : modelName;
+}
+
+/**
+ * Prefixes a Bedrock model id with the preferred region. An id that already
+ * names a known region keeps it: the explicit region wins over the
+ * preference. An empty prefix leaves the id as is.
+ */
 export function applyBedrockModelPrefix({
   modelName,
   prefix,
@@ -208,8 +240,6 @@ export function applyBedrockModelPrefix({
   modelName: string;
   prefix: string;
 }): string {
-  const prefixDot = `${prefix}.`;
-  return modelName.startsWith(prefixDot)
-    ? modelName
-    : `${prefixDot}${modelName}`;
+  const hasRegionPrefix = getBedrockRegionPrefix(modelName) != null;
+  return !prefix || hasRegionPrefix ? modelName : `${prefix}.${modelName}`;
 }

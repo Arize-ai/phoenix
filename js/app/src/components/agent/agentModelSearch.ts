@@ -13,16 +13,17 @@ import type {
   ModelMenuValue,
 } from "@phoenix/components/generative/ModelMenu";
 import {
+  BEDROCK_REGION_PREFIXES,
   getProviderKeyForGenerativeModelSDK,
   providerRequiresCredentials,
   providerSupportsDefaultCredentialChain,
   type ProviderCredentialStatus,
+  stripBedrockRegionPrefix,
 } from "@phoenix/components/generative/modelProviderUtils";
 import type {
   CustomProviderInfo,
   GenerativeProviderKey,
 } from "@phoenix/components/generative/useModelMenuData";
-import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 import {
   getProviderName,
   isModelProvider,
@@ -263,8 +264,10 @@ export function buildAgentModelCatalog({
 /**
  * The row to show for a model selection that may not be in the catalog: the
  * current model, or a recent pick such as a typed name or a Bedrock id with
- * the region prefix applied. A catalog row is returned as is. Otherwise the
- * row is built from the selection and its provider option:
+ * the region prefix applied. A catalog row is returned as is, and a Bedrock
+ * id with a known region resolves to its unprefixed catalog row, so picking
+ * it applies the current region preference. Otherwise the row is built from
+ * the selection and its provider option:
  * - a custom provider that's gone (`resolvePersistedAgentModel` names it
  *   "Deleted provider") keeps the selection's provider name, and is
  *   "no-key" with `isProviderMissing` set
@@ -285,7 +288,16 @@ export function resolveAgentModelRow({
   providers: readonly AgentModelProviderOption[];
 }): AgentModelCatalogRow {
   const key = getAgentModelKeyForValue(model);
-  const catalogRow = rows.find((row) => row.key === key);
+  const unprefixedKey =
+    model.provider === "AWS"
+      ? getAgentModelKeyForValue({
+          ...model,
+          modelName: stripBedrockRegionPrefix(model.modelName),
+        })
+      : key;
+  const catalogRow =
+    rows.find((row) => row.key === key) ??
+    rows.find((row) => row.key === unprefixedKey);
   if (catalogRow) {
     return catalogRow;
   }
@@ -313,15 +325,6 @@ export function resolveAgentModelRow({
     ...(isProviderMissing && { isProviderMissing }),
   };
 }
-
-/**
- * Region prefixes of AWS Bedrock cross-region inference profiles, as in
- * `us.anthropic.claude-*` or `global.anthropic.claude-*`: the prefixes the
- * Bedrock preference can apply. Shared by matching (which ignores them) and
- * provider guessing (which reads them as AWS).
- */
-const BEDROCK_REGION_PREFIXES: readonly string[] =
-  awsBedrockModelPrefixes.filter((prefix) => prefix !== "");
 
 // The prefixes are lowercase letters and hyphens, so they need no escaping
 const BEDROCK_REGION_PREFIX_PATTERN = BEDROCK_REGION_PREFIXES.join("|");

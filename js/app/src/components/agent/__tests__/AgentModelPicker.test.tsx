@@ -83,6 +83,11 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   useModelMenuData: () => MODEL_MENU_DATA,
 }));
 
+const BEDROCK_OPUS: ModelMenuValue = {
+  provider: "AWS",
+  modelName: "anthropic.claude-opus-4-6-v1:0",
+};
+
 const CURRENT_MODEL: ModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-5-5",
@@ -351,7 +356,7 @@ describe("AgentModelPicker", () => {
     });
   });
 
-  it("emits the pick and records it after the Bedrock prefix", async () => {
+  it("emits the pick with the Bedrock prefix and records it without", async () => {
     renderPicker({ awsBedrockModelPrefix: "us" });
     const user = await openAndType("anthropic.claude-opus-4-6");
 
@@ -359,13 +364,77 @@ describe("AgentModelPicker", () => {
     expect(bedrockRow.textContent).toContain("May work");
     await act(() => user.click(bedrockRow));
 
-    const expected = {
+    expect(onChange).toHaveBeenCalledWith({
       provider: "AWS",
       modelName: "us.anthropic.claude-opus-4-6-v1:0",
+    });
+    expect(store.getState().recentModels).toEqual([BEDROCK_OPUS]);
+    expect(isOpen()).toBe(false);
+  });
+
+  it("applies the current Bedrock prefix to a prefixed recent pick", async () => {
+    renderPicker({
+      awsBedrockModelPrefix: "eu",
+      storeProps: {
+        recentModels: [
+          { provider: "AWS", modelName: "us.anthropic.claude-opus-4-6-v1:0" },
+          BEDROCK_OPUS,
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    await act(() => user.click(getTrigger()));
+
+    // Both resolve to the catalog row, shown once
+    expect(getSectionTitles()).toEqual(["Current", "Recent", "Recommended"]);
+    const recentRow = getItems()[1];
+    expect(recentRow.textContent).toContain("anthropic.claude-opus-4-6-v1:0");
+    expect(recentRow.textContent).not.toContain("us.anthropic");
+    expect(getItems()[2].textContent).not.toContain("claude-opus-4-6");
+    await act(() => user.click(recentRow));
+
+    expect(onChange).toHaveBeenCalledWith({
+      provider: "AWS",
+      modelName: "eu.anthropic.claude-opus-4-6-v1:0",
+    });
+  });
+
+  it("applies the current Bedrock prefix to a prefixed current model", async () => {
+    renderPicker({
+      awsBedrockModelPrefix: "eu",
+      value: {
+        provider: "AWS",
+        modelName: "us.anthropic.claude-opus-4-6-v1:0",
+      },
+    });
+    const user = userEvent.setup();
+    await act(() => user.click(getTrigger()));
+
+    const currentRow = getItems()[0];
+    expect(currentRow.getAttribute("aria-checked")).toBe("true");
+    expect(currentRow.textContent).not.toContain("us.anthropic");
+    await act(() => user.click(currentRow));
+
+    expect(onChange).toHaveBeenCalledWith({
+      provider: "AWS",
+      modelName: "eu.anthropic.claude-opus-4-6-v1:0",
+    });
+  });
+
+  it("keeps the region of a typed Bedrock name", async () => {
+    renderPicker({ awsBedrockModelPrefix: "us" });
+    const user = await openCustomModelSubmenu(
+      "global.anthropic.claude-opus-5-5"
+    );
+
+    await act(() => user.click(findSubmenuItem("AWS Bedrock")));
+
+    const expected = {
+      provider: "AWS",
+      modelName: "global.anthropic.claude-opus-5-5",
     };
     expect(onChange).toHaveBeenCalledWith(expected);
     expect(store.getState().recentModels).toEqual([expected]);
-    expect(isOpen()).toBe(false);
   });
 
   it("ends a search with the custom-model row", async () => {
