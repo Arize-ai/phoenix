@@ -12,6 +12,7 @@ import {
   resolveEvaluatorPath,
   toMemberCompletionType,
   toMemberPreview,
+  UNSET_COMPLETION_TYPE,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
   TYPEAHEAD_COMPLETION_CLASS_PREFIX,
@@ -31,9 +32,6 @@ export const RECORD_SECTION_BY_RECORD_KIND: Record<
   trace: { name: "From the trace", rank: 2 },
   session: { name: "From the session", rank: 2 },
 };
-
-/** A row for a name the selected record does not supply; dimmed, not dropped. */
-export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`;
 
 /** A row whose detail reads as prose rather than as a value. */
 export const HINT_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}hint`;

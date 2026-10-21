@@ -17,6 +17,7 @@ export const EVALUATOR_METADATA_SLOT = "metadata";
 export type EvaluatorContextEntryStatus =
   | "resolved"
   | "unresolved"
+  | "invalid"
   | "unverifiable";
 
 export type EvaluatorContextProvenance =
@@ -137,7 +138,7 @@ function materializeEvaluatorInput({
         hasSampledRecord,
       })
     : null;
-  if (mapped?.status === "unresolved") {
+  if (mapped?.status === "unresolved" || mapped?.status === "invalid") {
     return mapped;
   }
 
@@ -185,7 +186,10 @@ function materializePath({
       }
     : {
         name,
-        status: hasSampledRecord ? resolution.status : "unverifiable",
+        status:
+          resolution.status === "invalid" || hasSampledRecord
+            ? resolution.status
+            : "unverifiable",
         provenance: { kind: "path", path },
       };
 }

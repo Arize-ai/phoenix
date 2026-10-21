@@ -43,7 +43,8 @@ export interface CounterProps {
   notation?: CounterNotation;
 }
 
-const counterCSS = css`
+/** Also badges rows outside React, such as a completion menu's. */
+export const counterCSS = css`
   ${derivedColorCSS};
   ${inheritedStateCSS};
   box-sizing: border-box;
