@@ -1149,10 +1149,6 @@ async def patch_dataset_evaluator(
                 get_decision_evaluator,
                 validate_decision_input_mapping,
             )
-            from phoenix.server.api.helpers.decision_evaluators import (
-                capture_decision_evaluator_definition,
-                validate_decision_output_overrides,
-            )
 
             kind = await session.scalar(
                 select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
@@ -1163,14 +1159,12 @@ async def patch_dataset_evaluator(
                 validate_decision_input_mapping(
                     decision.selected_version, patch.input_mapping or row.input_mapping
                 )
-                try:
-                    definition = capture_decision_evaluator_definition(decision)
-                    validate_decision_output_overrides(
-                        definition, values.get("output_configs", row.output_configs)
-                    )
-                except ValueError as error:
-                    raise BadRequest(str(error)) from error
                 if "output_configs" in values:
+                    if values["output_configs"] != decision.output_configs:
+                        raise BadRequest(
+                            "Decision outputs are derived from the questions and scoring policy; "
+                            "edit the scoring policy to change scoring"
+                        )
                     # Derived from the judge whenever they are read, so they follow its edits.
                     values["output_configs"] = None
             row = await _write_dataset_evaluator(session, row.id, values)

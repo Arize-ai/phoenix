@@ -9,7 +9,10 @@ from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 
 from phoenix.db.types.annotation_configs import OutputConfigType
-from phoenix.db.types.decision_evaluators import derive_decision_output_configs
+from phoenix.db.types.decision_evaluators import (
+    derive_decision_output_configs,
+    resolve_scoring_policy,
+)
 from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.evaluators import (
@@ -24,7 +27,6 @@ from phoenix.server.api.helpers.decision_evaluators import (
     decision_annotation_metadata,
     decision_input_schema,
     project_decision_response,
-    validate_decision_output_overrides,
 )
 from phoenix.server.api.helpers.decision_versions import render_state
 from phoenix.server.api.helpers.evaluators import result_annotation_names
@@ -38,6 +40,13 @@ class DecisionEvaluator(BaseEvaluator):
         *,
         max_request_bytes: Optional[int] = None,
     ):
+        self._scoring_policy = resolve_scoring_policy(
+            definition.questions, definition.scoring_policy
+        )
+        self._output_configs = tuple(
+            derive_decision_output_configs(definition.questions, self._scoring_policy)
+        )
+        self._input_schema = decision_input_schema(definition.inputs)
         self.definition = definition
         self.client = client
         # Online evaluation caps what one call sends, as it caps an LLM judge's messages.
@@ -53,13 +62,11 @@ class DecisionEvaluator(BaseEvaluator):
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        return decision_input_schema(self.definition.inputs)
+        return self._input_schema
 
     @property
     def output_configs(self) -> Sequence[OutputConfigType]:
-        return derive_decision_output_configs(
-            self.definition.questions, self.definition.scoring_policy
-        )
+        return self._output_configs
 
     @property
     def provider_client(self) -> DecisionClient:
@@ -97,7 +104,7 @@ class DecisionEvaluator(BaseEvaluator):
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-        validate_decision_output_overrides(self.definition, output_configs)
+        annotation_names = result_annotation_names(name, output_configs)
         started = datetime.now(timezone.utc)
         collector = tracer or NoOpTracer()
         with collector.start_as_current_span(
@@ -126,6 +133,8 @@ class DecisionEvaluator(BaseEvaluator):
                     trace_id=trace_id,
                     start_time=started,
                     end_time=datetime.now(timezone.utc),
+                    annotation_names=annotation_names,
+                    scoring_policy=self._scoring_policy,
                 )
                 span.set_attributes(
                     oi.get_output_attributes(
@@ -161,5 +170,5 @@ class DecisionEvaluator(BaseEvaluator):
                         "start_time": started,
                         "end_time": datetime.now(timezone.utc),
                     }
-                    for annotation_name in result_annotation_names(name, output_configs)
+                    for annotation_name in annotation_names
                 ]

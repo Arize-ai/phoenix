@@ -1449,6 +1449,7 @@ async def build_evaluator_from_definition(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
+            max_request_bytes=max_message_bytes,
         )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)

@@ -6,10 +6,10 @@ from typing import Annotated, Any, Literal, Optional, Sequence, Union
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     ChoiceScoring,
     DecisionQuestionScoring,
+    DecisionScoringPolicy,
     PredicateScoring,
     ScaleScoring,
     derive_decision_output_configs,
@@ -74,19 +74,6 @@ def capture_decision_evaluator_definition(
             dataset_evaluator_id=dataset_evaluator_id,
         ),
     )
-
-
-def validate_decision_output_overrides(
-    definition: InlineDecisionEvaluatorDefinition, configs: Optional[Sequence[OutputConfigType]]
-) -> list[OutputConfigType]:
-    """Require explicit output overrides to preserve the question-derived scoring contract."""
-    derived = derive_decision_output_configs(definition.questions, definition.scoring_policy)
-    if configs is not None and list(configs) != derived:
-        raise ValueError(
-            "Decision outputs are derived from the questions and scoring policy; "
-            "edit the scoring policy to change scoring"
-        )
-    return derived
 
 
 class _AnnotationModel(BaseModel):
@@ -170,10 +157,15 @@ def project_decision_response(
     trace_id: Optional[str],
     start_time: datetime,
     end_time: datetime,
+    annotation_names: Optional[Sequence[str]] = None,
+    scoring_policy: Optional[DecisionScoringPolicy] = None,
 ) -> list[dict[str, Any]]:
-    policy = resolve_scoring_policy(definition.questions, definition.scoring_policy)
-    configs = derive_decision_output_configs(definition.questions, policy)
-    names = result_annotation_names(name, configs)
+    policy = scoring_policy or resolve_scoring_policy(
+        definition.questions, definition.scoring_policy
+    )
+    names = annotation_names or result_annotation_names(
+        name, derive_decision_output_configs(definition.questions, policy)
+    )
     results = []
     for question, annotation_name in zip(definition.questions, names):
         answer = response.answers[question.name]

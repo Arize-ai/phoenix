@@ -1122,9 +1122,11 @@ class OnlineEvalExecutor:
             return None
         definition = capture_decision_evaluator_definition(evaluator_orm)
         evaluator = await build_decision_evaluator(
-            definition, session=session, decrypt=self._decrypt
+            definition,
+            session=session,
+            decrypt=self._decrypt,
+            max_request_bytes=get_env_online_eval_max_llm_message_bytes(),
         )
-        evaluator.max_request_bytes = get_env_online_eval_max_llm_message_bytes()
         return _HydratedEvaluatorSnapshot(
             annotator_kind="LLM",
             evaluator_kind="DECISION",

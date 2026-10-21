@@ -27,7 +27,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.decision_evaluators import (
     capture_decision_evaluator_definition,
-    validate_decision_output_overrides,
 )
 from phoenix.server.api.helpers.evaluator_management import get_project_for_dataset_evaluator
 from phoenix.server.api.helpers.evaluator_service import (
@@ -316,8 +315,14 @@ async def create_dataset_decision_binding(
             )
             if dataset_name is None:
                 raise NotFound("Dataset not found")
-            definition = capture_decision_evaluator_definition(evaluator)
-            validate_decision_output_overrides(definition, input.output_configs)
+            if (
+                input.output_configs is not None
+                and list(input.output_configs) != evaluator.output_configs
+            ):
+                raise BadRequest(
+                    "Decision outputs are derived from the questions and scoring policy; "
+                    "edit the scoring policy to change scoring"
+                )
             validate_decision_input_mapping(evaluator.selected_version, input.input_mapping)
             binding = models.DatasetEvaluators(
                 dataset_id=dataset_id,
@@ -347,6 +352,7 @@ async def build_decision_evaluator(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Optional[Sequence[GenerativeCredentialInput]] = None,
+    max_request_bytes: Optional[int] = None,
 ) -> "DecisionEvaluator":
     """Build a native judge from its saved or frozen definition."""
     from phoenix.server.api.decision_evaluator import DecisionEvaluator
@@ -383,7 +389,7 @@ async def build_decision_evaluator(
             decrypt=decrypt,
             credentials=credentials,
         )
-    return DecisionEvaluator(definition, client)
+    return DecisionEvaluator(definition, client, max_request_bytes=max_request_bytes)
 
 
 async def _available_saved_name(

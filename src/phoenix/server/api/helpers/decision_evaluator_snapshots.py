@@ -10,10 +10,7 @@ from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinit
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import (
-    capture_decision_evaluator_definition,
-    validate_decision_output_overrides,
-)
+from phoenix.server.api.helpers.decision_evaluators import capture_decision_evaluator_definition
 
 
 class DecisionEvaluatorSnapshot(BaseModel):
@@ -58,7 +55,7 @@ async def capture_dataset_decision_evaluators(session: AsyncSession, experiment_
                 description=binding.description,
                 dataset_evaluator_id=binding.id,
             )
-            output_configs = validate_decision_output_overrides(definition, binding.output_configs)
+            output_configs = evaluator.output_configs
         except ValueError as error:
             raise BadRequest(f"Dataset evaluator '{binding.name.root}': {error}") from error
         snapshots.append(
