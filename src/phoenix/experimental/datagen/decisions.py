@@ -2,20 +2,58 @@
 
 from __future__ import annotations
 
-import json
-from hashlib import sha256
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import httpx
 
 from phoenix.experimental.datagen.datasets import DatasetError
-from phoenix.experimental.datagen.workflows import (
-    TYPED_DECISIONS_DATASET_NAME,
-    load_workflow_definitions,
-)
 
 if TYPE_CHECKING:
     from phoenix.client.resources.datasets import Dataset
+
+TYPED_DECISIONS_DATASET_NAME = "px-datagen-typed-decisions"
+_WORKFLOWS = {
+    "agent_trace_observability",
+    "customer_service",
+    "invoice_processing",
+    "security_incidents",
+}
+
+
+@dataclass(frozen=True)
+class WorkflowDefinition:
+    workflow: str
+    questions: Mapping[str, Any]
+    source_metadata: Mapping[str, Any]
+
+    @property
+    def name(self) -> str:
+        return f"{TYPED_DECISIONS_DATASET_NAME}-{self.workflow}"
+
+
+def load_workflow_definitions(datasets: Sequence[Dataset]) -> list[WorkflowDefinition]:
+    """Validate every workflow before writing any definitions."""
+    definitions = []
+    for dataset in datasets:
+        if dataset.name != TYPED_DECISIONS_DATASET_NAME:
+            continue
+        examples = dataset.examples
+        if not examples:
+            raise DatasetError(f"{dataset.name}: cannot build a definition from an empty dataset")
+        groups: dict[str, list[Any]] = {}
+        for example in examples:
+            workflow = example["metadata"].get("workflow")
+            if not isinstance(workflow, str) or workflow not in _WORKFLOWS:
+                raise DatasetError(f"{dataset.name}: invalid workflow metadata {workflow!r}")
+            groups.setdefault(workflow, []).append(example)
+        for workflow, group in sorted(groups.items()):
+            questions = group[0]["input"]["questions"]
+            if any(example["input"]["questions"] != questions for example in group):
+                raise DatasetError(f"{workflow}: examples must share the same questions")
+            definitions.append(WorkflowDefinition(workflow, questions, group[0]["metadata"]))
+    return definitions
+
 
 _VERSION_FIELDS = """
   id description metadata modelProvider modelName customProvider { id }
@@ -102,7 +140,7 @@ def build_workflow_decision(
         "dataset_name": TYPED_DECISIONS_DATASET_NAME,
         **{key: value for key, value in source_metadata.items() if key.startswith("source_")},
     }
-    version: dict[str, Any] = {
+    return {
         "inputs": [
             {"name": "state", "description": "The workflow state to evaluate.", "jsonSchema": None}
         ],
@@ -114,10 +152,6 @@ def build_workflow_decision(
         "description": "Datagen-owned TypeSafe decision for Typed Decisions.",
         "metadata": metadata,
     }
-    # Fingerprint the serialized content before adding the fingerprint itself.
-    fingerprint = sha256(json.dumps(version, sort_keys=True).encode()).hexdigest()
-    metadata["datagen_fingerprint"] = fingerprint
-    return version
 
 
 def _graphql(http: httpx.Client, query: str, variables: Mapping[str, Any]) -> dict[str, Any]:

@@ -5,10 +5,15 @@ import sys
 import time
 from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Callable, Mapping, Sequence, TextIO, TypeVar
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
+
+    import httpx
+
+    from phoenix.client.resources.datasets import Dataset
+    from phoenix.experimental.datagen.datasets import DatasetSource
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
 _DEFAULT_RATE = 12.0
@@ -104,9 +109,7 @@ def seed(args: Namespace) -> None:
     import httpx
 
     from phoenix.client import Client
-    from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset, seed_datasets
-    from phoenix.experimental.datagen.decisions import seed_workflow_decisions
-    from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
+    from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset
 
     if bool(args.file) != bool(args.name):
         raise ValueError("--file and --name must be provided together")
@@ -126,13 +129,32 @@ def seed(args: Namespace) -> None:
                 if args.source == "all"
                 else [DATASET_SOURCES[args.source]]
             )
-            datasets = seed_datasets(client, sources=sources)
-            for name, version_id in seed_workflow_decisions(http, datasets):
-                print(f"Seeded decision {name} (version {version_id})")
-            for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
-                print(f"Seeded dataset evaluator {name} ({binding_id})")
+            datasets = _seed_sources(http, client, sources=sources, stream=sys.stdout)
         for dataset in datasets:
             print(f"Seeded {dataset.name}: {len(dataset)} examples (version {dataset.version_id})")
+
+
+def _seed_sources(
+    http: httpx.Client,
+    client: object,
+    *,
+    sources: Sequence[DatasetSource] | None = None,
+    stream: TextIO,
+) -> list[Dataset]:
+    from phoenix.experimental.datagen.datasets import seed_datasets
+    from phoenix.experimental.datagen.decisions import seed_workflow_decisions
+    from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
+
+    datasets = (
+        seed_datasets(client)  # type: ignore[arg-type]
+        if sources is None
+        else seed_datasets(client, sources=sources)  # type: ignore[arg-type]
+    )
+    for name, version_id in seed_workflow_decisions(http, datasets):
+        print(f"Seeded decision {name} (version {version_id})", file=stream)
+    for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
+        print(f"Seeded dataset evaluator {name} ({binding_id})", file=stream)
+    return datasets
 
 
 def _headers(config: _Config) -> dict[str, str]:
@@ -147,19 +169,12 @@ def _seed_when_ready(config: _Config) -> None:
 
     from phoenix.client import Client
     from phoenix.client.resources.datasets import DatasetUploadError
-    from phoenix.experimental.datagen.datasets import seed_datasets
-    from phoenix.experimental.datagen.decisions import seed_workflow_decisions
-    from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
 
     with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
         client = Client(http_client=http)
         while True:
             try:
-                datasets = seed_datasets(client)
-                for name, version_id in seed_workflow_decisions(http, datasets):
-                    print(f"Seeded decision {name} (version {version_id})", file=sys.stderr)
-                for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
-                    print(f"Seeded dataset evaluator {name} ({binding_id})", file=sys.stderr)
+                datasets = _seed_sources(http, client, stream=sys.stderr)
                 for dataset in datasets:
                     print(f"Seeded {dataset.name}: {len(dataset)} examples", file=sys.stderr)
                 return

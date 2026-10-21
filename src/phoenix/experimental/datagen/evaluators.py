@@ -8,8 +8,7 @@ from urllib.parse import quote
 import httpx
 
 from phoenix.experimental.datagen.datasets import DatasetError
-from phoenix.experimental.datagen.decisions import seed_decision
-from phoenix.experimental.datagen.workflows import TYPED_DECISIONS_DATASET_NAME
+from phoenix.experimental.datagen.decisions import TYPED_DECISIONS_DATASET_NAME, seed_decision
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
