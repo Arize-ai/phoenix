@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e27d030039058af994a5c3fa603b168>>
+ * @generated SignedSource<<03beff58457cd547c0d5765968ed69dd>>
  * @lightSyntaxTransform
  */
 
@@ -37,6 +37,7 @@ export type SpansTable_spans$data = {
         } | null;
         readonly latencyMs: number | null;
         readonly metadata: string | null;
+        readonly modelName: string | null;
         readonly name: string;
         readonly output: {
           readonly value: string;
@@ -290,6 +291,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "userId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "modelName",
                   "storageKey": null
                 },
                 {
@@ -578,6 +586,6 @@ return {
 };
 })();
 
-(node as any).hash = "9f90f5fd3efce0a3ebabf382e7be53a1";
+(node as any).hash = "b88f93524380fcbcce735d30518603af";
 
 export default node;

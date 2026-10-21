@@ -4366,6 +4366,11 @@ type Span implements Node {
   The "user.id" attribute of the span, identifying the end user of the traced application.
   """
   userId: String
+
+  """
+  The "llm.model_name" attribute of the span, identifying the model invoked. Typically populated on LLM spans.
+  """
+  modelName: String
   numDocuments: Int
 
   """
