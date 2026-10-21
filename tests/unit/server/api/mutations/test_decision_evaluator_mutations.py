@@ -512,16 +512,11 @@ async def test_decision_evaluator_snapshots_survive_binding_deletion_and_experim
     binding_id = await bind(gql_client, evaluator, name="ticket-urgency")
     binding_row_id = int(GlobalID.from_id(binding_id).node_id)
     async with db() as session:
-        dataset_version_id = await session.scalar(
-            insert(models.DatasetVersion)
-            .values(dataset_id=1, metadata_={})
-            .returning(models.DatasetVersion.id)
-        )
         experiment_id = await session.scalar(
             insert(models.Experiment)
             .values(
                 dataset_id=1,
-                dataset_version_id=dataset_version_id,
+                dataset_version_id=1,
                 name="exp",
                 repetitions=1,
                 metadata_={},

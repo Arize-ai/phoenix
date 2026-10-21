@@ -87,8 +87,5 @@ const CreateDecisionEvaluatorDialog = (
 const CreateDecisionEvaluatorDialogContent = (
   props: CreateDecisionEvaluatorDialogProps
 ) => (
-  <DecisionDatasetEvaluatorForm
-    {...props}
-    onSaved={props.onEvaluatorCreated}
-  />
+  <DecisionDatasetEvaluatorForm {...props} onSaved={props.onEvaluatorCreated} />
 );

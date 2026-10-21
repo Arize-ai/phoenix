@@ -21,11 +21,11 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
-import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import {
   AnnotationPreviewCard,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
 import { ModelMenu } from "@phoenix/components/generative";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
@@ -154,7 +154,7 @@ function DecisionDatasetEvaluatorFormContent({
     selection?.decisionId ?? initialEvaluator?.decisionVersion.decision.id;
   const selectedVersionId = selectedTagName
     ? undefined
-    : selection?.versionId ?? initialEvaluator?.decisionVersion.id;
+    : (selection?.versionId ?? initialEvaluator?.decisionVersion.id);
 
   useEffect(() => {
     if (!selectedDecisionId || (!selectedVersionId && !selectedTagName)) {
@@ -210,12 +210,12 @@ function DecisionDatasetEvaluatorFormContent({
           choices: question.choices.map(({ value }) => value),
         }
       : question.type === "scale"
-      ? {
-          type: "scale",
-          name: question.name,
-          levels: question.levels.map(({ label }) => label),
-        }
-      : { type: "predicate", name: question.name }
+        ? {
+            type: "scale",
+            name: question.name,
+            levels: question.levels.map(({ label }) => label),
+          }
+        : { type: "predicate", name: question.name }
   );
   const questions = draftQuestions;
   const variables = extractDecisionVariables({
@@ -383,8 +383,8 @@ function DecisionDatasetEvaluatorFormContent({
             ...(hasDecisionChanges
               ? { decisionVersion: version }
               : loadedVersionId !== initialEvaluator?.decisionVersion.id
-              ? { decisionVersionId: loadedVersionId }
-              : {}),
+                ? { decisionVersionId: loadedVersionId }
+                : {}),
             scoringPolicy: policy,
           },
         });

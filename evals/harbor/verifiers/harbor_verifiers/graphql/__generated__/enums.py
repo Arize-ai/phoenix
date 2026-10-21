@@ -14,6 +14,11 @@ class AnthropicThinkingDisplay(str, Enum):
     OMITTED = "OMITTED"
 
 
+class DecisionTemplateFormat(str, Enum):
+    MUSTACHE = "MUSTACHE"
+    F_STRING = "F_STRING"
+
+
 class EvaluatorKind(str, Enum):
     LLM = "LLM"
     CODE = "CODE"

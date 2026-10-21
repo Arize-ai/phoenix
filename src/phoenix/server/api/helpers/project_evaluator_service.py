@@ -448,7 +448,12 @@ async def add_project_evaluator(
             project = await validate_project_evaluator_project(
                 session, project_id, input.project_id
             )
-            evaluator = await session.get(evaluator_model, evaluator_id, with_for_update=True)
+            if evaluator_kind == "DECISION":
+                # The joined version is an outer join. PostgreSQL rejects FOR UPDATE on it.
+                await lock_evaluators(session, [evaluator_id])
+                evaluator = await session.get(evaluator_model, evaluator_id)
+            else:
+                evaluator = await session.get(evaluator_model, evaluator_id, with_for_update=True)
             if evaluator is None:
                 raise NotFound(f"Evaluator not found: {input.evaluator_id}")
             if isinstance(evaluator, models.LLMEvaluator) and (
