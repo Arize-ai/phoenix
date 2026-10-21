@@ -13,8 +13,8 @@ With `span_level="debug"` the insert trace looks like this. Catalog and plan spa
 pixeltable.insert
 └─ pixeltable.store.insert_rows
    ├─ pixeltable.row
-   │  └─ pixeltable.udf.chat_completions
-   │     └─ LLM span                 OpenInference, when the column calls a model
+   ├─ pixeltable.udf.chat_completions
+   │  └─ LLM span                 OpenInference, when the column calls a model
    ├─ pixeltable.store.build_rows
    └─ pixeltable.sa.insert_rows
 ```
@@ -160,7 +160,7 @@ Open the `pixeltable-app` project and select the `pixeltable.insert` trace.
   />
 </Frame>
 
-The screenshot is an insert whose computed column is a Python UDF, `word_count`. Phoenix labels `pixeltable.udf.word_count` as unknown and shows `pxt.udf_path` (`my_udfs.word_count`) and `pxt.column` (`words`). A `chat_completions` column uses the same Pixeltable span names, with `pixeltable.udf.chat_completions` nested under `pixeltable.row`. The LLM span under that UDF span comes from OpenInference: the instrumentor records the model call as a child of the active span, and Pixeltable makes the UDF span active for that call.
+The screenshot is an insert whose computed column is a Python UDF, `word_count`. Phoenix labels `pixeltable.udf.word_count` as unknown and shows `pxt.udf_path` (`my_udfs.word_count`) and `pxt.column` (`words`). A `chat_completions` column runs on a resource pool, so its `pixeltable.udf.chat_completions` span sits beside `pixeltable.row` instead of under it. The LLM span under that UDF span comes from OpenInference: the instrumentor records the model call as a child of the active span, and Pixeltable makes the UDF span active for that call.
 
 ```bash
 curl -s http://localhost:6006/v1/projects
