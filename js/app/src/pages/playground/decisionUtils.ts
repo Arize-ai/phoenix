@@ -858,10 +858,9 @@ function questionVariables({
 }
 
 /**
- * Why a draft can't run over a dataset, or null when it can. Each example
- * supplies the state's variables, so the state must be a text template over
- * them or a list of inputs; the questions are copied into the experiment as
- * written, so they can't use variables.
+ * Why a draft cannot be run, or null when it can. The state must be text with
+ * template variables, or a list of inputs. Questions cannot contain template
+ * variables. `purpose` selects the error wording.
  */
 export function getDecisionDatasetProblem({
   draft,
@@ -870,18 +869,20 @@ export function getDecisionDatasetProblem({
 }: {
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
-  /**
-   * What the definition is for: a dataset run, whose examples fill the
-   * inputs, or a saved version, whose callers do.
-   */
-  purpose?: "dataset" | "save";
+  purpose?: "dataset" | "save" | "test";
 }): string | null {
-  const when = purpose === "dataset" ? "Over a dataset" : "To save";
-  const filler = purpose === "dataset" ? "each example" : "each caller";
+  const when =
+    purpose === "test"
+      ? "To test"
+      : purpose === "dataset"
+        ? "Over a dataset"
+        : "To save";
+  const filler = purpose === "save" ? "each caller" : "each example";
+  const owner = purpose === "save" ? "caller's" : "example's";
   if (draft.stateEditorMode !== "inputs") {
     const serverFormat = toServerTemplateFormat(templateFormat);
     if (draft.stateEditorMode !== "text" || !serverFormat) {
-      return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${purpose === "dataset" ? "example's" : "caller's"} value as is.`;
+      return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${owner} value as is.`;
     }
     const names = stateTemplateVariables(draft.state, templateFormat);
     if (names.length === 0) {
@@ -942,11 +943,9 @@ function soleStateVariable({
 }
 
 /**
- * The decision task's definition for a dataset run: the state's template
- * variables are its inputs, read from each example, and the questions are
- * sent as written. A state that is only one variable passes that input's
- * value as is, so an object in the dataset reaches the model as an object.
- * Listed inputs are sent together as an object state.
+ * Decision task definition. State template variables become inputs. A state
+ * that is only one variable passes that value through. Listed inputs are sent
+ * as an object state.
  *
  * Throws when {@link getDecisionDatasetProblem} reports a problem.
  */
@@ -957,7 +956,7 @@ export function buildDecisionTaskDefinition({
 }: {
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
-  purpose?: "dataset" | "save";
+  purpose?: "dataset" | "save" | "test";
 }): DecisionTaskDefinition {
   const validationError = getDecisionValidationError(draft);
   if (validationError) throw new Error(validationError);

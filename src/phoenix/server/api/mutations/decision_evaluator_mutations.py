@@ -3,20 +3,18 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import decision_evaluator_service as service
 from phoenix.server.api.input_types.DecisionScoringPolicyInput import (
     DecisionScoringPolicyInput,
 )
+from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.mutations.evaluator_mutations import (
     DatasetEvaluatorMutationPayload,
@@ -24,7 +22,6 @@ from phoenix.server.api.mutations.evaluator_mutations import (
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Evaluator import DatasetEvaluator, DecisionEvaluator
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 def _scoring_policy(value: Optional[DecisionScoringPolicyInput]) -> Optional[dict[str, Any]]:
@@ -61,7 +58,12 @@ class DeleteDecisionEvaluatorInput:
 @strawberry.input
 class CreateDatasetDecisionEvaluatorInput:
     dataset_id: GlobalID
-    evaluator_id: GlobalID
+    evaluator_id: Optional[GlobalID] = None
+    decision_id: Optional[GlobalID] = None
+    evaluator_name: Optional[Identifier] = None
+    decision_version_id: Optional[GlobalID] = None
+    decision_version: Optional[DecisionVersionInput] = None
+    scoring_policy: Optional[DecisionScoringPolicyInput] = None
     name: Identifier
     input_mapping: EvaluatorInputMappingInput
     description: Optional[str] = None
@@ -73,6 +75,9 @@ class UpdateDatasetDecisionEvaluatorInput:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    decision_version_id: Optional[GlobalID] = UNSET
+    decision_version: Optional[DecisionVersionInput] = None
+    scoring_policy: Optional[DecisionScoringPolicyInput] = UNSET
 
 
 @strawberry.type
@@ -136,15 +141,20 @@ class DecisionEvaluatorMutationMixin:
     async def create_dataset_decision_evaluator(
         self, info: Info[Context, None], input: CreateDatasetDecisionEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        binding = await service.create_dataset_decision_binding(
+        binding = await service.create_dataset_decision_evaluator(
             _evaluator_service_context(info.context),
-            service.CreateDatasetDecisionBindingInput(
-                dataset_id=input.dataset_id,
-                evaluator_id=input.evaluator_id,
-                name=input.name,
-                input_mapping=input.input_mapping.to_orm(),
-                description=input.description,
-            ),
+            dataset_id=input.dataset_id,
+            evaluator_id=input.evaluator_id,
+            evaluator_name=input.evaluator_name,
+            decision_id=input.decision_id,
+            decision_version_id=input.decision_version_id,
+            decision_version=input.decision_version.to_orm(user_id=info.context.user_id)
+            if input.decision_version is not None
+            else None,
+            scoring_policy=_scoring_policy(input.scoring_policy),
+            name=input.name,
+            input_mapping=input.input_mapping.to_orm(),
+            description=input.description,
         )
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=binding.id, db_record=binding), query=Query()
@@ -154,40 +164,19 @@ class DecisionEvaluatorMutationMixin:
     async def update_dataset_decision_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetDecisionEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        from phoenix.server.api.helpers.dataset_evaluator_service import (
-            DatasetEvaluatorPatch,
-            patch_dataset_evaluator,
-        )
-
-        try:
-            binding_rowid = from_global_id_with_expected_type(
-                input.dataset_evaluator_id, DatasetEvaluator.__name__
-            )
-        except ValueError as error:
-            raise BadRequest(str(error)) from error
-        async with info.context.db() as session:
-            kind = await session.scalar(
-                select(models.Evaluator.kind)
-                .join(
-                    models.DatasetEvaluators,
-                    models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
-                )
-                .where(models.DatasetEvaluators.id == binding_rowid)
-            )
-        if kind is None:
-            raise NotFound(f"Dataset evaluator not found: {input.dataset_evaluator_id}")
-        if kind != "DECISION":
-            raise BadRequest("The dataset evaluator is not a decision evaluator")
-        binding = await patch_dataset_evaluator(
+        binding = await service.update_dataset_decision_evaluator(
             _evaluator_service_context(info.context),
-            input.dataset_evaluator_id,
-            DatasetEvaluatorPatch(
-                name=input.name,
-                description=input.description,
-                input_mapping=input.input_mapping.to_orm()
-                if input.input_mapping is not UNSET and input.input_mapping is not None
-                else input.input_mapping,
-            ),
+            dataset_evaluator_id=input.dataset_evaluator_id,
+            name=input.name,
+            description=input.description,
+            input_mapping=input.input_mapping.to_orm()
+            if input.input_mapping is not UNSET and input.input_mapping is not None
+            else input.input_mapping,
+            decision_version_id=input.decision_version_id,
+            decision_version=input.decision_version.to_orm(user_id=info.context.user_id)
+            if input.decision_version is not None
+            else None,
+            scoring_policy=_scoring_policy(input.scoring_policy),
         )
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=binding.id, db_record=binding), query=Query()

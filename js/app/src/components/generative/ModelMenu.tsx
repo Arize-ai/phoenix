@@ -209,6 +209,8 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     credentialSource?: ModelCredentialSource;
     /** Enable decision selection only on surfaces with a decision execution path. */
     supportsDecisionModels?: boolean;
+    /** Restrict selection to one model type on specialized authoring forms. */
+    fixedModelType?: ModelType;
     /**
      * Shown above the Decision tab's providers when choosing a decision model
      * has a side effect the user should know about first (e.g. it clears the
@@ -229,11 +231,15 @@ export function ModelMenu({
   onLeadingItemSelect,
   credentialSource,
   supportsDecisionModels = false,
+  fixedModelType,
   decisionTabNotice,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
-  const [modelType, setModelType] = useState<ModelType>(getModelType(value));
+  const [selectedModelType, setModelType] = useState<ModelType>(
+    getModelType(value)
+  );
+  const modelType = fixedModelType ?? selectedModelType;
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
   );
@@ -388,7 +394,7 @@ export function ModelMenu({
               <Input placeholder="Search models..." />
             </SearchField>
           </MenuHeader>
-          {supportsDecisionModels ? (
+          {supportsDecisionModels && !fixedModelType ? (
             <ModelTypeTabs
               modelType={modelType}
               notice={decisionTabNotice}

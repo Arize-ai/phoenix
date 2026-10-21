@@ -24,33 +24,37 @@ export type DecisionVersionInput = DecisionTaskDefinition & {
 };
 
 /**
- * A saved version of an instance's decision: its definition, written as a
- * function of named inputs, and the model that answers.
+ * The version input for an instance's decision.
  *
- * Throws when the draft can't be saved; see
- * {@link getDecisionDatasetProblem} with `purpose: "save"`.
+ * Throws when the draft is incomplete. `purpose` selects the error wording.
  */
 export function toDecisionVersionInput({
   instance,
   templateFormat,
   description,
+  purpose = "save",
 }: {
   instance: Pick<PlaygroundInstance, "model" | "decisionRequest">;
   templateFormat: TemplateFormat;
   description?: string | null;
+  purpose?: "dataset" | "save" | "test";
 }): DecisionVersionInput {
   if (!instance.decisionRequest) {
     throw new Error("The instance has no decision to save.");
   }
   const modelName = instance.model.modelName?.trim();
   if (!modelName) {
-    throw new Error("Pick a decision model to save.");
+    throw new Error(
+      purpose === "test"
+        ? "Pick a decision model to test."
+        : "Pick a decision model to save."
+    );
   }
   return {
     ...buildDecisionTaskDefinition({
       draft: instance.decisionRequest,
       templateFormat,
-      purpose: "save",
+      purpose,
     }),
     modelProvider: instance.model.provider,
     modelName,

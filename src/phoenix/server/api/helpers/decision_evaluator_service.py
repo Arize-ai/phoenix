@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -157,12 +157,17 @@ async def validate_bound_decision_update(
     evaluator: models.DecisionEvaluator,
     version: models.DecisionVersion,
     policy: dict[str, Any],
+    *,
+    editing_binding_id: Optional[int] = None,
 ) -> None:
     """Reject changes that invalidate a dataset or project binding."""
     bindings = list(
         await session.scalars(
             select(models.DatasetEvaluators).where(
-                models.DatasetEvaluators.evaluator_id == evaluator.id
+                models.DatasetEvaluators.evaluator_id == evaluator.id,
+                models.DatasetEvaluators.id != editing_binding_id
+                if editing_binding_id is not None
+                else true(),
             )
         )
     )
@@ -177,9 +182,6 @@ async def validate_bound_decision_update(
     candidate = original.model_copy(
         update={"inputs": version.inputs, "state": version.state, "questions": version.questions}
     )
-    # TODO: a judge with a single binding still can't change its inputs or questions from that
-    # binding's editor. Allowing it needs one mutation that moves the version and rewrites that
-    # binding's input mapping together.
     if (bindings or project_bindings) and _signature(original) != _signature(candidate):
         broken = [
             f"{kind} evaluators " + ", ".join(sorted(f"'{binding.name.root}'" for binding in group))
@@ -437,3 +439,241 @@ async def build_decision_evaluator(
             sdk_retries=sdk_retries,
         )
     return DecisionEvaluator(definition, client)
+
+
+async def _available_saved_name(
+    session: AsyncSession, base: Identifier, *, claim_decision: bool
+) -> Identifier:
+    """`base`, or `base` with a random suffix, once that name is free.
+
+    With `claim_decision`, the name must also be free on ``Decision``.
+    """
+    for attempt in range(6):
+        candidate = (
+            base if attempt == 0 else Identifier.model_validate(f"{base.root}-{token_hex(4)}")
+        )
+        evaluator_taken = await session.scalar(
+            select(models.Evaluator.id).where(models.Evaluator.name == candidate).limit(1)
+        )
+        decision_taken = False
+        if claim_decision and evaluator_taken is None:
+            decision_taken = (
+                await session.scalar(
+                    select(models.Decision.id).where(models.Decision.name == candidate).limit(1)
+                )
+                is not None
+            )
+        if evaluator_taken is None and not decision_taken:
+            return candidate
+    raise Conflict("A Decision or evaluator with this name already exists")
+
+
+async def create_dataset_decision_evaluator(
+    context: EvaluatorServiceContext,
+    *,
+    dataset_id: GlobalID,
+    name: Identifier,
+    input_mapping: InputMapping,
+    description: Optional[str] = None,
+    evaluator_id: Optional[GlobalID] = None,
+    decision_id: Optional[GlobalID] = None,
+    evaluator_name: Optional[Identifier] = None,
+    decision_version_id: Optional[GlobalID] = None,
+    decision_version: Optional[models.DecisionVersion] = None,
+    scoring_policy: Optional[dict[str, Any]] = None,
+) -> models.DatasetEvaluators:
+    """Create a dataset binding and optionally its Decision and evaluator, atomically."""
+    from phoenix.server.api.helpers.decision_versions import validate_decision_custom_provider
+
+    has_saved_evaluator = evaluator_id is not None
+    if has_saved_evaluator:
+        if any(
+            value is not None
+            for value in (
+                decision_id,
+                evaluator_name,
+                decision_version_id,
+                decision_version,
+                scoring_policy,
+            )
+        ):
+            raise BadRequest("An existing evaluator cannot be combined with a new definition")
+    elif evaluator_name is None or (decision_version_id is None) == (decision_version is None):
+        raise BadRequest(
+            "Provide an evaluator name and exactly one saved version or draft Decision"
+        )
+    if decision_id is not None and decision_version is None:
+        raise BadRequest("decisionId requires a draft Decision version")
+    try:
+        async with context.db() as session:
+            dataset_rowid = _id(dataset_id, "Dataset")
+            dataset = await session.get(models.Dataset, dataset_rowid)
+            if dataset is None:
+                raise NotFound("Dataset not found")
+            if evaluator_id is not None:
+                evaluator = await get_decision_evaluator(
+                    session, _id(evaluator_id, "DecisionEvaluator"), lock=True
+                )
+                version = evaluator.selected_version
+            else:
+                assert evaluator_name is not None
+                evaluator_name = await _available_saved_name(
+                    session,
+                    evaluator_name,
+                    claim_decision=decision_version is not None and decision_id is None,
+                )
+                if decision_version is not None:
+                    await validate_decision_custom_provider(session, decision_version)
+                    if decision_id is None:
+                        decision = models.Decision(
+                            name=evaluator_name,
+                            description=description,
+                            metadata_={},
+                            user_id=context.user_id,
+                            decision_versions=[decision_version],
+                        )
+                        session.add(decision)
+                    else:
+                        existing_decision = await session.get(
+                            models.Decision, _id(decision_id, "Decision")
+                        )
+                        if existing_decision is None:
+                            raise NotFound("Decision not found")
+                        decision_version.decision_id = existing_decision.id
+                        session.add(decision_version)
+                    await session.flush()
+                    version = decision_version
+                else:
+                    assert decision_version_id is not None
+                    version = await _version(session, decision_version_id)
+                policy = resolve_scoring_policy(
+                    version.questions, DecisionScoringPolicy.model_validate(scoring_policy or {})
+                )
+                tag = models.DecisionVersionTag(
+                    name=Identifier(f"{evaluator_name.root}-evaluator-{token_hex(4)}"),
+                    decision_id=version.decision_id,
+                    decision_version_id=version.id,
+                    user_id=context.user_id,
+                )
+                session.add(tag)
+                await session.flush()
+                evaluator = models.DecisionEvaluator(
+                    name=evaluator_name,
+                    description=description,
+                    metadata_={},
+                    user_id=context.user_id,
+                    kind="DECISION",
+                    decision_id=version.decision_id,
+                    decision_version_tag_id=tag.id,
+                    scoring_policy=policy.model_dump(mode="json"),
+                )
+                session.add(evaluator)
+                await session.flush()
+            validate_decision_input_mapping(version, input_mapping)
+            binding = models.DatasetEvaluators(
+                dataset_id=dataset_rowid,
+                evaluator_id=evaluator.id,
+                name=name,
+                input_mapping=input_mapping,
+                output_configs=None,
+                description=description,
+                user_id=context.user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset.name, dataset_evaluator_name=name.root
+                ),
+            )
+            session.add(binding)
+            await session.flush()
+    except (IntegrityError, SQLiteIntegrityError) as error:
+        raise Conflict(
+            "A Decision, evaluator, or dataset binding with this name already exists"
+        ) from error
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    return binding
+
+
+async def update_dataset_decision_evaluator(
+    context: EvaluatorServiceContext,
+    *,
+    dataset_evaluator_id: GlobalID,
+    name: Optional[Identifier] = UNSET,
+    description: Optional[str] = UNSET,
+    input_mapping: Optional[InputMapping] = UNSET,
+    decision_version_id: Optional[GlobalID] = UNSET,
+    decision_version: Optional[models.DecisionVersion] = None,
+    scoring_policy: Optional[dict[str, Any]] = UNSET,
+) -> models.DatasetEvaluators:
+    """Save a Decision version, shared scoring, and this dataset's mapping together.
+
+    Other dataset and project bindings retain their input and output contracts. The
+    edited binding may change those contracts because its mapping is saved atomically.
+    """
+    from phoenix.server.api.helpers.dataset_evaluator_service import _write_dataset_evaluator
+    from phoenix.server.api.helpers.decision_versions import validate_decision_custom_provider
+
+    if decision_version is not None and decision_version_id is not UNSET:
+        raise BadRequest("Provide either a saved version or a draft Decision, not both")
+    if name is None:
+        raise BadRequest("Invalid evaluator name: name cannot be null")
+    if (
+        input_mapping is None
+        or scoring_policy is None
+        or name is None
+        or decision_version_id is None
+    ):
+        raise BadRequest("Name, input mapping, scoring policy, and version cannot be null")
+    try:
+        async with context.db() as session:
+            binding = await session.get(
+                models.DatasetEvaluators, _id(dataset_evaluator_id, "DatasetEvaluator")
+            )
+            if binding is None:
+                raise NotFound("Dataset evaluator not found")
+            kind = await session.scalar(
+                select(models.Evaluator.kind).where(models.Evaluator.id == binding.evaluator_id)
+            )
+            if kind != "DECISION":
+                raise BadRequest("The dataset evaluator is not a decision evaluator")
+            evaluator = await get_decision_evaluator(session, binding.evaluator_id, lock=True)
+            await session.refresh(binding)
+            original = evaluator.selected_version
+            if decision_version is not None:
+                await validate_decision_custom_provider(session, decision_version)
+                decision_version.decision_id = evaluator.decision_id
+                session.add(decision_version)
+                await session.flush()
+                version = decision_version
+            elif decision_version_id is not UNSET:
+                version = await _version(session, decision_version_id)
+            else:
+                version = original
+            if version.decision_id != evaluator.decision_id:
+                raise BadRequest("A decision evaluator can only use versions of its own Decision")
+            policy = (adapt_scoring_policy if scoring_policy is UNSET else resolve_scoring_policy)(
+                version.questions,
+                DecisionScoringPolicy.model_validate(
+                    evaluator.scoring_policy if scoring_policy is UNSET else scoring_policy
+                ),
+            ).model_dump(mode="json")
+            await validate_bound_decision_update(
+                session, evaluator, version, policy, editing_binding_id=binding.id
+            )
+            mapping = binding.input_mapping if input_mapping is UNSET else input_mapping
+            validate_decision_input_mapping(version, mapping)
+            tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
+            assert tag is not None
+            tag.decision_version_id = version.id
+            evaluator.scoring_policy = policy
+            values: dict[str, Any] = {"input_mapping": mapping, "user_id": context.user_id}
+            if name is not UNSET:
+                values["name"] = name
+            if description is not UNSET:
+                values["description"] = description
+            binding = await _write_dataset_evaluator(session, binding.id, values)
+            await session.flush()
+    except (IntegrityError, SQLiteIntegrityError) as error:
+        raise Conflict("An evaluator with this name already exists in the dataset") from error
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    return binding

@@ -992,7 +992,12 @@ input CreateDatasetCodeEvaluatorInput {
 
 input CreateDatasetDecisionEvaluatorInput {
   datasetId: ID!
-  evaluatorId: ID!
+  evaluatorId: ID = null
+  decisionId: ID = null
+  evaluatorName: Identifier = null
+  decisionVersionId: ID = null
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput!
   description: String = null
@@ -2884,6 +2889,7 @@ type EvaluatorConnection {
 }
 
 input EvaluatorDefinitionInput @oneOf {
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput
   decisionEvaluatorId: ID
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
@@ -3811,6 +3817,13 @@ type InlineDecisionEvaluatorDefinition {
   scoringPolicy: DecisionScoringPolicy!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   source: EvaluatorTaskSource
+}
+
+input InlineDecisionEvaluatorInput {
+  name: String!
+  decisionVersion: DecisionVersionInput!
+  scoringPolicy: DecisionScoringPolicyInput = null
+  description: String = null
 }
 
 type InlineLLMEvaluatorDefinition {
@@ -7056,6 +7069,9 @@ input UpdateDatasetDecisionEvaluatorInput {
   name: Identifier
   description: String
   inputMapping: EvaluatorInputMappingInput
+  decisionVersionId: ID
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput
 }
 
 input UpdateDatasetLLMEvaluatorInput {

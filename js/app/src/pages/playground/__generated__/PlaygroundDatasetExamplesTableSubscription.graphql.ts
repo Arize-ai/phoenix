@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f1814072b1b28555d03fe72f7b2bc7c>>
+ * @generated SignedSource<<3a1cef5661a062a44bee856ac6f6a1e7>>
  * @lightSyntaxTransform
  */
 
@@ -316,78 +316,61 @@ export type EvaluatorTaskInput = {
 export type EvaluatorDefinitionInput = {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
   decisionEvaluatorId: string;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId: string;
   codeEvaluatorId?: never;
   decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
   decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator: InlineLLMEvaluatorInput;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId: string;
   decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
   decisionEvaluatorId?: never;
   inlineCodeEvaluator: InlineCodeEvaluatorInput;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 };
-export type InlineLLMEvaluatorInput = {
+export type InlineDecisionEvaluatorInput = {
+  decisionVersion: DecisionVersionInput;
   description?: string | null;
   name: string;
-  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
-  promptVersion: ChatPromptVersionInput;
+  scoringPolicy?: DecisionScoringPolicyInput | null;
 };
-export type InlineCodeEvaluatorInput = {
+export type DecisionVersionInput = {
+  customProviderId?: string | null;
   description?: string | null;
-  language: Language;
-  name: string;
-  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
-  sandboxConfigId?: string | null;
-  sourceCode: string;
-};
-export type EvaluatorTaskSourceInput = {
-  datasetEvaluatorId?: string | null;
-  evaluatorId?: string | null;
-  projectEvaluatorId?: string | null;
-  promptVersionId?: string | null;
-};
-export type DecisionTaskInput = {
-  connection: DecisionConnectionInput;
-  decisionVersionId?: string | null;
-  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
-  inputValuesPath?: string | null;
   inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  metadata?: any | null;
   modelName: string;
+  modelProvider: GenerativeProviderKey;
   questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
-};
-export type DecisionConnectionInput = {
-  builtIn: BuiltInDecisionConnectionInput;
-  customProvider?: never;
-} | {
-  builtIn?: never;
-  customProvider: CustomProviderDecisionConnectionInput;
-};
-export type BuiltInDecisionConnectionInput = {
-  baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
-  providerKey: GenerativeProviderKey;
-};
-export type CustomProviderDecisionConnectionInput = {
-  id: string;
 };
 export type DecisionInputDefinitionInput = {
   description?: string | null;
@@ -450,6 +433,86 @@ export type ScaleQuestionInput = {
 export type ScaleLevelInput = {
   description?: string | null;
   label: string;
+};
+export type DecisionScoringPolicyInput = {
+  questions?: ReadonlyArray<DecisionQuestionScoringInput>;
+};
+export type DecisionQuestionScoringInput = {
+  choice?: never;
+  predicate: DecisionPredicateScoringInput;
+  scale?: never;
+} | {
+  choice: DecisionChoiceScoringInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: DecisionScaleScoringInput;
+};
+export type DecisionPredicateScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  threshold?: number;
+};
+export type DecisionChoiceScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  scores?: ReadonlyArray<DecisionChoiceScoreInput>;
+};
+export type DecisionChoiceScoreInput = {
+  choice: string;
+  score: number;
+};
+export type DecisionScaleScoringInput = {
+  includeLabel?: boolean;
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+};
+export type InlineLLMEvaluatorInput = {
+  description?: string | null;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  promptVersion: ChatPromptVersionInput;
+};
+export type InlineCodeEvaluatorInput = {
+  description?: string | null;
+  language: Language;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sandboxConfigId?: string | null;
+  sourceCode: string;
+};
+export type EvaluatorTaskSourceInput = {
+  datasetEvaluatorId?: string | null;
+  evaluatorId?: string | null;
+  projectEvaluatorId?: string | null;
+  promptVersionId?: string | null;
+};
+export type DecisionTaskInput = {
+  connection: DecisionConnectionInput;
+  decisionVersionId?: string | null;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  inputValuesPath?: string | null;
+  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  modelName: string;
+  questions: ReadonlyArray<DecisionQuestionInput>;
+  state: DecisionStateInput;
+};
+export type DecisionConnectionInput = {
+  builtIn: BuiltInDecisionConnectionInput;
+  customProvider?: never;
+} | {
+  builtIn?: never;
+  customProvider: CustomProviderDecisionConnectionInput;
+};
+export type BuiltInDecisionConnectionInput = {
+  baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  providerKey: GenerativeProviderKey;
+};
+export type CustomProviderDecisionConnectionInput = {
+  id: string;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ExperimentsOverDatasetInput;

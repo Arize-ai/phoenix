@@ -6,10 +6,12 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.evaluator_definition import (
     BuiltInEvaluatorDefinition,
     EvaluatorDefinition,
     InlineCodeEvaluatorDefinition,
+    InlineDecisionEvaluatorDefinition,
     InlineLLMEvaluatorDefinition,
     InlineLLMEvaluatorPromptVersion,
     StoredCodeEvaluatorDefinition,
@@ -20,6 +22,8 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
 )
+from phoenix.server.api.input_types.DecisionScoringPolicyInput import DecisionScoringPolicyInput
+from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
@@ -106,10 +110,38 @@ class InlineCodeEvaluatorInput:
         )
 
 
+@strawberry.input
+class InlineDecisionEvaluatorInput:
+    """Preview or run an unsaved Decision evaluator without creating persistent records."""
+
+    name: str
+    decision_version: DecisionVersionInput
+    scoring_policy: Optional[DecisionScoringPolicyInput] = None
+    description: Optional[str] = None
+
+    def to_definition(self) -> InlineDecisionEvaluatorDefinition:
+        version = self.decision_version.to_orm(user_id=None)
+        return InlineDecisionEvaluatorDefinition(
+            type="inline_decision_evaluator",
+            name=self.name,
+            description=self.description,
+            inputs=version.inputs,
+            state=version.state,
+            questions=version.questions,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            custom_provider_id=version.custom_provider_id,
+            scoring_policy=self.scoring_policy.to_orm()
+            if self.scoring_policy
+            else DecisionScoringPolicy(),
+        )
+
+
 @strawberry.input(one_of=True)
 class EvaluatorDefinitionInput:
     """An evaluator: a stored one by id, or an inline definition."""
 
+    inline_decision_evaluator: Optional[InlineDecisionEvaluatorInput] = UNSET
     decision_evaluator_id: Optional[GlobalID] = UNSET
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
@@ -118,8 +150,8 @@ class EvaluatorDefinitionInput:
 
     def to_definition(self) -> EvaluatorDefinition:
         """The evaluator this input names or drafts, as previews and experiments build it."""
-        # TODO: calibrating decision judges isn't built yet, but this already runs one as an
-        # evaluator task, and the runner has no test for it.
+        if self.inline_decision_evaluator:
+            return self.inline_decision_evaluator.to_definition()
         if self.decision_evaluator_id:
             return StoredDecisionEvaluatorDefinition(
                 type="decision_evaluator",

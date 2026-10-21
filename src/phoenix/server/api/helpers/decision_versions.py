@@ -6,7 +6,7 @@ run or a save, and can change without making stored rows unreadable.
 """
 
 import json
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from pydantic import ValidationError
 
@@ -21,6 +21,11 @@ from phoenix.db.types.decisions import (
 )
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from phoenix.db import models
 
 # Both providers document 2 to 255 choices (TypeSafe at https://docs.typesafe.ai/api,
 # OpenAI in its SDK's request types). The 2 to 10 levels are TypeSafe's; OpenAI documents
@@ -264,3 +269,35 @@ def format_validation_error(error: ValidationError) -> str:
         if line not in messages:
             messages.append(line)
     return "; ".join(messages)
+
+
+async def validate_decision_custom_provider(
+    session: "AsyncSession", version: "models.DecisionVersion"
+) -> None:
+    """Reject a custom provider that is missing, serves no decision models, or speaks another
+    API than the version's provider."""
+    from strawberry.relay import GlobalID
+
+    from phoenix.db import models
+    from phoenix.db.types.model_provider import sdk_offers_decisions
+    from phoenix.server.api.exceptions import BadRequest, NotFound
+    from phoenix.server.api.types.GenerativeProvider import (
+        CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
+        GenerativeProviderKey,
+    )
+
+    if (provider_id := version.custom_provider_id) is None:
+        return
+    provider = await session.get(models.GenerativeModelCustomProvider, provider_id)
+    global_id = GlobalID("GenerativeModelCustomProvider", str(provider_id))
+    if provider is None:
+        raise NotFound(f"Custom provider not found: {global_id}")
+    if not sdk_offers_decisions(provider.sdk):
+        raise BadRequest(f"Custom provider '{provider.name}' does not serve decision models.")
+    provider_key = CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[provider.sdk]
+    version_key = GenerativeProviderKey.from_model_provider(version.model_provider)
+    if provider_key is not version_key:
+        raise BadRequest(
+            f"Custom provider '{provider.name}' speaks the {provider_key.name} API, not "
+            f"{version_key.name}."
+        )

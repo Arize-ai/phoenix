@@ -152,7 +152,10 @@ export function PlaygroundEvaluatorSelect(
                           : () => {
                               setEvaluatorMenuOpen(false);
                               void navigate(
-                                `/playground?${new URLSearchParams({ datasetId, datasetEvaluator0: evaluator.id })}`
+                                `/playground?${new URLSearchParams({
+                                  datasetId,
+                                  datasetEvaluator0: evaluator.id,
+                                })}`
                               );
                             }
                       }

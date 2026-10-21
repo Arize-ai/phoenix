@@ -190,6 +190,25 @@ describe("toDecisionVersionInput", () => {
     ).toThrow(
       "To save, the state needs a template variable that each caller fills"
     );
+    expect(() =>
+      toDecisionVersionInput({
+        instance: {
+          ...makeInstance(makeDraft("{{ticket}}")),
+          model: { ...makeInstance(null).model, modelName: "  " },
+        },
+        templateFormat: mustache,
+        purpose: "test",
+      })
+    ).toThrow("Pick a decision model to test.");
+    expect(() =>
+      toDecisionVersionInput({
+        instance: makeInstance(makeDraft("no variables here")),
+        templateFormat: mustache,
+        purpose: "test",
+      })
+    ).toThrow(
+      "To test, the state needs a template variable that each example fills"
+    );
   });
 });
 

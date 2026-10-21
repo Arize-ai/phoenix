@@ -234,7 +234,7 @@ export const AddEvaluatorMenuContents = ({
       <MenuSection>
         <MenuSectionTitle title="New decision evaluator" />
         <MenuItem
-          leadingContent={<Icon svg={<Icons.Scale />} />}
+          leadingContent={<Icon svg={<Icons.Plus />} />}
           id="createDecisionEvaluator"
         >
           Create new decision evaluator

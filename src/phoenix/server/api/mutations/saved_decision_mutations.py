@@ -14,17 +14,13 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import sdk_offers_decisions
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.decision_versions import validate_decision_custom_provider
 from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
-from phoenix.server.api.types.GenerativeProvider import (
-    CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
-    GenerativeProviderKey,
-)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -106,26 +102,6 @@ def _metadata(metadata: Optional[JSON]) -> dict[str, object]:
     return dict(metadata)
 
 
-async def _validate_custom_provider(session: AsyncSession, version: models.DecisionVersion) -> None:
-    """Reject a custom provider that is missing, serves no decision models, or speaks another
-    API than the version's provider."""
-    if (provider_id := version.custom_provider_id) is None:
-        return
-    provider = await session.get(models.GenerativeModelCustomProvider, provider_id)
-    global_id = GlobalID("GenerativeModelCustomProvider", str(provider_id))
-    if provider is None:
-        raise NotFound(f"Custom provider not found: {global_id}")
-    if not sdk_offers_decisions(provider.sdk):
-        raise BadRequest(f"Custom provider '{provider.name}' does not serve decision models.")
-    provider_key = CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[provider.sdk]
-    version_key = GenerativeProviderKey.from_model_provider(version.model_provider)
-    if provider_key is not version_key:
-        raise BadRequest(
-            f"Custom provider '{provider.name}' speaks the {provider_key.name} API, not "
-            f"{version_key.name}."
-        )
-
-
 async def _upsert_tag(
     session: AsyncSession,
     *,
@@ -188,7 +164,7 @@ class SavedDecisionMutationMixin:
             decision_versions=[version],
         )
         async with info.context.db() as session:
-            await _validate_custom_provider(session, version)
+            await validate_decision_custom_provider(session, version)
             session.add(decision)
             try:
                 await session.flush()
@@ -262,7 +238,7 @@ class SavedDecisionMutationMixin:
         version = input.version.to_orm(user_id=user_id)
         async with info.context.db() as session:
             decision = await _get_decision(session, input.decision_id)
-            await _validate_custom_provider(session, version)
+            await validate_decision_custom_provider(session, version)
             version.decision_id = decision.id
             session.add(version)
             await session.flush()

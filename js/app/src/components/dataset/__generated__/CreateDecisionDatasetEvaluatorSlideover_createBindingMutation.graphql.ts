@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6fd4eb9000165f9fae9c079402d7cd77>>
+ * @generated SignedSource<<5bbd16fe6f61f0da56b2f4b146c68f09>>
  * @lightSyntaxTransform
  */
 
@@ -9,12 +9,126 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateDatasetDecisionEvaluatorInput = {
   datasetId: string;
+  decisionVersion?: DecisionVersionInput | null;
+  decisionVersionId?: string | null;
   description?: string | null;
-  evaluatorId: string;
+  evaluatorId?: string | null;
+  evaluatorName?: string | null;
   inputMapping: EvaluatorInputMappingInput;
   name: string;
+  scoringPolicy?: DecisionScoringPolicyInput | null;
+};
+export type DecisionVersionInput = {
+  customProviderId?: string | null;
+  description?: string | null;
+  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  metadata?: any | null;
+  modelName: string;
+  modelProvider: GenerativeProviderKey;
+  questions: ReadonlyArray<DecisionQuestionInput>;
+  state: DecisionStateInput;
+};
+export type DecisionInputDefinitionInput = {
+  description?: string | null;
+  jsonSchema?: any | null;
+  name: string;
+};
+export type DecisionStateInput = {
+  input?: never;
+  object: boolean;
+  text?: never;
+} | {
+  input?: never;
+  object?: never;
+  text: TextStateInput;
+} | {
+  input: string;
+  object?: never;
+  text?: never;
+};
+export type TextStateInput = {
+  template: string;
+  templateFormat: DecisionTemplateFormat;
+};
+export type DecisionQuestionInput = {
+  choice?: never;
+  predicate: PredicateQuestionInput;
+  scale?: never;
+} | {
+  choice: ChoiceQuestionInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: ScaleQuestionInput;
+};
+export type PredicateQuestionInput = {
+  criteria?: PredicateCriteriaInput | null;
+  instructions: string;
+  name: string;
+};
+export type PredicateCriteriaInput = {
+  false?: string | null;
+  true?: string | null;
+};
+export type ChoiceQuestionInput = {
+  choices: ReadonlyArray<ChoiceOptionInput>;
+  instructions: string;
+  name: string;
+};
+export type ChoiceOptionInput = {
+  description?: string | null;
+  value: string;
+};
+export type ScaleQuestionInput = {
+  instructions: string;
+  levels: ReadonlyArray<ScaleLevelInput>;
+  name: string;
+};
+export type ScaleLevelInput = {
+  description?: string | null;
+  label: string;
+};
+export type DecisionScoringPolicyInput = {
+  questions?: ReadonlyArray<DecisionQuestionScoringInput>;
+};
+export type DecisionQuestionScoringInput = {
+  choice?: never;
+  predicate: DecisionPredicateScoringInput;
+  scale?: never;
+} | {
+  choice: DecisionChoiceScoringInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: DecisionScaleScoringInput;
+};
+export type DecisionPredicateScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  threshold?: number;
+};
+export type DecisionChoiceScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  scores?: ReadonlyArray<DecisionChoiceScoreInput>;
+};
+export type DecisionChoiceScoreInput = {
+  choice: string;
+  score: number;
+};
+export type DecisionScaleScoringInput = {
+  includeLabel?: boolean;
+  name: string;
+  optimizationDirection?: OptimizationDirection;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;

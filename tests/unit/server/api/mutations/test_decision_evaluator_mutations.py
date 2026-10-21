@@ -989,3 +989,294 @@ async def test_bound_scale_description_edits_preserve_the_contract(
             assert result.data and not result.errors, result.errors
         else:
             assert result.errors and "would break dataset evaluators" in result.errors[0].message
+
+
+CREATE_DATASET_EVALUATOR = """
+mutation($input: CreateDatasetDecisionEvaluatorInput!) {
+  createDatasetDecisionEvaluator(input: $input) { evaluator {
+    id name inputMapping { pathMapping literalMapping }
+    evaluator { id ... on DecisionEvaluator { decisionVersion { id questions { ... on DecisionPredicateQuestion { name instructions } } decision { id versionCount } } } }
+  } }
+}
+"""
+UPDATE_DATASET_EVALUATOR = """
+mutation($input: UpdateDatasetDecisionEvaluatorInput!) {
+  updateDatasetDecisionEvaluator(input: $input) { evaluator {
+    id name inputMapping { pathMapping literalMapping }
+    evaluator { id ... on DecisionEvaluator { decisionVersion { id questions { ... on DecisionPredicateQuestion { name instructions } } decision { id versionCount } } } }
+  } }
+}
+"""
+
+
+def authored_dataset_input(**overrides: Any) -> dict[str, Any]:
+    return {
+        "datasetId": str(GlobalID("Dataset", "1")),
+        "name": "triage",
+        "evaluatorName": "triage-evaluator",
+        "decisionVersion": version_input(),
+        "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
+        **overrides,
+    }
+
+
+CREATE_NAMED_DATASET_EVALUATOR = """
+mutation($input: CreateDatasetDecisionEvaluatorInput!) {
+  createDatasetDecisionEvaluator(input: $input) { evaluator {
+    name
+    evaluator { name ... on DecisionEvaluator { decisionVersion { decision { name } } } }
+  } }
+}
+"""
+
+
+async def test_dataset_authoring_suffixes_a_name_already_used_by_a_decision(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    await create(gql_client, name="triage-evaluator")
+    result = await gql_client.execute(
+        CREATE_NAMED_DATASET_EVALUATOR,
+        variables={"input": authored_dataset_input(name="triage")},
+    )
+    assert result.data and not result.errors, result.errors
+    saved = result.data["createDatasetDecisionEvaluator"]["evaluator"]
+    assert saved["name"] == "triage"
+    assert saved["evaluator"]["name"].startswith("triage-evaluator-")
+    assert saved["evaluator"]["decisionVersion"]["decision"]["name"] == saved["evaluator"]["name"]
+
+
+async def test_dataset_authoring_creates_decision_version_evaluator_and_binding_together(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    result = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR, variables={"input": authored_dataset_input()}
+    )
+    assert result.data and not result.errors, result.errors
+    binding = result.data["createDatasetDecisionEvaluator"]["evaluator"]
+    version = binding["evaluator"]["decisionVersion"]
+    assert version["decision"]["versionCount"] == 1
+    assert version["questions"][0]["name"] == "urgent"
+    assert binding["inputMapping"]["pathMapping"] == {"ticket": "input.ticket"}
+
+
+async def test_invalid_mapping_rolls_back_the_entire_dataset_authoring_save(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+    db: DbSessionFactory,
+) -> None:
+    from sqlalchemy import func, select
+
+    result = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR,
+        variables={
+            "input": authored_dataset_input(inputMapping={"pathMapping": {}, "literalMapping": {}})
+        },
+    )
+    assert result.errors and "Map the inputs" in result.errors[0].message
+    async with db() as session:
+        for model in (
+            models.Decision,
+            models.DecisionVersion,
+            models.DecisionVersionTag,
+            models.DecisionEvaluator,
+            models.DatasetEvaluators,
+        ):
+            assert await session.scalar(select(func.count()).select_from(model)) == 0
+
+
+async def test_dataset_authoring_can_change_its_own_inputs_and_questions_atomically(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    created = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR, variables={"input": authored_dataset_input()}
+    )
+    assert created.data and not created.errors, created.errors
+    binding = created.data["createDatasetDecisionEvaluator"]["evaluator"]
+    old_version_id = binding["evaluator"]["decisionVersion"]["id"]
+    result = await gql_client.execute(
+        UPDATE_DATASET_EVALUATOR,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding["id"],
+                "decisionVersion": version_input(
+                    inputs=[{"name": "answer"}],
+                    state={"input": "answer"},
+                    questions=[
+                        {
+                            "predicate": {
+                                "name": "relevant",
+                                "instructions": "Does the answer address the request?",
+                            }
+                        }
+                    ],
+                ),
+                "inputMapping": {"pathMapping": {"answer": "output"}, "literalMapping": {}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    updated = result.data["updateDatasetDecisionEvaluator"]["evaluator"]
+    assert updated["inputMapping"]["pathMapping"] == {"answer": "output"}
+    version = updated["evaluator"]["decisionVersion"]
+    assert version["id"] != old_version_id
+    assert version["decision"]["versionCount"] == 2
+    assert version["questions"] == [
+        {"name": "relevant", "instructions": "Does the answer address the request?"}
+    ]
+    original = await gql_client.execute(
+        "query($id: ID!) { node(id:$id) { ... on DecisionVersion { questions { ... on DecisionPredicateQuestion { name } } } } }",
+        variables={"id": old_version_id},
+    )
+    assert original.data and not original.errors
+    assert original.data["node"]["questions"][0]["name"] == "urgent"
+
+
+async def test_failed_dataset_edit_preserves_version_scoring_and_mapping(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    created = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR, variables={"input": authored_dataset_input()}
+    )
+    assert created.data and not created.errors, created.errors
+    binding = created.data["createDatasetDecisionEvaluator"]["evaluator"]
+    result = await gql_client.execute(
+        UPDATE_DATASET_EVALUATOR,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding["id"],
+                "decisionVersion": version_input(
+                    inputs=[{"name": "answer"}], state={"input": "answer"}
+                ),
+                "inputMapping": {"pathMapping": {}, "literalMapping": {}},
+            }
+        },
+    )
+    assert result.errors and "Map the inputs" in result.errors[0].message
+    check = await gql_client.execute(
+        "query($id: ID!) { node(id:$id) { ... on DecisionEvaluator { decisionVersion { id decision { versionCount } } } } }",
+        variables={"id": binding["evaluator"]["id"]},
+    )
+    assert check.data and not check.errors, check.errors
+    assert (
+        check.data["node"]["decisionVersion"]["id"] == binding["evaluator"]["decisionVersion"]["id"]
+    )
+    assert check.data["node"]["decisionVersion"]["decision"]["versionCount"] == 1
+
+
+async def test_dataset_edit_preserves_other_bindings_contracts(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    created = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR, variables={"input": authored_dataset_input()}
+    )
+    assert created.data and not created.errors, created.errors
+    binding = created.data["createDatasetDecisionEvaluator"]["evaluator"]
+    attached = await gql_client.execute(
+        CREATE_DATASET_EVALUATOR,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": binding["evaluator"]["id"],
+                "name": "another-binding",
+                "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
+            }
+        },
+    )
+    assert attached.data and not attached.errors, attached.errors
+    result = await gql_client.execute(
+        UPDATE_DATASET_EVALUATOR,
+        variables={
+            "input": {
+                "datasetEvaluatorId": binding["id"],
+                "decisionVersion": version_input(
+                    questions=[
+                        {
+                            "predicate": {
+                                "name": "new-question",
+                                "instructions": "A different contract",
+                            }
+                        }
+                    ]
+                ),
+                "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
+            }
+        },
+    )
+    assert result.errors and "another-binding" in result.errors[0].message
+    check = await gql_client.execute(
+        "query($id: ID!) { node(id:$id) { ... on DecisionEvaluator { decisionVersion { decision { versionCount } } } } }",
+        variables={"id": binding["evaluator"]["id"]},
+    )
+    assert check.data and not check.errors
+    assert check.data["node"]["decisionVersion"]["decision"]["versionCount"] == 1
+
+
+async def test_unsaved_decision_preview_uses_draft_and_scoring_without_persistence(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sqlalchemy import func, select
+
+    invoke = AsyncMock(
+        return_value=DecisionResponse(
+            model="test",
+            answers={"relevant": PredicateAnswer(probability=0.7)},
+            input_tokens=1,
+            output_tokens=1,
+        )
+    )
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+    result = await gql_client.execute(
+        """
+mutation($input: EvaluatorPreviewsInput!) {
+  evaluatorPreviews(input:$input) { results { error annotation { name label score } } }
+}
+""",
+        variables={
+            "input": {
+                "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
+                "previews": [
+                    {
+                        "evaluator": {
+                            "inlineDecisionEvaluator": {
+                                "name": "unsaved",
+                                "decisionVersion": version_input(
+                                    questions=[
+                                        {
+                                            "predicate": {
+                                                "name": "relevant",
+                                                "instructions": "Use this unsaved instruction",
+                                            }
+                                        }
+                                    ]
+                                ),
+                                "scoringPolicy": {
+                                    "questions": [
+                                        {"predicate": {"name": "relevant", "threshold": 0.8}}
+                                    ]
+                                },
+                            }
+                        },
+                        "context": {"output": {"text": "An answer"}},
+                        "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
+                    }
+                ],
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["evaluatorPreviews"]["results"] == [
+        {"error": None, "annotation": {"name": "unsaved", "label": "false", "score": 0.7}}
+    ]
+    assert invoke.call_args.args[0].questions[0].instructions == "Use this unsaved instruction"
+    assert invoke.call_args.args[0].state == {"text": "An answer"}
+    async with db() as session:
+        # Seeded LLM evaluators already exist; a preview must not add a Decision or judge.
+        assert await session.scalar(select(func.count()).select_from(models.Decision)) == 0
+        assert await session.scalar(select(func.count()).select_from(models.DecisionEvaluator)) == 0
