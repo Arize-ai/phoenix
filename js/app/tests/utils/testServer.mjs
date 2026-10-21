@@ -24,7 +24,7 @@ process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
 // Keep the built-in model prices the bundled manifest's instead of fetching
 // newer ones from GitHub after startup.
-process.env["PHOENIX_DISABLE_MODEL_COST_FETCH"] = "True";
+process.env["PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE"] = "True";
 
 // Enable Prometheus so the PrometheusMiddleware is mounted on every request
 // during the e2e suite. This produces metrics on :9090 and, crucially, gives

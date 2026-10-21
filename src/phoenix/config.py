@@ -167,18 +167,11 @@ When False, Phoenix makes no public-internet requests on its own initiative, suc
 telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
 providers and hosted sandboxes, are unaffected. Defaults to True.
 """
-ENV_PHOENIX_MODEL_COST_MANIFEST_URL = "PHOENIX_MODEL_COST_MANIFEST_URL"
+ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE = "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE"
 """
-URL of the model cost manifest that Phoenix fetches to keep built-in model prices current
-without an upgrade. Defaults to the manifest for this version's schema on Phoenix's GitHub
-main branch. Accepts http(s)
-and file:// URLs, so it can point at an internal mirror. Because the operator configures it,
-an explicit URL is fetched even when PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
-"""
-ENV_PHOENIX_DISABLE_MODEL_COST_FETCH = "PHOENIX_DISABLE_MODEL_COST_FETCH"
-"""
-Whether to stop fetching the model cost manifest, so that built-in model prices only change
-on upgrade. Defaults to False.
+Whether to disable automatic updates of the built-in model prices at runtime. Phoenix otherwise
+fetches the latest prices from GitHub, unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False. The
+bundled prices still change when Phoenix is upgraded. Defaults to False.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -3890,24 +3883,11 @@ def get_env_allow_external_resources() -> bool:
 
 def get_env_model_cost_manifest_url() -> Optional[str]:
     """
-    The URL to fetch the model cost manifest from, or None if it shouldn't be fetched.
-
-    The default URL is fetched only if external resources are allowed. A URL set with
-    PHOENIX_MODEL_COST_MANIFEST_URL is fetched regardless, unless the fetch is disabled.
-
-    Raises:
-        ValueError: If PHOENIX_MODEL_COST_MANIFEST_URL is not an http(s) or file:// URL.
+    The URL to fetch the latest built-in model prices from, or None if they shouldn't be fetched,
+    either because automatic updates are disabled or because external resources aren't allowed.
     """
-    if _bool_val(ENV_PHOENIX_DISABLE_MODEL_COST_FETCH, False):
+    if _bool_val(ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE, False):
         return None
-    if url := (getenv(ENV_PHOENIX_MODEL_COST_MANIFEST_URL) or "").strip():
-        parsed = urlparse(url)
-        if parsed.scheme not in ("http", "https", "file") or not (parsed.netloc or parsed.path):
-            raise ValueError(
-                f"{ENV_PHOENIX_MODEL_COST_MANIFEST_URL} must be an http(s) or file:// URL. "
-                f"Got: {url}"
-            )
-        return url
     if not get_env_allow_external_resources():
         return None
     from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL

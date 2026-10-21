@@ -104,7 +104,7 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
         "real_model_cost_fetcher: run the app's model cost manifest fetcher loop, which "
-        "downloads the manifest from GitHub unless the test sets the URL",
+        "downloads the manifest from GitHub unless the test patches the download",
     )
     config.addinivalue_line(
         "markers",

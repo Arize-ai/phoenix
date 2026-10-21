@@ -83,7 +83,7 @@ from phoenix.auth import (
     sanitize_email,
 )
 from phoenix.config import (
-    ENV_PHOENIX_DISABLE_MODEL_COST_FETCH,
+    ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE,
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     ENV_PHOENIX_SQL_DATABASE_URL,
 )
@@ -770,7 +770,7 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     # decode the box-drawing glyphs Rich puts around a logged traceback.
     env["PYTHONIOENCODING"] = "utf-8"
     # Keep the built-in prices the bundled manifest's, and the tests off the network.
-    env[ENV_PHOENIX_DISABLE_MODEL_COST_FETCH] = "true"
+    env[ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE] = "true"
     process = Popen(
         command.split(),
         stdout=PIPE,

@@ -236,7 +236,13 @@ class TestAppWiring:
         "env, read_only, expected_url",
         [
             pytest.param({}, False, DEFAULT_MANIFEST_URL, id="default"),
-            pytest.param({"PHOENIX_MODEL_COST_MANIFEST_URL": _URL}, True, None, id="read-only"),
+            pytest.param({}, True, None, id="read-only"),
+            pytest.param(
+                {"PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE": "true"}, False, None, id="disabled"
+            ),
+            pytest.param(
+                {"PHOENIX_ALLOW_EXTERNAL_RESOURCES": "false"}, False, None, id="no-external"
+            ),
         ],
     )
     async def test_fetcher_is_built_only_when_there_is_a_url_to_fetch(
@@ -249,8 +255,7 @@ class TestAppWiring:
     ) -> None:
         for name in (
             "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
-            "PHOENIX_MODEL_COST_MANIFEST_URL",
-            "PHOENIX_DISABLE_MODEL_COST_FETCH",
+            "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE",
         ):
             monkeypatch.delenv(name, raising=False)
         for name, value in env.items():
@@ -274,12 +279,15 @@ class TestAppWiring:
         db: DbSessionFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", _URL)
-        monkeypatch.delenv("PHOENIX_DISABLE_MODEL_COST_FETCH", raising=False)
+        monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
+        monkeypatch.delenv("PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE", raising=False)
         fetch_started = threading.Event()
         release = threading.Event()
+        urls: list[str] = []
 
-        def urlopen(*_: Any, **__: Any) -> Any:
+        # Patched, so the default URL is never actually requested.
+        def urlopen(url: str, *_: Any, **__: Any) -> Any:
+            urls.append(url)
             fetch_started.set()
             release.wait(timeout=30)
             raise TimeoutError("timed out")
@@ -299,3 +307,4 @@ class TestAppWiring:
                         assert await asyncio.to_thread(fetch_started.wait, 10)
         finally:
             release.set()
+        assert urls == [DEFAULT_MANIFEST_URL]

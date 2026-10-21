@@ -75,7 +75,7 @@ The built-in pricing table is generated from [LiteLLM's model price list](https:
 
 The fetch runs in the background and never delays startup. If it fails, Phoenix logs a warning and keeps using the prices it already has.
 
-Settings → Models shows which prices are in use, for example "Built-in prices from Oct 14, 2026 (fetched)". "Bundled" means the copy that shipped with your Phoenix version; "fetched" means one downloaded since.
+Settings → Models shows when the built-in prices in use were generated, for example "Built-in prices from Oct 14, 2026".
 
 <Note>
 Costs are calculated when a span is ingested. New prices apply only to spans received after they're applied; costs already recorded aren't recalculated.
@@ -83,26 +83,7 @@ Costs are calculated when a span is ingested. New prices apply only to spans rec
 
 Custom models you add in Settings → Models are never changed by an update, and they take precedence over built-in models that match the same name.
 
-To control the fetch, set these environment variables on the Phoenix server:
-
-* **Turn it off:** set `PHOENIX_DISABLE_MODEL_COST_FETCH=true`. Built-in prices then change only when you upgrade Phoenix.
-* **Air-gapped deployments:** `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` also stops the fetch from GitHub.
-* **Use a mirror:** host a copy of the pricing file and set `PHOENIX_MODEL_COST_MANIFEST_URL` to it. It accepts `http://`, `https://`, and `file://` URLs. Because you set the URL yourself, Phoenix fetches it even when `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`, so an air-gapped deployment can keep prices current from an internal mirror.
-
-To build a mirror, copy the file from Phoenix's GitHub repository on a schedule, for example daily:
-
-```bash
-curl -fsSL -o /srv/phoenix/model-costs/v1.json \
-  https://raw.githubusercontent.com/Arize-ai/phoenix/main/src/phoenix/server/cost_tracking/manifests/v1.json
-```
-
-```bash
-export PHOENIX_MODEL_COST_MANIFEST_URL=https://mirror.internal.example.com/phoenix/model-costs/v1.json
-# or, for a file on the Phoenix server
-export PHOENIX_MODEL_COST_MANIFEST_URL=file:///srv/phoenix/model-costs/v1.json
-```
-
-The `v1` in the path is the file's format version. Mirror the file whose version matches the URL your Phoenix version uses by default.
+To turn off automatic updates, set `PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE=true` on the Phoenix server. Phoenix also skips them when `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`, as in air-gapped deployments. Either way, built-in prices then change only when you upgrade Phoenix, which still brings the bundled prices up to date.
 
 ### Managing model prices
 
