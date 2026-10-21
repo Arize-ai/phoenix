@@ -40,6 +40,7 @@ dependencies = [
   "grpc-interceptor",
   "tqdm",
   "httpx[http2]",
+  "certifi>=2026.10.18",  # drops the emSign ECC Root CA - G3 behind the compromised eMudhra intermediates; pip -U leaves transitive certifi untouched without a floor
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",

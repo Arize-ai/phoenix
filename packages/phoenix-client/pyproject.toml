@@ -23,6 +23,7 @@ classifiers = [
 version = "3.5.0"
 dependencies = [
   "httpx",
+  "certifi>=2026.10.18",  # drops the emSign ECC Root CA - G3 behind the compromised eMudhra intermediates; pip -U leaves transitive certifi untouched without a floor
   "tqdm",
   "typing-extensions",
   "openinference-semantic-conventions",

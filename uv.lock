@@ -446,6 +446,7 @@ dependencies = [
     { name = "authlib" },
     { name = "bashkit" },
     { name = "cachetools" },
+    { name = "certifi" },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "fastmcp-slim", extra = ["client", "server"] },
@@ -673,6 +674,7 @@ requires-dist = [
     { name = "azure-identity", marker = "extra == 'container'", specifier = ">=1.18.0" },
     { name = "bashkit", specifier = ">=0.10.0,!=0.14.2" },
     { name = "cachetools" },
+    { name = "certifi", specifier = ">=2026.10.18" },
     { name = "daytona-sdk", marker = "extra == 'container'", specifier = ">=0.140.0" },
     { name = "daytona-sdk", marker = "extra == 'daytona'", specifier = ">=0.140.0" },
     { name = "e2b-code-interpreter", marker = "extra == 'container'", specifier = ">=0.0.12" },
@@ -851,6 +853,7 @@ name = "arize-phoenix-client"
 version = "3.5.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
+    { name = "certifi" },
     { name = "httpx" },
     { name = "openinference-instrumentation" },
     { name = "openinference-semantic-conventions" },
@@ -874,6 +877,7 @@ pytest = [
 [package.metadata]
 requires-dist = [
     { name = "arize-phoenix-evals", marker = "extra == 'evals'", editable = "packages/phoenix-evals" },
+    { name = "certifi", specifier = ">=2026.10.18" },
     { name = "harbor", marker = "python_full_version >= '3.12' and extra == 'harbor'", specifier = ">=0.21.0" },
     { name = "httpx" },
     { name = "openinference-instrumentation", specifier = ">=0.1.20" },
