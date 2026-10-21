@@ -139,10 +139,10 @@ separate evaluator form dialogs and never touches playground tasks.
    for a draft; `instanceId` may be omitted when the page has one instance. Anything other than
    loading another prompt into a prompt task replaces the instance with a fresh one built from the
    source, which requires `discardChanges: true` when the instance has unsaved changes — pass it
-   only after the user accepts losing them. With more than one instance the page's kind is locked
-   and a source of the other kind is rejected with "Remove the other tasks to switch between
-   prompts and evaluators."; with one instance any source is allowed and may change the page's
-   kind. The call awaits the load and returns the instance's `ui.playground.evaluator.read`
+   only after the user accepts losing them. With more than one instance the page's role is locked
+   and a source of the other role is rejected with "Prompts and decisions can share a page;
+   evaluators run alone. Remove the other tasks to switch."; with one instance any source is
+   allowed and may change the page's role. The call awaits the load and returns the instance's `ui.playground.evaluator.read`
    snapshot; a deleted or built-in source returns `ok: false` with `code: "NOT_FOUND"`. Add
    comparison tasks with `ui.playground.instance.add({ source })` — the same `source` shapes,
    defaulting to a new LLM evaluator on an evaluator page — up to four tasks.

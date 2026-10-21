@@ -10,6 +10,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationScoreText } from "./AnnotationScoreText";
+import { isRefusedDecisionAnnotation } from "./decisionAnnotation";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -64,6 +65,7 @@ const getAnnotationValueParts = (
     ? { text: annotation.label, fontFamily: "default" }
     : null;
 
+  const isRefused = isRefusedDecisionAnnotation(annotation);
   const withFallback = (
     parts: (AnnotationValuePart | null)[]
   ): AnnotationValuePart[] => {
@@ -72,7 +74,7 @@ const getAnnotationValueParts = (
     );
     return present.length > 0
       ? present
-      : [{ text: "n/a", fontFamily: "default" }];
+      : [{ text: isRefused ? "Refused" : "n/a", fontFamily: "default" }];
   };
 
   switch (displayPreference) {

@@ -48,6 +48,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -65,6 +66,7 @@ from phoenix.server.online_eval.queue_health import (
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
+    from .Decision import DecisionVersion
     from .Project import Project
     from .Prompt import Prompt
     from .PromptVersion import PromptVersion
@@ -88,6 +90,7 @@ class EvaluatorKind(Enum):
     LLM = "LLM"
     CODE = "CODE"
     BUILTIN = "BUILTIN"
+    DECISION = "DECISION"
 
 
 @strawberry.enum
@@ -718,6 +721,85 @@ class CodeEvaluator(Evaluator, Node):
 
 
 @strawberry.type
+class DecisionEvaluator(Evaluator, Node):
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.DecisionEvaluator]] = None
+
+    async def _record(self, info: Info[Context, None]) -> models.DecisionEvaluator:
+        if self.db_record is None:
+            record = await info.context.data_loaders.evaluator_by_id.load(self.id)
+            if not isinstance(record, models.DecisionEvaluator):
+                raise NotFound("Decision evaluator not found")
+            self.db_record = record
+        return self.db_record
+
+    @strawberry.field
+    async def name(self, info: Info[Context, None]) -> Identifier:
+        return Identifier((await self._record(info)).name.root)
+
+    @strawberry.field
+    async def description(self, info: Info[Context, None]) -> Optional[str]:
+        return (await self._record(info)).description
+
+    @strawberry.field
+    async def metadata(self, info: Info[Context, None]) -> JSON:
+        return JSON((await self._record(info)).metadata_)
+
+    @strawberry.field
+    async def kind(self) -> EvaluatorKind:
+        return EvaluatorKind.DECISION
+
+    @strawberry.field
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._record(info)).created_at
+
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._record(info)).updated_at
+
+    @strawberry.field
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        from .User import User
+
+        user_id = (await self._record(info)).user_id
+        return User(id=user_id) if user_id is not None else None
+
+    @strawberry.field
+    async def input_schema(self, info: Info[Context, None]) -> JSON:
+        from phoenix.server.api.helpers.decision_evaluators import decision_input_schema
+
+        return JSON(decision_input_schema((await self._record(info)).selected_version.inputs))
+
+    @strawberry.field
+    async def scoring_policy(self, info: Info[Context, None]) -> DecisionScoringPolicy:
+        record = await self._record(info)
+        return DecisionScoringPolicy.from_orm(
+            record.scoring_policy,
+            record.selected_version.questions,
+        )
+
+    @strawberry.field
+    async def decision_version(
+        self, info: Info[Context, None]
+    ) -> Annotated["DecisionVersion", strawberry.lazy(".Decision")]:
+        from .Decision import DecisionVersion
+
+        version = (await self._record(info)).selected_version
+        return DecisionVersion(id=version.id, db_record=version)
+
+    @strawberry.field
+    async def output_configs(self, info: Info[Context, None]) -> list[BuiltInEvaluatorOutputConfig]:
+        return [
+            _to_gql_output_config(
+                config, config.name, id_prefix="DecisionEvaluator", evaluator_id=self.id
+            )
+            for config in (await self._record(info)).output_configs
+        ]
+
+
+@strawberry.type
 class LLMEvaluator(Evaluator, Node):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.LLMEvaluator]] = None
@@ -1143,6 +1225,18 @@ def _to_gql_output_config(
         )
 
 
+def to_gql_evaluator(evaluator: models.Evaluator) -> Evaluator:
+    if isinstance(evaluator, models.DecisionEvaluator):
+        return DecisionEvaluator(id=evaluator.id, db_record=evaluator)
+    if isinstance(evaluator, models.LLMEvaluator):
+        return LLMEvaluator(id=evaluator.id, db_record=evaluator)
+    if isinstance(evaluator, models.CodeEvaluator):
+        return CodeEvaluator(id=evaluator.id, db_record=evaluator)
+    if isinstance(evaluator, models.BuiltinEvaluator):
+        return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
+    raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+
 @strawberry.type
 class DatasetEvaluator(Node):
     """
@@ -1192,14 +1286,7 @@ class DatasetEvaluator(Node):
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             raise NotFound(f"Evaluator not found: {record.evaluator_id}")
-        if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
-        elif isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
-        elif isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
-        else:
-            raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        return to_gql_evaluator(evaluator)
 
     @strawberry.field
     async def description(
@@ -1222,11 +1309,7 @@ class DatasetEvaluator(Node):
         if isinstance(evaluator, models.BuiltinEvaluator):
             builtin = get_builtin_evaluator_by_key(evaluator.key)
             return builtin.description if builtin else None
-        elif isinstance(evaluator, models.LLMEvaluator):
-            return evaluator.description
-        elif isinstance(evaluator, models.CodeEvaluator):
-            return evaluator.description
-        return None
+        return evaluator.description
 
     @strawberry.field
     async def output_configs(
@@ -1246,7 +1329,7 @@ class DatasetEvaluator(Node):
             evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
             if evaluator is None:
                 return []
-            if isinstance(evaluator, models.LLMEvaluator):
+            if isinstance(evaluator, (models.DecisionEvaluator, models.LLMEvaluator)):
                 configs = list(evaluator.output_configs)
             elif isinstance(evaluator, models.CodeEvaluator):
                 configs = as_output_configs(evaluator.output_configs)
@@ -1398,14 +1481,10 @@ class ProjectEvaluator(Node):
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
         record = await self._get_record(info)
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
-        if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
-        if isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
-        if isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
-        project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
-        raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
+        if evaluator is None:
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
+        return to_gql_evaluator(evaluator)
 
     @strawberry.field
     async def name(self, info: Info[Context, None]) -> Identifier:

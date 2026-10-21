@@ -8,7 +8,7 @@ import strawberry
 from sqlalchemy import select
 from sqlalchemy.orm import with_polymorphic
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.relay.types import Connection
 from strawberry.types import Info
 
@@ -16,6 +16,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.ExperimentTaskConfig import (
+    DecisionTaskConfig,
     EvaluatorTaskConfig,
     ExperimentTaskConfig,
     PromptTaskConfig,
@@ -23,6 +24,7 @@ from phoenix.server.api.types.ExperimentTaskConfig import (
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 if TYPE_CHECKING:
+    from .EvaluatorTaskDefinition import InlineDecisionEvaluatorDefinition
     from .Experiment import Experiment
     from .ExperimentLog import ExperimentLog
 
@@ -33,6 +35,29 @@ class ExperimentJobStatus(Enum):
     COMPLETED = "COMPLETED"
     STOPPED = "STOPPED"
     ERROR = "ERROR"
+
+
+@strawberry.type(
+    description="A decision evaluator configuration captured when the experiment was created. "
+    "It keeps running on resume even if its dataset evaluator binding was later deleted."
+)
+class DecisionEvaluatorSnapshot:
+    name: str = strawberry.field(
+        description="The binding name captured when the experiment was created."
+    )
+    dataset_evaluator_id: GlobalID = strawberry.field(
+        description="The dataset evaluator binding's ID. The binding may have been deleted, "
+        "so this ID may no longer resolve."
+    )
+    definition: Annotated[
+        "InlineDecisionEvaluatorDefinition",
+        strawberry.lazy(".EvaluatorTaskDefinition"),
+    ] = strawberry.field(
+        description="The captured evaluator definition, including its scoring settings."
+    )
+    annotation_names: list[str] = strawberry.field(
+        description="Names of the annotations this evaluator writes."
+    )
 
 
 @strawberry.type
@@ -117,7 +142,8 @@ class ExperimentJob(Node):
         return val
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Snapshot of the task this experiment ran, a prompt or an evaluator. "
+        description="Snapshot of the task this experiment ran: a prompt, a decision, or an "
+        "evaluator. "
         "Use to rehydrate the playground with the exact settings used for this experiment. "
         "Null for eval-only experiments.",
     )
@@ -127,6 +153,9 @@ class ExperimentJob(Node):
         if isinstance(record, models.ExperimentEvalOnlyConfig):
             return None
         async with info.context.db.read() as session:
+            if isinstance(record, models.ExperimentDecisionTask) or record is None:
+                if decision_task := await session.get(models.ExperimentDecisionTask, self.id):
+                    return DecisionTaskConfig.from_orm(decision_task)
             if not isinstance(record, models.ExperimentEvaluatorTask) and (
                 prompt_task := await session.get(models.ExperimentPromptTask, self.id)
             ):
@@ -168,3 +197,44 @@ class ExperimentJob(Node):
             )
             data = [DatasetEvaluator(id=row.id, db_record=row) for row in result.all()]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Decision evaluator configurations captured for this experiment, with binding "
+        "names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a "
+        "binding is deleted.",
+    )
+    async def decision_evaluator_snapshots(
+        self, info: Info[Context, None]
+    ) -> list[DecisionEvaluatorSnapshot]:
+        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+            DecisionEvaluatorSnapshot as StoredDecisionEvaluatorSnapshot,
+        )
+        from phoenix.server.api.helpers.evaluators import result_annotation_names
+        from phoenix.server.api.types.EvaluatorTaskDefinition import (
+            InlineDecisionEvaluatorDefinition,
+        )
+
+        if self.db_record:
+            values = self.db_record.decision_evaluator_snapshots
+        else:
+            values = await info.context.data_loaders.experiment_job_fields.load(
+                (self.id, models.ExperimentJob.decision_evaluator_snapshots),
+            )
+        result = []
+        for value in values or []:
+            snapshot = StoredDecisionEvaluatorSnapshot.model_validate(value)
+            result.append(
+                DecisionEvaluatorSnapshot(
+                    name=snapshot.name,
+                    dataset_evaluator_id=GlobalID(
+                        "DatasetEvaluator", str(snapshot.dataset_evaluator_id)
+                    ),
+                    definition=InlineDecisionEvaluatorDefinition.from_orm(
+                        snapshot.definition, snapshot.dataset_evaluator_id
+                    ),
+                    annotation_names=result_annotation_names(
+                        snapshot.name, snapshot.output_configs
+                    ),
+                )
+            )
+        return result

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72578b1d14e21e2d248875672fc11b93>>
+ * @generated SignedSource<<15311e8169dd780425b9b9d063bf3034>>
  * @lightSyntaxTransform
  */
 
@@ -108,7 +108,15 @@ export type ExperimentsTableFragment$data = {
         readonly job: {
           readonly status: ExperimentJobStatus;
           readonly taskConfig: {
-            readonly __typename: string;
+            readonly __typename: "DecisionTaskConfig";
+            readonly id: string;
+          } | {
+            readonly __typename: "PromptTaskConfig";
+            readonly id: string;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
           } | null;
         } | null;
         readonly metadata: any;
@@ -244,7 +252,7 @@ v13 = {
   "storageKey": null
 },
 v14 = [
-  (v10/*:: as any*/)
+  (v1/*:: as any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -557,9 +565,7 @@ return {
                   "kind": "LinkedField",
                   "name": "project",
                   "plural": false,
-                  "selections": [
-                    (v1/*:: as any*/)
-                  ],
+                  "selections": (v14/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -710,7 +716,21 @@ return {
                       "kind": "LinkedField",
                       "name": "taskConfig",
                       "plural": false,
-                      "selections": (v14/*:: as any*/),
+                      "selections": [
+                        (v10/*:: as any*/),
+                        {
+                          "kind": "InlineFragment",
+                          "selections": (v14/*:: as any*/),
+                          "type": "DecisionTaskConfig",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": (v14/*:: as any*/),
+                          "type": "PromptTaskConfig",
+                          "abstractKey": null
+                        }
+                      ],
                       "storageKey": null
                     }
                   ],
@@ -733,7 +753,9 @@ return {
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
-              "selections": (v14/*:: as any*/),
+              "selections": [
+                (v10/*:: as any*/)
+              ],
               "storageKey": null
             }
           ],
@@ -773,6 +795,6 @@ return {
 };
 })();
 
-(node as any).hash = "97ba85a997a67b4d800f340f91f146c8";
+(node as any).hash = "84b7af5cdcea5ae4d0af355e310ed08f";
 
 export default node;

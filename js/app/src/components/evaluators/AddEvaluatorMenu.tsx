@@ -22,6 +22,7 @@ import {
 } from "@phoenix/components/core/menu";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateCodeDatasetEvaluatorSlideover";
+import { CreateDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDecisionDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
   CreateLLMDatasetEvaluatorSlideover,
@@ -58,6 +59,8 @@ export const AddEvaluatorMenu = ({
   const shouldOpenCreateLLMEvaluator =
     searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
   const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
+    useState(false);
+  const [isCreateDecisionEvaluatorOpen, setIsCreateDecisionEvaluatorOpen] =
     useState(false);
   const isCreateCodeEvaluatorSlideoverOpen =
     isCreateCodeEvaluatorOpen || shouldOpenCreateCodeEvaluator;
@@ -121,6 +124,9 @@ export const AddEvaluatorMenu = ({
               setCreateLLMEvaluatorDialogInitialState(true)
             }
             onCreateCodeEvaluator={() => setCreateCodeEvaluatorOpen(true)}
+            onCreateDecisionEvaluator={() =>
+              setIsCreateDecisionEvaluatorOpen(true)
+            }
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={
               setCreateLLMEvaluatorDialogInitialState
@@ -160,6 +166,12 @@ export const AddEvaluatorMenu = ({
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
       />
+      <CreateDecisionDatasetEvaluatorSlideover
+        isOpen={isCreateDecisionEvaluatorOpen}
+        onOpenChange={setIsCreateDecisionEvaluatorOpen}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+      />
     </>
   );
 };
@@ -172,12 +184,14 @@ export const AddEvaluatorMenuContents = ({
   query,
   onCreateEvaluator,
   onCreateCodeEvaluator,
+  onCreateDecisionEvaluator,
   onSelectBuiltInCodeEvaluator,
   onSelectBuiltInLLMEvaluator,
 }: {
   query: BuiltInEvaluatorsQueryKey;
   onCreateEvaluator: () => void;
   onCreateCodeEvaluator: () => void;
+  onCreateDecisionEvaluator: () => void;
   onSelectBuiltInCodeEvaluator: (evaluatorId: string) => void;
   onSelectBuiltInLLMEvaluator: (
     initialState: CreateLLMDatasetEvaluatorInitialState | null
@@ -193,6 +207,9 @@ export const AddEvaluatorMenuContents = ({
             break;
           case "createCodeEvaluator":
             onCreateCodeEvaluator();
+            break;
+          case "createDecisionEvaluator":
+            onCreateDecisionEvaluator();
             break;
         }
       }}
@@ -213,6 +230,15 @@ export const AddEvaluatorMenuContents = ({
             Use LLM evaluator template
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
+      </MenuSection>
+      <MenuSection>
+        <MenuSectionTitle title="New decision evaluator" />
+        <MenuItem
+          leadingContent={<Icon svg={<Icons.Plus />} />}
+          id="createDecisionEvaluator"
+        >
+          Create new decision evaluator
+        </MenuItem>
       </MenuSection>
       <MenuSection>
         <MenuSectionTitle title="New code evaluator" />

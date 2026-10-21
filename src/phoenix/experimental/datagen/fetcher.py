@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -36,16 +37,51 @@ def fetch_corpus(
     """Fetch the published corpus and return its content-addressed archive path."""
     cache_root = cache_dir or default_cache_dir()
     pointer = load_corpus_pointer(pointer_path, cache_dir=cache_root)
-    destination = cache_root / pointer.sha256
-    if destination.is_file():
-        return destination
+    return fetch_file(
+        pointer.url,
+        pointer.sha256,
+        cache_dir=cache_root,
+        downloader=downloader,
+    )
 
-    _ensure_cache_dir(cache_root)
+
+def _validate_https_and_sha256(
+    url: Any,
+    checksum: Any,
+    *,
+    url_error: str,
+    checksum_error: str,
+) -> CorpusPointer:
+    if not isinstance(url, str) or urlparse(url).scheme != "https":
+        raise CorpusFetchError(url_error)
+    if not isinstance(checksum, str) or re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
+        raise CorpusFetchError(checksum_error)
+    return CorpusPointer(url=url, sha256=checksum)
+
+
+def fetch_file(
+    url: str,
+    checksum: str,
+    *,
+    cache_dir: Path,
+    downloader: Downloader | None = None,
+) -> Path:
+    """Cache a pinned HTTPS file, verifying its SHA-256 even on cache hits."""
+    pointer = _validate_https_and_sha256(
+        url,
+        checksum,
+        url_error="Dataset source URL must use HTTPS",
+        checksum_error="Dataset checksum must be a lowercase SHA-256 digest",
+    )
+    destination = cache_dir / checksum
+    if destination.is_file() and _file_sha256(destination) == checksum:
+        return destination
+    _ensure_cache_dir(cache_dir)
     return _download_and_publish(
         pointer,
-        cache_root,
+        cache_dir,
         destination,
-        downloader or _download_archive,
+        downloader or _download_file,
     )
 
 
@@ -130,17 +166,12 @@ def _ensure_cache_dir(path: Path) -> None:
 def _parse_corpus_pointer(value: Any, pointer_path: Path) -> CorpusPointer:
     if not isinstance(value, dict):
         raise CorpusFetchError(f"Datagen corpus pointer {pointer_path} must be an object")
-    url = value.get("url")
-    digest = value.get("sha256")
-    if not isinstance(url, str) or urlparse(url).scheme != "https":
-        raise CorpusFetchError(f"Datagen corpus pointer {pointer_path} field 'url' must use HTTPS")
-    if (
-        not isinstance(digest, str)
-        or len(digest) != 64
-        or any(character not in "0123456789abcdef" for character in digest)
-    ):
-        raise CorpusFetchError(f"Datagen corpus pointer {pointer_path} field 'sha256' is invalid")
-    return CorpusPointer(url=url, sha256=digest)
+    return _validate_https_and_sha256(
+        value.get("url"),
+        value.get("sha256"),
+        url_error=f"Datagen corpus pointer {pointer_path} field 'url' must use HTTPS",
+        checksum_error=f"Datagen corpus pointer {pointer_path} field 'sha256' is invalid",
+    )
 
 
 def _download_and_publish(
@@ -156,15 +187,13 @@ def _download_and_publish(
         try:
             downloader(pointer.url, archive_path)
         except (OSError, ValueError) as error:
-            raise CorpusFetchError(f"Unable to download the datagen corpus: {error}") from error
+            raise CorpusFetchError(f"Unable to download {pointer.url}: {error}") from error
         actual_digest = _file_sha256(archive_path)
         if actual_digest != pointer.sha256:
             raise CorpusFetchError(
-                f"Datagen corpus checksum mismatch: expected {pointer.sha256}, "
+                f"Downloaded file checksum mismatch: expected {pointer.sha256}, "
                 f"downloaded {actual_digest}"
             )
-        if destination.is_file():
-            return destination
         os.replace(archive_path, destination)
         return destination
     finally:
@@ -174,9 +203,6 @@ def _download_and_publish(
 def _download_file(url: str, destination: Path) -> None:
     with urlopen(url, timeout=60) as response, destination.open("wb") as output:  # noqa: S310
         shutil.copyfileobj(response, output)
-
-
-_download_archive = _download_file
 
 
 def _file_sha256(path: Path) -> str:

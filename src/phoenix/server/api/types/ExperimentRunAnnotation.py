@@ -6,16 +6,17 @@ from typing import Any, Dict, Optional
 import strawberry
 from strawberry import Info
 from strawberry.relay import GlobalID, Node, NodeID
-from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
 from phoenix.server.api.types.Trace import Trace
 
+from .Annotation import AnnotationMetadataMixin
+
 
 @strawberry.type
-class ExperimentRunAnnotation(Node):
+class ExperimentRunAnnotation(Node, AnnotationMetadataMixin):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.ExperimentRunAnnotation]] = None
     _raw_annotation: strawberry.Private[Optional[Dict[str, Any]]] = None
@@ -123,20 +124,14 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
+    async def _metadata(self, info: Info[Context, None]) -> Any:
         if self._raw_annotation is not None:
-            val = self._raw_annotation.get("metadata", {})
-        elif self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.experiment_run_annotation_fields.load(
-                (self.id, models.ExperimentRunAnnotation.metadata_),
-            )
-        return JSON(val)
+            return self._raw_annotation.get("metadata", {})
+        if self.db_record:
+            return self.db_record.metadata_
+        return await info.context.data_loaders.experiment_run_annotation_fields.load(
+            (self.id, models.ExperimentRunAnnotation.metadata_),
+        )
 
     @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
     async def start_time(

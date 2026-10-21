@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ebe0913e9d27f3704fdcbd6c2aebe2d4>>
+ * @generated SignedSource<<7fefec5a6f5c04a5606318fbfe283117>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type useEvaluatorTaskSaveTargetQuery$variables = {
   datasetEvaluatorId: string;
   evaluatorId: string;

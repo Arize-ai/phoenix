@@ -1,7 +1,8 @@
 """
 GraphQL output types for experiment task configurations.
 
-Converts the ORM job rows (ExperimentPromptTask, ExperimentEvaluatorTask) into typed
+Converts the ORM job rows (ExperimentPromptTask, ExperimentDecisionTask,
+ExperimentEvaluatorTask) into typed
 GraphQL fields for frontend consumption (e.g., playground rehydration via
 ExperimentJob.taskConfig).
 """
@@ -19,6 +20,7 @@ from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.Decision import DecisionVersion
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
         GenerativeModelCustomProvider,
     )
@@ -31,6 +33,14 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
+from phoenix.server.api.types.DecisionDefinition import (
+    DecisionInputDefinition,
+    DecisionQuestion,
+    DecisionState,
+    to_gql_decision_input,
+    to_gql_decision_question,
+    to_gql_decision_state,
+)
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluatorOutputConfig,
     EvaluatorInputMapping,
@@ -310,7 +320,90 @@ class EvaluatorTaskConfig(Node):
         )
 
 
+# =============================================================================
+# Decision Task Config (maps from ORM ExperimentDecisionTask)
+# =============================================================================
+
+
+@strawberry.type
+class DecisionTaskConfig(Node):
+    """The decision a DECISION experiment ran over its dataset, copied when it was created.
+
+    The decision's counterpart of PromptTaskConfig: the definition, the model and its
+    connection, and where each example supplies what the definition needs.
+    """
+
+    id: NodeID[int]
+    model_provider: GenerativeProviderKey
+    model_name: str
+    base_url: Optional[str] = strawberry.field(
+        description="The endpoint a built-in provider was reached at, when not its default."
+    )
+    inputs: list[DecisionInputDefinition]
+    state: DecisionState
+    questions: list[DecisionQuestion] = strawberry.field(
+        description="The fixed questions asked of every example."
+    )
+    input_values_path: str = strawberry.field(
+        description="Where input values were read, as a prompt task's templateVariablesPath."
+    )
+    decision_version_id: Private[Optional[int]] = None
+    custom_provider_id: Private[Optional[int]] = None
+
+    @classmethod
+    def from_orm(cls, obj: models.ExperimentDecisionTask) -> "DecisionTaskConfig":
+        config = obj.config
+        return cls(
+            id=obj.id,
+            model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
+            model_name=obj.model_name,
+            base_url=obj.base_url,
+            inputs=[to_gql_decision_input(input) for input in config.inputs],
+            state=to_gql_decision_state(config.state),
+            questions=[to_gql_decision_question(question) for question in config.questions],
+            input_values_path=config.input_values_path,
+            decision_version_id=obj.decision_version_id,
+            custom_provider_id=obj.custom_provider_id,
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The saved version the definition was copied from, if it still exists.",
+    )
+    async def decision_version(
+        self, info: Info[Context, None]
+    ) -> Annotated["DecisionVersion", strawberry.lazy(".Decision")] | None:
+        if self.decision_version_id is None:
+            return None
+        from phoenix.server.api.types.Decision import DecisionVersion
+
+        async with info.context.db.read() as session:
+            version = await session.get(models.DecisionVersion, self.decision_version_id)
+        if version is None:
+            return None
+        return DecisionVersion(id=version.id, db_record=version)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The custom provider this experiment ran on, if any.",
+    )
+    async def custom_provider(
+        self,
+    ) -> (
+        Annotated[
+            "GenerativeModelCustomProvider",
+            strawberry.lazy(".GenerativeModelCustomProvider"),
+        ]
+        | None
+    ):
+        if self.custom_provider_id is None:
+            return None
+        from phoenix.server.api.types.GenerativeModelCustomProvider import (
+            GenerativeModelCustomProvider,
+        )
+
+        return GenerativeModelCustomProvider(id=self.custom_provider_id)
+
+
 ExperimentTaskConfig = Annotated[
-    Union[PromptTaskConfig, EvaluatorTaskConfig],
+    Union[PromptTaskConfig, DecisionTaskConfig, EvaluatorTaskConfig],
     strawberry.union(name="ExperimentTaskConfig"),
 ]

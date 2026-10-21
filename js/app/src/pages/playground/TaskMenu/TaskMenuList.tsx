@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
-import type { PlaygroundTaskKind } from "@phoenix/store/playground";
+import type { PlaygroundTaskType } from "@phoenix/store/playground";
 
 import {
   searchablePickerListCSS,
@@ -38,9 +38,9 @@ const taskListCSS = css`
 
 /**
  * The searchable list both task menus open: the one on each task and the
- * Compare menu. One tab per kind of task the menu offers — the saved items
- * of that kind, then its "New" actions — with the search scoped to the tab;
- * a menu offering one kind shows that kind's list without a tab strip. It
+ * Compare menu. One tab per task type the menu offers — the saved
+ * items of that type, then its "New" actions — with the search scoped to the
+ * tab; a menu offering one type shows its list without a tab strip. It
  * must sit inside a Select's Popover, which owns the selection.
  *
  * The tabs are a segmented control rather than Tabs: the Select renders its
@@ -49,8 +49,8 @@ const taskListCSS = css`
  */
 export function TaskMenuList({
   tabs,
-  selectedKind,
-  onSelectedKindChange,
+  selectedTaskType,
+  onSelectedTaskTypeChange,
   leadingSections = [],
   search,
   onSearchChange,
@@ -59,17 +59,17 @@ export function TaskMenuList({
 }: {
   tabs: TaskMenuTab[];
   /** The tab shown; falls back to the first when it is not among `tabs`. */
-  selectedKind: PlaygroundTaskKind;
-  onSelectedKindChange?: (kind: PlaygroundTaskKind) => void;
+  selectedTaskType: PlaygroundTaskType;
+  onSelectedTaskTypeChange?: (type: PlaygroundTaskType) => void;
   /** Sections ahead of every tab's list, e.g. the Compare menu's duplicate. */
   leadingSections?: TaskMenuSection[];
   search: string;
   onSearchChange: (search: string) => void;
   isLoading: boolean;
-  /** One line above the list, e.g. why the kind cannot change. */
+  /** One line above the list, e.g. why the mode cannot change. */
   note?: string | null;
 }) {
-  const selected = tabs.find((tab) => tab.kind === selectedKind) ?? tabs[0];
+  const selected = tabs.find((tab) => tab.type === selectedTaskType) ?? tabs[0];
 
   const body = (
     <TaskMenuListBody
@@ -90,13 +90,13 @@ export function TaskMenuList({
             aria-label="Kind of task"
             size="S"
             isJustified
-            selectedKey={selected.kind}
+            selectedKey={selected.type}
             onSelectionChange={(key) =>
-              onSelectedKindChange?.(key as PlaygroundTaskKind)
+              onSelectedTaskTypeChange?.(key as PlaygroundTaskType)
             }
           >
             {tabs.map((tab) => (
-              <SegmentedControlItem key={tab.kind} id={tab.kind}>
+              <SegmentedControlItem key={tab.type} id={tab.type}>
                 {tab.title}
               </SegmentedControlItem>
             ))}

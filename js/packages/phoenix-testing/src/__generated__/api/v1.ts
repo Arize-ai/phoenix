@@ -646,7 +646,7 @@ export interface paths {
         put?: never;
         /**
          * Create Project Evaluator
-         * @description Bind an existing LLM or code evaluator definition to a project.
+         * @description Bind an existing LLM, code, or decision evaluator definition to a project.
          *
          *     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
          *     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per
@@ -1495,7 +1495,7 @@ export interface paths {
         };
         /**
          * List built-in model provider families
-         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. Only providers that offer chat models are listed, because this list feeds chat-only surfaces such as prompts and `POST /v1/chat/completions`; decision-only providers are omitted. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
          */
         get: operations["getModelProviders"];
         put?: never;
@@ -2504,7 +2504,7 @@ export interface components {
         };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
-            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            /** @description The provider family identifier, accepted wherever a built-in chat model provider is specified, such as prompts and chat completions (e.g. 'OPENAI'). Providers that offer decision models only are not listed here. */
             provider: components["schemas"]["ModelProvider"];
             /**
              * Name
@@ -2766,6 +2766,20 @@ export interface components {
              */
             value: string;
         };
+        /** ChoiceScoring */
+        ChoiceScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "choice";
+            /** Scores */
+            scores?: {
+                [key: string]: number;
+            };
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
+        };
         /** CodeEvaluatorDefinition */
         CodeEvaluatorDefinition: {
             /**
@@ -3025,7 +3039,7 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /**
              * Evaluator Id
-             * @description GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             * @description GlobalID of the LLM, code, built-in, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
              */
             evaluator_id: string;
             input_mapping: components["schemas"]["InputMapping"];
@@ -3036,7 +3050,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -3095,6 +3109,20 @@ export interface components {
         /** CreateDatasetSplitResponseBody */
         CreateDatasetSplitResponseBody: {
             data: components["schemas"]["DatasetSplit"];
+        };
+        /** CreateDecisionEvaluatorRequest */
+        CreateDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name: components["schemas"]["Identifier"];
+            /** Decision Version Id */
+            decision_version_id: string;
+            /** Description */
+            description?: string | null;
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
         };
         /**
          * CreateExperimentRequestBody
@@ -3216,7 +3244,7 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /**
              * Evaluator Id
-             * @description GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             * @description GlobalID of the LLM, code, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
              */
             evaluator_id: string;
             evaluation_target: components["schemas"]["EvaluationTarget"];
@@ -3406,7 +3434,7 @@ export interface components {
              * @description The SDK used to communicate with the custom provider.
              * @enum {string}
              */
-            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock" | "typesafe";
             /**
              * Created At
              * Format: date-time
@@ -3484,7 +3512,7 @@ export interface components {
              * Evaluator Type
              * @enum {string}
              */
-            evaluator_type: "llm" | "code" | "builtin";
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
             /** Trace Project Id */
             trace_project_id: string;
             name: components["schemas"]["Identifier"];
@@ -3633,6 +3661,36 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
+        };
+        /** DecisionEvaluatorDefinition */
+        DecisionEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            /** Decision Id */
+            decision_id: string;
+            /** Decision Version Id */
+            decision_version_id: string;
+            scoring_policy: components["schemas"]["DecisionScoringPolicy"];
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /**
+         * DecisionScoringPolicy
+         * @description Question thresholds, choice scores, scale labels, and comparison direction.
+         */
+        DecisionScoringPolicy: {
+            /** Questions */
+            questions?: {
+                [key: string]: components["schemas"]["PredicateScoring"] | components["schemas"]["ChoiceScoring"] | components["schemas"]["ScaleScoring"];
+            };
         };
         /** DeleteAnnotationConfigResponseBody */
         DeleteAnnotationConfigResponseBody: {
@@ -3796,12 +3854,12 @@ export interface components {
         /** EvaluatorDefinitionResponseBody */
         EvaluatorDefinitionResponseBody: {
             /** Data */
-            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"];
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"];
         };
         /** EvaluatorDefinitionsResponseBody */
         EvaluatorDefinitionsResponseBody: {
             /** Data */
-            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"])[];
+            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -4661,7 +4719,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META" | "TYPESAFE";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -4970,9 +5028,23 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
+        /** PatchDecisionEvaluatorRequest */
+        PatchDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name?: components["schemas"]["Identifier"];
+            /** Decision Version Id */
+            decision_version_id?: string;
+            /** Description */
+            description?: string | null;
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
         };
         /** PatchLLMEvaluatorRequest */
         PatchLLMEvaluatorRequest: {
@@ -5156,7 +5228,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "LLM" | "CODE" | "BUILTIN";
+            kind: "LLM" | "CODE" | "BUILTIN" | "DECISION";
             /** Isbuiltin */
             isBuiltin: boolean;
             /** Isapplied */
@@ -5222,6 +5294,21 @@ export interface components {
             /** Evaluators */
             evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
+        /** PredicateScoring */
+        PredicateScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "predicate";
+            /**
+             * Threshold
+             * @default 0.5
+             */
+            threshold?: number;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
+        };
         /** Project */
         Project: {
             /** Name */
@@ -5243,7 +5330,7 @@ export interface components {
              * Evaluator Type
              * @enum {string}
              */
-            evaluator_type: "llm" | "code" | "builtin";
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
             /** Trace Project Id */
             trace_project_id: string;
             name: components["schemas"]["Identifier"];
@@ -6260,6 +6347,21 @@ export interface components {
             data: components["schemas"]["SandboxConfig"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ScaleScoring */
+        ScaleScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "scale";
+            /**
+             * Include Label
+             * @default false
+             */
+            include_label?: boolean;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
         };
         /**
          * SecretKeyValue
@@ -10392,7 +10494,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Return one kind only. */
-                type?: ("llm" | "code" | "builtin") | null;
+                type?: ("llm" | "code" | "builtin" | "decision") | null;
                 /** @description Return the evaluator with this name. */
                 name?: string | null;
                 cursor?: string | null;
@@ -10442,7 +10544,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"];
+                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"] | components["schemas"]["CreateDecisionEvaluatorRequest"];
             };
         };
         responses: {
@@ -10609,7 +10711,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"];
+                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"] | components["schemas"]["PatchDecisionEvaluatorRequest"];
             };
         };
         responses: {

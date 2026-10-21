@@ -110,6 +110,11 @@ export function resolvePersistedAgentModel({
 export function toAgentModelSelection(
   config: ModelConfig
 ): AgentModelSelection {
+  // Keyed on model type, not provider: a provider may serve both chat and
+  // decision models, and new decision providers must not need a change here.
+  if (config.modelType === "DECISION") {
+    throw new Error("Decision models cannot be used as chat agents");
+  }
   if (config.customProvider) {
     return {
       providerType: "custom",

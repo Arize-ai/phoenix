@@ -48,6 +48,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
     edges: [
       {
         annotation: {
+          decision: null,
           id: "ann-1",
           name: "answer_relevance",
           label: null,
@@ -61,6 +62,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       },
       {
         annotation: {
+          decision: null,
           id: "ann-2",
           name: "column_coverage",
           label: null,
@@ -74,6 +76,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       },
       {
         annotation: {
+          decision: null,
           id: "ann-3",
           name: "verbosity",
           label: null,
@@ -323,6 +326,7 @@ function scoreCaseRun({
   annotationLabel,
 }: (typeof SCORE_CASES)[number]): ExperimentRun {
   const annotation: RunAnnotation = {
+    decision: null,
     id: `ann-${name}-${score}`,
     name,
     label: annotationLabel,
