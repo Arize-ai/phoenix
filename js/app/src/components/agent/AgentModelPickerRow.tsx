@@ -10,6 +10,7 @@ import {
   type AgentModelCatalogRow,
   type AgentModelCredentialState,
   getAgentModelHighlightRanges,
+  getAgentModelProviderHighlightQuery,
 } from "./agentModelSearch";
 
 const highlightCSS = css`
@@ -173,7 +174,8 @@ export function AgentModelRowLayout({
 /**
  * A catalog model row. Curated models show their display name with
  * `<id> · <provider>` below; every other model shows its raw id with the
- * provider below. Both lines highlight the query.
+ * provider below. Both lines highlight the query; the provider label only
+ * where a token names the provider.
  */
 export function AgentModelRow({
   row,
@@ -186,6 +188,14 @@ export function AgentModelRow({
   showRecommendedBadge?: boolean;
 }) {
   const isRecommendedBadgeVisible = showRecommendedBadge && row.isCurated;
+  const providerLabel = (
+    <AgentModelHighlight
+      text={row.providerName}
+      query={
+        query ? getAgentModelProviderHighlightQuery({ row, query }) : undefined
+      }
+    />
+  );
   const credentialHint = (
     <AgentModelCredentialHint
       credentialState={row.credentialState}
@@ -211,10 +221,11 @@ export function AgentModelRow({
         row.displayName ? (
           <>
             <AgentModelHighlight text={row.modelName} query={query} />
-            {` · ${row.providerName}`}
+            {" · "}
+            {providerLabel}
           </>
         ) : (
-          row.providerName
+          providerLabel
         )
       }
       trailing={

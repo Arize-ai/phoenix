@@ -1,7 +1,8 @@
 /**
  * Pure search and catalog logic for the PXI chat model picker: a flat catalog
- * of every model PXI can run, token search with ranking, provider guessing for
- * typed names, and the provider list offered for a typed custom model name.
+ * of every model PXI can run, token search with ranking (where a provider name
+ * in the query filters to that provider), provider guessing for typed names,
+ * and the provider list offered for a typed custom model name.
  *
  * Everything here works from the data `useModelMenuData` returns and from
  * server-side credentials only: PXI sends through the server proxy, so
@@ -397,6 +398,137 @@ function getRowMatchScore({
   return Math.max(idScore, displayNameScore ?? idScore);
 }
 
+/**
+ * Extra words that name a built-in provider in search, beyond the words of
+ * its name: the platform's other name, or its model family where only that
+ * provider serves it first-party.
+ */
+const PROVIDER_SEARCH_ALIASES: Partial<
+  Record<GenerativeProviderKey, readonly string[]>
+> = {
+  AWS: ["bedrock", "amazon"],
+  GOOGLE: ["gemini"],
+  XAI: ["grok"],
+  MOONSHOT: ["kimi"],
+};
+
+/**
+ * Shortest query token that can name a provider, so `o3` or `gp` never
+ * filter by provider.
+ */
+export const MIN_PROVIDER_TERM_LENGTH = 3;
+
+/**
+ * How a query token names a provider:
+ * - "name": the whole name, ignoring case and separators (`openai`, `zai`),
+ *   or an alias (`bedrock`)
+ * - "word": one whole word of the name (`azure` in "Azure OpenAI")
+ * - "prefix": the start of the name, a word or an alias (`anth`)
+ */
+type ProviderTermMatch = "name" | "word" | "prefix";
+
+function matchProviderTerm({
+  providerName,
+  provider,
+  term,
+}: {
+  providerName: string;
+  /** The built-in provider whose aliases apply, or null for none */
+  provider: GenerativeProviderKey | null;
+  term: string;
+}): ProviderTermMatch | null {
+  const normalizedTerm = collapseSeparators(term);
+  if (normalizedTerm.length < MIN_PROVIDER_TERM_LENGTH) {
+    return null;
+  }
+  const collapsedName = collapseSeparators(providerName);
+  const aliases = (provider && PROVIDER_SEARCH_ALIASES[provider]) ?? [];
+  if (collapsedName === normalizedTerm || aliases.includes(normalizedTerm)) {
+    return "name";
+  }
+  const words = normalizeWords(providerName).split(" ");
+  if (words.includes(normalizedTerm)) {
+    return "word";
+  }
+  const isPrefix = [collapsedName, ...words, ...aliases].some((word) =>
+    word.startsWith(normalizedTerm)
+  );
+  return isPrefix ? "prefix" : null;
+}
+
+/** Whether a query token is a whole provider name, word or alias. */
+function isCompleteProviderMatch(match: ProviderTermMatch | null): boolean {
+  return match === "name" || match === "word";
+}
+
+/**
+ * Ranking tiers, highest first. A whole provider name or word in the query
+ * lists that provider's models above every model-name match. A partly typed
+ * one (`anth`) ranks with model-name matches as a prefix match, so the
+ * provider's models show while typing without burying `gpt-5-mini` under
+ * every MiniMax model for `mini`.
+ */
+const MATCH_TIER = {
+  providerName: 3,
+  providerWord: 2,
+  model: 1,
+} as const;
+
+const PROVIDER_MATCH_TIER: Record<ProviderTermMatch, number> = {
+  name: MATCH_TIER.providerName,
+  word: MATCH_TIER.providerWord,
+  prefix: MATCH_TIER.model,
+};
+
+type RowMatch = { tier: number; score: number };
+
+/**
+ * A row's best match: its names against the whole query, or its provider
+ * against one token with its names against the rest. A provider token alone
+ * matches every model of the provider, with a score of 0 for a whole name or
+ * word and a prefix score for a partly typed one.
+ */
+function getRowMatch({
+  row,
+  query,
+}: {
+  row: AgentModelCatalogRow;
+  query: string;
+}): RowMatch | null {
+  const nameScore = getRowMatchScore({ row, query });
+  let best: RowMatch | null =
+    nameScore == null ? null : { tier: MATCH_TIER.model, score: nameScore };
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  tokens.forEach((token, tokenIndex) => {
+    const providerMatch = matchProviderTerm({
+      providerName: row.providerName,
+      provider: row.customProvider ? null : row.provider,
+      term: token,
+    });
+    if (!providerMatch) {
+      return;
+    }
+    const rest = tokens.filter((_, index) => index !== tokenIndex).join(" ");
+    const score = rest
+      ? getRowMatchScore({ row, query: rest })
+      : isCompleteProviderMatch(providerMatch)
+        ? 0
+        : MATCH_SCORE.prefix;
+    if (score == null) {
+      return;
+    }
+    const tier = PROVIDER_MATCH_TIER[providerMatch];
+    if (
+      !best ||
+      tier > best.tier ||
+      (tier === best.tier && score > best.score)
+    ) {
+      best = { tier, score };
+    }
+  });
+  return best;
+}
+
 const CREDENTIAL_STATE_ORDER: Record<AgentModelCredentialState, number> = {
   ready: 0,
   "may-work": 1,
@@ -411,9 +543,19 @@ export function getCredentialStateOrder(
 }
 
 /**
- * Searches and ranks the catalog. Rows are ordered by, in turn:
- * match quality, curated first, credential state (ready > may-work > no-key),
- * recency, then the shorter id, then catalog order.
+ * Searches and ranks the catalog. A query token that names a provider
+ * (`openai`, `bedrock`, `anth`) filters to that provider's models, with the
+ * other tokens matched against their names (`openai mini`); model names are
+ * still matched against the whole query too.
+ *
+ * Rows are ordered by, in turn: match tier (a whole provider name, a whole
+ * provider word, then model-name and partly typed provider matches), match
+ * quality, curated first, credential state (ready > may-work > no-key),
+ * recency, then the shorter id (except when only a provider matched), then
+ * catalog order.
+ *
+ * Rows that match a whole provider name or word aren't capped, so `openai`
+ * lists every OpenAI model; `limit` caps the rows after them.
  *
  * An empty query returns nothing.
  *
@@ -421,7 +563,7 @@ export function getCredentialStateOrder(
  * @param params.rows - the catalog from {@link buildAgentModelCatalog}
  * @param params.query - the search text
  * @param params.recentModelKeys - row keys (see `getAgentModelKey`), newest first
- * @param params.limit - max rows returned (default 8)
+ * @param params.limit - max rows after the provider matches (default 8)
  */
 export function rankAgentModels({
   rows,
@@ -441,14 +583,15 @@ export function rankAgentModels({
     recentModelKeys.map((key, index) => [key, index])
   );
   const scored = rows.flatMap((row, catalogIndex) => {
-    const matchScore = getRowMatchScore({ row, query });
-    if (matchScore == null) {
+    const match = getRowMatch({ row, query });
+    if (match == null) {
       return [];
     }
     return [
       {
         row,
-        matchScore,
+        matchTier: match.tier,
+        matchScore: match.score,
         recency: recencyByKey.get(row.key) ?? Number.POSITIVE_INFINITY,
         catalogIndex,
       },
@@ -456,15 +599,23 @@ export function rankAgentModels({
   });
   scored.sort(
     (first, second) =>
+      second.matchTier - first.matchTier ||
       second.matchScore - first.matchScore ||
       Number(second.row.isCurated) - Number(first.row.isCurated) ||
       getCredentialStateOrder(first.row.credentialState) -
         getCredentialStateOrder(second.row.credentialState) ||
       compareRecency(first.recency, second.recency) ||
-      first.row.modelName.length - second.row.modelName.length ||
+      // A provider token alone scores 0 and keeps the server's order
+      (first.matchScore > 0
+        ? first.row.modelName.length - second.row.modelName.length
+        : 0) ||
       first.catalogIndex - second.catalogIndex
   );
-  return scored.slice(0, limit).map(({ row }) => row);
+  // Sorted by tier first, so the uncapped provider matches lead
+  const providerMatchCount = scored.filter(
+    ({ matchTier }) => matchTier >= MATCH_TIER.providerWord
+  ).length;
+  return scored.slice(0, providerMatchCount + limit).map(({ row }) => row);
 }
 
 /** Lower index is more recent; Infinity (never picked) ties with itself. */
@@ -522,7 +673,8 @@ export function inferProviderFromModelName(
 /**
  * The query as a custom model name, with the providers to offer it to.
  * Returns null when there's nothing to offer: the query is empty, contains
- * whitespace (no model id does, so it's a search), or there are no providers.
+ * whitespace (no model id does, so it's a search), names a provider
+ * (`openai` lists OpenAI's models), or there are no providers.
  *
  * A name that matches a listed id is still offered: the same id can be sent
  * to another provider (a gateway, an Azure deployment of the same name).
@@ -544,6 +696,18 @@ export function getAgentModelCustomModelOption({
 }): AgentModelCustomModelOption | null {
   const modelName = query.trim();
   if (!modelName || /\s/.test(modelName) || providers.length === 0) {
+    return null;
+  }
+  const isProviderSearch = providers.some((option) =>
+    isCompleteProviderMatch(
+      matchProviderTerm({
+        providerName: option.name,
+        provider: option.customProvider ? null : option.provider,
+        term: modelName,
+      })
+    )
+  );
+  if (isProviderSearch) {
     return null;
   }
   const guessedProviderKey = inferProviderFromModelName(modelName);
@@ -568,6 +732,34 @@ export function getAgentModelCustomModelOption({
       : otherProviders,
     guessedProviderKey: guessedProvider?.key ?? null,
   };
+}
+
+/**
+ * The query tokens that name a row's provider, to highlight in its provider
+ * label: so `openai mini` marks "OpenAI" but `pen` doesn't mark it.
+ */
+export function getAgentModelProviderHighlightQuery({
+  row,
+  query,
+}: {
+  row: Pick<
+    AgentModelCatalogRow,
+    "provider" | "customProvider" | "providerName"
+  >;
+  query: string;
+}): string {
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(
+      (token) =>
+        matchProviderTerm({
+          providerName: row.providerName,
+          provider: row.customProvider ? null : row.provider,
+          term: token,
+        }) != null
+    )
+    .join(" ");
 }
 
 /** A `[start, end)` character range to highlight. */

@@ -7,6 +7,7 @@ import {
   buildAgentModelProviderOptions,
   getAgentModelCustomModelOption,
   getAgentModelHighlightRanges,
+  getAgentModelProviderHighlightQuery,
   inferProviderFromModelName,
   MATCH_SCORE,
   rankAgentModels,
@@ -312,6 +313,132 @@ describe("rankAgentModels", () => {
   });
 });
 
+describe("rankAgentModels provider search", () => {
+  const OPENAI_KEYS = [
+    "OPENAI:gpt-4o",
+    "OPENAI:gpt-4o-mini",
+    "OPENAI:gpt-5.4",
+    "OPENAI:gpt-5.4-mini",
+  ];
+
+  it("lists a provider's models for its name", () => {
+    expect(search("openai").toSorted()).toEqual(OPENAI_KEYS);
+    expect(search("OpenAI").toSorted()).toEqual(OPENAI_KEYS);
+  });
+
+  it("filters a provider's models by the other tokens", () => {
+    expect(search("openai mini")).toEqual([
+      "OPENAI:gpt-4o-mini",
+      "OPENAI:gpt-5.4-mini",
+    ]);
+    expect(search("mini openai")).toEqual(search("openai mini"));
+  });
+
+  it("lists the provider's own models above name matches from other hosts", () => {
+    expect(search("anthropic")).toEqual([
+      "ANTHROPIC:claude-opus-5-5",
+      "ANTHROPIC:claude-opus-5",
+      "ANTHROPIC:claude-opus-4-6",
+      "ANTHROPIC:claude-opus-4-20250514",
+      "AWS:anthropic.claude-opus-4-20250514-v1:0",
+      "AWS:us.anthropic.claude-opus-4-6-v1:0",
+    ]);
+  });
+
+  it("matches a word of the name and aliases", () => {
+    const awsKeys = [
+      "AWS:anthropic.claude-opus-4-20250514-v1:0",
+      "AWS:us.anthropic.claude-opus-4-6-v1:0",
+    ];
+    expect(search("aws").toSorted()).toEqual(awsKeys);
+    expect(search("bedrock").toSorted()).toEqual(awsKeys);
+    expect(search("gemini").toSorted()).toEqual([
+      "GOOGLE:gemini-2.5-flash",
+      "GOOGLE:gemini-3.1-pro-preview",
+    ]);
+  });
+
+  it("keeps the catalog order for a provider token alone", () => {
+    const rows = buildAgentModelCatalog({
+      playgroundModels: [
+        { providerKey: "OPENAI", name: "gpt-6-long-name" },
+        { providerKey: "OPENAI", name: "gpt-4" },
+      ],
+      modelProviders: MODEL_PROVIDERS,
+      customProviders: [],
+    });
+    expect(
+      rankAgentModels({ rows, query: "openai" }).map((row) => row.key)
+    ).toEqual(["OPENAI:gpt-6-long-name", "OPENAI:gpt-4"]);
+  });
+
+  it("matches custom providers by name", () => {
+    expect(search("acme").toSorted()).toEqual([
+      "custom:custom-acme:acme/gpt-5.4-internal",
+      "custom:custom-acme:gpt-4o",
+    ]);
+  });
+
+  it("ranks a partly typed provider with model-name prefix matches", () => {
+    const results = search("anth");
+    // Curated and ready Anthropic rows tie Bedrock's `anthropic.` prefix
+    // matches and sort ahead of them
+    expect(results.slice(0, 4).toSorted()).toEqual([
+      "ANTHROPIC:claude-opus-4-20250514",
+      "ANTHROPIC:claude-opus-4-6",
+      "ANTHROPIC:claude-opus-5",
+      "ANTHROPIC:claude-opus-5-5",
+    ]);
+    expect(results.slice(4)).toEqual([
+      "AWS:anthropic.claude-opus-4-20250514-v1:0",
+      "AWS:us.anthropic.claude-opus-4-6-v1:0",
+    ]);
+  });
+
+  it("keeps model-name matches for a partly typed provider", () => {
+    const rows = buildAgentModelCatalog({
+      playgroundModels: [
+        { providerKey: "MINIMAX", name: "abab-7" },
+        { providerKey: "OPENAI", name: "gpt-5-mini" },
+      ],
+      modelProviders: [
+        ...MODEL_PROVIDERS,
+        makeProvider({ key: "MINIMAX", name: "MiniMax", credentialsSet: true }),
+      ],
+      customProviders: [],
+    });
+    expect(
+      rankAgentModels({ rows, query: "mini" }).map((row) => row.key)
+    ).toEqual(["MINIMAX:abab-7", "OPENAI:gpt-5-mini"]);
+  });
+
+  it("never treats a token shorter than 3 characters as a provider", () => {
+    expect(search("aw")).toEqual([]);
+  });
+
+  it("doesn't cap a provider's models, only the rows after them", () => {
+    const rows = buildAgentModelCatalog({
+      playgroundModels: [
+        ...Array.from({ length: 12 }, (_, index) => ({
+          providerKey: "OPENAI" as const,
+          name: `gpt-test-${index}`,
+        })),
+        ...Array.from({ length: 12 }, (_, index) => ({
+          providerKey: "OLLAMA" as const,
+          name: `openai-clone-${index}`,
+        })),
+      ],
+      modelProviders: MODEL_PROVIDERS,
+      customProviders: [],
+    });
+    const results = rankAgentModels({ rows, query: "openai" });
+    expect(results).toHaveLength(12 + 8);
+    expect(results.slice(0, 12).every((row) => row.provider === "OPENAI")).toBe(
+      true
+    );
+  });
+});
+
 describe("inferProviderFromModelName", () => {
   it.each([
     ["claude-opus-9", "ANTHROPIC"],
@@ -357,6 +484,13 @@ describe("getAgentModelCustomModelOption", () => {
 
   it("offers nothing without providers", () => {
     expect(getOption("claude-opus-9", [])).toBeNull();
+  });
+
+  it("offers nothing for a provider name, but does for a partial one", () => {
+    expect(getOption("openai")).toBeNull();
+    expect(getOption("bedrock")).toBeNull();
+    expect(getOption("Acme")).toBeNull();
+    expect(getOption("anth")).toMatchObject({ modelName: "anth" });
   });
 
   it("still offers a name that matches a listed id", () => {
@@ -508,5 +642,27 @@ describe("getAgentModelHighlightRanges", () => {
     expect(
       getAgentModelHighlightRanges({ text: "gpt-4o", query: "claude" })
     ).toEqual([]);
+  });
+});
+
+describe("getAgentModelProviderHighlightQuery", () => {
+  const openAIRow = ROWS.find((row) => row.key === "OPENAI:gpt-4o")!;
+
+  it("keeps the tokens that name the row's provider", () => {
+    expect(
+      getAgentModelProviderHighlightQuery({
+        row: openAIRow,
+        query: "openai mini",
+      })
+    ).toBe("openai");
+    expect(
+      getAgentModelProviderHighlightQuery({ row: openAIRow, query: "open" })
+    ).toBe("open");
+  });
+
+  it("drops tokens that only appear inside the name", () => {
+    expect(
+      getAgentModelProviderHighlightQuery({ row: openAIRow, query: "pen 4o" })
+    ).toBe("");
   });
 });
