@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
+import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 import {
   useProjectEvaluatorSubmitHint,
   useUnboundRequiredVariables,
@@ -23,11 +23,9 @@ export const ProjectLlmEvaluatorDialogContent = ({
   targetType: ProjectEvaluatorTarget;
   isFilterValid: boolean;
 }) => {
-  const { variableKeys } = useDerivedPlaygroundVariables();
+  const variables = useLLMEvaluatorVariables();
   // Every prompt variable is required: the server marks each one so.
-  const unboundVariables = useUnboundRequiredVariables({
-    variables: variableKeys,
-  });
+  const unboundVariables = useUnboundRequiredVariables({ variables });
   const submitHint = useProjectEvaluatorSubmitHint({
     targetType,
     isFilterValid,
