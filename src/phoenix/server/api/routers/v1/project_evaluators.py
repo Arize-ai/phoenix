@@ -17,7 +17,9 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers import project_evaluator_service as project_service
+from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.routers.v1.evaluator_common import (
+    EVALUATOR_TYPE_BY_KIND,
     EvaluatorRequest,
     decode_global_id,
     encode_global_id,
@@ -161,18 +163,8 @@ def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) 
     return ProjectEvaluator(
         id=encode_global_id("ProjectEvaluator", row.id),
         project_id=encode_global_id("Project", row.project_id),
-        evaluator_id=encode_global_id(
-            {
-                "LLM": "LLMEvaluator",
-                "CODE": "CodeEvaluator",
-                "BUILTIN": "BuiltInEvaluator",
-                "DECISION": "DecisionEvaluator",
-            }[kind],
-            row.evaluator_id,
-        ),
-        evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin", "DECISION": "decision"}[
-            kind
-        ],
+        evaluator_id=encode_global_id(EVALUATOR_TYPENAME_BY_KIND[kind], row.evaluator_id),
+        evaluator_type=EVALUATOR_TYPE_BY_KIND[kind],
         trace_project_id=encode_global_id("Project", row.trace_project_id),
         name=row.name,
         evaluation_target=row.evaluation_target,

@@ -106,6 +106,7 @@ from phoenix.server.api.types.Evaluator import (
     Evaluator,
     LLMEvaluator,
     ProjectEvaluator,
+    to_gql_evaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -1670,18 +1671,7 @@ class Query:
 
         async with info.context.db.read() as session:
             evaluators = await session.scalars(query)
-        data: list[Evaluator] = []
-        for evaluator in evaluators:
-            if isinstance(evaluator, models.DecisionEvaluator):
-                data.append(DecisionEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.LLMEvaluator):
-                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.CodeEvaluator):
-                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.BuiltinEvaluator):
-                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
-            else:
-                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        data = [to_gql_evaluator(evaluator) for evaluator in evaluators]
 
         return connection_from_list(data=data, args=args)
 

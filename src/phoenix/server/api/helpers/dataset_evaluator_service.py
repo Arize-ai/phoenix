@@ -1146,15 +1146,14 @@ async def patch_dataset_evaluator(
                             dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
                         ) from error
             from phoenix.server.api.helpers.decision_evaluator_service import (
-                get_decision_evaluator,
                 validate_decision_input_mapping,
             )
 
-            kind = await session.scalar(
-                select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
-            )
-            if kind == "DECISION":
-                decision = await get_decision_evaluator(session, row.evaluator_id, lock=True)
+            if (
+                decision := await session.get(
+                    models.DecisionEvaluator, row.evaluator_id, with_for_update=True
+                )
+            ) is not None:
                 await session.refresh(row)
                 validate_decision_input_mapping(
                     decision.selected_version, patch.input_mapping or row.input_mapping

@@ -17,7 +17,9 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import dataset_evaluator_service as service
 from phoenix.server.api.helpers import decision_evaluator_service as decision_service
+from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.routers.v1.evaluator_common import (
+    EVALUATOR_TYPE_BY_KIND,
     EvaluatorOutputConfig,
     EvaluatorRequest,
     decode_global_id,
@@ -129,18 +131,8 @@ def _binding_response(
     return DatasetEvaluator(
         id=encode_global_id("DatasetEvaluator", row.id),
         dataset_id=encode_global_id("Dataset", row.dataset_id),
-        evaluator_id=encode_global_id(
-            {
-                "LLM": "LLMEvaluator",
-                "CODE": "CodeEvaluator",
-                "BUILTIN": "BuiltInEvaluator",
-                "DECISION": "DecisionEvaluator",
-            }[kind],
-            row.evaluator_id,
-        ),
-        evaluator_type={"LLM": "llm", "CODE": "code", "BUILTIN": "builtin", "DECISION": "decision"}[
-            kind
-        ],
+        evaluator_id=encode_global_id(EVALUATOR_TYPENAME_BY_KIND[kind], row.evaluator_id),
+        evaluator_type=EVALUATOR_TYPE_BY_KIND[kind],
         trace_project_id=encode_global_id("Project", row.project_id),
         name=row.name,
         input_mapping=row.input_mapping,

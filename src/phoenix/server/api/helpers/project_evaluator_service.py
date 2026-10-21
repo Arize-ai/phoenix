@@ -24,6 +24,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluator_management import (
+    EVALUATOR_MODEL_BY_KIND,
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
@@ -438,11 +439,7 @@ async def add_project_evaluator(
     evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
         input.evaluation_delay_seconds, input.evaluation_target
     )
-    evaluator_model: type[models.Evaluator] = {
-        "LLM": models.LLMEvaluator,
-        "CODE": models.CodeEvaluator,
-        "DECISION": models.DecisionEvaluator,
-    }[evaluator_kind]
+    evaluator_model = EVALUATOR_MODEL_BY_KIND[evaluator_kind]
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
@@ -456,7 +453,7 @@ async def add_project_evaluator(
             ):
                 raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
             if isinstance(evaluator, models.DecisionEvaluator):
-                await _validate_decision_project_mapping(session, evaluator.id, input.input_mapping)
+                _validate_decision_project_mapping(evaluator.selected_version, input.input_mapping)
             project_evaluator = models.ProjectEvaluator(
                 project_id=project_id,
                 evaluator_id=evaluator_id,
@@ -479,21 +476,17 @@ async def add_project_evaluator(
     return project_evaluator
 
 
-async def _validate_decision_project_mapping(
-    session: AsyncSession, evaluator_id: int, input_mapping: Optional[InputMapping]
+def _validate_decision_project_mapping(
+    version: models.DecisionVersion, input_mapping: Optional[InputMapping]
 ) -> None:
     """A judge's inputs must all be fillable from the span, trace, or session it judges."""
     from phoenix.server.api.helpers.decision_evaluator_service import (
         PROJECT_EVALUATOR_CONTEXT_KEYS,
-        get_decision_evaluator,
         validate_decision_input_mapping,
     )
 
-    evaluator = await get_decision_evaluator(session, evaluator_id)
-    if evaluator.selected_version is None:
-        raise NotFound("The evaluator's pinned decision version was not found")
     validate_decision_input_mapping(
-        evaluator.selected_version,
+        version,
         input_mapping,
         context_keys=PROJECT_EVALUATOR_CONTEXT_KEYS,
         context="evaluated span, trace, or session",
@@ -1079,13 +1072,10 @@ async def patch_project_evaluator(
                 values["enabled"] = patch.enabled
             if patch.input_mapping is not UNSET:
                 if (
-                    await session.scalar(
-                        select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
-                    )
-                    == "DECISION"
-                ):
-                    await _validate_decision_project_mapping(
-                        session, row.evaluator_id, patch.input_mapping
+                    decision := await session.get(models.DecisionEvaluator, row.evaluator_id)
+                ) is not None:
+                    _validate_decision_project_mapping(
+                        decision.selected_version, patch.input_mapping
                     )
                 values["input_mapping"] = patch.input_mapping
             if patch.evaluation_delay_seconds is not UNSET:

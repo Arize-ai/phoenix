@@ -1,5 +1,6 @@
 """Shared request models and adapters for evaluator REST endpoints."""
 
+from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import Annotated, Iterator, Literal, Optional, Sequence, Union
 
@@ -7,6 +8,7 @@ from pydantic import ConfigDict, Field, ValidationError
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
+from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     ContinuousOutputConfig,
@@ -26,6 +28,18 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import ProblemException, problem_responses
 from phoenix.server.api.routers.v1.utils import Responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+EvaluatorType = Literal["llm", "code", "builtin", "decision"]
+
+EVALUATOR_KIND_BY_TYPE: Mapping[EvaluatorType, models.EvaluatorKind] = {
+    "llm": "LLM",
+    "code": "CODE",
+    "builtin": "BUILTIN",
+    "decision": "DECISION",
+}
+EVALUATOR_TYPE_BY_KIND: Mapping[models.EvaluatorKind, EvaluatorType] = {
+    kind: eval_type for eval_type, kind in EVALUATOR_KIND_BY_TYPE.items()
+}
 
 EvaluatorOutputConfig = Annotated[
     Union[

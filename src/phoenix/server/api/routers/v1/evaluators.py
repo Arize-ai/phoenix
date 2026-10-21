@@ -1,6 +1,5 @@
 """Read and update shared evaluator definitions and immutable code versions."""
 
-from collections.abc import Mapping
 from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -22,14 +21,17 @@ from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import decision_evaluator_service as decision_service
 from phoenix.server.api.helpers import evaluator_service as service
+from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     FromPromptVersion,
     resolve_evaluator_prompt_version,
 )
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
+    EVALUATOR_KIND_BY_TYPE,
     EvaluatorOutputConfig,
     EvaluatorRequest,
+    EvaluatorType,
     LatestPromptVersionSelector,
     LLMEvaluatorPrompt,
     LLMEvaluatorPromptInput,
@@ -51,20 +53,8 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.authorization import is_not_locked
 
-EvaluatorType = Literal["llm", "code", "builtin", "decision"]
-
-_EVALUATOR_KIND_BY_TYPE: Mapping[EvaluatorType, models.EvaluatorKind] = {
-    "llm": "LLM",
-    "code": "CODE",
-    "builtin": "BUILTIN",
-    "decision": "DECISION",
-}
-_TYPENAME_BY_KIND: Mapping[models.EvaluatorKind, str] = {
-    "LLM": "LLMEvaluator",
-    "CODE": "CodeEvaluator",
-    "BUILTIN": "BuiltInEvaluator",
-    "DECISION": "DecisionEvaluator",
-}
+_EVALUATOR_KIND_BY_TYPE = EVALUATOR_KIND_BY_TYPE
+_TYPENAME_BY_KIND = EVALUATOR_TYPENAME_BY_KIND
 
 
 def _decode_evaluator_cursor(cursor: str) -> int:
