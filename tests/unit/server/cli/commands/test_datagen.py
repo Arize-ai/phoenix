@@ -154,16 +154,13 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     monkeypatch.setattr("phoenix.client.Client", MagicMock(return_value=client))
     seed = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
-    prompts = MagicMock(return_value=[])
     decisions = MagicMock(return_value=[])
     evaluators = MagicMock(return_value=[])
-    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
     args.func(args)
-    prompts.assert_called_once_with(client, [])
     decisions.assert_called_once_with(transport, [])
     evaluators.assert_called_once_with(transport, [])
     expected = (
@@ -221,15 +218,15 @@ def test_seed_command_uploads_a_local_file_without_workflow_seeding(
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.load_dataset", load)
     seed_datasets = MagicMock()
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed_datasets)
-    prompts = MagicMock()
-    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
+    decisions = MagicMock()
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
     args.func(args)
     load.assert_called_once_with(tmp_path / "examples", format=format or "jsonl")
     client.datasets.create_dataset.assert_called_once_with(
         name="my-dataset", examples=examples, timeout=120
     )
     seed_datasets.assert_not_called()
-    prompts.assert_not_called()
+    decisions.assert_not_called()
     assert capsys.readouterr().out == "Seeded my-dataset: 2 examples (version v1)\n"
 
 
@@ -277,24 +274,20 @@ def test_startup_seeding_does_not_retry_permission_errors(
     seed.assert_called_once()
 
 
-def test_startup_seeds_counterparts_and_accuracy_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_startup_seeds_decisions_and_accuracy_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
     parser = ArgumentParser()
     datagen.register(parser.add_subparsers())
     args = parser.parse_args(["datagen"])
     datasets = [MagicMock()]
-    prompts = MagicMock(return_value=[])
     decisions = MagicMock(return_value=[])
     evaluators = MagicMock(return_value=[])
     monkeypatch.setattr(
         "phoenix.experimental.datagen.datasets.seed_datasets", MagicMock(return_value=datasets)
     )
-    monkeypatch.setattr("phoenix.experimental.datagen.prompts.seed_workflow_prompts", prompts)
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
     datagen._seed_when_ready(datagen._resolve_config(args, {}))
-    assert prompts.call_args.args[1] is datasets
     assert decisions.call_args.args[1] is datasets
-    assert decisions.call_args.args[0] is prompts.call_args.args[0]._client
     evaluators.assert_called_once_with(decisions.call_args.args[0], datasets)

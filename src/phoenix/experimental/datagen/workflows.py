@@ -1,4 +1,4 @@
-"""Shared workflow definitions for Typed Decisions prompt and decision seeds."""
+"""Workflow definitions for Typed Decisions decision seeds."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class WorkflowDefinition:
 
 
 def load_workflow_definitions(datasets: Sequence[Dataset]) -> list[WorkflowDefinition]:
-    """Validate every workflow before either seeder writes any definitions."""
+    """Validate every workflow before writing any definitions."""
     definitions = []
     for dataset in datasets:
         if dataset.name != TYPED_DECISIONS_DATASET_NAME:

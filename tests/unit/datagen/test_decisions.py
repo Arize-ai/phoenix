@@ -10,7 +10,6 @@ import pytest
 
 from phoenix.experimental.datagen.datasets import DatasetError
 from phoenix.experimental.datagen.decisions import build_workflow_decision, seed_workflow_decisions
-from tests.unit.datagen.test_prompts import _dataset, _questions
 
 _WORKFLOWS = (
     "agent_trace_observability",
@@ -18,6 +17,39 @@ _WORKFLOWS = (
     "invoice_processing",
     "security_incidents",
 )
+
+
+def _questions() -> dict[str, Any]:
+    return {
+        "action": {
+            "type": "choice",
+            "instructions": "What should happen next?",
+            "criteria": {"continue": "Proceed.", "stop": "Halt."},
+        },
+        "needs_review": {
+            "type": "noul",
+            "instructions": "Does this need review?",
+            "criteria": {"true": "Needs attention.", "false": "No attention needed."},
+        },
+        **{
+            name: {"type": "score", "instructions": f"Rate {name}.", "criteria": ["Low", "High"]}
+            for name in ("risk", "urgency", "severity")
+        },
+    }
+
+
+def _dataset(*workflows: str) -> MagicMock:
+    dataset = MagicMock()
+    dataset.name = "px-datagen-typed-decisions"
+    dataset.examples = [
+        {
+            "input": {"state": {"id": index}, "questions": _questions()},
+            "metadata": {"workflow": workflow, "source_revision": "pinned"},
+        }
+        for workflow in workflows
+        for index in range(2)
+    ]
+    return dataset
 
 
 def _saved_version(version: dict[str, Any], version_id: str) -> dict[str, Any]:
@@ -69,10 +101,6 @@ def test_native_questions_preserve_workflow_criteria_and_zero_based_scores() -> 
     )
     assert version["metadata"]["source_revision"] == "pinned"
     assert "unrelated" not in version["metadata"]
-    assert (
-        version["metadata"]["counterpart_prompt_name"]
-        == "px-datagen-typed-decisions-customer_service"
-    )
 
 
 def test_seed_creates_four_decisions_then_only_changed_versions() -> None:
@@ -131,11 +159,23 @@ def test_seed_creates_four_decisions_then_only_changed_versions() -> None:
         assert all("DatagenCreateDecisionVersion" in query for query in mutations[4:])
 
 
-def test_unsupported_question_type_prevents_all_decision_requests() -> None:
+@pytest.mark.parametrize("change", ["questions", "workflow", "empty", "unsupported", "count"])
+def test_invalid_definition_prevents_all_decision_requests(change: str) -> None:
     valid = _dataset("customer_service")
     invalid = _dataset("security_incidents")
-    for example in invalid.examples:
-        example["input"]["questions"]["action"]["type"] = "unknown"
+    if change == "questions":
+        invalid.examples[1] = deepcopy(invalid.examples[1])
+        invalid.examples[1]["input"]["questions"]["action"]["instructions"] = "Different."
+    elif change == "workflow":
+        invalid.examples[0]["metadata"]["workflow"] = "unknown"
+    elif change == "unsupported":
+        for example in invalid.examples:
+            example["input"]["questions"]["action"]["type"] = "unknown"
+    elif change == "count":
+        for example in invalid.examples:
+            example["input"]["questions"].pop("severity")
+    else:
+        invalid.examples = []
     http = MagicMock()
     with pytest.raises(DatasetError):
         seed_workflow_decisions(http, [valid, invalid])

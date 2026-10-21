@@ -1,4 +1,4 @@
-"""Seed saved native decisions and Typed Decisions workflow counterparts idempotently."""
+"""Seed saved native decisions for Typed Decisions workflows idempotently."""
 
 from __future__ import annotations
 
@@ -100,7 +100,6 @@ def build_workflow_decision(
     metadata = {
         "workflow": workflow,
         "dataset_name": TYPED_DECISIONS_DATASET_NAME,
-        "counterpart_prompt_name": f"{TYPED_DECISIONS_DATASET_NAME}-{workflow}",
         **{key: value for key, value in source_metadata.items() if key.startswith("source_")},
     }
     version: dict[str, Any] = {
@@ -112,7 +111,7 @@ def build_workflow_decision(
         "modelProvider": "TYPESAFE",
         "modelName": "jev-latest",
         "customProviderId": None,
-        "description": "Datagen-owned TypeSafe decision counterpart to the OpenAI Luna baseline.",
+        "description": "Datagen-owned TypeSafe decision for Typed Decisions.",
         "metadata": metadata,
     }
     # Fingerprint the serialized content before adding the fingerprint itself.
@@ -210,7 +209,6 @@ def seed_workflow_decisions(
                 metadata={
                     "workflow": desired["metadata"]["workflow"],
                     "datagen": True,
-                    "counterpart_prompt_name": name,
                 },
             ),
         )

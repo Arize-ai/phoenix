@@ -44,7 +44,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     pull_parser = commands.add_parser("pull", help="Download and cache the published corpus.")
     pull_parser.set_defaults(func=pull)
     seed_parser = commands.add_parser(
-        "seed", help="Seed development datasets, prompts, decisions, and evaluators, then exit."
+        "seed", help="Seed development datasets, decisions, and evaluators, then exit."
     )
     seed_parser.set_defaults(func=seed)
     sources = seed_parser.add_mutually_exclusive_group()
@@ -62,7 +62,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument(
         "--no-datasets",
         action="store_true",
-        help="Skip dataset, prompt, and decision seeding before trace replay.",
+        help="Skip dataset and decision seeding before trace replay.",
     )
     parser.add_argument(
         "--endpoint",
@@ -107,7 +107,6 @@ def seed(args: Namespace) -> None:
     from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset, seed_datasets
     from phoenix.experimental.datagen.decisions import seed_workflow_decisions
     from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
-    from phoenix.experimental.datagen.prompts import seed_workflow_prompts
 
     if bool(args.file) != bool(args.name):
         raise ValueError("--file and --name must be provided together")
@@ -128,8 +127,6 @@ def seed(args: Namespace) -> None:
                 else [DATASET_SOURCES[args.source]]
             )
             datasets = seed_datasets(client, sources=sources)
-            for name, version in seed_workflow_prompts(client, datasets):
-                print(f"Seeded prompt {name} (version {version.id})")
             for name, version_id in seed_workflow_decisions(http, datasets):
                 print(f"Seeded decision {name} (version {version_id})")
             for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
@@ -153,15 +150,12 @@ def _seed_when_ready(config: _Config) -> None:
     from phoenix.experimental.datagen.datasets import seed_datasets
     from phoenix.experimental.datagen.decisions import seed_workflow_decisions
     from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
-    from phoenix.experimental.datagen.prompts import seed_workflow_prompts
 
     with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
         client = Client(http_client=http)
         while True:
             try:
                 datasets = seed_datasets(client)
-                for name, version in seed_workflow_prompts(client, datasets):
-                    print(f"Seeded prompt {name} (version {version.id})", file=sys.stderr)
                 for name, version_id in seed_workflow_decisions(http, datasets):
                     print(f"Seeded decision {name} (version {version_id})", file=sys.stderr)
                 for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
