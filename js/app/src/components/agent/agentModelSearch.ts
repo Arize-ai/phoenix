@@ -331,6 +331,15 @@ const LEADING_MODEL_NAMESPACE_REGEX = new RegExp(
   `^(?:(?:${BEDROCK_REGION_PREFIX_PATTERN})\\.)?[a-z]+[./]`
 );
 
+/**
+ * Lowercase text without its Bedrock / gateway prefix, or the whole text when
+ * that's all there is (a bare `us.` or `anthropic.`)
+ */
+const stripModelNamespace = (text: string) => {
+  const lowerText = text.toLowerCase();
+  return lowerText.replace(LEADING_MODEL_NAMESPACE_REGEX, "") || lowerText;
+};
+
 const normalizeWords = (text: string) =>
   text
     .toLowerCase()
@@ -354,8 +363,9 @@ export const MATCH_SCORE = {
 
 /**
  * How well a model name matches a query, or null for no match. In order:
- * - exact (ignoring case and a Bedrock / gateway prefix like `us.anthropic.`)
- * - prefix, with the same prefix ignored
+ * - exact (ignoring case and a Bedrock / gateway prefix like `us.anthropic.`
+ *   on either side, so a pasted Bedrock id finds the model under any provider)
+ * - prefix, with the same prefixes ignored
  * - substring
  * - tokens: every whitespace token starts a word of the name, ignoring
  *   separators, so `opus 5` and `4o mini` hit `claude-opus-5` / `gpt-4o-mini`
@@ -373,22 +383,21 @@ export function tokenMatchScore({
     return null;
   }
   const lowerName = name.toLowerCase();
-  // The part after a Bedrock / gateway prefix, so `claude-opus` ranks
-  // `claude-opus-*` and `us.anthropic.claude-opus-*` alike on quality
-  const bareName = lowerName.replace(LEADING_MODEL_NAMESPACE_REGEX, "");
-  if (lowerName === normalizedQuery || bareName === normalizedQuery) {
+  // The parts after a Bedrock / gateway prefix, so `claude-opus` ranks
+  // `claude-opus-*` and `us.anthropic.claude-opus-*` alike on quality, and a
+  // pasted `us.anthropic.claude-opus` finds both
+  const bareName = stripModelNamespace(lowerName);
+  const bareQuery = stripModelNamespace(normalizedQuery);
+  if (lowerName === normalizedQuery || bareName === bareQuery) {
     return MATCH_SCORE.exact;
   }
-  if (
-    lowerName.startsWith(normalizedQuery) ||
-    bareName.startsWith(normalizedQuery)
-  ) {
+  if (lowerName.startsWith(normalizedQuery) || bareName.startsWith(bareQuery)) {
     return MATCH_SCORE.prefix;
   }
-  if (lowerName.includes(normalizedQuery)) {
+  if (lowerName.includes(bareQuery)) {
     return MATCH_SCORE.substring;
   }
-  const tokens = normalizeWords(normalizedQuery).split(" ").filter(Boolean);
+  const tokens = normalizeWords(bareQuery).split(" ").filter(Boolean);
   const words = normalizeWords(name).split(" ");
   const isEveryTokenAWordStart =
     tokens.length > 0 &&
@@ -396,7 +405,7 @@ export function tokenMatchScore({
   if (isEveryTokenAWordStart) {
     return MATCH_SCORE.tokens;
   }
-  const collapsedQuery = collapseSeparators(normalizedQuery);
+  const collapsedQuery = collapseSeparators(bareQuery);
   if (collapsedQuery && collapseSeparators(name).includes(collapsedQuery)) {
     return MATCH_SCORE.collapsed;
   }
@@ -843,9 +852,15 @@ export function getAgentModelHighlightRanges({
   if (!wholeQuery) {
     return [];
   }
-  const wholeIndex = lowerText.indexOf(wholeQuery);
-  if (wholeIndex >= 0) {
-    return [[wholeIndex, wholeIndex + wholeQuery.length]];
+  // The whole query, else without a pasted Bedrock / gateway prefix
+  for (const candidate of new Set([
+    wholeQuery,
+    stripModelNamespace(wholeQuery),
+  ])) {
+    const wholeIndex = lowerText.indexOf(candidate);
+    if (wholeIndex >= 0) {
+      return [[wholeIndex, wholeIndex + candidate.length]];
+    }
   }
   const ranges: AgentModelHighlightRange[] = [];
   for (const token of tokenizeQuery(wholeQuery)) {

@@ -242,6 +242,27 @@ describe("tokenMatchScore", () => {
     }
   );
 
+  it("ignores a Bedrock prefix pasted into the query", () => {
+    expect(
+      tokenMatchScore({
+        name: "claude-opus-4-6",
+        query: "us.anthropic.claude-opus-4-6",
+      })
+    ).toBe(MATCH_SCORE.exact);
+    expect(
+      tokenMatchScore({
+        name: "anthropic.claude-opus-4-6-v1:0",
+        query: "us.anthropic.claude-opus",
+      })
+    ).toBe(MATCH_SCORE.prefix);
+    expect(
+      tokenMatchScore({
+        name: "us.anthropic.claude-opus-4-6-v1:0",
+        query: "us.claude",
+      })
+    ).toBe(MATCH_SCORE.prefix);
+  });
+
   it("doesn't match an empty query", () => {
     expect(tokenMatchScore({ name: "gpt-4o", query: "  " })).toBeNull();
   });
@@ -254,6 +275,15 @@ describe("rankAgentModels", () => {
       "ANTHROPIC:claude-opus-5",
     ]);
     expect(search("4o mini")).toEqual(["OPENAI:gpt-4o-mini"]);
+  });
+
+  it("finds a pasted Bedrock id under Anthropic and AWS", () => {
+    expect(search("us.anthropic.claude-opus-4-6")).toEqual(
+      expect.arrayContaining([
+        "ANTHROPIC:claude-opus-4-6",
+        "AWS:us.anthropic.claude-opus-4-6-v1:0",
+      ])
+    );
   });
 
   it("ranks Anthropic above AWS Bedrock for `opus`", () => {
