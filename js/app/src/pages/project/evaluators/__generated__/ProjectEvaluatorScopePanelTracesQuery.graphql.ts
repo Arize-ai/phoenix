@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ab156542c3ac41ed6c1fcfd83d5b7cf>>
+ * @generated SignedSource<<75d862b8dd80744c54549e3fc306cd12>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type ProjectEvaluatorScopePanelTracesQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly span: {
           readonly id: string;
+          readonly name: string;
           readonly trace: {
             readonly costSummary: {
               readonly total: {
@@ -32,7 +33,9 @@ export type ProjectEvaluatorScopePanelTracesQuery$data = {
             };
             readonly evaluationContext: any | null;
             readonly id: string;
+            readonly latencyMs: number | null;
             readonly numSpans: number;
+            readonly startTime: string;
             readonly traceId: string;
           };
         };
@@ -143,6 +146,13 @@ v6 = {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "Trace",
                   "kind": "LinkedField",
                   "name": "trace",
@@ -161,6 +171,20 @@ v6 = {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "numSpans",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "startTime",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "latencyMs",
                       "storageKey": null
                     },
                     {
@@ -295,16 +319,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "32dbbcb5f272b4b7c0b03d5a14f5c8c8",
+    "cacheID": "2ece9ecd45c429740b08927bc9bae2cc",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelTracesQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelTracesQuery(\n  $projectId: ID!\n  $traceFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, filterCondition: \"parent_span is None\", sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            trace {\n              id\n              traceId\n              numSpans\n              evaluationContext\n              costSummary {\n                total {\n                  tokens\n                }\n              }\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelTracesQuery(\n  $projectId: ID!\n  $traceFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, filterCondition: \"parent_span is None\", sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            trace {\n              id\n              traceId\n              numSpans\n              startTime\n              latencyMs\n              evaluationContext\n              costSummary {\n                total {\n                  tokens\n                }\n              }\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0c5d7ce5b1a49394164b8b2ba7c7b032";
+(node as any).hash = "0a075f6884209caa75a9c911451730f0";
 
 export default node;
