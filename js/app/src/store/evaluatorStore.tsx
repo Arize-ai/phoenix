@@ -65,6 +65,8 @@ export type EvaluatorStoreProps = {
   };
   evaluatorMappingSource: EvaluatorMappingSourceState;
   showPromptPreview: boolean;
+  /** The variable whose mapping path is being edited, if any. */
+  focusedMappingVariable?: string | null;
 };
 
 export type EvaluatorStoreActions = {
@@ -132,6 +134,8 @@ export type EvaluatorStoreActions = {
   setSelectedSplitIds: (selectedSplitIds: string[]) => void;
   /** Sets whether to show the prompt preview panel. */
   setShowPromptPreview: (showPromptPreview: boolean) => void;
+  /** Sets which variable's mapping path is being edited. */
+  setFocusedMappingVariable: (focusedMappingVariable: string | null) => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -647,6 +651,13 @@ export const createEvaluatorStore = (
           },
           setShowPromptPreview(showPromptPreview) {
             set({ showPromptPreview }, undefined, "setShowPromptPreview");
+          },
+          setFocusedMappingVariable(focusedMappingVariable) {
+            set(
+              { focusedMappingVariable },
+              undefined,
+              "setFocusedMappingVariable"
+            );
           },
           setIncludeExplanation(includeExplanation) {
             set(

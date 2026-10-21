@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
+import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 
 export const LLMEvaluatorInputVariablesProvider = ({
   children,
@@ -13,9 +13,7 @@ export const LLMEvaluatorInputVariablesProvider = ({
    */
   instanceId?: number;
 }>) => {
-  const { variableKeys: variables } = useDerivedPlaygroundVariables({
-    instanceId,
-  });
+  const variables = useLLMEvaluatorVariables({ instanceId });
 
   return (
     <EvaluatorInputVariablesProvider variables={variables}>
