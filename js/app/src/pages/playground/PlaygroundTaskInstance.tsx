@@ -20,17 +20,21 @@ export function PlaygroundTaskInstance({
   splitIds,
   appendedMessagesPath,
   availablePaths,
+  supportsDecisionModels,
+  decisionTabNotice,
 }: {
   instanceId: number;
   datasetId: string | null;
   splitIds?: string[];
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
+  supportsDecisionModels?: boolean;
+  decisionTabNotice?: string;
 }) {
   usePlaygroundInstanceSourceLoader(instanceId);
 
-  const taskKind = usePlaygroundContext(
-    (state) => selectPlaygroundInstance(instanceId)(state)?.task.kind
+  const member = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.task.type
   );
 
   const isLoading = usePlaygroundContext(
@@ -38,7 +42,7 @@ export function PlaygroundTaskInstance({
       selectPlaygroundInstance(instanceId)(state)?.loadingSource != null
   );
 
-  if (taskKind == null) {
+  if (member == null) {
     return null;
   }
 
@@ -46,7 +50,7 @@ export function PlaygroundTaskInstance({
     return <PlaygroundInstanceLoading instanceId={instanceId} />;
   }
 
-  if (taskKind === "evaluator") {
+  if (member === "evaluator") {
     return (
       <Suspense fallback={<Loading size="S" />}>
         <EvaluatorTaskEditor
@@ -64,6 +68,8 @@ export function PlaygroundTaskInstance({
       appendedMessagesPath={appendedMessagesPath}
       availablePaths={availablePaths}
       taskMenu
+      supportsDecisionModels={supportsDecisionModels}
+      decisionTabNotice={decisionTabNotice}
     />
   );
 }

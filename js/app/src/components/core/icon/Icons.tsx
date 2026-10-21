@@ -620,6 +620,23 @@ export const Console = () => (
   </svg>
 );
 
+// @src: lucide copy-plus
+export const CopyPlus = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="15" x2="15" y1="12" y2="18" />
+    <line x1="12" x2="18" y1="15" y2="15" />
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+  </svg>
+);
+
 export const ChevronLeftSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1566,6 +1583,22 @@ export const MessageSquare = () => (
       d="M14 2C14.7956 2 15.5585 2.3163 16.1211 2.87891C16.6837 3.44151 17 4.20435 17 5V10C17 10.7957 16.6837 11.5585 16.1211 12.1211C15.5585 12.6837 14.7957 13 14 13H6.82812C6.56296 13.0001 6.30857 13.1054 6.12109 13.293L3.91895 15.4951C3.6799 15.7341 3.37545 15.8969 3.04395 15.9629C2.71233 16.0288 2.36805 15.9956 2.05566 15.8662C1.74327 15.7368 1.47598 15.5174 1.28809 15.2363C1.10019 14.9552 1.00004 14.6243 1 14.2861V5C1 4.20435 1.3163 3.44152 1.87891 2.87891C2.44152 2.3163 3.20435 2 4 2H14ZM4 4C3.73478 4 3.4805 4.10543 3.29297 4.29297C3.10543 4.4805 3 4.73478 3 5V13.5859L4.70703 11.8789L4.92676 11.6797C5.46048 11.2422 6.13198 11.0001 6.82812 11H14C14.2652 11 14.5195 10.8946 14.707 10.707C14.8946 10.5195 15 10.2652 15 10V5C15 4.73478 14.8946 4.48051 14.707 4.29297C14.5195 4.10543 14.2652 4 14 4H4Z"
       fill="currentColor"
     />
+  </svg>
+);
+
+// @src: lucide message-square-plus
+export const MessageSquarePlus = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+    <path d="M12 8v6" />
+    <path d="M9 11h6" />
   </svg>
 );
 

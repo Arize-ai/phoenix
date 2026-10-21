@@ -36,7 +36,9 @@ describe("playground task operations", () => {
 
     // A discriminated union converts to `oneOf`; each variant must render
     // rather than collapsing to `unknown`, or the model has to guess it.
-    expect(signature).toContain('type: "new"; kind: "prompt" | "LLM" | "CODE"');
+    expect(signature).toContain('taskType: "prompt"');
+    expect(signature).toContain('taskType: "evaluator"');
+    expect(signature).toContain('evaluatorKind: "LLM" | "CODE"');
     expect(signature).toContain('type: "prompt"; promptId: string');
     expect(signature).toContain('type: "evaluator"; evaluatorId: string');
     expect(signature).toContain(

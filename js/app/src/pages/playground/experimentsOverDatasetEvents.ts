@@ -34,6 +34,8 @@ export type ExperimentsOverDatasetEvent =
       type: "runCompleted";
       span: PayloadOf<"ChatCompletionSubscriptionResult">["span"];
       experimentRunId: string | null;
+      /** The run's recorded output; a decision run's answers by name. */
+      output: unknown;
     } & ExperimentRunKey)
   | ({
       type: "runFailed";
@@ -128,6 +130,7 @@ function toRunEvent(
         ...key,
         span: payload.span,
         experimentRunId: payload.experimentRun?.id ?? null,
+        output: payload.experimentRun?.output ?? null,
       };
     case "ChatCompletionSubscriptionError":
       return {

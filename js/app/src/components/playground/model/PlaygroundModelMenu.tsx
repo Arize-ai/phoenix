@@ -1,30 +1,37 @@
-import { useCallback } from "react";
-
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 export type PlaygroundModelMenuProps = {
   /**
    * The playground instance ID to configure
    */
   playgroundInstanceId: number;
+  /** Enable the Decision tab in the menu. */
+  supportsDecisionModels?: boolean;
+  /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
+  decisionTabNotice?: string;
 };
 
 /**
- * A model selection menu connected to the playground store.
- * Handles both provider and model name updates when a model is selected.
+ * Model menu for the playground that handles provider and model changes
+ * through the playground store.
  */
 export function PlaygroundModelMenu({
   playgroundInstanceId,
+  supportsDecisionModels = false,
+  decisionTabNotice,
 }: PlaygroundModelMenuProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
-
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -33,44 +40,106 @@ export function PlaygroundModelMenu({
     ? {
         provider: instance.model.provider,
         modelName: instance.model.modelName,
+        modelType: instance.model.modelType,
         customProvider: instance.model.customProvider ?? undefined,
       }
     : null;
 
-  const handleChange = useCallback(
-    (model: ModelMenuValue) => {
-      if (!instance) return;
+  const handleChange = (model: ModelMenuValue) => {
+    if (!instance) return;
 
-      // Update provider if it changed
-      if (model.provider !== instance.model.provider) {
-        updateProvider({
-          instanceId: playgroundInstanceId,
-          provider: model.provider,
-          modelConfigByProvider,
-        });
-      }
-
-      // Update model name and custom provider info
-      updateModel({
+    // The picker's Decision tab is a shortcut for the task's type: a
+    // decision model makes the instance a decision, an LLM a prompt.
+    if (model.modelType === "DECISION") {
+      const wasDecision = isDecisionInstance(instance);
+      updateInstance({
         instanceId: playgroundInstanceId,
+        dirty: true,
         patch: {
-          modelName: model.modelName,
-          customProvider: model.customProvider ?? null,
+          task: { type: "decision" },
+          // Keep a request the instance already had; start one otherwise.
+          decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
+          // Remember the chat configuration so switching back restores it.
+          llmModel: wasDecision ? instance.llmModel : instance.model,
+          model: {
+            provider: model.provider,
+            modelName: model.modelName,
+            modelType: "DECISION",
+            invocationParameters: instance.model.invocationParameters,
+            customProvider: model.customProvider ?? null,
+            // A base URL points at one built-in provider's decision endpoint;
+            // a custom provider brings its own.
+            baseUrl:
+              wasDecision &&
+              !model.customProvider &&
+              !instance.model.customProvider &&
+              model.provider === instance.model.provider
+                ? instance.model.baseUrl
+                : null,
+          },
+          prompt: null,
+          repetitions: {},
+          experiment: null,
         },
       });
-    },
-    [
-      instance,
-      playgroundInstanceId,
-      updateProvider,
-      updateModel,
-      modelConfigByProvider,
-    ]
-  );
+      return;
+    }
+
+    const wasDecision = isDecisionInstance(instance);
+    if (wasDecision) {
+      // Restore the chat configuration the instance had before it became a
+      // decision instance. Without one, start from a clean chat model: the
+      // decision base URL points at a decision endpoint, not a chat one.
+      const restoredModel = instance.llmModel ?? {
+        ...instance.model,
+        provider: DEFAULT_MODEL_PROVIDER,
+        baseUrl: null,
+      };
+      updateInstance({
+        instanceId: playgroundInstanceId,
+        dirty: true,
+        patch: {
+          task: { type: "prompt" },
+          model: { ...restoredModel, modelType: "LLM" },
+          repetitions: {},
+        },
+      });
+    }
+
+    // Update provider if it changed
+    const previousProvider = wasDecision
+      ? (instance.llmModel?.provider ?? DEFAULT_MODEL_PROVIDER)
+      : instance.model.provider;
+    if (model.provider !== previousProvider) {
+      updateProvider({
+        instanceId: playgroundInstanceId,
+        provider: model.provider,
+        modelConfigByProvider,
+      });
+    }
+
+    // Update model name and custom provider ref
+    updateModel({
+      instanceId: playgroundInstanceId,
+      patch: {
+        modelName: model.modelName,
+        customProvider: model.customProvider ?? null,
+        modelType: "LLM",
+      },
+    });
+  };
 
   if (!instance) {
     return null;
   }
 
-  return <ModelMenu value={value} onChange={handleChange} />;
+  return (
+    <ModelMenu
+      value={value}
+      onChange={handleChange}
+      supportsDecisionModels={supportsDecisionModels}
+      decisionTabNotice={decisionTabNotice}
+      isDisabled={instance.activeRunId != null}
+    />
+  );
 }

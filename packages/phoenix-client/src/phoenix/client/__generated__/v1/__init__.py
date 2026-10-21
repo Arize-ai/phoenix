@@ -210,7 +210,7 @@ class CustomModelProvider(TypedDict):
     id: str
     name: str
     provider: str
-    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock", "typesafe"]
     created_at: str
     updated_at: str
     description: NotRequired[str]
@@ -523,7 +523,7 @@ class PlaygroundEvaluatorTaskUIContext(TypedDict):
 class PlaygroundEvaluatorUIContext(TypedDict):
     datasetEvaluatorId: str
     name: str
-    kind: Literal["LLM", "CODE", "BUILTIN"]
+    kind: Literal["LLM", "CODE", "BUILTIN", "DECISION"]
     isBuiltin: bool
     isApplied: bool
 
@@ -538,6 +538,12 @@ class PlaygroundPromptTaskUIContext(TypedDict):
     kind: NotRequired[Literal["prompt"]]
 
 
+class PredicateScoring(TypedDict):
+    type: Literal["predicate"]
+    threshold: NotRequired[float]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
+
+
 class Project(TypedDict):
     name: str
     id: str
@@ -548,7 +554,7 @@ class ProjectEvaluator(TypedDict):
     id: str
     project_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: str
     evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
@@ -881,6 +887,12 @@ class SandboxConfig(TypedDict):
 class SandboxConfigsResponseBody(TypedDict):
     data: Sequence[SandboxConfig]
     next_cursor: Optional[str]
+
+
+class ScaleScoring(TypedDict):
+    type: Literal["scale"]
+    include_label: NotRequired[bool]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class SecretKeyValue(TypedDict):
@@ -1534,6 +1546,7 @@ class BuiltInModelProvider(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     name: str
 
@@ -1558,6 +1571,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     modelName: str
 
@@ -1590,6 +1604,12 @@ class ChatCompletionUsage(TypedDict):
     completion_tokens: int
     total_tokens: int
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
+
+
+class ChoiceScoring(TypedDict):
+    type: Literal["choice"]
+    scores: NotRequired[Mapping[str, float]]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -1704,6 +1724,10 @@ class DatasetExample(TypedDict):
     metadata: Mapping[str, Any]
     updated_at: str
     source: NotRequired[DatasetExampleSource]
+
+
+class DecisionScoringPolicy(TypedDict):
+    questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
 
 
 class DynamicToolApprovalRequestedPart(TypedDict):
@@ -1897,6 +1921,14 @@ class PatchDatasetEvaluatorRequest(TypedDict):
             ]
         ]
     ]
+
+
+class PatchDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: NotRequired[str]
+    decision_version_id: NotRequired[str]
+    description: NotRequired[str]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
 
 
 class PatchLLMEvaluatorRequest(TypedDict):
@@ -2319,6 +2351,14 @@ class CreateDatasetEvaluatorRequest(TypedDict):
     ]
 
 
+class CreateDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: str
+    decision_version_id: str
+    description: NotRequired[str]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
+
+
 class CreateLLMEvaluatorRequest(TypedDict):
     type: Literal["llm"]
     name: str
@@ -2335,7 +2375,7 @@ class DatasetEvaluator(TypedDict):
     id: str
     dataset_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: str
     input_mapping: InputMapping
@@ -2358,6 +2398,23 @@ class DatasetEvaluatorResponseBody(TypedDict):
 class DatasetEvaluatorsResponseBody(TypedDict):
     data: Sequence[DatasetEvaluator]
     next_cursor: Optional[str]
+
+
+class DecisionEvaluatorDefinition(TypedDict):
+    type: Literal["decision"]
+    id: str
+    name: str
+    description: Optional[str]
+    decision_id: str
+    decision_version_id: str
+    scoring_policy: DecisionScoringPolicy
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -2533,12 +2590,22 @@ class PromptMessage(TypedDict):
 
 
 class EvaluatorDefinitionResponseBody(TypedDict):
-    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+    data: Union[
+        CodeEvaluatorDefinition,
+        LLMEvaluatorDefinition,
+        BuiltInEvaluatorDefinition,
+        DecisionEvaluatorDefinition,
+    ]
 
 
 class EvaluatorDefinitionsResponseBody(TypedDict):
     data: Sequence[
-        Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+        Union[
+            CodeEvaluatorDefinition,
+            LLMEvaluatorDefinition,
+            BuiltInEvaluatorDefinition,
+            DecisionEvaluatorDefinition,
+        ]
     ]
     next_cursor: Optional[str]
 
@@ -2603,6 +2670,7 @@ class PromptVersionData(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]

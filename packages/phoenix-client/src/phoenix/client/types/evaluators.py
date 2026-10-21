@@ -15,10 +15,11 @@ EvaluatorDefinition = Union[
     v1.LLMEvaluatorDefinition,
     v1.CodeEvaluatorDefinition,
     v1.BuiltInEvaluatorDefinition,
+    v1.DecisionEvaluatorDefinition,
 ]
 """A shared evaluator definition. The ``type`` field discriminates the variants."""
 
-EvaluatorType = Literal["llm", "code", "builtin"]
+EvaluatorType = Literal["llm", "code", "builtin", "decision"]
 """A kind of evaluator definition, as accepted by the ``type`` filter when listing."""
 
 Language = Literal["PYTHON", "TYPESCRIPT"]

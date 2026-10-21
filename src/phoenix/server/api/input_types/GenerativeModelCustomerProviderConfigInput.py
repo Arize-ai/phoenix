@@ -21,8 +21,9 @@ from phoenix.db.types.model_provider import (
     GoogleGenAIHttpOptions,
     OpenAIClientKwargs,
     OpenAICustomProviderConfig,
+    TypeSafeClientKwargs,
+    TypeSafeCustomProviderConfig,
 )
-from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.RedactedString import RedactedString
@@ -296,6 +297,42 @@ class AWSBedrockCustomProviderConfigInput:
         )
 
 
+@strawberry.input
+class TypeSafeAuthenticationMethodInput:
+    api_key: RedactedString
+
+    def to_orm(self) -> AuthenticationMethodApiKey:
+        return AuthenticationMethodApiKey(api_key=self.api_key)
+
+
+@strawberry.input
+class TypeSafeClientKwargsInput:
+    base_url: str | None = UNSET
+    default_headers: JSON | None = UNSET
+
+    def to_orm(self) -> TypeSafeClientKwargs:
+        return TypeSafeClientKwargs(
+            base_url=self.base_url or None,
+            default_headers=clean_headers(self.default_headers),
+        )
+
+
+@strawberry.input(description="A System One-compatible endpoint; it serves decision models only.")
+class TypeSafeCustomProviderConfigInput:
+    typesafe_authentication_method: TypeSafeAuthenticationMethodInput
+    typesafe_client_kwargs: TypeSafeClientKwargsInput | None = UNSET
+
+    def to_orm(self) -> GenerativeModelCustomerProviderConfig:
+        return GenerativeModelCustomerProviderConfig(
+            root=TypeSafeCustomProviderConfig(
+                typesafe_authentication_method=self.typesafe_authentication_method.to_orm(),
+                typesafe_client_kwargs=self.typesafe_client_kwargs.to_orm()
+                if self.typesafe_client_kwargs
+                else None,
+            )
+        )
+
+
 @strawberry.input(one_of=True)
 class GenerativeModelCustomerProviderConfigInput:
     """Client configuration input for any supported provider type."""
@@ -305,27 +342,7 @@ class GenerativeModelCustomerProviderConfigInput:
     anthropic: Optional[AnthropicCustomProviderConfigInput] = UNSET
     aws_bedrock: Optional[AWSBedrockCustomProviderConfigInput] = UNSET
     google_genai: Optional[GoogleGenAICustomProviderConfigInput] = UNSET
-
-    def __post_init__(self) -> None:
-        if (
-            sum(
-                map(
-                    bool,
-                    [
-                        self.openai,
-                        self.azure_openai,
-                        self.anthropic,
-                        self.aws_bedrock,
-                        self.google_genai,
-                    ],
-                )
-            )
-            != 1
-        ):
-            raise BadRequest(
-                "Exactly one of openai, azure_openai, anthropic, aws_bedrock, "
-                "google_genai must be provided"
-            )
+    typesafe: Optional[TypeSafeCustomProviderConfigInput] = UNSET
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         """Convert input config to ORM config based on which provider is set."""
@@ -339,7 +356,9 @@ class GenerativeModelCustomerProviderConfigInput:
             return self.aws_bedrock.to_orm()
         if self.google_genai:
             return self.google_genai.to_orm()
+        if self.typesafe:
+            return self.typesafe.to_orm()
         raise ValueError(
             "Exactly one of openai, azure_openai, anthropic, aws_bedrock, "
-            "google_genai must be provided"
+            "google_genai, typesafe must be provided"
         )

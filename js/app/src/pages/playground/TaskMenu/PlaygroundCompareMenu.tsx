@@ -4,7 +4,8 @@ import { useFilter } from "react-aria-components";
 
 import { Button, Icon, Icons, Popover, Select } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import type { PlaygroundTaskType } from "@phoenix/store/playground";
+import { getPlaygroundMode } from "@phoenix/store/playground";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "../constants";
 import {
@@ -17,14 +18,16 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
  * Adds a task to compare against: a duplicate of the first task, a saved
- * prompt or evaluator of the page's kind, or a new draft of that kind. The
- * kind is fixed here because the new task always joins an existing one.
+ * prompt, decision or evaluator of the page's mode, or a new draft of one.
+ * The mode is fixed here because the new task always joins an existing one;
+ * a task page offers prompts and decisions, so either can be compared with
+ * the other.
  */
 export function PlaygroundCompareMenu() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
 
-  const taskKind = usePlaygroundContext((state) =>
-    getPlaygroundTaskKind(state.instances)
+  const mode = usePlaygroundContext((state) =>
+    getPlaygroundMode(state.instances)
   );
 
   const isFull = usePlaygroundContext(
@@ -35,6 +38,14 @@ export function PlaygroundCompareMenu() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
+  // The tab shown; the first instance's type, as Compare most likely
+  // adds another of it.
+  const firstTaskType = usePlaygroundContext(
+    (state) => state.instances[0]?.task.type ?? "prompt"
+  );
+  const [selectedTaskType, setSelectedTaskType] =
+    useState<PlaygroundTaskType>(firstTaskType);
+
   // Bumped on every opening, so evaluators saved since then show.
   const [openCount, setOpenCount] = useState(0);
   const hasOpened = openCount > 0;
@@ -43,19 +54,22 @@ export function PlaygroundCompareMenu() {
   const deferredSearch = useDeferredValue(search);
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const { promptItems, evaluators } = useTaskMenuOptions({
-    includePrompts: hasOpened && taskKind === "prompt",
-    includeEvaluators: hasOpened && taskKind === "evaluator",
+  const { promptItems, decisions, evaluators } = useTaskMenuOptions({
+    includePrompts: hasOpened && mode === "task",
+    includeDecisions: hasOpened && mode === "task",
+    includeEvaluators: hasOpened && mode === "evaluator",
     search: deferredSearch,
     evaluatorsFetchKey: openCount,
   });
 
-  // Locked to the page's kind, so a single tab: the list shows without a
-  // tab strip, the duplicate action ahead of it.
+  // Locked to the page's mode: a task page has a tab each for prompts and
+  // decisions, a evaluator page one list without a tab strip, the duplicate
+  // action ahead of either.
   const tabs = getTaskMenuTabs({
-    kind: taskKind,
+    mode,
     isLocked: true,
     prompts: promptItems,
+    decisions,
     evaluators,
     search: deferredSearch,
     matches: contains,
@@ -86,7 +100,8 @@ export function PlaygroundCompareMenu() {
       <Popover placement="bottom end">
         <TaskMenuList
           tabs={tabs}
-          selectedKind={taskKind}
+          selectedTaskType={selectedTaskType}
+          onSelectedTaskTypeChange={setSelectedTaskType}
           leadingSections={[DUPLICATE_SECTION]}
           search={search}
           onSearchChange={setSearch}

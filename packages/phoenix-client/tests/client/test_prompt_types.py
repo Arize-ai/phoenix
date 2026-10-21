@@ -1,3 +1,5 @@
+import pytest
+
 from phoenix.client.types.prompts import OpenAIPrompt, PromptVersion
 
 
@@ -57,6 +59,24 @@ def test_omitted_version_metadata_defaults_to_empty() -> None:
     )
 
     assert prompt.metadata == {}
+
+
+@pytest.mark.parametrize("parallel_tool_calls", [False, True])
+def test_openai_prompt_preserves_parallel_tool_call_setting(parallel_tool_calls: bool) -> None:
+    prompt = PromptVersion.from_openai(
+        {
+            "model": "gpt-6-luna",
+            "messages": [{"role": "user", "content": "Classify this input."}],
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {"name": "classify", "parameters": {"type": "object"}},
+                }
+            ],
+            "parallel_tool_calls": parallel_tool_calls,
+        }
+    )
+    assert prompt.format()["parallel_tool_calls"] is parallel_tool_calls
 
 
 def test_custom_provider_id_round_trips_through_dumps_and_loads() -> None:

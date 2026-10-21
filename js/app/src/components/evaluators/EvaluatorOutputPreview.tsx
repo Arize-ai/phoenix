@@ -67,6 +67,7 @@ export const EvaluatorOutputPreview = () => {
           results {
             evaluatorName
             annotation {
+              ...decisionAnnotation_annotation @relay(mask: false)
               explanation
               label
               score

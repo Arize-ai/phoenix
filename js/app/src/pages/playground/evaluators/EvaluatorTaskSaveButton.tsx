@@ -19,8 +19,8 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import {
   getEvaluatorTaskName,
-  getEvaluatorTaskPreview,
-  getEvaluatorTaskRevision,
+  buildEvaluatorTaskDefinition,
+  getEvaluatorTaskContentKey,
 } from "./evaluatorTaskSnapshot";
 import { SaveEvaluatorTaskDialog } from "./SaveEvaluatorTaskDialog";
 import { useEvaluatorTaskSave } from "./useEvaluatorTaskSave";
@@ -141,7 +141,7 @@ export function EvaluatorTaskSaveButton({
         datasetId,
         name,
         description: current.description.trim() || undefined,
-        preview: getEvaluatorTaskPreview({
+        preview: buildEvaluatorTaskDefinition({
           evaluator: current,
           name: getEvaluatorTaskName({ name }, index),
           playgroundStore,
@@ -177,10 +177,10 @@ export function EvaluatorTaskSaveButton({
 
         const patch: Partial<PlaygroundNormalizedInstance> = {
           task: {
-            kind: "evaluator",
+            type: "evaluator",
             evaluator: {
               ...savedEvaluator,
-              savedRevision: getEvaluatorTaskRevision(savedEvaluator),
+              savedContentKey: getEvaluatorTaskContentKey(savedEvaluator),
             },
           },
         };

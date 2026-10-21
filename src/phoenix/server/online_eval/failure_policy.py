@@ -107,16 +107,18 @@ def _is_provider_transient_error(
     exc: BaseException,
 ) -> bool:
     """Ask the provider's own client, which knows its throttling better than we do."""
-    if hydrated is None or hydrated.evaluator_kind != "LLM":
+    if hydrated is None:
         return False
-    llm_client = getattr(hydrated.evaluator, "llm_client", None)
-    if llm_client is None:
+    provider_client = getattr(hydrated.evaluator, "provider_client", None)
+    if provider_client is None:
         return False
     for node in _exception_chain(exc):
         if not isinstance(node, Exception):
             continue
         try:
-            if llm_client.is_rate_limit_error(node) or llm_client.is_transient_error(node):
+            if provider_client.is_rate_limit_error(node) or provider_client.is_transient_error(
+                node
+            ):
                 return True
         except Exception:
             continue

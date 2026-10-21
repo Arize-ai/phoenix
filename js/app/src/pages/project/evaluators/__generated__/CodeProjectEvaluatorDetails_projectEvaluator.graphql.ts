@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20cb17f4f93adc267482d5d3c7a84ae6>>
+ * @generated SignedSource<<056f22e4672d90e43d948e33724d269f>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 import { FragmentRefs } from "relay-runtime";
 export type CodeProjectEvaluatorDetails_projectEvaluator$data = {

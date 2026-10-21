@@ -123,7 +123,7 @@ describe("playground prompt agent tools", () => {
     const result = await addAction(undefined);
 
     const [, added] = playgroundStore.getState().instances;
-    expect(added.task).toEqual({ kind: "prompt" });
+    expect(added.task).toEqual({ type: "prompt" });
     expect(result).toMatchObject({
       ok: true,
       output: {
@@ -139,7 +139,7 @@ describe("playground prompt agent tools", () => {
     const [prompt] = playgroundStore.getState().instances;
     playgroundStore.getState().replaceInstance({
       instanceId: prompt.id,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
 
     const addAction = createAddPromptInstanceClientAction({
@@ -151,7 +151,7 @@ describe("playground prompt agent tools", () => {
 
     const [, added] = playgroundStore.getState().instances;
     expect(added.task).toMatchObject({
-      kind: "evaluator",
+      type: "evaluator",
       evaluator: { kind: "LLM" },
     });
     expect(waitForFakeHost).toHaveBeenCalledWith(added.id, expect.any(Number));
@@ -165,7 +165,7 @@ describe("playground prompt agent tools", () => {
     });
   });
 
-  it("rejects a source of the other kind than the page's", async () => {
+  it("rejects a source of the other mode than the page's", async () => {
     const playgroundStore = createStore();
 
     const addAction = createAddPromptInstanceClientAction({
@@ -173,11 +173,13 @@ describe("playground prompt agent tools", () => {
       waitForEvaluatorHost: waitForFakeHost,
     });
 
-    const result = await addAction({ source: { type: "new", kind: "CODE" } });
+    const result = await addAction({
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
+    });
 
     expect(result).toMatchObject({
       ok: false,
-      error: expect.stringContaining("prompt task"),
+      error: expect.stringContaining("prompt and decision tasks"),
     });
     expect(playgroundStore.getState().instances).toHaveLength(1);
   });

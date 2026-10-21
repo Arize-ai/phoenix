@@ -99,8 +99,8 @@ describe("getExampleColumnVisibility", () => {
 });
 
 describe("getExampleColumnLabels", () => {
-  it("calls the example's output the reference on a prompt page", () => {
-    expect(getExampleColumnLabels("prompt").output).toBe("reference output");
+  it("calls the example's output the reference on a task page", () => {
+    expect(getExampleColumnLabels("task").output).toBe("reference output");
   });
 
   it("calls it the output on an evaluator page, where it is what is judged", () => {

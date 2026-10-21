@@ -335,16 +335,23 @@ def aio_sqlite_engine(
     if database.startswith(":memory:"):
         _init_memory_models(engine)
     else:
-        migration_engine = create_async_engine(
-            url=url,
-            json_serializer=_dumps,
-            # rwc: the migration engine is the only one that creates the file.
-            async_creator=sqlite_connection_factory(database, mode="rwc"),
-            poolclass=NullPool,
-            echo=log_migrations,
-        )
-        event.listen(migration_engine.sync_engine, "connect", set_sqlite_migration_pragma)
+        migration_engine = sqlite_migration_engine(url, echo=log_migrations)
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
+    return engine
+
+
+def sqlite_migration_engine(url: URL, echo: bool = False) -> AsyncEngine:
+    engine = create_async_engine(
+        url=url,
+        json_serializer=_dumps,
+        # rwc: the migration engine is the only one that creates the file.
+        async_creator=sqlite_connection_factory(
+            _sqlite_target(url.database, url.query), mode="rwc"
+        ),
+        poolclass=NullPool,
+        echo=echo,
+    )
+    event.listen(engine.sync_engine, "connect", set_sqlite_migration_pragma)
     return engine
 
 

@@ -89,10 +89,12 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskKind,
+  getPlaygroundMode,
   getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
+import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 import type {
   EditableTableDiff,
   EditableTableStore,
@@ -120,6 +122,7 @@ import type {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { DecisionResult } from "./DecisionResult";
 import {
   getEvaluatorTaskAnnotation,
   PlaygroundEvaluatorColumnHeader,
@@ -388,6 +391,7 @@ function EmptyExampleOutput({
 
 function ExampleOutputContent({
   exampleData,
+  decisionRequest,
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
@@ -399,6 +403,8 @@ function ExampleOutputContent({
   onExpandedChange,
 }: {
   exampleData: ExampleRunData;
+  /** The decision the column runs, for its answers' order and labels. */
+  decisionRequest?: DecisionRequestDraft | null;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
@@ -420,6 +426,7 @@ function ExampleOutputContent({
     errorMessage,
     experimentRunId,
     evaluations,
+    decisionAnswers,
   } = exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
@@ -521,6 +528,14 @@ function ExampleOutputContent({
             {content != null ? (
               <DynamicContent value={content} mode="streaming" key="content" />
             ) : null}
+            {decisionAnswers != null ? (
+              <DecisionResult
+                key="decision"
+                output={JSON.stringify({ answers: decisionAnswers })}
+                request={decisionRequest ?? null}
+                showUsage={false}
+              />
+            ) : null}
             {toolCalls != null && Object.keys(toolCalls).length > 0
               ? Object.values(toolCalls)
                   .filter((tc): tc is PartialOutputToolCall => tc != null)
@@ -607,6 +622,11 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
+  const decisionRequest = usePlaygroundContext(
+    (state) =>
+      state.instances.find((instance) => instance.id === instanceId)
+        ?.decisionRequest
+  );
   const onViewDetails = useCallback(
     () => onViewExperimentRunDetailsPress(exampleIndex),
     [onViewExperimentRunDetailsPress, exampleIndex]
@@ -624,6 +644,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   ) : (
     <ExampleOutputContent
       exampleData={exampleData}
+      decisionRequest={decisionRequest}
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
@@ -834,7 +855,7 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.instances,
     arePlaygroundInstancesEqualExceptProgress
   );
-  const columnLabels = getExampleColumnLabels(getPlaygroundTaskKind(instances));
+  const columnLabels = getExampleColumnLabels(getPlaygroundMode(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -861,7 +882,7 @@ export function PlaygroundDatasetExamplesTable({
     getTemplateVariablesPath({
       stateByDatasetId: state.stateByDatasetId,
       datasetId,
-      taskKind: getPlaygroundTaskKind(state.instances),
+      mode: getPlaygroundMode(state.instances),
     })
   );
   const setAvailablePaths = usePlaygroundContext(
@@ -1049,11 +1070,21 @@ export function PlaygroundDatasetExamplesTable({
           return;
         case "runCompleted": {
           const { instanceId, exampleId, repetitionNumber, span } = event;
+          // A decision run streams nothing; its answers arrive with the run.
+          const isDecision = isDecisionInstance(
+            playgroundStore
+              .getState()
+              .instances.find((instance) => instance.id === instanceId)
+          );
           updateExampleData({
             instanceId,
             exampleId,
             repetitionNumber,
-            patch: { span, experimentRunId: event.experimentRunId },
+            patch: {
+              span,
+              experimentRunId: event.experimentRunId,
+              ...(isDecision ? { decisionAnswers: event.output } : {}),
+            },
           });
           handleExperimentRunCost(getExperimentRunCost(instanceId, span));
           incrementRunsCompleted(instanceId);
@@ -1194,7 +1225,7 @@ export function PlaygroundDatasetExamplesTable({
         // An evaluator task's verdicts are its runs; only a prompt task has
         // dataset evaluators scoring its outputs afterwards.
         totalEvals:
-          instance.task.kind === "evaluator"
+          instance.task.type === "evaluator"
             ? 0
             : runExampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,
@@ -2170,6 +2201,7 @@ graphql`
         }
         experimentRun {
           id
+          output
         }
       }
       ... on ChatCompletionSubscriptionError {
@@ -2203,6 +2235,7 @@ graphql`
         repetitionNumber
         evaluatorName
         experimentRunEvaluation {
+          ...decisionAnnotation_annotation @relay(mask: false)
           id
           name
           label

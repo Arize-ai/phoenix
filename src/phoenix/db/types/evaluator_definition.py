@@ -15,6 +15,8 @@ from pydantic import ConfigDict, Field, RootModel
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.db_helper_types import DBBaseModel
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
+from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, DecisionState
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
@@ -25,7 +27,11 @@ from phoenix.db.types.prompts import (
 )
 
 
-class EvaluatorSource(DBBaseModel):
+class _FrozenDBModel(DBBaseModel):
+    model_config = ConfigDict(frozen=True)
+
+
+class EvaluatorSource(_FrozenDBModel):
     """Where a task's evaluator came from, so a calibration experiment can be traced back.
 
     Every field is optional: a draft that was never saved has none of them, a task opened
@@ -34,18 +40,15 @@ class EvaluatorSource(DBBaseModel):
     names that binding, whose input mapping is what the task carried.
     """
 
-    model_config = ConfigDict(frozen=True)
-
     evaluator_id: int | None = None
     prompt_version_id: int | None = None
+    decision_version_id: int | None = None
     dataset_evaluator_id: int | None = None
     project_evaluator_id: int | None = None
 
 
-class InlineLLMEvaluatorPromptVersion(DBBaseModel):
+class InlineLLMEvaluatorPromptVersion(_FrozenDBModel):
     """The judge prompt and model of an inline LLM evaluator, frozen as drafted."""
-
-    model_config = ConfigDict(frozen=True)
 
     template_format: PromptTemplateFormat
     template: PromptChatTemplate
@@ -57,10 +60,8 @@ class InlineLLMEvaluatorPromptVersion(DBBaseModel):
     custom_provider_id: int | None = None
 
 
-class InlineLLMEvaluatorDefinition(DBBaseModel):
+class InlineLLMEvaluatorDefinition(_FrozenDBModel):
     """An LLM evaluator drafted inline: it exists only in this definition."""
-
-    model_config = ConfigDict(frozen=True)
 
     type: Literal["inline_llm_evaluator"]
     name: str
@@ -70,10 +71,8 @@ class InlineLLMEvaluatorDefinition(DBBaseModel):
     source: EvaluatorSource | None = None
 
 
-class InlineCodeEvaluatorDefinition(DBBaseModel):
+class InlineCodeEvaluatorDefinition(_FrozenDBModel):
     """A code evaluator drafted inline, run in the named sandbox configuration."""
-
-    model_config = ConfigDict(frozen=True)
 
     type: Literal["inline_code_evaluator"]
     name: str
@@ -85,7 +84,7 @@ class InlineCodeEvaluatorDefinition(DBBaseModel):
     source: EvaluatorSource | None = None
 
 
-class StoredCodeEvaluatorDefinition(DBBaseModel):
+class StoredCodeEvaluatorDefinition(_FrozenDBModel):
     """A stored code evaluator.
 
     Without ``code_evaluator_version_id`` the evaluator runs at its current version, which
@@ -95,8 +94,6 @@ class StoredCodeEvaluatorDefinition(DBBaseModel):
     is read from the evaluator's current row.
     """
 
-    model_config = ConfigDict(frozen=True)
-
     type: Literal["code_evaluator"]
     code_evaluator_id: int
     code_evaluator_version_id: int | None = None
@@ -105,13 +102,33 @@ class StoredCodeEvaluatorDefinition(DBBaseModel):
     source: EvaluatorSource | None = None
 
 
-class BuiltInEvaluatorDefinition(DBBaseModel):
+class BuiltInEvaluatorDefinition(_FrozenDBModel):
     """One of Phoenix's built-in evaluators."""
-
-    model_config = ConfigDict(frozen=True)
 
     type: Literal["builtin_evaluator"]
     builtin_evaluator_id: int
+
+
+class InlineDecisionEvaluatorDefinition(_FrozenDBModel):
+    """A self-contained decision evaluator definition with scoring and provider identity."""
+
+    type: Literal["inline_decision_evaluator"]
+    name: str
+    description: str | None = None
+    inputs: list[DecisionInput]
+    state: DecisionState
+    questions: list[DecisionQuestion]
+    model_provider: ModelProvider
+    model_name: str
+    custom_provider_id: int | None = None
+    scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
+    source: EvaluatorSource | None = None
+
+
+class StoredDecisionEvaluatorDefinition(_FrozenDBModel):
+    type: Literal["decision_evaluator"]
+    decision_evaluator_id: int
+    source: EvaluatorSource | None = None
 
 
 EvaluatorDefinition = Annotated[
@@ -120,6 +137,8 @@ EvaluatorDefinition = Annotated[
         InlineCodeEvaluatorDefinition,
         StoredCodeEvaluatorDefinition,
         BuiltInEvaluatorDefinition,
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
     ],
     Field(discriminator="type"),
 ]
@@ -129,8 +148,14 @@ class EvaluatorDefinitionRootModel(RootModel[EvaluatorDefinition]):
     root: EvaluatorDefinition
 
 
-def evaluator_kind_of(definition: EvaluatorDefinition) -> Literal["LLM", "CODE", "BUILTIN"]:
+def evaluator_kind_of(
+    definition: EvaluatorDefinition,
+) -> Literal["LLM", "CODE", "BUILTIN", "DECISION"]:
     """The kind of evaluator a definition builds, as stored in ``evaluators.kind``."""
+    if isinstance(
+        definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
+    ):
+        return "DECISION"
     if isinstance(definition, InlineLLMEvaluatorDefinition):
         return "LLM"
     if isinstance(definition, (InlineCodeEvaluatorDefinition, StoredCodeEvaluatorDefinition)):

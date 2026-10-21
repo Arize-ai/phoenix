@@ -15,7 +15,7 @@ from strawberry.types import Info
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
-from phoenix.server.agents.exceptions import ProviderNotFoundError
+from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection as AgentModelSelectionModel,
 )
@@ -155,6 +155,8 @@ class AgentSessionMutationMixin:
                 routing = await resolve_model_routing(session, _to_model_selection(input.model))
             except ProviderNotFoundError as exc:
                 raise NotFound(str(exc)) from exc
+            except ProviderUnsupportedError as exc:
+                raise BadRequest(str(exc)) from exc
             agent_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=title,
@@ -330,6 +332,8 @@ class AgentSessionMutationMixin:
                     )
                 except ProviderNotFoundError as exc:
                     raise NotFound(str(exc)) from exc
+                except ProviderUnsupportedError as exc:
+                    raise BadRequest(str(exc)) from exc
         return PatchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(agent_session),
             query=Query(),

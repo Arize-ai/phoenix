@@ -22,6 +22,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
+from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
     InlineCodeEvaluatorDefinition,
@@ -57,8 +58,8 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ToolCallChunk,
 )
 from phoenix.server.daemons.experiment_runner import (
-    _NO_OP_LLM_CLIENT,
     CircuitBreaker,
+    DecisionTaskWorkItem,
     EvaluatorRunSpec,
     EvaluatorTaskWorkItem,
     EvalWorkItem,
@@ -67,7 +68,6 @@ from phoenix.server.daemons.experiment_runner import (
     RunningExperiment,
     TaskWorkItem,
     WorkItem,
-    _NoOpLLMClient,
 )
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
@@ -183,7 +183,6 @@ def _make_running_experiment(
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
         experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
-        llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
         tracer_factory=MagicMock(),
@@ -240,6 +239,8 @@ def _make_eval_work_item(
     retry_count: int = 0,
 ) -> EvalWorkItem:
     evaluator = MagicMock()
+    evaluator.provider_client = None
+    evaluator.annotator_kind = "CODE"
     evaluator.name = "test-evaluator"
     output_configs = []
     for output_name in output_names:
@@ -1402,6 +1403,157 @@ class TestTaskWorkItemPersistsErrorRun:
         assert isinstance(error_broadcast, ChatCompletionSubscriptionError)
 
 
+class _FailingDecisionClient:
+    """Decision client stub whose create() raises, with a hashable rate limit key."""
+
+    def __init__(self, error: BaseException) -> None:
+        self.create = AsyncMock(side_effect=error)
+
+    def get_rate_limit_key(self) -> Hashable:
+        return "stub-decision"
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return False
+
+    def is_transient_error(self, e: Exception) -> bool:
+        return False
+
+
+def _make_decision_work_item(
+    running_experiment: RunningExperiment,
+    client: Any,
+    *,
+    timeout: float = 120.0,
+    input: dict[str, Any] | None = None,
+) -> DecisionTaskWorkItem:
+    revision = _make_dataset_example_revision(42)
+    revision.input = input if input is not None else {"ticket": "hi"}
+    decision_task = MagicMock(spec=models.ExperimentDecisionTask)
+    decision_task.config = DecisionTaskConfig.model_validate(
+        {
+            "inputs": [{"name": "ticket"}],
+            "state": {"type": "input", "name": "ticket"},
+            "questions": [{"type": "predicate", "name": "urgent", "instructions": "Is it urgent?"}],
+        }
+    )
+    tracer = MagicMock(spec=Tracer)
+    tracer.get_db_traces.return_value = []
+    return DecisionTaskWorkItem(
+        running_experiment=running_experiment,
+        experiment=running_experiment._experiment,
+        dataset_example_revision=revision,
+        repetition_number=0,
+        decision_task=decision_task,
+        decision_client=client,
+        db=running_experiment._db,
+        tracer_factory=lambda: tracer,
+        project_id=1,
+        timeout=timeout,
+    )
+
+
+class TestDecisionTaskWorkItem:
+    @pytest.mark.anyio
+    async def test_timeout_calls_on_timeout_without_persisting(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(TimeoutError())
+        work_item = _make_decision_work_item(exp, client)
+        mock_persist = AsyncMock()
+        with (
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        on_timeout.assert_awaited_once_with(work_item)
+        on_failure.assert_not_awaited()
+        mock_persist.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_cancellation_is_reraised(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(anyio.get_cancelled_exc_class()())
+        work_item = _make_decision_work_item(exp, client)
+        with (
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(work_item, "_persist_run", AsyncMock()) as mock_persist,
+        ):
+            with pytest.raises(anyio.get_cancelled_exc_class()):
+                await work_item.execute()
+        on_timeout.assert_not_awaited()
+        on_failure.assert_not_awaited()
+        mock_persist.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_non_retryable_error_persists_error_run_and_fails(self) -> None:
+        exp = _make_running_experiment()
+        error = RuntimeError("Bad request (injected)")
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(error))
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 801
+        mock_persist = AsyncMock(return_value=persisted_run)
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_task_success", AsyncMock()) as on_success,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        db_run = mock_persist.await_args.args[0]  # type: ignore[union-attr]
+        assert isinstance(db_run, models.ExperimentRun)
+        assert db_run.error == "Bad request (injected)"
+        assert db_run.output == {}
+        assert db_run.dataset_example_id == 42
+        assert db_run.experiment_id == exp._experiment.id
+        on_failure.assert_awaited_once_with(work_item, error)
+        on_success.assert_not_awaited()
+        assert broadcast.call_count == 1
+        assert isinstance(broadcast.call_args.args[0], ChatCompletionSubscriptionError)
+        assert broadcast.call_args.args[0].message == "Bad request (injected)"
+
+    @pytest.mark.anyio
+    async def test_persist_failure_calls_on_failure_without_broadcast(self) -> None:
+        exp = _make_running_experiment()
+        error = RuntimeError("Bad request (injected)")
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(error))
+        persist_error = RuntimeError("db down")
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_task_success", AsyncMock()) as on_success,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", AsyncMock(side_effect=persist_error)),
+        ):
+            await work_item.execute()
+        on_failure.assert_awaited_once_with(work_item, persist_error)
+        on_success.assert_not_awaited()
+        broadcast.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_unbuildable_example_records_error_without_calling_the_model(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(RuntimeError("must not be called"))
+        work_item = _make_decision_work_item(exp, client, input={"other": "x"})
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 802
+        mock_persist = AsyncMock(return_value=persisted_run)
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "_broadcast", MagicMock()),
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        client.create.assert_not_awaited()
+        on_timeout.assert_not_awaited()
+        db_run = mock_persist.await_args.args[0]  # type: ignore[union-attr]
+        assert db_run.error is not None
+        assert db_run.error.startswith("Could not build the decision request: ")
+        assert db_run.output == {}
+        on_failure.assert_awaited_once()
+        assert isinstance(on_failure.await_args.args[1], ValueError)  # type: ignore[union-attr]
+
+
 class TestEvalWorkItemPersistsErrorAnnotation:
     @pytest.mark.anyio
     async def test_non_retryable_eval_error_persists_error_annotation(self) -> None:
@@ -1662,7 +1814,6 @@ def _running_evaluator_experiment(
     return RunningExperiment(
         experiment=experiment,
         experiment_job=evaluator_task,
-        llm_client=_NoOpLLMClient(),
         db=db,
         decrypt=lambda b: b,
         tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
@@ -1729,6 +1880,8 @@ class TestEvaluatorTaskWorkItem:
         evaluator_task.name = Identifier("length")
         evaluator_task.output_configs = [_LENGTH_CONFIG]
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(return_value=[])
         work_item = EvaluatorTaskWorkItem(
             running_experiment=exp,
@@ -1898,6 +2051,8 @@ class TestEvaluatorTaskWorkItem:
             db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
         )
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(side_effect=RuntimeError("sandbox exploded"))
         exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
         receive = exp.subscribe()
@@ -1948,6 +2103,8 @@ class TestEvaluatorTaskWorkItem:
             "end_time": now,
         }
         evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
         evaluator.evaluate = AsyncMock(return_value=[error_result])
         exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
         receive = exp.subscribe()
@@ -2096,14 +2253,47 @@ class TestLoadEvaluatorTaskConfig:
             return_value=MagicMock(),
         ):
             async with db() as session:
-                job, llm_client, specs, evaluator = await runner._load_experiment_config(
-                    session, experiment.id, credentials=None
-                )
+                (
+                    job,
+                    llm_client,
+                    specs,
+                    evaluator,
+                    decision_client,
+                ) = await runner._load_experiment_config(session, experiment.id, credentials=None)
 
         assert isinstance(job, models.ExperimentEvaluatorTask)
+        assert decision_client is None
         assert job.name == Identifier("answer-length")
-        assert llm_client is _NO_OP_LLM_CLIENT
+        assert llm_client is None
         assert specs == []
         assert isinstance(evaluator, CodeEvaluatorRunner)
         assert evaluator.name == "answer-length"
         assert list(evaluator.output_configs) == [_LENGTH_CONFIG]
+
+
+class TestLoadDecisionTaskConfig:
+    async def test_a_task_whose_custom_provider_was_deleted_fails_instead_of_using_a_built_in(
+        self, db: DbSessionFactory
+    ) -> None:
+        decision_task = MagicMock(spec=models.ExperimentDecisionTask)
+        decision_task.custom_provider_id = None
+        decision_task.config = DecisionTaskConfig.model_validate(
+            {
+                "inputs": [{"name": "ticket"}],
+                "state": {"type": "input", "name": "ticket"},
+                "questions": [],
+                "custom_provider_name": "Gone provider",
+            }
+        )
+        session = MagicMock()
+        session.scalar = AsyncMock(return_value=decision_task)
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        with pytest.raises(ValueError, match="custom provider 'Gone provider'.*deleted"):
+            await runner._load_experiment_config(session, 1, credentials=None)

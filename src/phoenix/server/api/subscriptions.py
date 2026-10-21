@@ -26,12 +26,12 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.db.types.evaluator_definition import (
     BuiltInEvaluatorDefinition,
     EvaluatorDefinition,
@@ -39,6 +39,7 @@ from phoenix.db.types.evaluator_definition import (
 )
 from phoenix.db.types.experiment_config import PlaygroundConfig
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -47,6 +48,7 @@ from phoenix.server.api.evaluators import (
     pin_evaluator_definition,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.decision_experiments import build_example_request
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
@@ -56,8 +58,10 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
 )
+from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
+from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     EvaluatorTaskInput,
     ExperimentsOverDatasetInput,
@@ -65,6 +69,7 @@ from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     PromptTaskInput,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -237,20 +242,7 @@ class Subscription:
                 connection=connection,
                 headers=headers,
             )
-            if (
-                playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
-                )
-            ) is None:
-                playground_project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
-                )
-            assert playground_project_id is not None
+            playground_project_id = await get_or_create_playground_project_id(session)
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -344,6 +336,96 @@ class _DatasetRunTarget:
 
 
 @dataclass(frozen=True)
+class _ResolvedDecisionTask:
+    """A decision task whose connection resolved and whose examples all make requests."""
+
+    model_provider: ModelProvider
+    model_name: str
+    custom_provider_id: Optional[int]
+    base_url: Optional[str]
+    config: DecisionTaskConfig
+    decision_version_id: Optional[int]
+
+    def columns(self) -> dict[str, Any]:
+        return {
+            "model_provider": self.model_provider,
+            "model_name": self.model_name,
+            "custom_provider_id": self.custom_provider_id,
+            "base_url": self.base_url,
+            "config": self.config,
+            "decision_version_id": self.decision_version_id,
+        }
+
+
+_MAX_REPORTED_EXAMPLE_ERRORS = 3
+
+
+async def _resolve_decision_task(
+    task: DecisionTaskInput,
+    *,
+    info: Info[Context, None],
+    session: AsyncSession,
+    revisions: Sequence[models.DatasetExampleRevision],
+    credentials: Sequence[GenerativeCredentialInput],
+) -> _ResolvedDecisionTask:
+    """Check a decision task before any experiment exists.
+
+    Resolving the client rejects a provider that is not permitted, has no key, or has an
+    unusable endpoint. Building every example's request rejects a mapping that misses,
+    questions that can't be read, or a state that breaks a rule, naming the examples.
+
+    Raises:
+        BadRequest: The task can't run as given.
+        NotFound: The saved version it names doesn't exist.
+    """
+    config = task.to_config()
+    decision_version_id = None
+    if task.decision_version_id is not None:
+        decision_version_id = from_global_id_with_expected_type(
+            task.decision_version_id, "DecisionVersion"
+        )
+        if await session.get(models.DecisionVersion, decision_version_id) is None:
+            raise NotFound(f"Decision version not found: {task.decision_version_id}")
+    client = await task.connection.resolve_client(
+        model_name=task.model_name,
+        session=session,
+        decrypt=info.context.decrypt,
+        allowed_provider_names=info.context.allowed_provider_names,
+        credentials=credentials,
+    )
+    failures: list[str] = []
+    for revision in revisions:
+        try:
+            build_example_request(
+                config, input=revision.input, output=revision.output, metadata=revision.metadata_
+            )
+        except ValueError as error:
+            failures.append(
+                f"{GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))}: {error}"
+            )
+    if failures:
+        shown = "; ".join(failures[:_MAX_REPORTED_EXAMPLE_ERRORS])
+        raise BadRequest(
+            f"{len(failures)} of {len(revisions)} examples can't make a decision request. {shown}"
+        )
+    custom_provider_id = task.connection.custom_provider_id()
+    if custom_provider_id is not None:
+        provider = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
+        if provider is not None:
+            config = config.model_copy(update={"custom_provider_name": provider.name})
+    return _ResolvedDecisionTask(
+        model_provider=client.provider_key.to_model_provider(),
+        model_name=task.model_name,
+        custom_provider_id=custom_provider_id,
+        base_url=None
+        if custom_provider_id is not None
+        else task.connection.built_in_provider().base_url,
+        config=config,
+        decision_version_id=decision_version_id,
+    )
+
+
+@dataclass(frozen=True)
 class _ResolvedEvaluatorTask:
     """An evaluator task whose evaluator was built once to validate it and read its name."""
 
@@ -372,10 +454,40 @@ async def _stream_experiments_over_dataset(
             else None
             for task in input.tasks
         ]
+        # A decision task is checked against every example before anything is stored:
+        # the client must resolve, and each example must make a request.
+        revisions: Sequence[models.DatasetExampleRevision] = (
+            (
+                await session.scalars(
+                    get_dataset_example_revisions(
+                        target.dataset_version_id,
+                        dataset_id=target.dataset_id,
+                        example_ids=target.example_ids,
+                        split_ids=target.split_ids,
+                    )
+                )
+            ).all()
+            if any(task.decision for task in input.tasks)
+            else ()
+        )
+        resolved_decision_tasks = [
+            await _resolve_decision_task(
+                task.decision,
+                info=info,
+                session=session,
+                revisions=revisions,
+                credentials=credentials,
+            )
+            if task.decision
+            else None
+            for task in input.tasks
+        ]
 
     async with info.context.db() as session:
         experiments: list[models.Experiment] = []
-        for task, resolved_evaluator_task in zip(input.tasks, resolved_evaluator_tasks):
+        for task, resolved_evaluator_task, resolved_decision_task in zip(
+            input.tasks, resolved_evaluator_tasks, resolved_decision_tasks
+        ):
             project_name = generate_experiment_project_name()
             await _ensure_project(session, project_name)
             experiment = models.Experiment(
@@ -405,6 +517,16 @@ async def _stream_experiments_over_dataset(
                 _add_prompt_task(
                     session, experiment, task.prompt, max_concurrency=input.max_concurrency
                 )
+            elif task.decision:
+                assert resolved_decision_task is not None
+                session.add(
+                    models.ExperimentDecisionTask(
+                        id=experiment.id,
+                        max_concurrency=input.max_concurrency,
+                        **resolved_decision_task.columns(),
+                    )
+                )
+                _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
             else:
                 assert task.evaluator and resolved_evaluator_task is not None
                 session.add(
@@ -418,6 +540,11 @@ async def _stream_experiments_over_dataset(
                         output_configs=list(resolved_evaluator_task.evaluator.output_configs),
                     )
                 )
+            from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+                capture_dataset_decision_evaluators,
+            )
+
+            await capture_dataset_decision_evaluators(session, experiment.id)
             experiments.append(experiment)
 
     experiment_ids = [
@@ -676,7 +803,16 @@ def _add_prompt_task(
             stream_model_output=task.stream_model_output,
         )
     )
-    for evaluator_input in task.evaluators:
+    _attach_dataset_evaluators(session, experiment, task.evaluators)
+
+
+def _attach_dataset_evaluators(
+    session: AsyncSession,
+    experiment: models.Experiment,
+    evaluators: Sequence[PlaygroundEvaluatorInput],
+) -> None:
+    """Attach the dataset evaluators that judge a prompt or decision task's runs."""
+    for evaluator_input in evaluators:
         session.add(
             models.ExperimentDatasetEvaluator(
                 experiment_id=experiment.id,
@@ -693,6 +829,8 @@ def _default_experiment_name(
 ) -> str:
     if task.prompt:
         return _default_playground_experiment_name(task.prompt.prompt_name)
+    if task.decision:
+        return f"playground-experiment decision:{task.decision.model_name}"
     assert resolved_evaluator_task is not None
     return f"playground-experiment evaluator:{resolved_evaluator_task.name}"
 

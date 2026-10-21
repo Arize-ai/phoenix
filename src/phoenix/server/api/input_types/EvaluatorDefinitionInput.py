@@ -6,19 +6,24 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.evaluator_definition import (
     BuiltInEvaluatorDefinition,
     EvaluatorDefinition,
     InlineCodeEvaluatorDefinition,
+    InlineDecisionEvaluatorDefinition,
     InlineLLMEvaluatorDefinition,
     InlineLLMEvaluatorPromptVersion,
     StoredCodeEvaluatorDefinition,
+    StoredDecisionEvaluatorDefinition,
 )
 from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
 )
+from phoenix.server.api.input_types.DecisionScoringPolicyInput import DecisionScoringPolicyInput
+from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
@@ -105,10 +110,39 @@ class InlineCodeEvaluatorInput:
         )
 
 
+@strawberry.input
+class InlineDecisionEvaluatorInput:
+    """Preview or run an unsaved Decision evaluator without creating persistent records."""
+
+    name: str
+    decision_version: DecisionVersionInput
+    scoring_policy: Optional[DecisionScoringPolicyInput] = None
+    description: Optional[str] = None
+
+    def to_definition(self) -> InlineDecisionEvaluatorDefinition:
+        version = self.decision_version.to_orm(user_id=None)
+        return InlineDecisionEvaluatorDefinition(
+            type="inline_decision_evaluator",
+            name=self.name,
+            description=self.description,
+            inputs=version.inputs,
+            state=version.state,
+            questions=version.questions,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            custom_provider_id=version.custom_provider_id,
+            scoring_policy=self.scoring_policy.to_orm()
+            if self.scoring_policy
+            else DecisionScoringPolicy(),
+        )
+
+
 @strawberry.input(one_of=True)
 class EvaluatorDefinitionInput:
     """An evaluator: a stored one by id, or an inline definition."""
 
+    inline_decision_evaluator: Optional[InlineDecisionEvaluatorInput] = UNSET
+    decision_evaluator_id: Optional[GlobalID] = UNSET
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
     code_evaluator_id: Optional[GlobalID] = UNSET
@@ -116,6 +150,15 @@ class EvaluatorDefinitionInput:
 
     def to_definition(self) -> EvaluatorDefinition:
         """The evaluator this input names or drafts, as previews and experiments build it."""
+        if self.inline_decision_evaluator:
+            return self.inline_decision_evaluator.to_definition()
+        if self.decision_evaluator_id:
+            return StoredDecisionEvaluatorDefinition(
+                type="decision_evaluator",
+                decision_evaluator_id=_node_id(
+                    self.decision_evaluator_id, "DecisionEvaluator", "decision evaluator"
+                ),
+            )
         if built_in_evaluator_id := self.built_in_evaluator_id:
             return BuiltInEvaluatorDefinition(
                 type="builtin_evaluator",
@@ -154,9 +197,17 @@ class EvaluatorPreviewsInput:
 class EvaluatorPreviewItemInput:
     """A single evaluator preview request with one or more contexts."""
 
-    evaluator: EvaluatorDefinitionInput
+    evaluator: Optional[EvaluatorDefinitionInput] = None
     context: JSON
     input_mapping: EvaluatorInputMappingInput
+    dataset_evaluator_id: Optional[GlobalID] = strawberry.field(
+        default=None,
+        description=(
+            "Preview a saved decision judge as this dataset evaluator binding: it runs under "
+            "the binding's name and provenance, using the evaluator's scoring policy. "
+            "Omit to preview the judge on its own, under its own name and policy."
+        ),
+    )
     apply_online_evaluation_limits: bool = strawberry.field(
         default=False,
         description=(

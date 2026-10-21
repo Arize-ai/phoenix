@@ -15,8 +15,13 @@ import {
 } from "@phoenix/store/playground";
 
 import { createSelectTaskClientAction } from "../clientActions";
-import { hasInstanceLoaded, waitForInstanceLoad } from "../instanceLoad";
+import {
+  hasInstanceLoaded,
+  settleInstanceSource,
+  waitForInstanceLoad,
+} from "../instanceLoad";
 import { selectTaskInputSchema } from "../schemas";
+import { readTaskSnapshot } from "../taskSnapshot";
 
 installTestStorage();
 
@@ -109,14 +114,14 @@ describe("playground.task.select", () => {
     });
 
     const result = await select({
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
       discardChanges: false,
     });
 
     const [replacement] = playgroundStore.getState().instances;
     expect(replacement.id).not.toBe(instance.id);
     expect(replacement.task).toMatchObject({
-      kind: "evaluator",
+      type: "evaluator",
       evaluator: { kind: "CODE" },
     });
     expect(waitForEvaluatorHost).toHaveBeenCalledWith(
@@ -129,7 +134,7 @@ describe("playground.task.select", () => {
     });
   });
 
-  it("rejects a source of the other kind once the page's kind is locked", async () => {
+  it("rejects a source of the other mode once the page's mode is locked", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
 
@@ -140,7 +145,7 @@ describe("playground.task.select", () => {
 
     const result = await select({
       instanceId: playgroundStore.getState().instances[1].id,
-      source: { type: "new", kind: "LLM" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
       discardChanges: true,
     });
 
@@ -151,7 +156,7 @@ describe("playground.task.select", () => {
     expect(
       playgroundStore
         .getState()
-        .instances.every((i) => i.task.kind === "prompt")
+        .instances.every((i) => i.task.type === "prompt")
     ).toBe(true);
   });
 
@@ -167,7 +172,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "LLM" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
         discardChanges: false,
       })
     ).toMatchObject({
@@ -178,11 +183,11 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "LLM" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "LLM" },
         discardChanges: true,
       })
     ).toMatchObject({ ok: true });
-    expect(playgroundStore.getState().instances[0].task.kind).toBe("evaluator");
+    expect(playgroundStore.getState().instances[0].task.type).toBe("evaluator");
   });
 
   it("rejects a change while a run is active", async () => {
@@ -196,7 +201,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "CODE" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
         discardChanges: false,
       })
     ).toMatchObject({ ok: false, error: expect.stringContaining("running") });
@@ -230,6 +235,45 @@ describe("playground.task.select", () => {
     });
   });
 
+  it("reports NOT_FOUND when a decision fails to load and explains that PXI cannot read decisions yet", async () => {
+    const playgroundStore = createStore();
+    const instanceId = playgroundStore.getState().replaceInstance({
+      instanceId: playgroundStore.getState().instances[0].id,
+      source: { type: "decision", decisionId: "D-gone" },
+    })!;
+
+    const pending = settleInstanceSource({
+      playgroundStore,
+      instanceId,
+      source: { type: "decision", decisionId: "D-gone" },
+    });
+
+    playgroundStore.getState().updateInstance({
+      instanceId,
+      patch: { loadingSource: null },
+      dirty: null,
+    });
+
+    expect(await pending).toMatchObject({
+      ok: false,
+      code: "NOT_FOUND",
+      error: expect.stringContaining("Decision D-gone could not be loaded"),
+    });
+
+    expect(
+      await readTaskSnapshot({
+        playgroundStore,
+        instanceId,
+        waitForEvaluatorHost: vi.fn(),
+      })
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(
+        "holds a decision, which PXI cannot read yet"
+      ),
+    });
+  });
+
   it("lists the instance ids when several instances exist and none is named", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
@@ -241,7 +285,7 @@ describe("playground.task.select", () => {
 
     expect(
       await select({
-        source: { type: "new", kind: "prompt" },
+        source: { type: "new", taskType: "prompt" },
         discardChanges: false,
       })
     ).toMatchObject({
@@ -302,7 +346,13 @@ describe("instance load helpers", () => {
         datasetEvaluatorId: "DE1",
       })
     ).toBe(false);
-    expect(hasInstanceLoaded(draft, { type: "new", kind: "CODE" })).toBe(true);
+    expect(
+      hasInstanceLoaded(draft, {
+        type: "new",
+        taskType: "evaluator",
+        evaluatorKind: "CODE",
+      })
+    ).toBe(true);
 
     const promptInstance = playgroundStore.getState().instances[0];
     expect(
@@ -318,6 +368,25 @@ describe("instance load helpers", () => {
         type: "prompt",
         promptId: "P1",
         promptVersionId: "V1",
+      })
+    ).toBe(false);
+
+    const decisionInstance = {
+      task: { type: "decision" as const },
+      prompt: null,
+      decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
+    };
+    expect(
+      hasInstanceLoaded(decisionInstance, {
+        type: "decision",
+        decisionId: "D1",
+      })
+    ).toBe(true);
+    expect(
+      hasInstanceLoaded(decisionInstance, {
+        type: "decision",
+        decisionId: "D1",
+        decisionVersionId: "DV2",
       })
     ).toBe(false);
   });
@@ -340,7 +409,7 @@ describe("selectTaskInputSchema", () => {
     ).toBe(false);
     expect(
       selectTaskInputSchema.safeParse({
-        source: { type: "new", kind: "CODE" },
+        source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
         slot: "A",
       }).success
     ).toBe(false);

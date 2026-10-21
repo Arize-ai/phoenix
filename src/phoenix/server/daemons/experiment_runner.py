@@ -104,6 +104,7 @@ from cachetools import LRUCache
 from opentelemetry.context import Context as OtelContext
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, override
 
@@ -122,16 +123,25 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
+from phoenix.server.api.decision_evaluator import DecisionEvaluator
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     EvaluationResult,
-    LLMEvaluator,
+    EvaluatorProviderClient,
     build_evaluator_from_definition,
     code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionClient,
+    resolve_decision_client,
+)
+from phoenix.server.api.helpers.decision_experiments import (
+    build_example_request,
+    decision_run_output,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
@@ -202,9 +212,7 @@ def _sanitize_error_message(error: BaseException) -> str:
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
-    PlaygroundClient satisfies this implicitly.  The Protocol
-    decouples the runner from the ~20-method ABC and enables _NoOpLLMClient
-    for EVAL_ONLY experiments.
+    PlaygroundClient satisfies this implicitly.
     """
 
     def get_rate_limit_key(self) -> Hashable: ...
@@ -221,38 +229,6 @@ class LLMClient(Protocol):
         otel_context: Context | None = None,
         stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
-
-
-class _NoOpLLMClient:
-    """Sentinel for experiments without a prompt task — raises if any method is called."""
-
-    _ERR = "LLM client not available (experiment has no prompt task)"
-
-    def get_rate_limit_key(self) -> Hashable:
-        raise RuntimeError(self._ERR)
-
-    def is_rate_limit_error(self, e: Exception) -> bool:
-        raise RuntimeError(self._ERR)
-
-    def is_transient_error(self, e: Exception) -> bool:
-        raise RuntimeError(self._ERR)
-
-    async def chat_completion_create(
-        self,
-        *,
-        messages: Sequence[PlaygroundMessage],
-        tools: PromptTools | None,
-        response_format: PromptResponseFormat | None = None,
-        invocation_parameters: PromptInvocationParameters | None = None,
-        tracer: Tracer | None = None,
-        otel_context: Context | None = None,
-        stream_model_output: bool = True,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        raise RuntimeError(self._ERR)
-        yield  # make it an async generator  # pragma: no cover
-
-
-_NO_OP_LLM_CLIENT = _NoOpLLMClient()
 
 
 def _output_configs_for_eval_run(
@@ -288,9 +264,11 @@ class EvaluatorRunSpec:
         """The name the evaluator runs under.
 
         A lone output config keeps writing under its own name; several are each written
-        under ``<binding name>.<config name>``.
+        under ``<binding name>.<config name>``. A decision judge's configs are named after
+        its questions, so it always writes under its binding: two bindings of one judge
+        must not share annotation names.
         """
-        if len(self.output_configs) == 1:
+        if len(self.output_configs) == 1 and not isinstance(self.evaluator, DecisionEvaluator):
             return self.output_configs[0].name
         return self.name
 
@@ -439,6 +417,7 @@ class WorkItem(ABC):
 
     # Owner - reports results back to this experiment
     _running_experiment: RunningExperiment
+    _provider_client: EvaluatorProviderClient | None = None
     retry_count: int = 0
 
     @cached_property
@@ -463,25 +442,70 @@ class WorkItem(ABC):
         """Execute this work item. Results reported to owning RunningExperiment."""
         ...
 
-    @abstractmethod
     def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this work item's LLM client."""
-        ...
+        """Return the rate limit key for this work item's client."""
+        if self._provider_client is not None:
+            return self._provider_client.get_rate_limit_key()
+        return _NO_OP_TOKEN_BUCKET
+
+    def _is_rate_limit_error(self, e: Exception) -> bool:
+        """Check if exception is a rate limit error using the client's provider-specific logic."""
+        if self._provider_client is not None:
+            return bool(self._provider_client.is_rate_limit_error(e))
+        return False
+
+    def _is_transient_error(self, e: Exception) -> bool:
+        """Check if exception is a transient/network error (should retry with backoff)."""
+        if isinstance(e, SQLAlchemyError):
+            return True
+        if self._provider_client is not None:
+            return bool(self._provider_client.is_transient_error(e))
+        return False
+
+    async def _handle_retryable_exception(self, e: Exception) -> bool:
+        """Dispatch capacity, rate-limit, and transient errors to RunningExperiment.
+
+        Returns True if the exception was handled as retryable, False if it is permanent.
+        """
+        err_type = type(e).__name__
+        if isinstance(e, MontyBusy):
+            logger.warning(
+                f"{type(self).__name__} {self.debug_identifier} "
+                f"sandbox capacity busy ({err_type}): {e}"
+            )
+            await self._running_experiment.on_capacity_error(self, e)
+            return True
+        if self._is_rate_limit_error(e):
+            logger.debug(
+                f"{type(self).__name__} {self.debug_identifier} hit rate limit ({err_type})"
+            )
+            await self._running_experiment.on_rate_limit(self)
+            return True
+        if self._is_transient_error(e):
+            logger.warning(
+                f"{type(self).__name__} {self.debug_identifier} transient error ({err_type}): {e}"
+            )
+            await self._running_experiment.on_transient_error(self, e)
+            return True
+        return False
 
 
 class ExampleWorkItem(WorkItem):
     """
     Work item that produces the experiment run for one dataset example x one repetition.
 
-    Prompt tasks and evaluator tasks are both example work items: the runner schedules
-    them from the same task queue, counts them in the task circuit breaker, logs them as
-    task logs, and records their terminal outcomes as experiment runs.
+    Prompt tasks, decision tasks, and evaluator tasks are all example work items: the
+    runner schedules them from the same task queue, counts them in the task circuit
+    breaker, logs them as task logs, and records their terminal outcomes as experiment runs.
     """
 
     _experiment: models.Experiment
     _dataset_example_revision: models.DatasetExampleRevision
     _repetition_number: int
     _db: DbSessionFactory
+    _tracer_factory: Callable[[], Tracer]
+    _project_id: int
+    _timeout: float
 
     @cached_property
     def dataset_example_revision(self) -> models.DatasetExampleRevision:
@@ -519,6 +543,64 @@ class ExampleWorkItem(WorkItem):
                     session.add_all(db_traces)
                 return await _upsert_experiment_run(session, db_run, self._db.dialect)
 
+    async def _record_run(
+        self,
+        *,
+        start_time: datetime,
+        tracer: Tracer | None = None,
+        output: dict[str, Any] | None = None,
+        error: str | None = None,
+        exc: Exception | None = None,
+    ) -> None:
+        """Persist the run, with its root span when there is one, and broadcast it."""
+        end_time = datetime.now(timezone.utc)
+        db_traces = (
+            list(tracer.get_db_traces(project_id=self._project_id)) if tracer is not None else []
+        )
+        db_run = models.ExperimentRun(
+            experiment_id=self._experiment.id,
+            dataset_example_id=self._dataset_example_revision.dataset_example_id,
+            trace_id=db_traces[0].trace_id if db_traces else None,
+            output=output if output is not None else {},
+            repetition_number=self._repetition_number,
+            start_time=start_time,
+            end_time=end_time,
+            error=error,
+        )
+        try:
+            db_run = await self._persist_run(db_run, db_traces or None)
+        except Exception as persist_err:
+            logger.warning(
+                f"{type(self).__name__} {self.debug_identifier}: failed to persist run to DB",
+                exc_info=True,
+            )
+            await self._running_experiment.on_failure(self, persist_err)
+            return
+        root_span = _root_span(db_traces[0]) if db_traces else None
+        span = Span(id=root_span.id, db_record=root_span) if root_span is not None else None
+        experiment_run = ExperimentRun(id=db_run.id, db_record=db_run)
+        if error is None:
+            self._running_experiment._broadcast(
+                ChatCompletionSubscriptionResult(
+                    span=span,
+                    experiment_run=experiment_run,
+                    dataset_example_id=self.dataset_example_global_id,
+                    repetition_number=self._repetition_number,
+                )
+            )
+            await self._running_experiment.on_task_success(self, db_run)
+        else:
+            self._running_experiment._broadcast(
+                ChatCompletionSubscriptionError(
+                    message=error,
+                    span=span,
+                    experiment_run=experiment_run,
+                    dataset_example_id=self.dataset_example_global_id,
+                    repetition_number=self._repetition_number,
+                )
+            )
+            await self._running_experiment.on_failure(self, exc or Exception(error))
+
 
 class TaskWorkItem(ExampleWorkItem):
     """
@@ -554,6 +636,7 @@ class TaskWorkItem(ExampleWorkItem):
     ) -> None:
         # Owner (private; base class and _run_and_release use _running_experiment)
         self._running_experiment = running_experiment
+        self._provider_client = llm_client
 
         # Identity
         self._experiment = experiment
@@ -580,11 +663,6 @@ class TaskWorkItem(ExampleWorkItem):
             f"dataset_example_id={self._dataset_example_revision.dataset_example_id}, "
             f"repetition={self._repetition_number}"
         )
-
-    @override
-    def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this work item's LLM client."""
-        return self._llm_client.get_rate_limit_key()
 
     def _build_messages(self) -> list[PlaygroundMessage]:
         """Format prompt template with dataset example data and return messages.
@@ -636,38 +714,11 @@ class TaskWorkItem(ExampleWorkItem):
         try:
             messages = self._build_messages()
         except (TemplateFormatterError, KeyError, TypeError, ValueError) as error:
-            format_end_time = datetime.now(timezone.utc)
-            db_run = models.ExperimentRun(
-                experiment_id=self._experiment.id,
-                dataset_example_id=revision.dataset_example_id,
-                trace_id=None,
-                output={},
-                repetition_number=self._repetition_number,
-                start_time=format_start_time,
-                end_time=format_end_time,
+            await self._record_run(
                 error=str(error),
-                trace=None,
+                exc=error,
+                start_time=format_start_time,
             )
-            try:
-                db_run = await self._persist_run(db_run)
-            except Exception as persist_err:
-                logger.warning(
-                    f"TaskWorkItem {self.debug_identifier}: "
-                    f"failed to persist template error run to DB",
-                    exc_info=True,
-                )
-                await self._running_experiment.on_failure(self, persist_err)
-                return
-
-            self._running_experiment._broadcast(
-                ChatCompletionSubscriptionError(
-                    message=str(error),
-                    dataset_example_id=example_id,
-                    repetition_number=self._repetition_number,
-                    experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
-                )
-            )
-            await self._running_experiment.on_failure(self, error)
             return
 
         try:
@@ -698,62 +749,16 @@ class TaskWorkItem(ExampleWorkItem):
             raise
 
         except Exception as e:
-            err_type = type(e).__name__
-            if self._is_rate_limit_error(e):
-                logger.debug(f"TaskWorkItem {self.debug_identifier} hit rate limit ({err_type})")
-                await self._running_experiment.on_rate_limit(self)
-            elif self._is_transient_error(e):
-                logger.warning(
-                    f"TaskWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
+            if not await self._handle_retryable_exception(e):
+                logger.exception(
+                    f"TaskWorkItem {self.debug_identifier} failed ({type(e).__name__}): {e}"
                 )
-                await self._running_experiment.on_transient_error(self, e)
-            else:
-                logger.exception(f"TaskWorkItem {self.debug_identifier} failed ({err_type}): {e}")
-                error_end_time = datetime.now(timezone.utc)
-                task_db_traces = tracer.get_db_traces(project_id=self._project_id)
-                task_db_trace = task_db_traces[0] if task_db_traces else None
-                db_run = models.ExperimentRun(
-                    experiment_id=self._experiment.id,
-                    dataset_example_id=revision.dataset_example_id,
-                    trace_id=task_db_trace.trace_id if task_db_trace is not None else None,
-                    output={},
-                    repetition_number=self._repetition_number,
-                    start_time=format_start_time,
-                    end_time=error_end_time,
+                await self._record_run(
                     error=str(e),
+                    exc=e,
+                    start_time=format_start_time,
+                    tracer=tracer,
                 )
-                try:
-                    db_run = await self._persist_run(
-                        db_run,
-                        db_traces=task_db_traces if task_db_trace is not None else None,
-                    )
-                except Exception as persist_err:
-                    logger.warning(
-                        f"TaskWorkItem {self.debug_identifier}: failed to persist error run to DB",
-                        exc_info=True,
-                    )
-                    await self._running_experiment.on_failure(self, persist_err)
-                    return
-
-                error_db_span = (
-                    task_db_trace.spans[0]
-                    if task_db_trace is not None and task_db_trace.spans
-                    else None
-                )
-                self._running_experiment._broadcast(
-                    ChatCompletionSubscriptionError(
-                        message=str(e),
-                        dataset_example_id=example_id,
-                        repetition_number=self._repetition_number,
-                        span=(
-                            Span(id=error_db_span.id, db_record=error_db_span)
-                            if error_db_span is not None
-                            else None
-                        ),
-                        experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
-                    )
-                )
-                await self._running_experiment.on_failure(self, e)
 
         else:
             logger.debug(f"TaskWorkItem {self.debug_identifier}: stream finished, building traces")
@@ -812,16 +817,6 @@ class TaskWorkItem(ExampleWorkItem):
             logger.debug(f"TaskWorkItem {self.debug_identifier} completed successfully")
             await self._running_experiment.on_task_success(self, db_run)
 
-    def _is_rate_limit_error(self, e: Exception) -> bool:
-        """Check if exception is a rate limit error using client's provider-specific logic."""
-        return bool(self._llm_client.is_rate_limit_error(e))
-
-    def _is_transient_error(self, e: Exception) -> bool:
-        """Check if exception is a transient/network error (should retry with backoff)."""
-        if isinstance(e, SQLAlchemyError):
-            return True
-        return bool(self._llm_client.is_transient_error(e))
-
 
 class EvaluatorTaskWorkItem(ExampleWorkItem):
     """
@@ -856,6 +851,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
     ) -> None:
         # Owner
         self._running_experiment = running_experiment
+        self._provider_client = evaluator.provider_client
 
         # Identity
         self._experiment = experiment
@@ -896,16 +892,9 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
             f"evaluator_name={self._evaluator_task.name.root}"
         )
 
-    @override
-    def get_rate_limit_key(self) -> Hashable:
-        """LLM evaluators share their client's bucket; code and built-in ones run unthrottled."""
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.get_rate_limit_key()
-        return _NO_OP_TOKEN_BUCKET
-
     @property
     def _annotator_kind(self) -> str:
-        return "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
+        return self._evaluator.annotator_kind
 
     def _build_context(self) -> dict[str, Any]:
         revision = self._dataset_example_revision
@@ -934,6 +923,11 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                     output_configs=self.output_configs,
                     tracer=tracer,
                 )
+                for result in eval_results:
+                    if (error_exc := result.get("error_exc")) is not None and (
+                        self._is_rate_limit_error(error_exc) or self._is_transient_error(error_exc)
+                    ):
+                        raise error_exc
 
         except TimeoutError:
             logger.warning(f"EvaluatorTaskWorkItem {self.debug_identifier} timed out")
@@ -946,27 +940,10 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
             raise
 
         except Exception as e:
-            err_type = type(e).__name__
-            if isinstance(e, MontyBusy):
-                logger.warning(
-                    f"EvaluatorTaskWorkItem {self.debug_identifier} "
-                    f"sandbox capacity busy ({err_type}): {e}"
-                )
-                await self._running_experiment.on_capacity_error(self, e)
-            elif self._is_rate_limit_error(e):
-                logger.debug(
-                    f"EvaluatorTaskWorkItem {self.debug_identifier} hit rate limit ({err_type})"
-                )
-                await self._running_experiment.on_rate_limit(self)
-            elif self._is_transient_error(e):
-                logger.warning(
-                    f"EvaluatorTaskWorkItem {self.debug_identifier} "
-                    f"transient error ({err_type}): {e}"
-                )
-                await self._running_experiment.on_transient_error(self, e)
-            else:
+            if not await self._handle_retryable_exception(e):
                 logger.exception(
-                    f"EvaluatorTaskWorkItem {self.debug_identifier} failed ({err_type}): {e}"
+                    f"EvaluatorTaskWorkItem {self.debug_identifier} "
+                    f"failed ({type(e).__name__}): {e}"
                 )
                 await self._record_error(str(e), error=e, start_time=start_time, tracer=tracer)
 
@@ -1082,7 +1059,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                 explanation=None,
                 trace_id=trace_id,
                 error=message,
-                metadata_={},
+                metadata_=self._evaluator.error_metadata,
                 start_time=at,
                 end_time=at,
             )
@@ -1172,19 +1149,103 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                 )
             )
 
-    def _is_rate_limit_error(self, e: Exception) -> bool:
-        """Check if exception is a rate limit error using the evaluator's client."""
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_rate_limit_error(e)
-        return False
 
-    def _is_transient_error(self, e: Exception) -> bool:
-        """Check if exception is a transient/network error using the evaluator's client."""
-        if isinstance(e, SQLAlchemyError):
-            return True
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_transient_error(e)
-        return False
+class DecisionTaskWorkItem(ExampleWorkItem):
+    """
+    Decision task work item: ask the experiment's decision model about one dataset
+    example x one repetition.
+
+    The example becomes one decision request (see ``build_example_request``), and the
+    answers are the run's output, by question name and with no decision rule applied.
+    The DECISION span goes to the experiment's project.
+    """
+
+    def __init__(
+        self,
+        *,
+        # Owner - reports results back to this experiment
+        running_experiment: RunningExperiment,
+        # Identity
+        experiment: models.Experiment,
+        dataset_example_revision: models.DatasetExampleRevision,
+        repetition_number: int,
+        # Decision config
+        decision_task: models.ExperimentDecisionTask,
+        decision_client: DecisionClient,
+        # Execution context
+        db: DbSessionFactory,
+        tracer_factory: Callable[[], Tracer],
+        project_id: int,
+        # Optional parameters with defaults
+        timeout: float = 120.0,
+        retry_count: int = 0,
+    ) -> None:
+        self._running_experiment = running_experiment
+        self._provider_client = decision_client
+        self._experiment = experiment
+        self._dataset_example_revision = dataset_example_revision
+        self._repetition_number = repetition_number
+        self._decision_task = decision_task
+        self._decision_client = decision_client
+        self._db = db
+        self._tracer_factory = tracer_factory
+        self._project_id = project_id
+        self._timeout = timeout
+        self.retry_count = retry_count
+
+    @cached_property
+    def debug_identifier(self) -> str:
+        return (
+            f"decision-task:experiment_id={self._experiment.id}, "
+            f"dataset_example_id={self._dataset_example_revision.dataset_example_id}, "
+            f"repetition={self._repetition_number}"
+        )
+
+    @override
+    async def execute(self) -> None:
+        """Ask the model about the example, write the run to DB, and report results."""
+        logger.debug(f"DecisionTaskWorkItem {self.debug_identifier}: starting")
+        tracer = self._tracer_factory()
+        start_time = datetime.now(timezone.utc)
+        revision = self._dataset_example_revision
+        try:
+            # A request the example can't make fails the same way on every retry, so
+            # it is recorded as the run's error without calling the model.
+            request = build_example_request(
+                self._decision_task.config,
+                input=revision.input,
+                output=revision.output,
+                metadata=revision.metadata_,
+            )
+        except ValueError as error:
+            await self._record_run(
+                error=f"Could not build the decision request: {error}",
+                exc=error,
+                start_time=start_time,
+                tracer=tracer,
+            )
+            return
+        try:
+            with anyio.fail_after(self._timeout):
+                response = await self._decision_client.create(
+                    request=request, tracer=tracer, otel_context=OtelContext()
+                )
+        except TimeoutError:
+            logger.warning(f"DecisionTaskWorkItem {self.debug_identifier} timed out")
+            await self._running_experiment.on_timeout(self)
+        except anyio.get_cancelled_exc_class():
+            logger.debug(f"DecisionTaskWorkItem {self.debug_identifier} cancelled")
+            raise
+        except Exception as e:
+            if not await self._handle_retryable_exception(e):
+                logger.warning(
+                    f"DecisionTaskWorkItem {self.debug_identifier} failed ({type(e).__name__}): {e}"
+                )
+                await self._record_run(error=str(e), exc=e, start_time=start_time, tracer=tracer)
+        else:
+            await self._record_run(
+                output=decision_run_output(response), start_time=start_time, tracer=tracer
+            )
 
 
 def _verdicts(eval_results: Sequence[EvaluationResult]) -> Any:
@@ -1234,6 +1295,7 @@ class EvalWorkItem(WorkItem):
     ) -> None:
         # Owner
         self._running_experiment = running_experiment
+        self._provider_client = evaluator.provider_client
 
         # Identity
         self._experiment_run = experiment_run
@@ -1289,19 +1351,6 @@ class EvalWorkItem(WorkItem):
         return self._experiment_run.experiment_id
 
     @override
-    def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this work item's evaluator.
-
-        For LLM evaluators, delegates to the LLM client's rate limit key.
-        For built-in evaluators (which run locally), returns a unique key
-        so they can run without external rate limiting.
-        """
-
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.get_rate_limit_key()
-        return _NO_OP_TOKEN_BUCKET
-
-    @override
     async def execute(self) -> None:
         """Execute the evaluation, write to DB, and report results."""
         logger.debug(f"EvalWorkItem {self.debug_identifier}: starting (timeout={self._timeout}s)")
@@ -1328,6 +1377,11 @@ class EvalWorkItem(WorkItem):
                     output_configs=self._output_configs,
                     tracer=tracer,
                 )
+                for result in eval_results:
+                    if (error_exc := result.get("error_exc")) is not None and (
+                        self._is_rate_limit_error(error_exc) or self._is_transient_error(error_exc)
+                    ):
+                        raise error_exc
                 logger.debug(
                     f"EvalWorkItem {self.debug_identifier}: evaluator returned "
                     f"{len(eval_results)} result(s)"
@@ -1358,24 +1412,12 @@ class EvalWorkItem(WorkItem):
             raise
 
         except Exception as e:
-            err_type = type(e).__name__
-            if isinstance(e, MontyBusy):
-                logger.warning(
-                    f"EvalWorkItem {self.debug_identifier} sandbox capacity busy ({err_type}): {e}"
+            if not await self._handle_retryable_exception(e):
+                logger.exception(
+                    f"EvalWorkItem {self.debug_identifier} failed ({type(e).__name__}): {e}"
                 )
-                await self._running_experiment.on_capacity_error(self, e)
-            elif self._is_rate_limit_error(e):
-                logger.debug(f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})")
-                await self._running_experiment.on_rate_limit(self)
-            elif self._is_transient_error(e):
-                logger.warning(
-                    f"EvalWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
-                )
-                await self._running_experiment.on_transient_error(self, e)
-            else:
-                logger.exception(f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}")
                 error_end_time = datetime.now(timezone.utc)
-                annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
+                annotator_kind = self._evaluator.annotator_kind
                 error_annotations: list[models.ExperimentRunAnnotation] = []
                 for annotation_name in self.annotation_names:
                     error_annotations.append(
@@ -1388,7 +1430,7 @@ class EvalWorkItem(WorkItem):
                             explanation=None,
                             trace_id=None,
                             error=str(e),
-                            metadata_={},
+                            metadata_=self._evaluator.error_metadata,
                             start_time=error_end_time,
                             end_time=error_end_time,
                         )
@@ -1484,6 +1526,9 @@ class EvalWorkItem(WorkItem):
 
         Annotation objects are updated in-place with their generated IDs.
         """
+        # TODO: crash consistency. Traces and annotations are written in separate transactions,
+        # and no test covers a crash between them or between a provider response and the
+        # result commit.
 
         async def _persist_traces() -> None:
             if db_traces:
@@ -1498,22 +1543,6 @@ class EvalWorkItem(WorkItem):
             async with anyio.create_task_group() as tg:
                 tg.start_soon(_persist_traces)
                 tg.start_soon(_persist_annotations)
-
-    def _is_rate_limit_error(self, e: Exception) -> bool:
-        """Check if exception is a rate limit error using evaluator's client."""
-
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_rate_limit_error(e)
-        return False
-
-    def _is_transient_error(self, e: Exception) -> bool:
-        """Check if exception is a transient/network error using evaluator's client."""
-
-        if isinstance(e, SQLAlchemyError):
-            return True
-        if isinstance(self._evaluator, LLMEvaluator):
-            return self._evaluator.llm_client.is_transient_error(e)
-        return False
 
 
 # =============================================================================
@@ -1621,15 +1650,16 @@ class RunningExperiment:
         *,
         experiment: models.Experiment,
         experiment_job: models.ExperimentJob,
-        llm_client: LLMClient,
         db: DbSessionFactory,
         decrypt: Callable[[bytes], bytes],
         tracer_factory: Callable[[], Tracer],
         token_buckets: TokenBucketRegistry,
         on_done: OnExperimentDone,
+        llm_client: LLMClient | None = None,
         credentials: Sequence[GenerativeCredentialInput] | None = None,
         evaluator_run_specs: Sequence[EvaluatorRunSpec] = (),
         task_evaluator: BaseEvaluator | None = None,
+        decision_client: DecisionClient | None = None,
         max_retries: int = 3,
         base_backoff_seconds: float = 1.0,
     ) -> None:
@@ -1648,6 +1678,7 @@ class RunningExperiment:
         self._evaluator_run_specs = evaluator_run_specs
         # The evaluator that is the task of an EVALUATOR experiment; None otherwise
         self._task_evaluator = task_evaluator
+        self._decision_client = decision_client
         self._max_retries = max_retries
         self._base_backoff_seconds = base_backoff_seconds
         self._max_concurrency = experiment_job.max_concurrency
@@ -2192,9 +2223,11 @@ class RunningExperiment:
         )
 
     def _has_task_to_dispatch(self) -> bool:
-        """Whether this experiment's job produces runs: a prompt task or an evaluator task."""
+        """Whether this experiment's job produces runs: a prompt, decision, or evaluator task."""
         if isinstance(self._experiment_job, models.ExperimentPromptTask):
             return True
+        if isinstance(self._experiment_job, models.ExperimentDecisionTask):
+            return self._decision_client is not None
         return (
             isinstance(self._experiment_job, models.ExperimentEvaluatorTask)
             and self._task_evaluator is not None
@@ -2215,6 +2248,19 @@ class RunningExperiment:
                 prompt_task=job,
                 project_id=project_id,
             )
+        if isinstance(job, models.ExperimentDecisionTask):
+            assert self._decision_client is not None
+            return DecisionTaskWorkItem(
+                running_experiment=self,
+                experiment=self._experiment,
+                dataset_example_revision=dataset_example_revision,
+                repetition_number=repetition_number,
+                decision_task=job,
+                decision_client=self._decision_client,
+                db=self._db,
+                tracer_factory=self._tracer_factory,
+                project_id=project_id,
+            )
         assert isinstance(job, models.ExperimentEvaluatorTask)
         assert self._task_evaluator is not None
         return self._create_evaluator_task_work_item(
@@ -2233,6 +2279,7 @@ class RunningExperiment:
         project_id: int,
     ) -> TaskWorkItem:
         """Create a TaskWorkItem owned by this experiment."""
+        assert self._llm_client is not None
         return TaskWorkItem(
             running_experiment=self,
             experiment=self._experiment,
@@ -2561,7 +2608,7 @@ class RunningExperiment:
                         work_item._error_annotations(error_msg, now, experiment_run_id=db_run.id)
                     )
             elif isinstance(work_item, EvalWorkItem):
-                annotator_kind = "LLM" if isinstance(work_item._evaluator, LLMEvaluator) else "CODE"
+                annotator_kind = work_item._evaluator.annotator_kind
                 error_annotations = [
                     models.ExperimentRunAnnotation(
                         experiment_run_id=work_item.experiment_run.id,
@@ -2572,7 +2619,7 @@ class RunningExperiment:
                         explanation=None,
                         trace_id=None,
                         error=error_msg,
-                        metadata_={},
+                        metadata_=work_item._evaluator.error_metadata,
                         start_time=now,
                         end_time=now,
                     )
@@ -2589,6 +2636,17 @@ class RunningExperiment:
         """Persist a log row for this experiment."""
         try:
             async with self._db() as session:
+                # A frozen judge can outlive its binding, and an eval log cannot: its foreign
+                # key cascades from the binding. Skip the row rather than fail the insert.
+                # TODO: SQLite can reuse a deleted binding's ID, attaching the log to another.
+                if isinstance(log, models.ExperimentEvalLog) and (
+                    await session.get(models.DatasetEvaluators, log.dataset_evaluator_id) is None
+                ):
+                    logger.warning(
+                        f"Experiment {self._experiment.id}: binding "
+                        f"{log.dataset_evaluator_id} was deleted; log not saved: {log.message}"
+                    )
+                    return
                 session.add(log)
         except Exception:
             logger.exception(
@@ -3146,41 +3204,70 @@ class ExperimentRunner(DaemonTask):
         session: AsyncSession,
         experiment_id: int,
         credentials: Sequence[GenerativeCredentialInput] | None,
-    ) -> tuple[models.ExperimentJob, LLMClient, list[EvaluatorRunSpec], BaseEvaluator | None]:
+    ) -> tuple[
+        models.ExperimentJob,
+        LLMClient | None,
+        list[EvaluatorRunSpec],
+        BaseEvaluator | None,
+        DecisionClient | None,
+    ]:
         """Load execution config, resolve LLM client, and build evaluator specs.
 
-        Returns (experiment_job, llm_client, evaluator_run_specs, task_evaluator), where
-        task_evaluator is the evaluator an EVALUATOR job runs as its task (None otherwise).
+        Returns (experiment_job, llm_client, evaluator_run_specs, task_evaluator,
+        decision_client), where task_evaluator is the evaluator an EVALUATOR job runs as
+        its task and decision_client the client a DECISION job asks (None otherwise).
         """
-        # Load child class directly to eagerly populate all columns.
-        # Using session.get() on the base ExperimentJob with joined-table
-        # inheritance lazily loads child-class columns, which triggers a greenlet_spawn
-        # error when accessed outside the session's internal greenlet.
-        llm_client: LLMClient
-        task_evaluator: BaseEvaluator | None = None
-        prompt_task = await session.get(models.ExperimentPromptTask, experiment_id)
-        evaluator_task = (
-            None
-            if prompt_task is not None
-            else await session.get(models.ExperimentEvaluatorTask, experiment_id)
+        # Load the polymorphic ExperimentJob in a single joined query so all subclass
+        # columns are eagerly populated before expunging from the session.
+        job_poly = with_polymorphic(
+            models.ExperimentJob,
+            [
+                models.ExperimentPromptTask,
+                models.ExperimentDecisionTask,
+                models.ExperimentEvaluatorTask,
+                models.ExperimentEvalOnlyConfig,
+            ],
         )
-        if prompt_task is not None:
-            experiment_job: models.ExperimentJob = prompt_task
+        experiment_job = await session.scalar(select(job_poly).where(job_poly.id == experiment_id))
+        if experiment_job is None:
+            raise ValueError(f"No ExperimentJob for experiment {experiment_id}")
+
+        llm_client: LLMClient | None = None
+        task_evaluator: BaseEvaluator | None = None
+        decision_client: DecisionClient | None = None
+        if isinstance(experiment_job, models.ExperimentDecisionTask):
+            if experiment_job.custom_provider_id is None and (
+                experiment_job.config.custom_provider_name is not None
+            ):
+                # The provider was deleted; falling back to a built-in provider would
+                # silently change the host and key the task runs against.
+                raise ValueError(
+                    f"The custom provider '{experiment_job.config.custom_provider_name}' "
+                    "this decision task ran on has been deleted"
+                )
+            decision_client = await resolve_decision_client(
+                model_provider=experiment_job.model_provider,
+                model_name=experiment_job.model_name,
+                base_url=experiment_job.base_url,
+                custom_provider_id=experiment_job.custom_provider_id,
+                credentials=credentials,
+                session=session,
+                decrypt=self._decrypt,
+            )
+        elif isinstance(experiment_job, models.ExperimentPromptTask):
             llm_client = await get_playground_client(
-                model_provider=prompt_task.model_provider,
-                model_name=prompt_task.model_name,
+                model_provider=experiment_job.model_provider,
+                model_name=experiment_job.model_name,
                 session=session,
                 decrypt=self._decrypt,
                 credentials=credentials,
-                connection=(prompt_task.connection or prompt_task.custom_provider_id),
+                connection=(experiment_job.connection or experiment_job.custom_provider_id),
             )
-        elif evaluator_task is not None:
-            experiment_job = evaluator_task
+        elif isinstance(experiment_job, models.ExperimentEvaluatorTask):
             # The evaluator is the task: there is no prompt to complete, and the
             # evaluator is rebuilt from its frozen definition on every start and resume.
-            llm_client = _NO_OP_LLM_CLIENT
             task_evaluator = await build_evaluator_from_definition(
-                definition=evaluator_task.definition,
+                definition=experiment_job.definition,
                 session=session,
                 decrypt=self._decrypt,
                 credentials=credentials,
@@ -3193,13 +3280,8 @@ class ExperimentRunner(DaemonTask):
                     replica_id=self._sandbox_session_manager.replica_id,
                 ),
             )
-        else:
-            eval_config = await session.get(models.ExperimentEvalOnlyConfig, experiment_id)
-            if eval_config is not None:
-                experiment_job = eval_config
-                llm_client = _NO_OP_LLM_CLIENT
-            else:
-                raise ValueError(f"No ExperimentJob for experiment {experiment_id}")
+        elif not isinstance(experiment_job, models.ExperimentEvalOnlyConfig):
+            raise ValueError(f"No ExperimentJob for experiment {experiment_id}")
 
         dataset_evaluators_result = await session.scalars(
             select(models.DatasetEvaluators)
@@ -3210,7 +3292,18 @@ class ExperimentRunner(DaemonTask):
             )
             .where(models.ExperimentDatasetEvaluator.experiment_id == experiment_id)
         )
-        dataset_evaluators = dataset_evaluators_result.all()
+        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+            DecisionEvaluatorSnapshot,
+        )
+
+        snapshots = [
+            DecisionEvaluatorSnapshot.model_validate(value)
+            for value in experiment_job.decision_evaluator_snapshots
+        ]
+        frozen_ids = {snapshot.dataset_evaluator_id for snapshot in snapshots}
+        dataset_evaluators = [
+            binding for binding in dataset_evaluators_result.all() if binding.id not in frozen_ids
+        ]
 
         evaluator_run_specs: list[EvaluatorRunSpec] = []
         if dataset_evaluators:
@@ -3236,13 +3329,52 @@ class ExperimentRunner(DaemonTask):
                 for de, ev in zip(dataset_evaluators, evaluators)
             ]
 
+        snapshots_updated = False
+        for snapshot in snapshots:
+            evaluator = await build_evaluator_from_definition(
+                definition=snapshot.definition,
+                session=session,
+                decrypt=self._decrypt,
+                credentials=credentials,
+            )
+            project_id = snapshot.project_id
+            # TODO: Handle SQLite reusing a deleted trace-project ID before resume.
+            if await session.get(models.Project, project_id) is None:
+                from phoenix.server.api.helpers.evaluator_management import (
+                    get_project_for_dataset_evaluator,
+                )
+
+                project = get_project_for_dataset_evaluator(
+                    dataset_name=f"experiment {experiment_id}", dataset_evaluator_name=snapshot.name
+                )
+                session.add(project)
+                await session.flush()
+                project_id = project.id
+                snapshot.project_id = project_id
+                snapshots_updated = True
+            evaluator_run_specs.append(
+                EvaluatorRunSpec(
+                    dataset_evaluator_id=snapshot.dataset_evaluator_id,
+                    name=snapshot.name,
+                    evaluator=evaluator,
+                    input_mapping=snapshot.input_mapping,
+                    output_configs=list(evaluator.output_configs),
+                    evaluator_project_id=project_id,
+                )
+            )
+        if snapshots_updated:
+            experiment_job.decision_evaluator_snapshots = [
+                snapshot.model_dump(mode="json") for snapshot in snapshots
+            ]
+            await session.flush()
+
         logger.debug(
             f"Loaded {len(evaluator_run_specs)} evaluator(s) for experiment "
             f"{experiment_id} ({len(dataset_evaluators)} dataset "
             f"evaluator(s) from junction)"
         )
 
-        return experiment_job, llm_client, evaluator_run_specs, task_evaluator
+        return experiment_job, llm_client, evaluator_run_specs, task_evaluator, decision_client
 
     # === Public API ===
 
@@ -3298,6 +3430,7 @@ class ExperimentRunner(DaemonTask):
                 llm_client,
                 evaluator_run_specs,
                 task_evaluator,
+                decision_client,
             ) = await self._load_experiment_config(session, experiment_id, credentials)
             session.expunge(experiment)
             session.expunge(experiment_job)
@@ -3314,6 +3447,7 @@ class ExperimentRunner(DaemonTask):
             credentials=credentials,
             evaluator_run_specs=evaluator_run_specs,
             task_evaluator=task_evaluator,
+            decision_client=decision_client,
         )
 
         # Subscribe BEFORE registering - guarantees no missed chunks

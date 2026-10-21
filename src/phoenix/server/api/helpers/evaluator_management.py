@@ -17,7 +17,7 @@ from phoenix.db.models import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.code_evaluator_schema import (
     infer_python_evaluate_input_schema,
     infer_typescript_evaluate_input_schema,
@@ -30,10 +30,20 @@ from phoenix.server.trace_filters import validate_trace_filter_condition
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
-_EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
+EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     "LLMEvaluator": "LLM",
     "CodeEvaluator": "CODE",
     "BuiltInEvaluator": "BUILTIN",
+    "DecisionEvaluator": "DECISION",
+}
+EVALUATOR_TYPENAME_BY_KIND: dict[EvaluatorKind, str] = {
+    kind: typename for typename, kind in EVALUATOR_KIND_BY_TYPENAME.items()
+}
+EVALUATOR_MODEL_BY_KIND: dict[EvaluatorKind, type[models.Evaluator]] = {
+    "LLM": models.LLMEvaluator,
+    "CODE": models.CodeEvaluator,
+    "BUILTIN": models.BuiltinEvaluator,
+    "DECISION": models.DecisionEvaluator,
 }
 
 
@@ -174,24 +184,32 @@ async def generate_unique_evaluator_name(
     session: AsyncSession,
     base_name: Identifier,
     max_attempts: int = 5,
+    *,
+    claim_decision: bool = False,
 ) -> Identifier:
-    """Return an unused name, trying at most max_attempts random suffixes on collision."""
-    exists = await session.scalar(
-        select(models.Evaluator.id).where(models.Evaluator.name == base_name).limit(1)
-    )
-    if exists is None:
-        return base_name
+    """Return an unused name, trying at most max_attempts random suffixes on collision.
 
-    for _ in range(max_attempts):
-        candidate = f"{base_name}-{token_hex(4)}"
-        candidate_name = Identifier.model_validate(candidate)
-        exists = await session.scalar(
-            select(models.Evaluator.id).where(models.Evaluator.name == candidate_name).limit(1)
+    With `claim_decision`, the name must also be free on `Decision`.
+    """
+    for attempt in range(max_attempts + 1):
+        candidate = (
+            base_name if attempt == 0 else Identifier.model_validate(f"{base_name}-{token_hex(4)}")
         )
-        if exists is None:
-            return candidate_name
+        evaluator_taken = await session.scalar(
+            select(models.Evaluator.id).where(models.Evaluator.name == candidate).limit(1)
+        )
+        decision_taken = (
+            await session.scalar(
+                select(models.Decision.id).where(models.Decision.name == candidate).limit(1)
+            )
+            is not None
+            if claim_decision and evaluator_taken is None
+            else False
+        )
+        if evaluator_taken is None and not decision_taken:
+            return candidate
 
-    raise RuntimeError(f"Failed to generate unique evaluator name after {max_attempts} attempts")
+    raise Conflict("A Decision or evaluator with this name already exists")
 
 
 def get_project_for_dataset_evaluator(
@@ -421,6 +439,9 @@ async def garbage_collect_evaluators(
                 delete(models.Evaluator)
                 .where(
                     models.Evaluator.id.in_(evaluator_ids),
+                    # Decision judges are standalone and may serve several datasets or
+                    # projects; they are deleted explicitly, never garbage-collected.
+                    models.Evaluator.kind != "DECISION",
                     ~select(models.DatasetEvaluators.id)
                     .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
                     .exists(),
@@ -456,9 +477,9 @@ def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         tuple of (evaluator_rowid, evaluator_kind)
     """
     type_name, evaluator_rowid = from_global_id(global_id)
-    if type_name not in _EVALUATOR_KIND_BY_TYPENAME:
+    if type_name not in EVALUATOR_KIND_BY_TYPENAME:
         raise ValueError(
             f"Invalid evaluator type: {type_name}. "
-            f"Expected one of {', '.join(_EVALUATOR_KIND_BY_TYPENAME)}"
+            f"Expected one of {', '.join(EVALUATOR_KIND_BY_TYPENAME)}"
         )
-    return evaluator_rowid, _EVALUATOR_KIND_BY_TYPENAME[type_name]
+    return evaluator_rowid, EVALUATOR_KIND_BY_TYPENAME[type_name]

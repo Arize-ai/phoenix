@@ -278,7 +278,15 @@ type AgentsConfig {
   sessionRetentionMaxCountPerUser: Int
 }
 
-interface Annotation {
+interface Annotation implements AnnotationMetadataMixin {
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
+
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
@@ -297,9 +305,6 @@ interface Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -358,6 +363,16 @@ input AnnotationFilterCondition {
   names: [String!]
   sources: [AnnotationSource!]
   userIds: [ID]
+}
+
+interface AnnotationMetadataMixin {
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 }
 
 type AnnotationMetricsTimeSeries {
@@ -572,6 +587,24 @@ type BranchAgentSessionMutationPayload {
   query: Query!
 }
 
+"""A built-in provider, reached with its own or given credentials."""
+input BuiltInDecisionConnectionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -695,6 +728,38 @@ input ChatPromptVersionInput {
   customProviderId: ID = null
 }
 
+type ChoiceAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+  choice: String!
+
+  """
+  The model's certainty in `choice`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per choice value, in the question's order."""
+  probabilities: [ChoiceProbability!]!
+}
+
+input ChoiceOptionInput {
+  value: String!
+  description: String = null
+}
+
+type ChoiceProbability {
+  value: String!
+  probability: Float!
+}
+
+"""One option from a fixed set of 2–255."""
+input ChoiceQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  choices: [ChoiceOptionInput!]!
+}
+
 type ClassificationEvaluatorConfig {
   name: String!
   description: String
@@ -739,6 +804,13 @@ type ClearQueuedEvaluationsPayload {
   """Queued evaluations that were cleared."""
   droppedCount: Int!
   project: Project!
+}
+
+input CloneDecisionInput {
+  decisionId: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON
 }
 
 input ClonePromptInput {
@@ -943,6 +1015,19 @@ input CreateDatasetCodeEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetDecisionEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID = null
+  decisionId: ID = null
+  evaluatorName: Identifier = null
+  decisionVersionId: ID = null
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput!
+  description: String = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -984,6 +1069,38 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
+}
+
+input CreateDecisionEvaluatorInput {
+  name: Identifier!
+  decisionVersionId: ID!
+  description: String = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+}
+
+input CreateDecisionInput {
+  name: Identifier!
+  description: String = null
+  metadata: JSON = null
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionLabelInput {
+  name: String!
+  description: String = null
+  color: String!
+}
+
+input CreateDecisionVersionInput {
+  decisionId: ID!
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionVersionTagInput {
+  name: Identifier!
+  description: String = null
 }
 
 input CreateDocumentAnnotationInput {
@@ -1195,7 +1312,15 @@ input CreateUserInput {
 
 scalar CronExpression
 
-union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
+union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
+
+"""
+A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System One.
+"""
+input CustomProviderDecisionConnectionInput {
+  """The custom provider's ID."""
+  id: ID!
+}
 
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
@@ -1606,6 +1731,572 @@ type DbTableStats {
   numBytes: Float!
 }
 
+"""
+A saved decision: a named typed function, versioned, that apps fetch by tag.
+"""
+type Decision implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+  createdBy: User
+  updatedBy: User
+  sourceDecision: Decision
+  labels: [DecisionLabel!]!
+
+  """
+  A version by ID or by tag; the latest version when neither is given. Null when there is no such version, so asking for one tag never loses the rest of the query.
+  """
+  version(versionId: ID = null, tagName: Identifier = null): DecisionVersion
+  versionCount: Int!
+  versionTags: [DecisionVersionTag!]!
+
+  """The decision's versions, newest first."""
+  versions(first: Int = 50, last: Int, after: String, before: String): DecisionVersionConnection!
+}
+
+"""
+A decision judge's result for one question, read from the annotation's `metadata.decision`. Metadata is ordinary JSON, so this describes its format, not which evaluator wrote it.
+"""
+type DecisionAnnotation {
+  status: DecisionAnnotationStatus!
+
+  """Null when the call failed."""
+  question: DecisionAnnotationQuestion
+
+  """The normalized answer, a refusal included; null when the call failed."""
+  answer: DecisionAnswer
+
+  """The scoring settings applied to the answer; null when the call failed."""
+  scoring: DecisionQuestionScoring
+  requestedModel: String
+  resolvedModel: String
+  modelProvider: GenerativeProviderKey
+  customProviderId: ID
+
+  """The judge, decision version, and binding that produced the result."""
+  source: EvaluatorTaskSource
+}
+
+"""The question a decision judge asked, as it asked it."""
+type DecisionAnnotationQuestion {
+  name: String!
+  type: DecisionAnnotationQuestionType!
+
+  """A choice question's options, in order; null for other types."""
+  choices: [DecisionChoiceOption!]
+
+  """A scale's levels, from the lowest; null for other types."""
+  levels: [DecisionScaleLevel!]
+}
+
+enum DecisionAnnotationQuestionType {
+  PREDICATE
+  CHOICE
+  SCALE
+}
+
+enum DecisionAnnotationStatus {
+  ANSWERED
+  REFUSED
+  ERROR
+}
+
+"""One answer, in Phoenix's vocabulary whatever the provider."""
+interface DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
+
+type DecisionChoiceOption {
+  value: String!
+  description: String
+}
+
+"""One option from a fixed set."""
+type DecisionChoiceQuestion {
+  name: String!
+  instructions: String!
+  choices: [DecisionChoiceOption!]!
+}
+
+"""The score a choice question's annotation gets for one choice."""
+type DecisionChoiceScore {
+  """The choice's value, as the question declares it."""
+  choice: String!
+  score: Float!
+}
+
+"""The score for one of a choice question's declared choices."""
+input DecisionChoiceScoreInput {
+  choice: String!
+  score: Float!
+}
+
+"""
+A choice's label is the chosen value. Its score is the chosen value's configured score, or null when the value has none.
+"""
+type DecisionChoiceScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """Scores for some or all of the question's choices, in declared order."""
+  scores: [DecisionChoiceScore!]!
+}
+
+"""Scoring for a choice question."""
+input DecisionChoiceScoringInput {
+  name: String!
+
+  """Scores by choice; a choice left out gets a null score."""
+  scores: [DecisionChoiceScoreInput!]! = []
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+"""A connection to a list of items."""
+type DecisionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionEdge!]!
+}
+
+"""Where a decision runs."""
+input DecisionConnectionInput @oneOf {
+  builtIn: BuiltInDecisionConnectionInput
+  customProvider: CustomProviderDecisionConnectionInput
+}
+
+"""An edge in a connection."""
+type DecisionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Decision!
+}
+
+type DecisionEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  user: User
+  inputSchema: JSON!
+  scoringPolicy: DecisionScoringPolicy!
+  decisionVersion: DecisionVersion!
+}
+
+type DecisionEvaluatorMutationPayload {
+  evaluator: DecisionEvaluator!
+  query: Query!
+}
+
+"""
+A decision evaluator configuration captured when the experiment was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
+"""
+type DecisionEvaluatorSnapshot {
+  """The binding name captured when the experiment was created."""
+  name: String!
+
+  """
+  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
+  """
+  datasetEvaluatorId: ID!
+
+  """The captured evaluator definition, including its scoring settings."""
+  definition: InlineDecisionEvaluatorDefinition!
+
+  """Names of the annotations this evaluator writes."""
+  annotationNames: [String!]!
+}
+
+"""The filter key and value for decision connections"""
+input DecisionFilter {
+  col: DecisionFilterColumn!
+  value: String!
+}
+
+enum DecisionFilterColumn {
+  name
+}
+
+"""One named input a decision's state is built from."""
+type DecisionInputDefinition {
+  name: String!
+  description: String
+
+  """Describes the value for the playground form. Not enforced on a run."""
+  jsonSchema: JSON
+}
+
+"""One named input a caller passes."""
+input DecisionInputDefinitionInput {
+  name: String!
+  description: String = null
+
+  """Describes the value for the playground form. Not enforced on a run."""
+  jsonSchema: JSON = null
+}
+
+"""The state is one input's value, unchanged."""
+type DecisionInputState {
+  input: String!
+}
+
+type DecisionLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String
+  usageCount: Int!
+}
+
+type DecisionLabelAssociationMutationPayload {
+  query: Query!
+}
+
+"""A connection to a list of items."""
+type DecisionLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionLabelEdge!]!
+}
+
+type DecisionLabelDeleteMutationPayload {
+  deletedDecisionLabelIds: [ID!]!
+  query: Query!
+}
+
+"""An edge in a connection."""
+type DecisionLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionLabel!
+}
+
+type DecisionLabelMutationPayload {
+  decisionLabels: [DecisionLabel!]!
+  query: Query!
+}
+
+"""The state is the declared inputs, as a JSON object."""
+type DecisionObjectState {
+  object: Boolean!
+}
+
+type DecisionPredicateCriteria {
+  true: String
+  false: String
+}
+
+"""A statement answered with the probability that it is true."""
+type DecisionPredicateQuestion {
+  name: String!
+  instructions: String!
+  criteria: DecisionPredicateCriteria
+}
+
+"""
+A predicate's score is the probability that it is true. Its label is `true` when that probability is at least the threshold, otherwise `false`.
+"""
+type DecisionPredicateScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float!
+}
+
+"""Scoring for a predicate question."""
+input DecisionPredicateScoringInput {
+  name: String!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float! = 0.5
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
+
+"""One decision question. Exactly one type must be set."""
+input DecisionQuestionInput @oneOf {
+  predicate: PredicateQuestionInput
+  choice: ChoiceQuestionInput
+  scale: ScaleQuestionInput
+}
+
+"""
+How one decision question's answer becomes an annotation's label and score.
+"""
+interface DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+}
+
+"""Scoring settings for one named decision question."""
+input DecisionQuestionScoringInput @oneOf {
+  predicate: DecisionPredicateScoringInput
+  choice: DecisionChoiceScoringInput
+  scale: DecisionScaleScoringInput
+}
+
+"""A successful decision run."""
+type DecisionResult {
+  """The model that answered, after alias resolution."""
+  model: String!
+
+  """One answer per question, in the order the questions were given."""
+  answers: [DecisionAnswer!]!
+  usage: DecisionUsage!
+}
+
+type DecisionScaleLevel {
+  label: String!
+  description: String
+}
+
+"""Ordered levels; a level's position, from zero, is its value."""
+type DecisionScaleQuestion {
+  name: String!
+  instructions: String!
+  levels: [DecisionScaleLevel!]!
+}
+
+"""
+A scale's score is its expected level, from 0 to the number of levels minus one.
+"""
+type DecisionScaleScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """
+  Whether the annotation is also labeled with the most probable level; on a tie, the first such level.
+  """
+  includeLabel: Boolean!
+}
+
+"""Scoring for a scale question; its score is the expected level."""
+input DecisionScaleScoringInput {
+  name: String!
+
+  """Also label the annotation with the most probable level."""
+  includeLabel: Boolean! = false
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+"""How a decision evaluator's answers become annotations, by question."""
+type DecisionScoringPolicy {
+  """
+  Settings by question, in the order the decision declares its questions.
+  """
+  questions: [DecisionQuestionScoring!]!
+}
+
+"""
+Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting.
+"""
+input DecisionScoringPolicyInput {
+  questions: [DecisionQuestionScoringInput!]! = []
+}
+
+union DecisionState = DecisionObjectState | DecisionTextState | DecisionInputState
+
+"""
+How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged.
+"""
+input DecisionStateInput @oneOf {
+  object: Boolean
+  text: TextStateInput
+
+  """The name of the input whose value is the state."""
+  input: String
+}
+
+type DecisionTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """The endpoint a built-in provider was reached at, when not its default."""
+  baseUrl: String
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+
+  """The fixed questions asked of every example."""
+  questions: [DecisionQuestion!]!
+
+  """
+  Where input values were read, as a prompt task's templateVariablesPath.
+  """
+  inputValuesPath: String!
+
+  """The saved version the definition was copied from, if it still exists."""
+  decisionVersion: DecisionVersion
+
+  """The custom provider this experiment ran on, if any."""
+  customProvider: GenerativeModelCustomProvider
+}
+
+"""
+A decision asked about every example of a dataset, as a prompt task completes a prompt for every example.
+"""
+input DecisionTaskInput {
+  connection: DecisionConnectionInput!
+  modelName: String!
+
+  """The named inputs the state is built from."""
+  inputs: [DecisionInputDefinitionInput!]!
+  state: DecisionStateInput!
+
+  """The fixed questions asked of every example; at least one is required."""
+  questions: [DecisionQuestionInput!]!
+
+  """
+  Dot-notation path to the object holding the input values, by input name, as `templateVariablesPath` is for a prompt. Default 'input' means input `ticket` resolves to input.ticket. Empty string means the whole context, so values are read as `input`, `reference`, or `metadata`.
+  """
+  inputValuesPath: String = "input"
+
+  """Dataset evaluators to run on this decision's runs"""
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+
+  """
+  The saved version this definition was copied from, as a prompt task's promptVersionId. It is recorded, not read: the definition given here is what runs.
+  """
+  decisionVersionId: ID = null
+}
+
+enum DecisionTemplateFormat {
+  MUSTACHE
+  F_STRING
+}
+
+"""The state is a text template rendered over the inputs."""
+type DecisionTextState {
+  template: String!
+  templateFormat: DecisionTemplateFormat!
+}
+
+type DecisionUsage {
+  inputTokens: Int
+  outputTokens: Int
+}
+
+"""
+An immutable version of a decision: its inputs, how the state is built from them, its questions, and the model that answers.
+"""
+type DecisionVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  decisionId: ID!
+
+  """The decision this version belongs to."""
+  decision: Decision!
+  description: String
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  metadata: JSON!
+  createdAt: DateTime!
+  user: User
+
+  """The custom provider this version runs on, if any."""
+  customProvider: GenerativeModelCustomProvider
+  sequenceNumber: Int!
+  previousVersion: DecisionVersion
+
+  """The tags pointing at this version."""
+  tags: [DecisionVersionTag!]!
+}
+
+"""A connection to a list of items."""
+type DecisionVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type DecisionVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionVersion!
+}
+
+"""
+A decision version to save: its inputs, state, questions, and the model that answers. Saved versions are immutable; saving again adds a version.
+"""
+input DecisionVersionInput {
+  inputs: [DecisionInputDefinitionInput!]!
+  state: DecisionStateInput!
+  questions: [DecisionQuestionInput!]!
+
+  """
+  The provider whose decision API answers; it must offer decision models. For a custom provider, the API its SDK speaks (OPENAI or TYPESAFE).
+  """
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """Run on this custom provider instead of the built-in one."""
+  customProviderId: ID = null
+  description: String = null
+  metadata: JSON = null
+}
+
+"""A movable name for one of a decision's versions."""
+type DecisionVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  decisionVersionId: ID!
+  user: User
+}
+
+type DecisionVersionTagMutationPayload {
+  decisionVersionTag: DecisionVersionTag
+  decision: Decision!
+  query: Query!
+}
+
 type DecryptedSecret {
   value: RedactedString!
 }
@@ -1685,6 +2376,30 @@ input DeleteDatasetSplitInput {
 type DeleteDatasetSplitsMutationPayload {
   datasetSplits: [DatasetSplit!]!
   query: Query!
+}
+
+input DeleteDecisionEvaluatorInput {
+  evaluatorId: ID!
+}
+
+type DeleteDecisionEvaluatorPayload {
+  query: Query!
+}
+
+input DeleteDecisionInput {
+  decisionId: ID!
+}
+
+input DeleteDecisionLabelsInput {
+  decisionLabelIds: [ID!]!
+}
+
+type DeleteDecisionMutationPayload {
+  query: Query!
+}
+
+input DeleteDecisionVersionTagInput {
+  decisionVersionTagId: ID!
 }
 
 input DeleteExperimentsInput {
@@ -1799,9 +2514,17 @@ input DockerConfigInput {
   dependencies: DependenciesInput = null
 }
 
-type DocumentAnnotation implements Node & Annotation {
+type DocumentAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """The metadata associated with the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -1821,9 +2544,6 @@ type DocumentAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """The metadata associated with the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -2052,6 +2772,7 @@ type EvaluationQueueTarget {
 
 type EvaluationResult {
   evaluatorName: String!
+  status: String
   annotation: ExperimentRunAnnotation
   trace: Trace
   error: String
@@ -2197,6 +2918,8 @@ type EvaluatorConnection {
 }
 
 input EvaluatorDefinitionInput @oneOf {
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput
+  decisionEvaluatorId: ID
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
   codeEvaluatorId: ID
@@ -2277,6 +3000,7 @@ enum EvaluatorKind {
   LLM
   CODE
   BUILTIN
+  DECISION
 }
 
 type EvaluatorLabelCount {
@@ -2287,9 +3011,14 @@ type EvaluatorLabelCount {
 }
 
 input EvaluatorPreviewItemInput {
-  evaluator: EvaluatorDefinitionInput!
+  evaluator: EvaluatorDefinitionInput = null
   context: JSON!
   inputMapping: EvaluatorInputMappingInput!
+
+  """
+  Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy.
+  """
+  datasetEvaluatorId: ID = null
 
   """
   Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
@@ -2347,7 +3076,7 @@ type EvaluatorTaskConfig implements Node {
   definition: EvaluatorTaskDefinition!
 }
 
-union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
+union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineDecisionEvaluatorDefinition | StoredDecisionEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
 
 input EvaluatorTaskInput {
   evaluator: EvaluatorDefinitionInput!
@@ -2362,6 +3091,7 @@ input EvaluatorTaskInput {
 type EvaluatorTaskSource {
   evaluatorId: ID
   promptVersionId: ID
+  decisionVersionId: ID
   datasetEvaluatorId: ID
   projectEvaluatorId: ID
 }
@@ -2496,12 +3226,17 @@ type ExperimentJob implements Node {
   maxConcurrency: Int!
 
   """
-  Snapshot of the task this experiment ran, a prompt or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
+  Snapshot of the task this experiment ran: a prompt, a decision, or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
   """
   taskConfig: ExperimentTaskConfig
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+
+  """
+  Decision evaluator configurations captured for this experiment, with binding names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a binding is deleted.
+  """
+  decisionEvaluatorSnapshots: [DecisionEvaluatorSnapshot!]!
 }
 
 """A connection to a list of items."""
@@ -2611,9 +3346,17 @@ type ExperimentRun implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type ExperimentRunAnnotation implements Node {
+type ExperimentRunAnnotation implements Node & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -2636,9 +3379,6 @@ type ExperimentRunAnnotation implements Node {
 
   """Error message if the annotation failed to produce a result."""
   error: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The date and time when the annotation was created."""
   startTime: DateTime!
@@ -2756,11 +3496,12 @@ type ExperimentTag implements Node {
   description: String
 }
 
-union ExperimentTaskConfig = PromptTaskConfig | EvaluatorTaskConfig
+union ExperimentTaskConfig = PromptTaskConfig | DecisionTaskConfig | EvaluatorTaskConfig
 
 input ExperimentTaskInput @oneOf {
   prompt: PromptTaskInput
   evaluator: EvaluatorTaskInput
+  decision: DecisionTaskInput
 }
 
 input ExperimentsOverDatasetInput {
@@ -2783,7 +3524,7 @@ input ExperimentsOverDatasetInput {
   createEphemeralExperiment: Boolean = false
 
   """
-  One experiment is created per task, in this order. The tasks must all be prompts or all be evaluators.
+  One experiment is created per task, in this order. The tasks must all be prompt or decision tasks (which may be mixed) or all evaluators.
   """
   tasks: [ExperimentTaskInput!]!
 }
@@ -2919,8 +3660,15 @@ type GenerativeModelCustomProvider implements Node {
   """The user that created this provider."""
   user: User
 
-  """The model names available for this provider."""
-  modelNames: [String!]!
+  """
+  The model types this provider can serve: chat (LLM) models, decision models, or both. Derived from its SDK.
+  """
+  modelTypes: [ModelType!]!
+
+  """
+  Suggested model names for this provider and model type; empty when it serves no models of that type. Any model name the endpoint accepts can be used.
+  """
+  modelNames(modelType: ModelType! = LLM): [String!]!
 }
 
 """A connection to a list of items."""
@@ -2947,6 +3695,7 @@ input GenerativeModelCustomerProviderConfigInput @oneOf {
   anthropic: AnthropicCustomProviderConfigInput
   awsBedrock: AWSBedrockCustomProviderConfigInput
   googleGenai: GoogleGenAICustomProviderConfigInput
+  typesafe: TypeSafeCustomProviderConfigInput
 }
 
 """An edge in a connection."""
@@ -2969,6 +3718,7 @@ enum GenerativeModelSDK {
   ANTHROPIC
   AWS_BEDROCK
   GOOGLE_GENAI
+  TYPESAFE
 }
 
 type GenerativeProvider {
@@ -2976,6 +3726,11 @@ type GenerativeProvider {
   key: GenerativeProviderKey!
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
+
+  """
+  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients serve the provider, not from its name.
+  """
+  modelTypes: [ModelType!]!
 
   """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!
@@ -3007,6 +3762,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -3074,6 +3830,27 @@ input InlineCodeEvaluatorInput {
   sourceCode: String!
   outputConfigs: [AnnotationConfigInput!]!
   sandboxConfigId: ID = null
+  description: String = null
+}
+
+type InlineDecisionEvaluatorDefinition {
+  name: String!
+  description: String
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  customProviderId: ID
+  scoringPolicy: DecisionScoringPolicy!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+}
+
+input InlineDecisionEvaluatorInput {
+  name: String!
+  decisionVersion: DecisionVersionInput!
+  scoringPolicy: DecisionScoringPolicyInput = null
   description: String = null
 }
 
@@ -3149,6 +3926,12 @@ enum Language {
   TYPESCRIPT
 }
 
+type LevelProbability {
+  """The level's position, from zero."""
+  level: Int!
+  probability: Float!
+}
+
 enum MimeType {
   text
   json
@@ -3184,12 +3967,25 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
+}
+
+"""The kind of model a playground instance runs."""
+enum ModelType {
+  """Chat completion models that generate text from messages."""
+  LLM
+
+  """
+  Decision models that answer typed questions (predicate, choice, scale) about a state and return probabilities rather than text.
+  """
+  DECISION
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey
+  providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+  modelType: ModelType! = LLM
 }
 
 input MontyConfigInput {
@@ -3233,6 +4029,16 @@ type Mutation {
   """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+
+  """
+  Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
+  """
+  runDecision(input: RunDecisionInput!): RunDecisionPayload!
+
+  """
+  Run a saved decision version as saved, with this call's input values, and record the call as a DECISION span in the playground project.
+  """
+  runDecisionVersion(input: RunDecisionVersionInput!): RunDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -3335,11 +4141,28 @@ type Mutation {
   patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createDecision(input: CreateDecisionInput!): Decision!
+  cloneDecision(input: CloneDecisionInput!): Decision!
+  createDecisionVersion(input: CreateDecisionVersionInput!): Decision!
+  patchDecision(input: PatchDecisionInput!): Decision!
+  deleteDecision(input: DeleteDecisionInput!): DeleteDecisionMutationPayload!
+  setDecisionVersionTag(input: SetDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
+  deleteDecisionVersionTag(input: DeleteDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createDecisionLabel(input: CreateDecisionLabelInput!): DecisionLabelMutationPayload!
+  patchDecisionLabel(input: PatchDecisionLabelInput!): DecisionLabelMutationPayload!
+  deleteDecisionLabels(input: DeleteDecisionLabelsInput!): DecisionLabelDeleteMutationPayload!
+  setDecisionLabels(input: SetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  unsetDecisionLabels(input: UnsetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  createDecisionEvaluator(input: CreateDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  patchDecisionEvaluator(input: PatchDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  deleteDecisionEvaluator(input: DeleteDecisionEvaluatorInput!): DeleteDecisionEvaluatorPayload!
+  createDatasetDecisionEvaluator(input: CreateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetDecisionEvaluator(input: UpdateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -3535,6 +4358,27 @@ input PatchDatasetSplitInput {
   metadata: JSON
 }
 
+input PatchDecisionEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier
+  description: String
+  decisionVersionId: ID
+  scoringPolicy: DecisionScoringPolicyInput
+}
+
+input PatchDecisionInput {
+  decisionId: ID!
+  description: String
+  metadata: JSON
+}
+
+input PatchDecisionLabelInput {
+  decisionLabelId: ID!
+  name: String = null
+  description: String = null
+  color: String = null
+}
+
 input PatchExperimentInput {
   experimentId: ID!
   name: String
@@ -3616,6 +4460,34 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
+  modelType: ModelType!
+}
+
+type PredicateAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """The probability that the statement is true."""
+  probability: Float!
+}
+
+"""What counts as true and as false; either may be omitted."""
+input PredicateCriteriaInput {
+  """What counts as true."""
+  true: String = null
+
+  """What counts as false."""
+  false: String = null
+}
+
+"""
+A statement or yes/no question, answered with the probability that it is true.
+"""
+input PredicateQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  criteria: PredicateCriteriaInput = null
 }
 
 type Project implements Node {
@@ -4177,9 +5049,17 @@ input ProjectSessionAnnoResultKey {
   attr: ProjectSessionAnnoAttr!
 }
 
-type ProjectSessionAnnotation implements Node & Annotation {
+type ProjectSessionAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -4199,9 +5079,6 @@ type ProjectSessionAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -4835,6 +5712,10 @@ type Query {
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   node(id: ID!): Node!
   viewer: User
+
+  """Saved decisions, newest first."""
+  decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter, labelIds: [ID!]): DecisionConnection!
+  decisionLabels(first: Int = 100, after: String): DecisionLabelConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
 
   """
@@ -4899,6 +5780,7 @@ type Query {
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
   datasetCount: Int!
+  decisionCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
@@ -4909,6 +5791,12 @@ type Query {
 A string encrypted on output and decrypted on input using a key derived from the deployment seed and PHOENIX_SECRET. Values remain valid across replicas and restarts while both are unchanged.
 """
 scalar RedactedString
+
+"""The model declined to answer this question."""
+type RefusalAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
 
 type ReinstateExperimentPayload {
   experiment: Experiment!
@@ -4963,6 +5851,72 @@ input RevokeOAuth2GrantInput {
 type RevokeOAuth2GrantMutationPayload {
   grantId: ID!
   query: Query!
+}
+
+"""
+A decision run: where it runs, the inputs it declares and their values for this call, how the state is built from them, and the questions.
+"""
+input RunDecisionInput {
+  connection: DecisionConnectionInput!
+
+  """
+  The decision model to run. Any name the endpoint accepts works; the catalog only suggests names.
+  """
+  modelName: String!
+
+  """The named inputs a caller passes, in order. Names must be unique."""
+  inputs: [DecisionInputDefinitionInput!]!
+
+  """How the state sent to the model is built from the inputs."""
+  state: DecisionStateInput!
+
+  """
+  An object with one entry per declared input: the key is the input's name, and the value is any JSON (a string, number, boolean, null, object, or array). Missing or undeclared names are rejected.
+  """
+  inputValues: JSON!
+
+  """
+  The questions, in order. Names must be unique; answers come back under them.
+  """
+  questions: [DecisionQuestionInput!]!
+}
+
+"""
+Outcome of one decision run. Problems found before the provider is called fail the mutation with a GraphQL error.
+"""
+type RunDecisionPayload {
+  """
+  The answers, resolved model, and usage; null when `error` is set. The provider's own response is on the span.
+  """
+  result: DecisionResult
+
+  """The DECISION span recorded for the provider call, successful or not."""
+  span: Span
+
+  """Why the provider call failed; null on success."""
+  error: String
+}
+
+"""
+A run of a saved decision version: its definition, model, and provider as saved, with this call's input values.
+"""
+input RunDecisionVersionInput {
+  decisionVersionId: ID!
+
+  """
+  An object with one entry per input the version declares, keyed by name. Missing or undeclared names are rejected.
+  """
+  inputValues: JSON!
+
+  """
+  API keys for this request only, for a version on a built-in provider. When omitted, a stored secret is used, then the server environment. A custom provider brings its own key.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+
+  """
+  Send the request to this endpoint instead of the built-in provider's default, such as a local Ollama. Requires an API key in `credentials` or a stored secret where the provider needs one; the server-configured key is never sent to a custom URL. A custom provider brings its own endpoint.
+  """
+  baseUrl: String = null
 }
 
 type SandboxBackendInfo {
@@ -5092,6 +6046,37 @@ type SandboxProviderCredentialSpec {
   isRequired: Boolean!
 }
 
+type ScaleAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """
+  The probability-weighted average of the levels. It can fall between levels and is never a discrete level.
+  """
+  expectedLevel: Float!
+
+  """
+  The model's certainty in `expectedLevel`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per level, from the lowest."""
+  probabilities: [LevelProbability!]!
+}
+
+input ScaleLevelInput {
+  label: String!
+  description: String = null
+}
+
+"""2–10 ordered levels; a level's position, from zero, is its value."""
+input ScaleQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  levels: [ScaleLevelInput!]!
+}
+
 """
 An entity returned by global search. One of the searchable resource types: Project, Dataset, Experiment, or Prompt.
 """
@@ -5206,6 +6191,17 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+input SetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
+}
+
+input SetDecisionVersionTagInput {
+  decisionVersionId: ID!
+  name: Identifier!
+  description: String = null
 }
 
 type SetExperimentBaselinePayload {
@@ -5371,9 +6367,17 @@ type Span implements Node {
   cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type SpanAnnotation implements Node & Annotation {
+type SpanAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -5393,9 +6397,6 @@ type SpanAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -5583,6 +6584,11 @@ type StoredCodeEvaluatorDefinition {
   source: EvaluatorTaskSource
 }
 
+type StoredDecisionEvaluatorDefinition {
+  decisionEvaluatorId: ID!
+  source: EvaluatorTaskSource
+}
+
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
   experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
@@ -5635,6 +6641,12 @@ type TextContentValue {
 
 input TextContentValueInput {
   text: String!
+}
+
+"""Render a text template over the inputs."""
+input TextStateInput {
+  template: String!
+  templateFormat: DecisionTemplateFormat!
 }
 
 input TimeBinConfig {
@@ -5816,9 +6828,17 @@ type Trace implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type TraceAnnotation implements Node {
+type TraceAnnotation implements Node & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -5838,9 +6858,6 @@ type TraceAnnotation implements Node {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The identifier of the annotation."""
   identifier: String!
@@ -5991,12 +7008,47 @@ type TruncateAgentSessionMutationPayload {
   query: Query!
 }
 
+type TypeSafeAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input TypeSafeAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type TypeSafeClientKwargs {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+input TypeSafeClientKwargsInput {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+type TypeSafeCustomProviderConfig {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethod!
+  typesafeClientKwargs: TypeSafeClientKwargs
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+input TypeSafeCustomProviderConfigInput {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput!
+  typesafeClientKwargs: TypeSafeClientKwargsInput
+}
+
 type UnparsableConfig {
   parseError: String!
 }
 
 type UnparsableSecret {
   parseError: String!
+}
+
+input UnsetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
 }
 
 input UnsetPromptLabelsInput {
@@ -6039,6 +7091,16 @@ input UpdateDatasetCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!]
   description: String
+}
+
+input UpdateDatasetDecisionEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  decisionVersionId: ID
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput
 }
 
 input UpdateDatasetLLMEvaluatorInput {
