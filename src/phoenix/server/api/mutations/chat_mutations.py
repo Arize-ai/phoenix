@@ -149,17 +149,20 @@ async def _evaluate_preview(
 
 
 async def _capture_binding_definition(
-    session: AsyncSession, definition: EvaluatorDefinition, binding_id: int
+    session: AsyncSession, definition: Optional[EvaluatorDefinition], binding_id: int
 ) -> InlineDecisionEvaluatorDefinition:
     """Capture a saved evaluator as a dataset binding, matching what an experiment would run."""
-    if not isinstance(definition, StoredDecisionEvaluatorDefinition):
+    if definition is not None and not isinstance(definition, StoredDecisionEvaluatorDefinition):
         raise BadRequest("datasetEvaluatorId requires a saved decision evaluator")
     binding = await session.get(models.DatasetEvaluators, binding_id)
     if binding is None:
         raise NotFound(f"Dataset evaluator not found: {binding_id}")
-    if binding.evaluator_id != definition.decision_evaluator_id:
+    if (
+        isinstance(definition, StoredDecisionEvaluatorDefinition)
+        and binding.evaluator_id != definition.decision_evaluator_id
+    ):
         raise BadRequest("The dataset evaluator is not bound to the given decision evaluator")
-    judge = await get_decision_evaluator(session, definition.decision_evaluator_id)
+    judge = await get_decision_evaluator(session, binding.evaluator_id)
     try:
         return capture_decision_evaluator_definition(
             judge,
@@ -194,7 +197,11 @@ class ChatCompletionMutationMixin:
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
                 payload_limit_remediation = ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 
-            definition = preview_item.evaluator.to_definition()
+            definition = (
+                preview_item.evaluator.to_definition()
+                if preview_item.evaluator is not None
+                else None
+            )
             binding_id = (
                 _node_id(preview_item.dataset_evaluator_id, "DatasetEvaluator", "dataset evaluator")
                 if preview_item.dataset_evaluator_id is not None
@@ -207,6 +214,8 @@ class ChatCompletionMutationMixin:
             async with info.context.db() as session:
                 if binding_id is not None:
                     definition = await _capture_binding_definition(session, definition, binding_id)
+                if definition is None:
+                    raise BadRequest("Evaluator definition or datasetEvaluatorId is required")
                 evaluator = await build_evaluator_from_definition(
                     definition=definition,
                     session=session,

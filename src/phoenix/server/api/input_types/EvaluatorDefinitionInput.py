@@ -197,7 +197,7 @@ class EvaluatorPreviewsInput:
 class EvaluatorPreviewItemInput:
     """A single evaluator preview request with one or more contexts."""
 
-    evaluator: EvaluatorDefinitionInput
+    evaluator: Optional[EvaluatorDefinitionInput] = None
     context: JSON
     input_mapping: EvaluatorInputMappingInput
     dataset_evaluator_id: Optional[GlobalID] = strawberry.field(
@@ -205,8 +205,7 @@ class EvaluatorPreviewItemInput:
         description=(
             "Preview a saved decision judge as this dataset evaluator binding: it runs under "
             "the binding's name and provenance, using the evaluator's scoring policy. "
-            "Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to "
-            "preview the judge on its own, under its own name and policy."
+            "Omit to preview the judge on its own, under its own name and policy."
         ),
     )
     apply_online_evaluation_limits: bool = strawberry.field(

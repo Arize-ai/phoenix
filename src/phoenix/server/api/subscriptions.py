@@ -365,7 +365,7 @@ async def _resolve_decision_task(
     *,
     info: Info[Context, None],
     session: AsyncSession,
-    target: _DatasetRunTarget,
+    revisions: Sequence[models.DatasetExampleRevision],
     credentials: Sequence[GenerativeCredentialInput],
 ) -> _ResolvedDecisionTask:
     """Check a decision task before any experiment exists.
@@ -393,16 +393,6 @@ async def _resolve_decision_task(
         allowed_provider_names=info.context.allowed_provider_names,
         credentials=credentials,
     )
-    revisions = (
-        await session.scalars(
-            get_dataset_example_revisions(
-                target.dataset_version_id,
-                dataset_id=target.dataset_id,
-                example_ids=target.example_ids,
-                split_ids=target.split_ids,
-            )
-        )
-    ).all()
     failures: list[str] = []
     for revision in revisions:
         try:
@@ -466,12 +456,26 @@ async def _stream_experiments_over_dataset(
         ]
         # A decision task is checked against every example before anything is stored:
         # the client must resolve, and each example must make a request.
+        revisions: Sequence[models.DatasetExampleRevision] = (
+            (
+                await session.scalars(
+                    get_dataset_example_revisions(
+                        target.dataset_version_id,
+                        dataset_id=target.dataset_id,
+                        example_ids=target.example_ids,
+                        split_ids=target.split_ids,
+                    )
+                )
+            ).all()
+            if any(task.decision for task in input.tasks)
+            else ()
+        )
         resolved_decision_tasks = [
             await _resolve_decision_task(
                 task.decision,
                 info=info,
                 session=session,
-                target=target,
+                revisions=revisions,
                 credentials=credentials,
             )
             if task.decision

@@ -31,6 +31,7 @@ class PatchDecisionLabelInput:
     decision_label_id: GlobalID
     name: Optional[str] = None
     description: Optional[str] = None
+    color: Optional[str] = None
 
 
 @strawberry.input
@@ -108,11 +109,15 @@ class DecisionLabelMutationMixin:
                 label_orm.name = input.name
             if input.description is not None:
                 label_orm.description = input.description
+            if input.color is not None:
+                label_orm.color = input.color
 
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("Error patching DecisionLabel. Possibly a name conflict?")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
 
             return DecisionLabelMutationPayload(
                 decision_labels=[DecisionLabel(id=label_orm.id, db_record=label_orm)],
@@ -189,10 +194,10 @@ class DecisionLabelMutationMixin:
         """
         async with info.context.db() as session:
             decision_id = from_global_id_with_expected_type(input.decision_id, Decision.__name__)
-            label_ids = [
+            label_ids = {
                 from_global_id_with_expected_type(decision_label_id, DecisionLabel.__name__)
                 for decision_label_id in input.decision_label_ids
-            ]
+            }
 
             stmt = delete(models.DecisionDecisionLabel).where(
                 (models.DecisionDecisionLabel.decision_id == decision_id)
@@ -201,7 +206,7 @@ class DecisionLabelMutationMixin:
             result = await session.execute(stmt)
 
             if result.rowcount != len(label_ids):  # type: ignore[attr-defined]
-                label_ids_str = ", ".join(str(i) for i in label_ids)
+                label_ids_str = ", ".join(str(i) for i in sorted(label_ids))
                 raise NotFound(
                     f"No association between decision={decision_id} and labels={label_ids_str}."
                 )

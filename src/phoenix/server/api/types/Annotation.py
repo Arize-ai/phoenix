@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .User import User
 
 
+@strawberry.interface
 class AnnotationMetadataMixin:
     async def _metadata(self, info: Info[Context, None]) -> Any:
         raise NotImplementedError

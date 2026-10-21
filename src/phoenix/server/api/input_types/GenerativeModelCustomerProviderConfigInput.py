@@ -24,7 +24,6 @@ from phoenix.db.types.model_provider import (
     TypeSafeClientKwargs,
     TypeSafeCustomProviderConfig,
 )
-from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.RedactedString import RedactedString
@@ -344,28 +343,6 @@ class GenerativeModelCustomerProviderConfigInput:
     aws_bedrock: Optional[AWSBedrockCustomProviderConfigInput] = UNSET
     google_genai: Optional[GoogleGenAICustomProviderConfigInput] = UNSET
     typesafe: Optional[TypeSafeCustomProviderConfigInput] = UNSET
-
-    def __post_init__(self) -> None:
-        if (
-            sum(
-                map(
-                    bool,
-                    [
-                        self.openai,
-                        self.azure_openai,
-                        self.anthropic,
-                        self.aws_bedrock,
-                        self.google_genai,
-                        self.typesafe,
-                    ],
-                )
-            )
-            != 1
-        ):
-            raise BadRequest(
-                "Exactly one of openai, azure_openai, anthropic, aws_bedrock, "
-                "google_genai, typesafe must be provided"
-            )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         """Convert input config to ORM config based on which provider is set."""
