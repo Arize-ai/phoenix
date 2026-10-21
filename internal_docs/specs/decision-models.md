@@ -20,6 +20,14 @@ Before Release](#5-decisions-before-release); the rest of the spec assumes their
 current defaults. The GraphQL catalog, what is built, and the build order come
 last.
 
+This is a working discussion document, not a finalized API reference. §5 holds
+choices we need to make before release; §16 holds the other open design and
+ergonomics questions. The design in §9–15 follows the current defaults so we can
+discuss a concrete proposal without treating those defaults as settled. §17
+reports implementation status, while the appendices explain how the pieces fit
+and illustrate current behavior. Code being built does not close a deliberation,
+and a proposed behavior does not mean it has been implemented or verified.
+
 ## 2. A Decision, End to End
 
 The running example is a `triage` decision over a support ticket. Its version
@@ -60,6 +68,13 @@ name, in Phoenix's vocabulary:
                "probabilities": {"0": 0.1, "1": 0.4, "2": 0.5}}
 }
 ```
+
+This is Phoenix's normalized answer map, as used inside an experiment run's
+`output.task_output`. It is not the literal GraphQL response: GraphQL returns
+an ordered answer list with a `name` on each answer, camelCase fields such as
+`expectedLevel`, and probability lists instead of maps. See
+[Run Output](#131-run-output) for the experiment envelope and
+[GraphQL](#15-graphql) for the run API.
 
 These answers are the output being tested. A second decision can judge them:
 the `triage-accuracy` judge in [Decision Evaluators](#14-decision-evaluators)
@@ -169,10 +184,11 @@ For Phoenix's own (the current default):
   no field for, and OpenAI questions stored as System One lose boolean choice
   values. Storing a vendor's format also means following its changes (System One
   added `legend` and `box`).
-- **One vocabulary everywhere.** `runDecision`, GraphQL, and run outputs use the
-  same types and field names; only serialization differs, with GraphQL listing
-  probabilities in the question's order and run outputs keying them by option. A
-  provider format in run outputs alone would give one answer two vocabularies.
+- **One answer vocabulary.** GraphQL and run outputs describe the same answer
+  concepts, with different representations: GraphQL uses named answers in a
+  list, camelCase fields, and probability lists; run outputs use a map keyed by
+  question name, snake_case fields, and probability maps inside `task_output`.
+  A provider format in run outputs alone would also change the answer vocabulary.
 - **Self-describing.** `predicate` and `probability` say what they are; `noul`
   doesn't.
 - **Adopting a provider format wouldn't remove the reference mismatch.** The
@@ -373,9 +389,10 @@ Pydantic models in `decision_evaluators.py` that both writers build from:
   `type`, a choice's `choices` and a scale's `levels`, since the answer and
   scoring refer to them by value or position only), `answer` (Phoenix's normalized answer, with confidence and
   probabilities), `scoring` (the question's applied scoring settings),
-  `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
-  `source` (evaluator, decision, version, and binding IDs).
-- **Error:** only `status: error` and `source`; the message is the annotation's
+  `requested_model`, `provider`, and optional `resolved_model`,
+  `custom_provider_id`, and `source` (evaluator, decision, version, and binding
+  IDs when available).
+- **Error:** `status: error` and optional `source`; the message is the annotation's
   `error`. Errors the runner records itself (a timeout, or retries exhausted)
   carry the same metadata.
 - **Not recorded:** usage, which stays on the span.
@@ -596,7 +613,8 @@ and the later `#16680` tag hardening.
        `adapt_scoring_policy(version.questions, evaluator.scoring_policy)` at
        read/capture time automatically preserves matching question/choice
        settings and fills defaults for new questions.
-    3. Running and resumed experiments use `experiment_dataset_evaluators.frozen_definition`,
+    3. Running and resumed decision dataset evaluations use
+       `experiment_jobs.decision_evaluator_snapshots`,
        so moving or deleting a tag never mutates an in-flight or historical
        experiment, and online evaluation resolves the tagged (or latest)
        `decision_version_id` + adapted `scoring_policy` into its configuration
@@ -673,34 +691,42 @@ that don't apply here.
 ## 9. Principles
 
 1. **Store Phoenix's own vocabulary; translate at the edge.** The server adapters
-   and the client formatters both translate to provider SDK arguments. Saved
+   translate to provider SDK arguments; the planned client formatters would do
+   the same. Saved
    decision definitions never store provider request bodies; only a run's
-   span keeps the raw bodies (see [Span Contents](#53-span-contents)). The two
-   translations are tested against one shared set of fixtures. This is the
-   current default, under review: see [Answer Format](#51-answer-format) and
+   span keeps the raw bodies (see [Span Contents](#53-span-contents)). When client
+   formatters ship, shared fixtures should keep them aligned with the server
+   adapters. This is the current default, under review: see
+   [Answer Format](#51-answer-format) and
    [Stored Question Format](#52-stored-question-format).
 2. **New types are additive, and old clients fail clearly.** Questions and
-   inputs are JSON discriminated by `type`. Writes are validated strictly. Apps
-   can pin an old `phoenix-client`, so a client that meets a question, input,
+   state variants are JSON discriminated by `type`; inputs are named declarations.
+   Writes are validated strictly. Apps can pin an old `phoenix-client`, so a
+   client that meets a question, input,
    or state type it doesn't know raises a clear "upgrade phoenix-client"
    error. It never drops the question or sends a partial request. A server that
    meets an unknown type (only after a downgrade) fails the read and never
-   rewrites the row.
+   rewrites the row. Stored models also reject unknown fields today. Adding a
+   field therefore needs a compatibility review: an older server may fail to
+   read it, even if an API client could ignore it.
 3. **Check capability at run time.** The adapter rejects what its provider can't
    express, the provider rejects what the model can't do, and both messages
    reach the user.
 4. **Store references, never bytes.** Images and other assets are referenced by
    ID.
-5. **Versions are immutable; tags move.** Apps follow a tag. Experiments copy a
-   version, as prompt tasks do.
+5. **Versions are immutable; tags move.** Apps can follow a tag. Experiments copy
+   a version, as prompt tasks do. Saved decision evaluators currently pin a
+   version ID directly; their promotion workflow is under discussion in §5.8.
 6. **No results table.** A run is a `DECISION` span. Evaluator results are
    annotations. Experiments link to spans.
 7. **Evolve additively, as prompts do.** An existing field never changes its
    meaning; a change adds a type or a field. There is no schema version: a
    format change is a database migration, and a breaking change for clients is
    a new API version.
-8. **Questions are the only schema.** Questions define the outputs' schema;
-   nothing else restates their names, choices, or levels.
+8. **Questions are the only authored output schema.** Output configs are derived
+   from questions and scoring settings, not authored as a competing definition.
+   Experiment snapshots copy definitions for reproducibility; annotations retain
+   the asked choices and levels so historical answers remain interpretable.
 
 ## 10. Data Model
 
@@ -749,6 +775,11 @@ Apps pass them by name, and experiments fill them from each dataset example
 must pass exactly the declared inputs; a missing or undeclared one fails before
 anything reaches the provider. Any JSON value is allowed. `json_schema` only
 describes the value for the playground form and is not enforced on a call.
+There must be at least one input, with nonblank, unique names. An `input` state's
+name must be declared. Input values may be any JSON, but the constructed state
+must be text, an object, or an array: passing a number, boolean, or null directly
+as the whole state is rejected. Rendering those values into text is allowed.
+Empty or whitespace-only text state is rejected.
 
 The state sent to the model is built from those inputs:
 
@@ -784,7 +815,7 @@ the rules for substituting into JSON never have to exist.
     "levels": [{ "label": "low", "description": "..." },
                { "label": "medium", "description": "..." },
                { "label": "high", "description": "..." }] }
-                                                      // 2–10 levels; index = level
+                                                      // 2–10 levels; values are indices 0, 1, 2
 ]
 ```
 
@@ -800,7 +831,9 @@ image input:
   with earlier runs and with app code.
 - **Write-time rules.** Question names are unique within a version, choice
   values are unique within a question, a choice has 2–255 options, and a scale
-  has 2–10 levels. A list loses the key uniqueness a JSON object would give, so
+  has 2–10 levels. At least one question is required; names, instructions,
+  choice values, and level labels cannot be blank. A list loses the key
+  uniqueness a JSON object would give, so
   uniqueness is checked explicitly. There is no limit on the number of
   questions.
   - *Where the limits come from:* both providers document 2–255 choices
@@ -819,8 +852,10 @@ image input:
   already has a `score`.
 - **Answer fields say what the number is.** A predicate answer has
   `probability`, the chance it's true. A scale answer has `expected_level`,
-  the probability-weighted average of the levels, which can fall between
-  levels (1.7, say); it is never a discrete level.
+  the probability-weighted mean of zero-based level indices. With three levels
+  it ranges from 0 to 2, including the endpoints, and can fall between levels
+  (1.7, say). It need not identify one discrete level. Scale probability maps
+  use those indices as keys; JSON object keys are strings (`"0"`, `"1"`, `"2"`).
 - **Predicate criteria** describe the true and false outcomes separately,
   matching TypeSafe's `NoulCriteria`. OpenAI's predicate has no criteria field,
   so its translation folds them into the instructions.
@@ -965,8 +1000,17 @@ it is an [open question](#16-open-questions).
 
 ## 12. Execution in Phoenix
 
-Unsaved playground runs and saved versions take the same `DecisionVersionInput`,
-so running and saving share one typed shape.
+Running and saving share typed input declarations, state construction, and
+questions, but take different API inputs. `DecisionVersionInput` stores the
+definition and model/provider selection. `RunDecisionInput` adds a connection
+and this call's `inputValues`; `RunDecisionVersionInput` takes a saved version ID,
+input values, and optional credentials and `baseUrl`.
+
+Both run mutations use the existing mutation permission checks. Problems found
+while validating the definition, inputs, or connection produce GraphQL errors.
+Provider failures handled by the decision client return `result: null` and a
+payload `error`, with a recorded span when available. The distinction matters
+for a playground that needs to keep a failed run visible alongside its trace.
 
 1. Take a decision version (saved, or an unsaved draft) and its inputs.
 2. Validate the inputs and build the state.
@@ -1003,6 +1047,11 @@ Only the declared inputs are read from the object at `inputValuesPath`, so an
 example may carry other fields (a benchmark's questions, say) beside them. There
 is no per-input mapping: input names must match the example's field names, as a
 prompt's template variables must.
+
+Omitting `inputValuesPath` uses `input`. An explicit empty path uses the whole
+example context `{input, reference, metadata}`; declared names then select keys
+from that object. It does not turn an input name into a dotted path or an
+independent mapping expression.
 
 Decision tasks require at least one fixed question. Per-example question loading
 is not supported: the API, saved decisions, and playground use the same fixed
@@ -1148,7 +1197,10 @@ binding stores no `output_configs`: they are derived from the judge whenever the
 are read; how requests may still send them is under [Output Configs and
 Scoring Policies](#57-output-configs-and-scoring-policies).
 
-The policy's GraphQL shape is under [GraphQL](#15-graphql).
+On an update, omitting the scoring policy carries it to the selected version:
+settings for removed questions or choices are dropped and new questions receive
+defaults. An explicitly supplied policy must fit that version; explicit null
+is rejected. The policy's GraphQL shape is under [GraphQL](#15-graphql).
 
 ### 14.4 Compatible Updates
 
@@ -1161,14 +1213,20 @@ score. Input JSON schemas are descriptive, so changing them is compatible. A
 version of another decision can never be pinned. Compatible changes affect future
 execution snapshots.
 
+**Still to settle:** the current dataset-binding edit path exempts the binding
+being edited from that compatibility check and saves its mapping in the same
+operation; other dataset and project bindings still block a breaking repin.
+Should that count as an explicit migration, or should this path also require a
+separate evaluator? A new mapping alone does not settle historical question and
+annotation identity. This is part of the continuity discussion in §16.
+
 ### 14.5 Answer Mapping
 
 Derive one `OutputConfigType` per question from the selected version, then apply
 the effective scoring policy. Annotation names use `result_annotation_names`:
 one question writes under the binding's name, several under
-`{binding}.{question}`. The runner's rule for other evaluators, that a lone output
-writes under its config's name, does not apply: a decision's configs are named
-after its questions, and two bindings of one judge must not share a name.
+`{binding}.{question}`. This uses the shared evaluator naming helper; two
+bindings of one judge must not share annotation names.
 Changing between one and several questions changes annotation names, so it is a
 breaking bound update, even if an old question remains.
 
@@ -1210,10 +1268,12 @@ Provider failures, timeouts, and invalid responses remain errors. Missing, extra
 or wrong-type answers fail the invocation under existing adapter validation;
 this feature does not require batch splitting or malformed-answer salvage.
 Retryable provider failures must reach the runner's retry handler. A judge
-returns a failure as an error result with `error_exc` attached, and the runner
-records such a result as a failure without retrying. So the runner re-raises a
-decision judge's returned rate-limit or transient failure, as classified by the
-judge's own client. Retries then differ by where a judge runs:
+can return a failure as an error result with `error_exc` attached. Both
+`EvalWorkItem` and `EvaluatorTaskWorkItem` inspect those exceptions and re-raise
+rate-limit or transient failures, as classified by the judge's own provider
+client, before persisting results. This applies to LLM and decision judges.
+Permanent returned failures are recorded without retrying. Retries then differ
+by where a judge runs:
 
 - **A decision judge in an experiment or online evaluation:** `DecisionClient`
   always disables provider SDK retries (`max_retries=0`, matching
@@ -1223,9 +1283,9 @@ judge's own client. Retries then differ by where a judge runs:
 - **A decision judge in a preview:** `DecisionClient` still runs with
   `max_retries=0` and nothing retries a preview, so a rate limit or transient
   provider failure surfaces immediately to the caller.
-- **An LLM judge:** it returns failures the same way, but the experiment runner
-  doesn't re-raise them, so it is recorded on the first failure. Giving it the
-  same retries is a separate change.
+- **An LLM judge in an experiment:** returned rate-limit and transient failures
+  reach the same runner retry handlers as decision failures. The runner owns
+  retry backoff; there is no decision-only retry exception.
 
 Each annotation records, under `metadata.decision`, its outcome status, the
 question's identity and type, the normalized answer (including native
@@ -1239,8 +1299,10 @@ than being repeated per annotation. The current shape is provisional; see
 
 Freeze a dataset evaluator's resolved decision definition/version, effective
 scoring policy, derived output configs, input mapping, binding name and source
-IDs when attaching it to an experiment. Store an execution snapshot on
-the experiment's evaluator binding. Persist no credentials; resolve them through
+IDs when attaching it to an experiment. The current implementation stores these
+snapshots in `ExperimentJob.decision_evaluator_snapshots`; evaluator-as-task
+definitions are stored separately in `ExperimentEvaluatorTask.definition`.
+Persist no credentials; resolve them through
 the connection system at execution time. Legacy experiments without a snapshot
 retain their existing semantics rather than claiming reconstructable history.
 
@@ -1297,7 +1359,7 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
     `text: {template, templateFormat}`, or `input: name`), `inputValues`, and
     `questions`, returning `result`
     (`model`, `answers`, `usage`), `span`, and `error`.
-  - `runDecisionVersion(input: {decisionVersionId, inputValues, credentials})`
+  - `runDecisionVersion(input: {decisionVersionId, inputValues, credentials?, baseUrl?})`
    : runs a saved version as saved, its definition, model, and provider
     included, so a caller doesn't copy the version into `runDecision`.
     `credentials` and `baseUrl` serve a version on a built-in provider (a
@@ -1347,8 +1409,9 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   select variant fields through inline fragments. Output questions and choice
   scores follow the decision's declared order, since the stored map's key order
   differs across databases. Reject duplicate question names and choice-score
-  entries; a validation error names the question. Omitting a patch policy
-  preserves it. This GraphQL representation maps to the existing stored policy
+  entries; a validation error names the question. An omitted patch policy is
+  adapted to the selected version; explicit null is rejected (see §14.3).
+  This GraphQL representation maps to the existing stored policy
   format without changing it.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
   `prompt` and `evaluator`; see [Experiments](#13-experiments).
@@ -1358,51 +1421,41 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
 - **Span attribute for the version ID.** Whether OpenInference gets a
   `decision.version_id`-style attribute, or apps put it in span metadata the way
   prompt IDs are carried today. Until it's settled, `runDecision`,
-  `runDecisionVersion`, and decision experiments record no version ID, so traces
-  can't be grouped by version.
-- **What loading a DECISION span recovers.** The playground loads a DECISION
-  span as it does an LLM span: it reads the questions and the state from the
-  provider body in `input.value`, the model from `decision.request.model_name`,
-  the provider from `decision.provider` (or `decision.system`), and shows the
-  recorded output. Because the span holds already-rendered text and JSON, replay
-  sets the playground's template format to `None` so literal braces in the
-  recorded request (such as serialized JSON objects) are not re-interpreted as
-  template variables on re-run. Five things are lost:
-  - The template and inputs. An LLM span carries `llm.prompt_template.*`, so
-    loading it restores the template's variables. A DECISION span holds only
-    the rendered state, so the playground opens on the final text (for OpenAI,
-    including structured state serialized to text) or JSON (for TypeSafe
-    structured state), not the version's template and inputs. It can't run over
-    a dataset, and saving it wouldn't reproduce the version. Recording the state
-    template and input values on the span would fix this, as OpenInference does
-    for prompts.
-  - Provider-folded question fields. OpenAI spans have predicate `criteria`
-    already appended to `instructions`, and TypeSafe spans have scale level
-    descriptions without separate short `label`s. Re-running on the same
-    provider sends the same wire payload, but the separate editable fields are
-    lost if saved or switched to the other provider.
-  - The saved version, until the span records its ID (the question above).
-  - Spans in other formats. Only OpenAI and TypeSafe bodies parse, so a span an
-    app instruments for another provider doesn't load.
-  - The custom provider. The span records its name, not its ID, so the user
-    picks it from the model menu.
+  `runDecisionVersion`, and decision experiments record no version ID on their
+  DECISION spans, so traces cannot be grouped by version from span attributes.
+  Experiment task rows already keep the saved version ID for provenance.
+- **What loading a DECISION span should recover.** Is replay meant to reproduce
+  the recorded provider call, or restore an editable Phoenix definition that can
+  be saved, run over a dataset, or switched to another provider? Current replay
+  reads the rendered OpenAI/TypeSafe body and disables templating to preserve
+  literal braces. It cannot recover the original template and inputs, fields
+  folded away by an adapter, or the saved version. Custom providers need to be
+  selected again because the recorded name is not their database ID.
 
-  The first, second, and fourth are part of [Span Contents](#53-span-contents), and are
-  decided by the same deadline, since older traces keep whatever spans hold.
-- **Renaming questions and annotation naming continuity.** Whether a rename
-  should create a new decision, or keep the decision and mark earlier runs as
-  answering a different question. Across all evaluator types,
+  Restoring those things needs more span data, not more reverse heuristics.
+  Decide the desired experience with [Span Contents](#53-span-contents),
+  including which neutral fields and version identity apps should record.
+  Legacy raw-only spans still need a useful fallback. The choice is open; its
+  deadline is before app instrumentation starts producing traces we keep.
+- **Renaming questions and annotation naming continuity.** Renaming a question
+  creates a new version of the same decision; how should the UI warn that app
+  output keys and comparisons with earlier runs change? Separately, should we
+  support explicit migrations of bound evaluators across question changes,
+  including the dataset-edit exception in §14.4? Across all evaluator types,
   `result_annotation_names` writes a single output under `{binding}` and
   multiple outputs under `{binding}.{output}`, so changing a bound decision
-  between one and several questions is rejected as a breaking update
+  between one and several questions is treated as a breaking update
   ([Answer Mapping](#145-answer-mapping)). Supporting seamless 1-to-many
   question evolution in historical metrics and experiment columns would require
   a cross-evaluator annotation identity or version-aware migration contract,
   rather than a decision-only naming rule.
-- **Retries for LLM judges.** An LLM judge is recorded on its first returned
-  failure, while a decision judge is retried (see [Refusals, Errors, and
-  Metadata](#146-refusals-errors-and-metadata)). Extending the retries to LLM judges
-  changes existing behavior, so it is a separate change.
+- **The evaluator error contract.** LLM and decision judges both return
+  `error_exc` with failed results, and experiment work items inspect it to route
+  retryable failures through the common retry handlers ([Refusals, Errors, and
+  Metadata](#146-refusals-errors-and-metadata)). Whether evaluators should instead
+  raise invocation failures, or keep returned errors for per-output isolation,
+  remains a shared evaluator design question. It must account for previews,
+  partial results, online failure classification, and terminal refusals.
 - **A deleted custom provider, for prompts.** Decisions are settled: deleting
   a custom provider that a decision version or a decision experiment task uses
   is refused, and an evaluator snapshot whose provider is gone fails with not found
@@ -1431,46 +1484,9 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   and how an ad-hoc draft becomes a reusable decision. The backend state variants
   (`text`, `input`, `object`) define execution semantics; they do not require
   matching UI modes. The current four-mode editor is an implementation to
-  evaluate, not the settled product design. Its current behavior is:
-  - **Text** renders a string template (`text`), or sends literal text when
-    template format is `None` or no variables are referenced. Even a
-    single-variable template such as `{{ticket}}` stays `text` and is rendered
-    to a string.
-  - **JSON** supplies a concrete literal JSON value for a one-off playground
-    run: a non-empty object is sent as `object`, an array or `{}` unchanged as
-    `input`, and a JSON string as text. It performs no template substitution
-    under any template format (matching [Inputs and State](#101-inputs-and-state),
-    "There is no JSON template") and cannot be saved or run over a dataset.
-  - **Input** names a single declared input (`input`), passes its value through
-    unchanged, and is how a saved `input` state loads under any template format.
-  - **Inputs** lists comma-separated input names (`object`), builds an object
-    from their values in the Inputs panel, and is how a saved `object` state
-    loads under any template format.
-
-  In the current UI, the state editor mode and template format control different things. **Text,
-  JSON, Input, and Inputs choose how to construct the state. Mustache,
-  F-string, and None choose whether and how to substitute template variables in
-  a Text state.** Question instructions and criteria are always literal across
-  ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
-
-  | State editor mode | Mustache | F-string | None |
-  |---|---|---|---|
-  | **Text** | Substitutes `{{name}}` in the text template (`text`). | Substitutes `{name}` in the text template (`text`). | Uses the text literally, including any placeholder braces. |
-  | **JSON** | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. |
-  | **Input** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
-  | **Inputs** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
-
-  For example, Text `Reference: {{reference}}` with Mustache and input
-  `reference = A` produces the string `Reference: A`. Input `ticket` sends the
-  caller's `ticket` value unchanged without wrapping it in an outer object.
-  Inputs `reference, output`, with values `A` and `B`, produces
-  `{"reference": "A", "output": "B"}` under all three template settings.
-  See [State Construction Walkthroughs](#20-appendix-state-construction-walkthroughs)
-  for nested input values, the wire payload, and a comparison with Text and JSON.
-
-  Loading a saved version preserves each input's `description`, `json_schema`,
-  and any explicitly declared section-scoped inputs when re-saved. Deliberate
-  the following together as one authoring workflow:
+  evaluate, not the settled product design.
+  See [Current Editor Behavior](#current-editor-behavior) for the existing modes
+  and examples. Deliberate the following together as one authoring workflow:
   - **The overall interaction model.** Should users choose among four modes,
     start with a concrete example and then make it reusable, or declare inputs
     first and choose how to construct state from them? Four modes expose the
@@ -1564,8 +1580,8 @@ identified. Optional enhancements beyond completing these steps are listed under
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
-| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab (`Text`, `JSON`, `Input`, `Inputs` state modes), custom providers, Ollama, free-text model names, span replay (with `templateFormat = None`), and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. An explicit text/JSON value control in the playground Inputs panel so ad-hoc `Input` and `Inputs` runs can supply structured values without a dataset. |
-| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load (preserving `Text`, `Input`, and `Inputs` state variants and existing input descriptions/schemas), the decisions library, version pages and diffs, labels, cloning. | UI controls in the playground for authoring new input descriptions, JSON schemas, or section-scoped input declarations directly without the API. |
+| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab (`Text`, `JSON`, `Input`, `Inputs` state modes), custom providers, Ollama, free-text model names, span replay (with `templateFormat = None`), and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. A way to supply structured example values without a dataset; the editor interaction is under [state-authoring deliberation](#16-open-questions). |
+| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load (preserving `Text`, `Input`, and `Inputs` state variants and existing input descriptions/schemas), the decisions library, version pages and diffs, labels, cloning. | A way to author input descriptions, JSON schemas, and section-scoped declarations without the API; design this with the overall [state-authoring workflow](#16-open-questions). |
 | **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; recording the saved decision version on app-generated spans; resolve [whether Phoenix translates](#55-translating-for-apps). |
 | **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts in their raw attributes. Standard token fields and aggregates still read LLM counters. | Token fields for individual spans and their descendants; totals on traces, experiment runs, sessions, and projects; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#54-reference-answers-in-datasets). |
 | **Images, message inputs, and spatial answers** (chat: messages with image inputs) | Image evidence can support typed spatial questions with bounding-box answers. | Not implemented. | Message and image inputs, including asset handling and message-based state; bounding-box questions and answer rendering. |
@@ -1575,8 +1591,8 @@ identified. Optional enhancements beyond completing these steps are listed under
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
 | **Dataset evaluators**, milestone 1 (chat: saved LLM evaluators using prompt versions and tags; dataset bindings) | Projects typed answers into scores and retains probabilities and per-question refusals. | Server: saved decision evaluators with pinned versions, scoring policies, and derived outputs, exposed through GraphQL and REST; dataset input mappings; previews under the evaluator's own name or a binding's name and provenance; captured configurations, evaluation resume, and refusals. UI: the global evaluators table; create, attach, edit, mapping, scoring, preview, and details; refusal and uncertainty displays on experiment annotations. | No remaining work identified. |
-| **Online evaluation**, milestone 2 (chat: project bindings; sweeper, producer, executor) | Applies decision questions and scoring policies to live spans, traces, and sessions. | Server: REST project bindings with input validation and compatibility checks; configuration identity pins the decision version, scoring policy, and provider revision. Execution uses server credentials, enforces the request-size limit, handles refusals, retries transient provider failures, and records timeouts. GraphQL exposes typed decision results on span, trace, and session annotations. | GraphQL create/update mutations; project evaluator listing, overview, creation, and editing for decisions. Fetch decision metadata in span, trace, and session annotation queries and reuse the existing renderer. Enforce the online request-size limit in previews that simulate online evaluation; decision previews currently omit this check. |
-| **Calibration** in the evaluator playground, milestone 3 (chat: evaluator tasks against expected outputs) | Compares projected decision judgments with expected outputs to assess question and scoring choices. | Server: saved evaluator references resolve to captured decision definitions; experiments store those definitions and reconstruct them on start or resume; GraphQL exposes the captured definitions. | An API input for submitting an unsaved decision evaluator to previews or experiments. Playground authoring of unsaved evaluators, loading saved decision evaluators, and reopening decision evaluator experiments. |
+| **Online evaluation**, milestone 2 (chat: project bindings; sweeper, producer, executor) | Applies decision questions and scoring policies to live spans, traces, and sessions. | Server: REST project bindings with input validation and compatibility checks; configuration identity pins the decision version, scoring policy, and provider revision. Execution uses server credentials, enforces the request-size limit, handles refusals, retries transient provider failures, and records timeouts. GraphQL exposes typed decision results on span, trace, and session annotations. Previews with `applyOnlineEvaluationLimits` pass the online request-size cap to decision evaluators. | GraphQL create/update mutations; project evaluator listing, overview, creation, and editing for decisions. Fetch decision metadata in span, trace, and session annotation queries and reuse the existing renderer. |
+| **Calibration** in the evaluator playground, milestone 3 (chat: evaluator tasks against expected outputs) | Compares projected decision judgments with expected outputs to assess question and scoring choices. | Server: `EvaluatorDefinitionInput` accepts saved decision evaluator references and `inlineDecisionEvaluator` for previews and experiments; experiments capture definitions and reconstruct them on start or resume; GraphQL exposes the captured definitions. | Playground authoring of unsaved evaluators, loading saved decision evaluators, and reopening decision evaluator experiments. Extend evaluator-task source inputs to accept decision evaluator/version IDs and preserve captured decision provenance when a binding source is supplied. Verify decision evaluator-task execution and resume, including refusals and provider failures. |
 
 ### 17.3 Additional Planned Work
 
@@ -1600,9 +1616,10 @@ These optional enhancements are beyond the requirements tracked in Missing:
   [open question](#16-open-questions).
 - **The agent.** Not yet: its playground and experiment tools don't know
   decision panels or runs.
-- **Before shipping:** the [decisions before release](#5-decisions-before-release), to be
-  decided as a team, and the PostgreSQL migration and tests, which have run only
-  on SQLite.
+- **Before shipping:** resolve the [decisions before release](#5-decisions-before-release)
+  as a team and record PostgreSQL migration/test results. This document records
+  SQLite verification; it does not establish whether CI or another run has
+  verified PostgreSQL. The implementation status above is not a verification log.
 - **Renaming questions** ([an open question](#16-open-questions)) decides how the
   UI flags a rename; the tables don't depend on it, since a rename is a new
   version.
@@ -1648,55 +1665,50 @@ specified above; this is the checklist the code is held to.
 
 ### 19.1 Runtime and Integration Points
 
-Implement one `DecisionEvaluator(BaseEvaluator)` runtime with shared output
-schema derivation and answer scoring. Use it from saved-row loaders, previews,
-experiment reconstruction, and online hydration. Provider translation remains in
-`decision_clients.py`; do not reuse the chat evaluator's tool validation.
+One `DecisionEvaluator(BaseEvaluator)` runtime handles output derivation and
+answer scoring across previews, experiments, and online evaluation. These notes
+explain the integration points and behavior to preserve when changing them;
+[Implementation Status](#17-implementation-status) tracks the remaining work.
 
-- **Persistence.** Add the joined evaluator subtype, pinned version reference,
-  scoring policy, and experiment snapshots. Keep
-  deletion and concurrent edits consistent with existing evaluator services and
-  lock ordering. Extend
-  `evaluators.kind`; milestone 3 also extends
-  `experiment_evaluator_tasks.evaluator_kind`. Existing annotation kinds remain
-  unchanged because model judgments use `LLM`.
-- **Discovery and APIs.** Extend GraphQL types, enums, node resolution, queries,
-  dataset/project fields and dataloaders; evaluator CRUD and binding services;
-  REST discriminator unions, kind-keyed maps and serializers. Generic reads must
-  include the subtype even before every authoring surface is available.
-- **Resolved configs.** Replace assumptions that every evaluator ORM subtype
-  stores `.output_configs` with a shared effective-config resolver, including
-  primary-result selection, distributions, comparisons and result views.
-- **Experiments.** Extend dataset evaluator loading and `EvalWorkItem` first;
-  add inline definitions, provenance and `EvaluatorTaskWorkItem` in milestone 3.
-  Audit rate-limit, retry, timeout and error paths: current LLM-only checks would
-  otherwise leave decision judges unthrottled or mark errors as `CODE`.
-- **Retry ownership.** Use the decision client's rate-limit key and failure
-  classifiers. Disable provider SDK retries on `DecisionClient` (`max_retries=0`),
-  propagate cancellation, and make outbound calls without holding a database
-  session.
-- **Tracing.** Keep an EVALUATOR root with a child DECISION span. The client's
-  current forced detached root must become composable; retain standalone-run
-  behavior and centralized answer validation/accounting. Accept a common OTel
-  tracer so no-op previews work. Preserve failed/cancelled traces and result links.
-- **Connections.** A deleted custom provider must make its saved definition
-  unavailable or be blocked from deletion; never fall back to a built-in host.
-  An execution snapshot captures the evaluator configuration, not an external service.
-- **Frontend.** Add evaluator kind/discovery and dataset create/edit/attach flows,
-  mapping, scoring, preview and experiment result details in milestone 1. Reuse
-  decision editors and annotation views without chat/tool assumptions. Show
-  uncertainty, refusal status, coverage and trace links. Calibration and project
-  flows follow in their milestones.
+- **Persistence.** The evaluator subtype stores a direct version pin and scoring
+  policy. Attached decision judges have execution snapshots; calibration tasks
+  store their definitions separately. Definition edits and deletion guards use
+  the shared evaluator services and lock ordering. Annotation kind remains
+  `LLM`, since these are model judgments.
+- **Discovery and APIs.** GraphQL, REST, node resolution, and dataloaders expose
+  decision evaluators even where authoring UI is incomplete. Keep those reads
+  usable as project and calibration authoring are added.
+- **Resolved configs.** Decision output configs are derived, not a stored second
+  output schema. Result selection, distributions, comparisons, and annotation
+  views need effective configs regardless of where an evaluator obtains them.
+- **Experiments.** Attached judges run through `EvalWorkItem`; calibration uses
+  `EvaluatorTaskWorkItem`. Inline decision definitions and frozen-definition
+  reconstruction already exist. Remaining provenance and frontend work should
+  use those paths, with tests for the distinct input contexts and resume behavior.
+- **Retry ownership.** Work items use the provider client's rate-limit key and
+  failure classifiers. Provider SDK retries are disabled so runner backoff does
+  not stack with SDK backoff. Preserve cancellation propagation and avoid
+  holding a database session during provider calls.
+- **Tracing.** An evaluator emits an EVALUATOR root with a child DECISION span;
+  standalone decision runs remain detached. The runtime accepts an OTel tracer
+  so previews can use a no-op tracer. Preserve validation, accounting, terminal
+  error metadata, and links from results to recorded traces.
+- **Connections.** Deleted custom providers fail clearly or are blocked from
+  deletion; they never trigger a fallback to a built-in host. An execution
+  snapshot captures configuration, not the continued availability of a service.
+- **Frontend.** Dataset authoring and experiment decision details already use
+  the shared editors and answer renderer. Project and calibration flows still
+  need their own authoring and loading work; reuse those pieces without assuming
+  that a decision is a chat prompt or a tool definition.
 
-For online evaluation, extend subtype loads in `sweeper`, `producer`, `executor`
-and queries, project binding services, version resolution and hydration. Include
-resolved version, effective policy/configs/mapping, and custom-provider revision
-in the configuration fingerprint. Execute that resolved snapshot rather than
-rereading the live evaluator. Extend provider-transient classification and consumer
-timeout categories, which currently special-case `LLM`. Enforce a rendered
-state-and-questions byte cap, including previews that simulate online limits.
-Reuse queue/admission/lease machinery, trace-project routing and evaluator-traffic
-exclusion; a new queue or consumer is unnecessary.
+Online evaluation resolves the selected version, effective policy/configs,
+mapping, and custom-provider revision into its configuration fingerprint. It
+executes that resolved configuration, not a fresh read of the live evaluator.
+Scheduling and publication use the existing sweeper, producer, executor, and
+claim/admission machinery. The rendered state-and-questions byte cap also applies
+to previews that request online limits. Project UI work should preserve these
+behaviors, including transient-error classification and evaluator-traffic
+exclusion, rather than introduce a separate decision queue or consumer.
 
 ### 19.2 Completion and Verification
 
@@ -1725,8 +1737,9 @@ hydration under concurrent updates, atomic publication including refusals,
 health/result views, and protection from recursive evaluator traffic.
 
 Milestone 3 completes unsaved decision evaluator submission and playground
-authoring, loading, and experiment reopening. The server already captures saved
-evaluator definitions and reconstructs them for execution. Verify that previews
+authoring, loading, and experiment reopening. The server already accepts inline
+decision evaluator definitions, captures saved evaluator definitions, and
+reconstructs them for execution. Verify that previews
 and evaluator-as-task experiments use the same definition, scoring, and input
 context, including after resume.
 
@@ -1734,11 +1747,53 @@ The complete feature includes all three milestones.
 
 ## 20. Appendix: State Construction Walkthroughs
 
-These examples follow the current behavior in the
-[playground matrix](#16-open-questions). They distinguish the editor's state mode,
-Phoenix's GraphQL run input, and the final state sent through a provider adapter.
-GraphQL snippets are excerpts: model configuration and question definitions are
-omitted so the state construction is visible.
+These examples describe the current implementation as material for the
+[state-authoring discussion](#16-open-questions), not a commitment to four editor
+modes. They distinguish the editor's state mode, Phoenix's GraphQL run input,
+and the final state sent through a provider adapter. GraphQL snippets are
+excerpts: model configuration and question definitions are omitted so the state
+construction is visible.
+
+### Current Editor Behavior
+
+- **Text** renders a string template (`text`), or sends literal text when
+  template format is `None` or no variables are referenced. Even a
+  single-variable template such as `{{ticket}}` stays `text` and is rendered
+  to a string.
+- **JSON** supplies a concrete literal JSON value for a one-off playground
+  run: a non-empty object is sent as `object`, an array or `{}` unchanged as
+  `input`, and a JSON string as text. It performs no template substitution
+  under any template format (matching [Inputs and State](#101-inputs-and-state),
+  "There is no JSON template") and cannot be saved or run over a dataset.
+- **Input** names a single declared input (`input`), passes its value through
+  unchanged, and is how a saved `input` state loads under any template format.
+- **Inputs** lists comma-separated input names (`object`), builds an object
+  from their values in the Inputs panel, and is how a saved `object` state
+  loads under any template format.
+
+In the current UI, state mode and template format control different things.
+**Text, JSON, Input, and Inputs choose how to construct the state. Mustache,
+F-string, and None choose whether and how to substitute template variables in
+a Text state.** Question instructions and criteria are always literal across
+ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
+
+| State editor mode | Mustache | F-string | None |
+|---|---|---|---|
+| **Text** | Substitutes `{{name}}` in the text template (`text`). | Substitutes `{name}` in the text template (`text`). | Uses the text literally, including any placeholder braces. |
+| **JSON** | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. |
+| **Input** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
+| **Inputs** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
+
+For example, Text `Reference: {{reference}}` with Mustache and input
+`reference = A` produces the string `Reference: A`. Input `ticket` sends the
+caller's `ticket` value unchanged without wrapping it in an outer object.
+Inputs `reference, output`, with values `A` and `B`, produces
+`{"reference": "A", "output": "B"}` under all three template settings.
+
+Loading a saved version preserves existing input descriptions, JSON schemas,
+and explicitly declared additional inputs, including section-scoped inputs.
+Those declarations and example values still need better authoring controls;
+see the ergonomics discussion in §16.
 
 ### 20.1 Inputs: Preserve a Nested Ticket and Policy
 
