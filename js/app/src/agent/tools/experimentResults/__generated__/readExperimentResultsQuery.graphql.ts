@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4a76b19030ec432c280e1c74dea7afe3>>
+ * @generated SignedSource<<2aef30d9fee261b885f243750b17f24f>>
  * @lightSyntaxTransform
  */
 
@@ -34,6 +34,9 @@ export type readExperimentResultsQuery$data = {
     readonly id: string;
     readonly job: {
       readonly status: ExperimentJobStatus;
+      readonly taskConfig: {
+        readonly __typename: string;
+      } | null;
     } | null;
     readonly name: string;
     readonly runCount: number;
@@ -54,9 +57,16 @@ export type readExperimentResultsQuery$data = {
           readonly example: {
             readonly id: string;
             readonly revision: {
+              readonly expectedOutputs: ReadonlyArray<{
+                readonly annotationName: string;
+                readonly explanation: string | null;
+                readonly label: string | null;
+                readonly score: number | null;
+              }>;
               readonly input: any;
               readonly metadata: any;
               readonly output: any;
+              readonly revisionId: string;
             };
           };
           readonly id: string;
@@ -191,18 +201,19 @@ v10 = {
 v11 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
   "concreteType": "ExperimentAnnotationSummary",
   "kind": "LinkedField",
   "name": "annotationSummaries",
   "plural": true,
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "annotationName",
-      "storageKey": null
-    },
+    (v11/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -227,56 +238,56 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = [
+v13 = [
   {
     "kind": "Variable",
     "name": "first",
     "variableName": "first"
   }
 ],
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "output",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "error",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "concreteType": "DatasetExample",
@@ -297,15 +308,37 @@ v19 = {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "revisionId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "input",
           "storageKey": null
         },
-        (v13/*:: as any*/),
+        (v14/*:: as any*/),
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
           "name": "metadata",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DatasetExampleExpectedOutput",
+          "kind": "LinkedField",
+          "name": "expectedOutputs",
+          "plural": true,
+          "selections": [
+            (v11/*:: as any*/),
+            (v17/*:: as any*/),
+            (v18/*:: as any*/),
+            (v19/*:: as any*/)
+          ],
           "storageKey": null
         }
       ],
@@ -347,15 +380,27 @@ return {
                 "name": "job",
                 "plural": false,
                 "selections": [
-                  (v9/*:: as any*/)
+                  (v9/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "taskConfig",
+                    "plural": false,
+                    "selections": [
+                      (v2/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
               (v10/*:: as any*/),
-              (v11/*:: as any*/),
+              (v12/*:: as any*/),
               {
                 "alias": null,
-                "args": (v12/*:: as any*/),
+                "args": (v13/*:: as any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "runs",
@@ -378,9 +423,9 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*:: as any*/),
-                          (v13/*:: as any*/),
                           (v14/*:: as any*/),
                           (v15/*:: as any*/),
+                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -406,9 +451,9 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v4/*:: as any*/),
-                                      (v16/*:: as any*/),
                                       (v17/*:: as any*/),
-                                      (v18/*:: as any*/)
+                                      (v18/*:: as any*/),
+                                      (v19/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -418,7 +463,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v19/*:: as any*/)
+                          (v20/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -472,15 +517,35 @@ return {
                 "plural": false,
                 "selections": [
                   (v9/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "taskConfig",
+                    "plural": false,
+                    "selections": [
+                      (v2/*:: as any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v3/*:: as any*/)
+                        ],
+                        "type": "Node",
+                        "abstractKey": "__isNode"
+                      }
+                    ],
+                    "storageKey": null
+                  },
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
               },
               (v10/*:: as any*/),
-              (v11/*:: as any*/),
+              (v12/*:: as any*/),
               {
                 "alias": null,
-                "args": (v12/*:: as any*/),
+                "args": (v13/*:: as any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "runs",
@@ -503,9 +568,9 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*:: as any*/),
-                          (v13/*:: as any*/),
                           (v14/*:: as any*/),
                           (v15/*:: as any*/),
+                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -531,9 +596,9 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v4/*:: as any*/),
-                                      (v16/*:: as any*/),
                                       (v17/*:: as any*/),
                                       (v18/*:: as any*/),
+                                      (v19/*:: as any*/),
                                       (v3/*:: as any*/)
                                     ],
                                     "storageKey": null
@@ -544,7 +609,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v19/*:: as any*/)
+                          (v20/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -564,16 +629,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca9a529e32db009cb9760086675d8f3a",
+    "cacheID": "3b16f6d8d98a59b866f4b48c5ce909bf",
     "id": null,
     "metadata": {},
     "name": "readExperimentResultsQuery",
     "operationKind": "query",
-    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                input\n                output\n                metadata\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        taskConfig {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                revisionId\n                input\n                output\n                metadata\n                expectedOutputs {\n                  annotationName\n                  label\n                  score\n                  explanation\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fa9a350a6c360b7d6ebf99c8e4904c8f";
+(node as any).hash = "bfa1796028fc5bcf3d43fd5b17881227";
 
 export default node;

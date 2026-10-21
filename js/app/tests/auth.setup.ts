@@ -46,6 +46,29 @@ async function logout({ page }: { page: Page }) {
   await page.getByRole("menuitem", { name: "Log Out" }).click();
 }
 
+async function resetDefaultPasswordAndReLogin({
+  page,
+  baseURL,
+  email,
+  currentPassword,
+  newPassword,
+}: {
+  page: Page;
+  baseURL: string;
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+}) {
+  await login({ page, baseURL, email, password: currentPassword });
+  await page.waitForURL(/\/reset-password-with-token\?/);
+  await page.getByLabel("New Password").fill(newPassword);
+  await page.getByLabel("Confirm Password").fill(newPassword);
+  await page.getByRole("button", { name: "Reset Password" }).click();
+  await page.waitForURL("**/login?message=password_reset");
+  await login({ page, baseURL, email, password: newPassword });
+  await page.waitForURL(/\/projects(\?|$)/);
+}
+
 async function resetPasswordAndReLogin({
   page,
   baseURL,
@@ -62,7 +85,7 @@ async function resetPasswordAndReLogin({
   await resetPassword({ page, oldPassword, newPassword });
   await page.waitForURL("**/login?message=password_reset");
   await login({ page, baseURL, email, password: newPassword });
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
 }
 
 setup(
@@ -85,17 +108,11 @@ setup(
     const bootstrapContext = await browser.newContext();
     const page = await bootstrapContext.newPage();
 
-    await login({
+    await resetDefaultPasswordAndReLogin({
       page,
       baseURL,
       email: "admin@localhost",
-      password: "admin",
-    });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "admin@localhost",
-      oldPassword: "admin",
+      currentPassword: "admin",
       newPassword: "admin123",
     });
     await page.goto(`${baseURL}/settings/users`);
@@ -185,7 +202,7 @@ setup(
         email,
         password,
       });
-      await statePage.waitForURL("**/projects");
+      await statePage.waitForURL(/\/projects(\?|$)/);
       await context.storageState({ path: storageStatePath });
 
       await context.close();

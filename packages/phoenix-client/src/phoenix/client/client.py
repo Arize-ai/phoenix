@@ -5,6 +5,7 @@ from typing import Mapping, Optional
 import httpx
 
 from phoenix.client.resources.datasets import AsyncDatasets, Datasets
+from phoenix.client.resources.evaluators import AsyncEvaluators, Evaluators
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
@@ -68,6 +69,7 @@ class Client:
         self._sessions = Sessions(value, self._spans, _guard=guard)
         self._datasets = Datasets(value, _guard=guard)
         self._experiments = Experiments(value, _guard=guard)
+        self._evaluators = Evaluators(value, _guard=guard)
 
     @property
     def prompts(self) -> Prompts:
@@ -132,6 +134,15 @@ class Client:
         """  # noqa: E501
         return self._experiments
 
+    @property
+    def evaluators(self) -> Evaluators:
+        """Returns an instance of the Evaluators class for interacting with evaluator-related API endpoints.
+
+        Returns:
+            Evaluators: An instance of the Evaluators class.
+        """  # noqa: E501
+        return self._evaluators
+
 
 class AsyncClient:
     def __init__(
@@ -184,6 +195,7 @@ class AsyncClient:
         self._sessions = AsyncSessions(value, self._spans, _guard=guard)
         self._datasets = AsyncDatasets(value, _guard=guard)
         self._experiments = AsyncExperiments(value, _guard=guard)
+        self._evaluators = AsyncEvaluators(value, _guard=guard)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -248,6 +260,15 @@ class AsyncClient:
             AsyncExperiments: An instance of the AsyncExperiments class.
         """  # noqa: E501
         return self._experiments
+
+    @property
+    def evaluators(self) -> AsyncEvaluators:
+        """Returns an instance of the AsyncEvaluators class for interacting with evaluator-related API endpoints.
+
+        Returns:
+            AsyncEvaluators: An instance of the AsyncEvaluators class.
+        """  # noqa: E501
+        return self._evaluators
 
 
 def _update_headers(

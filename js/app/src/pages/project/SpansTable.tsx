@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { RowData, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import React, {
   startTransition,
   useCallback,
@@ -73,11 +74,15 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
-import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
+import {
+  getTraceSelectionSlots,
+  isSpanRowSelected,
+} from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -115,15 +120,32 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
-import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
+  selectedRowId?: string;
   project: SpansTable_spans$key;
   /**
    * The condition the preload carried; always settled, so the rows on hand
    * match both its text and its root scope from the first render.
    */
   seed: SettledSpanFilterSeed;
+  /**
+   * Restricts every fetch to the spans one project evaluator produced. The
+   * server applies it alongside the user's filter, so it survives whatever the
+   * filter field is edited to. Must match the preload's own scope.
+   */
+  projectEvaluatorId?: string;
+  /**
+   * Replaces the generic "no traces match" state when the table has no rows,
+   * for views that can say something more specific about why.
+   */
+  emptyState?: ReactNode;
+  /**
+   * Called when the user applies a valid filter condition: typed, added from
+   * an annotation, or set by an agent. Not called for the mount-time seed or
+   * for in-progress edits.
+   */
+  onFilterConditionApplied?: (condition: string) => void;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -141,16 +163,22 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   hasNext,
   onLoadNext,
   isLoadingNext,
+  selectedRowId,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
+  selectedRowId?: string;
 }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
-  const selectedTraceSlots = useSelectedTraceSlots();
+  // the caller passes the viewed trace, since its route param name varies
+  const selectedTraceSlots = getTraceSelectionSlots({
+    routeTraceId: selectedRowId,
+    searchParams,
+  });
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -223,11 +251,12 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
 };
 
 export function SpansTable(props: SpansTableProps) {
+  const { projectEvaluatorId } = props;
+  const { persistToUrl } = useSpanFilterActions();
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -253,21 +282,26 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     setSearchParamsRef.current = setSearchParams;
   }, [setSearchParams]);
-  const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Written even when empty. An absent param means "no filter was
-        // applied here", which seeds the default; an empty one means the
-        // filter was deliberately cleared. Deleting it instead would make
-        // those two indistinguishable, so clearing the filter would not
-        // survive a reload -- the default would come back.
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
-  }, []);
+  // A stable ref keeps a parent's re-renders out of the field's validation.
+  const onFilterConditionAppliedRef = useRef(props.onFilterConditionApplied);
+  useEffect(() => {
+    onFilterConditionAppliedRef.current = props.onFilterConditionApplied;
+  }, [props.onFilterConditionApplied]);
+  const writeFilterConditionParam = useCallback(
+    (condition: string) => {
+      if (!persistToUrl) return;
+      setSearchParamsRef.current(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          // Preserve an explicit empty filter instead of restoring the default.
+          next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [persistToUrl]
+  );
   const handleValidFilterCondition = useCallback(
     ({
       condition,
@@ -293,6 +327,7 @@ export function SpansTable(props: SpansTableProps) {
       // exists to prevent.
       if (!isInitialSettlement) {
         writeFilterConditionParam(condition);
+        onFilterConditionAppliedRef.current?.(condition);
       }
     },
     [writeFilterConditionParam]
@@ -327,6 +362,7 @@ export function SpansTable(props: SpansTableProps) {
             defaultValue: { col: startTime, dir: desc }
           }
           filterCondition: { type: "String", defaultValue: null }
+          projectEvaluatorId: { type: "ID", defaultValue: null }
         ) {
           name
           spanAnnotationNames
@@ -338,6 +374,7 @@ export function SpansTable(props: SpansTableProps) {
             after: $after
             sort: $sort
             filterCondition: $filterCondition
+            projectEvaluatorId: $projectEvaluatorId
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -835,6 +872,7 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
+          projectEvaluatorId,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -846,24 +884,16 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
+    projectEvaluatorId,
     timeRangeISOStrings,
   ]);
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.spans.edges,
+  });
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const storedColumnOrder = useTracingContext((state) => state.columnOrder);
@@ -984,10 +1014,6 @@ export function SpansTable(props: SpansTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
-              ref={tableContainerRef}
             >
               <ColumnOrderingProvider
                 columnOrder={visibleColumnOrder}
@@ -1094,7 +1120,7 @@ export function SpansTable(props: SpansTableProps) {
                     // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
                     // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                     // will be replaced to eliminate this condition.
-                    <ProjectTableEmpty />
+                    (props.emptyState ?? <ProjectTableEmpty />)
                   ) : columnResizing.isResizingColumn ? (
                     <MemoizedTableBody
                       table={table}
@@ -1105,6 +1131,7 @@ export function SpansTable(props: SpansTableProps) {
                   ) : (
                     <TableBody
                       table={table}
+                      selectedRowId={props.selectedRowId}
                       hasNext={hasNext}
                       onLoadNext={() => loadNext(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
@@ -1112,6 +1139,7 @@ export function SpansTable(props: SpansTableProps) {
                   )}
                 </table>
               </ColumnOrderingProvider>
+              <div ref={loadMoreSentinelRef} />
             </div>
           </Panel>
           <TableAsidePanel>

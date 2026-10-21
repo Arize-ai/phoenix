@@ -16,11 +16,9 @@ import type { EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutati
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
-import {
-  createDefaultFreeformOutputConfig,
-  EditCodeEvaluatorDialogContent,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import {
   buildOutputConfigsInput,
   normalizeInputMapping,
@@ -368,7 +366,10 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       selectedExampleId: null,
       selectedSplitIds: [],
     },
-    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    evaluatorMappingSource: {
+      recordKind: "dataset",
+      source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    },
     showPromptPreview: false,
   };
 
@@ -382,11 +383,18 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
-      evaluator: { name, description, inputMapping, id: evaluatorId },
+      evaluator: {
+        name,
+        globalName,
+        description,
+        inputMapping,
+        id: evaluatorId,
+      },
       outputConfigs,
     } = store.getState();
     invariant(evaluatorId, "evaluator id is required");
     const normalizedName = name.trim();
+    const normalizedGlobalName = globalName.trim();
     const normalizedDescription = description.trim() || undefined;
     const normalizedInputMapping = normalizeInputMapping(inputMapping);
 
@@ -404,7 +412,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         variables: {
           input: {
             id: evaluatorId,
-            name: normalizedName,
+            name: normalizedGlobalName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
             inputMapping: normalizedInputMapping,
@@ -473,7 +481,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           initialSourceCode={evaluatorSourceCode}
           sandboxConfigs={sandboxConfigs}
           initialSandboxConfigId={initialSandboxConfigId}
-          evaluatorNodeId={evaluator.id}
+          codeEvaluatorNodeId={evaluator.id}
         />
       )}
     </EvaluatorStoreProvider>

@@ -446,6 +446,76 @@ px dataset get my-dataset --file dataset.json
 
 ---
 
+### `px dataset evaluator list <dataset-identifier>`
+
+List the evaluators bound to a dataset. Requires Phoenix server >= 21.0.0.
+
+```bash
+px dataset evaluator list golden-questions
+px dataset evaluator list golden-questions --format raw --no-progress | jq -r '.[].id'
+```
+
+---
+
+### `px dataset evaluator get <dataset-evaluator-id>`
+
+Show a single binding. Output is a single record.
+
+```bash
+px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format json
+```
+
+---
+
+### `px dataset evaluator create <dataset-identifier>`
+
+Bind an existing evaluator definition to a dataset. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Create LLM and code definitions with `px evaluator create` first, or bind a built-in evaluator by ID; one definition can back many bindings. A name the dataset already uses is refused with a conflict whose envelope carries `existing_id`.
+
+```bash
+px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+```
+
+| Option                    | Description                                                                                                                           | Default  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`           | Binding name, unique within the dataset (required)                                                                                    | —        |
+| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                                      | —        |
+| `--evaluator-id <id>`     | The LLM, code, or built-in evaluator to bind (required)                                                                               | —        |
+| `--description <text>`    | Description override for this binding; for LLM evaluators it must equal the prompt tool's description                                 | —        |
+| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: must match the prompt's tool schema) | —        |
+| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                                            | `pretty` |
+
+---
+
+### `px dataset evaluator update <dataset-evaluator-id>`
+
+Update a binding. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Runs against the nightly golden set"
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output.text"}}'
+```
+
+Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again.
+
+---
+
+### `px dataset evaluator delete <dataset-evaluator-id...>`
+
+Delete one or more bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Several IDs need `--dataset` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+```bash
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
+```
+
+| Option                           | Description                                                   | Default  |
+| -------------------------------- | ------------------------------------------------------------- | -------- |
+| `--dataset <dataset-identifier>` | Dataset the bindings belong to; required for more than one ID | —        |
+| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`       | `pretty` |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —        |
+
+---
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
@@ -500,6 +570,129 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 ---
 
+### `px evaluator list`
+
+List shared evaluator definitions, newest first. Every definition is listed whether or not a project or dataset uses it. Requires Phoenix server >= 21.0.0.
+
+```bash
+px evaluator list
+px evaluator list --name exact-match --format raw --no-progress | jq -r '.[0].id'
+```
+
+| Option                        | Description                             | Default |
+| ----------------------------- | --------------------------------------- | ------- |
+| `--type <llm\|code\|builtin>` | Only one kind of evaluator              | all     |
+| `--name <name>`               | Only the evaluator with this exact name | —       |
+| `--limit <number>`            | Maximum number of evaluators to fetch   | all     |
+
+### `px evaluator get <evaluator-id>`
+
+Show a shared evaluator definition. Output is a single record; `type` is `llm`, `code`, or `builtin`. Built-in definitions are read-only. Requires Phoenix server >= 21.0.0.
+
+```bash
+px evaluator get Q29kZUV2YWx1YXRvcjoy
+px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq -r '.source_code'
+```
+
+### `px evaluator create`
+
+Create an LLM or code evaluator that nothing binds yet. Bind it to a project or dataset afterwards by its `id`. An LLM evaluator runs an existing prompt version, created through the prompts API or the Phoenix UI first; a code evaluator is created with its first version.
+
+```bash
+px evaluator create --type llm --name correctness --prompt-version-id UHJvbXB0VmVyc2lvbjo3 --description correctness \
+  --output-configs '[{"type":"CATEGORICAL","name":"correctness","optimization_direction":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]'
+px evaluator create --type code --name exact-match --file evaluator.py --language PYTHON \
+  --sandbox-config-id U2FuZGJveENvbmZpZzox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]' --if-not-exists
+```
+
+| Option                     | Description                                                                     | Default |
+| -------------------------- | ------------------------------------------------------------------------------- | ------- |
+| `--type <llm\|code>`       | Kind of evaluator (required)                                                    | —       |
+| `--name <name>`            | Name, unique among evaluators (required)                                        | —       |
+| `--prompt-version-id <id>` | (llm) Prompt version to run (required)                                          | —       |
+| `--file <path>`            | (code) Read the source from a file (or `--source-code <text>`)                  | —       |
+| `--language <language>`    | (code) `PYTHON` or `TYPESCRIPT` (required)                                      | —       |
+| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in (required; see `px sandbox-config list`) | —       |
+| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` (required)         | —       |
+| `--description <text>`     | Description (llm: must equal the prompt tool's description)                     | —       |
+| `--output-configs <json>`  | JSON array of output configurations, at least one (required)                    | —       |
+| `--if-not-exists`          | Print the evaluator that already holds the name instead of failing              | —       |
+
+A server-side failure on any `px evaluator` command — not found, a name clash, a validation error, and so on — exits `ExitCode.FAILURE` (1); only auth and bad-argument problems get their own codes. To tell these apart, pass `--format raw` or `json` and read `status`, `problem_code`, and `problem_reason` from the stderr envelope: `problem_code` is the server's own code (`not_found`, `conflict`, `already_exists`, `validation_error`, ...) and `problem_reason` is a finer condition under it when the server sends one (e.g. `still_bound`). The full parsed body is under `problem`, including recovery fields like `existing_id` or `binding_counts`. `--if-not-exists` on `create` covers the name-clash case without inspecting the envelope.
+
+### `px evaluator update <evaluator-id>`
+
+Update a shared evaluator definition. The change applies to every project and dataset that uses the evaluator. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px evaluator update TExNRXZhbHVhdG9yOjE= --type llm --name toxicity
+px evaluator update TExNRXZhbHVhdG9yOjE= --type llm --prompt-version-id UHJvbXB0VmVyc2lvbjo3
+px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+```
+
+| Option                     | Description                                                                | Default |
+| -------------------------- | -------------------------------------------------------------------------- | ------- |
+| `--type <llm\|code>`       | Kind of evaluator (required, must match the server)                        | —       |
+| `--name <name>`            | New name                                                                   | —       |
+| `--description <text>`     | New description (LLM evaluators: must equal the prompt tool's description) | —       |
+| `--clear-description`      | Remove the description                                                     | —       |
+| `--output-configs <json>`  | JSON array of output configs (LLM evaluators: categorical only)            | —       |
+| `--prompt-version-id <id>` | (llm) Run an existing prompt version                                       | —       |
+| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in                                     | —       |
+| `--clear-sandbox-config`   | (code) Detach the sandbox configuration                                    | —       |
+| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` keys          | —       |
+
+Prompt content is not edited here. Create a new version of the evaluator's prompt through the Phoenix UI or the client SDKs, then pass its ID with `--prompt-version-id`. The server refuses with a conflict an LLM change that would invalidate a dataset binding's output overrides, and the CLI prints the server's explanation.
+
+### `px evaluator delete <evaluator-id>`
+
+Delete an LLM or code evaluator that nothing binds. A code evaluator's version history goes with it; an LLM evaluator's prompt is kept. An evaluator still bound by a project or dataset is refused with a conflict: delete those bindings first. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`. `--format` controls how a refusal is rendered; `raw` and `json` carry the structured error.
+
+```bash
+px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
+```
+
+### `px sandbox-config list`
+
+List the sandbox configurations code evaluators can run in; pass an `id` as `--sandbox-config-id`. Only configurations with `is_usable` accept new code. Provider credentials are never shown.
+
+```bash
+px sandbox-config list --language PYTHON
+px sandbox-config list --language PYTHON --format raw --no-progress | jq -r 'map(select(.is_usable))[0].id'
+```
+
+In `raw`/`json` mode a failed request's error envelope also carries the HTTP `status`, the server's `problem_code` (for example `already_exists` or `validation_error`), and, for a taken name, the `existing_id` holding it.
+
+### `px evaluator version list <evaluator-id>`
+
+List a code evaluator's versions, newest first. The first entry is the version the evaluator currently runs. `pretty` output omits the source; use `--format json` or `raw` to see it.
+
+```bash
+px evaluator version list Q29kZUV2YWx1YXRvcjoy
+px evaluator version list Q29kZUV2YWx1YXRvcjoy --limit 2 --format raw --no-progress | jq -r '.[1].source_code'
+```
+
+### `px evaluator version create <evaluator-id>`
+
+Append a new immutable version of a code evaluator's source. Configuration passed alongside is applied in the same request, so bindings never run the new code with the old sandbox, input mapping, or outputs. If the source matches the current version, the existing version is returned and `was_created` is `false`.
+
+```bash
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py \
+  --expected-current-version Q29kZUV2YWx1YXRvclZlcnNpb246MQ== --output-configs '[{"type":"FREEFORM","name":"notes"}]'
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --format raw --no-progress | jq -r '.id'
+```
+
+| Option                            | Description                                                          | Default |
+| --------------------------------- | -------------------------------------------------------------------- | ------- |
+| `--file <path>`                   | Read the source from a file (or `--source-code <text>`)              | —       |
+| `--expected-current-version <id>` | Refuse to deploy if another version has been appended since this one | —       |
+| `--description <text>`            | Description applied with the new code                                | keep    |
+| `--sandbox-config-id <id>`        | Sandbox the new code runs in                                         | keep    |
+| `--input-mapping <json>`          | Default input mapping for the new code                               | keep    |
+| `--output-configs <json>`         | Outputs the new code produces                                        | keep    |
+
 ### `px project list`
 
 List all available Phoenix projects.
@@ -535,6 +728,80 @@ px project get my-project --format json
 | `--no-progress`     | Suppress progress output            | —        |
 
 Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hint":"px project list --format raw"}`.
+
+---
+
+### `px project evaluator list <project-identifier>`
+
+List the evaluators bound to a project. Requires Phoenix server >= 21.0.0.
+
+```bash
+px project evaluator list support-bot
+px project evaluator list support-bot --format raw --no-progress | jq -r '.[] | select(.enabled) | .id'
+```
+
+---
+
+### `px project evaluator get <project-evaluator-id>`
+
+Show a single binding. Output is a single record.
+
+```bash
+px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format json
+```
+
+---
+
+### `px project evaluator create <project-identifier>`
+
+Bind an existing evaluator definition to a project so it runs on incoming traces. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the evaluation delay; the delay is reported as `0` for `SPAN` bindings, which evaluate spans as they arrive. Create LLM and code definitions with `px evaluator create` first; one definition can back many bindings. A name the project already uses is refused with a conflict whose envelope carries `existing_id`.
+
+```bash
+px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
+px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}' --evaluation-delay-seconds 600
+```
+
+| Option                           | Description                                                                                                    | Default  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`                  | Binding name, unique within the project (required)                                                             | —        |
+| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                       | —        |
+| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                    | —        |
+| `--evaluator-id <id>`            | The LLM or code evaluator to bind (required)                                                                   | —        |
+| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                 | —        |
+| `--disabled`                     | Create the binding paused                                                                                      | —        |
+| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none) | —        |
+| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                        | server   |
+| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                     | `pretty` |
+
+---
+
+### `px project evaluator update <project-evaluator-id>`
+
+Update a binding. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --sampling-rate 0.5 --filter-condition "span_kind == 'LLM'"
+```
+
+Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so the evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
+
+---
+
+### `px project evaluator delete <project-evaluator-id...>`
+
+Delete one or more bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Several IDs need `--project` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+```bash
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
+```
+
+| Option                           | Description                                                   | Default  |
+| -------------------------------- | ------------------------------------------------------------- | -------- |
+| `--project <project-identifier>` | Project the bindings belong to; required for more than one ID | —        |
+| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`       | `pretty` |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —        |
 
 ---
 

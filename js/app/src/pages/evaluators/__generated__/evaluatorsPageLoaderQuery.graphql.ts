@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59bd0a7f2213d14bff4d241537756e07>>
+ * @generated SignedSource<<419cb971bdc8387df9f8ca8fb51887a8>>
  * @lightSyntaxTransform
  */
 
@@ -30,35 +30,56 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "name",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v5 = [
-  (v1/*:: as any*/),
-  (v2/*:: as any*/)
+v7 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 10
+  }
 ],
-v6 = {
+v8 = [
+  (v2/*:: as any*/),
+  (v3/*:: as any*/)
+],
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -80,7 +101,7 @@ v6 = {
       "name": "profilePictureUrl",
       "storageKey": null
     },
-    (v1/*:: as any*/)
+    (v2/*:: as any*/)
   ],
   "storageKey": null
 };
@@ -130,27 +151,15 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
+                  (v1/*:: as any*/),
                   {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isEvaluator"
                   },
-                  (v1/*:: as any*/),
                   (v2/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "kind",
-                    "storageKey": null
-                  },
                   (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -158,16 +167,10 @@ return {
                     "name": "createdAt",
                     "storageKey": null
                   },
-                  (v4/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
-                    "args": [
-                      {
-                        "kind": "Literal",
-                        "name": "first",
-                        "value": 10
-                      }
-                    ],
+                    "args": (v7/*:: as any*/),
                     "concreteType": "DatasetConnection",
                     "kind": "LinkedField",
                     "name": "datasets",
@@ -188,7 +191,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": (v5/*:: as any*/),
+                            "selections": (v8/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -199,16 +202,79 @@ return {
                   },
                   {
                     "alias": null,
+                    "args": (v7/*:: as any*/),
+                    "concreteType": "ProjectConnection",
+                    "kind": "LinkedField",
+                    "name": "projects",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "ProjectEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Project",
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": [
+                              (v2/*:: as any*/),
+                              (v3/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "gradientStartColor",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "gradientEndColor",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": "projects(first:10)"
+                  },
+                  {
+                    "alias": null,
                     "args": null,
                     "concreteType": "DatasetEvaluator",
                     "kind": "LinkedField",
                     "name": "datasetEvaluators",
                     "plural": true,
                     "selections": [
-                      (v1/*:: as any*/),
                       (v2/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "evaluator",
+                        "plural": false,
+                        "selections": [
+                          (v1/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v2/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      },
                       (v3/*:: as any*/),
-                      (v4/*:: as any*/),
+                      (v5/*:: as any*/),
+                      (v6/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -216,10 +282,10 @@ return {
                         "kind": "LinkedField",
                         "name": "dataset",
                         "plural": false,
-                        "selections": (v5/*:: as any*/),
+                        "selections": (v8/*:: as any*/),
                         "storageKey": null
                       },
-                      (v6/*:: as any*/)
+                      (v9/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -233,7 +299,7 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": (v5/*:: as any*/),
+                        "selections": (v8/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -244,8 +310,8 @@ return {
                         "name": "promptVersionTag",
                         "plural": false,
                         "selections": [
-                          (v2/*:: as any*/),
-                          (v1/*:: as any*/)
+                          (v3/*:: as any*/),
+                          (v2/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -271,11 +337,11 @@ return {
                             "name": "modelProvider",
                             "storageKey": null
                           },
-                          (v1/*:: as any*/)
+                          (v2/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v6/*:: as any*/)
+                      (v9/*:: as any*/)
                     ],
                     "type": "LLMEvaluator",
                     "abstractKey": null
@@ -283,7 +349,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v6/*:: as any*/)
+                      (v9/*:: as any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -356,12 +422,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f7ca6037bc581f46e9eff3f8926d813b",
+    "cacheID": "4bfa6ac4f366df53cba20016d0e689fd",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

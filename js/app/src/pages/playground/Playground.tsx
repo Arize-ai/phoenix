@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import {
-  Fragment,
   Suspense,
   useCallback,
   useEffect,
@@ -17,6 +16,11 @@ import { useBlocker, useSearchParams } from "react-router";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
 import { createSetAppendedMessagesPathClientAction } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import {
+  createEditEvaluatorTaskClientAction,
+  createReadEvaluatorTaskClientAction,
+  createSaveEvaluatorTaskClientAction,
+} from "@phoenix/agent/tools/playgroundEvaluator";
 import { createSetPlaygroundExperimentRecordingClientAction } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { createLoadDatasetClientAction } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
@@ -39,8 +43,10 @@ import { createSetPlaygroundRepetitionsClientAction } from "@phoenix/agent/tools
 import {
   createCancelPlaygroundRunClientAction,
   createRunPlaygroundClientAction,
+  getPlaygroundRunBlocker,
 } from "@phoenix/agent/tools/playgroundRun";
 import { createSavePromptClientAction } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { createSelectTaskClientAction } from "@phoenix/agent/tools/playgroundTask";
 import { createSetTemplateVariablesPathClientAction } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
 import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
@@ -56,6 +62,11 @@ import {
   readLlmEvaluatorDraftOperation,
   testLlmEvaluatorDraftOperation,
 } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+import {
+  editEvaluatorTaskOperation,
+  readEvaluatorTaskOperation,
+  saveEvaluatorTaskOperation,
+} from "@phoenix/agent/uiOperations/operations/playgroundEvaluator";
 import { loadDatasetOperation } from "@phoenix/agent/uiOperations/operations/playgroundLoadDataset";
 import {
   listPlaygroundModelTargetsOperation,
@@ -86,14 +97,8 @@ import {
   setTemplateVariablesPathOperation,
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  PageHeader,
-  View,
-} from "@phoenix/components";
+import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
+import { Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -106,21 +111,36 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
-import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
-import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import {
+  PlaygroundExampleEditingProvider,
+  usePlaygroundExampleEditing,
+} from "@phoenix/pages/playground/examplesEditing";
+import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
+import {
+  arePlaygroundTaskParamsEqual,
+  getPlaygroundTaskParams,
   resolvePlaygroundDatasetId,
-  setPromptParams,
+  setPlaygroundTaskParams,
 } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
 import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
+import {
+  getEditableTableChangeCount,
+  hasEditableTableUnsavedChanges,
+} from "@phoenix/store/editableTableStore";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import {
+  createEvaluatorTaskAgentRegistry,
+  EvaluatorPlaygroundEmptySource,
+  EvaluatorTaskAgentProvider,
+} from "./evaluators";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -143,7 +163,8 @@ import {
   PLAYGROUND_PANEL_LAYOUT_ID,
 } from "./playgroundPanelLayout";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
-import { PlaygroundTemplate } from "./PlaygroundTemplate";
+import { PlaygroundTaskInstance } from "./PlaygroundTaskInstance";
+import { PlaygroundCompareMenu } from "./TaskMenu";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
@@ -208,45 +229,33 @@ export function Playground(
       defaultModelProvider={defaultModelProvider}
       defaultModelName={defaultModelName}
     >
-      <div css={playgroundWrapCSS}>
-        <View borderBottomColor="default" borderBottomWidth="thin">
-          <PageHeader
-            title="Playground"
-            extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <PlaygroundCredentialsDropdown />
-                <PlaygroundConfigButton />
-                <PlaygroundRunButton />
-              </Flex>
-            }
-          />
-        </View>
-        <PlaygroundContent />
-      </div>
+      <PlaygroundExampleEditingProvider>
+        <div css={playgroundWrapCSS}>
+          {/* The panels below shrink, not the header, so the header controls
+              stay put whatever kind of task the page holds. */}
+          <View
+            borderBottomColor="default"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <PageHeader
+              title="Playground"
+              extra={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <PlaygroundCredentialsDropdown />
+                  <PlaygroundConfigButton />
+                  <PlaygroundRunButton />
+                </Flex>
+              }
+            />
+          </View>
+          <PlaygroundContent />
+        </div>
+      </PlaygroundExampleEditingProvider>
       <Suspense>
         <PlaygroundExamplePage />
       </Suspense>
     </PlaygroundProvider>
-  );
-}
-
-function AddPromptButton() {
-  const addInstance = usePlaygroundContext((state) => state.addInstance);
-  const instances = usePlaygroundContext((state) => state.instances);
-  const numInstances = instances.length;
-  const isRunning = instances.some((instance) => instance.activeRunId != null);
-  return (
-    <Button
-      size="S"
-      aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
-      isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
-      onPress={() => {
-        addInstance();
-      }}
-    >
-      Compare
-    </Button>
   );
 }
 
@@ -290,6 +299,11 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+
+  const taskKind = usePlaygroundContext((state) =>
+    getPlaygroundTaskKind(state.instances)
+  );
+
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -309,8 +323,16 @@ function PlaygroundContent() {
     );
     return instance?.experiment ?? null;
   });
-  const anyDirtyPromptInstances = usePlaygroundContext((state) =>
+
+  const anyDirtyInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
+  );
+  // Edits to the dataset's examples the table has not saved. They are read
+  // here because a router honors one blocker, and this is it.
+  const unsavedExampleChangeCount = usePlaygroundExampleEditing((session) =>
+    hasEditableTableUnsavedChanges(session)
+      ? getEditableTableChangeCount(session)
+      : 0
   );
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
@@ -322,11 +344,18 @@ function PlaygroundContent() {
   );
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
-      state.instances.map((instance) =>
-        getPlaygroundInstanceForAgent(instance)
+      state.instances.map((instance, index) =>
+        getPlaygroundInstanceForAgent(instance, {
+          index,
+          isDirty: state.dirtyInstances[instance.id] === true,
+        })
       ),
     arePlaygroundInstancesForAgentEqual
   );
+
+  // The PXI adapters of the mounted evaluator task editors, by instance id.
+  const [evaluatorTaskAgents] = useState(createEvaluatorTaskAgentRegistry);
+
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
     // only re-render when the instance ids change, not when the array is re-created
@@ -347,12 +376,14 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
+        taskKind,
         recordExperiments,
         repetitions,
         nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
     [
+      taskKind,
       playgroundInstancesForAgent,
       recordExperiments,
       repetitions,
@@ -382,9 +413,17 @@ function PlaygroundContent() {
       setPendingLoadDataset,
       setPendingPromptToolWrite,
     } = agentStore.getState();
+
+    const waitForEvaluatorHost = evaluatorTaskAgents.waitFor;
+    const evaluatorTaskActionDeps = { playgroundStore, waitForEvaluatorHost };
+
     const unregister = registerUIOperations({
       agentStore,
       operations: [
+        {
+          descriptor: selectTaskOperation,
+          handler: createSelectTaskClientAction(evaluatorTaskActionDeps),
+        },
         {
           descriptor: readPromptOperation,
           handler: createReadPromptClientAction({ playgroundStore }),
@@ -395,7 +434,19 @@ function PlaygroundContent() {
         },
         {
           descriptor: addPromptInstanceOperation,
-          handler: createAddPromptInstanceClientAction({ playgroundStore }),
+          handler: createAddPromptInstanceClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: readEvaluatorTaskOperation,
+          handler: createReadEvaluatorTaskClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: editEvaluatorTaskOperation,
+          handler: createEditEvaluatorTaskClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: saveEvaluatorTaskOperation,
+          handler: createSaveEvaluatorTaskClientAction(evaluatorTaskActionDeps),
         },
         {
           descriptor: removePromptInstanceOperation,
@@ -426,7 +477,19 @@ function PlaygroundContent() {
         },
         {
           descriptor: runPlaygroundOperation,
-          handler: createRunPlaygroundClientAction({ playgroundStore }),
+          handler: createRunPlaygroundClientAction({
+            playgroundStore,
+            // Evaluator tasks need the page's dataset and a valid editor.
+            getRunBlocker: () =>
+              getPlaygroundRunBlocker({
+                instances: playgroundStore.getState().instances,
+                datasetId: resolvePlaygroundDatasetId({
+                  searchParams: searchParamsRef.current,
+                  storeDatasetId: playgroundStore.getState().datasetId,
+                }),
+                getEvaluatorHost: evaluatorTaskAgents.get,
+              }),
+          }),
         },
         {
           descriptor: readPlaygroundOutputOperation,
@@ -530,7 +593,7 @@ function PlaygroundContent() {
         }
       }
     };
-  }, [agentStore, playgroundStore, setSearchParams]);
+  }, [agentStore, evaluatorTaskAgents, playgroundStore, setSearchParams]);
 
   useEffect(
     () =>
@@ -668,76 +731,66 @@ function PlaygroundContent() {
     : null;
   const { appendedMessagesPath, availablePaths } = playgroundDatasetState ?? {};
 
-  // Derive prompt params from all instances for URL sync.
-  // Only re-render when the prompt params actually change.
-  const instancePromptParams = usePlaygroundContext(
-    (state) =>
-      state.instances
-        .map((instance): PromptParam | null =>
-          instance.prompt
-            ? {
-                promptId: instance.prompt.id,
-                promptVersionId: instance.prompt.version,
-                tagName: instance.prompt.tag,
-              }
-            : null
-        )
-        .filter((param): param is PromptParam => param != null),
-    (left, right) =>
-      left.length === right.length &&
-      left.every(
-        (param, index) =>
-          param.promptId === right[index].promptId &&
-          param.promptVersionId === right[index].promptVersionId &&
-          param.tagName === right[index].tagName
-      )
+  // Derive the task params from all instances for URL sync.
+  // Only re-render when the params actually change.
+  const taskParams = usePlaygroundContext(
+    (state) => getPlaygroundTaskParams(state.instances),
+    arePlaygroundTaskParamsEqual
   );
 
-  // Sync prompt state from the store to URL search params.
+  // Sync task state from the store to URL search params.
   // Uses replace to avoid polluting browser history.
   useEffect(() => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        setPromptParams({ searchParams: next, prompts: instancePromptParams });
+        setPlaygroundTaskParams({ searchParams: next, tasks: taskParams });
+
         return next;
       },
       { replace: true }
     );
-  }, [instancePromptParams, setSearchParams]);
+  }, [taskParams, setSearchParams]);
 
   // Soft block at the router level:
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept
   // - Non-ephemeral experiment running: daemon continues, but ask if user wants to stop
   // - Dirty prompts: unsaved changes warning
+  // - Unsaved edits to the dataset's examples: they live only in memory
+  const hasUnsavedExampleChanges = unsavedExampleChangeCount > 0;
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
-      return (isRunning || anyDirtyPromptInstances) && goingToNewPage;
+
+      return (
+        (isRunning || anyDirtyInstances || hasUnsavedExampleChanges) &&
+        goingToNewPage
+      );
     },
-    [isRunning, anyDirtyPromptInstances]
+    [isRunning, anyDirtyInstances, hasUnsavedExampleChanges]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
-  // Hard block at the browser level when an experiment is running
+  // Hard block at the browser level when an experiment is running or example
+  // edits are unsaved
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = true;
     };
 
-    if (isRunning) {
+    if (isRunning || hasUnsavedExampleChanges) {
       window.addEventListener("beforeunload", handleBeforeUnload);
       return () => {
         window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
     return undefined;
-  }, [isRunning]);
+  }, [isRunning, hasUnsavedExampleChanges]);
 
   const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat }),
-    [isDatasetMode, templateFormat]
+    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskKind }),
+    [isDatasetMode, templateFormat, taskKind]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -770,20 +823,23 @@ function PlaygroundContent() {
   };
 
   return (
-    <Fragment key="playground-content">
+    <EvaluatorTaskAgentProvider registry={evaluatorTaskAgents}>
       <Group
         orientation="vertical"
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
+        style={{ flex: 1, minHeight: 0 }}
       >
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title="Prompts"
+          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              <TemplateFormatRadioGroup size="S" />
-              <AddPromptButton />
+              {taskKind === "prompt" ? (
+                <TemplateFormatRadioGroup size="S" />
+              ) : null}
+              <PlaygroundCompareMenu />
             </Flex>
           }
           panelProps={{ id: "prompts", minSize: "15%" }}
@@ -796,11 +852,13 @@ function PlaygroundContent() {
               {instanceIds.map((instanceId) => (
                 <View
                   flex="1 1 0px"
-                  key={`${instanceId}-prompt`}
+                  key={`${instanceId}-task`}
                   minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                 >
-                  <PlaygroundTemplate
-                    playgroundInstanceId={instanceId}
+                  <PlaygroundTaskInstance
+                    instanceId={instanceId}
+                    datasetId={datasetId}
+                    splitIds={splitIds}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                   />
@@ -845,6 +903,20 @@ function PlaygroundContent() {
               }
             />
           </Suspense>
+        ) : taskKind === "evaluator" ? (
+          <TitledPanel
+            ref={ioPanelRef}
+            headingLevel={2}
+            resizable
+            title="Experiment"
+            extra={<PlaygroundDatasetSelect />}
+            panelProps={IO_PANEL_PROPS}
+            onCollapseChange={(collapsed) =>
+              handleSectionCollapse(collapsed, "io")
+            }
+          >
+            <EvaluatorPlaygroundEmptySource />
+          </TitledPanel>
         ) : (
           <>
             {templateFormat !== TemplateFormats.NONE ? (
@@ -896,9 +968,15 @@ function PlaygroundContent() {
       ) : (
         <ConfirmNavigationDialog
           blocker={blocker}
-          message="You have unsaved changes. Are you sure you want to leave?"
+          message={
+            hasUnsavedExampleChanges
+              ? `Leaving this page will discard ${describeUnsavedExampleChanges(
+                  { count: unsavedExampleChangeCount }
+                )}.`
+              : "You have unsaved changes. Are you sure you want to leave?"
+          }
         />
       )}
-    </Fragment>
+    </EvaluatorTaskAgentProvider>
   );
 }

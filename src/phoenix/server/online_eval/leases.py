@@ -1,0 +1,145 @@
+"""Advisory leases that normally keep one replica at a time doing each online-eval
+materializer's work, so replicas don't repeat each other's queries, and transaction locks
+for the steps that must not run concurrently at all.
+
+No write is fenced on a lease: a holder that stalls past the TTL keeps writing after
+another replica takes the lease over.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+from sqlalchemy import func, or_, select, type_coerce, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.types import DbSessionFactory
+
+logger = logging.getLogger(__name__)
+
+MATERIALIZER_LEASE_TTL_SECONDS = 90.0
+
+
+async def current_database_time(session: AsyncSession, dialect: SupportedSQLDialect) -> datetime:
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        clock = func.statement_timestamp()
+    else:
+        clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
+    now: Optional[datetime] = await session.scalar(
+        select(type_coerce(clock, models.UtcTimeStamp()))
+    )
+    if now is None:
+        raise RuntimeError("Database did not return its current time")
+    return now
+
+
+async def lock_until_commit(
+    session: AsyncSession,
+    dialect: SupportedSQLDialect,
+    name: str,
+) -> None:
+    """Hold the lock called ``name`` until the session's transaction ends, waiting while
+    another transaction holds it.
+
+    On PostgreSQL this is a transaction-scoped advisory lock, so it holds across replicas.
+    SQLite runs on one replica, and its one write connection is checked out to a session
+    from the session's first statement until its transaction ends, so no other write runs
+    in between and there is nothing more to take.
+    """
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        await session.execute(select(func.pg_advisory_xact_lock(_advisory_lock_key(name))))
+
+
+def _advisory_lock_key(name: str) -> int:
+    """A stable 64-bit key, derived from the name so it is unlikely to match another
+    application's advisory locks on the same database."""
+    return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+
+
+class MaterializerLease:
+    """A named row in ``eval_work_leases``, held by ``holder`` while its heartbeat stays
+    fresh by the database clock."""
+
+    def __init__(self, db: DbSessionFactory, *, name: str, holder: str) -> None:
+        self._db = db
+        self.name = name
+        self.holder = holder
+        self._held = False
+
+    async def acquire(self) -> bool:
+        """Take the lease if it is free, stale, or already ours."""
+        async with self._db() as session:
+            now = await current_database_time(session, self._db.dialect)
+            lease_id = await session.scalar(
+                update(models.EvalWorkLease)
+                .where(
+                    models.EvalWorkLease.name == self.name,
+                    or_(
+                        models.EvalWorkLease.holder.is_(None),
+                        models.EvalWorkLease.holder == self.holder,
+                        models.EvalWorkLease.heartbeat_at
+                        < now - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS),
+                    ),
+                )
+                .values(holder=self.holder, heartbeat_at=now)
+                .returning(models.EvalWorkLease.id)
+            )
+            if lease_id is None and not self._db.should_not_insert_or_update:
+                # A conflicting insert still draws an id from the PostgreSQL sequence.
+                lease_row_id = await session.scalar(
+                    select(models.EvalWorkLease.id).where(models.EvalWorkLease.name == self.name)
+                )
+                if lease_row_id is None:
+                    lease_id = await session.scalar(
+                        insert_on_conflict(
+                            {"name": self.name, "holder": self.holder, "heartbeat_at": now},
+                            table=models.EvalWorkLease,
+                            dialect=self._db.dialect,
+                            unique_by=("name",),
+                            on_conflict=OnConflict.DO_NOTHING,
+                        ).returning(models.EvalWorkLease.id)
+                    )
+        self._held = lease_id is not None
+        return self._held
+
+    async def renew(self) -> bool:
+        """Refresh the heartbeat, returning False if another replica has taken the lease."""
+        async with self._db() as session:
+            now = await current_database_time(session, self._db.dialect)
+            lease_id = await session.scalar(
+                update(models.EvalWorkLease)
+                .where(
+                    models.EvalWorkLease.name == self.name,
+                    models.EvalWorkLease.holder == self.holder,
+                )
+                .values(heartbeat_at=now)
+                .returning(models.EvalWorkLease.id)
+            )
+        self._held = lease_id is not None
+        if not self._held:
+            logger.warning(f"Lost the online-eval {self.name} lease")
+        return self._held
+
+    async def release(self) -> None:
+        """Hand the lease back so the next holder need not wait out the TTL."""
+        if not self._held:
+            return
+        self._held = False
+        try:
+            async with self._db() as session:
+                await session.execute(
+                    update(models.EvalWorkLease)
+                    .where(
+                        models.EvalWorkLease.name == self.name,
+                        models.EvalWorkLease.holder == self.holder,
+                    )
+                    .values(holder=None, heartbeat_at=None)
+                )
+        except Exception:
+            logger.exception(f"Failed to release the online-eval {self.name} lease")

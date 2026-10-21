@@ -12,6 +12,7 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { collectString } from "../optionParsers";
+import { createDatasetEvaluatorCommand } from "./datasetEvaluator";
 import {
   type DatasetExamplesData,
   formatDatasetExamplesOutput,
@@ -427,5 +428,6 @@ export function createDatasetCommand(): Command {
   command.addCommand(createDatasetListCommand());
   command.addCommand(createDatasetGetCommand());
   command.addCommand(createDatasetDeleteCommand());
+  command.addCommand(createDatasetEvaluatorCommand());
   return command;
 }

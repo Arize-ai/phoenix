@@ -30,6 +30,7 @@ import { validateSpanFilterCondition } from "./spanFilterValidation";
  * context as the condition string.
  */
 export type SpanFiltersActions = {
+  persistToUrl: boolean;
   setFilterCondition: (condition: string) => void;
   appendFilterCondition: (condition: string) => void;
 };
@@ -128,6 +129,7 @@ export function SpanFiltersProvider(
      * loaded GraphQL fields start in agreement.
      */
     fallbackFilterCondition?: string;
+    persistToUrl?: boolean;
   }>
 ) {
   // Writes back to the URL happen where the state is applied (SpansTable), so
@@ -136,10 +138,15 @@ export function SpanFiltersProvider(
   const initialUrlCondition = useInitialSpanFilterCondition(
     props.fallbackFilterCondition
   );
-  const [filterCondition, _setFilterCondition] =
-    useState<string>(initialUrlCondition);
+  const [filterCondition, _setFilterCondition] = useState<string>(
+    props.persistToUrl === false
+      ? (props.fallbackFilterCondition ?? "")
+      : initialUrlCondition
+  );
   const rawUrlCondition =
-    searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+    (props.persistToUrl === false
+      ? null
+      : searchParams.get(SPAN_FILTER_CONDITION_PARAM)) ??
     props.fallbackFilterCondition ??
     "";
   const urlCondition = rawUrlCondition.trim() === "" ? "" : rawUrlCondition;
@@ -166,6 +173,7 @@ export function SpanFiltersProvider(
 
   const actions = useMemo<SpanFiltersActions>(
     () => ({
+      persistToUrl: props.persistToUrl ?? true,
       setFilterCondition: (condition: string) => {
         startTransition(() => {
           _setFilterCondition(condition);
@@ -182,7 +190,7 @@ export function SpanFiltersProvider(
         });
       },
     }),
-    []
+    [props.persistToUrl]
   );
 
   useRegisterSetSpansFilterClientAction({
