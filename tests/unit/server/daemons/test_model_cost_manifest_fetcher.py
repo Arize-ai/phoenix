@@ -10,8 +10,8 @@ import urllib.error
 import urllib.request
 from contextlib import AsyncExitStack
 from email.message import Message
-from typing import Any, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any, Callable, Optional
+from unittest.mock import patch
 
 import pytest
 from asgi_lifespan import LifespanManager
@@ -25,7 +25,6 @@ from phoenix.server.cost_tracking.manifest import (
     ManifestError,
 )
 from phoenix.server.daemons import model_cost_manifest_fetcher as fetcher_module
-from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.model_cost_manifest_fetcher import (
     _MAX_MANIFEST_BYTES,
     ModelCostManifestFetcher,
@@ -69,9 +68,16 @@ def _http_error(code: int) -> urllib.error.HTTPError:
     return urllib.error.HTTPError(_URL, code, "error", Message(), None)
 
 
-def _fetcher(db: DbSessionFactory, url: str = _URL) -> tuple[ModelCostManifestFetcher, MagicMock]:
-    store = MagicMock(spec=GenerativeModelStore)
-    return ModelCostManifestFetcher(db, url, store), store
+def _fetcher(db: DbSessionFactory, url: str = _URL) -> ModelCostManifestFetcher:
+    return ModelCostManifestFetcher(db, url)
+
+
+def _info_messages(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == fetcher_module.__name__ and record.levelno == logging.INFO
+    ]
 
 
 class TestDownload:
@@ -93,51 +99,59 @@ class TestDownload:
 
 
 class TestFetchAndApply:
-    async def test_applies_a_newer_manifest_and_refreshes_the_store(
-        self, db: DbSessionFactory
+    async def test_applies_a_newer_manifest_and_logs_the_url(
+        self, db: DbSessionFactory, caplog: pytest.LogCaptureFixture
     ) -> None:
         await _ensure_enums(db)
-        fetcher, store = _fetcher(db)
-        with patch(_URLOPEN, return_value=_Response(_manifest_body())):
+        fetcher = _fetcher(db)
+        with (
+            patch(_URLOPEN, return_value=_Response(_manifest_body())),
+            caplog.at_level(logging.INFO, logger=fetcher_module.__name__),
+        ):
             await fetcher._fetch_and_apply()
 
         assert await _active_built_in_prices(db) == {"test-model": 1.0}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
         assert marker is not None
-        store.request_full_refetch.assert_called_once()
+        (message,) = _info_messages(caplog)
+        assert _URL in message
 
-    async def test_manifest_not_newer_still_refreshes_the_store(self, db: DbSessionFactory) -> None:
+    async def test_manifest_not_newer_is_not_applied(
+        self, db: DbSessionFactory, caplog: pytest.LogCaptureFixture
+    ) -> None:
         await _ensure_enums(db)
-        fetcher, store = _fetcher(db)
+        fetcher = _fetcher(db)
         with patch(_URLOPEN, return_value=_Response(_manifest_body())):
             await fetcher._fetch_and_apply()
-        store.reset_mock()
-        with patch(_URLOPEN, return_value=_Response(_manifest_body())):
+        with (
+            patch(_URLOPEN, return_value=_Response(_manifest_body())),
+            caplog.at_level(logging.INFO, logger=fetcher_module.__name__),
+        ):
             await fetcher._fetch_and_apply()
-        # Another replica may have applied it with rows stamped before the store's cursor.
-        store.request_full_refetch.assert_called_once()
+        assert _info_messages(caplog) == []
 
 
 class TestRun:
+    # Factories, since a response can be read only once and each dialect's run needs its own.
     @pytest.mark.parametrize(
-        "failure",
+        "make_failure",
         [
-            pytest.param(urllib.error.URLError("unreachable"), id="url-error"),
-            pytest.param(_http_error(500), id="http-error"),
-            pytest.param(http.client.IncompleteRead(b""), id="incomplete-read"),
-            pytest.param(_Response(b"not json"), id="bad-json"),
+            pytest.param(lambda: urllib.error.URLError("unreachable"), id="url-error"),
+            pytest.param(lambda: _http_error(500), id="http-error"),
+            pytest.param(lambda: http.client.IncompleteRead(b""), id="incomplete-read"),
+            pytest.param(lambda: _Response(b"not json"), id="bad-json"),
         ],
     )
     async def test_failures_are_logged_and_the_loop_carries_on(
         self,
         db: DbSessionFactory,
-        failure: Any,
+        make_failure: Callable[[], Any],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         await _ensure_enums(db)
-        fetcher, store = _fetcher(db)
-        responses = [failure, _Response(_manifest_body())]
+        fetcher = _fetcher(db)
+        responses = [make_failure(), _Response(_manifest_body())]
 
         def urlopen(*_: Any, **__: Any) -> Any:
             response = responses.pop(0)
@@ -166,7 +180,6 @@ class TestRun:
         assert _URL in warnings[0].getMessage()
         # The second fetch still ran and applied.
         assert await _active_built_in_prices(db) == {"test-model": 1.0}
-        store.request_full_refetch.assert_called_once()
 
     async def test_unexpected_errors_are_logged_and_the_loop_carries_on(
         self,
@@ -174,7 +187,7 @@ class TestRun:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         await _ensure_enums(db)
-        fetcher, store = _fetcher(db)
+        fetcher = _fetcher(db)
         sleeps: list[float] = []
 
         async def sleep(seconds: float) -> None:
@@ -200,10 +213,9 @@ class TestRun:
         assert _URL in record.getMessage()
         # The second fetch still ran.
         assert apply.await_count == 2
-        store.request_full_refetch.assert_called_once()
 
     async def test_fetches_on_every_iteration(self, db: DbSessionFactory) -> None:
-        fetcher, _ = _fetcher(db)
+        fetcher = _fetcher(db)
         sleeps: list[float] = []
 
         async def sleep(seconds: float) -> None:

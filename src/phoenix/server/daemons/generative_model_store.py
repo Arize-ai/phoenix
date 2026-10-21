@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional
@@ -15,6 +16,13 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 logger = logging.getLogger(__name__)
 
 _FETCH_CLOCK_SKEW_BUFFER = timedelta(seconds=10)
+# A row is stamped before its transaction commits (PostgreSQL's now() is the transaction start,
+# and writers may set updated_at in Python), so a commit that lands more than the buffer later
+# than its stamp is behind the cursor and the incremental fetch never sees it. No buffer bounds
+# that, so a periodic full refetch does, whoever the writer is. It reads all live models, about
+# 400 models and 1,200 prices with the bundled manifest, so 15 minutes keeps it to under 100
+# such reads a day against the 5-second incremental polls.
+_FULL_REFETCH_INTERVAL_SECONDS = 15 * 60
 
 
 class GenerativeModelStore(DaemonTask):
@@ -24,7 +32,8 @@ class GenerativeModelStore(DaemonTask):
     database and maintains an in-memory cache for fast lookups. It uses an incremental
     fetch strategy to minimize database egress costs. Instead of fetching all models on
     every refresh, we track the last fetch time and only query for models that have
-    changed since then (using updated_at/deleted_at).
+    changed since then (using updated_at/deleted_at). A periodic full refetch rebuilds the
+    cache to catch changes that committed after the cursor passed their timestamps.
 
     Rationale: Database egress is expensive in cloud environments (especially managed
     databases), and generative models change infrequently (mostly static reference data).
@@ -49,7 +58,7 @@ class GenerativeModelStore(DaemonTask):
         self._db = db
         self._lookup = CostModelLookup()
         self._last_fetch_time: Optional[datetime] = None
-        self._full_refetch_requested = False
+        self._last_full_fetch_monotonic: Optional[float] = None
         self._refresh_interval_seconds = refresh_interval_seconds
 
     def find_model(
@@ -59,52 +68,73 @@ class GenerativeModelStore(DaemonTask):
     ) -> Optional[models.GenerativeModel]:
         return self._lookup.find_model(start_time, attributes)
 
-    def request_full_refetch(self) -> None:
-        """
-        Makes the next refresh fetch all models instead of only those changed since the last.
-
-        For writers whose rows can be stamped earlier than the refresh cursor: PostgreSQL's
-        now() is the transaction start, so a transaction that commits later than the clock
-        skew buffer leaves rows the incremental fetch never sees.
-        """
-        self._full_refetch_requested = True
-
     async def _run(self) -> None:
         while self._running:
-            if self._full_refetch_requested:
-                # Cleared before the fetch, so a request made during it takes effect next time.
-                self._full_refetch_requested = False
-                self._last_fetch_time = None
-            # Capture time before query with a 10-second buffer for clock skew tolerance
-            fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
             try:
                 await self._fetch_models()
             except Exception:
                 logger.exception("Failed to refresh generative models")
-            else:
-                self._last_fetch_time = fetch_start_time
             await sleep(self._refresh_interval_seconds)
 
     async def _fetch_models(self) -> None:
         """
-        Fetch generative models from the database using an incremental strategy.
+        Refresh the lookup, advancing the cursors only if the fetch succeeds.
 
-        On the first run, fetches all models. On subsequent runs, only fetches models
-        where updated_at or deleted_at is at or after the last fetch time (with a 10-second
-        buffer). Some models may be refetched, but .merge() handles duplicates idempotently.
+        Fetches all models on the first run and every _FULL_REFETCH_INTERVAL_SECONDS after,
+        and only the models changed since the last fetch otherwise.
         """
-        stmt = sa.select(models.GenerativeModel).options(
-            joinedload(models.GenerativeModel.token_prices)
+        now_monotonic = time.monotonic()
+        full_fetch = (
+            self._last_fetch_time is None
+            or self._last_full_fetch_monotonic is None
+            or now_monotonic - self._last_full_fetch_monotonic >= _FULL_REFETCH_INTERVAL_SECONDS
         )
-        if self._last_fetch_time:
-            # Incremental fetch: get models changed since last fetch.
-            # Use >= for updated_at/deleted_at to catch models from the buffer window.
-            stmt = stmt.where(
+        # Capture time before query with a 10-second buffer for clock skew tolerance
+        fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
+        if full_fetch:
+            await self._fetch_all_models()
+            self._last_full_fetch_monotonic = now_monotonic
+        else:
+            await self._fetch_changed_models()
+        self._last_fetch_time = fetch_start_time
+
+    async def _fetch_all_models(self) -> None:
+        """
+        Rebuild the lookup from all live models.
+
+        Replacing the lookup rather than merging into it also drops models whose deletion
+        the incremental fetch missed.
+        """
+        stmt = (
+            sa.select(models.GenerativeModel)
+            .options(joinedload(models.GenerativeModel.token_prices))
+            .where(models.GenerativeModel.deleted_at.is_(None))
+        )
+        # Use the primary DB, as for the incremental fetch below.
+        async with self._db() as session:
+            generative_models = (await session.scalars(stmt)).unique().all()
+        self._lookup = CostModelLookup(generative_models)
+
+    async def _fetch_changed_models(self) -> None:
+        """
+        Fetch the models changed since the last fetch.
+
+        Only fetches models where updated_at or deleted_at is at or after the last fetch time
+        (with a 10-second buffer). Some models may be refetched, but .merge() handles
+        duplicates idempotently.
+        """
+        assert self._last_fetch_time is not None
+        # Use >= for updated_at/deleted_at to catch models from the buffer window.
+        stmt = (
+            sa.select(models.GenerativeModel)
+            .options(joinedload(models.GenerativeModel.token_prices))
+            .where(
                 sa.or_(
                     models.GenerativeModel.updated_at >= self._last_fetch_time,
                     models.GenerativeModel.deleted_at >= self._last_fetch_time,
                 )
             )
+        )
         # Use the primary DB for checkpointed polling. A lagged read replica could return
         # stale results and still allow the daemon to advance its timestamp cursor.
         async with self._db() as session:

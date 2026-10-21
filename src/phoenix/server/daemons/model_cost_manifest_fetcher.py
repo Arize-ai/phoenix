@@ -18,7 +18,6 @@ from asyncio import sleep
 
 from phoenix.server.cost_tracking.apply_manifest import apply_manifest_if_newer
 from phoenix.server.cost_tracking.manifest import ManifestError, parse_manifest
-from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -35,16 +34,10 @@ _MAX_MANIFEST_BYTES = 5 * 1024 * 1024
 class ModelCostManifestFetcher(DaemonTask):
     """Periodically fetches the model cost manifest and applies it if it is newer."""
 
-    def __init__(
-        self,
-        db: DbSessionFactory,
-        url: str,
-        generative_model_store: GenerativeModelStore,
-    ) -> None:
+    def __init__(self, db: DbSessionFactory, url: str) -> None:
         super().__init__()
         self._db = db
         self._url = url
-        self._generative_model_store = generative_model_store
 
     async def _run(self) -> None:
         while self._running:
@@ -63,9 +56,6 @@ class ModelCostManifestFetcher(DaemonTask):
         manifest = parse_manifest(body)
         if applied := await apply_manifest_if_newer(self._db, manifest):
             logger.info(f"Applied the model cost manifest from {self._url}, {applied}")
-        # Refetch even if it wasn't newer: another replica may have applied it, with rows
-        # stamped before our store's cursor that its incremental fetch would miss.
-        self._generative_model_store.request_full_refetch()
 
 
 def _download(url: str) -> bytes:

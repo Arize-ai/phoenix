@@ -6,8 +6,10 @@ from typing import AsyncIterator
 from unittest.mock import patch
 
 import pytest
+import sqlalchemy as sa
 
 from phoenix.db import models
+from phoenix.server.daemons import generative_model_store as store_module
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -256,13 +258,14 @@ class TestGenerativeModelStore:
         finally:
             await store.stop()
 
-    async def test_full_refetch_picks_up_rows_stamped_before_the_cursor(
+    async def test_periodic_full_refetch_picks_up_rows_stamped_before_the_cursor(
         self,
         db: DbSessionFactory,
         daemon_cycles: _DaemonCycleController,
     ) -> None:
         """A row committed with an updated_at older than the cursor (as a slow PostgreSQL
-        transaction leaves, since now() is its start) is missed until a full refetch."""
+        transaction leaves, since now() is its start) is missed by the incremental fetch
+        and picked up by the next full refetch."""
         store = GenerativeModelStore(
             db=db,
             refresh_interval_seconds=daemon_cycles.refresh_interval_seconds,
@@ -295,9 +298,60 @@ class TestGenerativeModelStore:
             await daemon_cycles.run_cycle("incremental fetch")
             assert store.find_model(datetime.now(timezone.utc), attributes) is None
 
-            store.request_full_refetch()
-            await daemon_cycles.run_cycle("full refetch")
+            with patch.object(store_module, "_FULL_REFETCH_INTERVAL_SECONDS", 0):
+                await daemon_cycles.run_cycle("full refetch")
             found = store.find_model(datetime.now(timezone.utc), attributes)
             assert found is not None and found.name == "late-model"
+        finally:
+            await store.stop()
+
+    async def test_periodic_full_refetch_drops_models_deleted_before_the_cursor(
+        self,
+        db: DbSessionFactory,
+        daemon_cycles: _DaemonCycleController,
+    ) -> None:
+        """A soft delete committed with a deleted_at older than the cursor is missed by the
+        incremental fetch, and the full refetch drops the model from the lookup."""
+        async with db() as session:
+            model = models.GenerativeModel(
+                name="doomed-model",
+                provider="",
+                name_pattern=re.compile("doomed-model"),
+                is_built_in=True,
+                token_prices=[
+                    models.TokenPrice(
+                        token_type="input",
+                        is_prompt=True,
+                        base_rate=1.0,
+                        customization=None,
+                    )
+                ],
+            )
+            session.add(model)
+            await session.flush()
+            model_id = model.id
+        store = GenerativeModelStore(
+            db=db,
+            refresh_interval_seconds=daemon_cycles.refresh_interval_seconds,
+        )
+        await store.start()
+        try:
+            await daemon_cycles.wait_for_cycle("initial fetch")
+            attributes = {"llm": {"model_name": "doomed-model"}}
+            assert store.find_model(datetime.now(timezone.utc), attributes) is not None
+            stamped = datetime.now(timezone.utc) - timedelta(hours=1)
+            async with db() as session:
+                await session.execute(
+                    sa.update(models.GenerativeModel)
+                    .where(models.GenerativeModel.id == model_id)
+                    .values(deleted_at=stamped, updated_at=stamped)
+                )
+
+            await daemon_cycles.run_cycle("incremental fetch")
+            assert store.find_model(datetime.now(timezone.utc), attributes) is not None
+
+            with patch.object(store_module, "_FULL_REFETCH_INTERVAL_SECONDS", 0):
+                await daemon_cycles.run_cycle("full refetch")
+            assert store.find_model(datetime.now(timezone.utc), attributes) is None
         finally:
             await store.stop()

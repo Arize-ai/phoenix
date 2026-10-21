@@ -1043,9 +1043,7 @@ def create_app(
     # A read-only server leaves the built-in prices to the server that writes.
     model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
     model_cost_manifest_fetcher = (
-        ModelCostManifestFetcher(db, model_cost_manifest_url, generative_model_store)
-        if model_cost_manifest_url
-        else None
+        ModelCostManifestFetcher(db, model_cost_manifest_url) if model_cost_manifest_url else None
     )
     span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
