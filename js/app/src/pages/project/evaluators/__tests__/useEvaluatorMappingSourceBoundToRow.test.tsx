@@ -6,7 +6,7 @@ import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { useEvaluatorMappingSourceBoundToRow } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import { useEvaluatorMappingSourceBoundToRow } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
 import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
 const SESSION_ROW = {

@@ -21,6 +21,7 @@ export const EditLLMEvaluatorDialogContent = ({
   llmEvaluatorNodeId,
   title,
   formLeftPanel,
+  formLeftDock,
   formRightPanel,
 }: {
   onClose: () => void;
@@ -33,6 +34,10 @@ export const EditLLMEvaluatorDialogContent = ({
   llmEvaluatorNodeId?: string | null;
   title?: string;
   formLeftPanel?: ReactNode;
+  /**
+   * Pinned to the bottom of the left panel, outside its scroll region.
+   */
+  formLeftDock?: ReactNode;
   /**
    * Replaces the form's right (test) panel.
    */
@@ -115,6 +120,7 @@ export const EditLLMEvaluatorDialogContent = ({
           </>
         )
       }
+      leftDock={formLeftDock}
       right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
     />
   );
