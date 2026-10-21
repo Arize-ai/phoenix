@@ -4,6 +4,13 @@ from unittest.mock import MagicMock
 import httpx2
 import pytest
 
+from phoenix.db.types.decisions import (
+    ChoiceOption,
+    ChoiceQuestion,
+    PredicateQuestion,
+    ScaleLevel,
+    ScaleQuestion,
+)
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
@@ -25,25 +32,23 @@ from phoenix.server.api.helpers.decision_clients import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.tracers import Tracer
 
-REQUEST = DecisionRequest.model_validate(
-    {
-        "state": "hello",
-        "questions": [
-            {"type": "predicate", "name": "urgent", "instructions": "Urgent?"},
-            {
-                "type": "choice",
-                "name": "department",
-                "instructions": "Which team?",
-                "choices": [{"value": "billing"}, {"value": "technical"}],
-            },
-            {
-                "type": "scale",
-                "name": "severity",
-                "instructions": "How severe?",
-                "levels": [{"label": "low"}, {"label": "high"}],
-            },
-        ],
-    }
+REQUEST = DecisionRequest(
+    state="hello",
+    questions=[
+        PredicateQuestion(type="predicate", name="urgent", instructions="Urgent?"),
+        ChoiceQuestion(
+            type="choice",
+            name="department",
+            instructions="Which team?",
+            choices=[ChoiceOption(value="billing"), ChoiceOption(value="technical")],
+        ),
+        ScaleQuestion(
+            type="scale",
+            name="severity",
+            instructions="How severe?",
+            levels=[ScaleLevel(label="low"), ScaleLevel(label="high")],
+        ),
+    ],
 )
 
 
@@ -314,11 +319,9 @@ async def test_timeouts_and_connection_failures_are_transient(
     )
     with pytest.raises(DecisionTransientError) as raised:
         await client.create(
-            request=DecisionRequest.model_validate(
-                {
-                    "state": "hello",
-                    "questions": [{"type": "predicate", "name": "q", "instructions": "?"}],
-                }
+            request=DecisionRequest(
+                state="hello",
+                questions=[PredicateQuestion(type="predicate", name="q", instructions="?")],
             ),
             tracer=Tracer(span_cost_calculator=cast(Any, MagicMock())),
         )

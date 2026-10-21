@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
+from phoenix.db.types.decisions import PredicateCriteria, PredicateQuestion
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
@@ -528,19 +529,22 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
 def test_predicate_criteria_translate_for_each_provider() -> None:
     """System One takes the criteria as is; OpenAI has no criteria field, so they are
     folded into the instructions."""
-    request = DecisionRequest.model_validate(
-        {
-            "state": "hello",
-            "questions": [
-                {
-                    "type": "predicate",
-                    "name": "urgent",
-                    "instructions": "Urgent?",
-                    "criteria": {"true": "Time sensitive", "false": "Routine"},
-                },
-                {"type": "predicate", "name": "spam", "instructions": "Spam?", "criteria": {}},
-            ],
-        }
+    request = DecisionRequest(
+        state="hello",
+        questions=[
+            PredicateQuestion(
+                type="predicate",
+                name="urgent",
+                instructions="Urgent?",
+                criteria=PredicateCriteria(true="Time sensitive", false="Routine"),
+            ),
+            PredicateQuestion(
+                type="predicate",
+                name="spam",
+                instructions="Spam?",
+                criteria=PredicateCriteria(),
+            ),
+        ],
     )
     openai_body = OpenAIDecisionClient(
         model_name="gpt-6-luna",
@@ -1328,8 +1332,9 @@ async def test_failures_are_classified_for_a_retrying_caller(
         model_name="model",
         connection=DecisionConnection(api_key="key", base_url=base_url),
     )
-    request = DecisionRequest.model_validate(
-        {"state": "hello", "questions": [{"type": "predicate", "name": "q", "instructions": "?"}]}
+    request = DecisionRequest(
+        state="hello",
+        questions=[PredicateQuestion(type="predicate", name="q", instructions="?")],
     )
     with respx.mock:
         route = respx.post(endpoint).respond(status, json={"error": "no"})

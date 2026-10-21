@@ -9,7 +9,6 @@ from strawberry import UNSET
 from phoenix.db.types import decision_evaluators as stored
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.decision_versions import format_validation_error
 
 
 @strawberry.input(description="The score for one of a choice question's declared choices.")
@@ -103,9 +102,11 @@ class DecisionScoringPolicyInput:
             try:
                 _, scoring = value.to_orm()
             except ValidationError as error:
-                raise BadRequest(
-                    f"Scoring for question '{name}': {format_validation_error(error)}"
-                ) from error
+                detail = "; ".join(
+                    f"{'.'.join(map(str, e['loc']))}: {e['msg']}" if e["loc"] else str(e["msg"])
+                    for e in error.errors(include_input=False)
+                )
+                raise BadRequest(f"Scoring for question '{name}': {detail}") from error
             if name in questions:
                 raise BadRequest(f"Duplicate scoring question '{name}'")
             questions[name] = scoring

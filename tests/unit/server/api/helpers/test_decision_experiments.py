@@ -129,12 +129,6 @@ def test_input_values_that_are_not_an_object_say_so() -> None:
         ask(config, {"state": "x"})
 
 
-def test_a_task_without_questions_fails_before_any_call() -> None:
-    config = task_config().model_copy(update={"questions": []})
-    with pytest.raises(ValueError, match="At least one question is required"):
-        ask(config, {"state": "Rivers carry sediment."})
-
-
 def test_the_run_output_keeps_full_answers_by_question_name() -> None:
     output = decision_run_output(
         DecisionResponse(

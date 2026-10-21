@@ -11,7 +11,6 @@ from string import Formatter
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import pystache
-from pydantic import ValidationError
 
 from phoenix.db.types.decisions import (
     ChoiceQuestion,
@@ -132,22 +131,29 @@ def render_state(
     if problems:
         raise ValueError("; ".join(problems))
     if isinstance(state, ObjectState):
-        return {name: values[name] for name in names}
-    if isinstance(state, InputState):
-        return values[state.name]
-    template_format = PromptTemplateFormat(state.template_format)
-    bound = {name: values[name] for name in names}
-    try:
-        # A null input renders as `null` under Mustache too: structured inputs are JSON.
-        if template_format is PromptTemplateFormat.F_STRING:
-            return _F_STRING_FORMATTER.vformat(state.template, (), bound)
-        return str(_MUSTACHE_RENDERER.render(state.template, bound))
-    except (AttributeError, KeyError, IndexError, TypeError) as error:
-        # F-string paths raise these from Formatter.vformat; Mustache renders a miss as empty.
-        detail = error.args[0] if error.args else type(error).__name__
-        raise ValueError(
-            f"The state template can't be rendered from these inputs: {detail}"
-        ) from error
+        result: Any = {name: values[name] for name in names}
+    elif isinstance(state, InputState):
+        result = values[state.name]
+    else:
+        template_format = PromptTemplateFormat(state.template_format)
+        bound = {name: values[name] for name in names}
+        try:
+            # A null input renders as `null` under Mustache too: structured inputs are JSON.
+            if template_format is PromptTemplateFormat.F_STRING:
+                result = _F_STRING_FORMATTER.vformat(state.template, (), bound)
+            else:
+                result = str(_MUSTACHE_RENDERER.render(state.template, bound))
+        except (AttributeError, KeyError, IndexError, TypeError) as error:
+            # F-string paths raise these from Formatter.vformat; Mustache renders a miss as empty.
+            detail = error.args[0] if error.args else type(error).__name__
+            raise ValueError(
+                f"The state template can't be rendered from these inputs: {detail}"
+            ) from error
+    if not isinstance(result, (str, dict, list)):
+        raise ValueError("State must be text, a JSON object, or a list")
+    if isinstance(result, str) and not result.strip():
+        raise ValueError("State cannot be empty")
+    return result
 
 
 _FIELD_PART_RE = re.compile(r"\.([^.\[\]]+)|\[([^\[\]]+)\]")
@@ -204,33 +210,6 @@ class _JSONFStringFormatter(Formatter):
 
 _MUSTACHE_RENDERER = _JSONMustacheRenderer()
 _F_STRING_FORMATTER = _JSONFStringFormatter()
-
-
-_VALUE_ERROR_PREFIX = "Value error, "
-
-
-def format_validation_error(error: ValidationError) -> str:
-    """Pydantic's report as one readable line.
-
-    Union branch tags (the question ``type`` discriminator, the ``state`` alternatives) are
-    dropped from paths since callers never wrote them, custom-validator messages lose the
-    ``Value error,`` boilerplate, and duplicate lines collapse.
-    """
-    messages: list[str] = []
-    for item in error.errors(include_input=False):
-        location = [str(part) for part in item["loc"]]
-        if location and location[0] == "state":
-            location = ["state"]
-        elif len(location) >= 3 and location[0] == "questions":
-            location = location[:2] + location[3:]
-        message = str(item["msg"])
-        if message.startswith(_VALUE_ERROR_PREFIX):
-            message = message[len(_VALUE_ERROR_PREFIX) :]
-        path = ".".join(location)
-        line = f"{path}: {message}" if path else message
-        if line not in messages:
-            messages.append(line)
-    return "; ".join(messages)
 
 
 async def validate_decision_custom_provider(

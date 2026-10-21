@@ -41,7 +41,7 @@ from openinference.semconv.trace import (
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode, Tracer
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import getenv
@@ -59,7 +59,6 @@ from phoenix.db.types.model_provider import (
     sdk_offers_decisions,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.decision_versions import validate_questions
 from phoenix.server.api.helpers.playground_clients import resolve_provider_api_key
 from phoenix.server.api.helpers.playground_registry import (
     filter_allowed_providers,
@@ -88,24 +87,12 @@ JSONValue = str | dict[str, Any] | list[Any]
 """Text, a JSON object, or an array. Used only where structure is the point."""
 
 
-class DecisionRequest(BaseModel):
-    """One run: the state, and the questions in their stored form and order.
+@dataclass(frozen=True)
+class DecisionRequest:
+    """One run: the state, and the questions in their stored form and order."""
 
-    Each adapter translates it to its provider's request. Write-time rules for the
-    questions run here too (see :func:`validate_questions`), because running accepts
-    questions just as saving does.
-    """
-
-    model_config = ConfigDict(extra="forbid")
     state: JSONValue
-    questions: list[DecisionQuestion]
-
-    @model_validator(mode="after")
-    def validate_state_and_questions(self) -> "DecisionRequest":
-        if isinstance(self.state, str) and not self.state.strip():
-            raise ValueError("State cannot be empty")
-        validate_questions(self.questions)
-        return self
+    questions: Sequence[DecisionQuestion]
 
     def questions_by_name(self) -> dict[str, DecisionQuestion]:
         return {question.name: question for question in self.questions}

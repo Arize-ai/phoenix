@@ -4,7 +4,6 @@ from typing import Optional
 
 import strawberry
 from opentelemetry.context import Context as OtelContext
-from pydantic import ValidationError
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -18,9 +17,9 @@ from phoenix.server.api.helpers.decision_clients import (
     DecisionRequest,
 )
 from phoenix.server.api.helpers.decision_versions import (
-    format_validation_error,
     render_state,
     validate_inputs,
+    validate_questions,
 )
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.DecisionConnectionInput import (
@@ -145,12 +144,12 @@ def to_decision_request(input: RunDecisionInput) -> DecisionRequest:
         inputs = [definition.to_orm() for definition in input.inputs]
         state = input.state.to_orm()
         validate_inputs(inputs, state)
+        questions = [question.to_orm() for question in input.questions]
+        validate_questions(questions)
         return DecisionRequest(
             state=render_state(inputs, state, input.input_values),
-            questions=[question.to_orm() for question in input.questions],
+            questions=questions,
         )
-    except ValidationError as error:
-        raise BadRequest(format_validation_error(error)) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
 
@@ -170,8 +169,6 @@ def version_decision_request(
             state=render_state(version.inputs, version.state, input_values),
             questions=version.questions,
         )
-    except ValidationError as error:
-        raise BadRequest(format_validation_error(error)) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
 

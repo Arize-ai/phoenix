@@ -7,8 +7,6 @@ come from ``template_variables_path``. The task's questions are fixed across exa
 
 from typing import Any
 
-from pydantic import ValidationError
-
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
 from phoenix.server.api.helpers.decision_versions import render_state
@@ -28,8 +26,8 @@ def build_example_request(
     example may carry other fields beside them.
 
     Raises:
-        ValueError: A path misses, a declared input is missing, or the request breaks a
-            write-time rule. The message says which.
+        ValueError: A path misses, a declared input is missing, or the rendered state is
+            invalid. The message says which.
     """
     try:
         source = build_template_variables(
@@ -46,10 +44,7 @@ def build_example_request(
     state = render_state(
         config.inputs, config.state, {name: source[name] for name in names if name in source}
     )
-    try:
-        return DecisionRequest(state=state, questions=config.questions)
-    except ValidationError as error:
-        raise ValueError(error.errors()[0]["msg"].removeprefix("Value error, ")) from error
+    return DecisionRequest(state=state, questions=config.questions)
 
 
 def _reason(error: Exception) -> str:
