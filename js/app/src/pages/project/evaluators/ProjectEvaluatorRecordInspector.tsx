@@ -37,6 +37,7 @@ import {
   type ProjectEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorInputMapping } from "@phoenix/types";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 /**
  * Where each evaluator variable is read from, in the record's own words. The
@@ -157,8 +158,13 @@ export function ProjectEvaluatorRecordInspector({
             blocker={testBlocker}
             onRun={onRun}
           />
+          {/* The record's href is an app path; opened in a new tab it leaves
+              the router, so the root path the app is served under is added
+              here. */}
           {row.href ? (
-            <ExternalLink href={row.href}>Open {recordKind}</ExternalLink>
+            <ExternalLink href={prependBasename(row.href)}>
+              Open {recordKind}
+            </ExternalLink>
           ) : null}
         </div>
       </header>

@@ -32,6 +32,8 @@ import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluator
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
+import { baseWindowConfig } from "../../../../../vitest.setup";
+
 describe("the evaluator inputs", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -582,6 +584,56 @@ describe("the evaluator inputs", () => {
     // The button keeps its label while it runs; a spinner takes the icon.
     const button = [...container.querySelectorAll("header button")].pop();
     expect(button?.getAttribute("aria-label")).toBe("Test");
+  });
+  it("opens the record under the root path the app is served from", async () => {
+    Object.defineProperty(window, "Config", {
+      value: { ...baseWindowConfig, basename: "/phoenix" },
+      writable: true,
+    });
+    try {
+      await act(async () => {
+        root.render(
+          <ThemeProvider themeMode="light" disableBodyTheme>
+            <EvaluatorStoreProvider
+              initialState={DEFAULT_LLM_EVALUATOR_STORE_VALUES}
+            >
+              <EvaluatorInputVariablesContext.Provider value={["input"]}>
+                <ProjectEvaluatorRecordInspector
+                  entry={{
+                    row: {
+                      key: "a",
+                      name: "a span",
+                      recordId: "a-0123456789",
+                      context: { input: "hello", metadata: {} },
+                      isSample: false,
+                      href: "/projects/p/traces/t?selectedSpanNodeId=s",
+                    },
+                    missingCount: 0,
+                    run: undefined,
+                    resultState: { kind: "idle" },
+                  }}
+                  recordKind="span"
+                  inputMapping={{ pathMapping: {}, literalMapping: {} }}
+                  isRunnable
+                  runBlocker={null}
+                  onRun={() => {}}
+                />
+              </EvaluatorInputVariablesContext.Provider>
+            </EvaluatorStoreProvider>
+          </ThemeProvider>
+        );
+      });
+      // Opened in a new tab, the link leaves the router, so it carries the
+      // root path itself.
+      expect(container.querySelector("header a")?.getAttribute("href")).toBe(
+        "/phoenix/projects/p/traces/t?selectedSpanNodeId=s"
+      );
+    } finally {
+      Object.defineProperty(window, "Config", {
+        value: baseWindowConfig,
+        writable: true,
+      });
+    }
   });
 });
 
