@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba3deda29b7da1172a597a688d74da0d>>
+ * @generated SignedSource<<f26990294cb2cca1d248d535ae6e4488>>
  * @lightSyntaxTransform
  */
 
@@ -258,13 +258,6 @@ return {
             "kind": "ScalarField",
             "name": "generatedAt",
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "source",
-            "storageKey": null
           }
         ],
         "storageKey": null
@@ -272,12 +265,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ba30d1b9fb6f6386abcee10776b08cd7",
+    "cacheID": "7927de9dfa09b0367102e9078b623adc",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n  ...useModelCostManifestDescription_query\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useModelCostManifestDescription_query on Query {\n  modelCostManifest {\n    generatedAt\n    source\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n  ...useModelCostManifestDescription_query\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useModelCostManifestDescription_query on Query {\n  modelCostManifest {\n    generatedAt\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e613160778d73f7e009959973df1431c>>
+ * @generated SignedSource<<1c75d6fcb97925a6aa4b24dcc53d48bf>>
  * @lightSyntaxTransform
  */
 
@@ -8,12 +8,10 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ModelCostManifestSource = "BUNDLED" | "REMOTE";
 import { FragmentRefs } from "relay-runtime";
 export type useModelCostManifestDescription_query$data = {
   readonly modelCostManifest: {
     readonly generatedAt: string;
-    readonly source: ModelCostManifestSource;
   } | null;
   readonly " $fragmentType": "useModelCostManifestDescription_query";
 };
@@ -42,13 +40,6 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "generatedAt",
           "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "source",
-          "storageKey": null
         }
       ],
       "storageKey": null
@@ -58,6 +49,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "11395e8845de83dd74b1269f9a1c2480";
+(node as any).hash = "f9af38b5e7442c524bc438bbe36ca521";
 
 export default node;

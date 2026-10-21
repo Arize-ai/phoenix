@@ -10,7 +10,7 @@ rolls back prices fetched since. The rows themselves are the cache: nothing else
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Literal, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import sqlalchemy as sa
 from pydantic import AwareDatetime, BaseModel, ConfigDict, ValidationError
@@ -23,6 +23,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.db.types.token_price_customization import TokenPriceCustomizationParser
 from phoenix.server.cost_tracking.manifest import ManifestModel, ModelCostManifest
+from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,6 @@ MANIFEST_VERSION_STATE_KEY = "cost_tracking.model_cost_manifest"
 
 # Serializes applies across replicas sharing a PostgreSQL database. SQLite allows one writer.
 _APPLY_LOCK_ID = 0x70686F656E6978  # "phoenix"
-
-ManifestSource = Literal["bundled", "remote"]
 
 
 class ModelCostManifestVersion(BaseModel):
@@ -41,15 +40,26 @@ class ModelCostManifestVersion(BaseModel):
     fetched one at runtime, each only if it is newer than the one recorded here.
     """
 
-    # Unknown fields are ignored so that replicas running an older Phoenix can still read a
-    # marker written by a newer one.
+    # Unknown fields are ignored so that a marker written by another version of Phoenix, with
+    # fields this one doesn't know or no longer stores, still reads.
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    schema_version: int
     generated_at: AwareDatetime
-    source: ManifestSource
-    url: Optional[str] = None
-    applied_at: AwareDatetime
+
+
+class AppliedManifest(NamedTuple):
+    """What applying a manifest changed, for the caller to log along with where it came from."""
+
+    generated_at: datetime
+    num_added: int
+    num_updated: int
+    num_removed: int
+
+    def __str__(self) -> str:
+        return (
+            f"generated at {self.generated_at.isoformat()}: {self.num_added} models added, "
+            f"{self.num_updated} updated, {self.num_removed} removed"
+        )
 
 
 class _TokenTypeKey(NamedTuple):
@@ -83,22 +93,17 @@ def _is_newer(
 ) -> bool:
     if applied is None:
         return True
-    # A manifest of a newer schema carries data the applied one can't, so it wins even if
-    # it is older; the next fetch brings back any newer prices. One of an older schema never
-    # wins, or replicas of different versions would keep overwriting each other mid-upgrade.
-    if applied.schema_version != manifest.schema_version:
-        return applied.schema_version < manifest.schema_version
+    # Only generated_at is compared, even across schema versions. That is safe while replicas
+    # of different versions share a database because bumping the schema freezes the old
+    # schema's manifest (see BUNDLED_MANIFEST_PATH): every manifest of the new schema is newer
+    # than any of the old one, so an older replica can't win back. This relies on the new
+    # schema's first manifest having a later generated_at than the old one's last.
     return manifest.generated_at > applied.generated_at
 
 
 async def apply_manifest_if_newer(
-    session: AsyncSession,
-    manifest: ModelCostManifest,
-    *,
-    dialect: SupportedSQLDialect,
-    source: ManifestSource,
-    url: Optional[str] = None,
-) -> bool:
+    db: DbSessionFactory, manifest: ModelCostManifest
+) -> Optional[AppliedManifest]:
     """
     Applies the manifest if it is newer than the one last applied, and records it as applied.
 
@@ -106,73 +111,55 @@ async def apply_manifest_if_newer(
     soft-deletes built-in models that are no longer in it unless span costs reference them
     (or a model in the manifest takes over their name_pattern and provider). Models whose
     entries were skipped as invalid are left as they are.
-    Everything happens in the given session's transaction.
+    Everything happens in one transaction, committed before this returns.
 
     Returns:
-        Whether the manifest was applied.
+        What was applied, or None if the manifest wasn't newer.
     """
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        # Held until the transaction ends, so a replica applying concurrently waits here and
-        # then sees the marker this one wrote.
-        await session.execute(select(sa.func.pg_advisory_xact_lock(_APPLY_LOCK_ID)))
-    applied = await get_applied_manifest_version(session)
-    if not _is_newer(manifest, applied):
-        if applied is not None and applied.schema_version > manifest.schema_version:
-            logger.warning(
-                f"The database has a model cost manifest of schema {applied.schema_version}, "
-                f"newer than this Phoenix supports, so built-in model prices won't update "
-                f"until Phoenix is upgraded"
-            )
-        return False
-
     entries = _dedupe_entries(manifest)
-    built_in_models = await _get_built_in_models(session)
     incoming_patterns = {
         (manifest_model.name_pattern, _provider(manifest_model))
         for manifest_model in entries.values()
     }
-    # A model that was renamed upstream keeps its name_pattern and provider, so its old row
-    # must go before the new one is inserted, or the two collide on the unique index. It goes
-    # even if span costs reference it; they keep pointing at the old row. Any other model
-    # missing from the manifest goes only if nothing references it, and one whose entry was
-    # skipped as invalid stays as it is.
-    colliding: list[int] = []
-    unmatched: list[int] = []
-    for name, model in built_in_models.items():
-        if name in entries:
-            continue
-        if (model.name_pattern, model.provider) in incoming_patterns:
-            colliding.append(model.id)
-        elif name not in manifest.skipped_model_names:
-            unmatched.append(model.id)
-    num_removed = await _soft_delete_models(session, colliding)
-    num_removed += await _soft_delete_models(session, unmatched, unless_referenced=True)
-    num_added, num_updated = await _upsert_models(session, entries, built_in_models)
+    payload = ModelCostManifestVersion(generated_at=manifest.generated_at).model_dump(mode="json")
+    async with db() as session:
+        if db.dialect is SupportedSQLDialect.POSTGRESQL:
+            # Held until the transaction ends, so a replica applying concurrently waits here and
+            # then sees the marker this one wrote.
+            await session.execute(select(sa.func.pg_advisory_xact_lock(_APPLY_LOCK_ID)))
+        if not _is_newer(manifest, await get_applied_manifest_version(session)):
+            return None
 
-    marker = ModelCostManifestVersion(
-        schema_version=manifest.schema_version,
-        generated_at=manifest.generated_at,
-        source=source,
-        url=url,
-        applied_at=datetime.now(timezone.utc),
-    )
-    payload = marker.model_dump(mode="json")
-    await session.execute(
-        insert_on_conflict(
-            {"key": MANIFEST_VERSION_STATE_KEY, "value": payload, "revision": 1},
-            table=models.SystemState,
-            dialect=dialect,
-            unique_by=("key",),
-            constraint_name="pk_system_state",
-            set_={"value": payload, "revision": models.SystemState.revision + 1},
+        built_in_models = await _get_built_in_models(session)
+        # A model that was renamed upstream keeps its name_pattern and provider, so its old row
+        # must go before the new one is inserted, or the two collide on the unique index. It
+        # goes even if span costs reference it; they keep pointing at the old row. Any other
+        # model missing from the manifest goes only if nothing references it, and one whose
+        # entry was skipped as invalid stays as it is.
+        colliding: list[int] = []
+        unmatched: list[int] = []
+        for name, model in built_in_models.items():
+            if name in entries:
+                continue
+            if (model.name_pattern, model.provider) in incoming_patterns:
+                colliding.append(model.id)
+            elif name not in manifest.skipped_model_names:
+                unmatched.append(model.id)
+        num_removed = await _soft_delete_models(session, colliding)
+        num_removed += await _soft_delete_models(session, unmatched, unless_referenced=True)
+        num_added, num_updated = await _upsert_models(session, entries, built_in_models)
+
+        await session.execute(
+            insert_on_conflict(
+                {"key": MANIFEST_VERSION_STATE_KEY, "value": payload, "revision": 1},
+                table=models.SystemState,
+                dialect=db.dialect,
+                unique_by=("key",),
+                constraint_name="pk_system_state",
+                set_={"value": payload, "revision": models.SystemState.revision + 1},
+            )
         )
-    )
-    logger.info(
-        f"Applied {source} model cost manifest generated at "
-        f"{manifest.generated_at.isoformat()}: {num_added} models added, "
-        f"{num_updated} updated, {num_removed} removed"
-    )
-    return True
+    return AppliedManifest(manifest.generated_at, num_added, num_updated, num_removed)
 
 
 def _dedupe_entries(manifest: ModelCostManifest) -> dict[str, ManifestModel]:

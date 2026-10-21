@@ -105,8 +105,6 @@ class TestFetchAndApply:
         async with db() as session:
             marker = await get_applied_manifest_version(session)
         assert marker is not None
-        assert marker.source == "remote"
-        assert marker.url == _URL
         store.request_full_refetch.assert_called_once()
 
     async def test_manifest_not_newer_still_refreshes_the_store(self, db: DbSessionFactory) -> None:
@@ -189,7 +187,7 @@ class TestRun:
             patch.object(
                 fetcher_module,
                 "apply_manifest_if_newer",
-                side_effect=[RuntimeError("boom"), True],
+                side_effect=[RuntimeError("boom"), None],
             ) as apply,
             patch(_SLEEP, sleep),
             caplog.at_level(logging.WARNING, logger=fetcher_module.__name__),

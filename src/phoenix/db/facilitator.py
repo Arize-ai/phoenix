@@ -470,8 +470,8 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
     fetched since the last upgrade).
     """
     manifest = parse_manifest(_COST_MODEL_MANIFEST.read_bytes())
-    async with db() as session:
-        await apply_manifest_if_newer(session, manifest, dialect=db.dialect, source="bundled")
+    if applied := await apply_manifest_if_newer(db, manifest):
+        logger.info(f"Applied the model cost manifest bundled with Phoenix, {applied}")
 
 
 async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:

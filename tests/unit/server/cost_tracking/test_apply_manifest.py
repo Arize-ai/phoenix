@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
@@ -15,6 +14,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.token_price_customization import ThresholdBasedTokenPriceCustomization
 from phoenix.server.cost_tracking.apply_manifest import (
     MANIFEST_VERSION_STATE_KEY,
+    ModelCostManifestVersion,
     apply_manifest_if_newer,
     get_applied_manifest_version,
 )
@@ -88,26 +88,12 @@ def _manifest_model(name: str, input_rate: float = 1e-6) -> dict[str, Any]:
     }
 
 
-def _manifest(
-    *names: str,
-    day: int,
-    input_rate: float = 1e-6,
-    schema_version: int = SUPPORTED_SCHEMA_VERSION,
-) -> ModelCostManifest:
-    manifest = _manifest_of([_manifest_model(name, input_rate) for name in names], day=day)
-    # parse_manifest only accepts the supported version; set others directly.
-    return manifest.model_copy(update={"schema_version": schema_version})
+def _manifest(*names: str, day: int, input_rate: float = 1e-6) -> ModelCostManifest:
+    return _manifest_of([_manifest_model(name, input_rate) for name in names], day=day)
 
 
-async def _apply(
-    db: DbSessionFactory,
-    manifest: ModelCostManifest,
-    source: Any = "remote",
-) -> bool:
-    async with db() as session:
-        return await apply_manifest_if_newer(
-            session, manifest, dialect=db.dialect, source=source, url="file:///test.json"
-        )
+async def _apply(db: DbSessionFactory, manifest: ModelCostManifest) -> bool:
+    return await apply_manifest_if_newer(db, manifest) is not None
 
 
 async def _active_built_in_prices(db: DbSessionFactory) -> dict[str, float]:
@@ -567,11 +553,7 @@ class TestApplyManifestIfNewer:
 
         async with db() as session:
             marker = await get_applied_manifest_version(session)
-        assert marker is not None
-        assert marker.schema_version == SUPPORTED_SCHEMA_VERSION
-        assert marker.generated_at == _manifest_date(1)
-        assert marker.source == "remote"
-        assert marker.url == "file:///test.json"
+        assert marker == ModelCostManifestVersion(generated_at=_manifest_date(1))
 
         assert await _apply(db, _manifest("model-a", "model-b", day=2, input_rate=3e-6))
         assert await _active_built_in_prices(db) == {"model-a": 3e-6, "model-b": 3e-6}
@@ -581,50 +563,44 @@ class TestApplyManifestIfNewer:
         self,
         db: DbSessionFactory,
         day: int,
-        caplog: pytest.LogCaptureFixture,
     ) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", day=1))
-        with caplog.at_level(logging.WARNING, logger="phoenix.server.cost_tracking.apply_manifest"):
-            assert not await _apply(db, _manifest("model-b", day=day, input_rate=5e-6))
-        assert "newer than this Phoenix supports" not in caplog.text
+        assert not await _apply(db, _manifest("model-b", day=day, input_rate=5e-6))
         assert await _active_built_in_prices(db) == {"model-a": 1e-6}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
         assert marker is not None and marker.generated_at == _manifest_date(1)
 
-    async def test_newer_schema_is_applied_even_if_older(self, db: DbSessionFactory) -> None:
-        await _ensure_enums(db)
-        assert await _apply(db, _manifest("model-a", day=5))
-        newer_schema = _manifest("model-b", day=1, schema_version=SUPPORTED_SCHEMA_VERSION + 1)
-        assert await _apply(db, newer_schema)
-        assert await _active_built_in_prices(db) == {"model-b": 1e-6}
-
-    async def test_older_schema_is_not_applied_even_if_newer(
+    async def test_reads_a_marker_with_fields_it_no_longer_stores(
         self,
         db: DbSessionFactory,
-        caplog: pytest.LogCaptureFixture,
     ) -> None:
         await _ensure_enums(db)
-        newer_schema = _manifest("model-a", day=1, schema_version=SUPPORTED_SCHEMA_VERSION + 1)
-        assert await _apply(db, newer_schema)
-        with caplog.at_level(logging.WARNING, logger="phoenix.server.cost_tracking.apply_manifest"):
-            assert not await _apply(db, _manifest("model-b", day=5))
-        assert await _active_built_in_prices(db) == {"model-a": 1e-6}
-        assert f"schema {SUPPORTED_SCHEMA_VERSION + 1}, newer than" in caplog.text
+        value = {
+            "schema_version": SUPPORTED_SCHEMA_VERSION,
+            "generated_at": _manifest_date(5).isoformat(),
+            "source": "remote",
+            "url": "https://example.com/v1.json",
+            "applied_at": _manifest_date(5).isoformat(),
+        }
+        async with db() as session:
+            session.add(models.SystemState(key=MANIFEST_VERSION_STATE_KEY, value=value, revision=1))
+        assert not await _apply(db, _manifest("model-a", day=4))
+        assert await _apply(db, _manifest("model-a", day=6))
+        async with db() as session:
+            row = await session.get(models.SystemState, MANIFEST_VERSION_STATE_KEY)
+        assert row is not None
+        assert row.value.keys() == {"generated_at"}
+        assert ModelCostManifestVersion.model_validate(row.value).generated_at == _manifest_date(6)
 
     @pytest.mark.parametrize(
         "value",
         [
             pytest.param({"bad": 1}, id="wrong-shape"),
             pytest.param(
-                {
-                    "schema_version": SUPPORTED_SCHEMA_VERSION,
-                    "generated_at": "2026-01-05T00:00:00",
-                    "source": "remote",
-                    "applied_at": "2026-01-05T00:00:00",
-                },
-                id="naive-datetimes",
+                {"generated_at": "2026-01-05T00:00:00"},
+                id="naive-datetime",
             ),
         ],
     )

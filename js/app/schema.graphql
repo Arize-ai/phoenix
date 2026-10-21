@@ -2635,17 +2635,6 @@ input ModalConfigInput {
 type ModelCostManifest {
   """When the manifest's built-in models and token prices were generated."""
   generatedAt: DateTime!
-
-  """Whether the manifest was bundled with Phoenix or fetched at runtime."""
-  source: ModelCostManifestSource!
-
-  """When the manifest was applied to the database."""
-  appliedAt: DateTime!
-}
-
-enum ModelCostManifestSource {
-  BUNDLED
-  REMOTE
 }
 
 interface ModelInterface {

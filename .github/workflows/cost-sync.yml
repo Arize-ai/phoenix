@@ -16,9 +16,6 @@ permissions:
 
 env:
   ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  # The sync script writes the file for SUPPORTED_SCHEMA_VERSION in manifest.py. Older
-  # servers keep fetching this one after a schema bump, so keep syncing it too or they
-  # stop getting new prices.
   MANIFEST_PATH: src/phoenix/server/cost_tracking/manifests/v1.json
   PLAYGROUND_CLIENTS_PATH: src/phoenix/server/api/helpers/playground_clients.py
   PLAYGROUND_CLIENTS_TEST_PATH: tests/unit/server/api/helpers/test_playground_clients.py

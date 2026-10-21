@@ -61,10 +61,8 @@ class ModelCostManifestFetcher(DaemonTask):
     async def _fetch_and_apply(self) -> None:
         body = await asyncio.to_thread(_download, self._url)
         manifest = parse_manifest(body)
-        async with self._db() as session:
-            await apply_manifest_if_newer(
-                session, manifest, dialect=self._db.dialect, source="remote", url=self._url
-            )
+        if applied := await apply_manifest_if_newer(self._db, manifest):
+            logger.info(f"Applied the model cost manifest from {self._url}, {applied}")
         # Refetch even if it wasn't newer: another replica may have applied it, with rows
         # stamped before our store's cursor that its incremental fetch would miss.
         self._generative_model_store.request_full_refetch()

@@ -2,19 +2,11 @@ import { graphql, useFragment } from "react-relay";
 
 import { useTimeFormatters } from "@phoenix/hooks";
 
-import type {
-  ModelCostManifestSource,
-  useModelCostManifestDescription_query$key,
-} from "./__generated__/useModelCostManifestDescription_query.graphql";
-
-const SOURCE_LABELS: Partial<Record<ModelCostManifestSource, string>> = {
-  BUNDLED: "bundled",
-  REMOTE: "fetched",
-};
+import type { useModelCostManifestDescription_query$key } from "./__generated__/useModelCostManifestDescription_query.graphql";
 
 /**
- * Describes when the built-in model prices were generated and where they came from,
- * or returns null until a model cost manifest has been applied.
+ * Describes when the built-in model prices were generated, or returns null
+ * until a model cost manifest has been applied.
  */
 export function useModelCostManifestDescription(
   queryRef: useModelCostManifestDescription_query$key
@@ -25,7 +17,6 @@ export function useModelCostManifestDescription(
       fragment useModelCostManifestDescription_query on Query {
         modelCostManifest {
           generatedAt
-          source
         }
       }
     `,
@@ -35,8 +26,5 @@ export function useModelCostManifestDescription(
     return null;
   }
   const date = dateFormatter(new Date(modelCostManifest.generatedAt));
-  const sourceLabel = SOURCE_LABELS[modelCostManifest.source];
-  return sourceLabel
-    ? `Built-in prices from ${date} (${sourceLabel})`
-    : `Built-in prices from ${date}`;
+  return `Built-in prices from ${date}`;
 }

@@ -352,7 +352,7 @@ class TestEnsureModelCosts:
         assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
-        assert marker is not None and marker.source == "bundled"
+        assert marker is not None and marker.generated_at == _manifest_date(3)
 
 
 async def _count_built_in_models(db: DbSessionFactory) -> int:
