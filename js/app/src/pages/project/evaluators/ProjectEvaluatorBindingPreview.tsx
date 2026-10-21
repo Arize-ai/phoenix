@@ -42,8 +42,10 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
  * declares no variables has nothing to check: it is not handed the record's
  * fields on their behalf, so none are listed for it.
  *
- * The one place this is derived: the row's missing count, the inspector's
- * list, and the dock's counter all read it.
+ * The one place this is derived per record: the row's missing count and the
+ * inspector's list both read it. (The dock's counter asks a different
+ * question, which variables have nothing to read on any record, and is
+ * `useUnboundRequiredVariables`.)
  */
 export function getRecordMappingDiagnostics({
   context,
@@ -62,25 +64,6 @@ export function getRecordMappingDiagnostics({
     literalMapping: inputMapping.literalMapping,
     variables: [...declaredVariables],
     requiredVariables: requiredVariables && [...requiredVariables],
-  });
-}
-
-/** {@link getRecordMappingDiagnostics} against the variables the form declares. */
-export function useEvaluatorMappingDiagnostics({
-  context,
-  inputMapping,
-  requiredVariables,
-}: {
-  context: unknown;
-  inputMapping: EvaluatorInputMapping;
-  requiredVariables?: string[];
-}): ProjectEvaluatorMappingDiagnostic[] {
-  const declaredVariables = useEvaluatorInputVariables();
-  return getRecordMappingDiagnostics({
-    context,
-    inputMapping,
-    declaredVariables,
-    requiredVariables,
   });
 }
 

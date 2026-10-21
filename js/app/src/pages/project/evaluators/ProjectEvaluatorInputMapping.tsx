@@ -33,8 +33,10 @@ export const ProjectEvaluatorInputMapping = ({
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   /**
-   * Shown when the evaluator declares no variables. The rows still mount
-   * then: they are what drops a removed variable's mapping from the store.
+   * Shown in place of the rows when the evaluator declares no variables.
+   * The controls form hook above the early return still runs then, and it
+   * is what drops a removed variable's mapping from the store, so the
+   * return has to stay below it.
    */
   emptyState?: ReactNode;
   /** Every declared variable when omitted, as for a prompt. */
