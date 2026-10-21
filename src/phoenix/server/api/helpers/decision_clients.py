@@ -281,9 +281,6 @@ class DecisionConnection:
     ignore_environment: bool = False
     """Keep the SDK from reading the server's environment (organization, project), so
     a custom provider sends only what it configures."""
-    sdk_retries: bool = True
-    """Let the provider SDK retry rate limits and transient failures itself. Off when the
-    experiment runner retries, so retrying happens in one place."""
 
 
 class DecisionClient(ABC):
@@ -512,7 +509,7 @@ class TypeSafeDecisionClient(DecisionClient):
                 api_key=self._api_key,
                 base_url=self._base_url,
                 headers=self._connection.headers,
-                retry=None if self._connection.sdk_retries else RetryPolicy(max_retries=0),
+                retry=RetryPolicy(max_retries=0),
                 timeout=60,
             ) as client:
                 response = await client.system_one(**parameters)
@@ -634,7 +631,6 @@ class OpenAIDecisionClient(DecisionClient):
     async def invoke(self, request: DecisionRequest, span: OtelSpan) -> DecisionResponse:
         import httpx2
         from openai import (
-            DEFAULT_MAX_RETRIES,
             APIConnectionError,
             APIStatusError,
             APITimeoutError,
@@ -655,7 +651,7 @@ class OpenAIDecisionClient(DecisionClient):
                     project=connection.project,
                     default_headers=connection.headers,
                     timeout=60,
-                    max_retries=DEFAULT_MAX_RETRIES if connection.sdk_retries else 0,
+                    max_retries=0,
                     http_client=httpx2.AsyncClient(follow_redirects=False),
                 )
             async with openai_client as client:
@@ -819,7 +815,6 @@ async def get_decision_client(
     credentials: Sequence[GenerativeCredentialInput] | None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
-    sdk_retries: bool = True,
 ) -> DecisionClient:
     """Resolve the client for a built-in ``provider`` and its credentials.
 
@@ -843,9 +838,7 @@ async def get_decision_client(
     if not client_class.requires_api_key:
         return client_class(
             model_name=model_name,
-            connection=DecisionConnection(
-                api_key=_PLACEHOLDER_API_KEY, base_url=resolved_base_url, sdk_retries=sdk_retries
-            ),
+            connection=DecisionConnection(api_key=_PLACEHOLDER_API_KEY, base_url=resolved_base_url),
         )
     env_var_name = client_class.credential_env_var()
     api_key = await resolve_provider_api_key(
@@ -862,9 +855,7 @@ async def get_decision_client(
         )
     return client_class(
         model_name=model_name,
-        connection=DecisionConnection(
-            api_key=api_key, base_url=resolved_base_url, sdk_retries=sdk_retries
-        ),
+        connection=DecisionConnection(api_key=api_key, base_url=resolved_base_url),
     )
 
 
@@ -874,7 +865,6 @@ async def get_custom_provider_decision_client(
     model_name: str,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
-    sdk_retries: bool = True,
 ) -> DecisionClient:
     """Resolve the client for a custom provider from its stored configuration.
 
@@ -913,7 +903,6 @@ async def get_custom_provider_decision_client(
             project=openai_kwargs.project if openai_kwargs else None,
             provider_name=record.provider,
             ignore_environment=True,
-            sdk_retries=sdk_retries,
         )
     elif isinstance(config, TypeSafeCustomProviderConfig):
         client_class = TypeSafeDecisionClient
@@ -926,7 +915,6 @@ async def get_custom_provider_decision_client(
             headers=typesafe_kwargs.default_headers if typesafe_kwargs else None,
             provider_name=record.provider,
             ignore_environment=True,
-            sdk_retries=sdk_retries,
         )
     else:
         raise BadRequest(f"Custom provider '{record.name}' does not serve decision models.")

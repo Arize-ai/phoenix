@@ -216,8 +216,6 @@ class ChatCompletionMutationMixin:
                     max_message_bytes=max_message_bytes,
                     max_payload_bytes=max_payload_bytes,
                     payload_limit_remediation=payload_limit_remediation,
-                    # Nothing retries a preview, so a decision judge's SDK may.
-                    sdk_retries=True,
                 )
             eval_results = await _evaluate_preview(
                 evaluator,

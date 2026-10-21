@@ -395,13 +395,8 @@ async def build_decision_evaluator(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Optional[Sequence[GenerativeCredentialInput]] = None,
-    sdk_retries: bool = False,
 ) -> "DecisionEvaluator":
-    """Build a native judge from its saved or frozen definition.
-
-    SDK retries are off by default because the experiment runner owns retries; a preview,
-    which nothing retries, turns them on.
-    """
+    """Build a native judge from its saved or frozen definition."""
     from phoenix.server.api.decision_evaluator import DecisionEvaluator
     from phoenix.server.api.helpers.decision_clients import (
         get_custom_provider_decision_client,
@@ -426,7 +421,6 @@ async def build_decision_evaluator(
             model_name=definition.model_name,
             session=session,
             decrypt=decrypt,
-            sdk_retries=sdk_retries,
         )
     else:
         client = await get_decision_client(
@@ -436,7 +430,6 @@ async def build_decision_evaluator(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
-            sdk_retries=sdk_retries,
         )
     return DecisionEvaluator(definition, client)
 

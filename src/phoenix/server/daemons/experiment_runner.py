@@ -3434,7 +3434,6 @@ class ExperimentRunner(DaemonTask):
                     model_name=decision_task.model_name,
                     session=session,
                     decrypt=self._decrypt,
-                    sdk_retries=False,
                 )
             else:
                 decision_client = await get_decision_client(
@@ -3446,7 +3445,6 @@ class ExperimentRunner(DaemonTask):
                     credentials=credentials,
                     session=session,
                     decrypt=self._decrypt,
-                    sdk_retries=False,
                 )
         elif prompt_task is not None:
             experiment_job = prompt_task

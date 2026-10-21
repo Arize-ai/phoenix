@@ -283,22 +283,11 @@ async def test_decision_execution(
         assert span.status_code == "OK"
 
 
-@pytest.fixture
-def _instant_sdk_retries(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the SDKs' own retries, without their exponential-backoff sleeps."""
-    from openai._base_client import BaseClient
-    from typesafe_sdk._core import retry
-
-    monkeypatch.setattr(retry, "_backoff", lambda *args, **kwargs: 0.0)
-    monkeypatch.setattr(BaseClient, "_calculate_retry_timeout", lambda *args, **kwargs: 0.0)
-
-
-@pytest.mark.usefixtures("_instant_sdk_retries")
 @pytest.mark.parametrize(
     "status,hint",
     [
-        pytest.param(401, "Check the API key", id="not-retried"),
-        pytest.param(500, "unavailable", id="retried"),
+        pytest.param(401, "Check the API key", id="unauthorized"),
+        pytest.param(500, "unavailable", id="server-error"),
     ],
 )
 @pytest.mark.parametrize("provider", ["OPENAI", "TYPESAFE"])
@@ -306,8 +295,8 @@ async def test_provider_error_is_traced(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory, status: int, hint: str, provider: str
 ) -> None:
     """Status-to-message mapping is covered in ``test_decision_clients``; this proves the
-    wiring: the SDK retries a 5xx but not a 401, the message and span status carry no
-    upstream body, and the request is recorded."""
+    wiring: the SDK makes a single attempt, the message and span status carry no upstream
+    body, and the request is recorded."""
     is_openai = provider == "OPENAI"
     endpoint = (
         "https://api.openai.com/v1/decisions"
@@ -339,7 +328,7 @@ async def test_provider_error_is_traced(
                 }
             },
         )
-    assert route.call_count == (3 if status == 500 else 1)
+    assert route.call_count == 1
     assert result.data and not result.errors
     payload = result.data["runDecision"]
     assert payload["error"].startswith(
@@ -1337,7 +1326,7 @@ async def test_failures_are_classified_for_a_retrying_caller(
     endpoint = f"{base_url}/decisions" if provider == "OPENAI" else f"{base_url}/v1/systemone"
     client = client_class(
         model_name="model",
-        connection=DecisionConnection(api_key="key", base_url=base_url, sdk_retries=False),
+        connection=DecisionConnection(api_key="key", base_url=base_url),
     )
     request = DecisionRequest.model_validate(
         {"state": "hello", "questions": [{"type": "predicate", "name": "q", "instructions": "?"}]}

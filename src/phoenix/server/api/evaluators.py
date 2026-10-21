@@ -1408,7 +1408,6 @@ async def build_evaluator_from_definition(
     max_message_bytes: Optional[int] = None,
     max_payload_bytes: Optional[int] = None,
     payload_limit_remediation: Optional[str] = None,
-    sdk_retries: bool = False,
 ) -> BaseEvaluator:
     """
     Build the runtime evaluator a definition describes.
@@ -1430,8 +1429,6 @@ async def build_evaluator_from_definition(
         payload_limit_remediation: What the payload-limit error tells the user to do; it
             names the cap the caller applied, so the caller that sets ``max_payload_bytes``
             sets this too.
-        sdk_retries: Let a decision judge's provider SDK retry; only when no runner owns
-            retries, as for a preview.
 
     Raises:
         BadRequest: The definition cannot be honoured: a missing or disabled sandbox
@@ -1452,7 +1449,6 @@ async def build_evaluator_from_definition(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
-            sdk_retries=sdk_retries,
         )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)

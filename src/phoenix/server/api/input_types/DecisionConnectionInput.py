@@ -87,7 +87,6 @@ class DecisionConnectionInput:
         decrypt: Callable[[bytes], bytes],
         allowed_provider_names: Optional[frozenset[str]],
         credentials: Sequence[GenerativeCredentialInput] = (),
-        sdk_retries: bool = True,
     ) -> DecisionClient:
         """The client for this connection.
 
@@ -106,7 +105,6 @@ class DecisionConnectionInput:
                 model_name=model_name,
                 session=session,
                 decrypt=decrypt,
-                sdk_retries=sdk_retries,
             )
         built_in = self.built_in_provider()
         if (
@@ -121,5 +119,4 @@ class DecisionConnectionInput:
             credentials=[*(built_in.credentials or ()), *credentials] or None,
             session=session,
             decrypt=decrypt,
-            sdk_retries=sdk_retries,
         )

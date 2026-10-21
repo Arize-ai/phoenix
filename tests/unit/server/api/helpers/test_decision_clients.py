@@ -310,7 +310,7 @@ async def test_timeouts_and_connection_failures_are_transient(
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", fail)
     client = client_class(
         model_name="model",
-        connection=DecisionConnection(api_key="key", base_url=base_url, sdk_retries=False),
+        connection=DecisionConnection(api_key="key", base_url=base_url),
     )
     with pytest.raises(DecisionTransientError) as raised:
         await client.create(
