@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e3d7445d4f924b8015133b3957d12e8>>
+ * @generated SignedSource<<dbdd3bc5792b3a62bb59ca25e14d7517>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateGenerativeModelCustomProviderMutationInput = {
   clientConfig: GenerativeModelCustomerProviderConfigInput;
@@ -22,30 +22,42 @@ export type GenerativeModelCustomerProviderConfigInput = {
   azureOpenai?: never;
   googleGenai?: never;
   openai: OpenAICustomProviderConfigInput;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai: AzureOpenAICustomProviderConfigInput;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic: AnthropicCustomProviderConfigInput;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock: AWSBedrockCustomProviderConfigInput;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai: GoogleGenAICustomProviderConfigInput;
   openai?: never;
+  typesafe?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+  typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -133,6 +145,17 @@ export type GoogleGenAIClientKwargsInput = {
 export type GoogleGenAIHttpOptionsInput = {
   baseUrl?: string | null;
   headers?: any | null;
+};
+export type TypeSafeCustomProviderConfigInput = {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
+  typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
+};
+export type TypeSafeAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type TypeSafeClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
 };
 export type NewCustomProviderButtonCreateMutation$variables = {
   connectionId: string;

@@ -22,6 +22,12 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
+import {
+  decisionLoader,
+  type DecisionLoaderData,
+} from "@phoenix/pages/decisions/decisionLoader";
+import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
+import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
@@ -42,6 +48,8 @@ import {
   ProjectEvaluatorTracePage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { SettingsDecisionsPage } from "@phoenix/pages/settings/decisions/SettingsDecisionsPage";
+import { settingsDecisionsPageLoader } from "@phoenix/pages/settings/decisions/settingsDecisionsPageLoader";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -942,7 +950,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
+                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
             },
             navigation: {
               section: "Pages",
@@ -960,7 +968,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
+                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
               },
             }}
           />
@@ -1030,6 +1038,85 @@ export const appRouteObjects = createRoutesFromElements(
               },
             }}
           />
+        </Route>
+        <Route
+          path="/decisions"
+          handle={{
+            crumb: () => "Decisions",
+            agentRoute: {
+              label: "Decisions",
+              description:
+                "Browse, search, and label saved decisions, their models, versions, and tags.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "Decisions",
+              description: "Manage and version decisions",
+              icon: "GitBranch",
+            },
+          }}
+        >
+          <Route index element={<DecisionsPage />} />
+          <Route
+            path=":decisionId"
+            loader={decisionLoader}
+            shouldRevalidate={() => true}
+            handle={{
+              crumb: (data: DecisionLoaderData) =>
+                data?.decision?.__typename === "Decision"
+                  ? data.decision.name
+                  : "Decision unknown",
+              copy: (data: DecisionLoaderData) =>
+                data?.decision?.__typename === "Decision"
+                  ? [
+                      {
+                        name: "Decision Name",
+                        value: data.decision.name,
+                        iconKey: "Text" as const,
+                      },
+                      {
+                        name: "Decision ID",
+                        value: data.decision.id,
+                        iconKey: "ID" as const,
+                      },
+                    ]
+                  : [],
+              agentRoute: {
+                label: "Decision Details",
+                description:
+                  "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
+              },
+            }}
+          >
+            <Route index element={<DecisionPage />} />
+            <Route
+              path="versions"
+              element={<DecisionPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decision Versions",
+                  description:
+                    "Browse decision versions and compare their definitions, questions, and model configuration.",
+                },
+              }}
+            />
+            <Route
+              path="config"
+              element={<DecisionPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decision Configuration",
+                  description:
+                    "Manage saved decision version tags and settings.",
+                },
+              }}
+            />
+            <Route
+              path="versions/:versionId"
+              element={<DecisionPage />}
+              handle={{ crumb: () => "Version" }}
+            />
+          </Route>
         </Route>
         <Route
           path="/prompts"
@@ -1351,6 +1438,19 @@ export const appRouteObjects = createRoutesFromElements(
               element={<RetentionPolicyDetailsDrawer />}
             />
           </Route>
+          <Route
+            path="decisions"
+            element={<SettingsDecisionsPage />}
+            loader={settingsDecisionsPageLoader}
+            handle={{
+              crumb: () => "Decisions",
+              agentRoute: {
+                label: "Decision Settings",
+                description:
+                  "Configure saved decision labels and labeling options.",
+              },
+            }}
+          />
           <Route
             path="prompts"
             element={<SettingsPromptsPage />}

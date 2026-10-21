@@ -22,7 +22,7 @@ export const selectTaskOperation = defineUIOperation({
   name: "playground.task.select",
   description:
     "Make one playground instance a task: what picking an item in the instance's " +
-    'task menu does. `source` is {type:"new",kind:"prompt"|"LLM"|"CODE"} for a ' +
+    'task menu does. `source` is {type:"new",taskType:"prompt"} or {type:"new",taskType:"evaluator",evaluatorKind:"LLM"|"CODE"} for a ' +
     'fresh draft, {type:"prompt",promptId,promptVersionId?,tagName?} for a saved ' +
     'prompt, {type:"evaluator",evaluatorId} for a saved LLM or code evaluator ' +
     "(built-in evaluators cannot be loaded), or " +
@@ -30,17 +30,17 @@ export const selectTaskOperation = defineUIOperation({
     "dataset. A prompt task given another prompt loads it in place, as the prompt " +
     "menu always has; anything else replaces the instance with a fresh one (the " +
     "result carries the new `instanceId`) and needs `discardChanges: true` when the " +
-    "instance has unsaved changes. The page holds one kind of task: with more than " +
-    "one instance the kind is fixed and a source of the other kind is rejected " +
-    "(remove the other instances first); with one instance any source is allowed " +
-    "and may change the page's kind. Rejected while a run is active. Awaits the " +
+    "instance has unsaved changes. The page holds one mode: prompts and decisions may share " +
+    "it, evaluators stay alone. With more than one instance the mode is fixed and " +
+    "a source of the other mode is rejected (remove the other instances first); " +
+    "with one instance any source is allowed and may change the page's mode. Rejected while a run is active. Awaits the " +
     "load (up to 15 s) and returns the instance's snapshot: the " +
     "`playground.prompt.read` shape for a prompt task, the " +
     "`playground.evaluator.read` shape for an evaluator task. A source that cannot " +
     "be loaded (deleted, built-in) fails with code NOT_FOUND. Instance ids are " +
     "numeric; letters A–D are only for talking to the user. Examples: " +
     '{source:{type:"evaluator",evaluatorId:"Q29kZUV2YWx1YXRvcjox"}}; ' +
-    '{instanceId:2,source:{type:"new",kind:"CODE"},discardChanges:true}; ' +
+    '{instanceId:2,source:{type:"new",taskType: "evaluator", evaluatorKind: "CODE"},discardChanges:true}; ' +
     '{source:{type:"prompt",promptId:"UHJvbXB0OjE=",promptVersionId:null}}.',
   inputSchema: selectTaskInputSchema,
   // Documentation-only: the snapshot of the kind the instance now holds.

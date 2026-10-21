@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edf5bc42e18a71ee1a4d597806936ffe>>
+ * @generated SignedSource<<9b641efebf862001e6bb372836d96e37>>
  * @lightSyntaxTransform
  */
 
@@ -51,6 +51,23 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
+  "storageKey": null
+},
+v4 = [
+  (v2/*:: as any*/)
+],
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -229,9 +246,7 @@ return {
                               "kind": "LinkedField",
                               "name": "promptVersionTag",
                               "plural": false,
-                              "selections": [
-                                (v2/*:: as any*/)
-                              ],
+                              "selections": (v4/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -242,25 +257,51 @@ return {
                               "name": "promptVersion",
                               "plural": false,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "modelName",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "modelProvider",
-                                  "storageKey": null
-                                }
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
                               ],
                               "storageKey": null
                             }
                           ],
                           "type": "LLMEvaluator",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "DecisionVersion",
+                              "kind": "LinkedField",
+                              "name": "decisionVersion",
+                              "plural": false,
+                              "selections": [
+                                (v1/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "decisionId",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "Decision",
+                                  "kind": "LinkedField",
+                                  "name": "decision",
+                                  "plural": false,
+                                  "selections": (v4/*:: as any*/),
+                                  "storageKey": null
+                                },
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "DecisionEvaluator",
                           "abstractKey": null
                         },
                         {

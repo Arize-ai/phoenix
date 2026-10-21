@@ -4,39 +4,59 @@ import {
   createPlaygroundEvaluatorTask,
   DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG,
   getPlaygroundEvaluatorTask,
-  getPlaygroundTaskKind,
-  getTaskKindForNewSource,
-  isTaskKindLocked,
+  getPlaygroundTaskType,
+  getPlaygroundMode,
+  isDecisionInstance,
+  isPlaygroundModeLocked,
 } from "../playgroundTask";
 import type { PlaygroundTask } from "../types";
 
-const promptTask: PlaygroundTask = { kind: "prompt" };
+const promptTask: PlaygroundTask = { type: "prompt" };
+
+const decisionTask: PlaygroundTask = { type: "decision" };
 
 const evaluatorTask: PlaygroundTask = {
-  kind: "evaluator",
+  type: "evaluator",
   evaluator: createPlaygroundEvaluatorTask({ kind: "CODE" }),
 };
 
-describe("getPlaygroundTaskKind", () => {
-  it("is the first instance's kind", () => {
-    expect(getPlaygroundTaskKind([{ task: promptTask }])).toBe("prompt");
-    expect(
-      getPlaygroundTaskKind([{ task: evaluatorTask }, { task: evaluatorTask }])
-    ).toBe("evaluator");
-  });
-
-  it("treats an empty page as a prompt page", () => {
-    expect(getPlaygroundTaskKind([])).toBe("prompt");
+describe("getPlaygroundTaskType and isDecisionInstance", () => {
+  it("reads the type off the task, the one place it is recorded", () => {
+    expect(getPlaygroundTaskType({ task: promptTask })).toBe("prompt");
+    expect(getPlaygroundTaskType({ task: decisionTask })).toBe("decision");
+    expect(isDecisionInstance({ task: decisionTask })).toBe(true);
+    expect(isDecisionInstance({ task: promptTask })).toBe(false);
+    expect(isDecisionInstance(undefined)).toBe(false);
   });
 });
 
-describe("isTaskKindLocked", () => {
-  it("locks the kind once there is more than one instance", () => {
-    expect(isTaskKindLocked([])).toBe(false);
-    expect(isTaskKindLocked([{ task: promptTask }])).toBe(false);
-    expect(isTaskKindLocked([{ task: promptTask }, { task: promptTask }])).toBe(
-      true
-    );
+describe("getPlaygroundMode", () => {
+  it("is the mode of the first instance's task type", () => {
+    expect(getPlaygroundMode([{ task: promptTask }])).toBe("task");
+    expect(getPlaygroundMode([{ task: decisionTask }])).toBe("task");
+    expect(
+      getPlaygroundMode([{ task: evaluatorTask }, { task: evaluatorTask }])
+    ).toBe("evaluator");
+  });
+
+  it("treats a page of prompts and decisions as one task page", () => {
+    expect(
+      getPlaygroundMode([{ task: decisionTask }, { task: promptTask }])
+    ).toBe("task");
+  });
+
+  it("treats an empty page as a task page", () => {
+    expect(getPlaygroundMode([])).toBe("task");
+  });
+});
+
+describe("isPlaygroundModeLocked", () => {
+  it("locks the mode once there is more than one instance", () => {
+    expect(isPlaygroundModeLocked([])).toBe(false);
+    expect(isPlaygroundModeLocked([{ task: promptTask }])).toBe(false);
+    expect(
+      isPlaygroundModeLocked([{ task: promptTask }, { task: decisionTask }])
+    ).toBe(true);
   });
 });
 
@@ -53,7 +73,7 @@ describe("createPlaygroundEvaluatorTask", () => {
         datasetEvaluatorId: null,
         projectEvaluatorId: null,
       },
-      savedRevision: null,
+      savedContentKey: null,
     });
     expect(task.outputConfigs).toEqual([DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG]);
   });
@@ -91,13 +111,5 @@ describe("getPlaygroundEvaluatorTask", () => {
     );
     expect(getPlaygroundEvaluatorTask({ task: promptTask })).toBeNull();
     expect(getPlaygroundEvaluatorTask(undefined)).toBeNull();
-  });
-});
-
-describe("getTaskKindForNewSource", () => {
-  it("maps evaluator kinds to the evaluator task kind", () => {
-    expect(getTaskKindForNewSource("prompt")).toBe("prompt");
-    expect(getTaskKindForNewSource("LLM")).toBe("evaluator");
-    expect(getTaskKindForNewSource("CODE")).toBe("evaluator");
   });
 });

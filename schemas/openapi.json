@@ -3570,7 +3570,8 @@
                   "enum": [
                     "llm",
                     "code",
-                    "builtin"
+                    "builtin",
+                    "decision"
                   ],
                   "type": "string"
                 },
@@ -3681,13 +3682,17 @@
                   },
                   {
                     "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateDecisionEvaluatorRequest"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
                     "llm": "#/components/schemas/CreateLLMEvaluatorRequest",
-                    "code": "#/components/schemas/CreateCodeEvaluatorRequest"
+                    "code": "#/components/schemas/CreateCodeEvaluatorRequest",
+                    "decision": "#/components/schemas/CreateDecisionEvaluatorRequest"
                   }
                 },
                 "title": "Body"
@@ -3850,13 +3855,17 @@
                   },
                   {
                     "$ref": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PatchDecisionEvaluatorRequest"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
                     "llm": "#/components/schemas/PatchLLMEvaluatorRequest",
-                    "code": "#/components/schemas/PatchCodeEvaluatorRequest"
+                    "code": "#/components/schemas/PatchCodeEvaluatorRequest",
+                    "decision": "#/components/schemas/PatchDecisionEvaluatorRequest"
                   }
                 },
                 "title": "Body"
@@ -4180,7 +4189,7 @@
           "evaluators"
         ],
         "summary": "Create Project Evaluator",
-        "description": "Bind an existing LLM or code evaluator definition to a project.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay. A name the\nproject already uses is refused with 409 `already_exists` and that binding's\n`existing_id`.",
+        "description": "Bind an existing LLM, code, or decision evaluator definition to a project.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay. A name the\nproject already uses is refused with 409 `already_exists` and that binding's\n`existing_id`.",
         "operationId": "createProjectEvaluator",
         "parameters": [
           {
@@ -9134,7 +9143,7 @@
           "model_providers"
         ],
         "summary": "List built-in model provider families",
-        "description": "Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",
+        "description": "Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. Only providers that offer chat models are listed, because this list feeds chat-only surfaces such as prompts and `POST /v1/chat/completions`; decision-only providers are omitted. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",
         "operationId": "getModelProviders",
         "responses": {
           "200": {
@@ -12665,7 +12674,7 @@
         "properties": {
           "provider": {
             "$ref": "#/components/schemas/ModelProvider",
-            "description": "The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI')."
+            "description": "The provider family identifier, accepted wherever a built-in chat model provider is specified, such as prompts and chat completions (e.g. 'OPENAI'). Providers that offer decision models only are not listed here."
           },
           "name": {
             "type": "string",
@@ -13281,6 +13290,32 @@
         ],
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
+      },
+      "ChoiceScoring": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "choice",
+            "title": "Type"
+          },
+          "scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Scores"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "ChoiceScoring"
       },
       "CodeEvaluatorDefinition": {
         "properties": {
@@ -14095,7 +14130,7 @@
           "evaluator_id": {
             "type": "string",
             "title": "Evaluator Id",
-            "description": "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first."
+            "description": "GlobalID of the LLM, code, built-in, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first."
           },
           "input_mapping": {
             "$ref": "#/components/schemas/InputMapping"
@@ -14144,7 +14179,7 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
@@ -14265,6 +14300,44 @@
           "data"
         ],
         "title": "CreateDatasetSplitResponseBody"
+      },
+      "CreateDecisionEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "decision_version_id"
+        ],
+        "title": "CreateDecisionEvaluatorRequest"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -14500,7 +14573,7 @@
           "evaluator_id": {
             "type": "string",
             "title": "Evaluator Id",
-            "description": "GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first."
+            "description": "GlobalID of the LLM, code, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first."
           },
           "evaluation_target": {
             "$ref": "#/components/schemas/EvaluationTarget"
@@ -14985,7 +15058,8 @@
               "azure_openai",
               "anthropic",
               "google_genai",
-              "aws_bedrock"
+              "aws_bedrock",
+              "typesafe"
             ],
             "title": "Sdk",
             "description": "The SDK used to communicate with the custom provider."
@@ -15142,7 +15216,8 @@
             "enum": [
               "llm",
               "code",
-              "builtin"
+              "builtin",
+              "decision"
             ],
             "title": "Evaluator Type"
           },
@@ -15540,6 +15615,114 @@
           "example_count"
         ],
         "title": "DatasetWithExampleCount"
+      },
+      "DecisionEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "decision_id",
+          "decision_version_id",
+          "scoring_policy",
+          "output_configs"
+        ],
+        "title": "DecisionEvaluatorDefinition"
+      },
+      "DecisionScoringPolicy": {
+        "properties": {
+          "questions": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PredicateScoring"
+                },
+                {
+                  "$ref": "#/components/schemas/ChoiceScoring"
+                },
+                {
+                  "$ref": "#/components/schemas/ScaleScoring"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceScoring",
+                  "predicate": "#/components/schemas/PredicateScoring",
+                  "scale": "#/components/schemas/ScaleScoring"
+                }
+              }
+            },
+            "type": "object",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DecisionScoringPolicy",
+        "description": "Question thresholds, choice scores, scale labels, and comparison direction."
       },
       "DeleteAnnotationConfigResponseBody": {
         "properties": {
@@ -15957,6 +16140,9 @@
               },
               {
                 "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionEvaluatorDefinition"
               }
             ],
             "title": "Data",
@@ -15965,6 +16151,7 @@
               "mapping": {
                 "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                 "code": "#/components/schemas/CodeEvaluatorDefinition",
+                "decision": "#/components/schemas/DecisionEvaluatorDefinition",
                 "llm": "#/components/schemas/LLMEvaluatorDefinition"
               }
             }
@@ -15989,6 +16176,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/DecisionEvaluatorDefinition"
                 }
               ],
               "discriminator": {
@@ -15996,6 +16186,7 @@
                 "mapping": {
                   "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                   "code": "#/components/schemas/CodeEvaluatorDefinition",
+                  "decision": "#/components/schemas/DecisionEvaluatorDefinition",
                   "llm": "#/components/schemas/LLMEvaluatorDefinition"
                 }
               }
@@ -18291,7 +18482,8 @@
           "PERPLEXITY",
           "TOGETHER",
           "ZAI",
-          "META"
+          "META",
+          "TYPESAFE"
         ],
         "title": "ModelProvider"
       },
@@ -19075,13 +19267,50 @@
               }
             ],
             "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "minProperties": 1,
         "title": "PatchDatasetEvaluatorRequest"
+      },
+      "PatchDecisionEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "scoring_policy": {
+            "$ref": "#/components/schemas/DecisionScoringPolicy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 2,
+        "required": [
+          "type"
+        ],
+        "title": "PatchDecisionEvaluatorRequest"
       },
       "PatchLLMEvaluatorRequest": {
         "properties": {
@@ -19528,7 +19757,8 @@
             "enum": [
               "LLM",
               "CODE",
-              "BUILTIN"
+              "BUILTIN",
+              "DECISION"
             ],
             "title": "Kind"
           },
@@ -19731,6 +19961,32 @@
         ],
         "title": "PlaygroundUIContext"
       },
+      "PredicateScoring": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "predicate",
+            "title": "Type"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "default": 0.5
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PredicateScoring"
+      },
       "Project": {
         "properties": {
           "name": {
@@ -19780,7 +20036,8 @@
             "enum": [
               "llm",
               "code",
-              "builtin"
+              "builtin",
+              "decision"
             ],
             "title": "Evaluator Type"
           },
@@ -22351,6 +22608,30 @@
           "next_cursor"
         ],
         "title": "SandboxConfigsResponseBody"
+      },
+      "ScaleScoring": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "scale",
+            "title": "Type"
+          },
+          "include_label": {
+            "type": "boolean",
+            "title": "Include Label",
+            "default": false
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "ScaleScoring"
       },
       "SecretKeyValue": {
         "properties": {

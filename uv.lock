@@ -32,7 +32,7 @@ members = [
     "harbor-verifiers",
 ]
 overrides = [
-    { name = "openai", specifier = ">=3.1.0,<4" },
+    { name = "openai", specifier = ">=3.31.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
@@ -523,6 +523,7 @@ container = [
     { name = "py-grpc-prometheus" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
     { name = "types-aiobotocore-bedrock-runtime" },
+    { name = "typesafe-sdk" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vercel" },
     { name = "wasmtime" },
@@ -644,6 +645,7 @@ dev = [
     { name = "types-setuptools" },
     { name = "types-tabulate" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk" },
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
@@ -696,10 +698,10 @@ requires-dist = [
     { name = "modal", marker = "extra == 'container'", specifier = ">=1.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.2.0" },
     { name = "numpy" },
-    { name = "openai", marker = "extra == 'container'", specifier = ">=3.1.0,<4" },
+    { name = "openai", marker = "extra == 'container'", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.41" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.40" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'container'", specifier = "==1.45.0" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'container'", specifier = "==0.66b0" },
@@ -733,6 +735,7 @@ requires-dist = [
     { name = "tqdm" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'aws'", specifier = ">=3.6.0" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'container'", specifier = ">=3.6.0" },
+    { name = "typesafe-sdk", marker = "extra == 'container'", specifier = ">=0.7.5" },
     { name = "typing-extensions", specifier = ">=4.6" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
@@ -785,9 +788,9 @@ dev = [
     { name = "mypy-protobuf", specifier = ">=5.0.0" },
     { name = "nest-asyncio" },
     { name = "numpy" },
-    { name = "openai", specifier = ">=3.1.0,<4" },
+    { name = "openai", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.40" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-instrumentation-fastapi" },
@@ -841,6 +844,7 @@ dev = [
     { name = "types-setuptools" },
     { name = "types-tabulate" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk", specifier = ">=0.7.5" },
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy", specifier = ">=8.3" },
@@ -7969,6 +7973,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/74/b83cf1d523516bc818ffe6fa7c2f5504e0eeee7c5c394ecc1b404f95fe92/types_webencodings-0.6.0.20260907.tar.gz", hash = "sha256:efa85bc5114419ed45aec227ca5051cca63fa3e2bd13fcf79017ee4107603efc", size = 7748, upload-time = "2026-09-07T06:43:22.142Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/42/e7/dc1ea506e123c437c4551c35498eaade289f52d7f7ddf3f77cf94f0675dc/types_webencodings-0.6.0.20260907-py3-none-any.whl", hash = "sha256:86dc9b5a14665b24d5d7d061149c8c3f50355243df5ef285bf816c2e2cc093d5", size = 8584, upload-time = "2026-09-07T06:43:21.177Z" },
+]
+
+[[package]]
+name = "typesafe-sdk"
+version = "0.7.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx2" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/4d/383aa14f4cfe5fb41023ea1cab52d7f79cc31ab200ee7314317cf89db744/typesafe_sdk-0.7.5.tar.gz", hash = "sha256:1eeeb0dc80a7161d84896db42a5016dc0a7c8872fa16540b70163e5357b6d398", size = 34152, upload-time = "2026-10-14T21:21:42.837Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/f6/bee4c3b49570c2d312057c9e37c1446cf37eb1b86bf5872f7a797e803326/typesafe_sdk-0.7.5-py3-none-any.whl", hash = "sha256:967a8b61494d536abb55ee3f3a2b10e81685cb6baad6ccdcab588bdc6c9b86d2", size = 49948, upload-time = "2026-10-14T21:21:41.337Z" },
 ]
 
 [[package]]

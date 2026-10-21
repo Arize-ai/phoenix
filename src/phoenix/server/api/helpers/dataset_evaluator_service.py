@@ -1107,7 +1107,10 @@ async def patch_dataset_evaluator(
             dataset_rowid = row.dataset_id
             values: dict[str, Any] = {"user_id": context.user_id}
             if patch.name is not UNSET:
-                values["name"] = IdentifierModel.model_validate(patch.name)
+                try:
+                    values["name"] = IdentifierModel.model_validate(patch.name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}") from error
             if patch.input_mapping is not UNSET:
                 if patch.input_mapping is None:
                     raise BadRequest("input_mapping cannot be null for dataset evaluators")
@@ -1142,6 +1145,27 @@ async def patch_dataset_evaluator(
                             reason="incompatible_override",
                             dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
                         ) from error
+            from phoenix.server.api.helpers.decision_evaluator_service import (
+                validate_decision_input_mapping,
+            )
+
+            if (
+                decision := await session.get(
+                    models.DecisionEvaluator, row.evaluator_id, with_for_update=True
+                )
+            ) is not None:
+                await session.refresh(row)
+                validate_decision_input_mapping(
+                    decision.selected_version, patch.input_mapping or row.input_mapping
+                )
+                if "output_configs" in values:
+                    if values["output_configs"] != decision.output_configs:
+                        raise BadRequest(
+                            "Decision outputs are derived from the questions and scoring policy; "
+                            "edit the scoring policy to change scoring"
+                        )
+                    # Derived from the judge whenever they are read, so they follow its edits.
+                    values["output_configs"] = None
             row = await _write_dataset_evaluator(session, row.id, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:

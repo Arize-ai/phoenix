@@ -11,6 +11,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -20,7 +21,7 @@ import {
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import { createPlaygroundEvaluatorTask } from "./playgroundTask";
-import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND } from "./templateVariablesPath";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE } from "./templateVariablesPath";
 import {
   type ChatMessage,
   type ExperimentScaffold,
@@ -38,7 +39,7 @@ import {
   type PlaygroundState,
   type PlaygroundStateByDatasetId,
   PlaygroundStateByDatasetIdSchema,
-  type PlaygroundTaskKind,
+  type PlaygroundMode,
   type PlaygroundTextCompletionTemplate,
 } from "./types";
 
@@ -203,7 +204,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       },
     },
     activeRunId: null,
-    task: { kind: "prompt" },
+    task: { type: "prompt" },
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -239,10 +240,11 @@ export function createEvaluatorTaskInstance({
   model?: ModelConfig;
 }): Omit<PlaygroundInstance, "id"> {
   const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
 
   return {
     ...params,
-    model: model ?? params.model,
+    model: chatModel ?? params.model,
     template:
       kind === "LLM"
         ? generateJudgeChatTemplate()
@@ -251,9 +253,46 @@ export function createEvaluatorTaskInstance({
     toolChoice: kind === "LLM" ? { type: "ONE_OR_MORE" } : params.toolChoice,
     selectedRepetitionNumber: 1,
     task: {
-      kind: "evaluator",
+      type: "evaluator",
       evaluator: createPlaygroundEvaluatorTask({ kind }),
     },
+  };
+}
+
+/**
+ * A fresh decision instance: the default request, and a decision model the
+ * user still has to pick unless the page already holds one. The chat model it
+ * replaces is kept, so the model picker can switch back.
+ */
+export function createDecisionTaskInstance({
+  model,
+  llmModel,
+}: {
+  /** The model the page holds; a decision model is kept, a chat one is not. */
+  model?: ModelConfig;
+  /** The chat model to switch back to; the page's, or the default. */
+  llmModel?: ModelConfig;
+} = {}): Omit<PlaygroundInstance, "id"> {
+  const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
+
+  return {
+    ...params,
+    template: { __type: "chat", messages: [] },
+    llmModel: llmModel ?? chatModel ?? params.model,
+    model:
+      model?.modelType === "DECISION"
+        ? model
+        : {
+            provider: DEFAULT_MODEL_PROVIDER,
+            modelName: null,
+            modelType: "DECISION",
+            invocationParameters: params.model.invocationParameters,
+            baseUrl: null,
+          },
+    decisionRequest: createDecisionDraft(),
+    selectedRepetitionNumber: 1,
+    task: { type: "decision" },
   };
 }
 
@@ -277,11 +316,24 @@ function createInstanceFromSource(
 
   // A new task keeps the page's model so comparisons start on equal footing.
   const model = firstInstance?.model;
+  const chatModel =
+    model?.modelType === "DECISION" ? firstInstance?.llmModel : model;
+  const llmModel = firstInstance?.llmModel;
 
   if (source.type === "new") {
-    if (source.kind !== "prompt") {
+    if (source.taskType === "decision") {
       return normalizeInstance(
-        createEvaluatorTaskInstance({ kind: source.kind, model }),
+        createDecisionTaskInstance({ model, llmModel }),
+        generateInstanceId()
+      );
+    }
+
+    if (source.taskType === "evaluator") {
+      return normalizeInstance(
+        createEvaluatorTaskInstance({
+          kind: source.evaluatorKind,
+          model: chatModel,
+        }),
         generateInstanceId()
       );
     }
@@ -289,9 +341,19 @@ function createInstanceFromSource(
     const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
     return {
-      instance: { ...instance, model: model ?? instance.model },
+      instance: { ...instance, model: chatModel ?? instance.model },
       messages: instanceMessages,
     };
+  }
+
+  if (source.type === "decision") {
+    return normalizeInstance(
+      {
+        ...createDecisionTaskInstance({ model, llmModel }),
+        loadingSource: source,
+      },
+      generateInstanceId()
+    );
   }
 
   if (source.type === "prompt") {
@@ -300,7 +362,7 @@ function createInstanceFromSource(
     return {
       instance: {
         ...instance,
-        model: model ?? instance.model,
+        model: chatModel ?? instance.model,
         loadingSource: source,
       },
       messages: instanceMessages,
@@ -309,13 +371,13 @@ function createInstanceFromSource(
 
   // A saved evaluator's kind is only known once fetched; the draft is
   // replaced wholesale when its content lands.
-  const draft = createEvaluatorTaskInstance({ kind: "LLM", model });
+  const draft = createEvaluatorTaskInstance({ kind: "LLM", model: chatModel });
 
   return normalizeInstance(
     {
       ...draft,
       task: {
-        kind: "evaluator",
+        type: "evaluator",
         evaluator: {
           ...createPlaygroundEvaluatorTask({ kind: "LLM" }),
           source: {
@@ -369,6 +431,9 @@ function duplicateInstance(
     instance: {
       ...source,
       template,
+      decisionRequest: source.decisionRequest
+        ? structuredClone(source.decisionRequest)
+        : source.decisionRequest,
       id: generateInstanceId(),
       activeRunId: null,
       experiment: null,
@@ -452,6 +517,9 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     instance.model = {
       ...instance.model,
       ...savedConfigToUse,
+      // A saved default configures the provider; it never turns a chat
+      // instance into a decision instance.
+      modelType: "LLM",
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
         savedConfigToUse.invocationParameters
@@ -490,6 +558,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
     externallyUpdatedToolRevisionById: {},
+    externallyUpdatedDecisionRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -581,6 +650,31 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
       return created.instance.id;
     },
+    duplicateInstance: (instanceId) => {
+      const instances = get().instances;
+      const sourceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      const source = instances[sourceIndex];
+      if (!source) return null;
+      const created = duplicateInstance(source, get().allInstanceMessages);
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...created.messages,
+          },
+          instances: [
+            ...instances.slice(0, sourceIndex + 1),
+            created.instance,
+            ...instances.slice(sourceIndex + 1),
+          ],
+        },
+        false,
+        { type: "duplicateInstance" }
+      );
+      return created.instance.id;
+    },
     replaceInstance: ({ instanceId, source }) => {
       const instances = get().instances;
 
@@ -594,8 +688,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return null;
       }
 
+      const shouldResetTemplateFormat =
+        created.instance.task.type === "evaluator" &&
+        created.instance.task.evaluator.kind === "LLM" &&
+        get().templateFormat === TemplateFormats.NONE;
+
       set(
         {
+          ...(shouldResetTemplateFormat
+            ? { templateFormat: TemplateFormats.Mustache }
+            : {}),
           allInstanceMessages: {
             ...get().allInstanceMessages,
             ...created.messages,
@@ -625,6 +727,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const loaded = normalizeInstance(instance, instanceId);
       set(
         {
+          externallyUpdatedDecisionRevisionById: {
+            ...get().externallyUpdatedDecisionRevisionById,
+            [instanceId]:
+              (get().externallyUpdatedDecisionRevisionById[instanceId] ?? 0) +
+              1,
+          },
           allInstanceMessages: {
             ...get().allInstanceMessages,
             ...loaded.messages,
@@ -641,6 +749,20 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "loadInstance" }
+      );
+    },
+    updateDecisionRequest: ({ instanceId, request }) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, decisionRequest: request }
+              : instance
+          ),
+        },
+        false,
+        { type: "updateDecisionRequest" }
       );
     },
     syncInvocationParametersWithSpecs: ({
@@ -742,6 +864,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...baseModel,
             ...resetFields,
             ...(savedProviderConfig || {}),
+            // A saved default never changes the instance's model type.
+            modelType: instance.model.modelType ?? "LLM",
             invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null
@@ -833,10 +957,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 model: {
                   ...instance.model,
                   ...patch,
-                  invocationParameters: parseInvocationConfig(
-                    instance.model.provider,
-                    instance.model.invocationParameters
-                  ),
+                  // Decision instances carry no chat invocation parameters,
+                  // and their providers have no chat adapter to parse them.
+                  invocationParameters:
+                    instance.task.type === "decision"
+                      ? instance.model.invocationParameters
+                      : parseInvocationConfig(
+                          instance.model.provider,
+                          instance.model.invocationParameters
+                        ),
                 },
               };
             }
@@ -1288,11 +1417,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setTemplateVariablesPath: ({
       templateVariablesPath,
       datasetId,
-      taskKind,
+      mode,
     }: {
       templateVariablesPath: string | null;
       datasetId: string;
-      taskKind: PlaygroundTaskKind;
+      mode: PlaygroundMode;
     }) => {
       const datasetState =
         get().stateByDatasetId[datasetId] ?? createDatasetState();
@@ -1303,9 +1432,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().stateByDatasetId,
             [datasetId]: {
               ...datasetState,
-              templateVariablesPathByTaskKind: {
-                ...datasetState.templateVariablesPathByTaskKind,
-                [taskKind]: templateVariablesPath,
+              templateVariablesPathByMode: {
+                ...datasetState.templateVariablesPathByMode,
+                [mode]: templateVariablesPath,
               },
             },
           },
@@ -1897,8 +2026,8 @@ export const DEFAULT_MAX_CONCURRENCY = 10;
 /** A dataset's settings before anyone changes them. */
 function createDatasetState(): PlaygroundStateByDatasetId[string] {
   return {
-    templateVariablesPathByTaskKind: {
-      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+    templateVariablesPathByMode: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
     },
     maxConcurrency: DEFAULT_MAX_CONCURRENCY,
   };

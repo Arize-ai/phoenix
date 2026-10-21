@@ -7,6 +7,7 @@ import {
 } from "react-aria-components";
 
 import {
+  Alert,
   Autocomplete,
   Button,
   Flex,
@@ -23,6 +24,9 @@ import {
   MenuTrigger,
   SearchField,
   Text,
+  Tabs,
+  TabList,
+  Tab,
   useFilter,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
@@ -58,6 +62,7 @@ export type CustomProviderRef = {
 export type ModelMenuValue = {
   provider: GenerativeProviderKey;
   modelName: string;
+  modelType?: ModelType;
   /**
    * Reference to custom provider if using one
    */
@@ -98,6 +103,10 @@ type LeadingItemsProps = {
  * Using a Private Use Area (PUA) character unlikely to appear in provider IDs or model names.
  */
 const KEY_DELIMITER = "\uE000";
+
+function getModelType(value: ModelMenuValue | null | undefined): ModelType {
+  return value?.modelType ?? "LLM";
+}
 
 type BuiltinModelInfo = {
   type: "builtin";
@@ -198,6 +207,16 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
      * @default "any"
      */
     credentialSource?: ModelCredentialSource;
+    /** Enable decision selection only on surfaces with a decision execution path. */
+    supportsDecisionModels?: boolean;
+    /** Restrict selection to one model type on specialized authoring forms. */
+    fixedModelType?: ModelType;
+    /**
+     * Shown above the Decision tab's providers when choosing a decision model
+     * has a side effect the user should know about first (e.g. it clears the
+     * loaded dataset).
+     */
+    decisionTabNotice?: string;
   };
 
 export function ModelMenu({
@@ -211,9 +230,16 @@ export function ModelMenu({
   selectedLeadingItemId,
   onLeadingItemSelect,
   credentialSource,
+  supportsDecisionModels = false,
+  fixedModelType,
+  decisionTabNotice,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
+  const [selectedModelType, setModelType] = useState<ModelType>(
+    getModelType(value)
+  );
+  const modelType = fixedModelType ?? selectedModelType;
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
   );
@@ -229,17 +255,21 @@ export function ModelMenu({
           }),
         });
       } else {
-        onChange?.(model);
+        onChange?.({ ...model, modelType });
       }
     },
-    [onChange, awsBedrockModelPrefix]
+    [onChange, awsBedrockModelPrefix, modelType]
   );
   const {
     customProviders,
     modelsByProvider,
     providerInfoMap,
     visibleProviders,
-  } = useModelMenuData({ credentialSource });
+  } = useModelMenuData({
+    credentialSource,
+    modelType,
+    includeDecisionModels: supportsDecisionModels,
+  });
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that
@@ -319,7 +349,14 @@ export function ModelMenu({
       : "Select model";
 
   return (
-    <MenuTrigger>
+    <MenuTrigger
+      onOpenChange={(isOpen) => {
+        if (isOpen) {
+          setModelType(getModelType(value));
+          setSearchValue("");
+        }
+      }}
+    >
       <Button
         size="S"
         variant={variant}
@@ -357,8 +394,19 @@ export function ModelMenu({
               <Input placeholder="Search models..." />
             </SearchField>
           </MenuHeader>
+          {supportsDecisionModels && !fixedModelType ? (
+            <ModelTypeTabs
+              modelType={modelType}
+              notice={decisionTabNotice}
+              onChange={(nextModelType) => {
+                setModelType(nextModelType);
+                setSearchValue("");
+              }}
+            />
+          ) : null}
           {isSearching ? (
             <ModelsByProviderMenu
+              key={modelType}
               modelsByProvider={filteredModelsByProvider}
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
@@ -368,6 +416,7 @@ export function ModelMenu({
             />
           ) : (
             <ProviderMenu
+              key={modelType}
               providers={visibleProviders}
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
@@ -389,6 +438,54 @@ export function ModelMenu({
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
+  );
+}
+
+/**
+ * The LLM / Decision switch under the search field, with an optional notice
+ * above the Decision list. Rendered inside the picker's Autocomplete so the
+ * search field stays first in DOM and keyboard order.
+ */
+function ModelTypeTabs({
+  modelType,
+  notice,
+  onChange,
+}: {
+  modelType: ModelType;
+  notice?: string;
+  onChange: (modelType: ModelType) => void;
+}) {
+  return (
+    <>
+      <Tabs
+        selectedKey={modelType}
+        onSelectionChange={(key) =>
+          onChange(key === "DECISION" ? "DECISION" : "LLM")
+        }
+        // Tabs default to filling their parent (height: 100%, flex-grow)
+        // because they normally own the panel below them. Here the menu
+        // owns the content, so the tab bar must size to its tabs or it
+        // stretches into the menu's min-height and leaves a gap. The
+        // component sets its growth under an orientation attribute
+        // selector, so the override has to match that specificity.
+        css={css`
+          &[data-orientation] {
+            flex: none;
+            height: auto;
+          }
+        `}
+      >
+        <TabList aria-label="Model type">
+          <Tab id="LLM">LLM</Tab>
+          <Tab id="DECISION">Decision</Tab>
+        </TabList>
+      </Tabs>
+      {modelType === "DECISION" && notice ? (
+        <Alert variant="warning" banner>
+          {notice}
+        </Alert>
+      ) : null}
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getChatModelProviders,
   hasRequiredLocalCredentials,
   isProviderProvisioned,
   isProviderReady,
@@ -369,5 +370,19 @@ describe("isProviderProvisioned", () => {
         localCredentials: {},
       })
     ).toBe(true);
+  });
+});
+
+describe("getChatModelProviders", () => {
+  it("leaves out providers that serve decision models only", () => {
+    const providers = [
+      { key: "OPENAI", modelTypes: ["LLM", "DECISION"] },
+      { key: "TYPESAFE", modelTypes: ["DECISION"] },
+      { key: "ANTHROPIC", modelTypes: ["LLM"] },
+    ];
+    expect(getChatModelProviders(providers).map(({ key }) => key)).toEqual([
+      "OPENAI",
+      "ANTHROPIC",
+    ]);
   });
 });

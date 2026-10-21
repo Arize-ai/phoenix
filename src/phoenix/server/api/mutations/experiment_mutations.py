@@ -12,7 +12,11 @@ from strawberry.types import Info
 
 from phoenix.config import EXPERIMENT_TOGGLE_COOLDOWN
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
+from phoenix.db.helpers import (
+    get_eval_trace_ids_for_experiments,
+    get_fallback_project_names_for_experiments,
+    get_project_names_for_experiments,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
@@ -352,7 +356,10 @@ class ExperimentMutationMixin:
         project_names_stmt = get_project_names_for_experiments(*experiment_ids)
         eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
+            project_names = [
+                *await session.scalars(project_names_stmt),
+                *await get_fallback_project_names_for_experiments(session, *experiment_ids),
+            ]
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             savepoint = await session.begin_nested()
             experiments = {

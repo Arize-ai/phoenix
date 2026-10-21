@@ -4,8 +4,9 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.models import GenerativeModelSDK
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.agents.exceptions import ProviderNotFoundError
+from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
@@ -39,12 +40,13 @@ def test_get_otel_session_id_fingerprints_session_creation_time() -> None:
 
 async def _add_custom_provider(
     db: DbSessionFactory,
+    sdk: GenerativeModelSDK = "openai",
 ) -> tuple[int, str]:
     async with db() as session:
         provider = models.GenerativeModelCustomProvider(
-            name="Custom OpenAI",
-            provider="openai",
-            sdk="openai",
+            name=f"Custom {sdk}",
+            provider=sdk,
+            sdk=sdk,
             config=EncryptionService().encrypt(b"{}"),
         )
         session.add(provider)
@@ -96,6 +98,23 @@ async def test_resolve_model_routing_maps_each_selection_variant(
         assert builtin_routing.model_provider is ModelProvider.AZURE_OPENAI
         assert builtin_routing.model_name == "gpt-5.5"
         assert builtin_routing.custom_provider_id is None
+
+
+async def test_resolve_model_routing_rejects_a_custom_provider_without_chat_models(
+    db: DbSessionFactory,
+) -> None:
+    """A TypeSafe custom provider serves decision models only, so an agent can't use it."""
+    _, provider_gid = await _add_custom_provider(db, sdk="typesafe")
+    async with db() as session:
+        with pytest.raises(ProviderUnsupportedError, match="decision models only"):
+            await resolve_model_routing(
+                session,
+                CustomProviderModelSelection(
+                    provider_type="custom",
+                    provider_id=provider_gid,
+                    model_name="jev-latest",
+                ),
+            )
 
 
 async def test_resolve_model_routing_rejects_nonexistent_custom_provider(

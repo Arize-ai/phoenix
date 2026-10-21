@@ -25,8 +25,8 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
    */
   name: string;
   /**
-   * The GlobalID of the LLM, code, or built-in evaluator to bind. Create a
-   * definition first with `createEvaluator`.
+   * The GlobalID of the LLM, code, built-in, or decision evaluator to bind.
+   * Create a definition first with `createEvaluator`.
    */
   evaluatorId: string;
   /**

@@ -5,10 +5,15 @@ import sys
 import time
 from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Callable, Mapping, Sequence, TextIO, TypeVar
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
+
+    import httpx
+
+    from phoenix.client.resources.datasets import Dataset
+    from phoenix.experimental.datagen.datasets import DatasetSource
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
 _DEFAULT_RATE = 12.0
@@ -43,6 +48,27 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     commands = parser.add_subparsers(dest="datagen_command")
     pull_parser = commands.add_parser("pull", help="Download and cache the published corpus.")
     pull_parser.set_defaults(func=pull)
+    seed_parser = commands.add_parser(
+        "seed", help="Seed development datasets, decisions, and evaluators, then exit."
+    )
+    seed_parser.set_defaults(func=seed)
+    sources = seed_parser.add_mutually_exclusive_group()
+    sources.add_argument(
+        "--source",
+        choices=("all", "jevbench-hard", "typed-decisions", "boolq"),
+        default="typed-decisions",
+        help="Pinned source to seed (default: typed-decisions).",
+    )
+    sources.add_argument("--file", help="Local file of canonical Phoenix examples.")
+    seed_parser.add_argument("--name", help="Dataset name (required with --file).")
+    seed_parser.add_argument("--format", choices=("jsonl", "parquet"), default="jsonl")
+    seed_parser.add_argument("--endpoint", default=SUPPRESS)
+    seed_parser.add_argument("--api-key", default=SUPPRESS)
+    parser.add_argument(
+        "--no-datasets",
+        action="store_true",
+        help="Skip dataset and decision seeding before trace replay.",
+    )
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
@@ -77,6 +103,93 @@ def pull(args: Namespace) -> None:
     print(fetch_corpus())
 
 
+def seed(args: Namespace) -> None:
+    from pathlib import Path
+
+    import httpx
+
+    from phoenix.client import Client
+    from phoenix.experimental.datagen.datasets import DATASET_SOURCES, load_dataset
+
+    if bool(args.file) != bool(args.name):
+        raise ValueError("--file and --name must be provided together")
+    config = _resolve_config(args, os.environ)
+    with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
+        client = Client(http_client=http)
+        if args.file:
+            dataset = client.datasets.create_dataset(
+                name=args.name,
+                examples=load_dataset(Path(args.file).expanduser(), format=args.format),
+                timeout=120,
+            )
+            datasets = [dataset]
+        else:
+            sources = (
+                list(DATASET_SOURCES.values())
+                if args.source == "all"
+                else [DATASET_SOURCES[args.source]]
+            )
+            datasets = _seed_sources(http, client, sources=sources, stream=sys.stdout)
+        for dataset in datasets:
+            print(f"Seeded {dataset.name}: {len(dataset)} examples (version {dataset.version_id})")
+
+
+def _seed_sources(
+    http: httpx.Client,
+    client: object,
+    *,
+    sources: Sequence[DatasetSource] | None = None,
+    stream: TextIO,
+) -> list[Dataset]:
+    from phoenix.experimental.datagen.datasets import seed_datasets
+    from phoenix.experimental.datagen.decisions import seed_workflow_decisions
+    from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
+
+    datasets = (
+        seed_datasets(client)  # type: ignore[arg-type]
+        if sources is None
+        else seed_datasets(client, sources=sources)  # type: ignore[arg-type]
+    )
+    for name, version_id in seed_workflow_decisions(http, datasets):
+        print(f"Seeded decision {name} (version {version_id})", file=stream)
+    for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
+        print(f"Seeded dataset evaluator {name} ({binding_id})", file=stream)
+    return datasets
+
+
+def _headers(config: _Config) -> dict[str, str]:
+    headers = dict(config.headers)
+    if config.api_key:
+        headers["authorization"] = f"Bearer {config.api_key}"
+    return headers
+
+
+def _seed_when_ready(config: _Config) -> None:
+    import httpx
+
+    from phoenix.client import Client
+    from phoenix.client.resources.datasets import DatasetUploadError
+
+    with httpx.Client(base_url=config.endpoint.rstrip("/") + "/", headers=_headers(config)) as http:
+        client = Client(http_client=http)
+        while True:
+            try:
+                datasets = _seed_sources(http, client, stream=sys.stderr)
+                for dataset in datasets:
+                    print(f"Seeded {dataset.name}: {len(dataset)} examples", file=sys.stderr)
+                return
+            except (httpx.HTTPStatusError, DatasetUploadError) as error:
+                cause = error if isinstance(error, httpx.HTTPStatusError) else error.__cause__
+                if not isinstance(
+                    cause, httpx.HTTPStatusError
+                ) or cause.response.status_code not in {429, 502, 503, 504}:
+                    raise
+            except httpx.TransportError:
+                pass
+            print("Waiting for Phoenix to seed development datasets...", file=sys.stderr)
+            time.sleep(2)
+
+
 def run(args: Namespace) -> None:
     from phoenix.experimental.datagen import OTLPHTTPExporter, Replayer, load_corpus
 
@@ -92,6 +205,8 @@ def run(args: Namespace) -> None:
     )
 
     try:
+        if not args.no_datasets:
+            _seed_when_ready(config)
         with OTLPHTTPExporter(
             config.endpoint,
             api_key=config.api_key,

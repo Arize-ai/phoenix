@@ -77,6 +77,7 @@ export function ExampleExperimentRunsTable({
               annotations {
                 edges {
                   annotation: node {
+                    ...decisionAnnotation_annotation @relay(mask: false)
                     id
                     name
                     label

@@ -24,6 +24,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluator_management import (
+    EVALUATOR_MODEL_BY_KIND,
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
@@ -417,7 +418,7 @@ async def add_project_code_evaluator(
 async def add_project_evaluator(
     context: EvaluatorServiceContext, input: AddProjectCodeEvaluatorInput
 ) -> models.ProjectEvaluator:
-    """Bind an existing LLM or code evaluator to a project.
+    """Bind an existing LLM, code, or decision evaluator to a project.
 
     The evaluator row is locked so a concurrent definition delete sees the binding. A name the
     project already uses is refused with AlreadyExists naming the binding that holds it.
@@ -427,8 +428,8 @@ async def add_project_evaluator(
         evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
     except ValueError as error:
         raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
-    if evaluator_kind not in ("LLM", "CODE"):
-        raise BadRequest("Projects run LLM and code evaluators")
+    if evaluator_kind not in ("LLM", "CODE", "DECISION"):
+        raise BadRequest("Projects run LLM, code, and decision evaluators")
     try:
         name = IdentifierModel.model_validate(input.name)
     except ValidationError as error:
@@ -438,7 +439,7 @@ async def add_project_evaluator(
     evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
         input.evaluation_delay_seconds, input.evaluation_target
     )
-    evaluator_model = models.LLMEvaluator if evaluator_kind == "LLM" else models.CodeEvaluator
+    evaluator_model = EVALUATOR_MODEL_BY_KIND[evaluator_kind]
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
@@ -451,6 +452,8 @@ async def add_project_evaluator(
                 await resolve_evaluator_prompt_version(session, evaluator) is None
             ):
                 raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
+            if isinstance(evaluator, models.DecisionEvaluator):
+                _validate_decision_project_mapping(evaluator.selected_version, input.input_mapping)
             project_evaluator = models.ProjectEvaluator(
                 project_id=project_id,
                 evaluator_id=evaluator_id,
@@ -471,6 +474,23 @@ async def add_project_evaluator(
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await _project_binding_name_taken(context, project_id, name) from error
     return project_evaluator
+
+
+def _validate_decision_project_mapping(
+    version: models.DecisionVersion, input_mapping: Optional[InputMapping]
+) -> None:
+    """A judge's inputs must all be fillable from the span, trace, or session it judges."""
+    from phoenix.server.api.helpers.decision_evaluator_service import (
+        PROJECT_EVALUATOR_CONTEXT_KEYS,
+        validate_decision_input_mapping,
+    )
+
+    validate_decision_input_mapping(
+        version,
+        input_mapping,
+        context_keys=PROJECT_EVALUATOR_CONTEXT_KEYS,
+        context="evaluated span, trace, or session",
+    )
 
 
 def _decode_project_id(project_id: GlobalID) -> int:
@@ -1051,6 +1071,12 @@ async def patch_project_evaluator(
                 assert patch.enabled is not None
                 values["enabled"] = patch.enabled
             if patch.input_mapping is not UNSET:
+                if (
+                    decision := await session.get(models.DecisionEvaluator, row.evaluator_id)
+                ) is not None:
+                    _validate_decision_project_mapping(
+                        decision.selected_version, patch.input_mapping
+                    )
                 values["input_mapping"] = patch.input_mapping
             if patch.evaluation_delay_seconds is not UNSET:
                 values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(

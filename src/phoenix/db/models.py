@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeVar, cast
 
 import orjson
 import sqlalchemy as sa
@@ -76,6 +76,13 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
+)
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
+from phoenix.db.types.decisions import (
+    DecisionInput,
+    DecisionQuestion,
+    DecisionState,
+    DecisionTaskConfig,
 )
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
@@ -188,7 +195,7 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
-EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN", "DECISION"]
 SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
@@ -199,6 +206,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "anthropic",
     "google_genai",
     "aws_bedrock",
+    "typesafe",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
@@ -390,6 +398,8 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptInvocationParameters]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptInvocationParametersRootModel.model_validate(value).root
 
@@ -408,6 +418,8 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptTemplate]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptTemplateRootModel.model_validate(value).root
 
@@ -670,6 +682,50 @@ class _HexColor(TypeDecorator[str]):
         if value is None:
             return None
         return value
+
+
+_PydanticJSONT = TypeVar("_PydanticJSONT")
+
+
+class _PydanticJSON(TypeDecorator[_PydanticJSONT]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+    _adapter: TypeAdapter[Any]
+    _label: str
+
+    def process_bind_param(self, value: Optional[_PydanticJSONT], _: Dialect) -> Any:
+        if value is None:
+            raise ValueError(f"{self._label} cannot be None")
+        return self._adapter.dump_python(value, mode="json", exclude_unset=True, by_alias=True)
+
+    def process_result_value(self, value: Any, _: Dialect) -> Optional[_PydanticJSONT]:
+        return self._adapter.validate_python(value) if value is not None else None
+
+
+class _DecisionInputs(_PydanticJSON[list[DecisionInput]]):
+    _adapter = TypeAdapter(list[DecisionInput])
+    _label = "Decision inputs"
+
+
+class _DecisionState(_PydanticJSON[DecisionState]):
+    _adapter = TypeAdapter(DecisionState)
+    _label = "Decision state"
+
+
+class _DecisionQuestions(_PydanticJSON[list[DecisionQuestion]]):
+    _adapter = TypeAdapter(list[DecisionQuestion])
+    _label = "Decision questions"
+
+
+class _DecisionTaskConfig(_PydanticJSON[DecisionTaskConfig]):
+    _adapter = TypeAdapter(DecisionTaskConfig)
+    _label = "Decision task config"
+
+
+class _DecisionScoringPolicy(_PydanticJSON[DecisionScoringPolicy]):
+    _adapter = TypeAdapter(DecisionScoringPolicy)
+    _label = "Decision scoring policy"
 
 
 class _InputMapping(TypeDecorator[InputMapping]):
@@ -2012,12 +2068,15 @@ class ExperimentJob(HasId):
     )
     type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')",
+            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')",
             name="valid_type",
         ),
         nullable=False,
     )
 
+    decision_evaluator_snapshots: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON_, nullable=False, default=list, server_default="[]"
+    )
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
         passive_deletes="all",
@@ -2148,6 +2207,61 @@ class ExperimentEvalOnlyConfig(ExperimentJob):
     }
 
 
+class ExperimentDecisionTask(ExperimentJob):
+    """Decision task configuration for an experiment.
+
+    Each dataset example becomes one decision request, and its answers are the run's
+    output. The connection is stored as columns, as a prompt task's is; how examples
+    become requests and how answers are scored is frozen in ``config``, so a resumed
+    experiment asks and scores exactly as it started.
+    """
+
+    __tablename__ = "experiment_decision_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("type = 'DECISION'", name="valid_type"),
+        server_default="DECISION",
+        nullable=False,
+    )
+
+    # Model identity
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str] = mapped_column(String)
+
+    # Provider routing: a custom provider, or a built-in one with an optional endpoint
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    base_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    config: Mapped[DecisionTaskConfig] = mapped_column(_DecisionTaskConfig, nullable=False)
+
+    # The saved version the definition was copied from, if any; the copy keeps running when
+    # the version is deleted.
+    decision_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decision_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DECISION",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)",
+            name="custom_provider_or_base_url",
+        ),
+    )
+
+
 class ExperimentEvaluatorTask(ExperimentJob):
     """Evaluator task configuration for an experiment.
 
@@ -2168,7 +2282,7 @@ class ExperimentEvaluatorTask(ExperimentJob):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     evaluator_kind: Mapped[EvaluatorKind] = mapped_column(
         CheckConstraint(
-            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')",
+            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')",
             name="valid_evaluator_kind",
         ),
         nullable=False,
@@ -3034,6 +3148,138 @@ class PromptVersionTag(HasId):
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
 
 
+class DecisionLabel(HasId):
+    __tablename__ = "decision_labels"
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    color: Mapped[Optional[str]] = mapped_column(_HexColor, nullable=True)
+
+
+class DecisionDecisionLabel(Base):
+    __tablename__ = "decisions_decision_labels"
+    decision_label_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_labels.id", ondelete="CASCADE"), nullable=False
+    )
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    __table_args__ = (PrimaryKeyConstraint("decision_label_id", "decision_id"),)
+
+
+class Decision(HasId):
+    """A saved decision: a named, versioned typed function apps fetch by tag."""
+
+    __tablename__ = "decisions"
+    source_decision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decisions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    decision_versions: Mapped[list["DecisionVersion"]] = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+
+class DecisionVersion(HasId):
+    """An immutable version of a decision: its inputs, state, questions, and model."""
+
+    __tablename__ = "decision_versions"
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    inputs: Mapped[list[DecisionInput]] = mapped_column(_DecisionInputs, nullable=False)
+    state: Mapped[DecisionState] = mapped_column(_DecisionState, nullable=False)
+    questions: Mapped[list[DecisionQuestion]] = mapped_column(_DecisionQuestions, nullable=False)
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str]
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    decision: Mapped["Decision"] = relationship("Decision", back_populates="decision_versions")
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+    # The target of the tags' composite foreign key, so a tag can never point at another
+    # decision's version.
+    __table_args__ = (UniqueConstraint("decision_id", "id"),)
+
+
+class DecisionVersionTag(HasId):
+    """A movable name for one of a decision's versions, such as ``production``."""
+
+    __tablename__ = "decision_version_tags"
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    decision_version_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    decision: Mapped["Decision"] = relationship(
+        "Decision", back_populates="decision_version_tags", overlaps="decision_version_tags"
+    )
+    decision_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        back_populates="decision_version_tags",
+        overlaps="decision,decision_version_tags",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "decision_id"),
+        ForeignKeyConstraint(
+            ["decision_id", "decision_version_id"],
+            ["decision_versions.decision_id", "decision_versions.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
 class AnnotationConfig(HasId):
     __tablename__ = "annotation_configs"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -3193,7 +3439,9 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
-        CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
+        CheckConstraint(
+            "kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')", name="valid_evaluator_kind"
+        ),
         nullable=False,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
@@ -3220,6 +3468,46 @@ class Evaluator(HasId):
     }
 
     __table_args__ = (UniqueConstraint("kind", "id"),)
+
+
+class DecisionEvaluator(Evaluator):
+    __tablename__ = "decision_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("kind = 'DECISION'", name="valid_evaluator_kind"),
+        server_default="DECISION",
+        nullable=False,
+    )
+    decision_version_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_versions.id", ondelete="RESTRICT"), index=True
+    )
+    scoring_policy: Mapped[DecisionScoringPolicy] = mapped_column(
+        _DecisionScoringPolicy, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    selected_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        innerjoin=True,
+        lazy="joined",
+    )
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        from phoenix.db.types.decision_evaluators import derive_decision_output_configs
+
+        return derive_decision_output_configs(
+            self.selected_version.questions,
+            self.scoring_policy,
+        )
+
+    __mapper_args__ = {"polymorphic_identity": "DECISION"}
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
+        ),
+    )
 
 
 class LLMEvaluator(Evaluator):

@@ -22,13 +22,7 @@ def primary_result_annotation(
     The primary result is the first output config's result, named per
     `result_annotation_names`.
     """
-    configs = as_output_configs(
-        evaluator.output_configs
-        if isinstance(
-            evaluator, (models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator)
-        )
-        else None
-    )
+    configs = as_output_configs(getattr(evaluator, "output_configs", None))
     names = result_annotation_names(project_evaluator.name.root, configs)
     return names[0], configs[0] if configs else None
 

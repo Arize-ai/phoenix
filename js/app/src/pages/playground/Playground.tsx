@@ -12,6 +12,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
@@ -98,7 +99,7 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
-import { Flex, PageHeader, View } from "@phoenix/components";
+import { Alert, Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -133,9 +134,14 @@ import {
   getEditableTableChangeCount,
   hasEditableTableUnsavedChanges,
 } from "@phoenix/store/editableTableStore";
-import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import type { PlaygroundInstance } from "@phoenix/store/playground";
+import {
+  getPlaygroundMode,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
+import { getDecisionDatasetBlockedReason } from "./decisionUtils";
 import {
   createEvaluatorTaskAgentRegistry,
   EvaluatorPlaygroundEmptySource,
@@ -156,6 +162,7 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import {
@@ -216,7 +223,6 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
@@ -274,6 +280,24 @@ const promptsWrapCSS = css`
  */
 const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
 
+/** What the task panel is titled: its members, since prompts and decisions can share it. */
+function getTaskPanelTitle(
+  instances: ReadonlyArray<Pick<PlaygroundInstance, "task">>
+): string {
+  if (getPlaygroundMode(instances) === "evaluator") {
+    return "Evaluators";
+  }
+
+  const hasPrompt = instances.some(({ task }) => task.type === "prompt");
+  const hasDecision = instances.some(isDecisionInstance);
+
+  if (hasDecision) {
+    return hasPrompt ? "Prompts and decisions" : "Decisions";
+  }
+
+  return "Prompts";
+}
+
 function PlaygroundContent() {
   const agentStore = useAgentStore();
   const playgroundStore = usePlaygroundStore();
@@ -300,10 +324,26 @@ function PlaygroundContent() {
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
 
-  const taskKind = usePlaygroundContext((state) =>
-    getPlaygroundTaskKind(state.instances)
+  const mode = usePlaygroundContext((state) =>
+    getPlaygroundMode(state.instances)
   );
 
+  const panelTitle = usePlaygroundContext((state) =>
+    getTaskPanelTitle(state.instances)
+  );
+
+  // Over a dataset, why the page's decision instances can't run, if they can't.
+  const decisionDatasetBlockedReason = usePlaygroundContext((state) =>
+    getDecisionDatasetBlockedReason({
+      instances: state.instances,
+      templateFormat: state.templateFormat,
+    })
+  );
+  const decisionInstanceIds = usePlaygroundContext(
+    useShallow((state) =>
+      state.instances.filter(isDecisionInstance).map((instance) => instance.id)
+    )
+  );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -376,14 +416,14 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
-        taskKind,
+        mode,
         recordExperiments,
         repetitions,
         nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
     [
-      taskKind,
+      mode,
       playgroundInstancesForAgent,
       recordExperiments,
       repetitions,
@@ -788,9 +828,23 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning, hasUnsavedExampleChanges]);
 
+  const hasDecisionInputState = usePlaygroundContext((state) =>
+    state.instances.some(
+      (instance) =>
+        isDecisionInstance(instance) &&
+        (instance.decisionRequest?.stateEditorMode === "input" ||
+          instance.decisionRequest?.stateEditorMode === "inputs")
+    )
+  );
   const panelIds = useMemo(
-    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat, taskKind }),
-    [isDatasetMode, templateFormat, taskKind]
+    () =>
+      getPlaygroundPanelIds({
+        isDatasetMode,
+        templateFormat,
+        mode,
+        hasDecisionInputState,
+      }),
+    [isDatasetMode, templateFormat, mode, hasDecisionInputState]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -833,12 +887,10 @@ function PlaygroundContent() {
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
+          title={panelTitle}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              {taskKind === "prompt" ? (
-                <TemplateFormatRadioGroup size="S" />
-              ) : null}
+              {mode === "task" ? <TemplateFormatRadioGroup size="S" /> : null}
               <PlaygroundCompareMenu />
             </Flex>
           }
@@ -848,6 +900,13 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
+            {isDatasetMode && decisionDatasetBlockedReason != null ? (
+              <View paddingBottom="size-200">
+                <Alert variant="danger" title="Run blocked">
+                  {decisionDatasetBlockedReason}
+                </Alert>
+              </View>
+            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View
@@ -861,6 +920,7 @@ function PlaygroundContent() {
                     splitIds={splitIds}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
+                    supportsDecisionModels
                   />
                 </View>
               ))}
@@ -903,7 +963,7 @@ function PlaygroundContent() {
               }
             />
           </Suspense>
-        ) : taskKind === "evaluator" ? (
+        ) : mode === "evaluator" ? (
           <TitledPanel
             ref={ioPanelRef}
             headingLevel={2}
@@ -919,7 +979,8 @@ function PlaygroundContent() {
           </TitledPanel>
         ) : (
           <>
-            {templateFormat !== TemplateFormats.NONE ? (
+            {templateFormat !== TemplateFormats.NONE ||
+            hasDecisionInputState ? (
               <TitledPanel
                 ref={inputsPanelRef}
                 headingLevel={2}
@@ -950,7 +1011,13 @@ function PlaygroundContent() {
                 <Flex direction="row" gap="size-200">
                   {instanceIds.map((instanceId) => (
                     <View key={`${instanceId}-output`} flex="1 1 0px">
-                      <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      {decisionInstanceIds.includes(instanceId) ? (
+                        <PlaygroundDecisionOutput
+                          playgroundInstanceId={instanceId}
+                        />
+                      ) : (
+                        <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      )}
                     </View>
                   ))}
                 </Flex>

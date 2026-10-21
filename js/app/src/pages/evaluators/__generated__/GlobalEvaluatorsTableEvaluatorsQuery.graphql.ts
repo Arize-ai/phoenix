@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d31c08fdf65880c79ee988f45b178f11>>
+ * @generated SignedSource<<f085806ffd184a89d0ac738be2657a88>>
  * @lightSyntaxTransform
  */
 
@@ -156,6 +156,24 @@ v10 = {
     },
     (v3/*:: as any*/)
   ],
+  "storageKey": null
+},
+v11 = [
+  (v4/*:: as any*/),
+  (v3/*:: as any*/)
+],
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
   "storageKey": null
 };
 return {
@@ -362,10 +380,7 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": [
-                          (v4/*:: as any*/),
-                          (v3/*:: as any*/)
-                        ],
+                        "selections": (v11/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -376,20 +391,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "modelName",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "modelProvider",
-                            "storageKey": null
-                          },
+                          (v12/*:: as any*/),
+                          (v13/*:: as any*/),
                           (v3/*:: as any*/)
                         ],
                         "storageKey": null
@@ -397,6 +400,45 @@ return {
                       (v10/*:: as any*/)
                     ],
                     "type": "LLMEvaluator",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DecisionVersion",
+                        "kind": "LinkedField",
+                        "name": "decisionVersion",
+                        "plural": false,
+                        "selections": [
+                          (v3/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "decisionId",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Decision",
+                            "kind": "LinkedField",
+                            "name": "decision",
+                            "plural": false,
+                            "selections": (v11/*:: as any*/),
+                            "storageKey": null
+                          },
+                          (v12/*:: as any*/),
+                          (v13/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      (v10/*:: as any*/)
+                    ],
+                    "type": "DecisionEvaluator",
                     "abstractKey": null
                   },
                   {
@@ -475,12 +517,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c89ce945181bb8a521b17aafbc836c2c",
+    "cacheID": "73b703e7af297e551673fd8ac03b7a6a",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  projects(first: 10) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    evaluator {\n      __typename\n      kind\n      id\n    }\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on DecisionEvaluator {\n    decisionVersion {\n      id\n      decisionId\n      decision {\n        name\n        id\n      }\n      modelName\n      modelProvider\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

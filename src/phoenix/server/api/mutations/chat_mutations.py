@@ -2,11 +2,18 @@ import logging
 from typing import Any, Optional, cast
 
 import strawberry
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.types import Info
 
 from phoenix.config import (
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
+)
+from phoenix.db import models
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorDefinition,
+    InlineDecisionEvaluatorDefinition,
+    StoredDecisionEvaluatorDefinition,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -18,12 +25,18 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
+from phoenix.server.api.helpers.decision_evaluators import (
+    capture_decision_evaluator_definition,
+    parse_decision_annotation,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
     EvaluatorPreviewsInput,
+    _node_id,
 )
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.Trace import Trace
@@ -46,6 +59,7 @@ initialize_playground_clients()
 @strawberry.type
 class EvaluationResult:
     evaluator_name: str
+    status: Optional[str] = None
     annotation: Optional[ExperimentRunAnnotation] = None
     trace: Optional[Trace] = None
     error: Optional[str] = None
@@ -81,11 +95,14 @@ def _to_evaluation_result(
     if eval_result["error"] is not None:
         return EvaluationResult(
             evaluator_name=evaluator_name,
+            status="error",
             error=eval_result["error"],
             trace=trace,
         )
+    decision = parse_decision_annotation(eval_result["metadata"])
     return EvaluationResult(
         evaluator_name=evaluator_name,
+        status=decision.status if decision is not None else "answered",
         annotation=_to_annotation(eval_result),
         trace=trace,
     )
@@ -131,6 +148,32 @@ async def _evaluate_preview(
         raise BadRequest("The Monty runtime failed unexpectedly. Retry the preview.") from exc
 
 
+async def _capture_binding_definition(
+    session: AsyncSession, definition: Optional[EvaluatorDefinition], binding_id: int
+) -> InlineDecisionEvaluatorDefinition:
+    """Capture a saved evaluator as a dataset binding, matching what an experiment would run."""
+    if definition is not None and not isinstance(definition, StoredDecisionEvaluatorDefinition):
+        raise BadRequest("datasetEvaluatorId requires a saved decision evaluator")
+    binding = await session.get(models.DatasetEvaluators, binding_id)
+    if binding is None:
+        raise NotFound(f"Dataset evaluator not found: {binding_id}")
+    if (
+        isinstance(definition, StoredDecisionEvaluatorDefinition)
+        and binding.evaluator_id != definition.decision_evaluator_id
+    ):
+        raise BadRequest("The dataset evaluator is not bound to the given decision evaluator")
+    judge = await get_decision_evaluator(session, binding.evaluator_id)
+    try:
+        return capture_decision_evaluator_definition(
+            judge,
+            name=binding.name.root,
+            description=binding.description,
+            dataset_evaluator_id=binding.id,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+
+
 @strawberry.type
 class ChatCompletionMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -154,12 +197,25 @@ class ChatCompletionMutationMixin:
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
                 payload_limit_remediation = ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 
-            definition = preview_item.evaluator.to_definition()
+            definition = (
+                preview_item.evaluator.to_definition()
+                if preview_item.evaluator is not None
+                else None
+            )
+            binding_id = (
+                _node_id(preview_item.dataset_evaluator_id, "DatasetEvaluator", "dataset evaluator")
+                if preview_item.dataset_evaluator_id is not None
+                else None
+            )
             # Preview runs are ephemeral by design: no sandbox session manager is
             # passed, so each preview spins up a fresh sandbox through the backend's
             # own ``async with`` lifecycle and tears it down on exit. Cleanup then
             # never depends on a follow-up request reaching the same replica.
             async with info.context.db() as session:
+                if binding_id is not None:
+                    definition = await _capture_binding_definition(session, definition, binding_id)
+                if definition is None:
+                    raise BadRequest("Evaluator definition or datasetEvaluatorId is required")
                 evaluator = await build_evaluator_from_definition(
                     definition=definition,
                     session=session,

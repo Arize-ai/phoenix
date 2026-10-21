@@ -32,7 +32,6 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import (
     ConfigurationSnapshotOutcome,
-    HydratedConfigurationSnapshot,
     HydratedWorkUnit,
     HydrationFailure,
     OnlineEvalExecutor,
@@ -321,8 +320,6 @@ class OnlineEvalConsumer(DaemonTask):
                 return
             elif isinstance(configuration, Exception):
                 raise configuration
-            elif isinstance(configuration, HydratedConfigurationSnapshot):
-                hydrated = self._executor.hydrate_from_snapshot(configuration)
             else:
                 hydrated = configuration
             if isinstance(hydrated, HydrationFailure):
@@ -462,28 +459,19 @@ class OnlineEvalConsumer(DaemonTask):
         try:
             while True:
                 remaining_seconds = deadline_at - asyncio.get_running_loop().time()
-                if remaining_seconds <= 0:
-                    await _cancel_and_await(eval_task)
-                    raise EvalExecutionTimeout(
-                        cause=(
-                            ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
-                            if hydrated.evaluator_kind == "LLM"
-                            else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
-                        ),
-                        deadline_seconds=self._execution_deadline_seconds,
-                    ) from None
-                done, _ = await asyncio.wait(
-                    {eval_task},
-                    timeout=min(HEARTBEAT_INTERVAL_SECONDS, remaining_seconds),
-                )
-                if done:
-                    break
+                if remaining_seconds > 0:
+                    done, _ = await asyncio.wait(
+                        {eval_task},
+                        timeout=min(HEARTBEAT_INTERVAL_SECONDS, remaining_seconds),
+                    )
+                    if done:
+                        break
                 if asyncio.get_running_loop().time() >= deadline_at:
                     await _cancel_and_await(eval_task)
                     raise EvalExecutionTimeout(
                         cause=(
                             ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
-                            if hydrated.evaluator_kind == "LLM"
+                            if hydrated.evaluator_kind in ("LLM", "DECISION")
                             else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
                         ),
                         deadline_seconds=self._execution_deadline_seconds,

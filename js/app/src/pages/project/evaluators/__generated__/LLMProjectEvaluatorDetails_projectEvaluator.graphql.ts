@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00510c38b8174eee104f60ba9324d92e>>
+ * @generated SignedSource<<125f8716e16821c13db9012c26d0f40d>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 import { FragmentRefs } from "relay-runtime";
 export type LLMProjectEvaluatorDetails_projectEvaluator$data = {
   readonly evaluator: {

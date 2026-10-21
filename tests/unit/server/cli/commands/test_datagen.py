@@ -1,14 +1,17 @@
 import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
 
 from phoenix.server.cli.commands import datagen
 
 
+@pytest.mark.parametrize("skip_datasets", [False, True])
 def test_datagen_run_loop_applies_cli_flags_over_environment(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], skip_datasets: bool
 ) -> None:
     events: list[object] = []
     replayer_arguments: dict[str, object] = {}
@@ -50,6 +53,7 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
     monkeypatch.setattr("phoenix.experimental.datagen.Replayer", FakeReplayer)
     monkeypatch.setattr("phoenix.experimental.datagen.OTLPHTTPExporter", FakeExporter)
     monkeypatch.setattr(time, "sleep", sleep)
+    monkeypatch.setattr(datagen, "_seed_when_ready", lambda config: events.append("seed"))
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://env.example")
     monkeypatch.setenv("PHOENIX_API_KEY", "env-key")
     monkeypatch.setenv("PHOENIX_CLIENT_HEADERS", "x-tenant=tenant%20one,x-route=blue")
@@ -60,6 +64,7 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
     args = parser.parse_args(
         [
             "datagen",
+            *(["--no-datasets"] if skip_datasets else []),
             "--endpoint",
             "https://collector.example",
             "--api-key",
@@ -85,7 +90,7 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
         "api_key": "cli-key",
         "headers": {"x-tenant": "tenant one", "x-route": "blue"},
     }
-    assert events == [
+    assert events == ([] if skip_datasets else ["seed"]) + [
         ("emit", {}),
         ("export", "request"),
         ("interarrival", {"rate": 30.0, "burstiness": 0.8}),
@@ -120,3 +125,169 @@ def test_datagen_pull_prints_the_cached_corpus_path(
     args.func(args)
 
     assert capsys.readouterr().out == f"{cached_path}\n"
+
+
+@pytest.mark.parametrize("source", [None, "typed-decisions", "all", "boolq"])
+def test_seed_command_selects_sources_and_accepts_connection_flags(
+    monkeypatch: pytest.MonkeyPatch, source: str | None
+) -> None:
+    from phoenix.experimental.datagen.datasets import DATASET_SOURCES
+
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    args = parser.parse_args(
+        [
+            "datagen",
+            "seed",
+            *(["--source", source] if source is not None else []),
+            "--endpoint",
+            "http://local",
+            "--api-key",
+            "key",
+        ]
+    )
+    transport = MagicMock()
+    transport.__enter__.return_value = transport
+    http = MagicMock(return_value=transport)
+    monkeypatch.setattr(httpx, "Client", http)
+    client = MagicMock()
+    monkeypatch.setattr("phoenix.client.Client", MagicMock(return_value=client))
+    seed = MagicMock(return_value=[])
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
+    decisions = MagicMock(return_value=[])
+    evaluators = MagicMock(return_value=[])
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
+    )
+    args.func(args)
+    decisions.assert_called_once_with(transport, [])
+    evaluators.assert_called_once_with(transport, [])
+    expected = (
+        list(DATASET_SOURCES.values())
+        if source == "all"
+        else [DATASET_SOURCES[source or "typed-decisions"]]
+    )
+    seed.assert_called_once_with(client, sources=expected)
+    assert http.call_args.kwargs["base_url"] == "http://local/"
+    assert http.call_args.kwargs["headers"]["authorization"] == "Bearer key"
+
+
+def _seed_args(*flags: str) -> Namespace:
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    return parser.parse_args(["datagen", "seed", *flags])
+
+
+@pytest.mark.parametrize("flags", [["--file", "examples.jsonl"], ["--name", "my-dataset"]])
+def test_seed_command_requires_file_and_name_together(flags: list[str]) -> None:
+    with pytest.raises(ValueError, match="--file and --name must be provided together"):
+        datagen.seed(_seed_args(*flags))
+
+
+def test_seed_command_rejects_file_with_source() -> None:
+    with pytest.raises(SystemExit):
+        _seed_args("--file", "examples.jsonl", "--name", "my-dataset", "--source", "boolq")
+
+
+@pytest.mark.parametrize("format", [None, "parquet"])
+def test_seed_command_uploads_a_local_file_without_workflow_seeding(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    format: str | None,
+) -> None:
+    args = _seed_args(
+        "--file",
+        str(tmp_path / "examples"),
+        "--name",
+        "my-dataset",
+        *(["--format", format] if format else []),
+    )
+    transport = MagicMock()
+    transport.__enter__.return_value = transport
+    monkeypatch.setattr(httpx, "Client", MagicMock(return_value=transport))
+    dataset = MagicMock(version_id="v1")
+    dataset.name = "my-dataset"
+    dataset.__len__.return_value = 2
+    client = MagicMock()
+    client.datasets.create_dataset.return_value = dataset
+    monkeypatch.setattr("phoenix.client.Client", MagicMock(return_value=client))
+    examples = [{"id": "one"}]
+    load = MagicMock(return_value=examples)
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.load_dataset", load)
+    seed_datasets = MagicMock()
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed_datasets)
+    decisions = MagicMock()
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    args.func(args)
+    load.assert_called_once_with(tmp_path / "examples", format=format or "jsonl")
+    client.datasets.create_dataset.assert_called_once_with(
+        name="my-dataset", examples=examples, timeout=120
+    )
+    seed_datasets.assert_not_called()
+    decisions.assert_not_called()
+    assert capsys.readouterr().out == "Seeded my-dataset: 2 examples (version v1)\n"
+
+
+def test_startup_seeding_retries_until_server_is_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    from phoenix.client.resources.datasets import DatasetUploadError
+
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    args = parser.parse_args(["datagen"])
+    unavailable = DatasetUploadError("not ready")
+    unavailable.__cause__ = httpx.HTTPStatusError(
+        "not ready",
+        request=httpx.Request("POST", "http://local/v1/datasets/upload"),
+        response=httpx.Response(503),
+    )
+    seed = MagicMock(side_effect=[httpx.ConnectError("starting"), unavailable, []])
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
+    sleep = MagicMock()
+    monkeypatch.setattr(time, "sleep", sleep)
+    datagen._seed_when_ready(datagen._resolve_config(args, {}))
+    assert seed.call_count == 3
+    assert sleep.call_count == 2
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_startup_seeding_does_not_retry_permission_errors(
+    monkeypatch: pytest.MonkeyPatch, wrapped: bool
+) -> None:
+    from phoenix.client.resources.datasets import DatasetUploadError
+
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    args = parser.parse_args(["datagen"])
+    error = httpx.HTTPStatusError(
+        "denied",
+        request=httpx.Request("POST", "http://local/v1/datasets/upload"),
+        response=httpx.Response(403),
+    )
+    upload_error = DatasetUploadError("denied")
+    upload_error.__cause__ = error
+    seed = MagicMock(side_effect=upload_error if wrapped else error)
+    monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
+    with pytest.raises(DatasetUploadError if wrapped else httpx.HTTPStatusError):
+        datagen._seed_when_ready(datagen._resolve_config(args, {}))
+    seed.assert_called_once()
+
+
+def test_startup_seeds_decisions_and_accuracy_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
+    parser = ArgumentParser()
+    datagen.register(parser.add_subparsers())
+    args = parser.parse_args(["datagen"])
+    datasets = [MagicMock()]
+    decisions = MagicMock(return_value=[])
+    evaluators = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.datasets.seed_datasets", MagicMock(return_value=datasets)
+    )
+    monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
+    )
+    datagen._seed_when_ready(datagen._resolve_config(args, {}))
+    assert decisions.call_args.args[1] is datasets
+    evaluators.assert_called_once_with(decisions.call_args.args[0], datasets)

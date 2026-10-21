@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f92a34b63999093bbb206a3ce603216>>
+ * @generated SignedSource<<016a49e164b5c869e85de3b73f3011b3>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type EditCustomProviderButtonQuery$variables = {
   id: string;
@@ -70,6 +70,13 @@ export type EditCustomProviderButtonQuery$data = {
         readonly project: string | null;
       } | null;
       readonly parseError?: string;
+      readonly typesafeAuthenticationMethod?: {
+        readonly apiKey: string | null;
+      };
+      readonly typesafeClientKwargs?: {
+        readonly baseUrl: string | null;
+        readonly defaultHeaders: any | null;
+      } | null;
     };
     readonly createdAt: string;
     readonly description: string | null;
@@ -367,7 +374,11 @@ v19 = {
   "type": "AzureOpenAICustomProviderConfig",
   "abstractKey": null
 },
-v20 = {
+v20 = [
+  (v15/*:: as any*/),
+  (v16/*:: as any*/)
+],
+v21 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -387,17 +398,41 @@ v20 = {
       "kind": "LinkedField",
       "name": "anthropicClientKwargs",
       "plural": false,
-      "selections": [
-        (v15/*:: as any*/),
-        (v16/*:: as any*/)
-      ],
+      "selections": (v20/*:: as any*/),
       "storageKey": null
     }
   ],
   "type": "AnthropicCustomProviderConfig",
   "abstractKey": null
 },
-v21 = {
+v22 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TypeSafeAuthenticationMethod",
+      "kind": "LinkedField",
+      "name": "typesafeAuthenticationMethod",
+      "plural": false,
+      "selections": (v14/*:: as any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TypeSafeClientKwargs",
+      "kind": "LinkedField",
+      "name": "typesafeClientKwargs",
+      "plural": false,
+      "selections": (v20/*:: as any*/),
+      "storageKey": null
+    }
+  ],
+  "type": "TypeSafeCustomProviderConfig",
+  "abstractKey": null
+},
+v23 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -473,7 +508,7 @@ v21 = {
   "type": "AWSBedrockCustomProviderConfig",
   "abstractKey": null
 },
-v22 = {
+v24 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -558,9 +593,10 @@ return {
                   (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v19/*:: as any*/),
-                  (v20/*:: as any*/),
                   (v21/*:: as any*/),
-                  (v22/*:: as any*/)
+                  (v22/*:: as any*/),
+                  (v23/*:: as any*/),
+                  (v24/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -613,9 +649,10 @@ return {
                   (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v19/*:: as any*/),
-                  (v20/*:: as any*/),
                   (v21/*:: as any*/),
-                  (v22/*:: as any*/)
+                  (v22/*:: as any*/),
+                  (v23/*:: as any*/),
+                  (v24/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -629,16 +666,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc778aac4efa16fa707ce67335c87dde",
+    "cacheID": "ca5a76fc1fbc1b7e226e9421cc7d822b",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonQuery",
     "operationKind": "query",
-    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiApiType\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          openaiApiType\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n            defaultCredentials\n          }\n          azureOpenaiClientKwargs {\n            azureEndpoint\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            accessKeys {\n              awsAccessKeyId\n              awsSecretAccessKey\n              awsSessionToken\n            }\n            defaultCredentials\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiApiType\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          openaiApiType\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n            defaultCredentials\n          }\n          azureOpenaiClientKwargs {\n            azureEndpoint\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on TypeSafeCustomProviderConfig {\n          typesafeAuthenticationMethod {\n            apiKey\n          }\n          typesafeClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            accessKeys {\n              awsAccessKeyId\n              awsSecretAccessKey\n              awsSessionToken\n            }\n            defaultCredentials\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "271d8936806cb9556ecb690e0d82df19";
+(node as any).hash = "a0c576c8ee6c6cd925fc3783c883383d";
 
 export default node;

@@ -14,6 +14,7 @@ import { InvocationParameterSpecsSync } from "@phoenix/components/playground/mod
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 /**
  * The model picker and parameters of an instance, for the header row of a
@@ -23,6 +24,8 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export function PlaygroundInstanceModelControls({
   instanceId,
   disableEphemeralRouting,
+  supportsDecisionModels,
+  decisionTabNotice,
 }: {
   instanceId: number;
   /**
@@ -30,7 +33,14 @@ export function PlaygroundInstanceModelControls({
    * come from custom providers or environment variables.
    */
   disableEphemeralRouting?: boolean;
+  supportsDecisionModels?: boolean;
+  decisionTabNotice?: string;
 }) {
+  const isDecision = usePlaygroundContext((state) =>
+    isDecisionInstance(
+      state.instances.find((instance) => instance.id === instanceId)
+    )
+  );
   return (
     <>
       <Suspense
@@ -42,10 +52,18 @@ export function PlaygroundInstanceModelControls({
       >
         {/* Keeps instance invocation parameters aligned with the frontend
             spec table when model metadata or saved defaults change. */}
-        <InvocationParameterSpecsSync instanceId={instanceId} />
+        {!isDecision ? (
+          <InvocationParameterSpecsSync instanceId={instanceId} />
+        ) : null}
       </Suspense>
       <CompositeField>
-        <PlaygroundModelMenu playgroundInstanceId={instanceId} />
+        <PlaygroundModelMenu
+          playgroundInstanceId={instanceId}
+          supportsDecisionModels={supportsDecisionModels}
+          decisionTabNotice={decisionTabNotice}
+        />
+        {/* A decision instance has no sampling parameters, but its model
+            name and endpoint are set here too. */}
         <ModelParametersConfigButton
           playgroundInstanceId={instanceId}
           disableEphemeralRouting={disableEphemeralRouting}

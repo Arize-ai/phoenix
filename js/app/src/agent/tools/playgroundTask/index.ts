@@ -20,7 +20,8 @@ export {
   applyTaskSource,
   doesTaskSourceReplace,
   getSelectTaskRejection,
-  getTaskSourceKind,
+  describeMode,
+  getTaskSourceMode,
 } from "./selectTask";
 
 export {

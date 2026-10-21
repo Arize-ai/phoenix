@@ -810,7 +810,9 @@ jobs:
             requirements/
             src/phoenix/
             evals/
+            packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-otel/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -881,6 +883,7 @@ jobs:
             src/phoenix/
             packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-otel/
             tests/integration/
             tests/__generated__/
             tests/__init__.py

@@ -20,6 +20,7 @@ pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.52.0
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
 tenacity
+typesafe-sdk>=0.7.5
 types-aiobotocore-bedrock-runtime
 types-aiobotocore-rds
 types-cachetools

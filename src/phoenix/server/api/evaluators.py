@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
+from typing import Any, Callable, Hashable, Optional, Protocol, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
 from jsonpath_ng.parser import JsonPathParser
@@ -214,6 +214,12 @@ class EvaluationResult(TypedDict):
     error_exc: NotRequired[Optional[Exception]]
 
 
+class EvaluatorProviderClient(Protocol):
+    def get_rate_limit_key(self) -> Hashable: ...
+    def is_rate_limit_error(self, error: Exception) -> bool: ...
+    def is_transient_error(self, error: Exception) -> bool: ...
+
+
 class BaseEvaluator(ABC):
     """
     Base interface for all evaluators that attach annotations to tasks.
@@ -221,6 +227,19 @@ class BaseEvaluator(ABC):
     This is the unified ABC that both LLMEvaluator (instance-based) and
     BuiltInEvaluator (class-based with registry) implement.
     """
+
+    @property
+    def provider_client(self) -> Optional[EvaluatorProviderClient]:
+        return None
+
+    @property
+    def annotator_kind(self) -> str:
+        return "CODE"
+
+    @property
+    def error_metadata(self) -> dict[str, Any]:
+        """Metadata for an errored annotation, including errors the runner records."""
+        return {}
 
     @property
     @abstractmethod
@@ -305,6 +324,14 @@ class LLMEvaluator(BaseEvaluator):
         self._output_configs = output_configs
         self._prompt_name = prompt_name
         self._max_message_bytes = max_message_bytes
+
+    @property
+    def provider_client(self) -> EvaluatorProviderClient:
+        return self._llm_client
+
+    @property
+    def annotator_kind(self) -> str:
+        return "LLM"
 
     @property
     def name(self) -> str:
@@ -843,7 +870,13 @@ async def get_evaluators(
 
     # Join subclass tables so BuiltinEvaluator.key / LLM columns are loaded (see with_polymorphic).
     PolymorphicEvaluator = with_polymorphic(
-        models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+        models.Evaluator,
+        [
+            models.LLMEvaluator,
+            models.CodeEvaluator,
+            models.BuiltinEvaluator,
+            models.DecisionEvaluator,
+        ],
     )
     dataset_evaluators_result = (
         await session.execute(
@@ -1305,6 +1338,17 @@ async def pin_evaluator_definition(
     pinned, so every start and resume of the experiment runs the same code in the same
     environment.
     """
+    from phoenix.db.types.evaluator_definition import StoredDecisionEvaluatorDefinition
+
+    if isinstance(definition, StoredDecisionEvaluatorDefinition):
+        from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
+        from phoenix.server.api.helpers.decision_evaluators import (
+            capture_decision_evaluator_definition,
+        )
+
+        return capture_decision_evaluator_definition(
+            await get_decision_evaluator(session, definition.decision_evaluator_id)
+        )
     if not isinstance(definition, StoredCodeEvaluatorDefinition) or (
         definition.code_evaluator_version_id is not None
         and definition.sandbox_config_id is not None
@@ -1371,6 +1415,22 @@ async def build_evaluator_from_definition(
             configuration, a judge prompt whose tools do not match its output configs,
             or a stored evaluator that no longer exists.
     """
+    from phoenix.db.types.evaluator_definition import (
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
+    )
+    from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
+
+    if isinstance(
+        definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
+    ):
+        return await build_decision_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+            max_request_bytes=max_message_bytes,
+        )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)
     if isinstance(definition, InlineLLMEvaluatorDefinition):

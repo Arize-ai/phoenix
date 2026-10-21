@@ -7,6 +7,7 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "@phoenix/pages/playground/Playground";
 import type { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
 
@@ -24,17 +25,21 @@ export function SpanPlaygroundPage() {
     throw new Error("Span not found");
   }
 
-  const { playgroundInstance, parsingErrors, playgroundInput } = useMemo(
-    () => transformSpanAttributesToPlaygroundInstance(span),
-    [span]
-  );
+  const { playgroundInstance, parsingErrors, playgroundInput, templateFormat } =
+    useMemo(() => transformSpanAttributesToPlaygroundInstance(span), [span]);
 
-  const additionalProps =
-    playgroundInput != null ? { input: playgroundInput } : {};
+  const additionalProps = {
+    ...(playgroundInput != null ? { input: playgroundInput } : {}),
+    ...(templateFormat != null ? { templateFormat } : {}),
+  };
 
   return (
     <Flex direction="column" height={"100%"}>
-      <SpanPlaygroundBanners span={span} parsingErrors={parsingErrors} />
+      <SpanPlaygroundBanners
+        span={span}
+        parsingErrors={parsingErrors}
+        isDecision={isDecisionInstance(playgroundInstance)}
+      />
       <Playground
         // remount the playground when the span changes, resetting all local state, closing dialogs, etc.
         key={span.id}
@@ -48,7 +53,9 @@ export function SpanPlaygroundPage() {
 function SpanPlaygroundBanners({
   span,
   parsingErrors,
+  isDecision = false,
 }: {
+  isDecision?: boolean;
   span: Extract<
     NonNullable<spanPlaygroundPageLoaderQuery$data["span"]>,
     { __typename: "Span" }
@@ -66,7 +73,7 @@ function SpanPlaygroundBanners({
       {showBackBanner && (
         <Alert
           variant="info"
-          title="LLM Span Replay"
+          title={isDecision ? "Decision Span Replay" : "LLM Span Replay"}
           banner
           dismissable
           onDismissClick={() => {
@@ -84,7 +91,7 @@ function SpanPlaygroundBanners({
               Back to Trace
             </Button>
           }
-        >{`Replay and iterate on your LLM call from your ${span.project.name} project`}</Alert>
+        >{`Replay and iterate on your ${isDecision ? "decision request" : "LLM call"} from your ${span.project.name} project`}</Alert>
       )}
       {showParsingErrorsBanner && hasParsingErrors && (
         <Alert

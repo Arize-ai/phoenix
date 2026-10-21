@@ -22,7 +22,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByMode.task
     ).toBe("input.context");
   });
 
@@ -44,7 +44,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[experimentDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByMode.task
     ).toBe("reference.answer");
   });
 
@@ -64,7 +64,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByMode.task
     ).toBeNull();
   });
 
@@ -88,7 +88,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[storeDatasetId]
-        .templateVariablesPathByTaskKind.prompt
+        .templateVariablesPathByMode.task
     ).toBe("input.context");
   });
 
@@ -112,7 +112,7 @@ describe("playground template variables path agent tool", () => {
     expect(playgroundStore.getState().stateByDatasetId).toEqual({});
   });
 
-  it("sets the path of the page's kind of task and leaves the other kind's", async () => {
+  it("sets the path of the page's mode and leaves the other mode's", async () => {
     const urlDatasetId = "url-dataset";
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -121,7 +121,7 @@ describe("playground template variables path agent tool", () => {
     const [instance] = playgroundStore.getState().instances;
     playgroundStore.getState().replaceInstance({
       instanceId: instance.id,
-      source: { type: "new", kind: "CODE" },
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
     });
     const action = createSetTemplateVariablesPathClientAction({
       playgroundStore,
@@ -133,8 +133,8 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPathByTaskKind
-    ).toEqual({ prompt: "input", evaluator: "output" });
+        .templateVariablesPathByMode
+    ).toEqual({ task: "input", evaluator: "output" });
   });
 
   it("rejects off-contract input (extra key) via .strict()", async () => {

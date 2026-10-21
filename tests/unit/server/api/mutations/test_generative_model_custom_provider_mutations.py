@@ -2,11 +2,14 @@ from secrets import token_bytes, token_hex
 from typing import Any
 
 from pydantic import SecretStr
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
+from phoenix.db.types.decisions import DecisionInput, InputState
+from phoenix.db.types.identifier import Identifier as mp_identifier
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     _redact_provider_error,
 )
@@ -1060,3 +1063,88 @@ class TestRedactProviderError:
         result = _redact_provider_error(error, config)
 
         assert result == "NoCredentialsError: Unable to locate credentials"
+
+
+_PATCH_SDK = """
+mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+  patchGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+
+_CREATE_OPENAI_PROVIDER = """
+mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
+  createGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+
+
+async def test_sdk_cannot_change_to_one_without_decisions_while_decision_versions_use_it(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    created = await gql_client.execute(
+        _CREATE_OPENAI_PROVIDER,
+        variables={
+            "input": {
+                "name": "openai-for-decisions",
+                "provider": "openai",
+                "clientConfig": {
+                    "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-test"}},
+                },
+            }
+        },
+    )
+    assert created.data and not created.errors, created.errors
+    provider_id = created.data["createGenerativeModelCustomProvider"]["provider"]["id"]
+    provider_rowid = int(GlobalID.from_id(provider_id).node_id)
+    azure_patch = {
+        "input": {
+            "id": provider_id,
+            "clientConfig": {
+                "azureOpenai": {
+                    "azureOpenaiAuthenticationMethod": {"apiKey": "az-key"},
+                    "azureOpenaiClientKwargs": {
+                        "azureEndpoint": "https://example.openai.azure.com"
+                    },
+                }
+            },
+        }
+    }
+
+    async with db() as session:
+        decision = models.Decision(
+            name=mp_identifier("triage"), description=None, metadata_={}, user_id=None
+        )
+        session.add(decision)
+        await session.flush()
+        session.add(
+            models.DecisionVersion(
+                decision_id=decision.id,
+                description=None,
+                user_id=None,
+                inputs=[DecisionInput(name="ticket")],
+                state=InputState(type="input", name="ticket"),
+                questions=[],
+                model_provider="OPENAI",
+                model_name="gpt-4o",
+                custom_provider_id=provider_rowid,
+                metadata_={},
+            )
+        )
+        await session.flush()
+        version_id = decision.id
+
+    blocked = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
+    assert blocked.errors
+    assert "referenced by saved decision versions (triage)" in blocked.errors[0].message
+    async with db() as session:
+        sdk = await session.scalar(
+            select(models.GenerativeModelCustomProvider.sdk).where(
+                models.GenerativeModelCustomProvider.id == provider_rowid
+            )
+        )
+    assert sdk == "openai"
+
+    async with db() as session:
+        await session.execute(sa_delete(models.Decision).where(models.Decision.id == version_id))
+    allowed = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
+    assert allowed.data and not allowed.errors, allowed.errors

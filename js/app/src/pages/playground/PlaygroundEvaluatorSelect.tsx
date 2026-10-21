@@ -17,10 +17,12 @@ import {
 } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateCodeDatasetEvaluatorSlideover";
+import { CreateDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDecisionDatasetEvaluatorSlideover";
 import type { CreateLLMDatasetEvaluatorInitialState } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenuContents } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
@@ -93,6 +95,9 @@ export function PlaygroundEvaluatorSelect(
     setCreateLLMEvaluatorDialogInitialState,
   ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
 
+  const [isCreateDecisionEvaluatorOpen, setIsCreateDecisionEvaluatorOpen] =
+    useState(false);
+
   const onEdit = (editing: EditingEvaluator) => {
     onEditingEvaluatorChange(editing);
     setEvaluatorMenuOpen(false);
@@ -140,12 +145,17 @@ export function PlaygroundEvaluatorSelect(
                       key={evaluator.id}
                       evaluator={evaluator}
                       onOpenPlayground={
-                        evaluator.isBuiltIn
+                        // TODO(decision-evaluators): no evaluator-task playground
+                        // for a decision evaluator yet.
+                        evaluator.isBuiltIn || evaluator.kind === "DECISION"
                           ? undefined
                           : () => {
                               setEvaluatorMenuOpen(false);
                               void navigate(
-                                `/playground?${new URLSearchParams({ datasetId, datasetEvaluator0: evaluator.id })}`
+                                `/playground?${new URLSearchParams({
+                                  datasetId,
+                                  datasetEvaluator0: evaluator.id,
+                                })}`
                               );
                             }
                       }
@@ -170,6 +180,10 @@ export function PlaygroundEvaluatorSelect(
               setCreateLLMEvaluatorDialogInitialState(true)
             }
             onCreateCodeEvaluator={() => onCodeEvaluatorFormOpenChange(true)}
+            onCreateDecisionEvaluator={() => {
+              setEvaluatorMenuOpen(false);
+              setIsCreateDecisionEvaluatorOpen(true);
+            }}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
               setCreateLLMEvaluatorDialogInitialState(initialState);
@@ -191,6 +205,26 @@ export function PlaygroundEvaluatorSelect(
           }
         }}
         updateConnectionIds={updateConnectionIds}
+      />
+      <EditDecisionDatasetEvaluatorSlideover
+        datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId}
+        datasetId={datasetId}
+        isOpen={
+          editingEvaluator !== null && editingEvaluator.kind === "DECISION"
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            onEditingEvaluatorChange(null);
+          }
+        }}
+        updateConnectionIds={updateConnectionIds}
+      />
+      <CreateDecisionDatasetEvaluatorSlideover
+        isOpen={isCreateDecisionEvaluatorOpen}
+        onOpenChange={setIsCreateDecisionEvaluatorOpen}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+        onEvaluatorCreated={onEvaluatorCreated}
       />
       <EditBuiltInDatasetEvaluatorSlideover
         datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId}

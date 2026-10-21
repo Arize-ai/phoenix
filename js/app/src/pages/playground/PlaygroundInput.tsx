@@ -1,6 +1,7 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
@@ -12,6 +13,9 @@ export function PlaygroundInput() {
     (state) => state.setVariableValue
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const isDecision = usePlaygroundContext((state) =>
+    state.instances.some(isDecisionInstance)
+  );
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateFormat) {
@@ -24,7 +28,20 @@ export function PlaygroundInput() {
         break;
       }
       case TemplateFormats.NONE: {
-        return null;
+        if (!isDecision) return null;
+        return (
+          <View padding="size-100">
+            <Flex
+              direction="column"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Text color="text-700">
+                List input names in the decision state to fill them in here.
+              </Text>
+            </Flex>
+          </View>
+        );
       }
       default:
         assertUnreachable(templateFormat);
@@ -33,9 +50,19 @@ export function PlaygroundInput() {
       <View padding="size-100">
         <Flex direction="column" justifyContent="center" alignItems="center">
           <Text color="text-700">
-            Add variable inputs to your prompt using{" "}
-            <Text color="text-900">{templateSyntax}</Text> within your prompt
-            template.
+            {isDecision ? (
+              <>
+                Add variables to your prompts or decision requests using{" "}
+                <Text color="text-900">{templateSyntax}</Text> to fill them in
+                here.
+              </>
+            ) : (
+              <>
+                Add variable inputs to your prompt using{" "}
+                <Text color="text-900">{templateSyntax}</Text> within your
+                prompt template.
+              </>
+            )}
           </Text>
         </Flex>
       </View>

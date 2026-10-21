@@ -238,6 +238,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     annotations {
                       edges {
                         annotation: node {
+                          ...decisionAnnotation_annotation @relay(mask: false)
                           id
                           name
                           score
