@@ -58,7 +58,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ToolCallChunk,
 )
 from phoenix.server.daemons.experiment_runner import (
-    _NO_OP_LLM_CLIENT,
     CircuitBreaker,
     DecisionTaskWorkItem,
     EvaluatorRunSpec,
@@ -69,7 +68,6 @@ from phoenix.server.daemons.experiment_runner import (
     RunningExperiment,
     TaskWorkItem,
     WorkItem,
-    _NoOpLLMClient,
 )
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
@@ -185,7 +183,6 @@ def _make_running_experiment(
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
         experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
-        llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
         tracer_factory=MagicMock(),
@@ -1817,7 +1814,6 @@ def _running_evaluator_experiment(
     return RunningExperiment(
         experiment=experiment,
         experiment_job=evaluator_task,
-        llm_client=_NoOpLLMClient(),
         db=db,
         decrypt=lambda b: b,
         tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
@@ -2268,7 +2264,7 @@ class TestLoadEvaluatorTaskConfig:
         assert isinstance(job, models.ExperimentEvaluatorTask)
         assert decision_client is None
         assert job.name == Identifier("answer-length")
-        assert llm_client is _NO_OP_LLM_CLIENT
+        assert llm_client is None
         assert specs == []
         assert isinstance(evaluator, CodeEvaluatorRunner)
         assert evaluator.name == "answer-length"
@@ -2290,7 +2286,7 @@ class TestLoadDecisionTaskConfig:
             }
         )
         session = MagicMock()
-        session.get = AsyncMock(side_effect=[None, decision_task])
+        session.scalar = AsyncMock(return_value=decision_task)
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,

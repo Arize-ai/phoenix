@@ -401,12 +401,8 @@ async def build_decision_evaluator(
 ) -> "DecisionEvaluator":
     """Build a native judge from its saved or frozen definition."""
     from phoenix.server.api.decision_evaluator import DecisionEvaluator
-    from phoenix.server.api.helpers.decision_clients import (
-        get_custom_provider_decision_client,
-        get_decision_client,
-    )
+    from phoenix.server.api.helpers.decision_clients import resolve_decision_client
     from phoenix.server.api.helpers.decision_versions import validate_inputs, validate_questions
-    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
     if isinstance(definition, StoredDecisionEvaluatorDefinition):
         definition = capture_decision_evaluator_definition(
@@ -418,22 +414,14 @@ async def build_decision_evaluator(
         resolve_scoring_policy(definition.questions, definition.scoring_policy)
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    if definition.custom_provider_id is not None:
-        client = await get_custom_provider_decision_client(
-            custom_provider_id=definition.custom_provider_id,
-            model_name=definition.model_name,
-            session=session,
-            decrypt=decrypt,
-        )
-    else:
-        client = await get_decision_client(
-            provider=GenerativeProviderKey.from_model_provider(definition.model_provider),
-            model_name=definition.model_name,
-            base_url=None,
-            session=session,
-            decrypt=decrypt,
-            credentials=credentials,
-        )
+    client = await resolve_decision_client(
+        model_provider=definition.model_provider,
+        model_name=definition.model_name,
+        custom_provider_id=definition.custom_provider_id,
+        session=session,
+        decrypt=decrypt,
+        credentials=credentials,
+    )
     return DecisionEvaluator(definition, client, max_request_bytes=max_request_bytes)
 
 

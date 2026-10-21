@@ -398,6 +398,8 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptInvocationParameters]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptInvocationParametersRootModel.model_validate(value).root
 
@@ -416,6 +418,8 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptTemplate]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptTemplateRootModel.model_validate(value).root
 

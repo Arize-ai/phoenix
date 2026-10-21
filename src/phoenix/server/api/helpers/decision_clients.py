@@ -56,6 +56,7 @@ from phoenix.db.types.model_provider import (
     OPENAI_DEFAULT_BASE_URL,
     TYPESAFE_DEFAULT_BASE_URL,
     GenerativeModelCustomerProviderConfig,
+    ModelProvider,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
     sdk_offers_decisions,
@@ -909,3 +910,31 @@ async def get_custom_provider_decision_client(
         raise BadRequest(f"Custom provider '{record.name}' does not serve decision models.")
     _require_dependencies(client_class)
     return client_class(model_name=model_name, connection=connection)
+
+
+async def resolve_decision_client(
+    *,
+    model_provider: ModelProvider,
+    model_name: str,
+    custom_provider_id: Optional[int] = None,
+    base_url: Optional[str] = None,
+    credentials: Optional[Sequence[GenerativeCredentialInput]] = None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> DecisionClient:
+    """Resolve either a custom-provider or built-in DecisionClient."""
+    if custom_provider_id is not None:
+        return await get_custom_provider_decision_client(
+            custom_provider_id=custom_provider_id,
+            model_name=model_name,
+            session=session,
+            decrypt=decrypt,
+        )
+    return await get_decision_client(
+        provider=GenerativeProviderKey.from_model_provider(model_provider),
+        model_name=model_name,
+        base_url=base_url,
+        credentials=credentials,
+        session=session,
+        decrypt=decrypt,
+    )
