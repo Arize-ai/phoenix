@@ -23,6 +23,7 @@ classifiers = [
 version = "3.5.0"
 dependencies = [
   "httpx",
+  "certifi>=2026.10.18",
   "tqdm",
   "typing-extensions",
   "openinference-semantic-conventions",
