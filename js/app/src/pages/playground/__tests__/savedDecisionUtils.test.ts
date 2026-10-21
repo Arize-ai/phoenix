@@ -5,9 +5,11 @@ import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
 import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 
 import {
+  buildDecisionInput,
   createChoiceOption,
   createDecisionQuestion,
   createScaleLevel,
+  extractDecisionVariables,
 } from "../decisionUtils";
 import type {
   DecisionVersionInput,
@@ -74,6 +76,7 @@ function makeInstance(draft: DecisionRequestDraft | null) {
 /** The saved version the server would hold for a version input, as it is read back. */
 function toSavedVersion(input: DecisionVersionInput): SavedDecisionVersion {
   return {
+    inputs: input.inputs,
     state:
       "input" in input.state
         ? { kind: "input", input: input.state.input }
@@ -136,10 +139,13 @@ describe("toDecisionVersionInput", () => {
     expect(input.questions).toHaveLength(3);
   });
 
-  it("passes a state that is only one variable as that input", () => {
+  it("passes an input state as that input", () => {
     expect(
       toDecisionVersionInput({
-        instance: makeInstance(makeDraft("{ticket}")),
+        instance: makeInstance({
+          ...makeDraft("ticket"),
+          stateEditorMode: "input",
+        }),
         templateFormat: fString,
       })
     ).toMatchObject({
@@ -230,12 +236,47 @@ describe("savedDecisionVersionToDraft", () => {
     expect(withoutIds(loaded)).toEqual(withoutIds(draft));
   });
 
-  it("round-trips an input state in either template format", () => {
-    for (const [format, state] of [
-      [mustache, "{{ticket}}"],
-      [fString, "{ticket}"],
-    ] as const) {
-      const draft = makeDraft(state);
+  it("preserves a single-variable text state across load and save", () => {
+    const version: SavedDecisionVersion = {
+      inputs: [{ name: "state" }],
+      state: {
+        kind: "text",
+        template: "{{state}}",
+        templateFormat: "MUSTACHE",
+      },
+      questions: [
+        {
+          kind: "predicate",
+          name: "is_refund",
+          instructions: "Refund?",
+          criteria: null,
+        },
+      ],
+    };
+    const loaded = savedDecisionVersionToDraft({
+      version,
+      templateFormat: mustache,
+    });
+    expect(loaded).toMatchObject({
+      state: "{{state}}",
+      stateEditorMode: "text",
+    });
+    expect(
+      toDecisionVersionInput({
+        instance: makeInstance(loaded),
+        templateFormat: mustache,
+      }).state
+    ).toEqual({
+      text: { template: "{{state}}", templateFormat: "MUSTACHE" },
+    });
+  });
+
+  it("round-trips an input state in any template format, including NONE", () => {
+    for (const format of [mustache, fString, TemplateFormats.NONE] as const) {
+      const draft = {
+        ...makeDraft("ticket"),
+        stateEditorMode: "input" as const,
+      };
       const saved = toSavedVersion(
         toDecisionVersionInput({
           instance: makeInstance(draft),
@@ -246,10 +287,152 @@ describe("savedDecisionVersionToDraft", () => {
       expect(saved.state).toEqual({ kind: "input", input: "ticket" });
       expect(
         savedDecisionVersionToDraft({ version: saved, templateFormat: format })
-          .state
-      ).toBe(state);
+      ).toMatchObject({
+        state: "ticket",
+        stateEditorMode: "input",
+      });
     }
   });
+
+  it("preserves input descriptions, JSON schemas, and section-scoped inputs across load and save", () => {
+    const version: SavedDecisionVersion = {
+      inputs: [
+        { name: "urgent", description: "Whether urgent" },
+        {
+          name: "customer_name",
+          description: "Customer",
+          jsonSchema: { type: "string" },
+        },
+      ],
+      state: {
+        kind: "text",
+        template: "Customer: {{#urgent}}{{customer_name}}{{/urgent}}",
+        templateFormat: "MUSTACHE",
+      },
+      questions: [
+        {
+          kind: "predicate",
+          name: "is_refund",
+          instructions: "Refund?",
+          criteria: null,
+        },
+      ],
+    };
+    const loaded = savedDecisionVersionToDraft({
+      version,
+      templateFormat: mustache,
+    });
+    const resaved = toDecisionVersionInput({
+      instance: makeInstance(loaded),
+      templateFormat: mustache,
+    });
+    expect(resaved.inputs).toEqual(version.inputs);
+  });
+
+  it("preserves additional declarations for input states in saves and ad-hoc runs", () => {
+    const version: SavedDecisionVersion = {
+      inputs: [
+        { name: "ticket", description: "Ticket" },
+        { name: "policy", jsonSchema: { type: "string" } },
+      ],
+      state: { kind: "input", input: "ticket" },
+      questions: [
+        {
+          kind: "predicate",
+          name: "urgent",
+          instructions: "Urgent?",
+          criteria: null,
+        },
+      ],
+    };
+    const loaded = savedDecisionVersionToDraft({
+      version,
+      templateFormat: TemplateFormats.NONE,
+    });
+    expect(
+      extractDecisionVariables({
+        draft: loaded,
+        templateFormat: TemplateFormats.NONE,
+      })
+    ).toEqual(["ticket", "policy"]);
+    expect(
+      buildDecisionInput({
+        draft: loaded,
+        templateFormat: TemplateFormats.NONE,
+        variables: { ticket: "Refund", policy: "Support policy" },
+      })
+    ).toMatchObject({
+      inputs: version.inputs,
+      state: { input: "ticket" },
+      inputValues: { ticket: "Refund", policy: "Support policy" },
+    });
+    expect(
+      toDecisionVersionInput({
+        instance: makeInstance(loaded),
+        templateFormat: TemplateFormats.NONE,
+      }).inputs
+    ).toEqual(version.inputs);
+  });
+
+  it.each(["text", "input"] as const)(
+    "removes obsolete inferred inputs after editing a loaded %s state",
+    (kind) => {
+      const version: SavedDecisionVersion = {
+        inputs: [
+          {
+            name: "ticket",
+            description: "Ticket",
+            jsonSchema: { type: "string" },
+          },
+          { name: "policy", description: "Explicit declaration" },
+        ],
+        state:
+          kind === "text"
+            ? {
+                kind: "text",
+                template: "{{ticket}}",
+                templateFormat: "MUSTACHE",
+              }
+            : { kind: "input", input: "ticket" },
+        questions: [
+          {
+            kind: "predicate",
+            name: "urgent",
+            instructions: "Urgent?",
+            criteria: null,
+          },
+        ],
+      };
+      const loaded = savedDecisionVersionToDraft({
+        version,
+        templateFormat: mustache,
+      });
+      const edited = {
+        ...loaded,
+        state: kind === "text" ? "{{message}}" : "message",
+      };
+      const expectedInputs = [{ name: "message" }, version.inputs![1]];
+      expect(
+        extractDecisionVariables({ draft: edited, templateFormat: mustache })
+      ).toEqual(["message", "policy"]);
+      expect(
+        buildDecisionInput({ draft: edited, templateFormat: mustache }).inputs
+      ).toEqual(expectedInputs);
+      expect(
+        toDecisionVersionInput({
+          instance: makeInstance(edited),
+          templateFormat: mustache,
+        }).inputs
+      ).toEqual(expectedInputs);
+      // Metadata remains available if the user restores the original reference.
+      expect(
+        toDecisionVersionInput({
+          instance: makeInstance(loaded),
+          templateFormat: mustache,
+        }).inputs
+      ).toEqual(version.inputs);
+    }
+  );
 
   it("reads a predicate without criteria and a choice without descriptions", () => {
     const loaded = savedDecisionVersionToDraft({
@@ -337,14 +520,5 @@ describe("savedDecisionVersionToDraft", () => {
     expect(
       savedDecisionVersionToDraft({ version, templateFormat: fString }).state
     ).toBe("{ticket} again");
-  });
-
-  it("refuses an input state when the page has no template format to write it in", () => {
-    expect(() =>
-      savedDecisionVersionToDraft({
-        version: { state: { kind: "input", input: "ticket" }, questions: [] },
-        templateFormat: TemplateFormats.NONE,
-      })
-    ).toThrow("Switch the template format");
   });
 });

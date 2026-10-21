@@ -5,16 +5,19 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
+  DecisionInputDeclaration,
   PlaygroundInstance,
   PlaygroundInstanceDecision,
 } from "@phoenix/store/playground";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
   fetchPlaygroundDecisionQuery,
   fetchPlaygroundDecisionQuery$data,
 } from "./__generated__/fetchPlaygroundDecisionQuery.graphql";
+import { stateTemplateVariables } from "./decisionUtils";
 import {
   type SavedDecisionVersion,
   savedDecisionVersionToDraft,
@@ -40,6 +43,8 @@ const decisionVersionQuery = graphql`
           }
           inputs {
             name
+            description
+            jsonSchema
           }
           state {
             __typename
@@ -93,7 +98,13 @@ type FetchedVersion = NonNullable<
 
 /** A fetched version or frozen experiment task in the shape the draft conversion reads. */
 export function toSavedDecisionVersion(
-  version: Pick<FetchedVersion, "state" | "inputs" | "questions">
+  version: Pick<FetchedVersion, "state" | "questions"> & {
+    readonly inputs: ReadonlyArray<{
+      readonly name: string;
+      readonly description?: string | null;
+      readonly jsonSchema?: unknown;
+    }>;
+  }
 ): SavedDecisionVersion {
   const state: SavedDecisionVersion["state"] =
     version.state.__typename === "DecisionInputState"
@@ -108,6 +119,33 @@ export function toSavedDecisionVersion(
             kind: "object",
             inputs: version.inputs.map((input) => input.name),
           };
+  const normalizedInputs: DecisionInputDeclaration[] = version.inputs.map(
+    (input) => ({
+      name: input.name,
+      ...(input.description != null ? { description: input.description } : {}),
+      ...(isStringKeyedObject(input.jsonSchema)
+        ? { jsonSchema: input.jsonSchema }
+        : {}),
+    })
+  );
+  const impliedNames = new Set(
+    state.kind === "input"
+      ? [state.input]
+      : state.kind === "object"
+        ? state.inputs
+        : stateTemplateVariables(
+            state.template,
+            state.templateFormat === "F_STRING"
+              ? TemplateFormats.FString
+              : TemplateFormats.Mustache
+          )
+  );
+  const hasExplicitInputs = normalizedInputs.some(
+    (input) =>
+      input.description != null ||
+      input.jsonSchema != null ||
+      !impliedNames.has(input.name)
+  );
   const questions = version.questions.flatMap(
     (question): SavedDecisionVersion["questions"][number][] => {
       switch (question.__typename) {
@@ -143,7 +181,11 @@ export function toSavedDecisionVersion(
       }
     }
   );
-  return { state, questions };
+  return {
+    ...(hasExplicitInputs ? { inputs: normalizedInputs } : {}),
+    state,
+    questions,
+  };
 }
 
 /** A saved decision version, as fetched: its definition and its model. */

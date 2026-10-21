@@ -281,27 +281,49 @@ async def test_explicit_context_keeps_standalone_decision_detached(
     assert len(tracer.get_db_traces(project_id=1)) == 2
 
 
-async def test_runner_retries_a_returned_rate_limit_from_a_decision_judge_only(
+async def test_runner_retries_a_returned_rate_limit_from_a_decision_judge(
     definition: InlineDecisionEvaluatorDefinition,
     client: TypeSafeDecisionClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phoenix.server.daemons.experiment_runner import _raise_retryable_evaluation_error
+    from phoenix.server.daemons.experiment_runner import EvalWorkItem
+    from tests.unit.server.daemons.test_experiment_runner import (
+        _make_dataset_example_revision,
+        _make_experiment_run,
+        _make_running_experiment,
+    )
 
     error = DecisionRateLimitError("slow down")
-    monkeypatch.setattr(client, "invoke", AsyncMock(side_effect=error))
+    invoke = AsyncMock(side_effect=error)
+    monkeypatch.setattr(client, "invoke", invoke)
     evaluator = DecisionEvaluator(definition, client)
-    results = await evaluator.evaluate(
-        context={},
-        input_mapping=InputMapping(path_mapping={}, literal_mapping={"ticket": {"id": 1}}),
+    experiment = _make_running_experiment()
+    on_rate_limit = AsyncMock()
+    on_failure = AsyncMock()
+    monkeypatch.setattr(experiment, "on_rate_limit", on_rate_limit)
+    monkeypatch.setattr(experiment, "on_failure", on_failure)
+    work_item = EvalWorkItem(
+        running_experiment=experiment,
+        experiment_run=_make_experiment_run(experiment_id=experiment._experiment.id),
+        dataset_example_revision=_make_dataset_example_revision(42),
+        dataset_evaluator_id=7,
         name="judge",
+        evaluator=evaluator,
+        db=experiment._db,
+        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        project_id=1,
+        input_mapping=InputMapping(path_mapping={}, literal_mapping={"ticket": {"id": 1}}),
         output_configs=list(evaluator.output_configs),
     )
-    with pytest.raises(DecisionRateLimitError):
-        _raise_retryable_evaluation_error(evaluator, results)
-    # Other judges that return failures (LLM judges) keep recording them, as before.
-    other = MagicMock(provider_client=client)
-    _raise_retryable_evaluation_error(other, results)
+    persist_results = AsyncMock()
+    monkeypatch.setattr(work_item, "_persist_eval_results", persist_results)
+
+    await work_item.execute()
+
+    invoke.assert_awaited_once()
+    on_rate_limit.assert_awaited_once_with(work_item)
+    on_failure.assert_not_awaited()
+    persist_results.assert_not_awaited()
 
 
 async def test_runner_recorded_errors_keep_the_decision_error_metadata(

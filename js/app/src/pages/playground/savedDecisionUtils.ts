@@ -1,6 +1,7 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
+  DecisionInputDeclaration,
   DecisionQuestionDraft,
   DecisionRequestDraft,
   PlaygroundInstance,
@@ -13,6 +14,8 @@ import {
   createDecisionQuestion,
   createScaleLevel,
   type DecisionTaskDefinition,
+  parseStateInputNames,
+  stateTemplateVariables,
 } from "./decisionUtils";
 
 /** The input `createDecision` and `createDecisionVersion` take for a version. */
@@ -65,6 +68,7 @@ export function toDecisionVersionInput({
 
 /** A saved decision version as the playground reads it. */
 export type SavedDecisionVersion = {
+  inputs?: ReadonlyArray<DecisionInputDeclaration>;
   state:
     | { kind: "input"; input: string }
     | {
@@ -104,9 +108,7 @@ const TEMPLATE_FORMAT_NAMES: Record<"MUSTACHE" | "F_STRING", TemplateFormat> = {
  * The editor draft for a saved version, written in the page's template
  * format.
  *
- * Throws when the page's format can't express the version's state: a text
- * state written in the other template format, or an input state on a page
- * without template variables.
+ * Throws when a text state is written in the other template format.
  */
 export function savedDecisionVersionToDraft({
   version,
@@ -115,8 +117,27 @@ export function savedDecisionVersionToDraft({
   version: SavedDecisionVersion;
   templateFormat: TemplateFormat;
 }): DecisionRequestDraft {
+  const draftState = toDraftState({ state: version.state, templateFormat });
+  const impliedNames = new Set(
+    draftState.stateEditorMode === "input"
+      ? [draftState.state.trim()]
+      : draftState.stateEditorMode === "inputs"
+        ? parseStateInputNames(draftState.state)
+        : stateTemplateVariables(draftState.state, templateFormat)
+  );
+  const hasExplicitInputs = version.inputs?.some(
+    (input) =>
+      input.description != null ||
+      input.jsonSchema != null ||
+      !impliedNames.has(input.name)
+  );
+  const additionalInputNames = version.inputs
+    ?.filter((input) => !impliedNames.has(input.name))
+    .map((input) => input.name);
   return {
-    ...toDraftState({ state: version.state, templateFormat }),
+    ...draftState,
+    ...(hasExplicitInputs && version.inputs ? { inputs: version.inputs } : {}),
+    ...(additionalInputNames?.length ? { additionalInputNames } : {}),
     questions: version.questions.map(toDraftQuestion),
   };
 }
@@ -130,13 +151,7 @@ function toDraftState({
 }): Pick<DecisionRequestDraft, "state" | "stateEditorMode"> {
   switch (state.kind) {
     case "input":
-      if (templateFormat === TemplateFormats.FString)
-        return { state: `{${state.input}}`, stateEditorMode: "text" };
-      if (templateFormat === TemplateFormats.Mustache)
-        return { state: `{{${state.input}}}`, stateEditorMode: "text" };
-      throw new Error(
-        "This decision's state is an input. Switch the template format to Mustache or F-String to load it."
-      );
+      return { state: state.input, stateEditorMode: "input" };
     case "text": {
       const format = TEMPLATE_FORMAT_NAMES[state.templateFormat];
       if (format !== templateFormat) {

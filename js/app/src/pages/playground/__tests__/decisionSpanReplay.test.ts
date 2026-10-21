@@ -1,6 +1,7 @@
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 
-import { buildSystemOneRequest } from "../decisionUtils";
+import { buildDecisionInput, buildSystemOneRequest } from "../decisionUtils";
 import { transformSpanAttributesToPlaygroundInstance } from "../playgroundUtils";
 import { basePlaygroundSpan } from "./fixtures";
 
@@ -71,8 +72,8 @@ describe("decision span replay", () => {
     });
   });
 
-  it("rebuilds an OpenAI Decisions request from the span", () => {
-    const { playgroundInstance, parsingErrors } =
+  it("rebuilds an OpenAI Decisions request from the span without re-interpreting braces as a template", () => {
+    const { playgroundInstance, parsingErrors, templateFormat } =
       transformSpanAttributesToPlaygroundInstance(
         decisionSpan({
           openinference: { span: { kind: "DECISION" } },
@@ -83,7 +84,7 @@ describe("decision span replay", () => {
           input: {
             value: JSON.stringify({
               model: "gpt-6-luna",
-              input: "I was charged twice.",
+              input: '{"ticket": "{{raw}}"}',
               questions: [
                 { type: "predicate", name: "urgent", instructions: "Urgent?" },
               ],
@@ -92,6 +93,7 @@ describe("decision span replay", () => {
         })
       );
     expect(parsingErrors).toEqual([]);
+    expect(templateFormat).toBe(TemplateFormats.NONE);
     expect(playgroundInstance.model.provider).toBe("OPENAI");
     expect(playgroundInstance.model.modelName).toBe("gpt-6-luna");
     expect(playgroundInstance.decisionRequest?.stateEditorMode).toBe("text");
@@ -99,6 +101,12 @@ describe("decision span replay", () => {
       name: "urgent",
       type: "predicate",
     });
+    expect(
+      buildDecisionInput({
+        draft: playgroundInstance.decisionRequest!,
+        templateFormat,
+      }).inputValues
+    ).toEqual({ state: '{"ticket": "{{raw}}"}' });
   });
 
   it("replays a failed call as a failed run rather than an empty one", () => {

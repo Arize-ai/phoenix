@@ -210,17 +210,28 @@ describe("decision request draft", () => {
     expect(getDecisionValidationError(draft)).toBe("At most 255 questions");
   });
 
-  it("explains a JSON state that stops parsing once variables are filled in", () => {
+  it("keeps JSON state literal without substituting Mustache variables", () => {
     const draft = createDecisionDraft();
     draft.stateEditorMode = "json";
     draft.state = '{"note": "{{note}}"}';
-    expect(() =>
+    expect(
       buildSystemOneRequest({
         draft,
         templateFormat: TemplateFormats.Mustache,
-        variables: { note: 'say "hi"' },
+        variables: { note: 'say "hi"\n' },
+      }).state
+    ).toEqual({ note: "{{note}}" });
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+        variables: { note: 'say "hi"\n' },
       })
-    ).toThrow("not valid JSON after filling in variables");
+    ).toMatchObject({
+      inputs: [{ name: "note" }],
+      state: { object: true },
+      inputValues: { note: "{{note}}" },
+    });
   });
 
   it("handles question names that overlap Object.prototype safely", () => {
@@ -233,7 +244,7 @@ describe("decision request draft", () => {
 });
 
 describe("template variables", () => {
-  it("extracts variables from state, instructions, and criteria", () => {
+  it("extracts variables from text state and explicit input declarations, leaving questions literal", () => {
     const draft = createDecisionDraft();
     draft.state = "Ticket: {{ticket}}";
     draft.questions[0].instructions = "Route for {{team}}";
@@ -242,25 +253,71 @@ describe("template variables", () => {
       extractDecisionVariables({
         draft,
         templateFormat: TemplateFormats.Mustache,
-      }).sort()
-    ).toEqual(["owner", "team", "ticket"]);
+      })
+    ).toEqual(["ticket"]);
     expect(
       extractDecisionVariables({ draft, templateFormat: TemplateFormats.NONE })
     ).toEqual([]);
   });
 
-  it("applies variables when building the request, including inside JSON state", () => {
+  it("applies variables to text state while keeping question text literal", () => {
     const draft = createDecisionDraft();
-    draft.stateEditorMode = "json";
-    draft.state = '{"ticket": "{{ticket}}"}';
+    draft.stateEditorMode = "text";
+    draft.state = "Ticket: {{ticket}}";
     draft.questions[0].instructions = "Route {{ticket}}";
     const request = buildSystemOneRequest({
       draft,
       templateFormat: TemplateFormats.Mustache,
       variables: { ticket: "T-1" },
     });
-    expect(request.state).toEqual({ ticket: "T-1" });
-    expect(request.questions.department.instructions).toBe("Route T-1");
+    expect(request.state).toBe("Ticket: T-1");
+    expect(request.questions.department.instructions).toBe("Route {{ticket}}");
+  });
+
+  it("includes explicitly declared section inputs and metadata in text mode", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateEditorMode: "text" as const,
+      state: "Customer: {{#urgent}}{{customer_name}}{{/urgent}}",
+      additionalInputNames: ["customer_name"],
+      inputs: [
+        { name: "urgent", description: "Is urgent" },
+        {
+          name: "customer_name",
+          description: "Customer name",
+          jsonSchema: { type: "string" },
+        },
+      ],
+    };
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toEqual(["urgent", "customer_name"]);
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+        variables: { urgent: "yes", customer_name: "Alice" },
+      })
+    ).toMatchObject({
+      inputs: [
+        { name: "urgent", description: "Is urgent" },
+        {
+          name: "customer_name",
+          description: "Customer name",
+          jsonSchema: { type: "string" },
+        },
+      ],
+      state: {
+        text: {
+          template: "Customer: {{#urgent}}{{customer_name}}{{/urgent}}",
+          templateFormat: "MUSTACHE",
+        },
+      },
+      inputValues: { urgent: "yes", customer_name: "Alice" },
+    });
   });
 });
 
@@ -737,7 +794,44 @@ describe("runDecision input", () => {
     });
   });
 
-  it("builds one @oneOf input per question with formatted text", () => {
+  it("sends an input state as that single input in both ad-hoc and dataset runs", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateEditorMode: "input" as const,
+      state: " ticket ",
+    };
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: TemplateFormats.NONE,
+        variables: { ticket: "Refund" },
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }],
+      state: { input: "ticket" },
+      inputValues: { ticket: "Refund" },
+    });
+    expect(
+      buildDecisionTaskDefinition({
+        draft,
+        templateFormat: TemplateFormats.NONE,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }],
+      state: { input: "ticket" },
+    });
+    expect(
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.NONE,
+      })
+    ).toEqual(["ticket"]);
+    expect(
+      validateDecisionDraft({ ...draft, state: "ticket, other" }).state
+    ).toBe("Input state takes one input name; use Inputs to send several");
+  });
+
+  it("builds one @oneOf input per question with literal question text", () => {
     const draft = createDecisionDraft();
     draft.questions = [
       createDecisionQuestion({
@@ -752,7 +846,6 @@ describe("runDecision input", () => {
         instructions: "How severe?",
         levels: [
           createScaleLevel({ label: "Low" }),
-          // A label names the level in annotations, so only the rubric is a template.
           createScaleLevel({ label: "{{who}}", description: "Blocks {{who}}" }),
         ],
       }),
@@ -766,7 +859,7 @@ describe("runDecision input", () => {
       {
         predicate: {
           name: "urgent",
-          instructions: "Is the customer waiting?",
+          instructions: "Is {{who}} waiting?",
           criteria: { true: "Time sensitive", false: null },
         },
       },
@@ -776,7 +869,7 @@ describe("runDecision input", () => {
           instructions: "How severe?",
           levels: [
             { label: "Low", description: null },
-            { label: "{{who}}", description: "Blocks the customer" },
+            { label: "{{who}}", description: "Blocks {{who}}" },
           ],
         },
       },
@@ -895,8 +988,12 @@ describe("buildDecisionConnection", () => {
 describe("decision tasks over a dataset", () => {
   const mustache = TemplateFormats.Mustache;
 
-  it("passes a state that is one variable through as that input", () => {
-    const draft = { ...createDecisionDraft(), state: " {{state}} " };
+  it("passes an input state through as that input", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateEditorMode: "input" as const,
+      state: " state ",
+    };
     const definition = buildDecisionTaskDefinition({
       draft,
       templateFormat: mustache,
@@ -905,6 +1002,31 @@ describe("decision tasks over a dataset", () => {
     expect(definition.state).toEqual({ input: "state" });
     expect(definition.questions[0]).toMatchObject({
       choice: { name: "department" },
+    });
+  });
+
+  it("keeps a single-variable text state as a text template across ad-hoc and dataset runs", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateEditorMode: "text" as const,
+      state: "{{state}}",
+    };
+    expect(
+      buildDecisionInput({
+        draft,
+        templateFormat: mustache,
+        variables: { state: "Refund" },
+      }).state
+    ).toEqual({
+      text: { template: "{{state}}", templateFormat: "MUSTACHE" },
+    });
+    expect(
+      buildDecisionTaskDefinition({
+        draft,
+        templateFormat: mustache,
+      }).state
+    ).toEqual({
+      text: { template: "{{state}}", templateFormat: "MUSTACHE" },
     });
   });
 
@@ -1006,30 +1128,10 @@ describe("decision tasks over a dataset", () => {
     ).toContain("needs a template variable");
     expect(
       getDecisionDatasetProblem({
-        draft: { ...draft, state: "{{state}}", stateEditorMode: "json" },
+        draft: { ...draft, state: '{"state": 1}', stateEditorMode: "json" },
         templateFormat: mustache,
       })
     ).toContain("write the state as text");
-    const templatedQuestion = {
-      ...draft,
-      state: "{{state}}",
-      questions: draft.questions.map((question) => ({
-        ...question,
-        instructions: "About {{customer}}?",
-      })),
-    };
-    expect(
-      getDecisionDatasetProblem({
-        draft: templatedQuestion,
-        templateFormat: mustache,
-      })
-    ).toContain("questions can't use template variables (customer)");
-    expect(() =>
-      buildDecisionTaskDefinition({
-        draft: templatedQuestion,
-        templateFormat: mustache,
-      })
-    ).toThrow("questions can't use template variables");
   });
 
   it("lets decisions and prompts share a dataset run, checking only the decisions", () => {

@@ -1113,6 +1113,7 @@ export function transformSpanAttributesToPlaygroundInstance(
    */
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
+  templateFormat?: TemplateFormat;
 } {
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
   const basePlaygroundInstance: PlaygroundInstance = {

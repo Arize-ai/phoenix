@@ -32,7 +32,7 @@ import type {
 
 const STATE_EDITOR_MODES: ReadonlyArray<
   DecisionRequestDraft["stateEditorMode"]
-> = ["text", "json", "inputs"];
+> = ["text", "json", "input", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
@@ -168,6 +168,9 @@ export function DecisionRequestEditor({
               <SegmentedControlItem id="json" aria-label="JSON">
                 JSON
               </SegmentedControlItem>
+              <SegmentedControlItem id="input" aria-label="Input">
+                Input
+              </SegmentedControlItem>
               <SegmentedControlItem id="inputs" aria-label="Inputs">
                 Inputs
               </SegmentedControlItem>
@@ -184,7 +187,25 @@ export function DecisionRequestEditor({
             {errors.state}
           </Alert>
         ) : null}
-        {request.stateEditorMode === "inputs" ? (
+        {request.stateEditorMode === "input" ? (
+          <View padding="size-100">
+            <TextField
+              size="S"
+              value={request.state}
+              onChange={(state) => update({ state })}
+              onBlur={() => touch(decisionFieldId.state())}
+              isDisabled={isRunning}
+              isInvalid={!!errors.state}
+            >
+              <Label>Input</Label>
+              <Input placeholder="ticket" />
+              <Text slot="description">
+                One input name. Its value is sent unchanged; fill it in the
+                Inputs panel.
+              </Text>
+            </TextField>
+          </View>
+        ) : request.stateEditorMode === "inputs" ? (
           <View padding="size-100">
             <TextField
               size="S"

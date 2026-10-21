@@ -7,6 +7,7 @@ import { isDecisionInstance } from "@phoenix/store/playground/playgroundTask";
 import type {
   CanonicalResponseFormat,
   DecisionChoiceOptionDraft,
+  DecisionInputDeclaration,
   DecisionQuestionDraft,
   DecisionQuestionType,
   DecisionRequestDraft,
@@ -96,16 +97,10 @@ export function createScaleLevel({
 
 /**
  * The text a TypeSafe score level is judged by: the rubric, or the label when
- * there is none. Only the rubric is a template; a label names the level in
- * annotations, so it is sent as written.
+ * there is none.
  */
-function scaleLevelCriteria(
-  level: DecisionScaleLevelDraft,
-  formatText: TextFormatter
-): string {
-  return level.description.trim()
-    ? formatText(level.description)
-    : level.label.trim();
+function scaleLevelCriteria(level: DecisionScaleLevelDraft): string {
+  return level.description.trim() ? level.description : level.label.trim();
 }
 
 /**
@@ -271,6 +266,13 @@ export function parseStateInputNames(state: string): string[] {
 
 function getStateError(draft: DecisionRequestDraft): string | undefined {
   if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
+  if (draft.stateEditorMode === "input") {
+    const names = parseStateInputNames(draft.state);
+    if (names.length === 0) return STATE_REQUIRED_ERROR;
+    return names.length > 1
+      ? "Input state takes one input name; use Inputs to send several"
+      : undefined;
+  }
   if (draft.stateEditorMode === "inputs") {
     const names = parseStateInputNames(draft.state);
     if (names.length === 0) return STATE_REQUIRED_ERROR;
@@ -498,12 +500,12 @@ function createTextFormatter({
 
 /**
  * Build a TypeSafe System One export from a draft, applying template
- * variables to the state and to every question's instructions.
+ * variables to a text state and keeping questions and JSON state literal.
  *
  * Throws on an invalid draft; call {@link validateDecisionDraft} first to
  * show field-level errors.
  * @param params.draft - the request as edited in the playground
- * @param params.templateFormat - template syntax used by the text fields
+ * @param params.templateFormat - template syntax used by a text state
  * @param params.variables - values to substitute for template variables
  */
 export function buildSystemOneRequest({
@@ -515,23 +517,18 @@ export function buildSystemOneRequest({
   if (error) throw new Error(error);
   const formatText = createTextFormatter({ templateFormat, variables });
   const state: unknown =
-    draft.stateEditorMode === "inputs"
-      ? inputValuesOf(parseStateInputNames(draft.state), variables)
-      : draft.stateEditorMode === "json"
-        ? parseJsonState(
-            templateFormat === TemplateFormats.Mustache
-              ? formatText(draft.state)
-              : draft.state
-          )
-        : formatText(draft.state);
+    draft.stateEditorMode === "input"
+      ? (variables?.[draft.state.trim()] ?? "")
+      : draft.stateEditorMode === "inputs"
+        ? inputValuesOf(parseStateInputNames(draft.state), variables)
+        : draft.stateEditorMode === "json"
+          ? JSON.parse(draft.state)
+          : formatText(draft.state);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
   const questions: Record<string, SystemOneQuestion> = Object.create(null);
   for (const question of draft.questions) {
-    questions[question.name.trim()] = toSystemOneQuestion({
-      question,
-      formatText,
-    });
+    questions[question.name.trim()] = toSystemOneQuestion({ question });
   }
   return { state, questions };
 }
@@ -546,36 +543,22 @@ function inputValuesOf(
   );
 }
 
-/** JSON state after variables are filled in, with a cause when it no longer parses. */
-function parseJsonState(stateText: string): unknown {
-  try {
-    return JSON.parse(stateText);
-  } catch {
-    throw new Error(
-      "State is not valid JSON after filling in variables. Quote variable values, or escape quotes inside them."
-    );
-  }
-}
-
 /**
  * One question in System One shape. Lenient: it never validates, so a card
  * can copy a half-written question.
  * @param params.question - the question draft
- * @param params.formatText - applies template variables; defaults to identity
  */
 export function toSystemOneQuestion({
   question,
-  formatText = keepText,
 }: {
   question: DecisionQuestionDraft;
-  formatText?: TextFormatter;
 }): SystemOneQuestion {
-  const instructions = formatText(question.instructions);
+  const instructions = question.instructions;
   if (question.type === "choice") {
     const criteria: Record<string, unknown> = {};
     for (const option of question.choices) {
       criteria[option.value.trim()] = option.description.trim()
-        ? formatText(option.description)
+        ? option.description
         : null;
     }
     return { type: "choice", instructions, criteria };
@@ -584,9 +567,7 @@ export function toSystemOneQuestion({
     return {
       type: "score",
       instructions,
-      criteria: question.levels.map((level) =>
-        scaleLevelCriteria(level, formatText)
-      ),
+      criteria: question.levels.map(scaleLevelCriteria),
     };
   }
   const trueDescription = question.predicate.trueDescription.trim();
@@ -598,10 +579,8 @@ export function toSystemOneQuestion({
     ...(hasCriteria
       ? {
           criteria: {
-            ...(trueDescription ? { true: formatText(trueDescription) } : {}),
-            ...(falseDescription
-              ? { false: formatText(falseDescription) }
-              : {}),
+            ...(trueDescription ? { true: trueDescription } : {}),
+            ...(falseDescription ? { false: falseDescription } : {}),
           },
         }
       : {}),
@@ -640,7 +619,7 @@ export type DecisionQuestionInput =
 
 /** The `runDecision` fields built from a draft; the caller adds the model. */
 export type DecisionRunInput = {
-  inputs: Array<{ name: string }>;
+  inputs: DecisionInputDeclaration[];
   state:
     | { object: true }
     | { input: string }
@@ -690,11 +669,11 @@ function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
  * can resolve against the section's own fields, so `extractVariablesFromMustacheLike`
  * only extracts top-level names until inputs declare a `jsonSchema`.
  */
-function stateTemplateVariables(
+export function stateTemplateVariables(
   template: string,
   templateFormat: TemplateFormat | undefined
 ): string[] {
-  if (!templateFormat) return [];
+  if (!templateFormat || templateFormat === TemplateFormats.NONE) return [];
   const raw = getTemplateFormatUtils(templateFormat).extractVariables(template);
   return Array.from(
     new Set(
@@ -707,35 +686,88 @@ function stateTemplateVariables(
 }
 
 /**
+ * Input names for a text state: extracted top-level template variables plus
+ * any explicitly declared inputs preserved on the draft (e.g. section-scoped
+ * inputs).
+ */
+export function textStateInputNames(
+  draft: Pick<DecisionRequestDraft, "state" | "additionalInputNames">,
+  templateFormat: TemplateFormat | undefined
+): string[] {
+  const extracted = stateTemplateVariables(draft.state, templateFormat);
+  return withAdditionalInputNames(extracted, draft);
+}
+
+function withAdditionalInputNames(
+  names: readonly string[],
+  draft: Pick<DecisionRequestDraft, "additionalInputNames">
+): string[] {
+  const seen = new Set(names);
+  const result = [...names];
+  for (const inputName of draft.additionalInputNames ?? []) {
+    const name = inputName.trim();
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      result.push(name);
+    }
+  }
+  return result;
+}
+
+function toInputDeclarations(
+  names: readonly string[],
+  declaredInputs?: ReadonlyArray<DecisionInputDeclaration>
+): DecisionInputDeclaration[] {
+  const byName = new Map(
+    (declaredInputs ?? []).map((input) => [input.name.trim(), input])
+  );
+  return names.map((name) => {
+    const existing = byName.get(name);
+    return {
+      name,
+      ...(existing?.description != null
+        ? { description: existing.description }
+        : {}),
+      ...(existing?.jsonSchema != null
+        ? { jsonSchema: existing.jsonSchema }
+        : {}),
+    };
+  });
+}
+
+/**
  * How the state reaches the server. A text state with template variables is
- * sent as a template over those variables, so the server renders it. A JSON
- * object is sent as an object state, one input per key, and so are listed
- * inputs, with their values from the variables. Anything else (plain text, a
+ * sent as a template over those variables, so the server renders it. An input
+ * state passes one named input unchanged. A JSON object or listed inputs are
+ * sent as an object state, one input per key. Anything else (plain text, a
  * JSON array or string, `{}`) is sent whole.
  */
 function toStateInput({
   draft,
   templateFormat,
   variables,
-  formatText,
 }: TemplateOptions & {
   draft: DecisionRequestDraft;
-  formatText: TextFormatter;
 }): Omit<DecisionRunInput, "questions"> {
+  if (draft.stateEditorMode === "input") {
+    const name = draft.state.trim();
+    const names = withAdditionalInputNames([name], draft);
+    return {
+      inputs: toInputDeclarations(names, draft.inputs),
+      state: { input: name },
+      inputValues: inputValuesOf(names, variables),
+    };
+  }
   if (draft.stateEditorMode === "inputs") {
     const names = parseStateInputNames(draft.state);
     return {
-      inputs: names.map((name) => ({ name })),
+      inputs: toInputDeclarations(names, draft.inputs),
       state: { object: true },
       inputValues: inputValuesOf(names, variables),
     };
   }
   if (draft.stateEditorMode === "json") {
-    const parsed = parseJsonState(
-      templateFormat === TemplateFormats.Mustache
-        ? formatText(draft.state)
-        : draft.state
-    );
+    const parsed: unknown = JSON.parse(draft.state);
     if (
       isStringKeyedObject(parsed) &&
       !Array.isArray(parsed) &&
@@ -750,35 +782,27 @@ function toStateInput({
     return wholeStateInput(parsed);
   }
   const serverFormat = toServerTemplateFormat(templateFormat);
-  const names = serverFormat
-    ? stateTemplateVariables(draft.state, templateFormat)
-    : [];
+  const names = serverFormat ? textStateInputNames(draft, templateFormat) : [];
   if (!serverFormat || names.length === 0) {
     return wholeStateInput(draft.state);
   }
   return {
-    inputs: names.map((name) => ({ name })),
+    inputs: toInputDeclarations(names, draft.inputs),
     state: { text: { template: draft.state, templateFormat: serverFormat } },
-    inputValues: Object.fromEntries(
-      names.map((name) => [name, variables?.[name] ?? ""])
-    ),
+    inputValues: inputValuesOf(names, variables),
   };
 }
 
-function optionalText(text: string, formatText: TextFormatter): string | null {
-  return text.trim() ? formatText(text) : null;
+function optionalText(text: string): string | null {
+  return text.trim() ? text : null;
 }
 
 /** One question as the `@oneOf` input `runDecision` takes. */
-function toQuestionInput({
-  question,
-  formatText,
-}: {
-  question: DecisionQuestionDraft;
-  formatText: TextFormatter;
-}): DecisionQuestionInput {
+function toQuestionInput(
+  question: DecisionQuestionDraft
+): DecisionQuestionInput {
   const name = question.name.trim();
-  const instructions = formatText(question.instructions);
+  const instructions = question.instructions;
   switch (question.type) {
     case "choice":
       return {
@@ -787,7 +811,7 @@ function toQuestionInput({
           instructions,
           choices: question.choices.map((option) => ({
             value: option.value.trim(),
-            description: optionalText(option.description, formatText),
+            description: optionalText(option.description),
           })),
         },
       };
@@ -798,19 +822,13 @@ function toQuestionInput({
           instructions,
           levels: question.levels.map((level) => ({
             label: level.label.trim(),
-            description: optionalText(level.description, formatText),
+            description: optionalText(level.description),
           })),
         },
       };
     case "predicate": {
-      const trueText = optionalText(
-        question.predicate.trueDescription,
-        formatText
-      );
-      const falseText = optionalText(
-        question.predicate.falseDescription,
-        formatText
-      );
+      const trueText = optionalText(question.predicate.trueDescription);
+      const falseText = optionalText(question.predicate.falseDescription);
       return {
         predicate: {
           name,
@@ -827,16 +845,9 @@ function toQuestionInput({
   }
 }
 
-/**
- * The `runDecision` input for a draft, with template variables applied to the
- * question text and passed to the server for the state.
- *
- * Throws on an invalid draft; call {@link validateDecisionDraft} first to
- * show field-level errors.
- */
 /** The definition a decision task copies into an experiment over a dataset. */
 export type DecisionTaskDefinition = {
-  inputs: Array<{ name: string }>;
+  inputs: DecisionInputDeclaration[];
   state:
     | { object: true }
     | { input: string }
@@ -844,23 +855,10 @@ export type DecisionTaskDefinition = {
   questions: DecisionQuestionInput[];
 };
 
-function questionVariables({
-  draft,
-  templateFormat,
-}: {
-  draft: DecisionRequestDraft;
-  templateFormat: TemplateFormat;
-}): string[] {
-  return extractDecisionVariables({
-    draft: { ...draft, state: "" },
-    templateFormat,
-  });
-}
-
 /**
  * Why a draft cannot be run, or null when it can. The state must be text with
- * template variables, or a list of inputs. Questions cannot contain template
- * variables. `purpose` selects the error wording.
+ * template variables, one input, or a list of inputs. `purpose` selects the
+ * error wording.
  */
 export function getDecisionDatasetProblem({
   draft,
@@ -879,19 +877,15 @@ export function getDecisionDatasetProblem({
         : "To save";
   const filler = purpose === "save" ? "each caller" : "each example";
   const owner = purpose === "save" ? "caller's" : "example's";
-  if (draft.stateEditorMode !== "inputs") {
+  if (draft.stateEditorMode !== "input" && draft.stateEditorMode !== "inputs") {
     const serverFormat = toServerTemplateFormat(templateFormat);
     if (draft.stateEditorMode !== "text" || !serverFormat) {
-      return `${when}, write the state as text with template variables, or as inputs; a state that is only {{variable}} passes the ${owner} value as is.`;
+      return `${when}, write the state as text with template variables, as an input, or as inputs; an input state passes the ${owner} value as is.`;
     }
-    const names = stateTemplateVariables(draft.state, templateFormat);
+    const names = textStateInputNames(draft, templateFormat);
     if (names.length === 0) {
       return `${when}, the state needs a template variable that ${filler} fills.`;
     }
-  }
-  const inQuestions = questionVariables({ draft, templateFormat });
-  if (inQuestions.length > 0) {
-    return `${when}, questions can't use template variables (${inQuestions.join(", ")}); ${filler} gets the same questions.`;
   }
   return null;
 }
@@ -925,27 +919,10 @@ export function getDecisionDatasetBlockedReason({
   return null;
 }
 
-/** The variable a state template is made of, when it is nothing else. */
-function soleStateVariable({
-  template,
-  templateFormat,
-  names,
-}: {
-  template: string;
-  templateFormat: TemplateFormat;
-  names: string[];
-}): string | null {
-  if (names.length !== 1) return null;
-  const [name] = names;
-  const whole =
-    templateFormat === TemplateFormats.FString ? `{${name}}` : `{{${name}}}`;
-  return template.trim() === whole ? name : null;
-}
-
 /**
- * Decision task definition. State template variables become inputs. A state
- * that is only one variable passes that value through. Listed inputs are sent
- * as an object state.
+ * Decision task definition. State template variables become inputs. An input
+ * state passes one named input through unchanged. Listed inputs are sent as
+ * an object state.
  *
  * Throws when {@link getDecisionDatasetProblem} reports a problem.
  */
@@ -966,30 +943,34 @@ export function buildDecisionTaskDefinition({
     purpose,
   });
   if (problem) throw new Error(problem);
-  const formatText = createTextFormatter({});
-  const questions = draft.questions.map((question) =>
-    toQuestionInput({ question, formatText })
-  );
+  const questions = draft.questions.map(toQuestionInput);
+  if (draft.stateEditorMode === "input") {
+    const name = draft.state.trim();
+    return {
+      inputs: toInputDeclarations(
+        withAdditionalInputNames([name], draft),
+        draft.inputs
+      ),
+      state: { input: name },
+      questions,
+    };
+  }
   if (draft.stateEditorMode === "inputs") {
     return {
-      inputs: parseStateInputNames(draft.state).map((name) => ({ name })),
+      inputs: toInputDeclarations(
+        parseStateInputNames(draft.state),
+        draft.inputs
+      ),
       state: { object: true },
       questions,
     };
   }
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (!serverFormat) throw new Error("Unsupported template format");
-  const names = stateTemplateVariables(draft.state, templateFormat);
-  const sole = soleStateVariable({
-    template: draft.state,
-    templateFormat,
-    names,
-  });
+  const names = textStateInputNames(draft, templateFormat);
   return {
-    inputs: names.map((name) => ({ name })),
-    state: sole
-      ? { input: sole }
-      : { text: { template: draft.state, templateFormat: serverFormat } },
+    inputs: toInputDeclarations(names, draft.inputs),
+    state: { text: { template: draft.state, templateFormat: serverFormat } },
     questions,
   };
 }
@@ -1029,12 +1010,9 @@ export function buildDecisionInput({
 }: TemplateOptions & { draft: DecisionRequestDraft }): DecisionRunInput {
   const error = getDecisionValidationError(draft);
   if (error) throw new Error(error);
-  const formatText = createTextFormatter({ templateFormat, variables });
   return {
-    ...toStateInput({ draft, templateFormat, variables, formatText }),
-    questions: draft.questions.map((question) =>
-      toQuestionInput({ question, formatText })
-    ),
+    ...toStateInput({ draft, templateFormat, variables }),
+    questions: draft.questions.map(toQuestionInput),
   };
 }
 
@@ -1472,13 +1450,17 @@ function chatStateContent({
   draft: DecisionRequestDraft;
   templateFormat: TemplateFormat;
 }): string {
-  if (draft.stateEditorMode !== "inputs") return draft.state;
   const variable = (name: string) =>
     templateFormat === TemplateFormats.FString
       ? `{${name}}`
       : templateFormat === TemplateFormats.Mustache
         ? `{{${name}}}`
         : "";
+  if (draft.stateEditorMode === "input") {
+    const name = draft.state.trim();
+    return variable(name) || name;
+  }
+  if (draft.stateEditorMode !== "inputs") return draft.state;
   return parseStateInputNames(draft.state)
     .map((name) => `${name}: ${variable(name)}`.trimEnd())
     .join("\n");
@@ -1526,9 +1508,9 @@ export function buildChatFromDecisionDraft({
 // ---------------------------------------------------------------------------
 
 /**
- * Every template variable referenced by the request's text fields.
+ * Every input variable referenced by the request's state.
  * @param params.draft - the request to scan
- * @param params.templateFormat - template syntax the fields use
+ * @param params.templateFormat - template syntax a text state uses
  */
 export function extractDecisionVariables({
   draft,
@@ -1538,34 +1520,20 @@ export function extractDecisionVariables({
   templateFormat: TemplateFormat;
 }): string[] {
   if (!draft) return [];
-  const found = new Set<string>();
+  if (draft.stateEditorMode === "input") {
+    const name = draft.state.trim();
+    return withAdditionalInputNames(name ? [name] : [], draft);
+  }
   if (draft.stateEditorMode === "inputs") {
-    parseStateInputNames(draft.state).forEach((name) => found.add(name));
+    return Array.from(new Set(parseStateInputNames(draft.state)));
   }
-  if (templateFormat === TemplateFormats.NONE) {
-    return Array.from(found);
-  }
-  const { extractVariables } = getTemplateFormatUtils(templateFormat);
-  const addVariablesFrom = (text: string) =>
-    extractVariables(text).forEach((variable) => found.add(variable));
-  if (draft.stateEditorMode === "text") {
-    stateTemplateVariables(draft.state, templateFormat).forEach((variable) =>
-      found.add(variable)
-    );
-  } else if (
-    draft.stateEditorMode === "json" &&
-    templateFormat === TemplateFormats.Mustache
+  if (
+    draft.stateEditorMode !== "text" ||
+    templateFormat === TemplateFormats.NONE
   ) {
-    addVariablesFrom(draft.state);
+    return [];
   }
-  for (const question of draft.questions) {
-    addVariablesFrom(question.instructions);
-    question.choices.forEach((option) => addVariablesFrom(option.description));
-    question.levels.forEach((level) => addVariablesFrom(level.description));
-    addVariablesFrom(question.predicate.trueDescription);
-    addVariablesFrom(question.predicate.falseDescription);
-  }
-  return Array.from(found);
+  return textStateInputNames(draft, templateFormat);
 }
 
 // ---------------------------------------------------------------------------
@@ -1959,7 +1927,11 @@ export function buildDecisionInstanceFromSpanAttributes({
   spanId: string;
   attributes: unknown;
   status?: { code: string; message: string };
-}): { playgroundInstance: PlaygroundInstance; parsingErrors: string[] } {
+}): {
+  playgroundInstance: PlaygroundInstance;
+  parsingErrors: string[];
+  templateFormat: TemplateFormat;
+} {
   const spanAttributes = isStringKeyedObject(attributes) ? attributes : {};
   const decisionAttributes = isStringKeyedObject(spanAttributes.decision)
     ? spanAttributes.decision
@@ -2018,5 +1990,8 @@ export function buildDecisionInstanceFromSpanAttributes({
       },
     },
     parsingErrors,
+    // A DECISION span holds the rendered provider payload, so replay keeps
+    // literal braces intact rather than re-interpreting them as a template.
+    templateFormat: TemplateFormats.NONE,
   };
 }

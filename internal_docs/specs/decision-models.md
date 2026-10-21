@@ -73,12 +73,12 @@ in either:
 
 | | Prompt (chat model) | Decision (decision model) |
 |---|---|---|
-| **Tested**: the regular playground and experiments | Prompt task. Exists. | Decision task. **This spec.** |
-| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [This spec](#14-decision-evaluators), dataset bindings first. |
+| **Task**: the regular playground, experiments, and apps | Prompt task. Exists. | Decision task. **This spec.** |
+| **Evaluator**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [This spec](#14-decision-evaluators), dataset bindings first. |
 
-In the tested role, a decision's answers are the output: what is being
+In the task role, a decision's answers are the output: what is being
 evaluated, never an evaluation. Evaluators judge them, exactly as they judge a
-prompt's completions. Only in the judging role do answers become evaluations
+prompt's completions. Only in the evaluator role do answers become evaluations
 (annotations), and that is where problems such as an answer type with no
 annotation form belong.
 
@@ -271,11 +271,22 @@ bodies.
 - **Raw bodies only** (current): an exact record of what was sent and received,
   and nothing to design. What was sent is already translated, though, so a span
   holds what each provider's format kept ([Provider Wire
-  Formats](#103-provider-wire-formats)), not the version's own questions. And every
-  reader of answers from traces (replaying a span into the playground, any
-  metric over production traffic) has to parse each provider's format, and keep
-  up with its changes. Adding a span to a dataset is one of those readers: the
-  export treats only `LLM` and `RETRIEVER` spans specially
+  Formats](#103-provider-wire-formats)), not the version's own questions. Specifically:
+  - **State representation:** TypeSafe records a structured state as a JSON
+    object or array in `input.value.state` (which replays into the playground's
+    `JSON` mode and cannot be saved or run over a dataset without choosing
+    `Input` or `Inputs`), whereas OpenAI serializes structured state into a JSON
+    string in `input.value.input` (which replays into `Text` mode, sending a
+    JSON-encoded string if the user switches the model to TypeSafe).
+  - **Question fields:** OpenAI folds predicate `criteria` (`true` / `false`)
+    into `instructions` (`\nTrue if: ...\nFalse if: ...`), losing the separate
+    criteria fields on import; TypeSafe sends `level.description ?? level.label`
+    for each scale level, so importing places the rubric string into `label` and
+    leaves `description` empty.
+  And every reader of answers from traces (replaying a span into the playground,
+  any metric over production traffic) has to parse each provider's format, and
+  keep up with its changes. Adding a span to a dataset is one of those readers:
+  the export treats only `LLM` and `RETRIEVER` spans specially
   (`dataset_helpers.py`), so a `DECISION` span's example output is the raw
   provider body. That is shaped differently for each provider, and differently
   from a decision experiment's output, so one evaluator mapping can't read both.
@@ -751,8 +762,11 @@ The state sent to the model is built from those inputs:
 A `text` template may only reference declared inputs, checked on write. An
 object, array, boolean, or null renders as JSON when named on its own, nested
 values included; dotted paths (both formats) and Mustache sections still read
-into it. Names inside a Mustache section aren't checked on write, since they may
-be the input's own fields.
+into it. In Mustache, a present input or nested field whose value is `None`
+interpolates as `"null"` while remaining falsy in `{{#name}}` / `{{^name}}`
+sections; a missing key or dotted path resolves to `""` in Mustache (whereas
+F-string raises). Names inside a Mustache section aren't checked on write, since
+they may be the input's own fields.
 
 There is no JSON template. Reshaping data belongs in the app or the dataset, so
 the rules for substituting into JSON never have to exist.
@@ -970,7 +984,7 @@ so running and saving share one typed shape.
 A decision task runs a decision over a dataset as an experiment, the way a
 prompt task runs a prompt. The playground's dataset mode creates one experiment
 per decision panel through `experimentsOverDataset`; a run holds one example
-and repetition. The rule is per role: tested tasks (prompts and decisions) may
+and repetition. The rule is per role: task instances (prompts and decisions) may
 share one run, each with its own experiment, so a decision can be compared with
 a prompt side by side, while evaluator tasks run alone.
 
@@ -1350,23 +1364,41 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   span as it does an LLM span: it reads the questions and the state from the
   provider body in `input.value`, the model from `decision.request.model_name`,
   the provider from `decision.provider` (or `decision.system`), and shows the
-  recorded output. Four things are lost:
+  recorded output. Because the span holds already-rendered text and JSON, replay
+  sets the playground's template format to `None` so literal braces in the
+  recorded request (such as serialized JSON objects) are not re-interpreted as
+  template variables on re-run. Five things are lost:
   - The template and inputs. An LLM span carries `llm.prompt_template.*`, so
     loading it restores the template's variables. A DECISION span holds only
-    the rendered state, so the playground opens on the final text or JSON, not
-    the version's template and inputs. It can't run over a dataset, and saving
-    it wouldn't reproduce the version. Recording the state template and input
-    values on the span would fix this, as OpenInference does for prompts.
+    the rendered state, so the playground opens on the final text (for OpenAI,
+    including structured state serialized to text) or JSON (for TypeSafe
+    structured state), not the version's template and inputs. It can't run over
+    a dataset, and saving it wouldn't reproduce the version. Recording the state
+    template and input values on the span would fix this, as OpenInference does
+    for prompts.
+  - Provider-folded question fields. OpenAI spans have predicate `criteria`
+    already appended to `instructions`, and TypeSafe spans have scale level
+    descriptions without separate short `label`s. Re-running on the same
+    provider sends the same wire payload, but the separate editable fields are
+    lost if saved or switched to the other provider.
   - The saved version, until the span records its ID (the question above).
   - Spans in other formats. Only OpenAI and TypeSafe bodies parse, so a span an
     app instruments for another provider doesn't load.
   - The custom provider. The span records its name, not its ID, so the user
     picks it from the model menu.
 
-  The first and third are part of [Span Contents](#53-span-contents), and are
+  The first, second, and fourth are part of [Span Contents](#53-span-contents), and are
   decided by the same deadline, since older traces keep whatever spans hold.
-- **Renaming questions.** Whether a rename should create a new decision, or keep
-  the decision and mark earlier runs as answering a different question.
+- **Renaming questions and annotation naming continuity.** Whether a rename
+  should create a new decision, or keep the decision and mark earlier runs as
+  answering a different question. Across all evaluator types,
+  `result_annotation_names` writes a single output under `{binding}` and
+  multiple outputs under `{binding}.{output}`, so changing a bound decision
+  between one and several questions is rejected as a breaking update
+  ([Answer Mapping](#145-answer-mapping)). Supporting seamless 1-to-many
+  question evolution in historical metrics and experiment columns would require
+  a cross-evaluator annotation identity or version-aware migration contract,
+  rather than a decision-only naming rule.
 - **Retries for LLM judges.** An LLM judge is recorded on its first returned
   failure, while a decision judge is retried (see [Refusals, Errors, and
   Metadata](#146-refusals-errors-and-metadata)). Extending the retries to LLM judges
@@ -1393,71 +1425,100 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   Phoenix builds judges with no base URL, so a judge on a built-in Ollama
   version runs only where the server sets `OLLAMA_BASE_URL`. A custom provider
   pointed at Ollama brings its own endpoint and avoids this.
-- **The playground's state modes.** The state editor has three modes. Text is
-  a template and saves as `text`, or as `input` when it is a single variable.
-  JSON is a fixed value: a non-empty object is sent as `object`, an array or
-  `{}` unchanged as `input`, and any other value as text. It can't be saved or
-  run over a dataset. Inputs lists input
-  names, sends their values from the Inputs panel as `object`, and is how a
-  saved `object` state loads.
+- **State authoring ergonomics in the playground.** The entire `Text`, `JSON`,
+  `Input`, `Inputs` interaction is under deliberation: whether these should be
+  modes at all, how many controls users need, where they supply example values,
+  and how an ad-hoc draft becomes a reusable decision. The backend state variants
+  (`text`, `input`, `object`) define execution semantics; they do not require
+  matching UI modes. The current four-mode editor is an implementation to
+  evaluate, not the settled product design. Its current behavior is:
+  - **Text** renders a string template (`text`), or sends literal text when
+    template format is `None` or no variables are referenced. Even a
+    single-variable template such as `{{ticket}}` stays `text` and is rendered
+    to a string.
+  - **JSON** supplies a concrete literal JSON value for a one-off playground
+    run: a non-empty object is sent as `object`, an array or `{}` unchanged as
+    `input`, and a JSON string as text. It performs no template substitution
+    under any template format (matching [Inputs and State](#101-inputs-and-state),
+    "There is no JSON template") and cannot be saved or run over a dataset.
+  - **Input** names a single declared input (`input`), passes its value through
+    unchanged, and is how a saved `input` state loads under any template format.
+  - **Inputs** lists comma-separated input names (`object`), builds an object
+    from their values in the Inputs panel, and is how a saved `object` state
+    loads under any template format.
 
-  The state editor mode and template format control different things. **Text, JSON,
-  and Inputs choose how to construct the state. Mustache, F-string, and None
-  choose whether and how to substitute template variables.** Their interaction
-  in the current playground is:
+  In the current UI, the state editor mode and template format control different things. **Text,
+  JSON, Input, and Inputs choose how to construct the state. Mustache,
+  F-string, and None choose whether and how to substitute template variables in
+  a Text state.** Question instructions and criteria are always literal across
+  ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
 
   | State editor mode | Mustache | F-string | None |
   |---|---|---|---|
-  | **Text** | Substitutes `{{name}}` in the text template. | Substitutes `{name}` in the text template. | Uses the text literally, including any placeholder braces. |
-  | **JSON** | Substitutes `{{name}}` into the JSON source, then parses the result as JSON. The result must still be valid JSON. | Parses the JSON without substituting variables. A string such as `"{name}"` stays that literal string. | Parses the JSON without substituting variables. A string such as `"{{name}}"` stays that literal string. |
-  | **Inputs** | Looks up each listed input name and builds an object from its value; no template substitution is involved. | Looks up each listed input name and builds an object from its value; no template substitution is involved. | Looks up each listed input name and builds an object from its value; no template substitution is involved. |
+  | **Text** | Substitutes `{{name}}` in the text template (`text`). | Substitutes `{name}` in the text template (`text`). | Uses the text literally, including any placeholder braces. |
+  | **JSON** | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. |
+  | **Input** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
+  | **Inputs** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
 
   For example, Text `Reference: {{reference}}` with Mustache and input
-  `reference = A` produces the string `Reference: A`. JSON
-  `{"reference": "{{reference}}"}` with Mustache produces the object
-  `{"reference": "A"}`. Inputs `reference, output`, with values `A` and `B`,
-  produces `{"reference": "A", "output": "B"}` under all three template
-  settings. Inputs names are lookup keys, so they need no placeholder braces.
+  `reference = A` produces the string `Reference: A`. Input `ticket` sends the
+  caller's `ticket` value unchanged without wrapping it in an outer object.
+  Inputs `reference, output`, with values `A` and `B`, produces
+  `{"reference": "A", "output": "B"}` under all three template settings.
   See [State Construction Walkthroughs](#20-appendix-state-construction-walkthroughs)
   for nested input values, the wire payload, and a comparison with Text and JSON.
 
-  F-string substitution is skipped for JSON because JSON's object braces
-  conflict with F-string's placeholder syntax. This is a restriction of the
-  current implementation, rather than a requirement that structured data can
-  never contain variables. Mustache substitution happens on the JSON source,
-  rather than on parsed string values, so inserted quotes or other content can
-  make the result invalid JSON.
-
-  The table describes state construction. The template setting also controls
-  substitution in question instructions for an ad hoc playground run,
-  regardless of the state mode. Saved versions and dataset runs require fixed
-  questions and reject question template variables.
-
-  Text can express the same evidence as an object, but an ordinary text
-  template renders that evidence into a string. A Text state consisting of a
-  single variable is the exception: it saves as `input` and passes the caller's
-  value through unchanged, including objects and arrays. Inputs builds an
-  object from several named values instead. That distinction matters when
-  loading saved definitions or preserving structured dataset values; it does
-  not by itself settle whether the editor needs three separate modes.
-
-  Three things are unsettled:
-  - JSON and Inputs overlap: in Mustache, `{"a": "{{a}}"}` runs about the same
-    as Inputs `a`. Merging them would need a save rule: JSON saves as `object`
-    when every value is exactly its own variable. The editor wouldn't show that
-    rule. F-string couldn't use it at all: its braces would have to be doubled,
-    and the state would then no longer parse as JSON.
-  - JSON mode fills template variables into the JSON text before parsing it,
-    which is the client-side JSON template that
-    [Inputs and State](#101-inputs-and-state) rules out on the server. It is never
-    saved, but it is the substitution behavior the rule was meant to avoid.
-  - Inputs-panel values are always text, so a playground run sends strings
-    where a dataset run sends real JSON values. Each input's `json_schema`
-    could type the panel's fields. Saving also drops each input's
-    `description` and `json_schema`, as Text mode does.
+  Loading a saved version preserves each input's `description`, `json_schema`,
+  and any explicitly declared section-scoped inputs when re-saved. Deliberate
+  the following together as one authoring workflow:
+  - **The overall interaction model.** Should users choose among four modes,
+    start with a concrete example and then make it reusable, or declare inputs
+    first and choose how to construct state from them? Four modes expose the
+    available operations directly, but ask users to understand literal values,
+    templates, input references, and object construction before running a
+    decision. An example-first flow makes a first run easier but needs an
+    explicit promotion step; an input-first flow supports reuse from the start
+    but adds setup for a one-off run. Consider a unified editor with separate
+    example values and a visible preview of the constructed state. Evaluate
+    each option for first runs, dataset runs, loading saved versions, and span
+    replay; renaming the existing tabs alone does not settle this choice.
+  - **Literal values and reuse.** Text can be literal or templated, while JSON
+    supplies literal values and currently cannot be saved or run over a dataset.
+    Should literal text and JSON share an example-value editor, with reuse
+    expressed separately through input declarations and state construction?
+    How should users promote either into a reusable decision without rebuilding
+    their draft? Any design must distinguish a JSON value from a string
+    containing JSON and keep JSON substitution out of the state contract.
+  - **Template controls.** Mustache, F-string, and None currently sit beside
+    modes for which they have no effect. Decide where template syntax belongs,
+    whether it should appear only when rendering text, and how literal braces
+    stay literal when switching workflows or replaying a span.
+  - **How to expose direct values versus objects.** `Input` and `Inputs` differ
+    by only one letter but construct different states: given
+    `ticket = {"subject": "Refund"}`, Input `ticket` sends
+    `{"subject": "Refund"}`, while Inputs `ticket` sends
+    `{"ticket": {"subject": "Refund"}}`. The distinction must remain explicit,
+    including when an object has only one input. Options are separate modes
+    with clearer labels, such as **Input value** and **Object**, or one mode
+    with an explicit choice between passing a value directly and building an
+    object. Separate modes make the construction visible in the mode selector;
+    one mode reduces the number of modes but needs another control to show the
+    wrapping choice. Do not infer wrapping from the number of inputs: adding a
+    second input must not silently change the first input's nesting. Whichever
+    UI is chosen must preserve the state variant when loading and saving.
+  - Inputs-panel values are currently strings, so an ad-hoc playground run
+    sends strings for `Input` and `Inputs` where a dataset or API run can send
+    structured JSON objects or arrays. An explicit text/JSON value toggle (or
+    typing panel fields from each input's `json_schema`) would let ad-hoc runs
+    supply structured panel values without guessing JSON from braces.
+  - Authoring new `description` or `json_schema` metadata or declaring
+    section-scoped inputs (e.g., `{{#urgent}}{{customer_name}}{{/urgent}}` when
+    `customer_name` appears only inside a boolean Mustache section) requires UI
+    controls on the input declarations; today they can be authored via the API
+    and are preserved when loaded and re-saved in the playground.
 - **What an input's `json_schema` is for.** Nothing acts on it: a call doesn't
-  enforce it ([Inputs and State](#101-inputs-and-state)), the playground neither
-  shows nor saves it, and its only reader is a decision evaluator's
+  enforce it ([Inputs and State](#101-inputs-and-state)), the playground preserves
+  it on load/save but does not expose it for editing, and its only reader is a decision evaluator's
   `inputSchema`, which copies it into each input's property. Options: check
   values against it on a run (a loose schema written only to describe the
   input would then fail dataset runs), use it to type the Inputs panel and to
@@ -1499,17 +1560,17 @@ both LLM-equivalent functionality and decision-specific requirements.
 identified. Optional enhancements beyond completing these steps are listed under
 [Additional Planned Work](#173-additional-planned-work).
 
-### 17.1 Tested
+### 17.1 Tasks and Apps
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
-| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab, custom providers, Ollama, free-text model names, span replay, and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. |
-| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load, the decisions library, version pages and diffs, labels, cloning. | No remaining work identified. |
+| **Runs** (chat: completion subscription, LLM spans, prompt tasks, experiment views) | A request asks named, typed questions about text or structured state; answers include probabilities, choices, scales, and per-question refusals. | Server: single runs and dataset experiment execution; fixed questions per task; attached dataset evaluators; experiment tasks record their saved version. UI: the Decision tab (`Text`, `JSON`, `Input`, `Inputs` state modes), custom providers, Ollama, free-text model names, span replay (with `templateFormat = None`), and dataset mode; decision experiment columns and details; reopening experiments in the playground. | Normalize decision state and answers when turning spans into dataset examples or online-evaluation inputs; both currently use generic extraction of provider request/response JSON. Render typed answer cells in experiment results, which currently show raw JSON. An explicit text/JSON value control in the playground Inputs panel so ad-hoc `Input` and `Inputs` runs can supply structured values without a dataset. |
+| **Saved decisions** (chat: prompts, versions, tags, prompt pages) | A version defines an input signature, state construction, and typed questions. | Server: tables, versions, tags, labels, cloning, GraphQL CRUD, lookup by name, running saved versions; decision tasks record their version. UI: playground save and load (preserving `Text`, `Input`, and `Inputs` state variants and existing input descriptions/schemas), the decisions library, version pages and diffs, labels, cloning. | UI controls in the playground for authoring new input descriptions, JSON schemas, or section-scoped input declarations directly without the API. |
 | **Apps** (chat: fetching and formatting saved prompts through SDKs and REST) | Applications consume a saved decision as provider-specific question and state arguments. | Not implemented. | REST routes; fetching and formatting saved decisions in the Python and TypeScript SDKs; shared provider-translation fixtures; recording the saved decision version on app-generated spans; resolve [whether Phoenix translates](#55-translating-for-apps). |
 | **Measurement** (chat: LLM counts and costs everywhere) | Quality measures use probabilities and typed answers as well as reference judgments. | Spans record decision token counts in their raw attributes. Standard token fields and aggregates still read LLM counters. | Token fields for individual spans and their descendants; totals on traces, experiment runs, sessions, and projects; cost reporting where provider prices are available; built-in decision metrics, a decision experiment report, and a [reference answer convention](#54-reference-answers-in-datasets). |
 | **Images, message inputs, and spatial answers** (chat: messages with image inputs) | Image evidence can support typed spatial questions with bounding-box answers. | Not implemented. | Message and image inputs, including asset handling and message-based state; bounding-box questions and answer rendering. |
 
-### 17.2 Judging
+### 17.2 Evaluators
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
@@ -1551,7 +1612,7 @@ These optional enhancements are beyond the requirements tracked in Missing:
 Two tracks, one per [role](#3-where-decisions-run). Each step lists what it needs
 first.
 
-**Tested track**
+**Tasks and Apps track**
 
 1. **Runs.** Schema types, validation, the inputs signature, and `runDecision`;
    decision experiments shaped like prompt tasks; the UI's playground runs and
@@ -1568,7 +1629,7 @@ first.
    and bounding-box questions together. *Needs:* TypeSafe moving them out of the
    danger zone.
 
-**Judging track**, in [three delivery milestones](#141-milestones). Shared runtime,
+**Evaluators track**, in [three delivery milestones](#141-milestones). Shared runtime,
 derived outputs, scoring policy, and tracing support all three.
 
 1. **Dataset evaluators.** Saved decision evaluators and dataset bindings,
@@ -1795,30 +1856,26 @@ name. It requires a separately supplied value under that exact key and produces
 an object such as `{"ticket.customer.plan": "enterprise"}`; it does not traverse
 the `ticket` object.
 
-There is also a useful exception to rendering Text as a string: when saving a
-decision or building a dataset task, a Text state consisting only of
-`{{ticket}}` becomes `input: "ticket"`. That passes the whole ticket value
-unchanged. Its final state is the ticket object itself, without an outer
-`ticket` field. Inputs `ticket` instead produces `{"ticket": <ticket value>}`.
+To pass a single input's value unchanged (for example, the whole `ticket` object
+without wrapping it in `{"ticket": ...}` or rendering it to a string), select
+**Input** and enter `ticket`. That saves as `state: {input: "ticket"}`, whereas
+**Text** `{{ticket}}` saves as a `text` template and renders to a string, and
+**Inputs** `ticket` produces `{"ticket": <ticket value>}`.
 
 ### 20.3 JSON: Supply a Concrete Structured State
 
-For a one-off playground run, select **JSON** and **None**, then paste the first
+For a one-off playground run, select **JSON**, then paste the first
 JSON object from the Inputs example into the state editor. The playground parses
-it and sends its non-empty top-level object using `state: {object: true}`, with
-`ticket` and `policy` as the inputs and the parsed objects as their values.
-The final state is the same nested object as in the Inputs example.
+it literally and sends its non-empty top-level object using
+`state: {object: true}`, with `ticket` and `policy` as the inputs and the parsed
+objects as their values. The final state is the same nested object as in the
+Inputs example.
 
 The difference is how those values are supplied and reused. JSON mode supplies
-the values written in the editor for that run. Inputs declares names whose
-values come from the panel, dataset rows, or callers. Currently, JSON mode
-cannot be saved as a reusable decision or run over a dataset; Inputs can.
-
-Switching this JSON example to Mustache permits substitution into its source,
-but does not turn it into a reusable input mapping. Inserted content must leave
-valid JSON, and F-string substitution is skipped in JSON mode. These restrictions
-are why a JSON template is not equivalent to directly passing nested values as
-Inputs.
+the literal values written in the editor for that run and performs no template
+substitution under any template format. Input and Inputs declare names whose
+values come from the panel, dataset rows, or callers. JSON mode cannot be saved
+as a reusable decision or run over a dataset; Input and Inputs can.
 
 ## 21. References
 

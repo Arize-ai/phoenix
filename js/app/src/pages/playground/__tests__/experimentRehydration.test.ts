@@ -25,7 +25,7 @@ const taskConfig: DecisionTaskConfig = {
   customProvider: { id: "provider-1", name: "My endpoint" },
   baseUrl: null,
   inputValuesPath: "metadata.inputs",
-  inputs: [{ name: "ticket" }],
+  inputs: [{ name: "ticket", description: null, jsonSchema: null }],
   state: { __typename: "DecisionObjectState", object: true },
   questions: [
     {
@@ -132,8 +132,8 @@ it("fetches a fixed-question decision experiment", async () => {
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
     task: { type: "decision" },
     decisionRequest: {
-      stateEditorMode: "text",
-      state: "{{ticket}}",
+      stateEditorMode: "input",
+      state: "ticket",
       questions: [
         { type: "choice", name: "team", instructions: "Which team?" },
         { type: "scale", name: "severity", instructions: "Severity?" },

@@ -138,21 +138,33 @@ export type DecisionQuestionDraft = {
   predicate: { trueDescription: string; falseDescription: string };
 };
 
+export type DecisionInputDeclaration = {
+  name: string;
+  description?: string | null;
+  jsonSchema?: Record<string, unknown> | null;
+};
+
 /**
  * One instance's decision request: the state (evidence) and the typed
  * questions asked about it. Each decision instance owns its own, like a
- * prompt, so instances can be compared and mixed with chat instances. Text
- * fields may use template variables.
+ * prompt, so instances can be compared and mixed with chat instances.
  */
 export type DecisionRequestDraft = {
   /**
-   * The state as written: a template (`text`), a JSON value (`json`), or the
-   * comma-separated names of the inputs sent together as one object
-   * (`inputs`).
+   * The state as written: a template (`text`), a JSON value (`json`), one
+   * input passed through unchanged (`input`), or the comma-separated names of
+   * the inputs sent together as one object (`inputs`).
    */
   state: string;
-  stateEditorMode: "text" | "json" | "inputs";
+  stateEditorMode: "text" | "json" | "input" | "inputs";
   questions: DecisionQuestionDraft[];
+  /**
+   * Input metadata preserved across loading and saving. Membership in this
+   * list does not make an input required after its state reference is removed.
+   */
+  inputs?: ReadonlyArray<DecisionInputDeclaration>;
+  /** Declared inputs not inferred from the loaded state, including section-scoped inputs. */
+  additionalInputNames?: ReadonlyArray<string>;
 };
 
 export type PlaygroundInput = {

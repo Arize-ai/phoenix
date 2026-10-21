@@ -63,6 +63,8 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
               inputValuesPath
               inputs {
                 name
+                description
+                jsonSchema
               }
               state {
                 __typename

@@ -25,13 +25,13 @@ export function SpanPlaygroundPage() {
     throw new Error("Span not found");
   }
 
-  const { playgroundInstance, parsingErrors, playgroundInput } = useMemo(
-    () => transformSpanAttributesToPlaygroundInstance(span),
-    [span]
-  );
+  const { playgroundInstance, parsingErrors, playgroundInput, templateFormat } =
+    useMemo(() => transformSpanAttributesToPlaygroundInstance(span), [span]);
 
-  const additionalProps =
-    playgroundInput != null ? { input: playgroundInput } : {};
+  const additionalProps = {
+    ...(playgroundInput != null ? { input: playgroundInput } : {}),
+    ...(templateFormat != null ? { templateFormat } : {}),
+  };
 
   return (
     <Flex direction="column" height={"100%"}>
