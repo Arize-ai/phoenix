@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
-import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import {
+  ProjectCodeEvaluatorFormSections,
+  ProjectEvaluatorInputMappingDock,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import {
   ProjectEvaluatorScopePanel,
   type ProjectEvaluatorInlineCode,
@@ -12,7 +15,10 @@ import {
   formatUnboundVariablesHint,
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  type ProjectEvaluatorScope,
+  toEvaluatorRecordKind,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
   title,
@@ -88,7 +94,13 @@ export const ProjectCodeEvaluatorDialogContent = ({
           codeEvaluatorName={evaluatorName}
           codeDefinition={codeDefinition}
           onFieldChange={onFieldChange}
+        />
+      }
+      leftDock={
+        <ProjectEvaluatorInputMappingDock
+          recordKind={toEvaluatorRecordKind(scope.targetType)}
           requiredVariables={requiredVariables}
+          evaluatorKind="code"
         />
       }
       right={
