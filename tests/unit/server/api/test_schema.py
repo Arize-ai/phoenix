@@ -17,13 +17,16 @@ class Item:
     extra: str
 
 
-def _item() -> Item:
-    return Item(id=strawberry.ID("1"), name="correctness", extra="DIST")
+_ITEM = Item(id=strawberry.ID("1"), name="correctness", extra="DIST")
 
 
 @strawberry.type
 class Wrapper:
-    item: Optional[Item]
+    pad: Optional[str] = None
+    item: Optional[Item] = None
+
+
+_WRAPPER = Wrapper(pad="x", item=_ITEM)
 
 
 @strawberry.type
@@ -31,12 +34,12 @@ class Query:
     @strawberry.field
     async def slow(self) -> Optional[Wrapper]:
         await asyncio.sleep(0.01)
-        return Wrapper(item=_item())
+        return _WRAPPER
 
     @strawberry.field
     async def fast(self) -> Optional[Item]:
         await asyncio.sleep(0.001)
-        return _item()
+        return _ITEM
 
 
 class TestRetainFieldDetailsLists:
@@ -48,12 +51,12 @@ class TestRetainFieldDetailsLists:
         """
         schema = strawberry.Schema(query=Query)
         retain_field_details_lists(schema)
-        query = "query { slow { item { id name } } fast { extra } }"
+        query = "query { slow { pad item { id name } } fast { extra } }"
         for _ in range(20):
             result = await schema.execute(query)
             assert result.errors is None
             assert result.data == {
-                "slow": {"item": {"id": "1", "name": "correctness"}},
+                "slow": {"pad": "x", "item": {"id": "1", "name": "correctness"}},
                 "fast": {"extra": "DIST"},
             }
 

@@ -2,7 +2,7 @@ from itertools import chain
 from typing import Any, Callable, Iterable, Iterator, Optional, Union, cast
 
 import strawberry
-from graphql import ExecutionContext, GraphQLObjectType
+from graphql import Executor, GraphQLObjectType
 from pydantic import SecretStr
 from strawberry.extensions import SchemaExtension
 from strawberry.schema.config import StrawberryConfig
@@ -65,7 +65,7 @@ def build_graphql_schema(
     return schema
 
 
-class RetainFieldDetailsExecutionContext(ExecutionContext):
+class RetainFieldDetailsExecutionContext(Executor[Any]):
     """
     Works around a use-after-free cache collision in graphql-core 3.3.0
     (https://github.com/graphql-python/graphql-core/issues/284).
@@ -104,12 +104,12 @@ def retain_field_details_lists(schema: strawberry.Schema) -> None:
     configured execution context class, preserving any strawberry-specific
     execution context behavior.
     """
-    base = getattr(schema, "execution_context_class", None) or ExecutionContext
+    base = getattr(schema, "execution_context_class", None) or Executor
     if issubclass(base, RetainFieldDetailsExecutionContext):
         return
     name = f"RetainFieldDetails{base.__name__}"
     bases = (RetainFieldDetailsExecutionContext, base)
-    schema.execution_context_class = cast(type[ExecutionContext], type(name, bases, {}))
+    schema.execution_context_class = cast(type[Executor[Any]], type(name, bases, {}))
 
 
 def _implementing_types(interface: Any) -> Iterator[StrawberryType]:
