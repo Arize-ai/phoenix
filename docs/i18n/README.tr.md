@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.tr.md" />
 </p>
 
-Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanmış açık kaynaklı AI gözlemlenebilirlik (observability) platformudur. Yönetilen üretim iş akışları için Arize ayrıca [Arize AX](https://arize.com/products/ax/) sunar. Phoenix şunları sağlar:
+Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanmış açık kaynaklı AI gözlemlenebilirlik (observability) platformudur. Yönetilen üretim iş akışları için Arize ayrıca [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tr) sunar. Phoenix şunları sağlar:
 
 - [**_İzleme (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry tabanlı enstrümantasyon ile LLM uygulamanızın çalışma zamanını izleyin.
 - [**_Değerlendirme_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Yanıt ve retrieval değerlendirmeleri (evals) kullanarak uygulamanızın performansını ölçmek için LLM'lerden yararlanın.
@@ -64,7 +64,7 @@ Phoenix satıcıdan ve dilden bağımsızdır; popüler framework'ler ([OpenAI A
 Phoenix yerel makineniz, konteyner tabanlı bir dağıtım veya bulut dahil olmak üzere neredeyse her yerde çalışır. Her seçeneğin adım adım anlatımı için [Ortamlar](https://arize.com/docs/phoenix/environments) bölümüne bakın ya da doğrudan [İzleme Hızlı Başlangıç](https://arize.com/docs/phoenix/get-started/get-started-tracing) kılavuzuna geçin.
 
 > [!NOTE]
-> Phoenix açık kaynaklıdır ve kendi altyapınızda barındırılır (self-hosted). Yönetilen bir platform için Arize, [Arize AX](https://arize.com/products/ax/) sunar — aynı OpenTelemetry/OpenInference enstrümantasyonu her ikisiyle de çalışır. [Ayrıntılı karşılaştırmaya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) bakın.
+> Phoenix açık kaynaklıdır ve kendi altyapınızda barındırılır (self-hosted). Yönetilen bir platform için Arize, [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tr) sunar — aynı OpenTelemetry/OpenInference enstrümantasyonu her ikisiyle de çalışır. [Ayrıntılı karşılaştırmaya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) bakın.
 
 ## İçindekiler
 

@@ -30,6 +30,15 @@ from phoenix.client.utils.parse_env_headers import parse_env_headers
 logger = logging.getLogger(__name__)
 
 _ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Matches envFileParser.ts in @arizeai/phoenix-config: its line breaks and JavaScript's trim().
+_ENV_FILE_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+_ENV_FILE_TRIM_CHARS = "".join(
+    map(
+        chr,
+        [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, *range(0x2000, 0x200B)]
+        + [0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF],
+    )
+)
 _warned_env_file_permissions: set[str] = set()
 _warned_skipped_env_files: set[str] = set()
 _warned_cross_tier_endpoints: set[tuple[str, str]] = set()
@@ -156,19 +165,19 @@ def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
 def _parse_env_file(text: str) -> dict[str, str]:
     """Parse dotenv-formatted text, keeping only non-empty ``PHOENIX_``-prefixed keys."""
     values: dict[str, str] = {}
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
+    for raw_line in _ENV_FILE_LINE_BREAK.split(text):
+        line = raw_line.strip(_ENV_FILE_TRIM_CHARS)
         if not line or line.startswith("#"):
             continue
         if line.startswith("export "):
-            line = line[len("export ") :].lstrip()
+            line = line[len("export ") :].lstrip(_ENV_FILE_TRIM_CHARS)
         key, sep, value = line.partition("=")
         if not sep:
             continue
-        key = key.strip()
+        key = key.strip(_ENV_FILE_TRIM_CHARS)
         if not key.startswith("PHOENIX_") or not _ENV_FILE_KEY_PATTERN.match(key):
             continue
-        value = value.strip()
+        value = value.strip(_ENV_FILE_TRIM_CHARS)
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
             value = value[1:-1]
         if value:
