@@ -26,10 +26,16 @@ vi.mock("../AgentEditPermissionMenu", () => ({
   getNextEditPermissionMode: () => "bypass",
 }));
 
+const credentialStatus = vi.hoisted(() => ({
+  missingCredentialsProvider: null as { name: string } | null,
+}));
+
 vi.mock("../AgentModelCredentialForm", () => ({
-  AgentModelCredentialForm: () => null,
+  AgentModelCredentialForm: ({ provider }: { provider: { name: string } }) => (
+    <section aria-label={`${provider.name} credentials`} />
+  ),
   useAgentModelCredentialStatus: () => ({
-    missingCredentialsProvider: null,
+    missingCredentialsProvider: credentialStatus.missingCredentialsProvider,
     refreshCredentialStatus: () => undefined,
   }),
 }));
@@ -272,6 +278,29 @@ describe("ChatView", () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    credentialStatus.missingCredentialsProvider = null;
+  });
+
+  it("shows the credential form in the empty state for a model without a key", () => {
+    credentialStatus.missingCredentialsProvider = { name: "Anthropic" };
+    renderChatView(root);
+
+    const forms = container.querySelectorAll(
+      'section[aria-label="Anthropic credentials"]'
+    );
+    expect(forms).toHaveLength(1);
+    expect(forms[0]?.closest(".chat__input")).toBeNull();
+  });
+
+  it("shows the credential form above the input mid-conversation for a model without a key", () => {
+    credentialStatus.missingCredentialsProvider = { name: "Anthropic" };
+    renderChatView(root, { chatMessages: messages });
+
+    const forms = container.querySelectorAll(
+      'section[aria-label="Anthropic credentials"]'
+    );
+    expect(forms).toHaveLength(1);
+    expect(forms[0]?.closest(".chat__input")).not.toBeNull();
   });
 
   it("focuses the prompt textarea when requested", () => {

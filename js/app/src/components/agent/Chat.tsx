@@ -320,6 +320,7 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__credential-form,
   .chat__operation-error,
   .chat__session-notice {
     margin-bottom: var(--global-dimension-size-100);
@@ -962,6 +963,19 @@ export function ChatView({
                 The chat has been refreshed with the latest messages. Your
                 unsent message is still in the input below.
               </Alert>
+            </div>
+          ) : null}
+          {/* The empty state shows the credential form in place of the hero;
+              once a conversation has started, show it above the input. */}
+          {!showsEmptyState &&
+          hasAcknowledgedConsent &&
+          missingCredentialsProvider ? (
+            <div className="chat__credential-form">
+              <AgentModelCredentialForm
+                modelName={modelMenuValue.modelName}
+                onCredentialsUpdated={refreshCredentialStatus}
+                provider={missingCredentialsProvider}
+              />
             </div>
           ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
