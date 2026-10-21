@@ -1,9 +1,4 @@
-import React, {
-  startTransition,
-  Suspense,
-  useEffect,
-  useEffectEvent,
-} from "react";
+import React, { startTransition, Suspense } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -35,7 +30,7 @@ import type {
 } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
@@ -146,19 +141,6 @@ function AnnotationSummaryValue(props: {
       project={data}
     />
   );
-}
-
-/**
- * Refetch an annotation summary whenever streaming data advances. Shared by the
- * span- and trace-level summary components so the stream-refetch wiring lives in
- * one place.
- */
-export function useRefetchOnStreamAdvance(refetch: () => void) {
-  const { fetchKey } = useStreamState();
-  const onStreamAdvance = useEffectEvent(refetch);
-  useEffect(() => {
-    onStreamAdvance();
-  }, [fetchKey]);
 }
 
 type AnnotationSummaryData = {
