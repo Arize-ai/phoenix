@@ -65,6 +65,7 @@ const runSummary = {
   evaluatedCount: 118,
   failedCount: 2,
   droppedCount: 0,
+  overflowedCount: 0,
 };
 
 describe("getProjectEvaluatorStatus", () => {
@@ -72,6 +73,7 @@ describe("getProjectEvaluatorStatus", () => {
     ["RUNNING", "Running", "success"],
     ["DISABLED", "Disabled", "default"],
     ["DEGRADED", "Degraded", "warning"],
+    ["OVERLOADED", "Overloaded", "danger"],
   ] as const)("labels %s as %s", (status, label, variant) => {
     expect(getProjectEvaluatorStatus({ runSummary: { status } })).toMatchObject(
       { label, variant }
@@ -90,6 +92,9 @@ describe("formatProjectEvaluatorRunCounts", () => {
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
+    expect(
+      formatProjectEvaluatorRunCounts({ ...runSummary, overflowedCount: 12 })
+    ).toBe("118 evaluated · 2 failed · 3 queued");
   });
 });
 

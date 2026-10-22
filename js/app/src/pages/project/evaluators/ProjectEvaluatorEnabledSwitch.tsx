@@ -42,6 +42,7 @@ export function ProjectEvaluatorEnabledSwitch({
               queuedCount
               runningCount
               droppedCount
+              overflowedCount
               oldestQueuedAt
             }
           }
@@ -62,6 +63,7 @@ export function ProjectEvaluatorEnabledSwitch({
               queuedCount
               runningCount
               droppedCount
+              overflowedCount
               oldestQueuedAt
             }
           }
@@ -98,6 +100,7 @@ export function ProjectEvaluatorEnabledSwitch({
                 queuedCount
                 runningCount
                 droppedCount
+                overflowedCount
                 oldestQueuedAt
               }
             }

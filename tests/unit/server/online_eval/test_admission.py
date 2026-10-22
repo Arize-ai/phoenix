@@ -25,7 +25,7 @@ async def _queued_by_target(db: DbSessionFactory) -> list[int]:
     return [target.queued_count for target in queue.targets]
 
 
-async def test_span_work_filling_the_queue_closes_the_trace_and_session_gates(
+async def test_span_work_filling_the_queue_drops_the_trace_and_session_batches(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -55,14 +55,11 @@ async def test_span_work_filling_the_queue_closes_the_trace_and_session_gates(
 
     for sweeper in sweepers:
         await sweeper._tick()
-    assert await _queued_by_target(db) == [2, 0, 0]
 
-    # Once the span evaluations finish, the room they held is the others' to take.
-    async with db() as session:
-        await session.execute(update(models.EvalWorkUnit).values(status="DONE"))
-    for sweeper in sweepers:
-        await sweeper._tick()
-    assert await _queued_by_target(db) == [0, 1, 1]
+    queue = await load_evaluation_queue(db)
+    assert [target.queued_count for target in queue.targets] == [2, 0, 0]
+    assert [target.overflowed_count for target in queue.targets] == [0, 1, 1]
+    assert queue.status == "OVERLOADED"
 
 
 async def test_concurrent_admissions_never_overfill_the_queue(
