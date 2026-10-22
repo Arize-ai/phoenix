@@ -61,6 +61,18 @@ class TestProtectedResourceMetadata:
         assert "scopes_supported" not in data
         assert data["resource_documentation"] == "http://test/auth.md"
 
+    async def test_returns_json_honoring_x_forwarded_proto(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        resp = await httpx_client.get(
+            "/.well-known/oauth-protected-resource",
+            headers={"x-forwarded-proto": "https"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["resource"] == "https://test"
+        assert data["resource_documentation"] == "https://test/auth.md"
+
 
 class TestGetAuthMd:
     async def test_no_auth_content(self, httpx_client: httpx.AsyncClient) -> None:
