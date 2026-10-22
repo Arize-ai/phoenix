@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a1cef5661a062a44bee856ac6f6a1e7>>
+ * @generated SignedSource<<77df9c5721e0c8ab7adc32d6c1a2ca27>>
  * @lightSyntaxTransform
  */
 
@@ -485,6 +485,7 @@ export type InlineCodeEvaluatorInput = {
 };
 export type EvaluatorTaskSourceInput = {
   datasetEvaluatorId?: string | null;
+  decisionVersionId?: string | null;
   evaluatorId?: string | null;
   projectEvaluatorId?: string | null;
   promptVersionId?: string | null;
