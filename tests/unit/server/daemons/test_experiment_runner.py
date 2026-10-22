@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import anyio
 import pytest
 from anyio.streams.memory import MemoryObjectReceiveStream
+from pydantic import SecretStr
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -22,12 +23,22 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
-from phoenix.db.types.decisions import DecisionTaskConfig
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, resolve_scoring_policy
+from phoenix.db.types.decisions import (
+    ChoiceOption,
+    ChoiceQuestion,
+    DecisionInput,
+    DecisionQuestion,
+    DecisionTaskConfig,
+    InputState,
+    PredicateQuestion,
+)
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
     InlineCodeEvaluatorDefinition,
     InlineLLMEvaluatorDefinition,
     InlineLLMEvaluatorPromptVersion,
+    StoredDecisionEvaluatorDefinition,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -43,6 +54,17 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.api.helpers.decision_clients import (
+    ChoiceAnswer,
+    DecisionRateLimitError,
+    DecisionRequest,
+    DecisionResponse,
+    DecisionTransientError,
+    PredicateAnswer,
+    RefusalAnswer,
+    TypeSafeDecisionClient,
+)
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionPayload,
@@ -66,6 +88,7 @@ from phoenix.server.daemons.experiment_runner import (
 from phoenix.server.evaluators.runtime.base import BaseEvaluator, EvaluationResult
 from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
 from phoenix.server.evaluators.runtime.llm import LLMEvaluator
+from phoenix.server.evaluators.snapshots import pin_evaluator_definition
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
 from phoenix.server.sandbox.result_protocol import PHOENIX_RESULT_BEGIN, PHOENIX_RESULT_END
@@ -2158,6 +2181,281 @@ class TestEvaluatorTaskWorkItem:
         assert chunk.evaluator_name == "answer-length"
         assert chunk.error == "timeout after 0 retries"
         assert exp._tasks_failed == 1
+
+
+_TRIAGE_QUESTIONS: list[DecisionQuestion] = [
+    PredicateQuestion(type="predicate", name="urgent", instructions="Is the ticket urgent?"),
+    ChoiceQuestion(
+        type="choice",
+        name="team",
+        instructions="Which team owns it?",
+        choices=[ChoiceOption(value="billing"), ChoiceOption(value="technical")],
+    ),
+]
+
+
+def _triage_version(questions: list[DecisionQuestion], **fields: Any) -> models.DecisionVersion:
+    return models.DecisionVersion(
+        inputs=[DecisionInput(name="ticket")],
+        state=InputState(type="input", name="ticket"),
+        questions=questions,
+        model_provider=ModelProvider.TYPESAFE,
+        model_name="tev1",
+        metadata_={},
+        **fields,
+    )
+
+
+async def _saved_decision_evaluator_task(
+    db: DbSessionFactory,
+    experiment_id: int,
+    questions: list[DecisionQuestion],
+    scoring_policy: DecisionScoringPolicy | None = None,
+) -> int:
+    """Save a decision evaluator and freeze it as the experiment's task, returning its id."""
+    async with db() as session:
+        evaluator = models.DecisionEvaluator(
+            name=Identifier("triage"),
+            description=None,
+            metadata_={},
+            kind="DECISION",
+            selected_version=_triage_version(
+                questions, decision=models.Decision(name=Identifier("triage"), metadata_={})
+            ),
+            scoring_policy=resolve_scoring_policy(
+                questions, scoring_policy or DecisionScoringPolicy()
+            ),
+        )
+        session.add(evaluator)
+        await session.flush()
+        definition = await pin_evaluator_definition(
+            StoredDecisionEvaluatorDefinition(
+                type="decision_evaluator", decision_evaluator_id=evaluator.id
+            ),
+            session=session,
+        )
+        session.add(
+            models.ExperimentEvaluatorTask(
+                id=experiment_id,
+                name=Identifier("triage"),
+                evaluator_kind="DECISION",
+                definition=definition,
+                input_mapping=InputMapping(
+                    literal_mapping={}, path_mapping={"ticket": "$.output.answer"}
+                ),
+                output_configs=evaluator.output_configs,
+            )
+        )
+    return evaluator.id
+
+
+async def _resume_decision_evaluator_experiment(
+    db: DbSessionFactory, experiment: models.Experiment
+) -> RunningExperiment:
+    runner = ExperimentRunner(
+        db,
+        decrypt=lambda b: b,
+        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+        sandbox_runtime=cast(Any, MagicMock()),
+    )
+    async with db() as session:
+        job, _, _, evaluator, _ = await runner._load_experiment_config(
+            session,
+            experiment.id,
+            credentials=[
+                GenerativeCredentialInput(env_var_name="TYPESAFE_API_KEY", value=SecretStr("test"))
+            ],
+        )
+    assert isinstance(job, models.ExperimentEvaluatorTask)
+    return _running_evaluator_experiment(db, experiment, job, evaluator)
+
+
+def _triage_answers(request: DecisionRequest, span: Any) -> DecisionResponse:
+    return DecisionResponse(
+        model="tev1",
+        answers={
+            question.name: PredicateAnswer(probability=0.9)
+            if question.type == "predicate"
+            else ChoiceAnswer(
+                choice="billing", confidence=0.8, probabilities={"billing": 0.8, "technical": 0.2}
+            )
+            for question in request.questions
+        },
+        input_tokens=1,
+        output_tokens=1,
+    )
+
+
+class TestDecisionEvaluatorTaskWorkItem:
+    @pytest.mark.parametrize(
+        "questions, expected",
+        [
+            pytest.param(_TRIAGE_QUESTIONS[:1], [("triage", "true", 0.9)], id="one-question"),
+            pytest.param(
+                _TRIAGE_QUESTIONS,
+                [("triage.team", "billing", None), ("triage.urgent", "true", 0.9)],
+                id="several-questions",
+            ),
+        ],
+    )
+    async def test_records_an_annotation_per_question_with_the_evaluator_source(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+        questions: list[DecisionQuestion],
+        expected: list[tuple[str, str, float | None]],
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_id = await _saved_decision_evaluator_task(db, experiment.id, questions)
+        invoke = AsyncMock(side_effect=_triage_answers)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+
+        await exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+
+        invoke.assert_awaited_once()
+        assert invoke.await_args_list[0].args[0].state == "Paris"
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert [(a.name, a.label, a.score) for a in annotations] == expected
+        assert {a.annotator_kind for a in annotations} == {"LLM"}
+        assert {a.metadata_["decision"]["source"]["evaluator_id"] for a in annotations} == {
+            evaluator_id
+        }
+        assert exp._tasks_succeeded == 1
+
+    async def test_a_refused_question_is_not_asked_again_on_resume(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        experiment, revisions = evaluator_experiment.experiment, evaluator_experiment.revisions
+        await _saved_decision_evaluator_task(db, experiment.id, _TRIAGE_QUESTIONS)
+
+        def refuse_team(request: DecisionRequest, span: Any) -> DecisionResponse:
+            response = _triage_answers(request, span)
+            response.answers["team"] = RefusalAnswer()
+            return response
+
+        invoke = AsyncMock(side_effect=refuse_team)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+        await exp._create_example_work_item(
+            dataset_example_revision=revisions[0],
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert [(a.name, a.metadata_["decision"]["status"]) for a in annotations] == [
+            ("triage.team", "refused"),
+            ("triage.urgent", "answered"),
+        ]
+
+        resumed = await _resume_decision_evaluator_experiment(db, experiment)
+        await resumed._ensure_task_buffer()
+
+        queued = list(resumed._task_queue)
+        assert all(isinstance(item, EvaluatorTaskWorkItem) for item in queued)
+        assert [
+            cast(EvaluatorTaskWorkItem, item).dataset_example_revision.dataset_example_id
+            for item in queued
+        ] == [revisions[1].dataset_example_id]
+        invoke.assert_awaited_once()
+
+    async def test_resume_asks_the_captured_questions_after_the_saved_evaluator_is_edited(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_id = await _saved_decision_evaluator_task(
+            db,
+            experiment.id,
+            _TRIAGE_QUESTIONS,
+            scoring_policy=DecisionScoringPolicy.model_validate(
+                {"questions": {"team": {"type": "choice", "scores": {"billing": 1}}}}
+            ),
+        )
+        edited_questions: list[DecisionQuestion] = [
+            PredicateQuestion(type="predicate", name="angry", instructions="Is the customer angry?")
+        ]
+        async with db() as session:
+            saved = await session.get(models.DecisionEvaluator, evaluator_id)
+            assert saved is not None
+            saved.selected_version = _triage_version(
+                edited_questions, decision_id=saved.selected_version.decision_id
+            )
+            saved.scoring_policy = resolve_scoring_policy(edited_questions, DecisionScoringPolicy())
+        invoke = AsyncMock(side_effect=_triage_answers)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+
+        await exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+
+        assert [question.name for question in invoke.await_args_list[0].args[0].questions] == [
+            "urgent",
+            "team",
+        ]
+        _, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert [(a.name, a.label, a.score) for a in annotations] == [
+            ("triage.team", "billing", 1.0),
+            ("triage.urgent", "true", 0.9),
+        ]
+
+    @pytest.mark.parametrize(
+        "error, retry_handler",
+        [
+            pytest.param(DecisionRateLimitError("slow down"), "on_rate_limit", id="429"),
+            pytest.param(DecisionTransientError("unavailable"), "on_transient_error", id="5xx"),
+        ],
+    )
+    async def test_a_retryable_provider_failure_is_retried_by_the_runner(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+        error: Exception,
+        retry_handler: str,
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        await _saved_decision_evaluator_task(db, experiment.id, _TRIAGE_QUESTIONS)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(side_effect=error))
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+        retry = AsyncMock()
+        monkeypatch.setattr(exp, retry_handler, retry)
+        on_failure = AsyncMock()
+        monkeypatch.setattr(exp, "on_failure", on_failure)
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+
+        await work_item.execute()
+
+        retry.assert_awaited_once()
+        assert retry.await_args_list[0].args[0] is work_item
+        on_failure.assert_not_awaited()
+        async with db() as session:
+            runs = await session.scalars(
+                select(models.ExperimentRun).where(
+                    models.ExperimentRun.experiment_id == experiment.id
+                )
+            )
+            assert runs.all() == []
 
 
 class TestEvaluatorExperimentResume:
