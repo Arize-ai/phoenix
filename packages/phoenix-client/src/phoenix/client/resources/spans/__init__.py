@@ -333,11 +333,7 @@ class Spans:
             raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
-            span_ids_raw: list[str] = cast(
-                list[str],
-                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
-            )
-            span_ids_list = list({*span_ids_raw})
+            span_ids_list = _span_ids_from_dataframe(spans_dataframe)
         elif span_ids is not None:
             span_ids_list = list({*span_ids})
         else:
@@ -1647,11 +1643,7 @@ class AsyncSpans:
             raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
-            span_ids_raw: list[str] = cast(
-                list[str],
-                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
-            )
-            span_ids_list = list({*span_ids_raw})
+            span_ids_list = _span_ids_from_dataframe(spans_dataframe)
         elif span_ids is not None:
             span_ids_list = list({*span_ids})
         else:
@@ -2839,6 +2831,22 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return dfs[0]  # only passing in one query
     else:
         return pd.DataFrame()
+
+
+def _span_ids_from_dataframe(spans_dataframe: "pd.DataFrame") -> list[str]:
+    """Return the unique span IDs in a `context.span_id` or `span_id` column.
+
+    Raises:
+        ValueError: If the DataFrame has neither column.
+    """
+    for column in ("context.span_id", "span_id"):
+        if column in spans_dataframe.columns:
+            span_ids: list[str] = cast(
+                list[str],
+                spans_dataframe[column].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
+            )
+            return list({*span_ids})
+    raise ValueError("spans_dataframe must have a 'context.span_id' or 'span_id' column.")
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
