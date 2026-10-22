@@ -297,7 +297,13 @@ class FStringTemplateFormatter(TemplateFormatter):
     """
 
     def parse(self, template: str) -> set[str]:
-        return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
+        try:
+            return set(
+                field_name for _, field_name, _, _ in Formatter().parse(template) if field_name
+            )
+        except ValueError as exc:
+            # e.g. a stray "}" or an unterminated "{" in the template text
+            raise TemplateFormatterError(f"Invalid f-string template: {exc}") from exc
 
     # Shared formatter that blocks traversal into "private"/dunder attributes,
     # preventing format-string injection (e.g. {x.__class__.__init__.__globals__}).
@@ -306,7 +312,14 @@ class FStringTemplateFormatter(TemplateFormatter):
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         # Wrap dict and list variables to support attribute access (e.g., {user.name})
         wrapped_variables = {key: _wrap_value(value) for key, value in variables.items()}
-        return self._formatter.vformat(template, (), wrapped_variables)
+        try:
+            return self._formatter.vformat(template, (), wrapped_variables)
+        except TemplateFormatterError:
+            raise
+        except (AttributeError, KeyError, IndexError, TypeError, ValueError) as exc:
+            # A nested path that does not resolve (e.g. {user.missing}, {items[5]}),
+            # or a format spec / conversion the value does not support (e.g. {name:d}).
+            raise TemplateFormatterError(f"Unable to format template: {exc}") from exc
 
 
 class MustacheTemplateFormatter(TemplateFormatter):
