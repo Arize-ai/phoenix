@@ -2511,26 +2511,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
                     # The final snapshot has the usage that message_delta updated (for example
                     # after server tools run), so it replaces the counts from message_start.
-                    usage = event.message.usage
-                    final_token_counts: dict[str, Any] = {}
-                    if prompt_tokens := (
-                        (usage.input_tokens or 0)
-                        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-                        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
-                    ):
-                        final_token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                    if usage.output_tokens:
-                        final_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                    if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
-                        final_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                            cache_creation_tokens
-                        )
-                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                        final_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                            cache_read_tokens
-                        )
-                    if final_token_counts:
-                        span.set_attributes(final_token_counts)
+                    if event.message.usage:
+                        self._anthropic_apply_usage_to_span(span, event.message.usage)
                 elif event.type == "content_block_stop" and event.content_block.type == "tool_use":
                     tool_call_chunk = ToolCallChunk(
                         id=event.content_block.id,

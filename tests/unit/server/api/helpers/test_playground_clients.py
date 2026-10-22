@@ -1,6 +1,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -737,7 +738,6 @@ class TestAnthropicStreamingClient:
         The SDK folds those into the snapshot on `message_stop`, so the span has to take
         the prompt, cache read, cache write and completion counts from there.
         """
-        from types import SimpleNamespace
 
         def usage(**counts: Any) -> SimpleNamespace:
             fields = dict(
@@ -808,7 +808,7 @@ class TestAnthropicStreamingClient:
         assert span.attributes[LLM_TOKEN_COUNT_PROMPT] == 5120 + 64 + 32
         assert span.attributes[LLM_TOKEN_COUNT_COMPLETION] == 300
         assert span.attributes[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] == 64
-        assert span.attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 32
+        assert span.attributes[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 32
 
 
 # mime types
@@ -830,6 +830,9 @@ LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
     SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
 )
