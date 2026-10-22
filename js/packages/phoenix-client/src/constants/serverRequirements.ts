@@ -147,6 +147,34 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const LIST_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ADD_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REMOVE_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REPLACE_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
 export const CREATE_DATASET_SPLIT: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -328,6 +356,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   LIST_SESSIONS_FILTER_EXPRESSION,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  LIST_DATASET_LABELS,
+  ADD_DATASET_LABEL,
+  REMOVE_DATASET_LABEL,
+  REPLACE_DATASET_LABELS,
   CREATE_DATASET_SPLIT,
   UPDATE_DATASET_SPLIT,
   DELETE_DATASET_SPLIT,
