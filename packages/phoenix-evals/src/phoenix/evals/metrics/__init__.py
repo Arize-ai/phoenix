@@ -5,6 +5,7 @@ from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
 from .faithfulness import FaithfulnessEvaluator
 from .hallucination import HallucinationEvaluator
+from .language_detection import LanguageDetectionEvaluator
 from .matches_regex import MatchesRegex
 from .pii_detection import PiiDetectionEvaluator
 from .precision_recall import PrecisionRecallFScore
@@ -24,6 +25,7 @@ __all__ = [
     "exact_match",
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",
+    "LanguageDetectionEvaluator",
     "MatchesRegex",
     "PiiDetectionEvaluator",
     "PrecisionRecallFScore",
