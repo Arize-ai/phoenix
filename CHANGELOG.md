@@ -1,5 +1,25 @@
 # Changelog
 
+## [20.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.24.0...arize-phoenix-v20.25.0) (2026-10-22)
+
+
+### Features
+
+* **factory:** scaffold managed agents issue-to-PR factory ([#17020](https://github.com/Arize-ai/phoenix/issues/17020)) ([e5e360b](https://github.com/Arize-ai/phoenix/commit/e5e360b461f98d5a1049fef3685d99d6ca6354d4))
+
+
+### Bug Fixes
+
+* **factory:** keep claude-lock.json on a factory-state branch instead of main ([#17169](https://github.com/Arize-ai/phoenix/issues/17169)) ([2e131a8](https://github.com/Arize-ai/phoenix/commit/2e131a83a94957336c47732f5ef7977c669aa7f9))
+* **sandbox:** keep teardown alive on cancellation ([#17166](https://github.com/Arize-ai/phoenix/issues/17166)) ([2779b46](https://github.com/Arize-ai/phoenix/commit/2779b46cf409dcb909b5c3ed626b999f9a29098a))
+* **server:** format the ID in the experiments 404 error details ([#17079](https://github.com/Arize-ai/phoenix/issues/17079)) ([33ed20a](https://github.com/Arize-ai/phoenix/commit/33ed20ad89a787f971145a470f690566217cace6))
+* **server:** work around graphql-core 3.3.0 subfield cache collision in multi-root queries ([#17100](https://github.com/Arize-ai/phoenix/issues/17100)) ([80f2a1d](https://github.com/Arize-ai/phoenix/commit/80f2a1d0db6d99e870853f0926a088140b17607d))
+
+
+### Documentation
+
+* **factory:** document switching the factory workspace key ([#17163](https://github.com/Arize-ai/phoenix/issues/17163)) ([69b84ea](https://github.com/Arize-ai/phoenix/commit/69b84ea54d2d238457a600b11a609a12d723d336))
+
 ## [20.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.23.0...arize-phoenix-v20.24.0) (2026-10-21)
 
 
