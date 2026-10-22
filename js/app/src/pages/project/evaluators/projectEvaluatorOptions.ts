@@ -5,7 +5,10 @@ import {
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
-import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import {
+  getInputDescriptionsFromSchema,
+  inferIncludeExplanationFromPrompt,
+} from "@phoenix/components/evaluators/utils";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type {
   projectEvaluatorOptions_codeEvaluatorDetails$data,
@@ -282,6 +285,9 @@ export function buildCopyLlmCreationMode(
         includeExplanation: inferIncludeExplanationFromPrompt(
           evaluator.promptVersion?.tools
         ),
+        inputDescriptions: getInputDescriptionsFromSchema(
+          evaluator.llmInputSchema
+        ),
       },
     },
   };
@@ -312,6 +318,9 @@ export function buildAttachCodeCreationMode(
       pathMapping: { ...evaluator.inputMapping.pathMapping },
       literalMapping: { ...evaluator.inputMapping.literalMapping },
     },
+    inputDescriptions: getInputDescriptionsFromSchema(
+      evaluator.codeInputSchema
+    ),
   };
 }
 
@@ -335,6 +344,9 @@ export function buildCopyCodeCreationMode(
         pathMapping: { ...evaluator.inputMapping.pathMapping },
         literalMapping: { ...evaluator.inputMapping.literalMapping },
       },
+      inputDescriptions: getInputDescriptionsFromSchema(
+        evaluator.codeInputSchema
+      ),
     },
   };
 }

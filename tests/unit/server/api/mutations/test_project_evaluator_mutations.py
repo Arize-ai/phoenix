@@ -892,6 +892,182 @@ async def test_project_llm_evaluator_create_update_delete(
     assert delete_result.data and not delete_result.errors
 
 
+_INPUT_SCHEMA_FIELDS = """
+id
+evaluator {
+  ... on LLMEvaluator { llmInputSchema: inputSchema }
+  ... on CodeEvaluator { codeInputSchema: inputSchema currentVersion { inputSchema } }
+}
+"""
+
+_CREATE_LLM_WITH_SCHEMA = f"""
+mutation($input: CreateProjectLLMEvaluatorInput!) {{
+  createProjectLlmEvaluator(input: $input) {{ evaluator {{ {_INPUT_SCHEMA_FIELDS} }} }}
+}}
+"""
+
+_UPDATE_LLM_WITH_SCHEMA = f"""
+mutation($input: UpdateProjectLLMEvaluatorInput!) {{
+  updateProjectLlmEvaluator(input: $input) {{ evaluator {{ {_INPUT_SCHEMA_FIELDS} }} }}
+}}
+"""
+
+_CREATE_CODE_WITH_SCHEMA = f"""
+mutation($input: CreateProjectCodeEvaluatorInput!) {{
+  createProjectCodeEvaluator(input: $input) {{ evaluator {{ {_INPUT_SCHEMA_FIELDS} }} }}
+}}
+"""
+
+_UPDATE_CODE_WITH_SCHEMA = f"""
+mutation($input: UpdateProjectCodeEvaluatorInput!) {{
+  updateProjectCodeEvaluator(input: $input) {{ evaluator {{ {_INPUT_SCHEMA_FIELDS} }} }}
+}}
+"""
+
+
+def _described(**descriptions: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {name: {"description": text} for name, text in descriptions.items()},
+    }
+
+
+async def test_project_llm_evaluator_input_descriptions_round_trip(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Descriptions ride on the prompt's inferred variables: kept on an update that omits
+    them, dropped with a variable the prompt no longer names, and cleared by null."""
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="described-llm", text="Judge {{input}} against {{ctx}}")
+    create_input["inputSchema"] = _described(input="The question.", ctx="Retrieved documents.")
+    create_result = await gql_client.execute(_CREATE_LLM_WITH_SCHEMA, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+    assert created["evaluator"]["llmInputSchema"] == {
+        "type": "object",
+        "properties": {
+            "ctx": {"type": "string", "description": "Retrieved documents."},
+            "input": {"type": "string", "description": "The question."},
+        },
+        "required": ["ctx", "input"],
+    }
+
+    def _update(text: str, **overrides: Any) -> dict[str, Any]:
+        update_input = _llm_input(project, name="described-llm", text=text)
+        update_input.pop("projectId")
+        update_input.pop("enabled")
+        update_input["projectEvaluatorId"] = created["id"]
+        update_input.update(overrides)
+        return update_input
+
+    # Omitting the field keeps the descriptions of the variables still named; dropping a
+    # variable from the prompt drops its description.
+    kept = await gql_client.execute(_UPDATE_LLM_WITH_SCHEMA, {"input": _update("Judge {{input}}")})
+    assert kept.data and not kept.errors
+    assert kept.data["updateProjectLlmEvaluator"]["evaluator"]["evaluator"]["llmInputSchema"] == {
+        "type": "object",
+        "properties": {"input": {"type": "string", "description": "The question."}},
+        "required": ["input"],
+    }
+
+    # Describing a variable the prompt does not name is refused.
+    refused = await gql_client.execute(
+        _UPDATE_LLM_WITH_SCHEMA,
+        {"input": _update("Judge {{input}}", inputSchema=_described(output="The answer."))},
+    )
+    assert refused.errors and "does not declare: output" in refused.errors[0].message
+
+    # Null clears them, and the column goes back to NULL.
+    cleared = await gql_client.execute(
+        _UPDATE_LLM_WITH_SCHEMA, {"input": _update("Judge {{input}}", inputSchema=None)}
+    )
+    assert cleared.data and not cleared.errors
+    assert cleared.data["updateProjectLlmEvaluator"]["evaluator"]["evaluator"][
+        "llmInputSchema"
+    ] == {
+        "type": "object",
+        "properties": {"input": {"type": "string"}},
+        "required": ["input"],
+    }
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        evaluator = await session.get(models.LLMEvaluator, project_evaluator.evaluator_id)
+        assert evaluator is not None
+        assert evaluator.input_schema is None
+
+
+async def test_project_code_evaluator_input_descriptions_round_trip(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """Descriptions ride on the parameters of the code the evaluator runs: a new version
+    keeps the ones its signature still declares, and an edit can rewrite them."""
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_input["sourceCode"] = "def evaluate(output, expected=None):\n    return {'score': 1.0}"
+    create_input["inputSchema"] = _described(output="The answer.", expected="The reference.")
+    create_result = await gql_client.execute(_CREATE_CODE_WITH_SCHEMA, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "output": {"description": "The answer."},
+            "expected": {"description": "The reference."},
+        },
+        "required": ["output"],
+    }
+    assert created["evaluator"]["codeInputSchema"] == expected_schema
+    assert created["evaluator"]["currentVersion"]["inputSchema"] == expected_schema
+
+    def _update(**overrides: Any) -> dict[str, Any]:
+        return {
+            "projectEvaluatorId": created["id"],
+            "name": create_input["name"],
+            "samplingRate": 0.5,
+            "evaluationTarget": "SPAN",
+            "filterCondition": "",
+            **overrides,
+        }
+
+    # New source that drops a parameter drops its description and keeps the other.
+    deployed = await gql_client.execute(
+        _UPDATE_CODE_WITH_SCHEMA,
+        {"input": _update(sourceCode="def evaluate(output):\n    return {'score': 0.5}")},
+    )
+    assert deployed.data and not deployed.errors, deployed.errors
+    assert deployed.data["updateProjectCodeEvaluator"]["evaluator"]["evaluator"][
+        "codeInputSchema"
+    ] == {
+        "type": "object",
+        "properties": {"output": {"description": "The answer."}},
+        "required": ["output"],
+    }
+
+    # A description-only edit rewrites them without a new version.
+    rewritten = await gql_client.execute(
+        _UPDATE_CODE_WITH_SCHEMA,
+        {"input": _update(inputSchema=_described(output="The model's reply."))},
+    )
+    assert rewritten.data and not rewritten.errors, rewritten.errors
+    assert rewritten.data["updateProjectCodeEvaluator"]["evaluator"]["evaluator"][
+        "codeInputSchema"
+    ] == {
+        "type": "object",
+        "properties": {"output": {"description": "The model's reply."}},
+        "required": ["output"],
+    }
+    refused = await gql_client.execute(
+        _UPDATE_CODE_WITH_SCHEMA,
+        {"input": _update(inputSchema=_described(expected="Gone."))},
+    )
+    assert refused.errors and "does not declare: expected" in refused.errors[0].message
+
+
 async def test_project_evaluators_filters_by_name(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

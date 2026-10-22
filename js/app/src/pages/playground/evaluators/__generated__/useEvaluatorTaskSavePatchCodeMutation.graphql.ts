@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9893ba235c92ef0fababe7cfdc129d0a>>
+ * @generated SignedSource<<8b0b349c7687b8a3c3efa8ef5e81e09c>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type PatchCodeEvaluatorInput = {
   description?: string | null;
   id: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  inputSchema?: any | null;
   name?: string | null;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
   sandboxConfigId?: string | null;

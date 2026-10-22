@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, Sequence, TypedDict
+from typing import Any, Optional, Sequence, TypedDict
 
 from pydantic import ValidationError
 from sqlalchemy import delete, select, true, update
@@ -30,6 +30,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.evaluators.input_descriptions import apply_llm_input_schema
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
@@ -68,6 +69,7 @@ class CreateDatasetLLMEvaluatorInput:
     input_mapping: Optional[InputMapping] = None
     binding_description: Optional[str] = None
     binding_output_configs: Optional[list[OutputConfigType]] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -81,6 +83,7 @@ class UpdateDatasetLLMEvaluatorInput:
     input_mapping: Optional[InputMapping] = None
     binding_description: Optional[str] = UNSET
     binding_output_configs: Optional[list[OutputConfigType]] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -209,6 +212,11 @@ async def create_dataset_llm_evaluator(
                 prompt=prompt,
                 dataset_evaluators=[dataset_evaluator_record],
             )
+
+            try:
+                apply_llm_input_schema(llm_evaluator, prompt_version, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
 
             session.add(llm_evaluator)
             await session.flush()
@@ -385,6 +393,12 @@ async def update_dataset_llm_evaluator(
         if llm_evaluator.output_configs != list(output_configs):
             llm_evaluator.output_configs = list(output_configs)
             shared_evaluator_changed = True
+
+        try:
+            if apply_llm_input_schema(llm_evaluator, prompt_version, input.input_schema):
+                shared_evaluator_changed = True
+        except ValueError as error:
+            raise BadRequest(str(error))
 
         try:
             dataset_evaluator = await write_dataset_evaluator(
