@@ -25,7 +25,8 @@ class EvaluationQueueDataLoader(DataLoader[None, EvaluationQueue]):
 
 
 class EvaluationQueueThroughputDataLoader(DataLoader[EvaluationQueue, QueueThroughput]):
-    """The queue's rates, read once per request and only by the fields that show them."""
+    """The queue's rates, read once per request and only by the fields that show them. A
+    project's rates come from the same read."""
 
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)

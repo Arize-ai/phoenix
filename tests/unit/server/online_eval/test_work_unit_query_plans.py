@@ -7,13 +7,15 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
+    ProjectEvaluatorLatestOutcomesDataLoader,
+)
 from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.queue_health import (
     load_evaluation_queue,
     load_project_evaluator_queues,
-    load_project_queue_throughputs,
     load_project_queues,
     load_queue_throughput,
     load_queued_by_project,
@@ -60,9 +62,11 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         queue = await load_evaluation_queue(db)
         await load_queue_throughput(db, queue)
         await load_project_evaluator_queues(db, [1])
-        project_queues = await load_project_queues(db, [1])
-        await load_project_queue_throughputs(db, list(project_queues.values()))
+        await load_project_queues(db, [1])
         await load_queued_by_project(db, 5)
+        first_latest_outcome_plan = len(plans)
+        await ProjectEvaluatorLatestOutcomesDataLoader(db).load(1)
+        latest_outcome_plans = plans[first_latest_outcome_plan:]
     finally:
         event.remove(connection.sync_engine, "before_cursor_execute", explain)
 
@@ -82,3 +86,14 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         steps for statement, steps in plans if statement.startswith("DELETE")
     ]
     assert any("ix_eval_work_units_terminal" in step for step in retention_delete_plan)
+    latest_outcome_steps = [step for _, steps in latest_outcome_plans for step in steps]
+    assert {
+        match.group(1)
+        for step in latest_outcome_steps
+        if (match := re.match(r"SEARCH \S+ USING (?:COVERING )?INDEX (\S+)", step))
+    } == {
+        f"ix_{table}_project_evaluator_{outcome}"
+        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
+        for outcome in ("done", "failed")
+    }
+    assert [step for step in latest_outcome_steps if "TEMP B-TREE" in step] == []

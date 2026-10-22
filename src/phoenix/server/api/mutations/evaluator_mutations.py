@@ -325,6 +325,18 @@ class ProjectEvaluatorMutationPayload:
 
 
 @strawberry.input
+class ClearProjectEvaluatorQueuedEvaluationsInput:
+    project_evaluator_id: GlobalID
+
+
+@strawberry.type
+class ClearProjectEvaluatorQueuedEvaluationsPayload:
+    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
+    evaluator: ProjectEvaluator
+    query: Query
+
+
+@strawberry.input
 class ClearQueuedEvaluationsInput:
     project_id: GlobalID
 
@@ -579,8 +591,10 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Enable or disable a project evaluator, leaving the underlying evaluator "
-            "untouched. Changing the flag clears the evaluator's queued evaluations. Works "
-            "for both LLM and CODE evaluators."
+            "untouched. This changes only whether the evaluator runs: its queued evaluations "
+            "stay queued, and a disabled evaluator's queued evaluations are dropped, not run, "
+            "when their turn comes. To remove them now, clear them with "
+            "clearProjectEvaluatorQueuedEvaluations. Works for both LLM and CODE evaluators."
         ),
     )  # type: ignore
     async def set_project_evaluator_enabled(
@@ -594,6 +608,29 @@ class EvaluatorMutationMixin:
         result = await project_evaluator_service.set_project_evaluator_enabled(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Clear the queued evaluations of one project evaluator, without enabling or "
+            "disabling it. Evaluations already running are not affected. Cleared evaluations "
+            "count as dropped, not failed."
+        ),
+    )  # type: ignore
+    async def clear_project_evaluator_queued_evaluations(
+        self, info: Info[Context, None], input: ClearProjectEvaluatorQueuedEvaluationsInput
+    ) -> ClearProjectEvaluatorQueuedEvaluationsPayload:
+        (
+            dropped_count,
+            project_evaluator,
+        ) = await project_evaluator_service.clear_project_evaluator_queued_evaluations(
+            _evaluator_service_context(info.context), input.project_evaluator_id
+        )
+        return ClearProjectEvaluatorQueuedEvaluationsPayload(
+            dropped_count=dropped_count,
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
+            query=Query(),
         )
 
     @strawberry.mutation(
