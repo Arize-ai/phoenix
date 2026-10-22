@@ -885,18 +885,18 @@ class PromptTemplate:
             ValueError: If the template is empty or messages are invalid.
             TypeError: If template is not a valid type.
         """
-        # Handle PromptTemplate instances by copying their internal state
+        # Handle PromptTemplate instances by copying their internal state, or by
+        # rebuilding from the raw template when a format override is provided
         if isinstance(template, PromptTemplate):
-            self._template = template._template
-            self._messages = template._messages
-            self._is_string = template._is_string
-            self._variables = template._variables
-            self._variable_types = template._variable_types
-            # Use provided template_format if given, otherwise preserve original
-            self.template_format = (
-                template_format if template_format is not None else template.template_format
-            )
-            return
+            if template_format is None:
+                self._template = template._template
+                self._messages = template._messages
+                self._is_string = template._is_string
+                self._variables = template._variables
+                self._variable_types = template._variable_types
+                self.template_format = template.template_format
+                return
+            template = template._template
 
         self.template_format = template_format
 
