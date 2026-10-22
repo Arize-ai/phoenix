@@ -9,11 +9,6 @@ on:
     branches: [main]
     paths: [factory/**]
 
-# Nothing locks claude-lock.json, so only one apply may run at a time.
-concurrency:
-  group: factory-sync
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -23,6 +18,11 @@ env:
 jobs:
   plan:
     if: github.event_name == 'pull_request'
+    # Plans are read-only, so a newer push to the same PR replaces its plan, and plans never
+    # share a group with applies, where a queued plan could cancel a pending apply.
+    concurrency:
+      group: factory-sync-plan-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -45,6 +45,11 @@ jobs:
 
   apply:
     if: github.event_name == 'push'
+    # Nothing locks claude-lock.json, so only one apply may run at a time. A pending apply
+    # replaced by a newer one loses nothing: the newer run applies main at a later commit.
+    concurrency:
+      group: factory-sync-apply
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     defaults:
       run:
