@@ -29,9 +29,19 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorSource,
+    InlineDecisionEvaluatorDefinition,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionResponse,
+    PredicateAnswer,
+    RefusalAnswer,
+    TypeSafeDecisionClient,
+)
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     ExperimentsOverDatasetInput,
@@ -85,6 +95,7 @@ from phoenix.trace.attributes import flatten, get_attribute_value
 from phoenix.tracers import Tracer
 from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.server.evaluators.test_decision_evaluator_resume import _bind_judge
 from tests.unit.vcr import CustomVCR
 
 
@@ -3039,6 +3050,42 @@ class TestExperimentsOverDatasetSubscription:
         }
 
     @staticmethod
+    def _decision_evaluator_task(evaluator_id: GlobalID, source: dict[str, str]) -> dict[str, Any]:
+        return {
+            "evaluator": {
+                "evaluator": {"decisionEvaluatorId": str(evaluator_id)},
+                "inputMapping": {"literalMapping": {"ticket": "hi"}, "pathMapping": {}},
+                "source": source,
+            }
+        }
+
+    @staticmethod
+    async def _saved_decision_evaluators(
+        gql_client: AsyncGraphQLClient, db: DbSessionFactory
+    ) -> dict[str, GlobalID]:
+        binding_ids = [await _bind_judge(gql_client, name=name) for name in ("triage", "other")]
+        async with db() as session:
+            evaluators = []
+            for binding_id in binding_ids:
+                binding = await session.get(models.DatasetEvaluators, binding_id)
+                assert binding is not None
+                evaluator = await session.get(models.DecisionEvaluator, binding.evaluator_id)
+                assert evaluator is not None
+                evaluators.append(evaluator)
+        return {
+            "evaluator": GlobalID("DecisionEvaluator", str(evaluators[0].id)),
+            "version": GlobalID("DecisionVersion", str(evaluators[0].decision_version_id)),
+            "binding": GlobalID("DatasetEvaluator", str(binding_ids[0])),
+            "deleted_binding": GlobalID("DatasetEvaluator", "999"),
+            "other_evaluator": GlobalID("DecisionEvaluator", str(evaluators[1].id)),
+            "other_version": GlobalID("DecisionVersion", str(evaluators[1].decision_version_id)),
+            "other_binding": GlobalID("DatasetEvaluator", str(binding_ids[1])),
+            "code_evaluator": GlobalID("CodeEvaluator", "1"),
+            "prompt_version": GlobalID("PromptVersion", "1"),
+            "project_binding": GlobalID("ProjectEvaluator", "1"),
+        }
+
+    @staticmethod
     def _input(tasks: list[dict[str, Any]], **fields: Any) -> dict[str, Any]:
         return {
             "input": {
@@ -3303,6 +3350,130 @@ class TestExperimentsOverDatasetSubscription:
 
         with pytest.raises(RuntimeError, match="built-in evaluator task does not take a source"):
             await self._collect(gql_client, self._input([task]))
+
+    @pytest.mark.parametrize(
+        "source, binding",
+        [
+            pytest.param({}, None, id="empty"),
+            pytest.param({"decisionVersionId": "version"}, None, id="version-only"),
+            pytest.param({"datasetEvaluatorId": "binding"}, "binding", id="binding-only"),
+            pytest.param(
+                {
+                    "evaluatorId": "evaluator",
+                    "decisionVersionId": "version",
+                    "datasetEvaluatorId": "binding",
+                },
+                "binding",
+                id="matching-ids",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "deleted_binding"}, "deleted_binding", id="deleted-binding"
+            ),
+        ],
+    )
+    async def test_a_decision_evaluator_task_keeps_its_evaluator_and_version_as_its_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        source: dict[str, str],
+        binding: Optional[str],
+    ) -> None:
+        ids = await self._saved_decision_evaluators(gql_client, db)
+        answers = DecisionResponse(
+            model="tev1",
+            answers={"urgent": PredicateAnswer(probability=0.7), "team": RefusalAnswer()},
+            input_tokens=1,
+            output_tokens=1,
+        )
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=answers))
+        task = self._decision_evaluator_task(
+            ids["evaluator"], {field: str(ids[name]) for field, name in source.items()}
+        )
+        variables = self._input(
+            [task], credentials=[{"envVarName": "TYPESAFE_API_KEY", "value": "test"}]
+        )
+
+        payloads = await self._collect(gql_client, variables)
+
+        db_experiment_id = int(GlobalID.from_id(payloads[0]["experimentId"]).node_id)
+        async with db() as session:
+            evaluator_task = await session.get(models.ExperimentEvaluatorTask, db_experiment_id)
+        assert evaluator_task is not None
+        assert isinstance(evaluator_task.definition, InlineDecisionEvaluatorDefinition)
+        assert evaluator_task.definition.source == EvaluatorSource(
+            evaluator_id=int(ids["evaluator"].node_id),
+            decision_version_id=int(ids["version"].node_id),
+            dataset_evaluator_id=int(ids[binding].node_id) if binding else None,
+        )
+
+    @pytest.mark.parametrize(
+        "source, message",
+        [
+            pytest.param(
+                {"evaluatorId": "other_evaluator"},
+                "source evaluator is not the evaluator this task runs",
+                id="conflicting-evaluator",
+            ),
+            pytest.param(
+                {"decisionVersionId": "other_version"},
+                "source decision version is not the version this task runs",
+                id="conflicting-version",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "other_binding"},
+                "source binding is for a different evaluator",
+                id="mismatched-binding",
+            ),
+            pytest.param(
+                {"evaluatorId": "code_evaluator"},
+                "Expected a DecisionEvaluator id for the source evaluator",
+                id="evaluator-of-another-kind",
+            ),
+            pytest.param(
+                {"promptVersionId": "prompt_version"},
+                "Only an LLM evaluator task's source takes a prompt version",
+                id="prompt-version",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "binding", "projectEvaluatorId": "project_binding"},
+                "dataset evaluator or a project evaluator, not both",
+                id="both-bindings",
+            ),
+        ],
+    )
+    async def test_a_decision_evaluator_task_rejects_a_source_that_disagrees_with_it(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+        source: dict[str, str],
+        message: str,
+    ) -> None:
+        ids = await self._saved_decision_evaluators(gql_client, db)
+        task = self._decision_evaluator_task(
+            ids["evaluator"], {field: str(ids[name]) for field, name in source.items()}
+        )
+
+        with pytest.raises(RuntimeError, match=message):
+            await self._collect(gql_client, self._input([task]))
+
+    async def test_a_code_evaluator_task_source_rejects_a_decision_version(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+        source = {"decisionVersionId": str(GlobalID("DecisionVersion", "1"))}
+
+        with pytest.raises(
+            RuntimeError, match="Only a decision evaluator task's source takes a decision version"
+        ):
+            await self._collect(
+                gql_client, self._input([self._evaluator_task(sandbox_config_id, source=source)])
+            )
 
     async def test_ephemeral_experiments_are_stopped_when_the_stream_closes(
         self,
