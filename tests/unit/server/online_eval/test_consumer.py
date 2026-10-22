@@ -3552,6 +3552,42 @@ async def test_disabled_criteria_drops_unit_without_failing_it(db: DbSessionFact
     assert (counts.failed, counts.dropped) == (0, 1)
 
 
+async def test_evaluator_disabled_while_running_drops_its_unit_without_failing_it(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+
+    class _DisablingLLMClient(_StubLLMClient):
+        async def chat_completion_create(self, **kwargs: Any) -> AsyncIterator[Any]:
+            async with db() as session:
+                await session.execute(
+                    update(models.ProjectEvaluator)
+                    .where(models.ProjectEvaluator.id == project_evaluator_id)
+                    .values(enabled=False)
+                )
+            async for chunk in super().chat_completion_create(**kwargs):
+                yield chunk
+
+    _patch_playground_client(monkeypatch, _DisablingLLMClient())
+    consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
+    await _cycle_to_completion(consumer)
+
+    unit = await _get_unit(db, unit_id)
+    assert (unit.status, unit.error) == ("DROPPED", "PROJECT_EVALUATOR_DISABLED")
+    assert await _annotations(db) == []
+    counts = await ProjectEvaluatorRunCountsDataLoader(db).load((project_evaluator_id, None, None))
+    assert (counts.failed, counts.dropped) == (0, 1)
+
+
 async def test_trace_consumer_writes_a_trace_annotation(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
