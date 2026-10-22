@@ -39,6 +39,7 @@ from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     EndedWorkCounts,
     PublicationClaimLostError,
+    PublicationEvaluatorDisabledError,
     PublicationWrite,
     RetiredWorkStatus,
 )
@@ -55,7 +56,7 @@ _TargetModel = type[models.Span] | type[models.ProjectSession] | type[models.Tra
 _DATABASE_NOW = object()
 
 # The statuses a unit leaves the queue with that the completed-work counter reports. Cleared
-# is DROPPED by any path: a clear, a toggle, or hydration after the evaluator was turned off.
+# is DROPPED by either path: a clear, or hydration after the evaluator was disabled.
 _COMPLETED_OUTCOMES = {
     "DONE": "evaluated",
     "FAILED": "failed",
@@ -350,7 +351,7 @@ class DbEvalWorkCoordinator:
                 )
             )
             if project_evaluator_enabled is not True:
-                raise PublicationClaimLostError(
+                raise PublicationEvaluatorDisabledError(
                     f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
             await write(session)

@@ -98,6 +98,15 @@ mutation($input: SetProjectEvaluatorEnabledInput!) {{
 }}
 """
 
+_CLEAR_PROJECT_EVALUATOR_QUEUED_EVALUATIONS = """
+mutation($input: ClearProjectEvaluatorQueuedEvaluationsInput!) {
+  clearProjectEvaluatorQueuedEvaluations(input: $input) {
+    droppedCount
+    evaluator { id enabled }
+  }
+}
+"""
+
 _CLEAR_QUEUED_EVALUATIONS = """
 mutation($input: ClearQueuedEvaluationsInput!) {
   clearQueuedEvaluations(input: $input) {
@@ -379,7 +388,7 @@ async def test_project_code_evaluator_crud_and_connection(
         },
     )
     assert update_result.data and not update_result.errors
-    assert await _work_statuses(db, created["id"]) == ["DROPPED"]
+    assert await _work_statuses(db, created["id"]) == ["PENDING"]
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SPAN"
@@ -866,7 +875,7 @@ async def test_project_llm_evaluator_create_update_delete(
     await _queue_work(db, created["id"], ["PENDING"])
     clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
     assert clear_result.data and not clear_result.errors
-    assert await _work_statuses(db, created["id"]) == ["DROPPED"]
+    assert await _work_statuses(db, created["id"]) == ["PENDING"]
     cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert cleared["evaluationDelaySeconds"] == 300
 
@@ -1014,31 +1023,60 @@ async def test_set_project_evaluator_enabled_toggles_only_enabled(
     assert disabled["samplingRate"] == created["samplingRate"]
 
 
-async def test_toggling_enabled_drops_only_the_evaluators_queued_evaluations(
+async def test_toggling_enabled_leaves_queued_evaluations_in_place(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="toggled", text="{{input}}")}
+    )
+    assert result.data and not result.errors
+    toggled = result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    await _queue_work(db, toggled, ["PENDING", "ERROR", "RUNNING"])
+    completed = _count_completed_work(monkeypatch)
+
+    for enabled in (False, True):
+        result = await gql_client.execute(
+            _SET_ENABLED,
+            {"input": {"projectEvaluatorId": toggled, "enabled": enabled}},
+        )
+        assert result.data and not result.errors
+        assert result.data["setProjectEvaluatorEnabled"]["evaluator"]["enabled"] is enabled
+        assert await _work_statuses(db, toggled) == ["PENDING", "ERROR", "RUNNING"]
+    assert completed == {}
+
+
+async def test_clear_project_evaluator_queued_evaluations_drops_only_its_queued_work(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     project = await _add_project(db)
     project_evaluator_ids: list[str] = []
-    for name in ("toggled", "untouched"):
+    for name in ("cleared", "untouched"):
         result = await gql_client.execute(
             _CREATE_LLM, {"input": _llm_input(project, name=name, text="{{input}}")}
         )
         assert result.data and not result.errors
         project_evaluator_ids.append(result.data["createProjectLlmEvaluator"]["evaluator"]["id"])
-    toggled, untouched = project_evaluator_ids
-    await _queue_work(db, toggled, ["PENDING", "ERROR", "RUNNING"])
+    cleared, untouched = project_evaluator_ids
+    await _queue_work(db, cleared, ["PENDING", "ERROR", "RUNNING"])
     await _queue_work(db, untouched, ["PENDING"])
     completed = _count_completed_work(monkeypatch)
 
     result = await gql_client.execute(
-        _SET_ENABLED,
-        {"input": {"projectEvaluatorId": toggled, "enabled": False}},
+        _CLEAR_PROJECT_EVALUATOR_QUEUED_EVALUATIONS,
+        {"input": {"projectEvaluatorId": cleared}},
     )
 
     assert result.data and not result.errors
-    assert await _work_statuses(db, toggled) == ["DROPPED", "DROPPED", "RUNNING"]
+    assert result.data["clearProjectEvaluatorQueuedEvaluations"] == {
+        "droppedCount": 2,
+        "evaluator": {"id": cleared, "enabled": True},
+    }
+    assert await _work_statuses(db, cleared) == ["DROPPED", "DROPPED", "RUNNING"]
     assert await _work_statuses(db, untouched) == ["PENDING"]
     assert completed == {("TRACE", "cleared"): 2}
 

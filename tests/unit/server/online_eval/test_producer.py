@@ -31,6 +31,7 @@ from phoenix.server.api.routers.agents import (
     _resolve_turn_trace_ids,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import config_fingerprint
@@ -655,6 +656,70 @@ async def test_materialization_budget_truncates_without_advancing(
     assert sum(unit.status == "DONE" for unit in units) == 3
     assert sum(unit.status == "PENDING" for unit in units) == 1
     assert (await _get_cursor(db)).produced_through_id == spans[-1].id
+
+
+async def test_admission_scans_only_until_the_room_is_found(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(5)]
+    for _ in range(3):
+        await _seed_criteria(db, project.id)
+    producer = OnlineEvalProducer(db)
+    active = await producer._load_active_project_evaluators()
+    scanned: list[int] = []
+    scan = producer._scan
+
+    async def _counting_scan(
+        session: Any, project_evaluator: Any, low_exclusive: int, high_inclusive: int
+    ) -> list[int]:
+        scanned.append(project_evaluator.project_evaluator_id)
+        return await scan(session, project_evaluator, low_exclusive, high_inclusive)
+
+    monkeypatch.setattr(producer, "_scan", _counting_scan)
+    async with db() as session:
+        admitted = await producer._admit(session, active, spans[0].id - 1, spans[-1].id)
+
+    assert len(active) == 3
+    assert len(scanned) == 1
+    assert admitted == (0, 1, True)
+    assert len(await _work_unit_span_rowids(db)) == 1
+
+
+async def test_admission_queues_only_the_room_left_under_the_lock(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(5)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    earlier_spans, window_spans = spans[:2], spans[2:]
+    producer = OnlineEvalProducer(db)
+    active = await producer._load_active_project_evaluators()
+    lock_room = admission.lock_room
+
+    async def _another_admission_then_lock_room(session: Any, dialect: Any) -> int:
+        session.add_all(
+            models.EvalWorkUnit(span_rowid=span.id, project_evaluator_id=project_evaluator_id)
+            for span in earlier_spans
+        )
+        await session.flush()
+        return await lock_room(session, dialect)
+
+    monkeypatch.setattr(admission, "lock_room", _another_admission_then_lock_room)
+    async with db() as session:
+        admitted = await producer._admit(
+            session, active, window_spans[0].id - 1, window_spans[-1].id
+        )
+
+    assert admitted == (0, 1, True)
+    queued = set(await _work_unit_span_rowids(db))
+    assert len(queued & {span.id for span in window_spans}) == 1
 
 
 @pytest.mark.parametrize("value", ["0", "-1"])
