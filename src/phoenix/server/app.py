@@ -1069,8 +1069,10 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
+    logger_provider = None
     if server_log_export_is_enabled():
-        shutdown_callbacks_list.append(initialize_opentelemetry_logger_provider().shutdown)
+        logger_provider = initialize_opentelemetry_logger_provider()
+        shutdown_callbacks_list.append(logger_provider.shutdown)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
@@ -1113,14 +1115,19 @@ def create_app(
         if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
         else None
     )
-    # FastAPI's native OpenTelemetry support. Request spans go only to Phoenix's own
-    # tracer provider (when server instrumentation is enabled), never to global
-    # providers that a host process may have configured.
-    telemetry: TelemetryConfig = (
-        {"tracer_provider": tracer_provider, "metrics": False, "logs": False}
-        if tracer_provider is not None
-        else {"tracing": False, "metrics": False, "logs": False}
-    )
+    # FastAPI's native OpenTelemetry support. Request spans and log events go only to
+    # Phoenix's own providers (when server instrumentation or log export is enabled),
+    # never to global providers that a host process may have configured. Metrics stay
+    # off because the server exposes its metrics through Prometheus instead.
+    telemetry: TelemetryConfig = {"metrics": False}
+    if tracer_provider is not None:
+        telemetry["tracer_provider"] = tracer_provider
+    else:
+        telemetry["tracing"] = False
+    if logger_provider is not None:
+        telemetry["logger_provider"] = logger_provider
+    else:
+        telemetry["logs"] = False
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
