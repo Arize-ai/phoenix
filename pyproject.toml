@@ -57,7 +57,7 @@ dependencies = [
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=3.9.2",
   "arize-phoenix-otel>=0.17.0",
-  "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "fastapi>=0.142.0",  # 0.142 adds native OpenTelemetry support
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.1.0",
@@ -124,7 +124,6 @@ dev = [
   "openinference-semantic-conventions>=0.1.40",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-httpx",
@@ -230,7 +229,6 @@ container = [
   "opentelemetry-proto==1.45.0",
   "opentelemetry-exporter-otlp==1.45.0",
   "opentelemetry-semantic-conventions==0.66b0",
-  "opentelemetry-instrumentation-fastapi==0.66b0",
   "opentelemetry-instrumentation-sqlalchemy==0.66b0",
   "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
