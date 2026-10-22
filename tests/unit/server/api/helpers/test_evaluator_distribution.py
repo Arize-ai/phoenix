@@ -1,5 +1,9 @@
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
+
 import pytest
 
+from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -7,7 +11,13 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OptimizationDirection,
 )
-from phoenix.server.api.helpers.evaluator_distribution import DistributionAccumulator
+from phoenix.server.api.helpers.evaluator_distribution import (
+    DistributionAccumulator,
+    get_evaluator_distribution,
+)
+from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_trace
 
 
 def test_histogram_covers_outliers_and_excludes_missing_scores() -> None:
@@ -121,3 +131,45 @@ def test_many_freeform_scores_switch_to_histogram() -> None:
     assert result.score_bin_counts is not None
     assert len(result.score_bin_counts) == 10
     assert sum(result.score_bin_counts) == 101
+
+
+async def test_decision_refusals_are_counted_apart_from_evaluated_results(
+    db: DbSessionFactory,
+) -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    rows: list[tuple[Optional[str], Optional[float], dict[str, Any]]] = [
+        (None, None, {"decision": {"status": "refused"}}),
+        (None, None, {"decision": {"status": "refused"}}),
+        ("true", 0.9, {"decision": {"status": "answered"}}),
+        (None, None, {}),
+        (None, None, {"decision": "refused"}),
+    ]
+    async with db() as session:
+        project = await _add_project(session)
+        for label, score, metadata in rows:
+            trace = await _add_trace(session, project, start_time=start)
+            session.add(
+                models.TraceAnnotation(
+                    trace_rowid=trace.id,
+                    name="judge",
+                    label=label,
+                    score=score,
+                    explanation=None,
+                    metadata_=metadata,
+                    annotator_kind="LLM",
+                    identifier="",
+                    source="API",
+                    user_id=None,
+                )
+            )
+    summary = await get_evaluator_distribution(
+        db=db,
+        project_rowid=project.id,
+        evaluation_target="TRACE",
+        annotation_name="judge",
+        config=None,
+        time_range=TimeRange(start=start, end=start + timedelta(hours=1)),
+    )
+    assert summary.refused_count == 2
+    assert summary.evaluated_count == 3
+    assert summary.mean_score == pytest.approx(0.9)

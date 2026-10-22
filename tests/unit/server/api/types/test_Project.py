@@ -7683,6 +7683,8 @@ class TestEvaluatorComparison:
             $timeRange: TimeRange!
             $thresholdA: Float
             $thresholdB: Float
+            $annotationNameA: String
+            $annotationNameB: String
             $includeDistributions: Boolean! = true
         ) {
             node(id: $id) {
@@ -7693,6 +7695,8 @@ class TestEvaluatorComparison:
                         timeRange: $timeRange
                         thresholdA: $thresholdA
                         thresholdB: $thresholdB
+                        annotationNameA: $annotationNameA
+                        annotationNameB: $annotationNameB
                     ) {
                         evaluationTarget
                         coverage {
@@ -7797,7 +7801,23 @@ class TestEvaluatorComparison:
                     )
                 ],
             )
-            session.add_all([categorical_evaluator, continuous_evaluator])
+            multi_output_evaluator = models.CodeEvaluator(
+                name=DbIdentifier(root=f"code-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    *categorical_evaluator.output_configs,
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    ),
+                ],
+            )
+            session.add_all([categorical_evaluator, continuous_evaluator, multi_output_evaluator])
             await session.flush()
 
             def project_evaluator(
@@ -7826,8 +7846,17 @@ class TestEvaluatorComparison:
                 "session_quality_two", continuous_evaluator.id, project.id, "SESSION"
             )
             foreign = project_evaluator("foreign", continuous_evaluator.id, other_project.id)
+            judge = project_evaluator("judge", multi_output_evaluator.id, project.id)
             session.add_all(
-                [correctness, toxicity, harm, session_evaluator, session_quality_two, foreign]
+                [
+                    correctness,
+                    toxicity,
+                    harm,
+                    session_evaluator,
+                    session_quality_two,
+                    foreign,
+                    judge,
+                ]
             )
             await session.flush()
 
@@ -7899,6 +7928,13 @@ class TestEvaluatorComparison:
                     span_annotation(spans[1], "harm", None, 0.8),
                     span_annotation(spans[2], "harm", None, 0.3),
                     span_annotation(spans[3], "harm", None, 0.7),
+                    span_annotation(spans[0], "judge.verdict", "pass", 1.0),
+                    span_annotation(spans[0], "judge.score", None, 0.9),
+                    span_annotation(spans[1], "judge.verdict", "fail", 0.0),
+                    span_annotation(spans[1], "judge.score", None, 0.2),
+                    span_annotation(spans[2], "judge.verdict", "pass", 1.0),
+                    span_annotation(spans[2], "judge.score", None, 0.4),
+                    span_annotation(spans[3], "judge.score", None, 0.7),
                 ]
             )
 
@@ -7935,6 +7971,7 @@ class TestEvaluatorComparison:
             "session_evaluator": session_evaluator.id,
             "session_quality_two": session_quality_two.id,
             "foreign": foreign.id,
+            "judge": judge.id,
         }
 
     @staticmethod
@@ -7944,6 +7981,8 @@ class TestEvaluatorComparison:
         b: str,
         threshold_a: Optional[float] = None,
         threshold_b: Optional[float] = None,
+        annotation_name_a: Optional[str] = None,
+        annotation_name_b: Optional[str] = None,
     ) -> dict[str, Any]:
         return {
             "id": str(GlobalID("Project", str(ids["project"]))),
@@ -7955,6 +7994,8 @@ class TestEvaluatorComparison:
             },
             "thresholdA": threshold_a,
             "thresholdB": threshold_b,
+            "annotationNameA": annotation_name_a,
+            "annotationNameB": annotation_name_b,
         }
 
     async def _compare(
@@ -7965,10 +8006,14 @@ class TestEvaluatorComparison:
         b: str,
         threshold_a: Optional[float] = None,
         threshold_b: Optional[float] = None,
+        annotation_name_a: Optional[str] = None,
+        annotation_name_b: Optional[str] = None,
     ) -> dict[str, Any]:
         response = await gql_client.execute(
             query=self.QUERY,
-            variables=self._variables(ids, a, b, threshold_a, threshold_b),
+            variables=self._variables(
+                ids, a, b, threshold_a, threshold_b, annotation_name_a, annotation_name_b
+            ),
         )
         assert not response.errors
         assert (data := response.data) is not None
@@ -8217,6 +8262,93 @@ class TestEvaluatorComparison:
             gql_client, _comparison_data, "toxicity", "toxicity"
         )
         assert "two different evaluators" in message
+
+    async def test_two_outputs_of_one_evaluator_are_compared(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(
+            gql_client,
+            _comparison_data,
+            "judge",
+            "judge",
+            annotation_name_a="judge.verdict",
+            annotation_name_b="judge.score",
+        )
+        assert comparison["coverage"]["evaluatedByBoth"] == 3
+        assert comparison["coverage"]["onlyB"] == 1
+        assert comparison["a"]["evaluator"] == comparison["b"]["evaluator"]
+        assert comparison["a"]["annotationName"] == "judge.verdict"
+        assert comparison["b"]["annotationName"] == "judge.score"
+        assert comparison["a"]["labels"] == ["pass", "fail"]
+        assert comparison["b"]["labels"] == ["flagged", "not flagged"]
+        assert comparison["confusionMatrix"] == [[1, 1], [1, 0]]
+
+    async def _distribution(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        evaluator: str,
+        annotation_name: Optional[str] = None,
+    ) -> Any:
+        variables = self._variables(ids, evaluator, evaluator)
+        return await gql_client.execute(
+            query="""
+                query($id: ID!, $timeRange: TimeRange!, $annotationName: String) {
+                    node(id: $id) {
+                        ... on ProjectEvaluator {
+                            distribution(timeRange: $timeRange, annotationName: $annotationName) {
+                                evaluatedCount
+                                threshold
+                                meanScore
+                                labelCounts { label count }
+                            }
+                        }
+                    }
+                }
+            """,
+            variables={
+                "id": variables["a"],
+                "timeRange": variables["timeRange"],
+                "annotationName": annotation_name,
+            },
+        )
+
+    async def test_distribution_annotation_name_selects_output(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await self._distribution(gql_client, _comparison_data, "judge")
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["distribution"] == {
+            "evaluatedCount": 3,
+            "threshold": None,
+            "meanScore": pytest.approx(2 / 3),
+            "labelCounts": [{"label": "pass", "count": 2}, {"label": "fail", "count": 1}],
+        }
+        response = await self._distribution(
+            gql_client, _comparison_data, "judge", annotation_name="judge.score"
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["distribution"] == {
+            "evaluatedCount": 4,
+            "threshold": 0.5,
+            "meanScore": pytest.approx(0.55),
+            "labelCounts": None,
+        }
+
+    @pytest.mark.parametrize("annotation_name", ["judge", "toxicity"])
+    async def test_distribution_rejects_names_the_evaluator_does_not_write(
+        self,
+        annotation_name: str,
+        _comparison_data: dict[str, Any],
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await self._distribution(
+            gql_client, _comparison_data, "judge", annotation_name=annotation_name
+        )
+        assert response.errors
+        assert repr(annotation_name) in response.errors[0].message
 
     async def test_mismatched_evaluation_targets_are_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient

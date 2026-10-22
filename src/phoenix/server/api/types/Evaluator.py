@@ -40,7 +40,7 @@ from phoenix.server.api.helpers.code_evaluator_schema import (
     infer_typescript_evaluate_input_schema,
 )
 from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
-from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
+from phoenix.server.api.helpers.evaluator_results import result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -1581,7 +1581,8 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Distribution of this evaluator's primary output over all annotated targets in range. "
+            "Distribution of one of this evaluator's outputs over all annotated targets in range: "
+            "the output written under annotationName, or the primary output when it is omitted. "
             "Spans and traces filter on trace start time; sessions on session start time. "
             "Uses the latest annotation per target and name across annotation identifiers."
         )
@@ -1590,12 +1591,13 @@ class ProjectEvaluator(Node):
         self,
         info: Info[Context, None],
         time_range: TimeRange,
+        annotation_name: Optional[str] = None,
     ) -> EvaluatorDistribution:
         if time_range.start is None:
             raise BadRequest("Start time is required")
         record = await self._get_record(info)
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
-        annotation_name, config = primary_result_annotation(record, evaluator)
+        annotation_name, config = result_annotation(record, evaluator, annotation_name)
         return await resolve_evaluator_distribution(
             db=info.context.db,
             project_rowid=record.project_id,
