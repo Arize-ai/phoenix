@@ -43,6 +43,8 @@ LANE_OUTCOMES = {
         "decision first, a comment on the issue listing the open questions."
     ),
 }
+# Repository permissions that may start the factory; GitHub reports `maintain` as `write`.
+STARTING_PERMISSIONS = {"admin", "write"}
 # Labels triage applies when an issue is not ready to build.
 NOT_READY_LABELS = {
     "needs information": "it is labeled `needs information`",
@@ -91,8 +93,16 @@ def select_lane(*, label_names: list[str]) -> Optional[str]:
     return None
 
 
-def find_admission_problem(*, issue: dict[str, Any], open_pr_urls: list[str]) -> Optional[str]:
+def find_admission_problem(
+    *,
+    issue: dict[str, Any],
+    open_pr_urls: list[str],
+    requester_login: str,
+    requester_permission: str,
+) -> Optional[str]:
     """Return why the issue shouldn't go through the factory now, or None if it can."""
+    if requester_permission not in STARTING_PERMISSIONS:
+        return f"`{requester_login}` needs write access to this repository to start it"
     if issue["state"] != "OPEN":
         return "the issue is closed"
     label_names = [label["name"] for label in issue["labels"]]
@@ -105,6 +115,25 @@ def find_admission_problem(*, issue: dict[str, Any], open_pr_urls: list[str]) ->
     if open_pr_urls:
         return f"an open PR already addresses it: {', '.join(open_pr_urls)}"
     return None
+
+
+def read_repo_permission(*, login: str) -> str:
+    """Return `login`'s permission on the repository: admin, write, read or none."""
+    try:
+        return run_gh(
+            "api",
+            f"repos/{{owner}}/{{repo}}/collaborators/{login}/permission",
+            "--jq",
+            ".permission",
+        ).strip()
+    except subprocess.CalledProcessError:
+        return "none"
+
+
+def read_noreply_email(*, login: str) -> str:
+    """Return the account's GitHub noreply address, which the CLA check maps back to it."""
+    user_id = run_gh("api", f"users/{login}", "--jq", ".id").strip()
+    return f"{user_id}+{login}@users.noreply.github.com"
 
 
 def list_open_pr_urls(*, issue: dict[str, Any]) -> list[str]:
@@ -545,7 +574,10 @@ def run_start(*, args: argparse.Namespace) -> None:
     label_names = [label["name"] for label in issue["labels"]]
     lane = args.lane or select_lane(label_names=label_names)
     admission_problem = find_admission_problem(
-        issue=issue, open_pr_urls=list_open_pr_urls(issue=issue)
+        issue=issue,
+        open_pr_urls=list_open_pr_urls(issue=issue),
+        requester_login=args.requested_by,
+        requester_permission=read_repo_permission(login=args.requested_by),
     )
     if admission_problem is None and lane is None:
         admission_problem = (
@@ -562,6 +594,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         write_github_outputs(started="false")
         return
 
+    factory_login = os.environ["FACTORY_LOGIN"]
     session_id = start_session(
         client=anthropic.Anthropic(),
         lane=lane,
@@ -569,8 +602,8 @@ def run_start(*, args: argparse.Namespace) -> None:
         issue_number=args.issue,
         label_names=label_names,
         github_token=os.environ["FACTORY_GITHUB_TOKEN"],
-        git_author_name=os.environ["FACTORY_GIT_NAME"],
-        git_author_email=os.environ["FACTORY_GIT_EMAIL"],
+        git_author_name=factory_login,
+        git_author_email=read_noreply_email(login=factory_login),
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
@@ -608,6 +641,9 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start_parser = subparsers.add_parser("start", help="Check the issue and start its session")
+    start_parser.add_argument(
+        "--requested-by", required=True, help="Login of whoever labeled or dispatched the issue"
+    )
     start_parser.add_argument(
         "--lane", choices=sorted(LANE_AGENT_LOCK_KEYS), help="Override the lane"
     )

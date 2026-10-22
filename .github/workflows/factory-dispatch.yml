@@ -30,16 +30,9 @@ permissions:
 
 jobs:
   dispatch:
-    # Same username allowlist as claude-implement-issue.yml and claude.yml - keep all three in sync.
-    if: |
-      github.event_name == 'workflow_dispatch' || (
-        github.event.label.name == 'factory' &&
-        contains(fromJSON('[
-          "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
-          "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
-          "seldo", "yfrigui2"
-        ]'), github.actor)
-      )
+    # dispatch.py starts a session only for someone with write access, so a label applied
+    # by an issue template or a triage-only account is turned away.
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     permissions:
@@ -74,13 +67,13 @@ jobs:
           # for the whole session, so it must belong to a non-admin machine account, scoped
           # to this repo with Contents and Pull requests read/write and no Workflows access.
           FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
-          FACTORY_GIT_NAME: ${{ vars.FACTORY_GIT_NAME }}
-          FACTORY_GIT_EMAIL: ${{ vars.FACTORY_GIT_EMAIL }}
+          FACTORY_LOGIN: ${{ vars.FACTORY_LOGIN }}
           LANE: ${{ inputs.lane }}
+          REQUESTED_BY: ${{ github.event.sender.login }}
         run: |
           LANE_ARGS=()
           if [ -n "$LANE" ] && [ "$LANE" != auto ]; then LANE_ARGS=(--lane "$LANE"); fi
-          python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start "${LANE_ARGS[@]}"
+          python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start --requested-by "$REQUESTED_BY" "${LANE_ARGS[@]}"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'

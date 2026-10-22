@@ -37,7 +37,10 @@ jobs:
     name: PXI Regression Evals
     # This job runs PR code with the secrets above. Factory PRs are written by an agent that
     # reads public issue text, so a maintainer runs it by hand on them after reading the diff.
-    if: ${{ !startsWith(github.head_ref, 'factory/') }}
+    # They are recognized by author as well as branch, since the agent chooses the branch.
+    if: >-
+      !startsWith(github.head_ref, 'factory/') &&
+      (vars.FACTORY_LOGIN == '' || github.event.pull_request.user.login != vars.FACTORY_LOGIN)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
