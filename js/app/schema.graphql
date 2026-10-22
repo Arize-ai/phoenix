@@ -3099,7 +3099,7 @@ input EvaluatorTaskInput {
   inputMapping: EvaluatorInputMappingInput!
 
   """
-  The saved evaluator, prompt version and dataset or project binding the task was opened from, kept on the experiment so its calibration can be traced back.
+  The saved evaluator, its prompt or decision version, and the dataset or project binding the task was opened from, kept on the experiment so its calibration can be traced back.
   """
   source: EvaluatorTaskSourceInput = null
 }
@@ -3115,6 +3115,7 @@ type EvaluatorTaskSource {
 input EvaluatorTaskSourceInput {
   evaluatorId: ID = null
   promptVersionId: ID = null
+  decisionVersionId: ID = null
   datasetEvaluatorId: ID = null
   projectEvaluatorId: ID = null
 }
