@@ -92,7 +92,8 @@ jobs:
           SESSION_ID: ${{ steps.start.outputs.session_id }}
         run: python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE"
 
+      # The watch step reports its own failures on the issue.
       - name: Report a failed dispatch
-        if: failure()
+        if: failure() && steps.start.outcome != 'success'
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "🏭 The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

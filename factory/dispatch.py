@@ -2,10 +2,10 @@
 
 `start` checks that the issue is ready for the factory, routes it to a lane from its
 triage labels, and creates a Managed Agents session that mounts the repo and grades the
-lane's rubric as the session outcome. `watch` waits for that session, sends CI failures
-on its PR back to it, marks the PR ready for review once CI passes, and reports the
-result on the issue. Agent, environment and vault IDs come from claude-lock.json, which
-`ant apply` writes.
+lane's rubric as the session outcome. `watch` waits for that session, sends failing
+required checks and then automated review findings on its PR back to it, marks the PR
+ready for review once required CI passes, and reports the result on the issue. Agent,
+environment and vault IDs come from claude-lock.json, which `ant apply` writes.
 """
 
 import argparse
@@ -13,7 +13,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -58,6 +57,7 @@ MAX_FEEDBACK_ROUNDS = 3
 REVIEW_WORKFLOW_FILE = "claude-code-review.yml"
 REVIEW_RUN_START_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 60
+MAX_FAILED_JOB_LOGS = 6
 MAX_LOG_LINES_PER_JOB = 120
 JOB_LINK_PATTERN = re.compile(r"/actions/runs/(\d+)/job/\d+")
 
@@ -284,6 +284,9 @@ def read_failed_job_logs(*, failing_checks: list[dict[str, Any]]) -> str:
             )
         )
         for failed_job in failed_jobs:
+            if len(log_sections) == MAX_FAILED_JOB_LOGS:
+                log_sections.append("(logs of further failed jobs omitted)")
+                return "\n\n".join(log_sections)
             try:
                 job_log = run_gh(
                     "run", "view", "--job", str(failed_job["databaseId"]), "--log-failed"
@@ -405,8 +408,19 @@ def watch_session(
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
     pr = find_factory_pr(issue_number=issue_number)
 
+    # How the run ended, so every failure turns into a fix: `success` ships, `flawed` means
+    # the agent produced the wrong thing (fix a prompt, rubric or eval), `blocked` means the
+    # environment lacked something (provision it), and `manual` is a deliberate human step.
+    if stop_reason != "end_turn":
+        run_outcome = "blocked"
+    elif outcome_result == "satisfied":
+        run_outcome = "manual" if pr is None else "blocked"
+    else:
+        run_outcome = "flawed"
     if pr is None:
-        status_line = "finished without a PR; see its comment above"
+        status_line = "finished without a PR" + (
+            "; see its comment above" if run_outcome == "manual" else ""
+        )
     elif outcome_result != "satisfied" or stop_reason != "end_turn":
         status_line = f"left draft PR {pr['url']} for a human to pick up"
     else:
@@ -438,6 +452,7 @@ def watch_session(
                         f"opened {pr['url']}; required CI passed, but the automated review "
                         "did not run. It is ready for review"
                     )
+                    run_outcome = "success"
                     break
                 review_findings = read_review_findings(
                     pr_number=pr["number"], head_sha=pr["headRefOid"]
@@ -447,6 +462,7 @@ def watch_session(
                         f"opened {pr['url']}; required CI passed, the automated review is "
                         "handled, and it is ready for review"
                     )
+                    run_outcome = "success"
                     break
                 feedback_text = format_review_feedback(pr=pr, review_findings=review_findings)
                 open_feedback = f"{len(review_findings)} automated review findings open"
@@ -455,6 +471,7 @@ def watch_session(
                     f"left {pr['url']} with {open_feedback} after {MAX_FEEDBACK_ROUNDS} "
                     "feedback rounds"
                 )
+                run_outcome = "flawed"
                 break
             client.beta.sessions.events.send(
                 session_id,
@@ -478,6 +495,7 @@ def watch_session(
             pr = find_factory_pr(issue_number=issue_number)
             if pr is None:
                 status_line = "stopped: its PR was closed"
+                run_outcome = "manual"
                 break
             if pr["headRefOid"] == previous_head_sha:
                 status_line = (
@@ -486,12 +504,14 @@ def watch_session(
                     else f"opened {pr['url']}; required CI passed, the factory answered the "
                     "automated review in its threads, and it is ready for review"
                 )
+                run_outcome = "flawed" if failing_checks else "success"
                 break
 
     report_lines = [
         f"🏭 The factory's **{lane}** session `{session_id}` {status_line}.",
         "",
-        f"Rubric: `{outcome_result}` · stop reason: `{stop_reason}` · "
+        f"Outcome: **{run_outcome}** · rubric: `{outcome_result}` · "
+        f"stop reason: `{stop_reason}` · "
         f"cost: {format_cost(session=client.beta.sessions.retrieve(session_id))}",
     ]
     if latest_outcome is not None and outcome_result != "satisfied" and latest_outcome.explanation:
@@ -565,6 +585,8 @@ def run_start(*, args: argparse.Namespace) -> None:
 
 
 def run_watch(*, args: argparse.Namespace) -> None:
+    # Report on the issue even when watching fails; the error still fails the job.
+    report = f"🏭 The factory lost track of session `{args.session_id}`; see the workflow run."
     try:
         report = watch_session(
             client=anthropic.Anthropic(),
@@ -574,14 +596,9 @@ def run_watch(*, args: argparse.Namespace) -> None:
             factory_github_token=os.environ["FACTORY_GITHUB_TOKEN"],
             watch_minutes=args.watch_minutes,
         )
-    except Exception as error:
-        report = (
-            f"🏭 The factory lost track of session `{args.session_id}` "
-            f"({type(error).__name__}); see the workflow run."
-        )
-        print(error, file=sys.stderr)
-    comment_on_issue(issue_number=args.issue, body=report)
-    remove_factory_label(issue_number=args.issue)
+    finally:
+        comment_on_issue(issue_number=args.issue, body=report)
+        remove_factory_label(issue_number=args.issue)
 
 
 def main() -> None:

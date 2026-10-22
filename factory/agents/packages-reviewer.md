@@ -25,3 +25,5 @@ Hold the change to `REVIEW.md`, plus `.agents/skills/phoenix-typescript/SKILL.md
 - New public functions have docstrings or TSDoc, and the package docs are updated.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
+
+End with one risk line for your area: side effects, performance and backwards compatibility, each `none`, `low`, `medium` or `high` with a reason of a few words.

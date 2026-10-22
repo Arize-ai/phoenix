@@ -25,3 +25,5 @@ Hold the change to `REVIEW.md` and the skills in `.agents/skills/`: `phoenix-fro
 `make lint-frontend`, `make typecheck-frontend` and oxfmt already gate formatting and types; don't report what they catch.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
+
+End with one risk line for your area: side effects, performance and backwards compatibility, each `none`, `low`, `medium` or `high` with a reason of a few words.

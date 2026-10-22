@@ -12,6 +12,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 6. Changed `js/packages/` packages have a changeset; no `pyproject.toml` gains a pre-release production dependency.
 7. The PR is a draft against `main` from branch `factory/issue-<number>`, with a conventional-commit `fix` title.
 8. The PR body follows the phoenix-pr-description template: it starts with `resolves #<number>`, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
+9. An assessment comment on the PR follows `factory/assessment.md`, with risk ratings taken from the reviewers' risk lines.
 
 ## State B: not reproduced
 
