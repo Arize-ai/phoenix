@@ -35,6 +35,13 @@ class Undefined:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def __repr__(self) -> str:
+        # Pydantic embeds this in "Default value ... is not JSON serializable"
+        # when generating the OpenAPI schema. The default object address made
+        # every emission textually unique, so pytest could not deduplicate them
+        # and one warning appeared once per worker per route model.
+        return "UNDEFINED"
+
     def __bool__(self) -> bool:
         return False
 
