@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { useNavigate, useParams, useRouteLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, Drawer, Flex, Loading } from "@phoenix/components";
+import { Dialog, Drawer, Flex } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -15,7 +15,10 @@ import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaul
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
+import {
+  TraceDetails,
+  TraceDetailsSkeleton,
+} from "@phoenix/pages/trace/TraceDetails";
 
 export const PROJECT_EVALUATOR_DETAILS_ROUTE_ID = "projectEvaluatorDetails";
 
@@ -63,7 +66,7 @@ export function ProjectEvaluatorTracePage() {
                 />
               </DialogTitleExtra>
             </DialogHeader>
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<TraceDetailsSkeleton />}>
               <TraceDetails traceId={traceId} projectId={projectId} />
             </Suspense>
           </DialogContent>
