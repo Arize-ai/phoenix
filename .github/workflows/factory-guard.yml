@@ -1,4 +1,4 @@
-name: Agent Factory Guard
+name: Factory Guard
 
 # Factory agents push their own branches, so there is no post-step to strip files the way
 # claude-implement-issue.yml does. This check fails a factory PR that touches automation
@@ -22,7 +22,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          BLOCKED=$(gh pr diff "$PR_NUMBER" --name-only | grep -E '^(\.github|\.cursor|\.claude|\.agents|agent-factory)/|(^|/)(AGENTS|CLAUDE)\.md$' || true)
+          BLOCKED=$(gh pr diff "$PR_NUMBER" --name-only | grep -E '^(\.github|\.cursor|\.claude|\.agents|factory|plugins)/|(^|/)(AGENTS|CLAUDE)\.md$' || true)
           if [ -n "$BLOCKED" ]; then
             echo "::error::Factory PRs may not modify automation or agent-instruction files:"
             printf '%s\n' "$BLOCKED"

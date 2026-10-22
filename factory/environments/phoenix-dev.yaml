@@ -4,11 +4,12 @@ config:
   type: cloud
   networking:
     type: limited
-    # PyPI / npm for `uv sync` and `pnpm install`; the GitHub MCP server for issues and PRs.
-    # git pull/push on the mounted repo goes through Anthropic's git proxy and needs no host here.
+    # PyPI, npm and nodejs.org for setup; the GitHub MCP server for issues and PRs.
     allow_package_managers: true
     allow_mcp_servers: true
   packages:
     type: packages
-    pip: [uv]
+    pip: [uv, tox] # `make setup` checks for both
     npm: [pnpm@12.0.0] # matches packageManager in js/package.json
+# The sandbox ships Node 22 and a stopped PostgreSQL 16, and has no setup hook, so
+# factory/bootstrap.sh installs the Node version in .nvmrc at the start of each session.

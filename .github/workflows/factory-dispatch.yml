@@ -1,0 +1,98 @@
+name: Factory Dispatch
+
+# A maintainer labels a triaged issue `factory` (or dispatches it by hand). dispatch.py
+# checks that the issue is ready, picks the lane from its triage labels and starts the
+# lane's Managed Agents session. It then follows the session: CI failures and automated
+# review findings go back to the agent, the PR leaves draft once required CI passes, and
+# the result is reported on the issue.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to send through the factory
+        required: true
+      lane:
+        description: Lane to run; auto picks it from the issue's labels
+        type: choice
+        options: [auto, bug, feature, docs]
+        default: auto
+
+# The job lasts as long as its session, so a second trigger for the same issue queues
+# behind it and then finds the open PR.
+concurrency:
+  group: factory-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    # Same username allowlist as claude-implement-issue.yml and claude.yml - keep all three in sync.
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+        github.event.label.name == 'factory' &&
+        contains(fromJSON('[
+          "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+          "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+          "seldo", "yfrigui2"
+        ]'), github.actor)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      issues: write # comment on the issue and remove the `factory` label
+      pull-requests: read
+      checks: read
+      statuses: read
+      actions: read # failed CI logs to send back to the session
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the Anthropic SDK
+        run: pip install --quiet "anthropic==1.12.1"
+
+      - name: Start session
+        id: start
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          # Mounted as the session's github_repository token. Code in the sandbox can use it
+          # for the whole session, so it must belong to a non-admin machine account, scoped
+          # to this repo with Contents and Pull requests read/write and no Workflows access.
+          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+          FACTORY_GIT_NAME: ${{ vars.FACTORY_GIT_NAME }}
+          FACTORY_GIT_EMAIL: ${{ vars.FACTORY_GIT_EMAIL }}
+          LANE: ${{ inputs.lane }}
+        run: |
+          LANE_ARGS=()
+          if [ -n "$LANE" ] && [ "$LANE" != auto ]; then LANE_ARGS=(--lane "$LANE"); fi
+          python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start "${LANE_ARGS[@]}"
+
+      - name: Watch session
+        if: steps.start.outputs.started == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          # Marks the PR ready for review: a GITHUB_TOKEN event would not start the review workflow.
+          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+          LANE: ${{ steps.start.outputs.lane }}
+          SESSION_ID: ${{ steps.start.outputs.session_id }}
+        run: python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE"
+
+      - name: Report a failed dispatch
+        if: failure()
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "🏭 The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

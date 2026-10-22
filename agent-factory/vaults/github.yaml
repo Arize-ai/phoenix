@@ -1,4 +1,0 @@
-# The vault container only. Its one credential, the GitHub MCP OAuth token keyed by
-# https://api.githubcopilot.com/mcp/, is added out of band - see agent-factory/README.md.
-type: vault
-display_name: agent-factory-github
