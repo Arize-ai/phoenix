@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import string
 from datetime import datetime, timezone
 from secrets import token_hex
@@ -9,6 +10,7 @@ from urllib.parse import quote
 import httpx
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
@@ -24,6 +26,7 @@ from phoenix.db.types.trace_retention import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_span, _add_trace
 
 
 class TestProjects:
@@ -1527,3 +1530,125 @@ class TestDeleteProjectTraces:
         )
         assert response.status_code == 422
         assert await self._trace_count(db, project.id) == 1
+
+
+class TestGetProjectCostSummary:
+    """GET /projects/{project_identifier}/cost_summary"""
+
+    @staticmethod
+    async def _add_trace_with_cost(
+        session: AsyncSession,
+        project: models.Project,
+        model: models.GenerativeModel,
+        start_time: datetime,
+        prompt: tuple[float, float],
+        completion: tuple[float, float],
+    ) -> None:
+        """Add a trace whose single span has the given (tokens, cost) for prompt and completion."""
+        trace = await _add_trace(session, project, start_time=start_time)
+        span = await _add_span(session, trace, start_time=start_time)
+        session.add(
+            models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                model_id=model.id,
+                prompt_tokens=prompt[0],
+                prompt_cost=prompt[1],
+                completion_tokens=completion[0],
+                completion_cost=completion[1],
+                total_tokens=prompt[0] + completion[0],
+                total_cost=prompt[1] + completion[1],
+            )
+        )
+        await session.flush()
+
+    @staticmethod
+    async def _add_model(session: AsyncSession) -> models.GenerativeModel:
+        name = f"test-model-{token_hex(4)}"
+        model = models.GenerativeModel(
+            name=name,
+            provider="openai",
+            name_pattern=re.compile(re.escape(name)),
+            is_built_in=False,
+        )
+        session.add(model)
+        await session.flush()
+        return model
+
+    async def test_sums_tokens_and_costs_across_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            model = await self._add_model(session)
+            project = await _add_project(session)
+            other_project = await _add_project(session)
+            jan_1 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+            await self._add_trace_with_cost(session, project, model, jan_1, (100, 1.0), (10, 2.0))
+            await self._add_trace_with_cost(session, project, model, jan_1, (200, 3.0), (20, 4.0))
+            # Costs in another project must not leak into the summary.
+            await self._add_trace_with_cost(
+                session, other_project, model, jan_1, (999, 99.0), (999, 99.0)
+            )
+        gid = str(GlobalID(Project.__name__, str(project.id)))
+        for identifier in (project.name, gid):
+            response = await httpx_client.get(f"v1/projects/{identifier}/cost_summary")
+            assert response.status_code == 200, response.text
+            assert response.json()["data"] == {
+                "prompt": {"tokens": 300, "cost": 4.0},
+                "completion": {"tokens": 30, "cost": 6.0},
+                "total": {"tokens": 330, "cost": 10.0},
+            }
+
+    async def test_time_range_filters_on_trace_start_time(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            model = await self._add_model(session)
+            project = await _add_project(session)
+            for day in (1, 2, 3):
+                await self._add_trace_with_cost(
+                    session,
+                    project,
+                    model,
+                    datetime(2024, 1, day, tzinfo=timezone.utc),
+                    (day, float(day)),
+                    (0, 0.0),
+                )
+        # The interval includes start_time and excludes end_time, so only Jan 2 is counted.
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/cost_summary",
+            params={"start_time": "2024-01-02T00:00:00Z", "end_time": "2024-01-03T00:00:00Z"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["total"] == {"tokens": 2, "cost": 2.0}
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/cost_summary",
+            params={"start_time": "2024-01-02T00:00:00Z"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["total"] == {"tokens": 5, "cost": 5.0}
+
+    async def test_project_without_costs_returns_zeros(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+        response = await httpx_client.get(f"v1/projects/{project.name}/cost_summary")
+        assert response.status_code == 200, response.text
+        zero = {"tokens": 0, "cost": 0}
+        assert response.json()["data"] == {"prompt": zero, "completion": zero, "total": zero}
+
+    async def test_unknown_project_returns_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.get(f"v1/projects/{token_hex(8)}/cost_summary")
+        assert response.status_code == 404
