@@ -167,6 +167,12 @@ When False, Phoenix makes no public-internet requests on its own initiative, suc
 telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
 providers and hosted sandboxes, are unaffected. Defaults to True.
 """
+ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE = "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE"
+"""
+Whether to disable automatic updates of the built-in model prices at runtime. Phoenix otherwise
+fetches the latest prices from GitHub, unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False. The
+bundled prices still change when Phoenix is upgraded. Defaults to False.
+"""
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.
@@ -3873,6 +3879,20 @@ def get_env_allow_external_resources() -> bool:
     operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
+
+
+def get_env_model_cost_manifest_url() -> Optional[str]:
+    """
+    The URL to fetch the latest built-in model prices from, or None if they shouldn't be fetched,
+    either because automatic updates are disabled or because external resources aren't allowed.
+    """
+    if _bool_val(ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE, False):
+        return None
+    if not get_env_allow_external_resources():
+        return None
+    from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
+
+    return DEFAULT_MANIFEST_URL
 
 
 def get_env_postgres_use_aws_iam_auth() -> bool:

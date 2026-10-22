@@ -2632,6 +2632,11 @@ input ModalConfigInput {
   dependencies: DependenciesInput = null
 }
 
+type ModelCostManifest {
+  """When the manifest's built-in models and token prices were generated."""
+  generatedAt: DateTime!
+}
+
 interface ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey
@@ -3935,6 +3940,11 @@ type Query {
   generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
   secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
   generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
+
+  """
+  The model cost manifest that the built-in models and token prices were last synced from, or null if none has been applied.
+  """
+  modelCostManifest: ModelCostManifest
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!

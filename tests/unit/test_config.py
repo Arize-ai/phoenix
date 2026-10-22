@@ -16,6 +16,7 @@ from phoenix.config import (
     get_env_admins,
     get_env_auth_settings,
     get_env_database_schema,
+    get_env_model_cost_manifest_url,
     get_env_phoenix_admin_secret,
     get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
@@ -25,6 +26,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
 )
 from phoenix.db.models import UserRoleName
+from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
 
 
 class TestPostgresConnectionString:
@@ -2663,3 +2665,26 @@ class TestClientAssertionJWTFromEnv:
         )
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
+
+
+class TestGetEnvModelCostManifestUrl:
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch: MonkeyPatch) -> None:
+        for env_var in (
+            "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE",
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
+        ):
+            monkeypatch.delenv(env_var, raising=False)
+
+    def test_defaults_to_github(self) -> None:
+        assert get_env_model_cost_manifest_url() == DEFAULT_MANIFEST_URL
+
+    def test_default_is_not_fetched_without_external_resources(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        assert get_env_model_cost_manifest_url() is None
+
+    def test_disable_auto_update(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE", "true")
+        assert get_env_model_cost_manifest_url() is None

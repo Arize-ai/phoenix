@@ -69,6 +69,22 @@ Phoenix includes a comprehensive model pricing table with built-in support for p
 * **Moonshot (Kimi)**: Moonshot Kimi models
 * **Other providers**: Additional models as they become available
 
+### Keeping built-in prices current
+
+The built-in pricing table is generated from [LiteLLM's model price list](https://github.com/BerriAI/litellm) and kept up to date on Phoenix's `main` branch. You don't need to upgrade Phoenix to get new models and prices: shortly after startup, and then about once a day, the Phoenix server fetches the latest table from GitHub and applies it if it's newer than the one it has. A Phoenix release also ships with a copy of the table, which is applied at startup only if it's newer than the prices already in the database, so upgrading or restarting never rolls prices back.
+
+The fetch runs in the background and never delays startup. If it fails, Phoenix logs a warning and keeps using the prices it already has.
+
+Settings → Models shows when the built-in prices in use were generated, for example "Built-in prices from Oct 14, 2026".
+
+<Note>
+Costs are calculated when a span is ingested. New prices apply only to spans received after they're applied; costs already recorded aren't recalculated.
+</Note>
+
+Custom models you add in Settings → Models are never changed by an update, and they take precedence over built-in models that match the same name.
+
+To turn off automatic updates, set `PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE=true` on the Phoenix server. Phoenix also skips them when `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`, as in air-gapped deployments. Either way, built-in prices then change only when you upgrade Phoenix, which still brings the bundled prices up to date.
+
 ### Managing model prices
 
 You can view and manage model pricing through the Phoenix UI:

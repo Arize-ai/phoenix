@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from secrets import token_bytes, token_hex
 from typing import Any
@@ -6,7 +7,6 @@ import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 from starlette.types import ASGIApp
 
 from phoenix.db import models
@@ -20,15 +20,21 @@ from phoenix.db.facilitator import (
     _ensure_model_costs,
     _ensure_oauth2_clients,
 )
-from phoenix.db.types.token_price_customization import (
-    ThresholdBasedTokenPriceCustomization,
-)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.cost_tracking.manifest import SUPPORTED_SCHEMA_VERSION
 from phoenix.server.types import DbSessionFactory
+from tests.unit.server.cost_tracking.test_apply_manifest import (
+    _active_built_in_prices,
+    _apply,
+    _manifest,
+    _manifest_date,
+    _manifest_model,
+)
 
 # These tests exercise seeding from an empty database, so they opt out of the
 # seeded template every other test's database comes from.
@@ -307,453 +313,46 @@ class TestEnsureDefaultProjectTraceRetentionPolicy:
         assert policy.id == 1
 
 
+def _write_manifest(path: Path, manifest_models: list[dict[str, Any]], *, day: int) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": SUPPORTED_SCHEMA_VERSION,
+                "generated_at": _manifest_date(day).isoformat(),
+                "models": manifest_models,
+            }
+        )
+    )
+
+
 class TestEnsureModelCosts:
-    @pytest.fixture
-    def _patch_manifest(
+    async def test_boot_keeps_a_newer_fetched_manifest(
         self,
         tmp_path: Path,
         monkeypatch: MonkeyPatch,
-    ) -> Path:
-        """Create empty manifest file and patch the global variable."""
-        import json
-
-        manifest_file = tmp_path / "test_model_cost_manifest.json"
-        manifest_file.write_text(json.dumps({"models": []}))
-
-        # Monkey patch the global variable to point to our test file
+        db: DbSessionFactory,
+    ) -> None:
         from phoenix.db import facilitator
 
-        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", manifest_file)
-        return manifest_file
-
-    async def _get_models(
-        self,
-        db: DbSessionFactory,
-        is_built_in: bool,
-    ) -> dict[str, models.GenerativeModel]:
-        """Fetch GenerativeModels from database with token prices eagerly loaded."""
-        async with db() as session:
-            result = await session.scalars(
-                select(models.GenerativeModel)
-                .where(models.GenerativeModel.deleted_at.is_(None))
-                .where(models.GenerativeModel.is_built_in.is_(is_built_in))
-                .options(joinedload(models.GenerativeModel.token_prices))
-            )
-        return {model.name: model for model in result.unique()}
-
-    def _extract_token_prices(self, model: models.GenerativeModel) -> dict[tuple[str, bool], float]:
-        """Extract token prices as a comparable dictionary."""
-        return {(tp.token_type, tp.is_prompt): tp.base_rate for tp in model.token_prices}
-
-    async def _get_deleted_model_names(self, db: DbSessionFactory) -> set[str]:
-        """Get names of soft-deleted built-in models."""
-        async with db() as session:
-            deleted_models = await session.scalars(
-                select(models.GenerativeModel)
-                .where(models.GenerativeModel.deleted_at.isnot(None))
-                .where(models.GenerativeModel.is_built_in.is_(True))
-            )
-            return {model.name for model in deleted_models}
-
-    def _update_manifest(self, manifest_path: Path, models: list[dict[str, Any]]) -> None:
-        """Update manifest file with new data."""
-        import json
-
-        manifest_path.write_text(json.dumps({"models": models}, indent=2))
-
-    async def test_ensure_model_costs(
-        self,
-        _patch_manifest: Path,
-        db: DbSessionFactory,
-    ) -> None:
-        """
-        Comprehensive test of _ensure_model_costs function covering:
-        1. Empty manifest (no models created)
-        2. Model creation from manifest
-        3. Model updates (name_pattern, token prices)
-        4. Token price additions and removals
-        5. Model cleanup (soft deletion of obsolete models)
-        """
-
-        # Initialize enums first
+        bundled = tmp_path / "bundled.json"
+        _write_manifest(bundled, [_manifest_model("bundled-model")], day=1)
+        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", bundled)
         await _ensure_enums(db)
 
-        # === STEP 1: Empty manifest ===
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert not built_in_models, "There should be no built-in models initially"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
         await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert not built_in_models, "There should be no built-in models because manifest is empty"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
 
-        # === STEP 2: Create new models ===
-        initial_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-1",
-                "name_pattern": r"(?i)^(test-model-1)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },
-                    {
-                        "base_rate": 0.0000001,
-                        "is_prompt": True,
-                        "token_type": "cache_write",
-                    },
-                    {
-                        "base_rate": 0.0000005,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },
-                    {
-                        "base_rate": 0.000003,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },
-                    {
-                        "base_rate": 0.000003,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },
-                ],
-            },
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },
-                    {
-                        "base_rate": 0.000010,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },
-                ],
-            },
-        ]
-        self._update_manifest(_patch_manifest, initial_manifest)
-
+        assert await _apply(db, _manifest("bundled-model", "fetched-model", day=2, input_rate=4e-6))
         await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert len(built_in_models) == 2, "Should have created 2 models"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
+        assert await _active_built_in_prices(db) == {"bundled-model": 4e-6, "fetched-model": 4e-6}
 
-        # Verify model 1 details
-        model1 = built_in_models["test-model-1"]
-        assert model1.name_pattern.pattern == r"(?i)^(test-model-1)$"
-        assert model1.is_built_in is True
-        assert model1.deleted_at is None
-
-        # Check token prices for model 1 (should have all types)
-        actual_prices_1 = self._extract_token_prices(model1)
-        expected_prices_1 = {
-            ("input", True): 0.000001,
-            ("output", False): 0.000002,
-            ("cache_write", True): 0.0000001,
-            ("cache_read", True): 0.0000005,
-            ("audio", True): 0.000003,
-            ("audio", False): 0.000003,  # Audio appears for both prompt and non-prompt
-        }
-        assert actual_prices_1 == expected_prices_1, (
-            f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
-        )
-
-        # Verify model 2 details (minimal pricing)
-        model2 = built_in_models["test-model-2"]
-        assert model2.name_pattern.pattern == r"(?i)^(test-model-2|alt-name-2)$"
-        model2_initial_updated_at = model2.updated_at
-
-        actual_prices_2 = self._extract_token_prices(model2)
-        expected_prices_2 = {
-            ("input", True): 0.000005,
-            ("output", False): 0.000010,
-        }
-        assert actual_prices_2 == expected_prices_2, (
-            f"Model 2 token prices mismatch: got {actual_prices_2}, expected {expected_prices_2}"
-        )
-
-        # === STEP 3: Update existing models ===
-        # Update model 1: change name_pattern and some prices
-        # Update model 2: add cache prices
-        # Add model 3: audio-only model
-        updated_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-1",
-                "name_pattern": r"(?i)^(test-model-1|new-alias)$",  # Changed name_pattern
-                "token_prices": [
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },  # Same price
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },  # Changed price
-                    # cache_write removed
-                ],
-            },
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",  # Same
-                "token_prices": [
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Same
-                    {
-                        "base_rate": 0.000015,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },  # Changed
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "cache_write",
-                    },  # Added
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },  # Added
-                ],
-            },
-            {
-                "name": "audio-model",
-                "name_pattern": r"(?i)^(audio-model)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000008,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Audio-only pricing
-                    {
-                        "base_rate": 0.000008,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },
-                ],
-            },
-        ]
-        self._update_manifest(_patch_manifest, updated_manifest)
-
+        # An upgrade bundles a newer manifest, which takes over again.
+        _write_manifest(bundled, [_manifest_model("bundled-model")], day=3)
         await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert len(built_in_models) == 3, "Should have 3 models after update"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify model 1 updates
-        model1_updated = built_in_models["test-model-1"]
-        assert model1_updated.name_pattern.pattern == r"(?i)^(test-model-1|new-alias)$"
-
-        actual_prices_1_updated = self._extract_token_prices(model1_updated)
-        expected_prices_1_updated = {
-            ("input", True): 0.000002,  # Changed
-            ("output", False): 0.000002,  # Same
-            ("cache_read", True): 0.000001,  # Changed
-            ("audio", True): 0.000005,  # Changed
-            ("audio", False): 0.000005,  # Changed
-            # cache_write should be removed
-        }
-        assert actual_prices_1_updated == expected_prices_1_updated, (
-            f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"
-        )
-
-        # Verify model 2 updates
-        model2_updated = built_in_models["test-model-2"]
-        assert model2_updated.updated_at > model2_initial_updated_at
-        actual_prices_2_updated = self._extract_token_prices(model2_updated)
-        expected_prices_2_updated = {
-            ("input", True): 0.000005,  # Same
-            ("output", False): 0.000015,  # Changed
-            ("cache_write", True): 0.000001,  # Added
-            ("cache_read", True): 0.000002,  # Added
-        }
-        assert actual_prices_2_updated == expected_prices_2_updated, (
-            f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"
-        )
-
-        # Verify new audio model
-        audio_model = built_in_models["audio-model"]
-        actual_prices_audio = self._extract_token_prices(audio_model)
-        expected_prices_audio = {
-            ("audio", True): 0.000008,
-            ("audio", False): 0.000008,
-        }
-        assert actual_prices_audio == expected_prices_audio, (
-            f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"
-        )
-
-        # === STEP 4: Remove models (test soft deletion) ===
-        # Keep only model 2, remove model 1 and audio model
-        final_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(final-model-2)$",  # Final name_pattern change
-                "token_prices": [
-                    {
-                        "base_rate": 0.000010,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Final price change
-                    {"base_rate": 0.000020, "is_prompt": False, "token_type": "output"},
-                    {
-                        "base_rate": 0.000030,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Add audio pricing
-                    {"base_rate": 0.000030, "is_prompt": False, "token_type": "audio"},
-                    # cache prices removed
-                ],
-            }
-        ]
-        self._update_manifest(_patch_manifest, final_manifest)
-
-        await _ensure_model_costs(db)
-
-        # Check active built-in models
-        active_models = await self._get_models(db, is_built_in=True)
-        assert len(active_models) == 1, "Should have only 1 active model"
-        assert "test-model-2" in active_models, "Model 2 should still be active"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify final model 2 state
-        final_model2 = active_models["test-model-2"]
-        assert final_model2.name_pattern.pattern == r"(?i)^(final-model-2)$"
-
-        actual_prices_final = self._extract_token_prices(final_model2)
-        expected_prices_final = {
-            ("input", True): 0.000010,
-            ("output", False): 0.000020,
-            ("audio", True): 0.000030,
-            ("audio", False): 0.000030,
-        }
-        assert actual_prices_final == expected_prices_final, (
-            f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"
-        )
-
-        # Verify soft deletion of removed models
-        deleted_model_names = await self._get_deleted_model_names(db)
-        expected_deleted = {"test-model-1", "audio-model"}
-        assert deleted_model_names == expected_deleted, (
-            f"Wrong models deleted: got {deleted_model_names}, expected {expected_deleted}"
-        )
-
-        # === STEP 5: Empty manifest again (cleanup all) ===
-        self._update_manifest(_patch_manifest, [])
-        await _ensure_model_costs(db)
-
-        final_active_models = await self._get_models(db, is_built_in=True)
-        assert not final_active_models, "All models should be soft-deleted"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify all models are now soft-deleted
-        all_deleted_names = await self._get_deleted_model_names(db)
-        expected_all_deleted = {"test-model-1", "test-model-2", "audio-model"}
-        assert all_deleted_names == expected_all_deleted, (
-            f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"
-        )
-
-    async def test_syncs_token_price_customizations_from_manifest(
-        self,
-        _patch_manifest: Path,
-        db: DbSessionFactory,
-    ) -> None:
-        """Tier-rate customizations in the manifest must land in the database,
-        propagate on change, and clear when removed upstream."""
-        await _ensure_enums(db)
-
-        customization = {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000006,
-        }
-        manifest: list[dict[str, Any]] = [
-            {
-                "name": "tiered-model",
-                "name_pattern": r"(?i)^(tiered-model)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000003,
-                        "is_prompt": True,
-                        "token_type": "input",
-                        "customization": customization,
-                    },
-                    {
-                        "base_rate": 0.000015,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },
-                ],
-            }
-        ]
-        self._update_manifest(_patch_manifest, manifest)
-        await _ensure_model_costs(db)
-
-        async def _get_input_price(db: DbSessionFactory) -> models.TokenPrice:
-            model = (await self._get_models(db, is_built_in=True))["tiered-model"]
-            return next(tp for tp in model.token_prices if tp.token_type == "input")
-
-        input_price = await _get_input_price(db)
-        assert isinstance(input_price.customization, ThresholdBasedTokenPriceCustomization)
-        assert input_price.customization.model_dump() == customization
-        model = (await self._get_models(db, is_built_in=True))["tiered-model"]
-        output_price = next(tp for tp in model.token_prices if tp.token_type == "output")
-        assert output_price.customization is None
-
-        # A changed tier rate propagates on re-sync.
-        manifest[0]["token_prices"][0]["customization"] = {
-            **customization,
-            "new_rate": 0.000012,
-        }
-        self._update_manifest(_patch_manifest, manifest)
-        await _ensure_model_costs(db)
-        input_price = await _get_input_price(db)
-        assert isinstance(input_price.customization, ThresholdBasedTokenPriceCustomization)
-        assert input_price.customization.new_rate == 0.000012
-
-        # Removing the customization upstream clears the stored one.
-        del manifest[0]["token_prices"][0]["customization"]
-        self._update_manifest(_patch_manifest, manifest)
-        await _ensure_model_costs(db)
-        input_price = await _get_input_price(db)
-        assert input_price.customization is None
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None and marker.generated_at == _manifest_date(3)
 
 
 async def _count_built_in_models(db: DbSessionFactory) -> int:
