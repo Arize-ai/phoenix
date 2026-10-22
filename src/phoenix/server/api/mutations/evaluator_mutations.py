@@ -5,6 +5,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from strawberry import UNSET
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -59,6 +60,18 @@ def _evaluator_service_context(context: Context) -> evaluator_service.EvaluatorS
     )
 
 
+INPUT_SCHEMA_CREATE_DESCRIPTION = (
+    "Describes the evaluator's inputs, in the shape inputSchema returns. Only each "
+    "property's description is stored; the inputs themselves come from the prompt's "
+    "variables or the code's parameters, and describing one they do not declare is "
+    "rejected."
+)
+INPUT_SCHEMA_UPDATE_DESCRIPTION = (
+    f"{INPUT_SCHEMA_CREATE_DESCRIPTION} Omit to keep the stored descriptions of the "
+    "inputs still declared, or use null to clear them."
+)
+
+
 @strawberry.input
 class CreateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
@@ -68,6 +81,9 @@ class CreateDatasetLLMEvaluatorInput:
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
     input_mapping: Optional[EvaluatorInputMappingInput] = None
+    input_schema: Optional[JSON] = strawberry.field(
+        default=None, description=INPUT_SCHEMA_CREATE_DESCRIPTION
+    )
 
 
 @strawberry.input
@@ -80,6 +96,9 @@ class UpdateDatasetLLMEvaluatorInput:
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
     input_mapping: Optional[EvaluatorInputMappingInput] = None
+    input_schema: Optional[JSON] = strawberry.field(
+        default=UNSET, description=INPUT_SCHEMA_UPDATE_DESCRIPTION
+    )
 
 
 @strawberry.type
@@ -180,6 +199,9 @@ class CreateProjectLLMEvaluatorInput:
             "evaluation."
         ),
     )
+    input_schema: Optional[JSON] = strawberry.field(
+        default=None, description=INPUT_SCHEMA_CREATE_DESCRIPTION
+    )
 
 
 @strawberry.input
@@ -208,6 +230,9 @@ class UpdateProjectLLMEvaluatorInput:
             "A trace or session is evaluated "
             "only once, and later activity does not schedule another evaluation."
         ),
+    )
+    input_schema: Optional[JSON] = strawberry.field(
+        default=UNSET, description=INPUT_SCHEMA_UPDATE_DESCRIPTION
     )
 
 
@@ -274,6 +299,9 @@ class CreateProjectCodeEvaluatorInput:
             "evaluation."
         ),
     )
+    input_schema: Optional[JSON] = strawberry.field(
+        default=None, description=INPUT_SCHEMA_CREATE_DESCRIPTION
+    )
 
 
 @strawberry.input
@@ -309,6 +337,9 @@ class UpdateProjectCodeEvaluatorInput:
             "A trace or session is evaluated "
             "only once, and later activity does not schedule another evaluation."
         ),
+    )
+    input_schema: Optional[JSON] = strawberry.field(
+        default=UNSET, description=INPUT_SCHEMA_UPDATE_DESCRIPTION
     )
 
 
@@ -379,6 +410,9 @@ class CreateCodeEvaluatorInput:
     description: Optional[str] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
+    input_schema: Optional[JSON] = strawberry.field(
+        default=None, description=INPUT_SCHEMA_CREATE_DESCRIPTION
+    )
 
 
 @strawberry.input
@@ -389,6 +423,9 @@ class PatchCodeEvaluatorInput:
     sandbox_config_id: Optional[GlobalID] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+    input_schema: Optional[JSON] = strawberry.field(
+        default=UNSET, description=INPUT_SCHEMA_UPDATE_DESCRIPTION
+    )
 
 
 @strawberry.input
@@ -440,6 +477,7 @@ class EvaluatorMutationMixin:
             filter_condition=input.filter_condition,
             enabled=input.enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         result = await project_evaluator_service.create_project_llm_evaluator(context, command)
@@ -475,6 +513,7 @@ class EvaluatorMutationMixin:
             enabled=input.enabled,
             description=input.description,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         result = await project_evaluator_service.update_project_llm_evaluator(context, command)
@@ -541,6 +580,7 @@ class EvaluatorMutationMixin:
             filter_condition=input.filter_condition,
             enabled=input.enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         result = await project_evaluator_service.create_project_code_evaluator(context, command)
@@ -580,6 +620,7 @@ class EvaluatorMutationMixin:
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         result = await project_evaluator_service.update_project_code_evaluator(context, command)
@@ -700,6 +741,7 @@ class EvaluatorMutationMixin:
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
+            input_schema=input.input_schema,
         )
         result = await dataset_evaluator_service.create_dataset_llm_evaluator(
             _evaluator_service_context(info.context), command
@@ -729,6 +771,7 @@ class EvaluatorMutationMixin:
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
+            input_schema=input.input_schema,
         )
         result = await dataset_evaluator_service.update_dataset_llm_evaluator(
             _evaluator_service_context(info.context), command
@@ -861,6 +904,7 @@ class EvaluatorMutationMixin:
             input_mapping=input.input_mapping.to_orm(),
             output_configs=output_configs,
             description=input.description,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         row = await evaluator_service.create_code_evaluator(context, command)
@@ -886,6 +930,7 @@ class EvaluatorMutationMixin:
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
+            input_schema=input.input_schema,
         )
         context = _evaluator_service_context(info.context)
         result = await evaluator_service.patch_code_evaluator(context, command)

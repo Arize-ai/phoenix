@@ -346,6 +346,17 @@ def _llm_evaluators_table(
     )
 
 
+def _with_input_schema_column(table: _LLMEvaluatorsTable) -> _LLMEvaluatorsTable:
+    """The table as the upgrade leaves it apart from the tag foreign key: one more nullable
+    column, which the row snapshot does not select."""
+    schema_info: _TableSchemaInfo = {
+        **table.schema_info,
+        "column_names": table.schema_info["column_names"] | {"input_schema"},
+        "nullable_column_names": table.schema_info["nullable_column_names"] | {"input_schema"},
+    }
+    return table._replace(schema_info=schema_info)
+
+
 def _without_tag_fk(table: _LLMEvaluatorsTable) -> _LLMEvaluatorsTable:
     return table._replace(
         foreign_keys={name: fk for name, fk in table.foreign_keys.items() if name != _TAG_FK}
@@ -369,14 +380,19 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
 
     def _snapshot(
         conn: Connection,
-    ) -> tuple[_TableSchemaInfo, dict[int, _Binding], _LLMEvaluatorsTable]:
+    ) -> tuple[_TableSchemaInfo, dict[int, _Binding], _LLMEvaluatorsTable, _TableSchemaInfo]:
         return (
             _schema_info(conn, _db_backend, _schema),
             _bindings(conn, _db_backend),
             _llm_evaluators_table(conn, _db_backend, _schema),
+            _schema_info(conn, _db_backend, _schema, "code_evaluators"),
         )
 
-    schema_before, before, llm_evaluators_before = await _run_async(_engine, _snapshot)
+    schema_before, before, llm_evaluators_before, code_evaluators_before = await _run_async(
+        _engine, _snapshot
+    )
+    assert "input_schema" not in llm_evaluators_before.schema_info["column_names"]
+    assert "input_schema" not in code_evaluators_before["column_names"]
     assert llm_evaluators_before.foreign_keys[_TAG_FK] == (
         ("prompt_version_tag_id",),
         "prompt_version_tags",
@@ -432,15 +448,37 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
         ):
             assert after[binding_id] == before[binding_id]
         assert _child_row_counts(conn) == (1, 1)
-        # The tag foreign key refuses deletes; the rest of llm_evaluators, its rows included,
-        # survives the SQLite rebuild.
+        # The tag foreign key refuses deletes and a nullable input_schema column is added; the
+        # rest of llm_evaluators, its rows included, survives the SQLite rebuild.
         llm_evaluators_after = _llm_evaluators_table(conn, _db_backend, _schema)
         assert llm_evaluators_after.foreign_keys[_TAG_FK] == (
             ("prompt_version_tag_id",),
             "prompt_version_tags",
             "RESTRICT",
         )
-        assert _without_tag_fk(llm_evaluators_after) == _without_tag_fk(llm_evaluators_before)
+        assert _without_tag_fk(llm_evaluators_after) == _without_tag_fk(
+            _with_input_schema_column(llm_evaluators_before)
+        )
+        assert (
+            conn.execute(
+                text("SELECT count(*) FROM llm_evaluators WHERE input_schema IS NOT NULL")
+            ).scalar()
+            == 0
+        )
+        # code_evaluators gains the same nullable column, and nothing else changes.
+        assert _schema_info(conn, _db_backend, _schema, "code_evaluators") == {
+            **code_evaluators_before,
+            "column_names": code_evaluators_before["column_names"] | {"input_schema"},
+            "nullable_column_names": (
+                code_evaluators_before["nullable_column_names"] | {"input_schema"}
+            ),
+        }
+        assert (
+            conn.execute(
+                text("SELECT count(*) FROM code_evaluators WHERE input_schema IS NOT NULL")
+            ).scalar()
+            == 0
+        )
         if _db_backend == "sqlite":
             assert conn.execute(text("PRAGMA foreign_key_check")).all() == []
 
@@ -475,6 +513,7 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
     def _verify_downgraded(conn: Connection) -> None:
         assert _schema_info(conn, _db_backend, _schema) == schema_before
         assert _llm_evaluators_table(conn, _db_backend, _schema) == llm_evaluators_before
+        assert _schema_info(conn, _db_backend, _schema, "code_evaluators") == code_evaluators_before
         after = _bindings(conn, _db_backend)
         # Overrides written after the upgrade survive the downgrade.
         assert after[seed.llm].output_configs == _NEW_OVERRIDE

@@ -31,6 +31,7 @@ from phoenix.server.api.evaluators import (
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.evaluator_input_schema import apply_llm_input_schema
 from phoenix.server.api.helpers.evaluator_management import (
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
@@ -93,6 +94,7 @@ class CreateDatasetLLMEvaluatorInput:
     input_mapping: Optional[InputMapping] = None
     binding_description: Optional[str] = None
     binding_output_configs: Optional[list[OutputConfigType]] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -106,6 +108,7 @@ class UpdateDatasetLLMEvaluatorInput:
     input_mapping: Optional[InputMapping] = None
     binding_description: Optional[str] = UNSET
     binding_output_configs: Optional[list[OutputConfigType]] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -240,6 +243,7 @@ async def create_dataset_llm_evaluator(
 
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+                apply_llm_input_schema(llm_evaluator, prompt_version, input.input_schema)
             except ValueError as error:
                 raise BadRequest(str(error))
 
@@ -413,6 +417,8 @@ async def update_dataset_llm_evaluator(
 
         try:
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            if apply_llm_input_schema(llm_evaluator, prompt_version, input.input_schema):
+                shared_evaluator_changed = True
         except ValueError as error:
             raise BadRequest(str(error))
 

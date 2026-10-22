@@ -21,15 +21,20 @@ value.
   database refuses to delete a prompt version tag an LLM evaluator runs
   through. Without its tag the evaluator would run the prompt's latest version,
   whatever is saved there next.
+- llm_evaluators and code_evaluators gain a nullable input_schema column: the
+  evaluator's inputs with a description on each the author described. NULL
+  means none were described, and the inputs are inferred from the prompt or
+  the code alone, so existing rows need no backfill.
 
 The downgrade first restores ON DELETE SET NULL on
-llm_evaluators.prompt_version_tag_id. It stores JSON null for bindings whose
-output configs are SQL NULL and restores NOT NULL. Binding descriptions and
-non-null output configs are left as stored.
+llm_evaluators.prompt_version_tag_id and drops the input_schema columns. It
+stores JSON null for bindings whose output configs are SQL NULL and restores
+NOT NULL. Binding descriptions and non-null output configs are left as stored.
 """
 
 from typing import Any, Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
@@ -81,24 +86,31 @@ def upgrade() -> None:
         "UPDATE dataset_evaluators SET output_configs = NULL "
         f"WHERE {_is_empty_json_array('output_configs')}"
     )
-    _set_prompt_version_tag_ondelete("RESTRICT")
-
-
-def _set_prompt_version_tag_ondelete(ondelete: str) -> None:
-    # SQLite cannot alter a foreign key, so batch mode rebuilds the table there.
+    # SQLite cannot alter a foreign key, so batch mode rebuilds the table there; the new
+    # column rides along in the same rebuild.
     with op.batch_alter_table("llm_evaluators") as batch_op:
-        batch_op.drop_constraint(_PROMPT_VERSION_TAG_FK, type_="foreignkey")
-        batch_op.create_foreign_key(
-            _PROMPT_VERSION_TAG_FK,
-            "prompt_version_tags",
-            ["prompt_version_tag_id"],
-            ["id"],
-            ondelete=ondelete,
-        )
+        _set_prompt_version_tag_ondelete(batch_op, "RESTRICT")
+        batch_op.add_column(sa.Column("input_schema", JSON_, nullable=True))
+    op.add_column("code_evaluators", sa.Column("input_schema", JSON_, nullable=True))
+
+
+def _set_prompt_version_tag_ondelete(batch_op: Any, ondelete: str) -> None:
+    batch_op.drop_constraint(_PROMPT_VERSION_TAG_FK, type_="foreignkey")
+    batch_op.create_foreign_key(
+        _PROMPT_VERSION_TAG_FK,
+        "prompt_version_tags",
+        ["prompt_version_tag_id"],
+        ["id"],
+        ondelete=ondelete,
+    )
 
 
 def downgrade() -> None:
-    _set_prompt_version_tag_ondelete("SET NULL")
+    with op.batch_alter_table("code_evaluators") as batch_op:
+        batch_op.drop_column("input_schema")
+    with op.batch_alter_table("llm_evaluators") as batch_op:
+        batch_op.drop_column("input_schema")
+        _set_prompt_version_tag_ondelete(batch_op, "SET NULL")
     op.execute("UPDATE dataset_evaluators SET output_configs = 'null' WHERE output_configs IS NULL")
     with op.batch_alter_table("dataset_evaluators") as batch_op:
         batch_op.alter_column("output_configs", existing_type=JSON_, nullable=False)

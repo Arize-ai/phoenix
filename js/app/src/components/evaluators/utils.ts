@@ -20,6 +20,54 @@ import type {
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
 
+/**
+ * The input schema sent with an evaluator: its declared inputs, each with the
+ * description the author wrote for it. Only the declared inputs are sent, since
+ * the server refuses a description of an input the source does not name, and
+ * every declared one is listed so a cleared description clears on the server.
+ */
+export function buildInputSchemaInput({
+  variables,
+  inputDescriptions,
+}: {
+  variables: readonly string[];
+  inputDescriptions: Record<string, string>;
+}): { type: "object"; properties: Record<string, { description?: string }> } {
+  return {
+    type: "object",
+    properties: Object.fromEntries(
+      variables.map((variable) => {
+        const description = inputDescriptions[variable]?.trim();
+        return [variable, description ? { description } : {}];
+      })
+    ),
+  };
+}
+
+/**
+ * The descriptions an evaluator's input schema carries, by input name, as the
+ * form holds them. Anything that is not a schema object with string
+ * descriptions is ignored.
+ */
+export function getInputDescriptionsFromSchema(
+  inputSchema: unknown
+): Record<string, string> {
+  if (!isObject(inputSchema)) return {};
+  const properties = (inputSchema as { properties?: unknown }).properties;
+  if (!isObject(properties)) return {};
+  return Object.fromEntries(
+    Object.entries(properties as Record<string, unknown>).flatMap(
+      ([name, property]) => {
+        if (!isObject(property)) return [];
+        const description = (property as { description?: unknown }).description;
+        return typeof description === "string" && description.trim()
+          ? [[name, description]]
+          : [];
+      }
+    )
+  );
+}
+
 /** Returns whether a mapping value survives persistence. */
 export function hasMappingValue(value: unknown): boolean {
   return value != null && value !== "";

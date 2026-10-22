@@ -21,6 +21,10 @@ from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import decision_evaluator_service as decision_service
 from phoenix.server.api.helpers import evaluator_service as service
+from phoenix.server.api.helpers.evaluator_input_schema import (
+    described_code_input_schema,
+    described_llm_input_schema,
+)
 from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     FromPromptVersion,
@@ -87,6 +91,15 @@ class CreateLLMEvaluatorRequest(EvaluatorRequest):
         )
     )
     output_configs: list[CategoricalAnnotationConfigData] = Field(min_length=1)
+    input_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Describes the evaluator's inputs, in the shape input_schema is returned. Only each "
+            "property's description is stored; the inputs themselves come from the prompt's "
+            "variables or the code's parameters, and describing one they do not declare is "
+            "refused with 422."
+        ),
+    )
 
 
 class CreateCodeEvaluatorRequest(EvaluatorRequest):
@@ -101,6 +114,15 @@ class CreateCodeEvaluatorRequest(EvaluatorRequest):
     )
     output_configs: list[EvaluatorOutputConfig] = Field(
         min_length=1, description="Outputs the code produces."
+    )
+    input_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Describes the evaluator's inputs, in the shape input_schema is returned. Only each "
+            "property's description is stored; the inputs themselves come from the prompt's "
+            "variables or the code's parameters, and describing one they do not declare is "
+            "refused with 422."
+        ),
     )
 
 
@@ -121,6 +143,16 @@ class PatchLLMEvaluatorRequest(EvaluatorRequest):
         description="Move the evaluator to another prompt version. Omit to keep it.",
     )
     output_configs: list[CategoricalAnnotationConfigData] = Field(default=UNDEFINED, min_length=1)
+    input_schema: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description=(
+            "Describes the evaluator's inputs, in the shape input_schema is returned. Only each "
+            "property's description is stored; the inputs themselves come from the prompt's "
+            "variables or the code's parameters, and describing one they do not declare is "
+            "refused with 422."
+            " Omit to keep the stored descriptions of the inputs still declared; null clears them."
+        ),
+    )
 
 
 class PatchCodeEvaluatorRequest(EvaluatorRequest):
@@ -132,6 +164,16 @@ class PatchCodeEvaluatorRequest(EvaluatorRequest):
     sandbox_config_id: Optional[str] = Field(default=UNDEFINED)
     input_mapping: InputMapping = Field(default=UNDEFINED)
     output_configs: list[EvaluatorOutputConfig] = Field(default=UNDEFINED, min_length=1)
+    input_schema: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description=(
+            "Describes the evaluator's inputs, in the shape input_schema is returned. Only each "
+            "property's description is stored; the inputs themselves come from the prompt's "
+            "variables or the code's parameters, and describing one they do not declare is "
+            "refused with 422."
+            " Omit to keep the stored descriptions of the inputs still declared; null clears them."
+        ),
+    )
 
 
 class CreateDecisionEvaluatorRequest(EvaluatorRequest):
@@ -178,6 +220,17 @@ class CodeEvaluatorVersionRequest(EvaluatorRequest):
         min_length=1,
         description="Outputs the new code produces. Omit to keep.",
     )
+    input_schema: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description=(
+            "Describes the evaluator's inputs, in the shape input_schema is returned. Only each "
+            "property's description is stored; the inputs themselves come from the prompt's "
+            "variables or the code's parameters, and describing one they do not declare is "
+            "refused with 422."
+            " Omit to keep the stored descriptions of the parameters the new code still declares; "
+            "null clears them."
+        ),
+    )
 
 
 class CodeEvaluatorVersion(V1RoutesBaseModel):
@@ -204,6 +257,12 @@ class CodeEvaluatorDefinition(V1RoutesBaseModel):
     output_configs: list[EvaluatorOutputConfig]
     current_version_id: Optional[str]
     source_code: Optional[str]
+    input_schema: Optional[dict[str, Any]] = Field(
+        description=(
+            "The parameters of the current version's evaluate function, with a description on "
+            "each the author described. Null without a version."
+        )
+    )
 
 
 class LLMEvaluatorDefinition(V1RoutesBaseModel):
@@ -215,6 +274,12 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     )
     prompt: LLMEvaluatorPrompt
     output_configs: list[CategoricalAnnotationConfigData]
+    input_schema: Optional[dict[str, Any]] = Field(
+        description=(
+            "The variables of the prompt version the evaluator runs, with a description on each "
+            "the author described. Null when that version cannot be resolved."
+        )
+    )
 
 
 class BuiltInEvaluatorDefinition(V1RoutesBaseModel):
@@ -305,6 +370,11 @@ def _code_evaluator_definition(
         if version
         else None,
         source_code=version.source_code if version else None,
+        input_schema=described_code_input_schema(
+            row.language, version.source_code, row.input_schema
+        )
+        if version
+        else None,
     )
 
 
@@ -332,15 +402,13 @@ def _builtin_evaluator_definition(
 def _llm_evaluator_definition(
     evaluator_id: str,
     llm: models.LLMEvaluator,
-    prompt_version_id: Optional[int],
+    prompt_version: Optional[models.PromptVersion],
 ) -> LLMEvaluatorDefinition:
-    """Build an LLM definition from its row and the id of the version it runs (the one its
-    tag pins, or, without a tag, its prompt's newest), shared by the single-item read and the
-    batched list so the two can't drift."""
+    """Build an LLM definition from its row and the version it runs (the one its tag pins,
+    or, without a tag, its prompt's newest), shared by the single-item read and the batched
+    list so the two can't drift."""
     version_id = (
-        encode_global_id("PromptVersion", prompt_version_id)
-        if (prompt_version_id is not None)
-        else None
+        encode_global_id("PromptVersion", prompt_version.id) if prompt_version is not None else None
     )
     return LLMEvaluatorDefinition(
         type="llm",
@@ -358,6 +426,9 @@ def _llm_evaluator_definition(
             CategoricalAnnotationConfigData.model_validate(config.model_dump())
             for config in llm.output_configs
         ],
+        input_schema=described_llm_input_schema(prompt_version, llm.input_schema)
+        if prompt_version is not None
+        else None,
     )
 
 
@@ -391,9 +462,7 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
     if llm is None:
         raise NotFound(f"Evaluator not found: {evaluator_id}")
     prompt_version = await resolve_evaluator_prompt_version(session, llm)
-    return _llm_evaluator_definition(
-        evaluator_id, llm, prompt_version.id if prompt_version else None
-    )
+    return _llm_evaluator_definition(evaluator_id, llm, prompt_version)
 
 
 async def _evaluator_definitions_page(
@@ -425,12 +494,12 @@ async def _evaluator_definitions_page(
         for llm in llm_by_id.values()
         if llm.prompt_version_tag_id is not None
     }
-    tagged_prompt_version_ids: dict[int, int] = {}
+    tagged_prompt_versions: dict[int, models.PromptVersion] = {}
     if tag_ids:
-        tagged_prompt_version_ids = dict(
+        tagged_prompt_versions = dict(
             (
                 await session.execute(
-                    select(models.PromptVersionTag.id, models.PromptVersion.id)
+                    select(models.PromptVersionTag.id, models.PromptVersion)
                     .join(
                         models.PromptVersion,
                         models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
@@ -445,19 +514,23 @@ async def _evaluator_definitions_page(
     untagged_prompt_ids = {
         llm.prompt_id for llm in llm_by_id.values() if llm.prompt_version_tag_id is None
     }
-    latest_prompt_version_ids: dict[int, int] = {}
+    latest_prompt_versions: dict[int, models.PromptVersion] = {}
     if untagged_prompt_ids:
-        latest_prompt_version_ids = dict(
-            (
-                await session.execute(
-                    select(models.PromptVersion.prompt_id, func.max(models.PromptVersion.id))
-                    .where(models.PromptVersion.prompt_id.in_(untagged_prompt_ids))
-                    .group_by(models.PromptVersion.prompt_id)
-                )
-            )
-            .tuples()
-            .all()
+        latest_version_ids = (
+            select(func.max(models.PromptVersion.id))
+            .where(models.PromptVersion.prompt_id.in_(untagged_prompt_ids))
+            .group_by(models.PromptVersion.prompt_id)
         )
+        latest_prompt_versions = {
+            version.prompt_id: version
+            for version in (
+                await session.scalars(
+                    select(models.PromptVersion).where(
+                        models.PromptVersion.id.in_(latest_version_ids)
+                    )
+                )
+            ).all()
+        }
 
     code_by_id: dict[int, models.CodeEvaluator] = {}
     if code_ids:
@@ -522,12 +595,12 @@ async def _evaluator_definitions_page(
             llm = llm_by_id.get(row_id)
             if llm is None:
                 raise NotFound(f"Evaluator not found: {evaluator_id}")
-            prompt_version_id = (
-                tagged_prompt_version_ids.get(llm.prompt_version_tag_id)
+            prompt_version = (
+                tagged_prompt_versions.get(llm.prompt_version_tag_id)
                 if llm.prompt_version_tag_id is not None
-                else latest_prompt_version_ids.get(llm.prompt_id)
+                else latest_prompt_versions.get(llm.prompt_id)
             )
-            definitions.append(_llm_evaluator_definition(evaluator_id, llm, prompt_version_id))
+            definitions.append(_llm_evaluator_definition(evaluator_id, llm, prompt_version))
     return definitions
 
 
@@ -630,6 +703,7 @@ async def create_evaluator(
                     description=body.description,
                     prompt_version_id=parse_global_id(body.prompt.selector.prompt_version_id),
                     output_configs=output_configs_to_db(body.output_configs),
+                    input_schema=body.input_schema,
                 ),
             )
             return EvaluatorDefinitionResponseBody(
@@ -645,6 +719,7 @@ async def create_evaluator(
                 sandbox_config_id=parse_global_id(body.sandbox_config_id),
                 input_mapping=body.input_mapping,
                 output_configs=output_configs_to_db(body.output_configs),
+                input_schema=body.input_schema,
             ),
         )
         evaluator_id = encode_global_id("CodeEvaluator", row.id)
@@ -856,6 +931,8 @@ async def create_code_evaluator_version(
             configuration["input_mapping"] = body.input_mapping
         if "output_configs" in fields:
             configuration["output_configs"] = output_configs_to_db(body.output_configs)
+        if "input_schema" in fields:
+            configuration["input_schema"] = body.input_schema
         _, version, was_created = await service.create_code_evaluator_version(
             evaluator_service_context(request),
             service.CreateCodeEvaluatorVersionInput(

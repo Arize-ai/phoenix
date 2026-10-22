@@ -14,6 +14,7 @@ import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluator
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
+  buildInputSchemaInput,
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
@@ -27,6 +28,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
@@ -72,6 +74,8 @@ type SeededLlmEvaluatorInitialState = {
   defaultMessages: PlaygroundChatTemplate["messages"];
   templateFormat: TemplateFormat;
   includeExplanation: boolean;
+  /** What each prompt variable should hold, keyed by variable name. */
+  inputDescriptions: Record<string, string>;
 };
 
 type CopiedLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
@@ -94,6 +98,8 @@ type SeededCodeEvaluatorInitialState = {
   sourceCode: string;
   sandboxConfigId: string | null;
   inputMapping: EvaluatorInputMapping;
+  /** What each `evaluate` parameter should hold, keyed by parameter name. */
+  inputDescriptions: Record<string, string>;
 };
 
 export type ProjectEvaluatorCreationMode =
@@ -121,6 +127,8 @@ export type ProjectEvaluatorCreationMode =
       requiredVariables: string[];
       /** What the project reads through while it sets no mapping of its own. */
       inputMapping: EvaluatorInputMapping;
+      /** What each parameter should hold, as the evaluator's author described it. */
+      inputDescriptions: Record<string, string>;
     };
 
 /** The slideover heading: the flow, and the kind of evaluator it creates. */
@@ -242,6 +250,7 @@ const CreateProjectEvaluatorDialog = ({
             pathMapping: {},
             literalMapping: {},
           },
+          inputDescriptions: copiedState?.inputDescriptions ?? {},
           kind: "CODE",
         },
         outputConfigs: copiedState?.outputConfigs ?? [
@@ -285,6 +294,10 @@ const CreateProjectEvaluatorDialog = ({
                 pathMapping: {},
                 literalMapping: {},
               }),
+        inputDescriptions:
+          creationMode.kind === "code"
+            ? creationMode.inputDescriptions
+            : (seededState?.inputDescriptions ?? {}),
         kind: creationMode.kind === "code" ? "CODE" : "LLM",
         includeExplanation:
           seededState?.includeExplanation ??
@@ -450,6 +463,7 @@ function AttachCodeProjectEvaluatorDialog({
       evaluatorName={creationMode.name}
       variables={creationMode.variables}
       requiredVariables={creationMode.requiredVariables}
+      canDescribeInputs={false}
       scope={scope}
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
@@ -539,6 +553,7 @@ function CreateLlmProjectEvaluatorDialog({
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
+  const { variableKeys } = useDerivedPlaygroundVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFilterValid, setIsFilterValid] = useState(true);
@@ -578,6 +593,10 @@ function CreateLlmProjectEvaluatorDialog({
         input: {
           ...llmInput,
           inputMapping: state.evaluator.inputMapping,
+          inputSchema: buildInputSchemaInput({
+            variables: variableKeys,
+            inputDescriptions: state.evaluator.inputDescriptions,
+          }),
           projectId,
           evaluationTarget: scope.targetType,
           samplingRate: scope.samplingRate,

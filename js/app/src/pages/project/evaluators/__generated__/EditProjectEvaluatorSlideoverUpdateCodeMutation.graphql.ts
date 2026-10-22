@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ebc43678fb6acda558960c1a74bb99f2>>
+ * @generated SignedSource<<bcfee19e1edf1262c7229d8b1a420e3f>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type UpdateProjectCodeEvaluatorInput = {
   evaluatorInputMapping?: EvaluatorInputMappingInput | null;
   filterCondition: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  inputSchema?: any | null;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
   projectEvaluatorId: string;

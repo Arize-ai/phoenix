@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d1e6b3d64294d865782a69741d2025bc>>
+ * @generated SignedSource<<4e6d4fc67b9af35f552ee186bb015cc7>>
  * @lightSyntaxTransform
  */
 
@@ -28,6 +28,7 @@ export type EditProjectEvaluatorSlideoverQuery$data = {
     readonly evaluationDelaySeconds: number;
     readonly evaluationTarget: EvaluationTarget;
     readonly evaluator: {
+      readonly codeInputSchema?: any | null;
       readonly description: string | null;
       readonly id: string;
       readonly inputMapping?: {
@@ -36,6 +37,7 @@ export type EditProjectEvaluatorSlideoverQuery$data = {
       };
       readonly kind: EvaluatorKind;
       readonly language?: Language;
+      readonly llmInputSchema?: any;
       readonly name: string;
       readonly outputConfigs?: ReadonlyArray<{
         readonly __typename: "CategoricalAnnotationConfig";
@@ -271,17 +273,24 @@ v14 = {
   "storageKey": null
 },
 v15 = {
+  "alias": "llmInputSchema",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "inputSchema",
+  "storageKey": null
+},
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
-    (v15/*:: as any*/),
+    (v16/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -311,36 +320,36 @@ v16 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v19 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v4/*:: as any*/),
-    (v15/*:: as any*/),
-    (v17/*:: as any*/),
-    (v18/*:: as any*/)
-  ],
-  "type": "ContinuousAnnotationConfig",
-  "abstractKey": null
-},
 v20 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
-    (v15/*:: as any*/),
+    (v16/*:: as any*/),
+    (v18/*:: as any*/),
+    (v19/*:: as any*/)
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v21 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*:: as any*/),
+    (v16/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -348,13 +357,13 @@ v20 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v17/*:: as any*/),
-    (v18/*:: as any*/)
+    (v18/*:: as any*/),
+    (v19/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -363,41 +372,41 @@ v21 = {
   "plural": true,
   "selections": [
     (v2/*:: as any*/),
-    (v16/*:: as any*/),
-    (v19/*:: as any*/),
-    (v20/*:: as any*/)
+    (v17/*:: as any*/),
+    (v20/*:: as any*/),
+    (v21/*:: as any*/)
   ],
   "storageKey": null
 },
-v22 = [
+v23 = [
   (v3/*:: as any*/),
   (v4/*:: as any*/)
 ],
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
   "plural": false,
-  "selections": (v22/*:: as any*/),
-  "storageKey": null
-},
-v24 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateFormat",
+  "selections": (v23/*:: as any*/),
   "storageKey": null
 },
 v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "parameters",
+  "name": "templateFormat",
   "storageKey": null
 },
 v26 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "parameters",
+  "storageKey": null
+},
+v27 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -411,59 +420,59 @@ v26 = {
   "type": "PromptToolRaw",
   "abstractKey": null
 },
-v27 = {
+v28 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v28 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v29 = {
+v30 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v30 = {
+v31 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v31 = {
+v32 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v32 = {
+v33 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v33 = {
+v34 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v34 = {
+v35 = {
   "kind": "InlineFragment",
   "selections": [
-    (v29/*:: as any*/),
+    (v30/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -478,9 +487,9 @@ v34 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v30/*:: as any*/),
     (v31/*:: as any*/),
     (v32/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -502,19 +511,19 @@ v34 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v33/*:: as any*/)
+    (v34/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
 },
-v35 = {
+v36 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v36 = {
+v37 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -524,9 +533,9 @@ v36 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v29/*:: as any*/),
-    (v32/*:: as any*/),
-    (v35/*:: as any*/),
+    (v30/*:: as any*/),
+    (v33/*:: as any*/),
+    (v36/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -606,15 +615,15 @@ v36 = {
       ],
       "storageKey": null
     },
-    (v33/*:: as any*/)
+    (v34/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
 },
-v37 = {
+v38 = {
   "kind": "InlineFragment",
   "selections": [
-    (v29/*:: as any*/),
+    (v30/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -622,10 +631,10 @@ v37 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
-    (v35/*:: as any*/),
-    (v31/*:: as any*/),
-    (v30/*:: as any*/),
+    (v36/*:: as any*/),
     (v32/*:: as any*/),
+    (v31/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -669,7 +678,7 @@ v37 = {
   "type": "PromptGoogleInvocationParameters",
   "abstractKey": null
 },
-v38 = {
+v39 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -679,31 +688,31 @@ v38 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v29/*:: as any*/),
-    (v32/*:: as any*/),
-    (v35/*:: as any*/)
+    (v30/*:: as any*/),
+    (v33/*:: as any*/),
+    (v36/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
 },
-v39 = {
+v40 = {
   "alias": null,
   "args": null,
   "concreteType": "GenerativeModelCustomProvider",
   "kind": "LinkedField",
   "name": "customProvider",
   "plural": false,
-  "selections": (v22/*:: as any*/),
+  "selections": (v23/*:: as any*/),
   "storageKey": null
 },
-v40 = {
+v41 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v41 = {
+v42 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponseFormatJSONSchema",
@@ -728,21 +737,21 @@ v41 = {
           "name": "schema",
           "storageKey": null
         },
-        (v40/*:: as any*/)
+        (v41/*:: as any*/)
       ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v42 = {
+v43 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v43 = {
+v44 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -814,7 +823,7 @@ v43 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v42/*:: as any*/),
+                        (v43/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -852,7 +861,7 @@ v43 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v42/*:: as any*/),
+                        (v43/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -894,7 +903,7 @@ v43 = {
   ],
   "storageKey": null
 },
-v44 = {
+v45 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptToolChoice",
@@ -919,28 +928,35 @@ v44 = {
   ],
   "storageKey": null
 },
-v45 = {
+v46 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "disableParallelToolCalls",
   "storageKey": null
 },
-v46 = {
+v47 = {
+  "alias": "codeInputSchema",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "inputSchema",
+  "storageKey": null
+},
+v48 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "sourceCode",
   "storageKey": null
 },
-v47 = {
+v49 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v48 = {
+v50 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
@@ -950,21 +966,21 @@ v48 = {
   "selections": (v11/*:: as any*/),
   "storageKey": null
 },
-v49 = {
+v51 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v50 = {
+v52 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "supportedLanguages",
   "storageKey": null
 },
-v51 = {
+v53 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
@@ -975,7 +991,7 @@ v51 = {
     (v3/*:: as any*/),
     (v4/*:: as any*/),
     (v14/*:: as any*/),
-    (v47/*:: as any*/),
+    (v49/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1052,7 +1068,7 @@ v51 = {
   ],
   "storageKey": null
 },
-v52 = {
+v54 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxBackendInfo",
@@ -1060,7 +1076,7 @@ v52 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v49/*:: as any*/),
+    (v51/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1092,7 +1108,7 @@ v52 = {
   ],
   "storageKey": null
 },
-v53 = {
+v55 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -1101,9 +1117,9 @@ v53 = {
   "plural": true,
   "selections": [
     (v2/*:: as any*/),
-    (v16/*:: as any*/),
-    (v19/*:: as any*/),
+    (v17/*:: as any*/),
     (v20/*:: as any*/),
+    (v21/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": (v11/*:: as any*/),
@@ -1156,8 +1172,9 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v21/*:: as any*/),
-                      (v23/*:: as any*/),
+                      (v15/*:: as any*/),
+                      (v22/*:: as any*/),
+                      (v24/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -1178,7 +1195,7 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -1207,7 +1224,7 @@ return {
                                         "name": "function",
                                         "plural": false,
                                         "selections": [
-                                          (v25/*:: as any*/)
+                                          (v26/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -1215,7 +1232,7 @@ return {
                                     "type": "PromptToolFunction",
                                     "abstractKey": null
                                   },
-                                  (v26/*:: as any*/)
+                                  (v27/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -1227,8 +1244,8 @@ return {
                             "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
                             "selections": [
                               (v3/*:: as any*/),
-                              (v27/*:: as any*/),
                               (v28/*:: as any*/),
+                              (v29/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1242,10 +1259,10 @@ return {
                                     "name": "PromptInvocationParametersReadableFragment",
                                     "selections": [
                                       (v2/*:: as any*/),
-                                      (v34/*:: as any*/),
-                                      (v36/*:: as any*/),
+                                      (v35/*:: as any*/),
                                       (v37/*:: as any*/),
-                                      (v38/*:: as any*/)
+                                      (v38/*:: as any*/),
+                                      (v39/*:: as any*/)
                                     ],
                                     "args": null,
                                     "argumentDefinitions": []
@@ -1253,9 +1270,9 @@ return {
                                 ],
                                 "storageKey": null
                               },
-                              (v39/*:: as any*/),
-                              (v41/*:: as any*/),
-                              (v43/*:: as any*/),
+                              (v40/*:: as any*/),
+                              (v42/*:: as any*/),
+                              (v44/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1286,8 +1303,8 @@ return {
                                             "selections": [
                                               (v4/*:: as any*/),
                                               (v14/*:: as any*/),
-                                              (v25/*:: as any*/),
-                                              (v40/*:: as any*/)
+                                              (v26/*:: as any*/),
+                                              (v41/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -1295,12 +1312,12 @@ return {
                                         "type": "PromptToolFunction",
                                         "abstractKey": null
                                       },
-                                      (v26/*:: as any*/)
+                                      (v27/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
-                                  (v44/*:: as any*/),
-                                  (v45/*:: as any*/)
+                                  (v45/*:: as any*/),
+                                  (v46/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -1318,11 +1335,12 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v46/*:: as any*/),
                       (v47/*:: as any*/),
                       (v48/*:: as any*/),
+                      (v49/*:: as any*/),
+                      (v50/*:: as any*/),
                       (v10/*:: as any*/),
-                      (v21/*:: as any*/)
+                      (v22/*:: as any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -1345,14 +1363,14 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v49/*:: as any*/),
-          (v50/*:: as any*/),
+          (v51/*:: as any*/),
+          (v52/*:: as any*/),
           (v9/*:: as any*/),
-          (v51/*:: as any*/)
+          (v53/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v52/*:: as any*/)
+      (v54/*:: as any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -1400,8 +1418,9 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v53/*:: as any*/),
-                      (v23/*:: as any*/),
+                      (v15/*:: as any*/),
+                      (v55/*:: as any*/),
+                      (v24/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -1423,7 +1442,7 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -1452,10 +1471,10 @@ return {
                                         "name": "function",
                                         "plural": false,
                                         "selections": [
-                                          (v25/*:: as any*/),
+                                          (v26/*:: as any*/),
                                           (v4/*:: as any*/),
                                           (v14/*:: as any*/),
-                                          (v40/*:: as any*/)
+                                          (v41/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -1463,18 +1482,18 @@ return {
                                     "type": "PromptToolFunction",
                                     "abstractKey": null
                                   },
-                                  (v26/*:: as any*/)
+                                  (v27/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
-                              (v44/*:: as any*/),
-                              (v45/*:: as any*/)
+                              (v45/*:: as any*/),
+                              (v46/*:: as any*/)
                             ],
                             "storageKey": null
                           },
                           (v3/*:: as any*/),
-                          (v27/*:: as any*/),
                           (v28/*:: as any*/),
+                          (v29/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -1488,16 +1507,16 @@ return {
                                 "kind": "TypeDiscriminator",
                                 "abstractKey": "__isPromptInvocationParameters"
                               },
-                              (v34/*:: as any*/),
-                              (v36/*:: as any*/),
+                              (v35/*:: as any*/),
                               (v37/*:: as any*/),
-                              (v38/*:: as any*/)
+                              (v38/*:: as any*/),
+                              (v39/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v39/*:: as any*/),
-                          (v41/*:: as any*/),
-                          (v43/*:: as any*/)
+                          (v40/*:: as any*/),
+                          (v42/*:: as any*/),
+                          (v44/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -1508,11 +1527,12 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v46/*:: as any*/),
                       (v47/*:: as any*/),
                       (v48/*:: as any*/),
+                      (v49/*:: as any*/),
+                      (v50/*:: as any*/),
                       (v10/*:: as any*/),
-                      (v53/*:: as any*/)
+                      (v55/*:: as any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -1535,28 +1555,28 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v49/*:: as any*/),
-          (v50/*:: as any*/),
-          (v9/*:: as any*/),
           (v51/*:: as any*/),
+          (v52/*:: as any*/),
+          (v9/*:: as any*/),
+          (v53/*:: as any*/),
           (v3/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v52/*:: as any*/)
+      (v54/*:: as any*/)
     ]
   },
   "params": {
-    "cacheID": "dfbc42a734e7929d5f33c7a835070839",
+    "cacheID": "15b8257253fc497acc44a4607371be44",
     "id": null,
     "metadata": {},
     "name": "EditProjectEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query EditProjectEvaluatorSlideoverQuery(\n  $projectEvaluatorId: ID!\n) {\n  projectEvaluator: node(id: $projectEvaluatorId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      evaluationDelaySeconds\n      enabled\n      inputMapping {\n        pathMapping\n        literalMapping\n      }\n      project {\n        id\n      }\n      evaluator {\n        __typename\n        id\n        kind\n        name\n        description\n        ... on LLMEvaluator {\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          prompt {\n            id\n            name\n          }\n          promptVersionTag {\n            name\n            id\n          }\n          promptVersion {\n            templateFormat\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    parameters\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n            }\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          sourceCode\n          language\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            pathMapping\n            literalMapping\n          }\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "query EditProjectEvaluatorSlideoverQuery(\n  $projectEvaluatorId: ID!\n) {\n  projectEvaluator: node(id: $projectEvaluatorId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      evaluationDelaySeconds\n      enabled\n      inputMapping {\n        pathMapping\n        literalMapping\n      }\n      project {\n        id\n      }\n      evaluator {\n        __typename\n        id\n        kind\n        name\n        description\n        ... on LLMEvaluator {\n          llmInputSchema: inputSchema\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          prompt {\n            id\n            name\n          }\n          promptVersionTag {\n            name\n            id\n          }\n          promptVersion {\n            templateFormat\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    parameters\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n            }\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          codeInputSchema: inputSchema\n          sourceCode\n          language\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            pathMapping\n            literalMapping\n          }\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "10089195314ab608b30a38c1cfe6f77c";
+(node as any).hash = "1350731039f24eb79b76b0f4150be2eb";
 
 export default node;

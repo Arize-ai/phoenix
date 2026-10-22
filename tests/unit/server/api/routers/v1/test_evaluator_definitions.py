@@ -115,6 +115,18 @@ def test_evaluator_definition_schema() -> None:
     for name in ("PatchLLMEvaluatorRequest", "PatchCodeEvaluatorRequest"):
         assert schemas[name]["minProperties"] == 2, name
 
+    for name in ("CodeEvaluatorDefinition", "LLMEvaluatorDefinition"):
+        assert "input_schema" in schemas[name]["required"], name
+    for name in (
+        "CreateLLMEvaluatorRequest",
+        "PatchLLMEvaluatorRequest",
+        "CreateCodeEvaluatorRequest",
+        "PatchCodeEvaluatorRequest",
+        "CodeEvaluatorVersionRequest",
+    ):
+        assert "input_schema" in schemas[name]["properties"], name
+        assert "input_schema" not in schemas[name].get("required", []), name
+
     version_request = schemas["CodeEvaluatorVersionRequest"]
     assert version_request["required"] == ["source_code"]
     assert {
@@ -123,6 +135,7 @@ def test_evaluator_definition_schema() -> None:
         "sandbox_config_id",
         "input_mapping",
         "output_configs",
+        "input_schema",
     } <= set(version_request["properties"])
     create_request = schemas["CreateCodeEvaluatorRequest"]
     assert set(create_request["required"]) == {
@@ -391,6 +404,122 @@ async def test_untagged_llm_definition_follows_its_prompts_latest_version(
         "type": "version",
         "prompt_version_id": latest,
     }
+
+
+async def test_code_definition_input_schema_round_trip(
+    httpx_client: httpx.AsyncClient,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """A code definition reads its parameters with their descriptions; a patch rewrites
+    them, and a deploy keeps the ones the new signature still declares."""
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "code",
+            "name": f"described-{token_hex(4)}",
+            "source_code": "def evaluate(output, expected=None):\n    return {'score': 1.0}",
+            "language": sandbox_config.language,
+            "sandbox_config_id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "output_configs": [_SCORE_JSON],
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "output": {"description": "The answer."},
+                    "expected": {"description": "The reference."},
+                },
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    definition = response.json()["data"]
+    assert definition["input_schema"] == {
+        "type": "object",
+        "properties": {
+            "output": {"description": "The answer."},
+            "expected": {"description": "The reference."},
+        },
+        "required": ["output"],
+    }
+    route = f"v1/evaluators/{definition['id']}"
+
+    refused = await httpx_client.patch(
+        route,
+        json={
+            "type": "code",
+            "input_schema": {"properties": {"missing": {"description": "x"}}},
+        },
+    )
+    assert refused.status_code == 422, refused.text
+    assert "does not declare: missing" in refused.text
+
+    patched = await httpx_client.patch(
+        route,
+        json={
+            "type": "code",
+            "input_schema": {"properties": {"output": {"description": "The reply."}}},
+        },
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["data"]["input_schema"]["properties"] == {
+        "output": {"description": "The reply."},
+        "expected": {},
+    }
+
+    deployed = await httpx_client.post(
+        f"{route}/versions",
+        json={"source_code": "def evaluate(output, context):\n    return {'score': 0.0}"},
+    )
+    assert deployed.status_code == 201, deployed.text
+    read = await httpx_client.get(route)
+    assert read.status_code == 200, read.text
+    assert read.json()["data"]["input_schema"] == {
+        "type": "object",
+        "properties": {"output": {"description": "The reply."}, "context": {}},
+        "required": ["output", "context"],
+    }
+
+
+async def test_llm_definition_input_schema_round_trip(
+    httpx_client: httpx.AsyncClient,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """An LLM definition reads its prompt's variables with their descriptions, which a
+    patch can set and clear."""
+    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(correctness_llm_evaluator.id))}"
+
+    read = await httpx_client.get(route)
+    assert read.status_code == 200, read.text
+    schema = read.json()["data"]["input_schema"]
+    assert schema["type"] == "object"
+    variables = list(schema["properties"])
+    assert variables
+    assert not any("description" in prop for prop in schema["properties"].values())
+
+    described = variables[0]
+    patched = await httpx_client.patch(
+        route,
+        json={
+            "type": "llm",
+            "input_schema": {"properties": {described: {"description": "The response."}}},
+        },
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["data"]["input_schema"]["properties"][described] == {
+        **schema["properties"][described],
+        "description": "The response.",
+    }
+
+    refused = await httpx_client.patch(
+        route,
+        json={"type": "llm", "input_schema": {"properties": {"missing": {"description": "x"}}}},
+    )
+    assert refused.status_code == 422, refused.text
+    assert "does not declare: missing" in refused.text
+
+    cleared = await httpx_client.patch(route, json={"type": "llm", "input_schema": None})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["data"]["input_schema"] == schema
 
 
 async def _add_llm_evaluator(

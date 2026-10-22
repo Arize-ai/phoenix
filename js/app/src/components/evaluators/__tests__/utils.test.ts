@@ -1,7 +1,9 @@
 import { vi } from "vitest";
 
 import {
+  buildInputSchemaInput,
   createLLMEvaluatorPayload,
+  getInputDescriptionsFromSchema,
   normalizeInputMapping,
   updateLLMEvaluatorPayload,
 } from "../utils";
@@ -79,5 +81,41 @@ describe("LLM evaluator payloads", () => {
       pathMapping: {},
       literalMapping: { somevar: "foo" },
     });
+  });
+});
+
+describe("buildInputSchemaInput", () => {
+  it("lists every declared input and describes the ones with text", () => {
+    expect(
+      buildInputSchemaInput({
+        variables: ["input", "output"],
+        inputDescriptions: { output: "  The response.  ", removed: "Gone" },
+      })
+    ).toEqual({
+      type: "object",
+      properties: { input: {}, output: { description: "The response." } },
+    });
+  });
+});
+
+describe("getInputDescriptionsFromSchema", () => {
+  it("reads non-empty string descriptions by input name", () => {
+    expect(
+      getInputDescriptionsFromSchema({
+        type: "object",
+        properties: {
+          input: { type: "string", description: "The question." },
+          context: {},
+          blank: { description: "  " },
+          wrong: { description: 3 },
+        },
+      })
+    ).toEqual({ input: "The question." });
+  });
+
+  it("ignores anything that is not a schema object", () => {
+    expect(getInputDescriptionsFromSchema(null)).toEqual({});
+    expect(getInputDescriptionsFromSchema("x")).toEqual({});
+    expect(getInputDescriptionsFromSchema({ properties: [] })).toEqual({});
   });
 });

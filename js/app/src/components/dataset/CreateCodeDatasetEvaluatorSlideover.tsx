@@ -205,6 +205,7 @@ const CreateCodeEvaluatorDialog = ({
         kind: "CODE",
         isBuiltin: false,
         includeExplanation: false,
+        inputDescriptions: {},
       },
       outputConfigs: [createDefaultFreeformOutputConfig("")],
       dataset: {

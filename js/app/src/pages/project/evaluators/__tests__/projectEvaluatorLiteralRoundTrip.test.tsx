@@ -74,6 +74,7 @@ describe("a project evaluator's stored literal mapping", () => {
               description: "",
               isBuiltin: false,
               includeExplanation: false,
+              inputDescriptions: {},
               inputMapping: {
                 pathMapping: { input: "metadata.attributes.input.value" },
                 literalMapping,
