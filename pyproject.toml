@@ -434,7 +434,6 @@ exclude = [
   ".cursor/**/*.md",
   ".github/**/*.md",
   "AGENTS.md",
-  "CLAUDE.md",
   # Vendored fork of nalgeon/sqlean.py — keep formatting identical to upstream
   # so diffs against the imported source stay reviewable.
   "packages/phoenix-sqlean",
