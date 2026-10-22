@@ -25,12 +25,16 @@ class EvaluatorLabelCount:
     count: int = 0
 
 
-@strawberry.type(description="Independent distribution of a project evaluator's primary result.")
+@strawberry.type(description="Independent distribution of one of a project evaluator's results.")
 class EvaluatorDistribution:
     evaluated_count: int = strawberry.field(
         description=(
-            "Targets with an annotation in range, including results without scores or labels."
+            "Targets with an annotation in range, including results without scores or labels. "
+            "Excludes decision refusals."
         )
+    )
+    refused_count: int = strawberry.field(
+        description="Targets whose annotation in range is a decision refusal."
     )
     threshold: Optional[float] = strawberry.field(
         description="The configured score flag threshold, or null for categorical outputs."
@@ -90,6 +94,7 @@ async def resolve_evaluator_distribution(
     binning = make_side_binning(annotation_name, config, None)
     return EvaluatorDistribution(
         evaluated_count=summary.evaluated_count,
+        refused_count=summary.refused_count,
         threshold=binning.threshold if binning.is_thresholded else None,
         mean_score=summary.mean_score,
         score_bin_edges=summary.score_bin_edges,
