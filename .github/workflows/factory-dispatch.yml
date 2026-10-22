@@ -65,7 +65,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
           # Mounted as the session's github_repository token. Code in the sandbox can use it
           # for the whole session, so it must belong to a non-admin machine account, scoped
-          # to this repo with Contents and Pull requests read/write and no Workflows access.
+          # to this repo with Contents, Issues and Pull requests read/write and no Workflows access.
           FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
           FACTORY_LOGIN: ${{ vars.FACTORY_LOGIN }}
           LANE: ${{ inputs.lane }}
