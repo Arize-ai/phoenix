@@ -138,6 +138,10 @@ claude-lock.json written by ant apply - commit it
 7. Create the `factory` label, and make `Factory Guard` a required check on `main`.
 8. Try it on one small issue with **Run workflow** on `Factory Dispatch`.
 
+## Switching workspaces
+
+Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the lock in a PR that touches `factory/`; merging it recreates every resource in the new workspace. Then repeat step 4 for the new vault.
+
 ## Changing an agent
 
 Edit its file and open a PR. The sync workflow prints the plan, and merging applies it as a new agent version.
