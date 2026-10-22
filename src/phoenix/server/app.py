@@ -195,6 +195,7 @@ from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
+    from opentelemetry._logs import LoggerProvider
     from opentelemetry.trace import TracerProvider
 
     from phoenix.config import LDAPConfig
@@ -1115,19 +1116,6 @@ def create_app(
         if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
         else None
     )
-    # FastAPI's native OpenTelemetry support. Request spans and log events go only to
-    # Phoenix's own providers (when server instrumentation or log export is enabled),
-    # never to global providers that a host process may have configured. Metrics stay
-    # off because the server exposes its metrics through Prometheus instead.
-    telemetry: TelemetryConfig = {"metrics": False}
-    if tracer_provider is not None:
-        telemetry["tracer_provider"] = tracer_provider
-    else:
-        telemetry["tracing"] = False
-    if logger_provider is not None:
-        telemetry["logger_provider"] = logger_provider
-    else:
-        telemetry["logs"] = False
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -1163,7 +1151,9 @@ def create_app(
             AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
-        telemetry=telemetry,
+        telemetry=_native_telemetry_config(
+            tracer_provider=tracer_provider, logger_provider=logger_provider
+        ),
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
@@ -1451,6 +1441,30 @@ def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfi
             f"OAuth2 identity provider names cannot use reserved authorization server paths: "
             f"{names}. Reserved names: {reserved}."
         )
+
+
+def _native_telemetry_config(
+    *,
+    tracer_provider: Optional["TracerProvider"],
+    logger_provider: Optional["LoggerProvider"],
+) -> TelemetryConfig:
+    """Configure FastAPI's native OpenTelemetry support.
+
+    Request spans and log events go only to Phoenix's own providers (when server
+    instrumentation or log export is enabled), never to global providers that a host
+    process may have configured. Metrics stay off because the server exposes its
+    metrics through Prometheus instead.
+    """
+    config: TelemetryConfig = {"metrics": False}
+    if tracer_provider is not None:
+        config["tracer_provider"] = tracer_provider
+    else:
+        config["tracing"] = False
+    if logger_provider is not None:
+        config["logger_provider"] = logger_provider
+    else:
+        config["logs"] = False
+    return config
 
 
 def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
