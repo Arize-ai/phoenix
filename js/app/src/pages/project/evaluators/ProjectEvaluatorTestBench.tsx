@@ -8,16 +8,17 @@ import { useShallow } from "zustand/react/shallow";
 
 import {
   Button,
+  EdgeFade,
   Flex,
   Heading,
   Icon,
   Icons,
   ListBox,
-  Loading,
   Popover,
   Select,
   SelectItem,
   SelectValue,
+  Skeleton,
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
@@ -31,6 +32,7 @@ import {
   GRIP_RESIZE_TARGET_MINIMUM_SIZE,
   GripResizeHandle,
 } from "@phoenix/components/resize";
+import { TableSkeleton } from "@phoenix/components/table";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
@@ -304,8 +306,17 @@ export function ProjectEvaluatorTestBenchFallback({
           Test all
         </Button>
       </TestBenchHeader>
-      <div className="test-bench__loading">
-        <Loading message={`Loading ${records}…`} />
+      <div
+        className="test-bench__loading"
+        role="status"
+        aria-label={`Loading ${records}`}
+      >
+        <div className="test-bench__loading-records">
+          <TableSkeleton rowCount="fill" aria-hidden />
+        </div>
+        <EdgeFade edge="bottom" className="test-bench__loading-inspector">
+          <Skeleton height="100%" borderRadius="medium" aria-hidden />
+        </EdgeFade>
       </div>
     </div>
   );
@@ -483,9 +494,20 @@ const benchCSS = css`
   }
   .test-bench__loading {
     flex: 1 1 auto;
+    min-height: 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+  }
+  .test-bench__loading-records {
+    flex: 0 0 55%;
+    min-height: ${RECORDS_PANEL_MIN_SIZE};
+    display: flex;
+    flex-direction: column;
+  }
+  .test-bench__loading-inspector {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: var(--global-dimension-size-200);
   }
 `;
 

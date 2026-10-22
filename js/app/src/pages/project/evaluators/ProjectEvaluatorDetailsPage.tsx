@@ -26,12 +26,16 @@ import {
   TimeRangeProvider,
   useTimeRange,
 } from "@phoenix/components/datetime";
-import { CodeEvaluatorVersions } from "@phoenix/components/evaluators/CodeEvaluatorVersions";
+import {
+  CodeDatasetEvaluatorVersionsSkeleton,
+  CodeEvaluatorVersions,
+} from "@phoenix/components/evaluators/CodeEvaluatorVersions";
 import {
   evaluatorSplitContainerCSS,
   evaluatorSplitLayoutCSS,
 } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { TopNavActions } from "@phoenix/components/nav";
+import { TableSkeleton } from "@phoenix/components/table";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
@@ -237,13 +241,15 @@ function ProjectEvaluatorDetailsPageContent({
         </LazyTabPanel>
         {codeEvaluatorId != null && (
           <LazyTabPanel id="versions">
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
               <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
             </Suspense>
           </LazyTabPanel>
         )}
         <LazyTabPanel id="traces">
-          <Suspense fallback={<Loading />}>
+          <Suspense
+            fallback={<TableSkeleton hasToolbar isSelectable rowCount="fill" />}
+          >
             <ProjectEvaluatorTraces
               projectId={projectEvaluator.traceProject.id}
               projectEvaluatorId={projectEvaluator.id}
