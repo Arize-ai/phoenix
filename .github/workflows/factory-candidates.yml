@@ -1,0 +1,58 @@
+name: Factory Candidates
+
+# Claude Issue Triage labels the issues the factory could take `factory-candidate`, but a label
+# a workflow adds with its GITHUB_TOKEN starts no other workflow. So after each triage run this
+# dispatches Factory Dispatch for the candidates whose author has write access; dispatch.py
+# checks that author again before it starts a session. Every other candidate waits for a
+# maintainer to add the `factory` label.
+on:
+  workflow_run:
+    workflows: [Claude Issue Triage]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-candidates
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # gh workflow run
+      issues: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      # Each run can spend up to dispatch.py's --budget-cents, so cap the runs per triage.
+      MAX_DISPATCHES: 3
+    steps:
+      - name: Dispatch candidates written by someone with write access
+        run: |
+          DISPATCHED=0
+          for ISSUE in $(gh issue list --search 'label:factory-candidate -label:factory sort:created-asc' \
+            --state open --limit 100 --json number --jq '.[].number'); do
+            if [ "$DISPATCHED" -ge "$MAX_DISPATCHES" ]; then
+              echo "Dispatched $MAX_DISPATCHES; the other candidates wait for the next triage run."
+              break
+            fi
+            # Every factory run comments on its issue, so a 🏭 comment means the factory already
+            # had a go at it. Running it again is a maintainer's call: re-add the `factory` label.
+            read -r AUTHOR PAST_RUNS < <(gh issue view "$ISSUE" --json author,comments \
+              --jq '[.author.login, ([.comments[] | select(.body | startswith("🏭 The factory"))] | length)] | @tsv')
+            if [ "$PAST_RUNS" -gt 0 ]; then
+              echo "#$ISSUE: skipped, the factory already ran on it"
+              continue
+            fi
+            PERMISSION=$(gh api "repos/$GH_REPO/collaborators/$AUTHOR/permission" --jq .permission 2> /dev/null || echo none)
+            if [ "$PERMISSION" != admin ] && [ "$PERMISSION" != write ]; then
+              echo "#$ISSUE: skipped, $AUTHOR has $PERMISSION access; a maintainer can add the factory label"
+              continue
+            fi
+            gh workflow run factory-dispatch.yml -f issue="$ISSUE"
+            echo "#$ISSUE: dispatched, written by $AUTHOR"
+            DISPATCHED=$((DISPATCHED + 1))
+          done
