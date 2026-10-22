@@ -35,6 +35,9 @@ env:
 jobs:
   regression:
     name: PXI Regression Evals
+    # Secrets are not available to forks; skip rather than fail. Without them
+    # the run can only probe localhost and report an unmeasurable gate.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
