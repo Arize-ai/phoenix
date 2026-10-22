@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 import pytest
 
-from phoenix.evals.llm.wrapper import generate_classification_schema
+from phoenix.evals.llm.llm import generate_classification_schema
 
 
 class TestGenerateClassificationSchema:
@@ -274,3 +274,25 @@ class TestGenerateClassificationSchema:
         required = schema["required"]
         assert isinstance(required, list)
         assert "label" in required
+
+
+def test_wrapper_shim_backward_compatibility():
+    """Verify that phoenix.evals.llm.wrapper continues to export all public symbols."""
+    from phoenix.evals.llm.llm import (
+        LLM,
+        generate_classification_schema,
+        show_provider_availability,
+    )
+    from phoenix.evals.llm.wrapper import (
+        LLM as ShimLLM,
+    )
+    from phoenix.evals.llm.wrapper import (
+        generate_classification_schema as shim_generate_schema,
+    )
+    from phoenix.evals.llm.wrapper import (
+        show_provider_availability as shim_show_availability,
+    )
+
+    assert ShimLLM is LLM
+    assert shim_generate_schema is generate_classification_schema
+    assert shim_show_availability is show_provider_availability
