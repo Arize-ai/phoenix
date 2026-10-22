@@ -57,6 +57,10 @@ async function renderError(error: string) {
 }
 
 function jsonText() {
+  const editor = container.querySelector(".cm-editor");
+  expect(editor).not.toBeNull();
+  expect(getComputedStyle(editor!).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(container.querySelector(".cm-gutters")).toBeNull();
   return Array.from(container.querySelectorAll(".cm-content .cm-line"))
     .map((line) => line.textContent)
     .join("\n");

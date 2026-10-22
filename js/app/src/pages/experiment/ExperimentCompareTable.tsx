@@ -1006,11 +1006,21 @@ function RunError({ error, height }: { error: string; height: number }) {
               aria-label="Error"
               css={css`
                 flex-shrink: 0;
+                /* Match the top padding of CodeMirror's first line. */
+                margin-top: ${textType === "json" ? "4px" : "0"};
               `}
             />
             <View flex="1" minWidth={0}>
-              {preserveOriginalJSON ? (
-                <JSONBlock value={error} />
+              {textType === "json" ? (
+                <JSONBlock
+                  value={preserveOriginalJSON ? error : text}
+                  css={css`
+                    .cm-editor {
+                      background: transparent !important;
+                    }
+                  `}
+                  basicSetup={{ lineNumbers: false, foldGutter: false }}
+                />
               ) : (
                 <PrettyText>{error}</PrettyText>
               )}
