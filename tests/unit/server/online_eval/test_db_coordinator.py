@@ -20,6 +20,7 @@ from phoenix.server.online_eval.coordinator import (
     TERMINAL_METRICS_WINDOW_SECONDS,
     EndedWorkCounts,
     PublicationClaimLostError,
+    PublicationEvaluatorDisabledError,
 )
 from phoenix.server.online_eval.db_coordinator import (
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
@@ -888,7 +889,7 @@ async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory
     async def _write(session: AsyncSession) -> None:
         wrote.set()
 
-    with pytest.raises(PublicationClaimLostError, match="disabled"):
+    with pytest.raises(PublicationEvaluatorDisabledError):
         await coordinator.publish(
             work_unit_id=unit_id,
             claimed_by=claim.claimed_by,
