@@ -89,7 +89,7 @@ from phoenix.server.evaluators.results.annotations import (
     EVALUATOR_RESULT_LEVELS,
     evaluator_annotation_rows,
     latest_evaluator_annotations,
-    primary_result_annotation,
+    result_annotation,
 )
 from phoenix.server.evaluators.results.comparison import (
     ComparisonAccumulator,
@@ -2426,11 +2426,13 @@ class Project(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Compare two of this project's evaluators over one shared population: "
-            "entities in the time range evaluated by both. Returns coverage, a "
-            "confusion matrix over binned labels, and agreement statistics. Time "
-            "filtering follows the annotation metrics fields: spans and traces "
-            "filter on trace start time, sessions on session start time."
+            "Compare two outputs of this project's evaluators over one shared population: "
+            "entities in the time range evaluated under both. Each side uses its evaluator's "
+            "primary output unless annotationNameA or annotationNameB names another of its "
+            "outputs, so both sides may be one evaluator. Returns coverage, a confusion matrix "
+            "over binned labels, and agreement statistics. Time filtering follows the "
+            "annotation metrics fields: spans and traces filter on trace start time, sessions "
+            "on session start time."
         )
     )
     async def evaluator_comparison(
@@ -2441,6 +2443,8 @@ class Project(Node):
         time_range: TimeRange,
         threshold_a: Optional[float] = None,
         threshold_b: Optional[float] = None,
+        annotation_name_a: Optional[str] = None,
+        annotation_name_b: Optional[str] = None,
     ) -> ProjectEvaluatorComparison:
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -2449,8 +2453,6 @@ class Project(Node):
             rowid_b = from_global_id_with_expected_type(evaluator_b_id, ProjectEvaluator.__name__)
         except ValueError:
             raise BadRequest("Evaluator IDs must be ProjectEvaluator IDs")
-        if rowid_a == rowid_b:
-            raise BadRequest("Select two different evaluators to compare")
 
         record_a, record_b = await info.context.data_loaders.project_evaluator_by_id.load_many(
             [rowid_a, rowid_b]
@@ -2472,10 +2474,14 @@ class Project(Node):
         ) = await info.context.data_loaders.evaluator_by_id.load_many(
             [record_a.evaluator_id, record_b.evaluator_id]
         )
-        name_a, config_a = primary_result_annotation(record_a, evaluator_orm_a)
-        name_b, config_b = primary_result_annotation(record_b, evaluator_orm_b)
+        name_a, config_a = result_annotation(record_a, evaluator_orm_a, annotation_name_a)
+        name_b, config_b = result_annotation(record_b, evaluator_orm_b, annotation_name_b)
         if name_a == name_b:
-            raise BadRequest("The selected evaluators write results under the same annotation name")
+            raise BadRequest(
+                "Select two different evaluators or outputs to compare"
+                if rowid_a == rowid_b
+                else "The selected evaluators write results under the same annotation name"
+            )
 
         binning_a = make_side_binning(name_a, config_a, threshold_a)
         binning_b = make_side_binning(name_b, config_b, threshold_b)
