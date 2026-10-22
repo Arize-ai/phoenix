@@ -1,12 +1,30 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getMergedOptions } from "../src";
+import { createClient, getMergedOptions } from "../src";
 import { defaultGetEnvironmentOptions } from "../src/config";
 
 describe("Phoenix client configuration", () => {
   beforeEach(() => {
     // Reset process.env before each test
     process.env = {};
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("creates an explicitly configured client when process is absent", () => {
+    vi.stubGlobal("process", undefined);
+    const client = createClient({
+      getEnvironmentOptions: () => ({}),
+      options: {
+        baseUrl: "https://phoenix.example.com",
+        fetch: async () => new Response("20.0.0"),
+      },
+    });
+    vi.unstubAllGlobals();
+
+    expect(client.config.baseUrl).toBe("https://phoenix.example.com");
   });
 
   describe("environment parsing", () => {
