@@ -24,6 +24,7 @@ from phoenix.server.agents.capabilities import (
     PhoenixMCPCapability,
     PhoenixMCPToolset,
     SubagentCapability,
+    ToolResultLimitCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
     build_github_mcp_capability,
@@ -213,6 +214,11 @@ def build_agent(
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base,
-        capabilities=[traced_capability, NativeToolRetryCapability()],
+        capabilities=[
+            traced_capability,
+            NativeToolRetryCapability(),
+            # Bounds the result of every tool this agent calls.
+            ToolResultLimitCapability(),
+        ],
     )
     return agent

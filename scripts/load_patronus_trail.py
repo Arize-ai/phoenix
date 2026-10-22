@@ -436,7 +436,8 @@ def _load_source(
     scores_on_trace: bool,
     mapper: IdMapper,
     project: str | None = None,
-) -> None:
+) -> dict[str, set[str]]:
+    """Load one source; return the identifiers of the span and trace annotations posted."""
     project = project or SOURCES[source][1]
     _ensure_project(client, project)
 
@@ -505,6 +506,10 @@ def _load_source(
         n_trace_annos,
         project,
     )
+    return {
+        "span": {anno["identifier"] for anno in pending_span_annos},
+        "trace": {anno["identifier"] for anno in pending_trace_annos},
+    }
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -557,6 +562,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Phoenix project to load into (default: trail-gaia / trail-swebench per source)",
     )
+    p.add_argument(
+        "--posted-annotations",
+        type=Path,
+        default=None,
+        help="write the identifiers of every span and trace annotation posted to this "
+        "JSON file, so a caller can check that each one was stored",
+    )
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 
@@ -573,8 +585,9 @@ def main(argv: list[str] | None = None) -> int:
 
     client = Client()
     mapper = IdMapper(regenerate=args.regenerate_ids)
+    posted: dict[str, set[str]] = {"span": set(), "trace": set()}
     for s in sources:
-        _load_source(
+        identifiers = _load_source(
             client,
             s,
             args.input,
@@ -584,6 +597,12 @@ def main(argv: list[str] | None = None) -> int:
             scores_on_trace=args.scores_on_trace,
             project=args.project,
             mapper=mapper,
+        )
+        for kind, values in identifiers.items():
+            posted[kind] |= values
+    if args.posted_annotations is not None:
+        args.posted_annotations.write_text(
+            json.dumps({kind: sorted(values) for kind, values in posted.items()})
         )
     return 0
 

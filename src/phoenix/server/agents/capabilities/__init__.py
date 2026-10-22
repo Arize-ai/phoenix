@@ -19,6 +19,9 @@ from phoenix.server.agents.capabilities.phoenix_mcp import (
     PhoenixMCPToolset,
 )
 from phoenix.server.agents.capabilities.subagent import SubagentCapability
+from phoenix.server.agents.capabilities.tool_result_limit import (
+    ToolResultLimitCapability,
+)
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
     get_external_tool_definition,
@@ -35,6 +38,7 @@ __all__ = [
     "PhoenixMCPCapability",
     "PhoenixMCPToolset",
     "SubagentCapability",
+    "ToolResultLimitCapability",
     "UIContextsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
