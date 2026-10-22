@@ -59,6 +59,12 @@ jobs:
       - name: Install the Anthropic SDK
         run: pip install --quiet "anthropic==1.12.1"
 
+      # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
+      - name: Pull claude-lock.json
+        run: |
+          git fetch --quiet --depth=1 origin factory-state
+          git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
+
       - name: Start session
         id: start
         env:
