@@ -106,21 +106,45 @@ async def test_sandbox_providers_returns_nested_configs(
         SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
     )
     assert provider_result["enabled"] is True
-    assert provider_result["configs"] == [
-        {
-            "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
-            "name": sandbox_config.name.root,
-            "description": sandbox_config.description,
-            "language": sandbox_config.language,
-            "timeout": sandbox_config.timeout,
-            "enabled": sandbox_config.enabled,
-            "config": {
-                "envVars": [],
-                "internetAccess": None,
-                "dependencies": None,
-            },
-        }
-    ]
+
+    # The provider nests exactly its own configs and no other provider's. The
+    # expected ids are read back from the database rather than spelled out,
+    # because the startup seeder adds a default config for every auto-seedable
+    # adapter whose SDK is importable: a developer with the sandbox extras
+    # installed sees rows here that a bare install does not, and naming the
+    # fixture's config as the only element makes the test pass or fail on which
+    # extras happen to be present. Compare sorted lists rather than sets, so a
+    # resolver that emitted a row more than once would still be caught.
+    async with db() as session:
+        config_ids = list(
+            await session.scalars(
+                select(models.SandboxConfig.id).where(
+                    models.SandboxConfig.backend_type == provider.backend_type
+                )
+            )
+        )
+    assert sorted(config["id"] for config in provider_result["configs"]) == sorted(
+        str(GlobalID("SandboxConfig", str(config_id))) for config_id in config_ids
+    )
+
+    fixture_result = next(
+        config
+        for config in provider_result["configs"]
+        if config["id"] == str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+    )
+    assert fixture_result == {
+        "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+        "name": sandbox_config.name.root,
+        "description": sandbox_config.description,
+        "language": sandbox_config.language,
+        "timeout": sandbox_config.timeout,
+        "enabled": sandbox_config.enabled,
+        "config": {
+            "envVars": [],
+            "internetAccess": None,
+            "dependencies": None,
+        },
+    }
 
 
 async def test_sandbox_backends_and_providers_can_be_loaded_together(
