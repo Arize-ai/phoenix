@@ -44,6 +44,7 @@ class LabelCount:
 @dataclass(frozen=True)
 class DistributionSummary:
     evaluated_count: int
+    refused_count: int
     mean_score: Optional[float]
     score_bin_edges: Optional[list[float]]
     score_bin_counts: Optional[list[int]]
@@ -55,7 +56,7 @@ class DistributionAccumulator:
     """Accumulate all results with SQL-derived bounds and a bounded label vocabulary.
 
     Args:
-        config: The primary evaluator output configuration.
+        config: The evaluator output configuration.
         minimum: Minimum finite score in the full population.
         maximum: Maximum finite score in the full population.
         distinct_scores: Number of distinct finite scores in the full population.
@@ -79,6 +80,7 @@ class DistributionAccumulator:
         )
         self._score_count = 0
         self._evaluated_count = 0
+        self._refused_count = 0
         self._mean_score = 0.0
         self._discrete: dict[float, ScoreValueCount] = {}
 
@@ -124,8 +126,11 @@ class DistributionAccumulator:
         }
         self._other = LabelCount(label="Other labels", is_other=True)
 
-    def add(self, label: Optional[str], score: Optional[float]) -> None:
+    def add(self, label: Optional[str], score: Optional[float], *, refused: bool = False) -> None:
         """Count each available value independently; exclude missing and non-finite scores."""
+        if refused:
+            self._refused_count += 1
+            return
         self._evaluated_count += 1
         if score is not None and math.isfinite(score):
             self._score_count += 1
@@ -150,6 +155,7 @@ class DistributionAccumulator:
                 label_counts.append(self._other)
         return DistributionSummary(
             evaluated_count=self._evaluated_count,
+            refused_count=self._refused_count,
             mean_score=self._mean_score if self._score_count else None,
             score_bin_edges=list(self._edges) if self._has_scores and self._is_histogram else None,
             score_bin_counts=list(self._histogram)
@@ -225,6 +231,6 @@ async def get_evaluator_distribution(
         accumulator = DistributionAccumulator(
             config, minimum, maximum, distinct_scores, labels, label_count
         )
-        async for row in await session.stream(select(label, score)):
-            accumulator.add(row.label, row.score)
+        async for row in await session.stream(select(label, score, population.c.refused)):
+            accumulator.add(row.label, row.score, refused=bool(row.refused))
     return accumulator.result()
