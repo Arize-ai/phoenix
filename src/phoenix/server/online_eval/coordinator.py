@@ -49,6 +49,11 @@ class PublicationClaimLostError(Exception):
     )
 
 
+class PublicationEvaluatorDisabledError(PublicationClaimLostError):
+    """The work unit's project evaluator was turned off while the unit ran. Its result is
+    dropped, as a disabled evaluator's queued work is, rather than counted as a failure."""
+
+
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
     """A leased work unit: one project evaluator to run against one target row."""

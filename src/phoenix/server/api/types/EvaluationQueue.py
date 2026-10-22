@@ -41,6 +41,13 @@ async def _throughput(
     return await info.context.data_loaders.evaluation_queue_throughput.load(queue)
 
 
+async def _project_throughput(
+    info: Info[Context, None], project_queue: queue_health.ProjectQueue
+) -> queue_health.Throughput:
+    queue = await info.context.data_loaders.evaluation_queue.load(None)
+    return (await _throughput(info, queue)).project(project_queue)
+
+
 @strawberry.type(
     description=(
         "The online evaluations of one evaluation target in the queue. Rates are per minute "
@@ -269,15 +276,13 @@ class ProjectEvaluationQueue:
         )
     )
     async def queued_per_minute(self, info: Info[Context, None]) -> float:
-        loader = info.context.data_loaders.project_evaluation_queue_throughput
-        return (await loader.load(self.queue)).queued_per_minute
+        return (await _project_throughput(info, self.queue)).queued_per_minute
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Evaluations completed per minute, whether evaluated or failed."
     )
     async def evaluations_per_minute(self, info: Info[Context, None]) -> float:
-        loader = info.context.data_loaders.project_evaluation_queue_throughput
-        return (await loader.load(self.queue)).evaluations_per_minute
+        return (await _project_throughput(info, self.queue)).evaluations_per_minute
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="This project's evaluations of each evaluation target: span, trace, session."
