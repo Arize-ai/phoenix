@@ -101,6 +101,7 @@ from phoenix.server.api.routers import (
     agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_client_errors_router,
     create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
@@ -1161,6 +1162,7 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
+    app.include_router(create_client_errors_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
         app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))

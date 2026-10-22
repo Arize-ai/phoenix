@@ -115,12 +115,11 @@ Next, define a function to format a prompt template and invoke an OpenAI model o
 
 ```python expandable
 from openai import AsyncOpenAI
-from phoenix.client.experiments import Example
 
 openai_client = AsyncOpenAI()
 
 
-async def summarize_article_openai(example: Example, prompt_template: str, model: str) -> str:
+async def summarize_article_openai(example, prompt_template: str, model: str) -> str:
     formatted_prompt_template = prompt_template.format(article=example.input["article"])
     response = await openai_client.chat.completions.create(
         model=model,
@@ -352,7 +351,7 @@ from anthropic import AsyncAnthropic
 client = AsyncAnthropic()
 
 
-async def summarize_article_anthropic(example: Example, prompt_template: str, model: str) -> str:
+async def summarize_article_anthropic(example, prompt_template: str, model: str) -> str:
     formatted_prompt_template = prompt_template.format(article=example.input["article"])
     message = await client.messages.create(
         model=model,

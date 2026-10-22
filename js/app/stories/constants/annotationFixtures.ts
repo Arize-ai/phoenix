@@ -50,6 +50,15 @@ export const annotationConfigsByName = new Map<
     },
   ],
   [
+    "context_precision",
+    {
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+    },
+  ],
+  [
     "qa_correctness",
     {
       annotationType: "CATEGORICAL",

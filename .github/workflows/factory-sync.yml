@@ -1,0 +1,91 @@
+name: Factory Sync
+
+# Git is the source of truth for the factory's Managed Agents resources.
+# Pull requests print the plan; a merge to main applies it and commits claude-lock.json.
+on:
+  pull_request:
+    paths: [factory/**]
+  push:
+    branches: [main]
+    paths: [factory/**]
+
+permissions:
+  contents: read
+
+env:
+  ANT_VERSION: "1.40.0" # relative paths under multiagent.subagents.predefined_agents need >= 1.40.0
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    # Plans are read-only, so a newer push to the same PR replaces its plan, and plans never
+    # share a group with applies, where a queued plan could cancel a pending apply.
+    concurrency:
+      group: factory-sync-plan-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" ant
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # --dry-run exits 0 even when the plan is blocked, so read the plan in the log.
+      - name: Plan
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --dry-run -v .
+
+  apply:
+    if: github.event_name == 'push'
+    # Nothing locks claude-lock.json, so only one apply may run at a time. A pending apply
+    # replaced by a newer one loses nothing: the newer run applies main at a later commit.
+    concurrency:
+      group: factory-sync-apply
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" ant
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Apply
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --yes .
+      # Commit even when apply failed partway: a partial apply still records what it created,
+      # and a lock file that loses those IDs makes the next apply create duplicates. Rebase
+      # first, because main has usually moved on since this run checked it out.
+      - name: Commit claude-lock.json
+        if: always()
+        env:
+          PUSH_TOKEN: ${{ secrets.FACTORY_PUSH_TOKEN }} # must be allowed to push to main
+        run: |
+          [ -z "$(git status --porcelain -- claude-lock.json)" ] && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add claude-lock.json
+          git commit -m "chore(factory): update claude-lock.json"
+          REMOTE="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3; do
+            git pull --rebase "$REMOTE" main && git push "$REMOTE" HEAD:main && exit 0
+            sleep 10
+          done
+          echo "::error::Could not push claude-lock.json; commit the lock from this run's log by hand before the next apply."
+          git show HEAD -- claude-lock.json
+          exit 1

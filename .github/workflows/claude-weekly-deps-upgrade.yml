@@ -42,7 +42,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Create branch
         id: branch
@@ -314,7 +314,7 @@ jobs:
               `js/pnpm-workspace.yaml` — never
               bypass them with `--config.dangerouslyAllowAllBuilds` or by editing
               the policy.
-            - No pre-releases in production Python deps (CLAUDE.md policy). Dev
+            - No pre-releases in production Python deps (AGENTS.md policy). Dev
               groups may use them when necessary.
             - `pnpm update --recursive` upgrades within the existing
               `package.json` semver ranges (it does not bump the ranges

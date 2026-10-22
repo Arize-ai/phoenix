@@ -1,0 +1,88 @@
+---
+title: "10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon"
+description: "Trace Claude Managed Agents sessions and Atomic Agents apps in Phoenix, test Gemini 4 Argon and Meta Muse Wonder 1.0 in the playground, and export Phoenix server logs over OTLP."
+---
+
+Trace Claude Managed Agents sessions and Atomic Agents apps in Phoenix, and test Gemini 4 Argon and Meta Muse Wonder 1.0 in the playground. Self-hosted deployments can also send the Phoenix server's own logs to an OpenTelemetry collector.
+
+# Tracing for Claude Managed Agents and Atomic Agents
+
+October 15 to 16, 2026
+
+**New integration guides; no Phoenix upgrade required**
+
+Two more agent stacks can send traces to Phoenix.
+
+- **Claude Managed Agents.** Add an **Arize Phoenix** destination in the Claude Console to export agent turns, model requests, and sandbox tool calls with no code changes. Phoenix converts the OpenTelemetry GenAI spans to OpenInference when they arrive. Trace the Claude SDK from your application too, and each session nests inside your own trace.
+- **Atomic Agents.** Version 2.11.0+ ships its own OpenInference instrumentor, which emits an `AGENT` span per agent run and a `TOOL` span per tool call. `register(auto_instrument=True)` picks it up automatically.
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="atomic-agents-app",
+    auto_instrument=True,
+)
+```
+
+<Frame caption="Session turns, model requests, and sandbox tool calls arrive in Phoenix as one trace">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-fibonacci-trace.png" alt="Phoenix trace view of a fibonacci-agent trace with status OK. The trace tree shows the fibonacci-agent root span, Sessions API request spans, an anthropic.session.turn span, anthropic.model_request spans, and an anthropic.tool_use bash span." />
+</Frame>
+
+<CardGroup cols={2}>
+  <Card title="Claude Managed Agents" icon="robot" href="/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing">
+    Export spans from the Claude Console and the Claude SDK
+  </Card>
+  <Card title="Atomic Agents" icon="atom" href="/docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing">
+    Trace agents and tools with the built-in instrumentor
+  </Card>
+</CardGroup>
+
+# Gemini 4 Argon and Meta Muse Wonder 1.0
+
+October 15, 2026
+
+**Available in arize-phoenix 20.22.0+**
+
+You can pick both models in the playground, and Phoenix prices their spans from its built-in model price list.
+
+- **Gemini 4 Argon** (`gemini-4-argon`) appears under the Google provider.
+- **Muse Wonder 1.0** (`muse-wonder-1.0`) appears under the Meta provider.
+
+<CardGroup cols={2}>
+  <Card title="Using the Playground" icon="flask" href="/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground">
+    Pick a model and compare prompts side by side
+  </Card>
+  <Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+    How Phoenix prices tokens on your spans
+  </Card>
+</CardGroup>
+
+# Export Phoenix Server Logs over OTLP
+
+October 16, 2026
+
+**Available in arize-phoenix 20.23.0+**
+
+Send the Phoenix server's own logs to an OpenTelemetry collector, next to the server traces you may already export. Set `PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT` or `PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT` to turn it on.
+
+- **Logs carry trace and span IDs**, so your observability backend can link each log line to the server request that produced it.
+- **Endpoints follow the trace collector variables.** HTTP endpoints get `/v1/logs` appended. gRPC endpoints without a scheme connect over TLS, so prefix a plaintext collector with `http://`.
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/docs/phoenix/self-hosting/configuration">
+    All server environment variables
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+October 14 to 16, 2026
+
+**Available in arize-phoenix 20.21.4–20.23.0**
+
+- **OAuth2 sign-in completes on the first try** when an identity provider login happens in the middle of an authorization flow, because Phoenix keeps its `SameSite=Strict` session cookies.
+- **Bedrock tool results reach the model as text** in the playground, so tool output that is not valid JSON no longer fails the request.
+- **Pressing Escape keeps prompt and dataset labels** instead of removing every label from the item.
+- **Dataset labels no longer need a description** when you create them.
+- **Sorting projects by last updated** shows the newest projects first on the first click.

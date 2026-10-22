@@ -6,13 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import {
-  Dialog,
-  Drawer,
-  Flex,
-  Loading,
-  TitleWithID,
-} from "@phoenix/components";
+import { Dialog, Drawer, Flex, TitleWithID } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -30,7 +24,7 @@ import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
-import { TraceDetails } from "./TraceDetails";
+import { TraceDetails, TraceDetailsSkeleton } from "./TraceDetails";
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
@@ -87,7 +81,7 @@ export function TracePage() {
                 />
               </DialogTitleExtra>
             </DialogHeader>
-            <Suspense fallback={<Loading />}>
+            <Suspense key={traceId} fallback={<TraceDetailsSkeleton />}>
               <TraceDetails
                 traceId={traceId as string}
                 projectId={projectId as string}

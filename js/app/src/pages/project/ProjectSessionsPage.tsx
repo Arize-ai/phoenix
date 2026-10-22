@@ -3,14 +3,15 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import {
   ProjectPageQueriesSessionsQuery,
   useProjectPageQueryReferenceContext,
 } from "@phoenix/pages/project/ProjectPageQueries";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -67,7 +68,13 @@ export const ProjectSessionsPage = () => {
         <SessionFiltersProvider key={seedKey}>
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SessionsFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <TableSkeleton hasToolbar rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              }
+            >
               {hasSessionsQuery ? (
                 <SessionsTabContent
                   queryReference={sessionsQueryReference}
@@ -76,21 +83,26 @@ export const ProjectSessionsPage = () => {
               ) : sessionsFilterSeed === null ? (
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
-                <PendingDSLFilter
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveSessionsSeed(condition)
-                  }
-                  onRejected={() => resolveSessionsSeed("", false)}
-                  renderField={(fieldProps) => (
-                    <SessionFilterConditionFieldWithVocabulary
-                      {...fieldProps}
-                    />
-                  )}
-                />
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <PendingDSLFilter
+                    isSelectable={false}
+                    onValidCondition={({ condition }: { condition: string }) =>
+                      resolveSessionsSeed(condition)
+                    }
+                    onRejected={() => resolveSessionsSeed("", false)}
+                    renderField={(fieldProps) => (
+                      <SessionFilterConditionFieldWithVocabulary
+                        {...fieldProps}
+                      />
+                    )}
+                  />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <Loading />
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <TableSkeleton hasToolbar rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>

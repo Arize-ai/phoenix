@@ -374,6 +374,13 @@ class TestEnvFileDiscovery:
         ("PHOENIX_CLIENT_HEADERS=x=1,y=2", {"PHOENIX_CLIENT_HEADERS": "x=1,y=2"}),
         # Non-PHOENIX keys are ignored (allowlist)
         ("OTHER_KEY=abc\nPHOENIX_API_KEY=def", {"PHOENIX_API_KEY": "def"}),
+        # A leading byte order mark is stripped
+        ("\ufeffPHOENIX_API_KEY=abc", {"PHOENIX_API_KEY": "abc"}),
+        # Old Mac line endings are handled
+        (
+            "PHOENIX_API_KEY=abc\rPHOENIX_PROJECT=proj\r",
+            {"PHOENIX_API_KEY": "abc", "PHOENIX_PROJECT": "proj"},
+        ),
         # Empty values are ignored
         ("PHOENIX_API_KEY=", {}),
         ("PHOENIX_API_KEY=''", {}),
