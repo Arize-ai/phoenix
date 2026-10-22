@@ -1,6 +1,6 @@
 # Factory
 
-Claude Managed Agents that take a triaged Phoenix issue to a PR that is ready for human review. Every agent, environment and vault is defined by a file here and synced with [`ant apply`](https://platform.claude.com/docs/en/cli-sdks-libraries/cli/apply). Git is the source of truth, and `claude-lock.json` records the IDs.
+Claude Managed Agents that take a triaged Phoenix issue to a PR that is ready for human review. Every agent, environment and vault is defined by a file here and synced with [`ant apply`](https://platform.claude.com/docs/en/cli-sdks-libraries/cli/apply). Git is the source of truth, and `claude-lock.json` on the `factory-state` branch records the IDs.
 
 ## Architecture
 
@@ -93,7 +93,7 @@ Each part does one job, so it can be changed and tested on its own:
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
-| `factory-sync.yml` | Plans resource changes on PRs and applies them on merge |
+| `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
 
 ### Trust boundaries
 
@@ -124,23 +124,24 @@ rubrics/         outcome rubrics, inlined by dispatch.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
-claude-lock.json written by ant apply - commit it
 ```
+
+`claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
 
 ## Bootstrap
 
 1. Create a dedicated Claude workspace for the factory, install `ant` (>= 1.40.0), and authenticate against it. Any API key in that workspace can start sessions that use the vault's GitHub credential, so keep the shared `ANTHROPIC_API_KEY` in a different workspace.
-2. From this directory: `ant apply --dry-run -v .`, then `ant apply .`. Commit the `claude-lock.json` it writes.
+2. Create the repo secret `FACTORY_ANTHROPIC_API_KEY` with a key from that workspace, then run `Factory Sync` from `main` with **Run workflow**. Its first apply creates every resource and the `factory-state` branch.
 3. Create a machine GitHub account, owned through a team email, and add it to the `Arize-ai` org as a member with Write on this repo, not admin, so branch protection applies to it. It has to be a member: fine-grained tokens can't write to an org's repos for outside collaborators. Give it a fine-grained PAT with `Arize-ai` as the resource owner, only this repo, Contents, Issues and Pull requests read/write, and no Workflows access; an org owner approves it. Code in the sandbox can use this token for the whole session.
-4. Add the PAT to the vault (its ID is in `claude-lock.json` under `./vaults/github.yaml`) as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/`, using `ant beta:vaults:credentials create`. The machine account then authors factory PRs, so any maintainer can approve them.
-5. Create the repo secrets `FACTORY_ANTHROPIC_API_KEY`, `FACTORY_GITHUB_TOKEN` (the PAT) and `FACTORY_PUSH_TOKEN` (allowed to push `claude-lock.json` to `main`). Create the repo variable `FACTORY_LOGIN` with the machine account's login: CI uses it to recognize factory PRs, and the factory commits as that account's noreply address. Add the login to the `allowlist` in `cla.yml`.
-6. Add a ruleset that keeps the machine account on `factory/**` branches: target all branches except `factory/**`, restrict creations, updates and deletions, and give bypass to the maintainers' teams and every app that pushes branches here (Dependabot, the Claude app, the release-please token's owner). Watch its rule insights after enabling it for anything it blocks by mistake.
+4. Add the PAT to the vault (its ID is in `claude-lock.json` on `factory-state`, under `./vaults/github.yaml`) as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/`, using `ant beta:vaults:credentials create`. The machine account then authors factory PRs, so any maintainer can approve them.
+5. Create the repo secret `FACTORY_GITHUB_TOKEN` with the PAT. Create the repo variable `FACTORY_LOGIN` with the machine account's login: CI uses it to recognize factory PRs, and the factory commits as that account's noreply address. Add the login to the `allowlist` in `cla.yml`.
+6. Add a ruleset that keeps the machine account on `factory/**` branches: target all branches except `factory/**`, restrict creations, updates and deletions, and give bypass to the maintainers' teams and every app that pushes branches here (Dependabot, the Claude app, the release-please token's owner, and GitHub Actions, which pushes `factory-state`). Watch its rule insights after enabling it for anything it blocks by mistake.
 7. Create the `factory` label, and make `Factory Guard` a required check on `main`.
 8. Try it on one small issue with **Run workflow** on `Factory Dispatch`.
 
 ## Switching workspaces
 
-Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the lock in a PR that touches `factory/`; merging it recreates every resource in the new workspace. Then repeat step 4 for the new vault.
+Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the `factory-state` branch, then run `Factory Sync` from `main` with **Run workflow**; it recreates every resource in the new workspace. Then repeat step 4 for the new vault.
 
 ## Changing an agent
 
