@@ -594,7 +594,11 @@ def run_start(*, args: argparse.Namespace) -> None:
         write_github_outputs(started="false")
         return
 
-    factory_login = os.environ["FACTORY_LOGIN"]
+    factory_login = os.environ.get("FACTORY_LOGIN", "")
+    if not factory_login:
+        raise SystemExit(
+            "Set the FACTORY_LOGIN repository variable, not a secret, to the machine account login."
+        )
     session_id = start_session(
         client=anthropic.Anthropic(),
         lane=lane,
