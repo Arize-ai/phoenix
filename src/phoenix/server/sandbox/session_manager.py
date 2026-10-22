@@ -347,9 +347,8 @@ class SandboxSessionManager(DaemonTask):
         """Drain in-flight sessions, then cancel the sweeper.
 
         Three phases under DaemonTask.stop's 10s ceiling: (1) await
-        ``_pending_tasks`` so scheduled close_session calls complete, along
-        with teardowns still finishing after their evaluation was cancelled
-        (``detached_teardowns``), which may release tracked sessions;
+        ``_pending_tasks`` and ``detached_teardowns()`` so their close_session
+        calls complete;
         (2) ``_evict_targets`` over every tracked key; (3) cancel sweeper.
         Phase 3 runs even if the drain is cancelled or raises.
         """

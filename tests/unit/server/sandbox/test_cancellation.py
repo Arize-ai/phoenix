@@ -14,8 +14,6 @@ from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
 
 
 class _RemoteLikeBackend(BaseNoSessionBackend):
-    """Runs until cancelled, then awaits the provider to delete the sandbox."""
-
     family: ClassVar[str] = "TEST"
 
     def __init__(self) -> None:
@@ -30,7 +28,7 @@ class _RemoteLikeBackend(BaseNoSessionBackend):
             await asyncio.sleep(3600)
             raise AssertionError("unreachable")
         finally:
-            await asyncio.sleep(0.05)  # the provider's delete request
+            await asyncio.sleep(0.05)
             self.deleted += 1
 
     async def close(self) -> None:
@@ -38,8 +36,7 @@ class _RemoteLikeBackend(BaseNoSessionBackend):
 
 
 async def test_runner_teardown_finishes_when_an_anyio_scope_cancels_evaluate() -> None:
-    # An anyio scope cancels again at every await. Without a timeout, wait_for adds no
-    # task of its own on any Python, so only the runner's guard keeps the delete alive.
+    # timeout=None: on Python 3.11 a timeout makes wait_for absorb the cancel and hide the bug.
     backend = _RemoteLikeBackend()
     runner = CodeEvaluatorRunner(
         name="runner",

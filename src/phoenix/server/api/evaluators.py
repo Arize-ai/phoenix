@@ -2793,8 +2793,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
-                        # ``run_cancel_once`` keeps that teardown alive if this
-                        # evaluation is cancelled.
                         execution = await asyncio.wait_for(
                             run_cancel_once(
                                 self._sandbox_backend.execute_with_inputs(
@@ -2851,11 +2849,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ]
                 except asyncio.TimeoutError as exc:
                     # Managed path: route teardown through the manager so
-                    # the tracked entry is dropped and the task is awaited at
-                    # shutdown. The timed-out call releases its session from
-                    # its own task, possibly after this marks the entry, so the
-                    # entry closes on that release. Ephemeral path: the
-                    # backend's own teardown finishes in that task.
+                    # the tracked entry is dropped (acquire's finally only
+                    # decrements in_flight) and the task is awaited at
+                    # shutdown. Ephemeral path: backend.execute's async-with
+                    # already kills the sandbox on cancellation.
                     if self._sandbox_session_manager is not None:
                         self._sandbox_session_manager.schedule_eviction(
                             session_key, self._sandbox_backend
