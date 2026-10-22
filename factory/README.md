@@ -129,7 +129,7 @@ claude-lock.json written by ant apply - commit it
 
 ## Bootstrap
 
-1. Install `ant` (>= 1.40.0) and authenticate against the workspace the factory will live in.
+1. Create a dedicated Claude workspace for the factory, install `ant` (>= 1.40.0), and authenticate against it. Any API key in that workspace can start sessions that use the vault's GitHub credential, so keep the shared `ANTHROPIC_API_KEY` in a different workspace.
 2. From this directory: `ant apply --dry-run -v .`, then `ant apply .`. Commit the `claude-lock.json` it writes.
 3. Create a machine GitHub account with write access, not admin, so branch protection applies to it. Give it a fine-grained PAT for this repo with Contents and Pull requests read/write and no Workflows access. Code in the sandbox can use this token for the whole session.
 4. Add the PAT to the vault (its ID is in `claude-lock.json` under `./vaults/github.yaml`) as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/`, using `ant beta:vaults:credentials create`. The machine account then authors factory PRs, so any maintainer can approve them.

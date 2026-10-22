@@ -26,7 +26,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          BLOCKED=$(gh pr diff "$PR_NUMBER" --name-only | grep -E '^(\.github|\.cursor|\.claude|\.agents|factory|plugins)/|(^|/)(AGENTS|CLAUDE)\.md$' || true)
+          # The files API has no diff-size limit but lists at most 3000 files; a failure to
+          # list them fails the check rather than passing it. Renames count from both paths.
+          CHANGED_FILES=$(gh pr view "$PR_NUMBER" --json changedFiles --jq .changedFiles)
+          if [ "$CHANGED_FILES" -gt 3000 ]; then
+            echo "::error::Factory PRs may not change more than 3000 files ($CHANGED_FILES changed)."
+            exit 1
+          fi
+          FILES=$(gh api --paginate "repos/$GH_REPO/pulls/$PR_NUMBER/files" --jq '.[] | .filename, (.previous_filename // empty)')
+          BLOCKED=$(printf '%s\n' "$FILES" | grep -E '^(\.github|\.cursor|\.claude|\.agents|factory|plugins)/|(^|/)(AGENTS|CLAUDE)\.md$' || true)
           if [ -n "$BLOCKED" ]; then
             echo "::error::Factory PRs may not modify automation or agent-instruction files:"
             printf '%s\n' "$BLOCKED"

@@ -19,12 +19,6 @@ on:
         options: [auto, bug, feature, docs]
         default: auto
 
-# The job lasts as long as its session, so a second trigger for the same issue queues
-# behind it and then finds the open PR.
-concurrency:
-  group: factory-${{ github.event.issue.number || inputs.issue }}
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -33,6 +27,12 @@ jobs:
     # dispatch.py starts a session only for someone with write access, so a label applied
     # by an issue template or a triage-only account is turned away.
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory'
+    # The job lasts as long as its session, so a second trigger for the same issue queues
+    # behind it and then finds the open PR. This sits on the job, not the workflow, so
+    # runs for other labels on the issue never enter the group and cancel a queued one.
+    concurrency:
+      group: factory-${{ github.event.issue.number || inputs.issue }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 300
     permissions:
