@@ -576,6 +576,44 @@ async def test_agents_config_web_access_respects_env_flags(
     assert data["agentsConfig"] == {"webAccessEnabled": expected}
 
 
+_MODEL_COST_MANIFEST_QUERY = """
+  query {
+    modelCostManifest {
+      generatedAt
+    }
+  }
+"""
+
+
+async def test_model_cost_manifest_is_null_without_a_marker(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {"modelCostManifest": None}
+
+
+async def test_model_cost_manifest_returns_the_marker(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        session.add(
+            models.SystemState(
+                key="cost_tracking.model_cost_manifest",
+                value={"generated_at": "2099-01-01T00:00:00+00:00"},
+                revision=1,
+            )
+        )
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {
+        "modelCostManifest": {
+            "generatedAt": "2099-01-01T00:00:00+00:00",
+        }
+    }
+
+
 @pytest.fixture
 async def prompts_for_filtering(
     db: DbSessionFactory,

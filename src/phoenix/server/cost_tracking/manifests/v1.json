@@ -1,4 +1,7 @@
 {
+  "schema_version": 1,
+  "generated_at": "2026-10-15T17:54:15Z",
+  "models_sha256": "5f1ecb4f4f17856db73f55ad4555b2e6b46ba823993b6bc51273c78add68584e",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -1734,7 +1737,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 1e-5,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1744,7 +1747,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 1e-5,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "reasoning"
         }
@@ -6814,7 +6817,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 2e-5,
+          "base_rate": 0.00002,
           "is_prompt": false,
           "token_type": "output"
         },
