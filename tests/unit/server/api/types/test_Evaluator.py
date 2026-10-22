@@ -24,6 +24,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.dataloaders import project_evaluator_run_counts
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     DatasetEvaluator,
@@ -2274,6 +2275,78 @@ async def test_project_evaluator_run_summary_is_degraded_while_its_own_evaluatio
     assert not response.errors and response.data
     assert response.data["a"]["runSummary"]["status"] == "DEGRADED"
     assert response.data["b"]["runSummary"]["status"] == "RUNNING"
+
+
+async def test_project_evaluator_run_summary_reads_counts_only_when_selected(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The evaluators page polls the status and queue fields, which don't count the
+    evaluator's history. A failure at the same time as a success reads ERROR."""
+    now = datetime.now(timezone.utc)
+    finished_at = now - timedelta(minutes=1)
+    project_evaluator_id, span_ids = await _seed_span_project_evaluator(
+        db, span_start_time=now, span_count=2
+    )
+    async with db() as session:
+        session.add_all(
+            [
+                _span_work_unit(
+                    project_evaluator_id,
+                    span_ids[0],
+                    "DONE",
+                    queued_at=finished_at,
+                    updated_at=finished_at,
+                ),
+                _span_work_unit(
+                    project_evaluator_id,
+                    span_ids[1],
+                    "FAILED",
+                    queued_at=finished_at,
+                    updated_at=finished_at,
+                ),
+            ]
+        )
+    load_run_counts = project_evaluator_run_counts._load_run_counts
+    count_reads: list[Any] = []
+
+    async def _counting_load_run_counts(*args: Any) -> Any:
+        count_reads.append(args)
+        return await load_run_counts(*args)
+
+    monkeypatch.setattr(project_evaluator_run_counts, "_load_run_counts", _counting_load_run_counts)
+    variables = {"id": str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))}
+
+    polled = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    runSummary { status lastRunAt queuedCount runningCount oldestQueuedAt }
+                }
+            }
+        }""",
+        variables=variables,
+    )
+
+    assert not polled.errors and polled.data
+    run_summary = polled.data["node"]["runSummary"]
+    assert run_summary["status"] == "ERROR"
+    assert datetime.fromisoformat(run_summary["lastRunAt"]) == finished_at
+    assert count_reads == []
+
+    counted = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator { runSummary { evaluatedCount failedCount } }
+            }
+        }""",
+        variables=variables,
+    )
+
+    assert not counted.errors and counted.data
+    assert counted.data["node"]["runSummary"] == {"evaluatedCount": 1, "failedCount": 1}
+    assert len(count_reads) == 1
 
 
 async def test_project_evaluator_evaluation_load(
