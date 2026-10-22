@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "origin": {
+    "base_url": "https://api.anthropic.com",
+    "organization_id": "8a57e064-47c7-4a95-ac37-2283e8cf46d5",
+    "workspace_id": "wrkspc_019uQCzw86YfY8Li79ZLtsom"
+  },
+  "resources": {
+    "./agents/bug-fixer.md": {
+      "kind": "agent",
+      "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
+      "version": "1",
+      "hash": "c2bc4395d62dc060e1f7af18eeef2b1e",
+      "remote_hash": "868bbc83dfb11eb65f558736b12326c1"
+    },
+    "./agents/bug-reproducer.md": {
+      "kind": "agent",
+      "id": "agent_01A2ZcG9J6JbhkdCLWRTKLgh",
+      "version": "1",
+      "hash": "4b1ea8626aac5db2ca3dfd1e4868d9ad",
+      "remote_hash": "35607a15c19f61e560dcfa4a93e3c770"
+    },
+    "./agents/docs-writer.md": {
+      "kind": "agent",
+      "id": "agent_017gUzHtyPT7QVNMRuVCDwGK",
+      "version": "1",
+      "hash": "e997cc5cc5f54c38849ec068d9b0c1f8",
+      "remote_hash": "f0189cc2ec50b06d8d352f7b18523d7d"
+    },
+    "./agents/feature-analyst.md": {
+      "kind": "agent",
+      "id": "agent_01Mkxi7NutSTNxqfaNsnFGK6",
+      "version": "1",
+      "hash": "c36ffe77661f42a7f8de090d81934a12",
+      "remote_hash": "73c9b7deb068d885767c959005451745"
+    },
+    "./agents/feature-builder.md": {
+      "kind": "agent",
+      "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
+      "version": "1",
+      "hash": "4b3913799a62862ac4a971d44d83b1e8",
+      "remote_hash": "f72510642e0605f8f74bec5537567aba"
+    },
+    "./agents/frontend-reviewer.md": {
+      "kind": "agent",
+      "id": "agent_01JBG5XRUNjf8qr4xPULMD6N",
+      "version": "1",
+      "hash": "fb41c7a51f076c127a13bddcaa1a260c",
+      "remote_hash": "e98ee446d00de14a18e947dd6e9cf225"
+    },
+    "./agents/packages-reviewer.md": {
+      "kind": "agent",
+      "id": "agent_01Nzaij62n117CaDuWJtsgrL",
+      "version": "1",
+      "hash": "3b19c57c604bc17edca9ae675e295f17",
+      "remote_hash": "d9bffc82ceffd8d8faf52013da86fea0"
+    },
+    "./agents/server-reviewer.md": {
+      "kind": "agent",
+      "id": "agent_01JJRUnbPL4cZ9gbcTQtUgZn",
+      "version": "1",
+      "hash": "3b809468e5f218683410e9656dd6be0d",
+      "remote_hash": "e25388a01050901d6ec0f3025d26d5db"
+    },
+    "./environments/phoenix-dev.yaml": {
+      "kind": "environment",
+      "id": "env_01WFnTMneeFqTKH5fq2PVZXs",
+      "hash": "5afbc69f181ab3c0664228adc98c6218",
+      "remote_hash": "e8a2cd2220eabccb5b60e9b19eaf7dd1"
+    },
+    "./vaults/github.yaml": {
+      "kind": "vault",
+      "id": "vlt_011CgHfgnXragfz9pvf4A4ic",
+      "hash": "2b52a0459e496befbe0a8379a03ccb09",
+      "remote_hash": "2b52a0459e496befbe0a8379a03ccb09"
+    }
+  }
+}
