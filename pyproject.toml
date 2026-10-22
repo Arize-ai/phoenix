@@ -272,7 +272,7 @@ artifacts = [
   "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
-  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/cost_tracking/manifests",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
@@ -297,7 +297,7 @@ artifacts = [
   "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
-  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/cost_tracking/manifests",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
