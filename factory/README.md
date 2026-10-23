@@ -176,7 +176,7 @@ flowchart LR
   grafana -->|"any errors in the last day?"| scan["factory-log-scan.yml<br/>log_scan.py"]
   scan --> triage["railway-triage session"]
   triage <-->|"query_loki_logs"| mcp
-  triage -->|"one issue per bug<br/>bug + grafana labels"| issue["Issue"]
+  triage -->|"one issue per bug<br/>bug + railway-dev labels"| issue["Issue"]
   scan -->|"factory label<br/>when enabled"| issue
   issue --> dispatch["factory-dispatch.yml"]
   dispatch --> session["bug lane session"]
@@ -186,7 +186,7 @@ flowchart LR
 
 `log_scan.py` runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy, and stops if it matches nothing, so quiet days cost nothing. Otherwise it starts a session with the `railway-triage` agent (`agents/railway-triage.md`, graded by `rubrics/railway-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has the Grafana read tools and the GitHub issue tools, and nothing that pushes code.
 
-The agent does the work a regex can't. It lists the open `grafana` issues first, reads the window's lines through mcp-grafana, and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs, a re-query LogQL and a `## Log signatures` list in the body. A bug an open issue already covers gets one comment with the new occurrences instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. At most five new issues per run, and a spend cap of $10 at list price.
+The agent does the work a regex can't. It lists the open `railway-dev` issues first, reads the window's lines through mcp-grafana, and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs, a re-query LogQL and a `## Log signatures` list in the body. A bug an open issue already covers gets one comment with the new occurrences instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. At most five new issues per run, and a spend cap of $10 at list price.
 
 The session files and comments as the machine account through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created with `FACTORY_GITHUB_TOKEN` when dispatch is on. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and the machine account has the write access `dispatch.py` requires of a requester. The schedule dispatches only while the repository variable `FACTORY_LOG_SCAN_DISPATCH` is `true`; a manual run has its own `dispatch` input. Start with it off and label the first issues by hand.
 

@@ -2,8 +2,8 @@
 
 The script is a gate and a starter. It counts the error lines Loki has for the window;
 with none, it exits without spending anything. Otherwise it starts a session with the
-railway-triage agent, which reads the errors and the code, checks the open `grafana` issues,
-and files or updates issues itself. With `--dispatch`, every `grafana` issue the session
+railway-triage agent, which reads the errors and the code, checks the open `railway-dev` issues,
+and files or updates issues itself. With `--dispatch`, every `railway-dev` issue the session
 created then gets the `factory` label so factory-dispatch.yml runs the bug lane on it.
 
 Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token
@@ -35,14 +35,14 @@ from dispatch import (
     wait_for_session,
 )
 
-SOURCE_LABEL = "grafana"
+SOURCE_LABEL = "railway-dev"
 TRIAGE_AGENT_LOCK_KEY = "./agents/railway-triage.md"
 TRIAGE_RUBRIC_PATH = FACTORY_DIR / "rubrics" / "railway-triage.md"
 LOKI_QUERY_LIMIT = 5000
 TRIAGE_OUTCOME = (
     "Every Phoenix server error in the window that a maintainer should fix has exactly one "
     "open issue in {repo}: a comment on the existing issue when one covers it, otherwise a "
-    "new issue labeled bug and grafana whose title says what the user experiences."
+    "new issue labeled bug and railway-dev whose title says what the user experiences."
 )
 
 
