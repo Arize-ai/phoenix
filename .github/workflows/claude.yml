@@ -56,7 +56,7 @@ jobs:
       # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only
       # used for the initial checkout and the github_ci MCP server.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
+      id-token: write # Required: OIDC for the Claude App token exchange and for workload identity federation (Claude API auth)
       actions: read # Used by the action's github_ci MCP server (workflow token, not app token) to read CI results on PRs
     steps:
       - name: Checkout repository

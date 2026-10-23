@@ -36,7 +36,7 @@ jobs:
       # OIDC exchange below — the workflow GITHUB_TOKEN is only used for the
       # initial checkout, so contents:read is all it needs.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
+      id-token: write # Required: OIDC for the Claude App token exchange and for workload identity federation (Claude API auth)
 
     steps:
       - name: Checkout repository

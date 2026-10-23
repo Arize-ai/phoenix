@@ -18,7 +18,11 @@ jobs:
       # passed to the action below (so no write-scoped App token is minted via
       # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: workload identity federation exchanges the GitHub OIDC token for a Claude API token
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
 
     steps:
       - name: Checkout repository
