@@ -94,7 +94,7 @@ function PromptVersionDetailsPageContent({
           <Card
             title="Prompt"
             collapsible
-            data-testid="prompt-chat-messages-card"
+            testId="prompt-chat-messages-card"
             extra={
               <Switch
                 labelPlacement="start"
