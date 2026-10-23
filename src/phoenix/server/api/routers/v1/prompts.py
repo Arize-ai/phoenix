@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -96,6 +97,7 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
+    created_at: datetime = Field(description="The creation timestamp of the prompt version.")
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -1010,6 +1012,7 @@ def _prompt_version_from_orm_version(
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
+        created_at=prompt_version.created_at,
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,

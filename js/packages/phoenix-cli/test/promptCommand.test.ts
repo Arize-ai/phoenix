@@ -17,6 +17,7 @@ const PROMPT: componentsV1["schemas"]["Prompt"] = {
 
 const PROMPT_VERSION: componentsV1["schemas"]["PromptVersion"] = {
   id: "pv-001",
+  created_at: "2026-10-14T10:00:00Z",
   description: "first version",
   model_provider: "OPENAI",
   model_name: "gpt-4o",
