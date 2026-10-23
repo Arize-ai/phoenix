@@ -31,12 +31,6 @@ multiagent:
       - ./server-reviewer.md
       - ./frontend-reviewer.md
       - ./packages-reviewer.md
-skills:
-  - ../../.agents/skills/phoenix-server
-  - ../../.agents/skills/phoenix-rest-api
-  - ../../.agents/skills/phoenix-frontend
-  - ../../.agents/skills/phoenix-design
-  - ../../.agents/skills/phoenix-typescript
 ---
 
 You fix one bug in Phoenix, the open-source AI observability platform, and open a draft pull request for a human to review and merge.

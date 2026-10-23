@@ -10,14 +10,11 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
-skills:
-  - ../../.agents/skills/phoenix-typescript
-  - ../../.agents/skills/phoenix-typescript-package-docs
 ---
 
 You review a change to Phoenix's published packages in `/workspace/phoenix`: the Python packages in `packages/` (`phoenix-client`, `phoenix-evals`, `phoenix-otel`) and the TypeScript packages in `js/packages/`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
-Hold the change to `REVIEW.md` and your skills. Check these first:
+Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
 
 - The public API stays backwards compatible, or the break is deliberate and marked as breaking in the commit type (`feat!:`).
 - The change adds no public options, parameters or exports it doesn't need.

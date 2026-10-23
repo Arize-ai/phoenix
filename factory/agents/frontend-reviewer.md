@@ -10,16 +10,11 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
-skills:
-  - ../../.agents/skills/phoenix-frontend
-  - ../../.agents/skills/phoenix-design
-  - ../../.agents/skills/phoenix-typescript
-  - ../../.agents/skills/phoenix-storybook
 ---
 
 You review a change to the Phoenix frontend in `/workspace/phoenix/js/app`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
-Hold the change to `REVIEW.md` and your skills. Check these first:
+Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
 
 - Declarative React: no `useEffect` for derived state, and no manual `useCallback`/`useMemo` (the React Compiler handles memoization).
 - Relay: mutations update the affected connections so lists don't go stale, and fragments live with the components that use them.

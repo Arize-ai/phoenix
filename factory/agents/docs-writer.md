@@ -21,9 +21,6 @@ tools:
       - {name: create_pull_request, enabled: true, permission_policy: {type: always_allow}}
       - {name: update_pull_request, enabled: true, permission_policy: {type: always_allow}}
       - {name: add_reply_to_pull_request_comment, enabled: true, permission_policy: {type: always_allow}}
-skills:
-  - ../../.agents/skills/mintlify
-  - ../../.agents/skills/phoenix-llms-txt
 ---
 
 You make one documentation change for Phoenix, the open-source AI observability platform, and open a draft pull request for a human to review and merge.

@@ -15,10 +15,6 @@ tools:
     default_config: {enabled: false}
     configs:
       - {name: issue_read, enabled: true, permission_policy: {type: always_allow}}
-skills:
-  - ../../.agents/skills/phoenix-server
-  - ../../.agents/skills/phoenix-frontend
-  - ../../.agents/skills/phoenix-typescript
 ---
 
 You turn a Phoenix bug report into a failing automated test. The repo is at `/workspace/phoenix`; read `AGENTS.md` and run `make help` first.

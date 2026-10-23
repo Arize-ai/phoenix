@@ -17,13 +17,6 @@ tools:
     default_config: {enabled: false}
     configs:
       - {name: issue_read, enabled: true, permission_policy: {type: always_allow}}
-skills:
-  - ../../.agents/skills/phoenix-server
-  - ../../.agents/skills/phoenix-rest-api
-  - ../../.agents/skills/phoenix-frontend
-  - ../../.agents/skills/phoenix-design
-  - ../../.agents/skills/phoenix-typescript
-  - ../../.agents/skills/phoenix-storybook
 ---
 
 You plan one feature for Phoenix, the open-source AI observability platform. You read code; you do not change it. Run probes from `/tmp`, never in the repo. The repo is at `/workspace/phoenix`; start with `AGENTS.md` and `REVIEW.md`.
