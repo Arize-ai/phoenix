@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ro.md" />
 </p>
 
-Arize Phoenix este platforma open-source de observabilitate AI a Arize, concepută pentru experimentare, evaluare și depanare. Pentru fluxuri de lucru de producție gestionate, Arize oferă și [Arize AX](https://arize.com/products/ax/). Phoenix oferă:
+Arize Phoenix este platforma open-source de observabilitate AI a Arize, concepută pentru experimentare, evaluare și depanare. Pentru fluxuri de lucru de producție gestionate, Arize oferă și [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ro). Phoenix oferă:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Urmăriți execuția aplicației dumneavoastră LLM cu instrumentare bazată pe OpenTelemetry.
 - [**_Evaluare_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Folosiți LLM-uri pentru a măsura performanța aplicației prin evaluări ale răspunsurilor și ale regăsirii.
@@ -64,7 +64,7 @@ Phoenix este independent de furnizor și de limbaj, cu suport nativ pentru frame
 Phoenix rulează practic oriunde, inclusiv pe mașina dumneavoastră locală, într-o implementare containerizată sau în cloud. Consultați [Medii](https://arize.com/docs/phoenix/environments) pentru o prezentare a fiecărei opțiuni sau treceți direct la [Ghidul rapid de tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix este open-source și găzduit de dumneavoastră (self-hosted). Pentru o platformă gestionată, Arize oferă [Arize AX](https://arize.com/products/ax/) — aceeași instrumentare OpenTelemetry/OpenInference funcționează cu ambele. Consultați [comparația completă](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix este open-source și găzduit de dumneavoastră (self-hosted). Pentru o platformă gestionată, Arize oferă [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ro) — aceeași instrumentare OpenTelemetry/OpenInference funcționează cu ambele. Consultați [comparația completă](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Cuprins
 

@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.fi.md" />
 </p>
 
-Arize Phoenix on Arizen avoimen lähdekoodin AI-havaittavuusalusta, joka on suunniteltu kokeiluun, arviointiin ja vianetsintään. Hallinnoituja tuotantotyönkulkuja varten Arize tarjoaa myös [Arize AX](https://arize.com/products/ax/):n. Phoenix tarjoaa:
+Arize Phoenix on Arizen avoimen lähdekoodin AI-havaittavuusalusta, joka on suunniteltu kokeiluun, arviointiin ja vianetsintään. Hallinnoituja tuotantotyönkulkuja varten Arize tarjoaa myös [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-fi):n. Phoenix tarjoaa:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Jäljitä LLM-sovelluksesi suoritusta OpenTelemetry-pohjaisella instrumentoinnilla.
 - [**_Arviointi_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Hyödynnä LLM:iä sovelluksesi suorituskyvyn mittaamiseen vastaus- ja hakuevaleilla.
@@ -64,7 +64,7 @@ Phoenix on toimittaja- ja kieliriippumaton, ja se tukee valmiiksi suosittuja keh
 Phoenix toimii käytännössä missä tahansa: paikallisella koneellasi, konttipohjaisessa käyttöönotossa tai pilvessä. Katso [Ympäristöt](https://arize.com/docs/phoenix/environments), jossa kukin vaihtoehto käydään läpi, tai siirry suoraan [Tracingin pikaoppaaseen](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix on avointa lähdekoodia ja itse ylläpidettävä. Hallinnoituna alustana Arize tarjoaa [Arize AX](https://arize.com/products/ax/):n — sama OpenTelemetry/OpenInference-instrumentointi toimii molempien kanssa. Katso [täydellinen vertailu](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix on avointa lähdekoodia ja itse ylläpidettävä. Hallinnoituna alustana Arize tarjoaa [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-fi):n — sama OpenTelemetry/OpenInference-instrumentointi toimii molempien kanssa. Katso [täydellinen vertailu](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Sisällysluettelo
 

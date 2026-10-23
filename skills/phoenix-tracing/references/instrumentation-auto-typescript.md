@@ -86,6 +86,13 @@ before any AI SDK call.
 does **not** translate — stay on `@arizeai/phoenix-otel` 1.x (with
 `@arizeai/openinference-vercel` 2.x) for AI SDK v6.
 
+**Decision models:** calls through the AI SDK's `experimental_decide` (e.g.
+`openai.decisionModel("gpt-6-luna")`) are traced as DECISION spans with `decision.*`
+attributes — no extra instrumentor. This requires `@arizeai/phoenix-otel` >= 2.3.0
+(`@arizeai/openinference-vercel` >= 3.3.0). Pass `experimental_decision: true` to
+`new OpenTelemetry({ ... })` to record the decision state, questions, and answers;
+without it the spans carry only the model and token counts. See `span-decision.md`.
+
 To export only AI spans, or to wire the OpenInference processors yourself, see the
 Custom Span Processors section in `setup-typescript.md`.
 

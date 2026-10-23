@@ -70,12 +70,14 @@ Two resolution paths:
 
   ```bash
   gh stack unstack                  # removes the grouping; PRs and branches survive
+  gh stack init --base main branch-1 branch-2  # use your trunk and desired branch order
   gh stack submit --auto
   ```
 
 Neither path deletes pull requests or branches.
-Remote unstacking leaves PRs that are merging (auto-merge enabled) or are queued (in a merge queue)
-stacked. If needed, clear that state before retrying.
+Merged or queued PRs remain stacked on GitHub, but successful unstacking still removes local
+tracking. If every PR is locked, GitHub rejects the operation and local tracking is retained.
+Use `--local` to remove only local tracking.
 
 ## Restructuring a stack
 

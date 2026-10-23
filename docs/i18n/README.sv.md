@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.sv.md" />
 </p>
 
-Arize Phoenix är Arizes plattform med öppen källkod för AI-observerbarhet, utformad för experiment, utvärdering och felsökning. För hanterade produktionsflöden erbjuder Arize även [Arize AX](https://arize.com/products/ax/). Phoenix erbjuder:
+Arize Phoenix är Arizes plattform med öppen källkod för AI-observerbarhet, utformad för experiment, utvärdering och felsökning. För hanterade produktionsflöden erbjuder Arize även [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-sv). Phoenix erbjuder:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Spåra körningen av din LLM-applikation med OpenTelemetry-baserad instrumentering.
 - [**_Utvärdering_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Använd LLM:er för att mäta applikationens prestanda med utvärderingar av svar och hämtning.
@@ -64,7 +64,7 @@ Phoenix är leverantörs- och språkoberoende med inbyggt stöd för populära r
 Phoenix kan köras i princip var som helst, till exempel på din lokala dator, i en containerbaserad driftsättning eller i molnet. Se [Miljöer](https://arize.com/docs/phoenix/environments) för en genomgång av varje alternativ, eller gå direkt till [Snabbstart för tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix är öppen källkod och självhostat. För en hanterad plattform erbjuder Arize [Arize AX](https://arize.com/products/ax/) — samma OpenTelemetry/OpenInference-instrumentering fungerar med båda. Se [den fullständiga jämförelsen](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix är öppen källkod och självhostat. För en hanterad plattform erbjuder Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-sv) — samma OpenTelemetry/OpenInference-instrumentering fungerar med båda. Se [den fullständiga jämförelsen](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Innehållsförteckning
 

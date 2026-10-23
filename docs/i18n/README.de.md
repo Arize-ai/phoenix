@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.de.md" />
 </p>
 
-Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, entwickelt für Experimente, Evaluierung und Fehleranalyse. Für verwaltete Produktions-Workflows bietet Arize zusätzlich [Arize AX](https://arize.com/products/ax/) an. Phoenix bietet:
+Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, entwickelt für Experimente, Evaluierung und Fehleranalyse. Für verwaltete Produktions-Workflows bietet Arize zusätzlich [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-de) an. Phoenix bietet:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Verfolgen Sie das Laufzeitverhalten Ihrer LLM-Anwendung mit OpenTelemetry-basierter Instrumentierung.
 - [**_Evaluierung_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Nutzen Sie LLMs, um die Leistung Ihrer Anwendung mit Evals für Antworten und Retrieval zu bewerten.
@@ -64,7 +64,7 @@ Phoenix ist anbieter- und sprachunabhängig und unterstützt gängige Frameworks
 Phoenix läuft praktisch überall – auf Ihrem lokalen Rechner, in einem containerisierten Deployment oder in der Cloud. Unter [Umgebungen](https://arize.com/docs/phoenix/environments) finden Sie eine Anleitung zu jeder Option, oder Sie springen direkt zum [Tracing-Schnellstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix ist Open Source und selbst gehostet. Als verwaltete Plattform bietet Arize [Arize AX](https://arize.com/products/ax/) an – dieselbe OpenTelemetry-/OpenInference-Instrumentierung funktioniert mit beiden. Siehe den [vollständigen Vergleich](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix ist Open Source und selbst gehostet. Als verwaltete Plattform bietet Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-de) an – dieselbe OpenTelemetry-/OpenInference-Instrumentierung funktioniert mit beiden. Siehe den [vollständigen Vergleich](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Inhaltsverzeichnis
 

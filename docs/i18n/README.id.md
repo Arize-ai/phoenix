@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.id.md" />
 </p>
 
-Arize Phoenix adalah platform observabilitas AI open-source dari Arize yang dirancang untuk eksperimen, evaluasi, dan pemecahan masalah. Untuk alur kerja produksi terkelola, Arize juga menawarkan [Arize AX](https://arize.com/products/ax/). Phoenix menyediakan:
+Arize Phoenix adalah platform observabilitas AI open-source dari Arize yang dirancang untuk eksperimen, evaluasi, dan pemecahan masalah. Untuk alur kerja produksi terkelola, Arize juga menawarkan [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-id). Phoenix menyediakan:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Lacak runtime aplikasi LLM Anda menggunakan instrumentasi berbasis OpenTelemetry.
 - [**_Evaluasi_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Manfaatkan LLM untuk mengukur kinerja aplikasi Anda menggunakan eval respons dan retrieval.
@@ -64,7 +64,7 @@ Phoenix tidak bergantung pada vendor maupun bahasa, dengan dukungan siap pakai u
 Phoenix dapat berjalan hampir di mana saja, termasuk di mesin lokal Anda, deployment berbasis container, atau di cloud. Lihat [Lingkungan](https://arize.com/docs/phoenix/environments) untuk panduan setiap opsi, atau langsung menuju [Panduan Cepat Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix bersifat open-source dan self-hosted. Untuk platform terkelola, Arize menawarkan [Arize AX](https://arize.com/products/ax/) — instrumentasi OpenTelemetry/OpenInference yang sama berfungsi untuk keduanya. Lihat [perbandingan lengkapnya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix bersifat open-source dan self-hosted. Untuk platform terkelola, Arize menawarkan [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-id) — instrumentasi OpenTelemetry/OpenInference yang sama berfungsi untuk keduanya. Lihat [perbandingan lengkapnya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Daftar Isi
 

@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.zh-TW.md" />
 </p>
 
-Arize Phoenix 是 Arize 推出的開源 AI 可觀測性平台，專為實驗、評估與問題排查而設計。針對託管式的正式環境工作流程，Arize 也提供 [Arize AX](https://arize.com/products/ax/)。Phoenix 提供：
+Arize Phoenix 是 Arize 推出的開源 AI 可觀測性平台，專為實驗、評估與問題排查而設計。針對託管式的正式環境工作流程，Arize 也提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh-tw)。Phoenix 提供：
 
 - [**_追蹤 (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - 透過以 OpenTelemetry 為基礎的檢測，追蹤 LLM 應用程式的執行過程。
 - [**_評估 (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 運用 LLM，透過回應與檢索評估來衡量應用程式的效能。
@@ -64,7 +64,7 @@ Phoenix 不受限於特定供應商或程式語言，並內建支援熱門框架
 Phoenix 幾乎可在任何環境中執行，包括您的本機電腦、容器化部署或雲端。請參閱 [環境](https://arize.com/docs/phoenix/environments) 以了解各選項的逐步說明，或直接前往 [追蹤快速入門](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
 
 > [!NOTE]
-> Phoenix 為開源且可自行託管。若需要託管式平台，Arize 提供 [Arize AX](https://arize.com/products/ax/) — 兩者皆可使用相同的 OpenTelemetry/OpenInference 檢測。請參閱 [完整比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
+> Phoenix 為開源且可自行託管。若需要託管式平台，Arize 提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh-tw) — 兩者皆可使用相同的 OpenTelemetry/OpenInference 檢測。請參閱 [完整比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
 
 ## 目錄
 

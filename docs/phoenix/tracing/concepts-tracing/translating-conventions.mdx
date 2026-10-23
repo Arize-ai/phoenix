@@ -393,7 +393,7 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
         trace.WithAttributes(
             attribute.String("gen_ai.system", "gemini"),
             attribute.String("gen_ai.operation.name", "chat"),
-            semconv.GenAIRequestModel("gemini-2.0-flash"),
+            semconv.GenAIRequestModel("gemini-3.6-flash"),
         ),
     )
     defer span.End()
@@ -401,7 +401,7 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
     // ... make the LLM call ...
 
     span.SetAttributes(
-        semconv.GenAIResponseModel("gemini-2.0-flash"),
+        semconv.GenAIResponseModel("gemini-3.6-flash"),
         semconv.GenAIUsageInputTokens(promptTokens),
         semconv.GenAIUsageOutputTokens(completionTokens),
     )

@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.tl.md" />
 </p>
 
-Ang Arize Phoenix ay ang open-source na AI observability platform ng Arize na idinisenyo para sa eksperimentasyon, ebalwasyon, at pag-troubleshoot. Para sa mga pinamamahalaang production workflow, nag-aalok din ang Arize ng [Arize AX](https://arize.com/products/ax/). Ang Phoenix ay nagbibigay ng:
+Ang Arize Phoenix ay ang open-source na AI observability platform ng Arize na idinisenyo para sa eksperimentasyon, ebalwasyon, at pag-troubleshoot. Para sa mga pinamamahalaang production workflow, nag-aalok din ang Arize ng [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tl). Ang Phoenix ay nagbibigay ng:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - I-trace ang runtime ng inyong LLM application gamit ang instrumentation na batay sa OpenTelemetry.
 - [**_Ebalwasyon_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Gamitin ang mga LLM upang i-benchmark ang performance ng inyong application gamit ang mga eval para sa response at retrieval.
@@ -64,7 +64,7 @@ Ang Phoenix ay vendor- at language-agnostic, na may handa nang suporta para sa m
 Ang Phoenix ay tumatakbo halos kahit saan, kabilang ang inyong lokal na makina, isang containerized deployment, o sa cloud. Tingnan ang [Mga Environment](https://arize.com/docs/phoenix/environments) para sa gabay sa bawat opsyon, o dumiretso sa [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Ang Phoenix ay open-source at self-hosted. Para sa isang pinamamahalaang platform, nag-aalok ang Arize ng [Arize AX](https://arize.com/products/ax/) — ang parehong OpenTelemetry/OpenInference instrumentation ay gumagana sa dalawa. Tingnan ang [buong paghahambing](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Ang Phoenix ay open-source at self-hosted. Para sa isang pinamamahalaang platform, nag-aalok ang Arize ng [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tl) — ang parehong OpenTelemetry/OpenInference instrumentation ay gumagana sa dalawa. Tingnan ang [buong paghahambing](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Talaan ng Nilalaman
 

@@ -143,3 +143,36 @@ import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 
 await evaluateExperiment({ client, experiment, evaluators: [newEvaluator] });
 ```
+
+`evaluateExperiment` scores every run again and overwrites evaluations of the same name. To score only the runs still missing an evaluation, use `resumeEvaluation` (below).
+
+## Resume an Interrupted Experiment
+
+When a run crashed, hit a provider outage, or was interrupted, finish it instead of starting over:
+
+```typescript
+import {
+  resumeExperiment,
+  resumeEvaluation,
+} from "@arizeai/phoenix-client/experiments";
+
+// Re-runs the task only for (example, repetition) pairs with no successful run,
+// then applies evaluators to runs missing that evaluation.
+await resumeExperiment({
+  client,
+  experimentId: "experiment-id",
+  task,
+  evaluators: [exactMatch],
+});
+
+// All tasks finished, but some evaluations are missing or failed —
+// or you want to add a new evaluator to a finished experiment.
+await resumeEvaluation({
+  client,
+  experimentId: "experiment-id",
+  evaluators: [exactMatch],
+});
+```
+
+- `resumeEvaluation` matches evaluators to existing evaluations by name, so each evaluator should return a single result with that name. Evaluators that return a list of results re-run on every call.
+- When `resumeExperiment` replaces an errored run, the run keeps its ID; LLM and code evaluations on it are discarded and re-scored, human annotations are kept. Requires Phoenix server >= 20.21.3.

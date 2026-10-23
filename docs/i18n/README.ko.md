@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ko.md" />
 </p>
 
-Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오픈소스 AI 관측성(observability) 플랫폼입니다. 관리형 프로덕션 워크플로가 필요하다면 Arize는 [Arize AX](https://arize.com/products/ax/)도 제공합니다. Phoenix가 제공하는 기능은 다음과 같습니다:
+Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오픈소스 AI 관측성(observability) 플랫폼입니다. 관리형 프로덕션 워크플로가 필요하다면 Arize는 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ko)도 제공합니다. Phoenix가 제공하는 기능은 다음과 같습니다:
 
 - [**_트레이싱_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry 기반 계측을 사용하여 LLM 애플리케이션의 런타임을 트레이싱합니다.
 - [**_평가_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 응답 및 검색(retrieval) 평가를 통해 LLM을 활용하여 애플리케이션의 성능을 벤치마킹합니다.
@@ -64,7 +64,7 @@ Phoenix는 벤더와 언어에 구애받지 않으며, 인기 있는 프레임�
 Phoenix는 로컬 머신, 컨테이너 기반 배포, 클라우드 등 사실상 어디서나 실행됩니다. 각 옵션에 대한 안내는 [환경](https://arize.com/docs/phoenix/environments)을 참고하시거나, 바로 [트레이싱 빠른 시작](https://arize.com/docs/phoenix/get-started/get-started-tracing)으로 이동하세요.
 
 > [!NOTE]
-> Phoenix는 오픈소스이며 자체 호스팅 방식입니다. 관리형 플랫폼이 필요하다면 Arize의 [Arize AX](https://arize.com/products/ax/)를 이용할 수 있으며, 동일한 OpenTelemetry/OpenInference 계측이 두 플랫폼 모두에서 작동합니다. [전체 비교](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)를 참고하세요.
+> Phoenix는 오픈소스이며 자체 호스팅 방식입니다. 관리형 플랫폼이 필요하다면 Arize의 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ko)를 이용할 수 있으며, 동일한 OpenTelemetry/OpenInference 계측이 두 플랫폼 모두에서 작동합니다. [전체 비교](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)를 참고하세요.
 
 ## 목차
 

@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.hu.md" />
 </p>
 
-Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/) platformot is kínálja. A Phoenix a következőket nyújtja:
+Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) platformot is kínálja. A Phoenix a következőket nyújtja:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Kövesse nyomon LLM-alkalmazása futását OpenTelemetry-alapú instrumentációval.
 - [**_Kiértékelés_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Használjon LLM-eket alkalmazása teljesítményének mérésére válasz- és visszakeresési evalokkal.
@@ -64,7 +64,7 @@ A Phoenix gyártó- és nyelvfüggetlen, és beépített támogatást nyújt a n
 A Phoenix gyakorlatilag bárhol futtatható, például a helyi gépén, konténeres telepítésben vagy a felhőben. Az egyes lehetőségek bemutatásáért lásd a [Környezetek](https://arize.com/docs/phoenix/environments) oldalt, vagy ugorjon egyenesen a [Tracing gyorsindítási útmutatóhoz](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Tartalomjegyzék
 

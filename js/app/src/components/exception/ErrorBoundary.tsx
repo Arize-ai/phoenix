@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
 
 import {
   isRedirectingToLogin,
   isRedirectingToLoginError,
 } from "@phoenix/authFetch";
+import { reportClientError } from "@phoenix/utils/reportClientError";
 
 import { BugReportErrorBoundaryFallback } from "./BugReportErrorBoundaryFallback";
 import type { ErrorBoundaryFallbackComponent } from "./types";
@@ -30,9 +31,10 @@ export class ErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: unknown, errorInfo: unknown) {
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught error:", error, errorInfo);
+    reportClientError({ error, componentStack: errorInfo.componentStack });
   }
 
   render() {

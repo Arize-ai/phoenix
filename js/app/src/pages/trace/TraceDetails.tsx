@@ -17,8 +17,8 @@ import {
   Icon,
   Icons,
   LinkButton,
-  Loading,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipArrow,
   TooltipTrigger,
@@ -29,6 +29,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -40,7 +41,7 @@ import type {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { SpanDetails } from "./SpanDetails";
+import { SpanDetails, SpanDetailsSkeleton } from "./SpanDetails";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
@@ -56,6 +57,20 @@ export type TraceDetailsProps = {
   traceId: string;
   projectId: string;
 };
+
+const traceDetailsCSS = css`
+  flex: 1 1 auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`;
+
+const traceDetailsGroupCSS = css`
+  flex: 1 1 auto;
+  overflow: hidden;
+`;
+
+const TRACE_DETAILS_LAYOUT_ID = "trace-details-layout";
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans).
@@ -105,7 +120,7 @@ export function TraceDetailsView({
   projectId,
   selectedSpanNodeId: requestedSpanNodeId,
   onSpanSelectionChange,
-  layoutId = "trace-details-layout",
+  layoutId = TRACE_DETAILS_LAYOUT_ID,
 }: TraceDetailsViewProps) {
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
@@ -169,14 +184,7 @@ export function TraceDetailsView({
   });
 
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      `}
-    >
+    <main css={traceDetailsCSS}>
       <TraceHeader
         projectId={projectId}
         traceNodeId={data.project.trace.id}
@@ -189,10 +197,7 @@ export function TraceDetailsView({
         orientation="horizontal"
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
-        css={css`
-          flex: 1 1 auto;
-          overflow: hidden;
-        `}
+        css={traceDetailsGroupCSS}
       >
         <Panel id="trace-tree" defaultSize="30%" minSize="5%">
           <TraceTreeProvider>
@@ -215,12 +220,49 @@ export function TraceDetailsView({
           <SpanInfoCardsProvider>
             <ScrollingTabsWrapper>
               {selectedSpanNodeId ? (
-                <Suspense fallback={<Loading />}>
+                <Suspense fallback={<SpanDetailsSkeleton />}>
                   <SpanDetails spanNodeId={selectedSpanNodeId} />
                 </Suspense>
               ) : null}
             </ScrollingTabsWrapper>
           </SpanInfoCardsProvider>
+        </Panel>
+      </Group>
+    </main>
+  );
+}
+
+/**
+ * A loading placeholder for `TraceDetails`: the trace header's metrics above
+ * the trace tree and the span details, split as the loaded trace is.
+ */
+export function TraceDetailsSkeleton({
+  layoutId = TRACE_DETAILS_LAYOUT_ID,
+}: Pick<TraceDetailsViewProps, "layoutId">) {
+  const { defaultLayout } = useDefaultLayout({
+    id: layoutId,
+    storage: localStorage,
+  });
+  return (
+    <main css={traceDetailsCSS} aria-busy="true">
+      <View paddingTop="size-100" paddingBottom="size-150" paddingX="size-200">
+        <Skeleton height="calc(var(--global-line-height-s) + var(--global-line-height-l))" />
+      </View>
+      <Group
+        orientation="horizontal"
+        defaultLayout={defaultLayout}
+        css={traceDetailsGroupCSS}
+      >
+        <Panel id="trace-tree" defaultSize="30%" minSize="5%">
+          <ScrollingPanelContent>
+            <View padding="size-100" flex="none">
+              <Skeleton height="var(--global-input-height-m)" />
+            </View>
+            <TraceTreeSkeleton />
+          </ScrollingPanelContent>
+        </Panel>
+        <Panel id="span-details">
+          <SpanDetailsSkeleton />
         </Panel>
       </Group>
     </main>

@@ -9,12 +9,12 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.91",
+    "@ai-sdk/openai": "^4.0.96",
     "@arizeai/openinference-vercel": "^3.3.0",
     "@arizeai/phoenix-otel": "workspace:*",
     "ai": "^7.0.137",
     "eve": "^0.25.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

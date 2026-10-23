@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.hi.md" />
 </p>
 
-Arize Phoenix, Arize का ओपन-सोर्स AI observability प्लेटफ़ॉर्म है, जिसे प्रयोग (experimentation), मूल्यांकन (evaluation) और समस्या-निवारण के लिए डिज़ाइन किया गया है। प्रबंधित प्रोडक्शन वर्कफ़्लो के लिए Arize [Arize AX](https://arize.com/products/ax/) भी प्रदान करता है। Phoenix निम्नलिखित सुविधाएँ देता है:
+Arize Phoenix, Arize का ओपन-सोर्स AI observability प्लेटफ़ॉर्म है, जिसे प्रयोग (experimentation), मूल्यांकन (evaluation) और समस्या-निवारण के लिए डिज़ाइन किया गया है। प्रबंधित प्रोडक्शन वर्कफ़्लो के लिए Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hi) भी प्रदान करता है। Phoenix निम्नलिखित सुविधाएँ देता है:
 
 - [**_ट्रेसिंग_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry-आधारित instrumentation का उपयोग करके अपने LLM एप्लिकेशन के रनटाइम को ट्रेस करें।
 - [**_मूल्यांकन_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - response और retrieval evals का उपयोग करके अपने एप्लिकेशन के प्रदर्शन को बेंचमार्क करने के लिए LLM का लाभ उठाएँ।
@@ -64,7 +64,7 @@ Phoenix विक्रेता (vendor) और भाषा से स्व�
 Phoenix लगभग कहीं भी चलता है, जिसमें आपकी लोकल मशीन, कंटेनराइज़्ड डिप्लॉयमेंट या क्लाउड शामिल हैं। हर विकल्प की जानकारी के लिए [Environments](https://arize.com/docs/phoenix/environments) देखें, या सीधे [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing) पर जाएँ।
 
 > [!NOTE]
-> Phoenix ओपन-सोर्स और self-hosted है। प्रबंधित प्लेटफ़ॉर्म के लिए Arize [Arize AX](https://arize.com/products/ax/) प्रदान करता है — वही OpenTelemetry/OpenInference instrumentation दोनों के साथ काम करता है। [पूरी तुलना](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) देखें।
+> Phoenix ओपन-सोर्स और self-hosted है। प्रबंधित प्लेटफ़ॉर्म के लिए Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hi) प्रदान करता है — वही OpenTelemetry/OpenInference instrumentation दोनों के साथ काम करता है। [पूरी तुलना](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) देखें।
 
 ## विषय-सूची
 

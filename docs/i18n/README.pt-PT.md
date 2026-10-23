@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.pt-PT.md" />
 </p>
 
-O Arize Phoenix é a plataforma de observabilidade de IA de código aberto da Arize, concebida para experimentação, avaliação e resolução de problemas. Para fluxos de trabalho geridos em produção, a Arize disponibiliza também o [Arize AX](https://arize.com/products/ax/). O Phoenix proporciona:
+O Arize Phoenix é a plataforma de observabilidade de IA de código aberto da Arize, concebida para experimentação, avaliação e resolução de problemas. Para fluxos de trabalho geridos em produção, a Arize disponibiliza também o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-pt). O Phoenix proporciona:
 
 - [**_Rastreio_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Rastreie a execução da sua aplicação LLM através de instrumentação baseada em OpenTelemetry.
 - [**_Avaliação_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Tire partido de LLMs para aferir o desempenho da sua aplicação com avaliações de resposta e de recuperação (retrieval).
@@ -64,7 +64,7 @@ O Phoenix é independente do fornecedor e da linguagem, com suporte de origem pa
 O Phoenix funciona praticamente em qualquer lado, incluindo a sua máquina local, uma implementação em contentores ou a nuvem. Consulte [Ambientes](https://arize.com/docs/phoenix/environments) para uma descrição detalhada de cada opção ou avance diretamente para o [Guia de início rápido de rastreio](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> O Phoenix é de código aberto e de alojamento próprio. Para uma plataforma gerida, a Arize disponibiliza o [Arize AX](https://arize.com/products/ax/) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Consulte a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> O Phoenix é de código aberto e de alojamento próprio. Para uma plataforma gerida, a Arize disponibiliza o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-pt) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Consulte a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Índice
 

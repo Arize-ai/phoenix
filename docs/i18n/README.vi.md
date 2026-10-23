@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.vi.md" />
 </p>
 
-Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, được thiết kế cho thử nghiệm, đánh giá và khắc phục sự cố. Đối với các quy trình vận hành production được quản lý, Arize còn cung cấp [Arize AX](https://arize.com/products/ax/). Phoenix cung cấp:
+Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, được thiết kế cho thử nghiệm, đánh giá và khắc phục sự cố. Đối với các quy trình vận hành production được quản lý, Arize còn cung cấp [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-vi). Phoenix cung cấp:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Theo dõi (trace) quá trình chạy của ứng dụng LLM bằng instrumentation dựa trên OpenTelemetry.
 - [**_Đánh giá (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Tận dụng LLM để đo lường hiệu năng ứng dụng của bạn bằng các evals về phản hồi và truy xuất.
@@ -64,7 +64,7 @@ Phoenix không phụ thuộc vào nhà cung cấp hay ngôn ngữ, hỗ trợ s�
 Phoenix có thể chạy gần như ở bất cứ đâu, bao gồm máy cục bộ của bạn, môi trường triển khai container hoặc trên cloud. Xem [Môi trường](https://arize.com/docs/phoenix/environments) để được hướng dẫn chi tiết từng lựa chọn, hoặc chuyển thẳng tới [Hướng dẫn nhanh về Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix là mã nguồn mở và tự lưu trữ (self-hosted). Nếu cần một nền tảng được quản lý, Arize cung cấp [Arize AX](https://arize.com/products/ax/) — cùng một instrumentation OpenTelemetry/OpenInference hoạt động với cả hai. Xem [bảng so sánh đầy đủ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix là mã nguồn mở và tự lưu trữ (self-hosted). Nếu cần một nền tảng được quản lý, Arize cung cấp [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-vi) — cùng một instrumentation OpenTelemetry/OpenInference hoạt động với cả hai. Xem [bảng so sánh đầy đủ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Mục lục
 

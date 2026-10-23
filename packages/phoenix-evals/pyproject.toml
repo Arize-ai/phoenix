@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "3.9.2"
+version = "3.9.3"
 dependencies = [
   "pandas",
   "tqdm",
@@ -37,7 +37,7 @@ dependencies = [
 dev = [
   "anthropic>=1,<2",
   "boto3",
-  "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
+  "litellm>=1.83.14,!=1.107.0; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",
   # TODO: un-comment this when mistralai is un-quarantined on PyPI
   # "mistralai>=1.0.0",
@@ -49,7 +49,7 @@ test = [
   "typing-extensions>=4.5, <5",
   "anthropic>=1,<2",
   "boto3",
-  "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
+  "litellm>=1.83.14,!=1.107.0; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",
   # TODO: un-comment this when mistralai is un-quarantined on PyPI
   # "mistralai>=1.0.0",
