@@ -168,7 +168,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             supportsDecisionModels={props.supportsDecisionModels}
             decisionTabNotice={props.decisionTabNotice}
           />
-          <DuplicateButton {...props} />
+          {props.disableDuplicate ? null : <DuplicateButton {...props} />}
           {isDecision ? <DuplicateAsChatButton {...props} /> : null}
           {instances.length > 1 ? (
             <PlaygroundInstanceDeleteButton instanceId={instanceId} />
