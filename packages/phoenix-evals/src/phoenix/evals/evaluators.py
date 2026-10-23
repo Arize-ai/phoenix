@@ -12,6 +12,7 @@ from typing import (
     Callable,
     DefaultDict,
     Dict,
+    Generic,
     List,
     Literal,
     Optional,
@@ -24,7 +25,7 @@ from typing import (
 import pandas as pd
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
-from typing_extensions import Annotated, Mapping
+from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
@@ -507,7 +508,15 @@ class Evaluator(ABC):
 
 
 # --- LLM Evaluator base ---
-class LLMEvaluator(Evaluator):
+# Model backend used by an LLMEvaluator. Defaults to LLM so that existing custom
+# subclasses (written as `class MyEvaluator(LLMEvaluator)`, without a type argument)
+# keep seeing `self.llm` typed as `LLM`, preserving access to `generate_object` /
+# `generate_text`. Subclasses that accept other backends specialize explicitly, e.g.
+# `ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]])`.
+_ModelT = TypeVar("_ModelT", default=LLM)
+
+
+class LLMEvaluator(Evaluator, Generic[_ModelT]):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
@@ -533,7 +542,7 @@ class LLMEvaluator(Evaluator):
         self,
         *,
         name: str,
-        llm: Union[LLM, DecisionModel],
+        llm: _ModelT,
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -573,7 +582,7 @@ class LLMEvaluator(Evaluator):
             direction=direction,
             input_schema=input_schema,
         )
-        self.llm = llm
+        self.llm: _ModelT = llm
         self.schema = schema
 
     @property
@@ -599,7 +608,7 @@ class LLMEvaluator(Evaluator):
 
 
 # --- LLM ClassificationEvaluator ---
-class ClassificationEvaluator(LLMEvaluator):
+class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
     """
     LLM-based evaluator for classification-style judgements.
 
