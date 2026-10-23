@@ -98,4 +98,48 @@ describe("ModelForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Token type is required");
   });
+
+  it.each([
+    ["OpenAI", "openai"],
+    ["Azure OpenAI", "azure"],
+    ["ANTHROPIC", "anthropic"],
+  ])(
+    "submits the typed provider %s as the preset value %s",
+    async (typed, expected) => {
+      await replaceText(providerInput(), typed);
+      expect(providerInput().value).toBe(typed);
+      await submit();
+
+      expect(onSubmit.mock.calls[0][0].provider).toBe(expected);
+    }
+  );
+
+  it("submits known token types in lowercase", async () => {
+    await replaceText(promptTokenTypeInput(), "Input");
+    await submit();
+
+    expect(onSubmit.mock.calls[0][0].promptCosts[0].tokenType).toBe("input");
+  });
+
+  it("rejects a token type that duplicates another on the same side", async () => {
+    const [addPromptRowButton] = Array.from(
+      container.querySelectorAll("button")
+    ).filter((button) => button.textContent === "Add row");
+    await act(async () => {
+      await userEvent.click(addPromptRowButton);
+    });
+    const [, addedTokenTypeInput] = Array.from(
+      container.querySelectorAll<HTMLInputElement>(
+        'input[aria-label="Token type"]'
+      )
+    );
+    await replaceText(addedTokenTypeInput, "INPUT");
+    await submit();
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Only the later row is flagged, since that is the one to fix
+    expect(container.textContent?.match(/Duplicate token type/g)).toHaveLength(
+      1
+    );
+  });
 });

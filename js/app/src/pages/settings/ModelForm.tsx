@@ -26,6 +26,7 @@ import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeCombo
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
   DEFAULT_TOKEN_PROMPT_OPTIONS,
+  normalizeTokenType,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
@@ -96,15 +97,27 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
     },
   ];
 
-// Trimmed on submit rather than on input so that spaces can be typed mid-value
-function trimModelFormParams(params: ModelFormParams): ModelFormParams {
-  const trimTokenTypes = (costs: TokenPrice[]) =>
-    costs.map((cost) => ({ ...cost, tokenType: cost.tokenType.trim() }));
+function findProviderOption(provider: string) {
+  const lowered = provider.trim().toLowerCase();
+  return PROVIDER_OPTIONS.find(
+    (option) =>
+      option.value === lowered || option.label.toLowerCase() === lowered
+  );
+}
+
+// Normalized on submit rather than on input so that spaces can be typed mid-value
+function normalizeModelFormParams(params: ModelFormParams): ModelFormParams {
+  const provider = params.provider?.trim();
+  const normalizeTokenTypes = (costs: TokenPrice[]) =>
+    costs.map((cost) => ({
+      ...cost,
+      tokenType: normalizeTokenType(cost.tokenType),
+    }));
   return {
     ...params,
-    provider: params.provider?.trim(),
-    promptCosts: trimTokenTypes(params.promptCosts),
-    completionCosts: trimTokenTypes(params.completionCosts),
+    provider: provider && (findProviderOption(provider)?.value ?? provider),
+    promptCosts: normalizeTokenTypes(params.promptCosts),
+    completionCosts: normalizeTokenTypes(params.completionCosts),
   };
 }
 
@@ -126,9 +139,7 @@ function ModelProviderComboBox({
     <ComboBox
       label="Provider"
       placeholder="Choose or enter a provider"
-      selectedKey={
-        PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
-      }
+      selectedKey={findProviderOption(value)?.key || ""}
       inputValue={value}
       onSelectionChange={(key) => {
         const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
@@ -238,7 +249,9 @@ export function ModelForm({
 
   return (
     <Form
-      onSubmit={handleSubmit((params) => onSubmit(trimModelFormParams(params)))}
+      onSubmit={handleSubmit((params) =>
+        onSubmit(normalizeModelFormParams(params))
+      )}
     >
       <View padding="size-200">
         <Flex direction="column" gap="size-200">

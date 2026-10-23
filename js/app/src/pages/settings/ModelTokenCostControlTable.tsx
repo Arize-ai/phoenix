@@ -14,7 +14,10 @@ import {
 } from "@phoenix/components";
 import type { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
-import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import {
+  ModelTokenTypeComboBox,
+  normalizeTokenType,
+} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 
 export function ModelTokenCostControlTable({
   title,
@@ -85,8 +88,21 @@ export function ModelTokenCostControlTable({
                   name={`${namePrefix}.${index}.tokenType`}
                   control={control}
                   rules={{
-                    validate: (value) =>
-                      !!value?.trim() || "Token type is required",
+                    validate: (value, formValues) => {
+                      const tokenType = normalizeTokenType(value ?? "");
+                      if (!tokenType) {
+                        return "Token type is required";
+                      }
+                      const isDuplicate = formValues[namePrefix]
+                        .slice(0, index)
+                        .some(
+                          (cost) =>
+                            normalizeTokenType(
+                              cost.tokenType ?? ""
+                            ).toLowerCase() === tokenType.toLowerCase()
+                        );
+                      return !isDuplicate || "Duplicate token type";
+                    },
                   }}
                   render={({
                     fieldState: { invalid, error },
