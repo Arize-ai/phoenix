@@ -14,6 +14,7 @@ from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
 )
+from phoenix.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,12 @@ def _normalize_http_collector_endpoint(endpoint: str, signal_path: str) -> str:
 
 
 def _server_resource() -> Resource:
-    return Resource(attributes={ResourceAttributes.SERVICE_NAME: _SERVICE_NAME})
+    return Resource(
+        attributes={
+            ResourceAttributes.SERVICE_NAME: _SERVICE_NAME,
+            ResourceAttributes.SERVICE_VERSION: __version__,
+        }
+    )
 
 
 def initialize_opentelemetry_tracer_provider() -> TracerProvider:
