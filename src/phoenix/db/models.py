@@ -2295,6 +2295,16 @@ class SystemSetting(Base):
     )
 
 
+class SystemState(Base):
+    """Server-wide key/value state (any JSON value per key) with a revision counter."""
+
+    __tablename__ = "system_state"
+
+    key: Mapped[str] = mapped_column(primary_key=True)
+    value: Mapped[Any] = mapped_column(JSON_, nullable=False)
+    revision: Mapped[int] = mapped_column(sa.BigInteger, nullable=False)
+
+
 class LocalUser(User):
     __mapper_args__ = {
         "polymorphic_identity": "LOCAL",

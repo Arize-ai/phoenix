@@ -41,6 +41,7 @@ jobs:
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
+      sync_models: ${{ steps.filter.outputs.sync_models }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -110,6 +111,9 @@ jobs:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
+            sync_models:
+              - "scripts/cost_tracking/**"
+              - "src/phoenix/server/cost_tracking/**"
       # Skip suites only when every changed path is a changelog or release
       # manifest.
       - name: Detect a bookkeeping-only change
@@ -146,6 +150,7 @@ jobs:
           MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
+          SYNC_MODELS: ${{ steps.filter.outputs.sync_models }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -162,6 +167,7 @@ jobs:
           echo "mcp_skills: $MCP_SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
+          echo "sync_models: $SYNC_MODELS"
 
   phoenix-client:
     name: Phoenix Client
@@ -444,6 +450,39 @@ jobs:
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
+
+  test-sync-models:
+    name: Test Model Cost Sync Script
+    needs: changes
+    if: ${{ needs.changes.outputs.sync_models == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/cost_tracking/
+            requirements/
+            src/phoenix/
+            packages/
+            evals/harbor/verifiers/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Test the model cost manifest sync script
+        run: make test-sync-models
 
   doctests:
     name: Doctests
@@ -914,6 +953,7 @@ jobs:
       - check-filter-dsl-snippets
       - check-docs-snippets
       - check-skill-graphql-examples
+      - test-sync-models
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
