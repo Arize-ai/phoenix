@@ -52,6 +52,40 @@ export function arePlaygroundInstancesEqualExceptProgress(
   left: ReadonlyArray<PlaygroundNormalizedInstance>,
   right: ReadonlyArray<PlaygroundNormalizedInstance>
 ): boolean {
+  return areInstancesEqualExcept(left, right, PROGRESS_KEYS);
+}
+
+/**
+ * Like {@link arePlaygroundInstancesEqualExceptProgress}, and also ignores
+ * each instance's `decisionRequest`. Every keystroke in a decision's state or
+ * questions replaces that draft, and with it the array, so a subscriber that
+ * builds per-task UI without reading what the decision says (the dataset
+ * table's columns, say) would otherwise rebuild on every keystroke. Read the
+ * draft through its own selector, or from the store when a run starts.
+ */
+export function arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(
+  left: ReadonlyArray<PlaygroundNormalizedInstance>,
+  right: ReadonlyArray<PlaygroundNormalizedInstance>
+): boolean {
+  return areInstancesEqualExcept(left, right, PROGRESS_AND_DECISION_DRAFT_KEYS);
+}
+
+type InstanceKey = keyof PlaygroundNormalizedInstance;
+
+const PROGRESS_KEYS: ReadonlySet<InstanceKey> = new Set([
+  "experimentRunProgress",
+]);
+
+const PROGRESS_AND_DECISION_DRAFT_KEYS: ReadonlySet<InstanceKey> = new Set([
+  "experimentRunProgress",
+  "decisionRequest",
+]);
+
+function areInstancesEqualExcept(
+  left: ReadonlyArray<PlaygroundNormalizedInstance>,
+  right: ReadonlyArray<PlaygroundNormalizedInstance>,
+  ignoredKeys: ReadonlySet<InstanceKey>
+): boolean {
   if (left === right) {
     return true;
   }
@@ -61,22 +95,25 @@ export function arePlaygroundInstancesEqualExceptProgress(
   }
 
   return left.every((instance, index) =>
-    isInstanceEqualExceptProgress(instance, right[index])
+    isInstanceEqualExcept(instance, right[index], ignoredKeys)
   );
 }
 
-function isInstanceEqualExceptProgress(
+function isInstanceEqualExcept(
   left: PlaygroundNormalizedInstance,
-  right: PlaygroundNormalizedInstance
+  right: PlaygroundNormalizedInstance,
+  ignoredKeys: ReadonlySet<InstanceKey>
 ): boolean {
   if (left === right) {
     return true;
   }
 
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
-  keys.delete("experimentRunProgress");
 
   for (const key of keys) {
+    if (ignoredKeys.has(key as InstanceKey)) {
+      continue;
+    }
     if (
       left[key as keyof PlaygroundNormalizedInstance] !==
       right[key as keyof PlaygroundNormalizedInstance]
