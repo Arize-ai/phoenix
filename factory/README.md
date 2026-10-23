@@ -98,7 +98,7 @@ Each part does one job, so it can be changed and tested on its own:
 ### Trust boundaries
 
 - **Untrusted input.** Issue text, issue comments, CI logs and review comments can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
-- **The sandbox.** It holds the factory token for the whole session, so code there can push any branch. The token belongs to a non-admin machine account that a ruleset limits to `factory/**` branches. CI recognizes that account's PRs by author as well as branch: Factory Guard runs on them, and PXI evals don't run on them with secrets.
+- **The sandbox.** It holds the factory token for the whole session, so code there can push any branch. The token belongs to a non-admin machine account that a ruleset limits to `factory/**` branches. Factory Guard recognizes factory PRs by their `factory/` branch; it will also match by author once the factory has its own machine account. PXI evals don't run with secrets on PRs authored by `FACTORY_LOGIN`.
 - **Human gates.** Only someone with write access can start a run, and only a human merges.
 
 A maintainer's part is to label an issue, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. To run an issue again, re-add the `factory` label.
