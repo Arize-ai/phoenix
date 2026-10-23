@@ -1858,6 +1858,7 @@ CREATE TABLE llm_evaluators (
     prompt_version_tag_id INTEGER,
     output_configs JSONB NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    input_schema JSONB,
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`" CHECK (kind = 'LLM'),
     CONSTRAINT fk_llm_evaluators_kind_evaluators
@@ -1995,6 +1996,7 @@ CREATE TABLE code_evaluators (
     input_mapping JSONB DEFAULT '{"literal_mapping": {}, "path_mapping": {}}' NOT NULL,
     output_configs JSONB DEFAULT '[]' NOT NULL,
     sandbox_config_id INTEGER,
+    input_schema JSONB,
     CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_code_evaluators_`valid_evaluator_kind`" CHECK (kind = 'CODE'),
     CONSTRAINT fk_code_evaluators_kind_evaluators
