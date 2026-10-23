@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b5f4e07907317dbec0b46775b53a1c9d>>
+ * @generated SignedSource<<12ad03cb163a2133bffa1e65538ee3ec>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type usePromptLabelMutationsCreateLabelMutation$data = {
   readonly createPromptLabel: {
     readonly promptLabels: ReadonlyArray<{
       readonly color: string | null;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
       readonly usageCount: number;
@@ -70,6 +71,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "description",
       "storageKey": null
     },
     {
@@ -160,16 +168,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "056f27e5e547ee415dcc74ff4e48c487",
+    "cacheID": "5811d57037306e2cb11f81de0fb44d2d",
     "id": null,
     "metadata": {},
     "name": "usePromptLabelMutationsCreateLabelMutation",
     "operationKind": "mutation",
-    "text": "mutation usePromptLabelMutationsCreateLabelMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    promptLabels {\n      id\n      name\n      color\n      usageCount\n    }\n  }\n}\n"
+    "text": "mutation usePromptLabelMutationsCreateLabelMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    promptLabels {\n      id\n      name\n      description\n      color\n      usageCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6de334eb8b54795e0e70fb3e432b04e4";
+(node as any).hash = "27f1008c042a805db5d4a0873e49c4b5";
 
 export default node;
