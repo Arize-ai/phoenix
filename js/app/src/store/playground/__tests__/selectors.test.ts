@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { arePlaygroundInstancesEqualExceptProgress } from "../selectors";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
+
+import {
+  createDecisionTaskInstance,
+  createPlaygroundStore,
+} from "../playgroundStore";
+import {
+  arePlaygroundInstancesEqualExceptProgress,
+  arePlaygroundInstancesEqualExceptProgressAndDecisionDraft,
+} from "../selectors";
 import type { PlaygroundNormalizedInstance } from "../types";
 
 // The comparison reads keys, not shapes, so a sketch of an instance is enough.
@@ -85,5 +94,78 @@ describe("arePlaygroundInstancesEqualExceptProgress", () => {
       )
     ).toBe(false);
     expect(arePlaygroundInstancesEqualExceptProgress([base], [])).toBe(false);
+  });
+});
+
+describe("arePlaygroundInstancesEqualExceptProgressAndDecisionDraft", () => {
+  it("ignores a decision draft edit and a progress bump", () => {
+    const before = instance({ decisionRequest: createDecisionDraft() });
+    const after = {
+      ...before,
+      decisionRequest: { ...before.decisionRequest!, state: "typed" },
+      experimentRunProgress: {
+        totalRuns: 1,
+        runsCompleted: 1,
+        runsFailed: 0,
+        totalEvals: 0,
+        evalsCompleted: 0,
+        evalsFailed: 0,
+      },
+    };
+
+    expect(
+      arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(
+        [before],
+        [after]
+      )
+    ).toBe(true);
+    // Without the draft exemption the same edit is a change.
+    expect(arePlaygroundInstancesEqualExceptProgress([before], [after])).toBe(
+      false
+    );
+  });
+
+  it("sees any other change", () => {
+    const base = instance();
+
+    expect(
+      arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(
+        [base],
+        [{ ...base, activeRunId: 7 }]
+      )
+    ).toBe(false);
+    expect(
+      arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(
+        [base],
+        [{ ...base, task: { type: "decision" } as never }]
+      )
+    ).toBe(false);
+    expect(
+      arePlaygroundInstancesEqualExceptProgressAndDecisionDraft([base], [])
+    ).toBe(false);
+  });
+
+  // The dataset table subscribes with this equality; typing in a decision
+  // must not rebuild its columns, or the whole table re-renders per keystroke.
+  it("holds across a store decision edit", () => {
+    const draft = createDecisionDraft();
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      instances: [
+        { ...createDecisionTaskInstance(), id: 1, decisionRequest: draft },
+      ],
+    });
+    const before = store.getState().instances;
+
+    store.getState().updateDecisionRequest({
+      instanceId: 1,
+      request: { ...draft, state: "Typed {{ticket}}" },
+    });
+    const after = store.getState().instances;
+
+    expect(after).not.toBe(before);
+    expect(
+      arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(before, after)
+    ).toBe(true);
   });
 });

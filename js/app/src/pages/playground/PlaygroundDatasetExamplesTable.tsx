@@ -93,8 +93,7 @@ import {
   getTemplateVariablesPath,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
-import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
+import { arePlaygroundInstancesEqualExceptProgressAndDecisionDraft } from "@phoenix/store/playground/selectors";
 import type {
   EditableTableDiff,
   EditableTableStore,
@@ -389,9 +388,35 @@ function EmptyExampleOutput({
   );
 }
 
+/**
+ * A decision run's answers, in the order and with the labels of the decision
+ * the column runs. Only cells with answers subscribe to the draft, so typing
+ * in the decision does not re-render the column's empty cells.
+ */
+function ExampleDecisionResult({
+  instanceId,
+  answers,
+}: {
+  instanceId: number;
+  answers: unknown;
+}) {
+  const decisionRequest = usePlaygroundContext(
+    (state) =>
+      state.instances.find((instance) => instance.id === instanceId)
+        ?.decisionRequest
+  );
+  return (
+    <DecisionResult
+      output={JSON.stringify({ answers })}
+      request={decisionRequest ?? null}
+      showUsage={false}
+    />
+  );
+}
+
 function ExampleOutputContent({
+  instanceId,
   exampleData,
-  decisionRequest,
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
@@ -402,9 +427,8 @@ function ExampleOutputContent({
   isExpanded,
   onExpandedChange,
 }: {
+  instanceId: number;
   exampleData: ExampleRunData;
-  /** The decision the column runs, for its answers' order and labels. */
-  decisionRequest?: DecisionRequestDraft | null;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
@@ -529,11 +553,10 @@ function ExampleOutputContent({
               <DynamicContent value={content} mode="streaming" key="content" />
             ) : null}
             {decisionAnswers != null ? (
-              <DecisionResult
+              <ExampleDecisionResult
                 key="decision"
-                output={JSON.stringify({ answers: decisionAnswers })}
-                request={decisionRequest ?? null}
-                showUsage={false}
+                instanceId={instanceId}
+                answers={decisionAnswers}
               />
             ) : null}
             {toolCalls != null && Object.keys(toolCalls).length > 0
@@ -622,11 +645,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
-  const decisionRequest = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)
-        ?.decisionRequest
-  );
   const onViewDetails = useCallback(
     () => onViewExperimentRunDetailsPress(exampleIndex),
     [onViewExperimentRunDetailsPress, exampleIndex]
@@ -643,8 +661,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     />
   ) : (
     <ExampleOutputContent
+      instanceId={instanceId}
       exampleData={exampleData}
-      decisionRequest={decisionRequest}
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
@@ -849,11 +867,13 @@ export function PlaygroundDatasetExamplesTable({
   const environment = useRelayEnvironment();
   // Everything below hangs off the instances' shape: which tasks there are,
   // which are running, which experiment each produced. A run streams one
-  // store write per result into the progress counters, so those are ignored
-  // here or every result would rebuild the columns and re-render every cell.
+  // store write per result into the progress counters, and typing in a
+  // decision replaces its draft on every keystroke, so both are ignored here
+  // or each would rebuild the columns and re-render every cell. A run reads
+  // the draft from the store when it starts.
   const instances = usePlaygroundContext(
     (state) => state.instances,
-    arePlaygroundInstancesEqualExceptProgress
+    arePlaygroundInstancesEqualExceptProgressAndDecisionDraft
   );
   const columnLabels = getExampleColumnLabels(getPlaygroundMode(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
