@@ -129,11 +129,14 @@ export const typeaheadMenuCSS = css`
 
 /**
  * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
- * Inside a modal they are reparented to the overlay container to escape the
- * dialog's transformed overflow clip, so repeat that scope at the portal root.
+ * When reparented outside the editor to escape a toolbar or dialog clip,
+ * repeat that scope at the portal root.
  */
 export const portaledTypeaheadMenuCSS = css`
   .dsl-filter-tooltip-root {
+    .cm-tooltip {
+      pointer-events: auto;
+    }
     ${typeaheadMenuCSS}
   }
 `;
