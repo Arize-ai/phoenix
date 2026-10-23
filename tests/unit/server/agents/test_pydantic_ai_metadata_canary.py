@@ -120,7 +120,10 @@ _EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
 
 
 def test_tool_kinds_match_pydantic_ai() -> None:
-    assert set(get_args(PydanticAIToolPartKind)) == set(get_args(ToolPartKind))
+    # pydantic-ai may declare ``ToolPartKind`` as a ``TypeAliasType``, whose
+    # ``get_args`` is empty; unwrap it to reach the underlying ``Literal``.
+    installed = getattr(ToolPartKind, "__value__", ToolPartKind)
+    assert set(get_args(PydanticAIToolPartKind)) == set(get_args(installed))
 
 
 _THINKING = ThinkingPart(

@@ -276,6 +276,9 @@ export function ExperimentsTable({
             edges {
               node {
                 name
+                evaluator {
+                  kind
+                }
                 outputConfigs {
                   __typename
                   ... on CategoricalAnnotationConfig {

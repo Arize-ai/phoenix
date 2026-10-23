@@ -13,6 +13,7 @@ import type {
   DecisionRequestDraft,
   DecisionScaleLevelDraft,
   PlaygroundInstance,
+  PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -1464,6 +1465,30 @@ function chatStateContent({
   return parseStateInputNames(draft.state)
     .map((name) => `${name}: ${variable(name)}`.trimEnd())
     .join("\n");
+}
+
+/**
+ * The chat a decision instance becomes when an LLM is picked for it. An
+ * instance that kept the messages it had before it became a decision gets
+ * them back (null here); one without any, like a new decision, asks the LLM
+ * the same questions, as "Duplicate as an LLM prompt" does, rather than
+ * becoming an empty prompt.
+ */
+export function getChatForDecisionToPrompt({
+  instance,
+  templateFormat,
+}: {
+  instance: Pick<PlaygroundNormalizedInstance, "template" | "decisionRequest">;
+  templateFormat: TemplateFormat;
+}): ReturnType<typeof buildChatFromDecisionDraft> | null {
+  const hasMessages =
+    instance.template.__type === "chat" &&
+    instance.template.messageIds.length > 0;
+  if (hasMessages || !instance.decisionRequest) return null;
+  return buildChatFromDecisionDraft({
+    draft: instance.decisionRequest,
+    templateFormat,
+  });
 }
 
 /**

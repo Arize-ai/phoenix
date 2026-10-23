@@ -25,6 +25,7 @@ const taskConfig: DecisionTaskConfig = {
   customProvider: { id: "provider-1", name: "My endpoint" },
   baseUrl: null,
   inputValuesPath: "metadata.inputs",
+  decisionVersion: null,
   inputs: [{ name: "ticket", description: null, jsonSchema: null }],
   state: { __typename: "DecisionObjectState", object: true },
   questions: [
@@ -140,4 +141,33 @@ it("fetches a fixed-question decision experiment", async () => {
       ],
     },
   });
+});
+
+it("keeps the saved decision version and the dataset splits the experiment ran", async () => {
+  mockFetchQuery.mockResolvedValueOnce({
+    node: {
+      dataset: { id: "dataset-1" },
+      datasetSplits: { edges: [{ node: { id: "split-1" } }] },
+      job: {
+        maxConcurrency: 2,
+        datasetEvaluators: { edges: [] },
+        taskConfig: {
+          ...taskConfig,
+          decisionVersion: {
+            id: "version-2",
+            decision: { id: "decision-1", name: "triage" },
+          },
+        },
+      },
+    },
+  });
+  const result = await fetchExperimentPlaygroundProps("exp-saved");
+  expect(result?.playgroundProps.instances?.[0].decision).toEqual({
+    id: "decision-1",
+    name: "triage",
+    versionId: "version-2",
+    tag: null,
+  });
+  expect(result?.datasetId).toBe("dataset-1");
+  expect(result?.splitIds).toEqual(["split-1"]);
 });

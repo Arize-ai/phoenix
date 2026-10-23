@@ -248,6 +248,11 @@ function DecisionDatasetEvaluatorFormContent({
               edgeTypeName: "DatasetEvaluatorEdge"
             ) {
             id
+            # The dataset's Evaluators tab counts its evaluators.
+            dataset {
+              id
+              evaluatorCount
+            }
             ...DatasetEvaluatorsTable_row
           }
         }

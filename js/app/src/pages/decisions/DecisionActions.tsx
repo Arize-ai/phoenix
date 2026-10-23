@@ -246,19 +246,26 @@ export function SetDecisionTagButton({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [commit, isPending] =
     useMutation<DecisionActionsSetTagMutation>(graphql`
       mutation DecisionActionsSetTagMutation(
         $versionId: ID!
         $name: Identifier!
+        $description: String
       ) {
         setDecisionVersionTag(
-          input: { decisionVersionId: $versionId, name: $name }
+          input: {
+            decisionVersionId: $versionId
+            name: $name
+            description: $description
+          }
         ) {
           decisionVersionTag {
             id
             name
+            description
             decisionVersionId
           }
         }
@@ -270,6 +277,7 @@ export function SetDecisionTagButton({
       onOpenChange={(open) => {
         setIsOpen(open);
         setName("");
+        setDescription("");
         setError(null);
       }}
     >
@@ -297,7 +305,12 @@ export function SetDecisionTagButton({
                     return;
                   }
                   commit({
-                    variables: { versionId, name },
+                    // An empty description keeps a moved tag's description.
+                    variables: {
+                      versionId,
+                      name,
+                      description: description.trim() || null,
+                    },
                     onCompleted: (_, errors) => {
                       if (errors?.length) {
                         setError(
@@ -316,6 +329,15 @@ export function SetDecisionTagButton({
                 <TextField value={name} onChange={setName} isRequired>
                   <Label>Tag name</Label>
                   <Input />
+                </TextField>
+                <TextField value={description} onChange={setDescription}>
+                  <Label>Description</Label>
+                  <TextArea placeholder="A description of the tag" />
+                  <Text slot="description">
+                    {tagNames.includes(name)
+                      ? "Optional. Leave empty to keep the tag's description."
+                      : "Optional."}
+                  </Text>
                 </TextField>
                 <Text>
                   {tagNames.includes(name)
