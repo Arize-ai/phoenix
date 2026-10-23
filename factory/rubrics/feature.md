@@ -11,12 +11,12 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 5. Schema changes ship a migration that works on SQLite and PostgreSQL, and every new mutation declares `permission_classes`.
 6. Generated artifacts (GraphQL schema, Relay, OpenAPI clients) were regenerated with their `make` targets in the transcript, not hand-edited.
 7. The format, lint and typecheck targets for every touched area ran and passed in the transcript.
-8. Every area the diff touches got a review pass. Each blocking finding is fixed or, if disputed, listed in the PR body.
+8. Every area the diff touches got a review pass, shown by the reviewer's final report quoted in the transcript. Each blocking finding is fixed or, if disputed, listed in the PR body.
 9. User-visible behavior is documented under `docs/phoenix/`; changed `js/packages/` packages have a changeset.
 10. No file under `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/` or `plugins/`, nor any `AGENTS.md` or `CLAUDE.md`, is modified.
 11. The PR is a draft against `main` from branch `factory/issue-<number>`, with a conventional-commit `feat` title.
 12. The PR body follows the phoenix-pr-description template: it starts with `resolves #<number>`, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
-13. An assessment comment on the PR follows `factory/assessment.md`, with risk ratings taken from the reviewers' risk lines.
+13. Exactly one assessment comment on the PR follows `factory/assessment.md`, matches the PR's final state, and takes its risk ratings from the reviewers' risk lines.
 
 ## State B: needs a decision
 
