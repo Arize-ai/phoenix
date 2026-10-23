@@ -36,7 +36,6 @@ import {
   getEvaluatorPathCompletions,
   getEvaluatorPathSubmenuRows,
   hasEvaluatorPathMembers,
-  resolveEvaluatorPath,
   SUBMENU_COMPLETION_TYPE,
   toEvaluatorPathCount,
   toMemberPreview,
@@ -50,9 +49,7 @@ import {
 import type { EvaluatorPathMenuCompletion } from "./evaluatorPathMenu";
 import { matchDisplayedKey, renderPreviewPanel } from "./evaluatorPathMenu";
 import { renderSubmenuPanel } from "./evaluatorPathPanel";
-
-const UNRESOLVED_PATH_MESSAGE = "No such field";
-const INVALID_PATH_MESSAGE = "Not a valid path";
+import { getEvaluatorPathError } from "./evaluatorPathValidation";
 
 const NO_COMPLETIONS: Completion[] = [];
 const EMPTY_SOURCE: Record<string, unknown> = {};
@@ -107,7 +104,9 @@ const evaluatorPathFieldCSS = css`
  * without knowing where it sits. Each `.` after that opens the next level with
  * the value every field holds on it, so a path is drilled rather than
  * remembered. Left empty, the field shows what the variable reads instead.
- * A path that does not parse is flagged once the field is left.
+ * A path that does not parse is flagged once the field is left; one that
+ * reads nothing is flagged only once a record has been sampled to read it
+ * against, so the saved mapping is not marked wrong while the records load.
  */
 export function EvaluatorPathField({
   value,
@@ -149,6 +148,7 @@ export function EvaluatorPathField({
     evaluationContext === null
       ? EMPTY_SOURCE
       : (evaluatorMappingSource.source as Record<string, unknown>);
+  const hasSampledRecord = evaluationContext?.hasSampledRecord ?? false;
   const rootCandidates = useMemo(
     (): EvaluatorPathCompletion[] =>
       evaluationContext === null
@@ -244,27 +244,28 @@ export function EvaluatorPathField({
       if (isInvalid) {
         return { isValid: false, errorMessage };
       }
-      const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      if (resolution.status === "unresolved") {
-        return { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE };
+      const error = getEvaluatorPathError({
+        source: mappingSource,
+        path,
+        hasSampledRecord,
+      });
+      // A path still being typed is not yet one the server would reject.
+      if (
+        error === null ||
+        (error.status === "invalid" && isFocusedRef.current)
+      ) {
+        return { isValid: true };
       }
-      if (resolution.status === "invalid" && !isFocusedRef.current) {
-        return { isValid: false, errorMessage: INVALID_PATH_MESSAGE };
-      }
-      return { isValid: true };
+      return { isValid: false, errorMessage: error.errorMessage };
     },
-    [mappingSource, isInvalid, errorMessage]
+    [mappingSource, hasSampledRecord, isInvalid, errorMessage]
   );
 
   const getErrorRange = useCallback(
-    (path: string) => {
-      const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      return resolution.status === "unresolved" ||
-        resolution.status === "invalid"
-        ? resolution.range
-        : null;
-    },
-    [mappingSource]
+    (path: string) =>
+      getEvaluatorPathError({ source: mappingSource, path, hasSampledRecord })
+        ?.range ?? null,
+    [mappingSource, hasSampledRecord]
   );
 
   return (
