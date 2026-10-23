@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -33,7 +32,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
     validate_invocation_parameters_match_provider,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import upsert_prompt_version_tag
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -97,7 +96,7 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
-    created_at: datetime = Field(description="The creation timestamp of the prompt version.")
+    created_at: IsoDatetime = Field(description="The creation timestamp of the prompt version.")
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
