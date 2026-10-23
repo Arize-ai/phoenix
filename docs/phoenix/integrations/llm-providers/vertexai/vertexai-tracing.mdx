@@ -26,7 +26,7 @@ import vertexai
 from vertexai.generative_models import GenerativeModel
 
 vertexai.init(location="us-central1")
-model = GenerativeModel("gemini-1.5-flash")
+model = GenerativeModel("gemini-3.6-flash")
 
 print(model.generate_content("Why is sky blue?").text)
 ```
