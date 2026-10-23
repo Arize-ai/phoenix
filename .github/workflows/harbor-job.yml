@@ -1,0 +1,107 @@
+name: Harbor job
+
+# Run one Harbor job file from this branch on Daytona and record it in Phoenix.
+# Started by hand: pick the branch, the job file, a job name, and how many
+# trials to run at once.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job file, e.g. evals/harbor/jobs/api-selection-dev.yaml
+        required: true
+        type: string
+      job_name:
+        description: Harbor job name (also the Phoenix experiment name prefix)
+        required: true
+        type: string
+      concurrency:
+        description: Trials to run at once
+        required: false
+        default: "100"
+        type: string
+      agents:
+        description: Space-separated agent names to keep; empty keeps every agent
+        required: false
+        default: ""
+        type: string
+      tasks:
+        description: Space-separated task names to keep; empty keeps every task
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  harbor-job:
+    name: ${{ inputs.job_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+      PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+
+      - name: Install JavaScript dependencies
+        working-directory: js
+        run: pnpm install --frozen-lockfile
+
+      # The px CLI archive is only needed by the CLI agents; skip it unless the
+      # job file names one.
+      - name: Build the Phoenix wheel and stage the task environments
+        run: |
+          if grep -q "PhoenixCliMixin\|ClaudeCodeCliAgent\|CodexCliAgent" "${{ inputs.job }}"; then
+            make harbor-stage
+          else
+            make harbor-stage HARBOR_CLI=0
+          fi
+
+      - name: Select agents and tasks
+        id: select
+        run: |
+          job="${{ inputs.job }}"
+          if [ -n "${{ inputs.agents }}" ] || [ -n "${{ inputs.tasks }}" ]; then
+            args=()
+            [ -n "${{ inputs.agents }}" ] && args+=(--agents ${{ inputs.agents }})
+            [ -n "${{ inputs.tasks }}" ] && args+=(--tasks ${{ inputs.tasks }})
+            uv run --script evals/harbor/scripts/subset_job.py "$job" "${args[@]}" --out evals/harbor/.cache/subset.yaml
+            job=evals/harbor/.cache/subset.yaml
+          fi
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+
+      # The plugin comes from this checkout so unreleased plugin features
+      # (reference outputs, metadata) are available.
+      - name: Run the job
+        run: |
+          PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with ./packages/phoenix-client \
+            harbor run -c "${{ steps.select.outputs.job }}" --plugin arize-phoenix \
+            -n "${{ inputs.concurrency }}" --job-name "${{ inputs.job_name }}" --yes
+
+      - name: Upload job results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: harbor-job-${{ inputs.job_name }}
+          path: jobs/
+          retention-days: 30
