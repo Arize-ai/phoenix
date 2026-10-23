@@ -795,6 +795,11 @@ export function ChatView({
     if (!textarea) {
       return;
     }
+    // The chat can mount late (session queries resolving, session switches)
+    // while a modal dialog already owns focus. The modal keeps it.
+    if (document.activeElement?.closest('[data-overlay-container="modal"]')) {
+      return;
+    }
 
     textarea.focus();
     const cursorPosition = textarea.value.length;

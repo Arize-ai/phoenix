@@ -1,10 +1,15 @@
 import { act, type ReactNode, useEffect } from "react";
+import { Dialog, Input } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay";
 import { AgentProvider, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -872,5 +877,69 @@ describe("ChatView", () => {
     expect(container.querySelector('[role="alertdialog"]')).not.toBeNull();
     expect(container.textContent).toContain("Session version changed.");
     expect(container.textContent).toContain("Rewind conversation");
+  });
+
+  // https://github.com/Arize-ai/phoenix/issues/14489 — the panel mounts (or
+  // remounts, e.g. when the session list finishes loading or the session
+  // switches) after a dialog has already taken focus. The prompt's autofocus
+  // effect must not pull focus out of the open dialog.
+  describe("when a viewport modal is already open", () => {
+    const dialog = (
+      <ViewportModalOverlay isOpen>
+        <ViewportModal>
+          <Dialog aria-label="Annotation config">
+            <Input aria-label="Dialog input" autoFocus />
+          </Dialog>
+        </ViewportModal>
+      </ViewportModalOverlay>
+    );
+    let dialogContainer: HTMLDivElement;
+    let dialogRoot: Root;
+
+    beforeEach(() => {
+      dialogContainer = document.createElement("div");
+      document.body.appendChild(dialogContainer);
+      dialogRoot = createRoot(dialogContainer);
+      act(() => {
+        dialogRoot.render(dialog);
+      });
+    });
+
+    afterEach(() => {
+      act(() => {
+        dialogRoot.unmount();
+      });
+      dialogContainer.remove();
+    });
+
+    it("does not steal focus from the dialog when the chat view mounts", () => {
+      const dialogInput = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Dialog input"]'
+      );
+      expect(dialogInput).not.toBeNull();
+      expect(document.activeElement).toBe(dialogInput);
+
+      renderChatView(root, { autoFocusInput: true });
+
+      expect(
+        container.querySelector('textarea[aria-label="Message input"]')
+      ).not.toBeNull();
+      expect(document.activeElement).toBe(dialogInput);
+    });
+
+    it("does not steal focus from the dialog when the chat view remounts for another session", () => {
+      renderChatView(root, { sessionId: "session-1", autoFocusInput: true });
+      const dialogInput = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Dialog input"]'
+      );
+      act(() => {
+        dialogInput?.focus();
+      });
+      expect(document.activeElement).toBe(dialogInput);
+
+      renderChatView(root, { sessionId: "session-2", autoFocusInput: true });
+
+      expect(document.activeElement).toBe(dialogInput);
+    });
   });
 });
