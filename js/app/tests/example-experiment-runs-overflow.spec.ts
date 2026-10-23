@@ -2,9 +2,9 @@ import { randomUUID } from "crypto";
 import { expect, test } from "@playwright/test";
 
 /**
- * Test for issue #14427: a long unbroken experiment run error widened the
- * Output column of the example details drawer's Experiment Runs table, pushing
- * the evaluations and the view trace action out of the visible drawer.
+ * A long unbroken experiment run error must not widen the Output column of the
+ * example details drawer's Experiment Runs table so far that the evaluations
+ * and the view trace action leave the visible drawer.
  */
 test.describe("Example Experiment Runs Table Overflow", () => {
   // an error message with no spaces, like a long file path or identifier
