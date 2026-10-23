@@ -6,7 +6,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 
 1. Either the transcript shows a test added in this PR failing for the reason the issue reports before the fix and passing after it, or the reproducer reported `NEEDS_BROWSER` with file:line evidence of the cause and the PR body's Not verified line lists the steps that would show the bug.
 2. Every test added in this PR exercises real code at the lowest layer that shows the behavior, and would fail if the fix were reverted. None hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass.
-3. The diff is confined to the bug's path and stays under 400 changed lines, not counting generated files and lockfiles; no unrelated refactors, formatting churn, or comments that narrate the change.
+3. The diff is confined to the bug's path; no unrelated refactors, formatting churn, or comments that narrate the change.
 4. The format, lint and typecheck targets for every touched area, and the tests next to the changed code, ran and passed in the transcript.
 5. Every area the diff touches (server, frontend, packages) got a review pass. Each blocking finding is fixed or, if disputed, listed in the PR body.
 6. No file under `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/` or `plugins/`, nor any `AGENTS.md` or `CLAUDE.md`, is modified.

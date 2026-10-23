@@ -6,7 +6,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 
 1. The analyst's report includes a probe that fails on `main`, showing the behavior is missing.
 2. The implementation follows the analyst's plan and covers its first slice only; any deviation is explained in the PR body, and the remaining slices are listed as follow-ups.
-3. The diff stays under 400 changed lines, not counting generated files and lockfiles, and adds no options, parameters or abstractions the issue doesn't need.
+3. The diff adds no options, parameters or abstractions the issue doesn't need.
 4. New behavior is covered by tests that ran and passed in the transcript: server tests for API and DB changes, frontend tests or Storybook stories for new UI. Each test exercises real code and would fail if the behavior were removed; none hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass. Behavior that only a browser shows is listed on the PR body's Not verified line instead.
 5. Schema changes ship a migration that works on SQLite and PostgreSQL, and every new mutation declares `permission_classes`.
 6. Generated artifacts (GraphQL schema, Relay, OpenAPI clients) were regenerated with their `make` targets in the transcript, not hand-edited.

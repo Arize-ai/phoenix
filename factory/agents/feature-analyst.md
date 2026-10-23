@@ -35,6 +35,6 @@ Your plan covers:
 - The existing code to model it on, as file paths, including the helpers and types to reuse.
 - Tests to add, and the docs under `docs/phoenix/` that change.
 - Risks: auth and permission classes, behavior on both SQLite and PostgreSQL, backwards compatibility of public APIs.
-- Slices: PRs of under 400 changed lines each, not counting generated files and lockfiles, in merge order. Most features are one slice.
+- Slices: PRs that each stand on their own and can be reviewed and merged independently, in merge order. Most features are one slice.
 
 Report `NEEDS_DECISION` instead of a plan when the request is ambiguous in a way the code can't settle: two reasonable designs with different user-facing behavior, a new public API whose shape is a product call, new UI whose layout or interaction isn't specified, a breaking removal, or scope that is really an epic. List each question with the options you see.

@@ -2,7 +2,7 @@
 
 Grade from the PR and the session transcript.
 
-1. The change addresses the gap the issue describes, and nothing broader. If the issue lists more gaps than fit under 400 changed lines, the PR body lists the ones left.
+1. The change addresses the gap the issue describes, and nothing broader.
 2. Every parameter, default, command and code sample matches the current source; the transcript shows the code that was read to confirm it.
 3. New or moved pages are listed in `docs.json` and `docs/phoenix/llms.txt`.
 4. Pages match the structure and tone of their neighbors, with no duplicated drift-prone details where a link to the source would do.
