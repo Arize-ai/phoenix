@@ -73,6 +73,7 @@ from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.email.types import EmailSender
+from phoenix.server.telemetry import export_uvicorn_logs
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -415,6 +416,9 @@ def run(args: Namespace) -> None:
         log_level=Settings.logging_level,
         log_config=None if Settings.logging_mode is LoggingMode.STRUCTURED else LOGGING_CONFIG,
     )
+    # Config applied the logging config above, which cuts uvicorn's records off from the
+    # root logger's OpenTelemetry handler.
+    export_uvicorn_logs()
 
     if tls_enabled_for_http:
         assert tls_config

@@ -118,3 +118,20 @@ def initialize_opentelemetry_logger_provider() -> LoggerProvider:
     logging.getLogger().addHandler(LoggingHandler(logger_provider=logger_provider))
     logger.info("🔭 OpenTelemetry logger provider initialized")
     return logger_provider
+
+
+def export_uvicorn_logs() -> None:
+    """Attach the root logger's OpenTelemetry handlers to the `uvicorn` logger.
+
+    uvicorn's default logging config stops its records from propagating to the root
+    logger, so without this the "Exception in ASGI application" line for an uncaught
+    request exception is printed but never exported. Call this after uvicorn's logging
+    config has been applied, since applying it clears the `uvicorn` logger's handlers.
+    Does nothing when the records already propagate, so none is exported twice.
+    """
+    uvicorn_logger = logging.getLogger("uvicorn")
+    if uvicorn_logger.propagate:
+        return
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, LoggingHandler) and handler not in uvicorn_logger.handlers:
+            uvicorn_logger.addHandler(handler)
