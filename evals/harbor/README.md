@@ -143,6 +143,28 @@ or an answer to a different question fails. `notes` provides extra guidance to t
 such as "page_down is the same tool." `source` records how the reference value was
 derived.
 
+To score which skills the agent loads, add either of these optional keys:
+
+```json
+{"skills_expected": ["phoenix-error-analysis"], "skills_unexpected": ["phoenix-evals"]}
+{"skills_unexpected": "any_other"}
+```
+
+| Key | Score | The score is `1` if |
+| --- | --- | --- |
+| `skills_expected` | `expected_skills_loaded` | The agent loaded every skill in the list. |
+| `skills_unexpected` | `no_unexpected_skills` | The agent loaded no skill in the list. |
+
+Set `skills_unexpected` to `"any_other"` for a task that needs no workflow skill. This value
+treats every skill as unexpected except the ones in `skills_expected` and the interface skills in
+`harbor_verifiers.skills.INTERFACE_SKILLS`, such as `phoenix-cli`. Every TRAIL task uses
+it, so a new skill is checked without a change to the tasks. If you add a skill that
+describes how to read and write Phoenix data, add its name to `INTERFACE_SKILLS`.
+
+Neither score affects the reward. A skill counts as loaded if the agent called Claude
+Code's `Skill` tool, called `load_skill`, or read the skill's `SKILL.md` file. The names
+of all loaded skills are in `details.json` under `loaded_skills`.
+
 The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
 `PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
 the provider host to the task's `[verifier]` table.
