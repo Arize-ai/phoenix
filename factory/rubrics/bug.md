@@ -12,7 +12,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 6. No file under `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/` or `plugins/`, nor any `AGENTS.md` or `CLAUDE.md`, is modified.
 7. Changed `js/packages/` packages have a changeset; no `pyproject.toml` gains a pre-release production dependency.
 8. The PR is a draft against `main` from branch `factory/issue-<number>`, with a conventional-commit `fix` title.
-9. The PR body follows the phoenix-pr-description template: it starts with `resolves #<number>`, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
+9. The PR body starts with `resolves #<number>`, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
 10. Exactly one assessment comment on the PR follows `factory/assessment.md`, matches the PR's final state, and takes its risk ratings from the reviewers' risk lines.
 
 ## State B: not reproduced
