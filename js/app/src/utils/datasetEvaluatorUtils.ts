@@ -25,6 +25,8 @@ export type DatasetEvaluatorForConfig = {
   readonly name: string;
   /** The evaluator kind; decision bindings name their annotations differently. */
   readonly kind?: string;
+  /** The bound evaluator, read for its kind when `kind` is not set. */
+  readonly evaluator?: { readonly kind?: string } | null;
   /** Array of output configurations for multi-output evaluators */
   readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
 };
@@ -105,8 +107,9 @@ export function getDecisionAnnotationName({
 export function datasetEvaluatorToAnnotationConfigs(
   evaluator: DatasetEvaluatorForConfig
 ): AnnotationConfig[] {
+  const kind = evaluator.kind ?? evaluator.evaluator?.kind;
   if (
-    evaluator.kind === "DECISION" &&
+    kind === "DECISION" &&
     evaluator.outputConfigs &&
     evaluator.outputConfigs.length > 0
   ) {

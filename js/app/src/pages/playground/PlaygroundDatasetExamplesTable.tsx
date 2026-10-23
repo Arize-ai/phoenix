@@ -400,11 +400,11 @@ function ExampleDecisionResult({
   instanceId: number;
   answers: unknown;
 }) {
-  const decisionRequest = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)
-        ?.decisionRequest
-  );
+  // Label the outputs from the request that ran, not the live draft.
+  const decisionRequest = usePlaygroundContext((state) => {
+    const instance = state.instances.find((item) => item.id === instanceId);
+    return instance?.decisionRunRequest ?? instance?.decisionRequest;
+  });
   return (
     <DecisionResult
       output={JSON.stringify({ answers })}

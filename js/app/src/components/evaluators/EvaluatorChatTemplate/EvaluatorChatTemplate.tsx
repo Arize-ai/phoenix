@@ -53,6 +53,7 @@ export const EvaluatorChatTemplate = () => {
         disableTools
         disableAlphabeticIndex
         disableEphemeralRouting
+        disableDuplicate
       />
     </TemplateEvaluatorContextProvider>
   );

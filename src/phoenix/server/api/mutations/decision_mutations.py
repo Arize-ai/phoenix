@@ -3,7 +3,9 @@
 from typing import Optional
 
 import strawberry
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context as OtelContext
+from opentelemetry.trace import Status, StatusCode
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -15,6 +17,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
     DecisionRequest,
+    UnreadableCustomProviderError,
     get_custom_provider_decision_client,
     get_decision_client,
 )
@@ -185,14 +188,22 @@ class DecisionMutationMixin:
         self, info: Info[Context, None], input: RunDecisionInput
     ) -> RunDecisionPayload:
         request = to_decision_request(input)
+        client_error: Optional[UnreadableCustomProviderError] = None
         async with info.context.db() as session:
-            client = await input.connection.resolve_client(
-                model_name=input.model_name,
-                session=session,
-                decrypt=info.context.decrypt,
-                allowed_provider_names=info.context.allowed_provider_names,
-            )
             project_id = await get_or_create_playground_project_id(session)
+            try:
+                client = await input.connection.resolve_client(
+                    model_name=input.model_name,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    allowed_provider_names=info.context.allowed_provider_names,
+                )
+            except UnreadableCustomProviderError as error:
+                client_error = error
+        if client_error is not None:
+            return await _record_unrunnable(
+                info, error=client_error, model_name=input.model_name, project_id=project_id
+            )
         return await _run(info, client=client, request=request, project_id=project_id)
 
     @strawberry.mutation(
@@ -206,6 +217,7 @@ class DecisionMutationMixin:
         self, info: Info[Context, None], input: RunDecisionVersionInput
     ) -> RunDecisionPayload:
         version_id = from_global_id_with_expected_type(input.decision_version_id, "DecisionVersion")
+        client_error: Optional[UnreadableCustomProviderError] = None
         async with info.context.db() as session:
             version = await session.get(models.DecisionVersion, version_id)
             if version is None:
@@ -217,12 +229,15 @@ class DecisionMutationMixin:
                         "This version runs on a custom provider, which brings its own endpoint; "
                         "baseUrl is for built-in providers."
                     )
-                client = await get_custom_provider_decision_client(
-                    custom_provider_id=version.custom_provider_id,
-                    model_name=version.model_name,
-                    session=session,
-                    decrypt=info.context.decrypt,
-                )
+                try:
+                    client = await get_custom_provider_decision_client(
+                        custom_provider_id=version.custom_provider_id,
+                        model_name=version.model_name,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                    )
+                except UnreadableCustomProviderError as error:
+                    client_error = error
             else:
                 client = await get_decision_client(
                     provider=GenerativeProviderKey.from_model_provider(version.model_provider),
@@ -234,7 +249,38 @@ class DecisionMutationMixin:
                     allowed_provider_names=info.context.allowed_provider_names,
                 )
             project_id = await get_or_create_playground_project_id(session)
+            model_name = version.model_name
+        if client_error is not None:
+            return await _record_unrunnable(
+                info, error=client_error, model_name=model_name, project_id=project_id
+            )
         return await _run(info, client=client, request=request, project_id=project_id)
+
+
+async def _record_unrunnable(
+    info: Info[Context, None],
+    *,
+    error: UnreadableCustomProviderError,
+    model_name: str,
+    project_id: int,
+) -> RunDecisionPayload:
+    """Record a run that failed before reaching its provider as an error span, so it shows
+    with a trace like a run the provider rejected."""
+    tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+    with tracer.start_as_current_span(
+        "Decision",
+        context=OtelContext(),
+        attributes={
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
+            SpanAttributes.DECISION_PROVIDER: error.provider_name,
+            SpanAttributes.DECISION_MODEL_NAME: model_name,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: model_name,
+        },
+    ) as span:
+        span.set_status(Status(StatusCode.ERROR, str(error)))
+    return await _save_run(
+        info, tracer=tracer, project_id=project_id, result=None, error=str(error)
+    )
 
 
 async def _run(
@@ -253,6 +299,19 @@ async def _run(
         result = to_gql_decision_result(request, response)
     except BadRequest as error:
         error_message = str(error)
+    return await _save_run(
+        info, tracer=tracer, project_id=project_id, result=result, error=error_message
+    )
+
+
+async def _save_run(
+    info: Info[Context, None],
+    *,
+    tracer: Tracer,
+    project_id: int,
+    result: DecisionResult | None,
+    error: str | None,
+) -> RunDecisionPayload:
     traces = tracer.get_db_traces(project_id=project_id)
     async with info.context.db() as session:
         session.add_all(traces)
@@ -261,6 +320,6 @@ async def _run(
     span = traces[0].spans[0] if traces and traces[0].spans else None
     return RunDecisionPayload(
         result=result,
-        error=error_message,
+        error=error,
         span=Span(id=span.id, db_record=span) if span else None,
     )

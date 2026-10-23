@@ -21,9 +21,11 @@ import type { DeleteDecisionDialogMutation } from "./__generated__/DeleteDecisio
 
 export function DeleteDecisionDialog({
   decisionId,
+  name,
   onDeleted,
 }: {
   decisionId: string;
+  name: string;
   onDeleted: () => void;
 }) {
   const [commit, isCommitting] = useMutation<DeleteDecisionDialogMutation>(
@@ -69,7 +71,7 @@ export function DeleteDecisionDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Decision</DialogTitle>
+          <DialogTitle>Delete decision</DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
@@ -80,8 +82,10 @@ export function DeleteDecisionDialog({
           </View>
         )}
         <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to delete this decision? This action cannot be undone and all services dependent on this decision will be affected.`}
+          {/* The same copy as the Config tab's DeleteDecisionButton. */}
+          <Text>
+            Deleting {name} removes all its versions and tags. Applications
+            using this decision will lose access. This cannot be undone.
           </Text>
         </View>
         <View
@@ -103,7 +107,7 @@ export function DeleteDecisionDialog({
               size="S"
               isDisabled={isCommitting}
             >
-              Delete Decision
+              Delete decision
             </Button>
           </Flex>
         </View>

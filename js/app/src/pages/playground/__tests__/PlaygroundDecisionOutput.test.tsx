@@ -11,7 +11,11 @@ import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import type { PlaygroundDecisionOutputMutation } from "../__generated__/PlaygroundDecisionOutputMutation.graphql";
 import type { DecisionRunResult } from "../decisionUtils";
-import { createDecisionDraft } from "../decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionQuestion,
+  createScaleLevel,
+} from "../decisionUtils";
 import { PlaygroundDecisionOutput } from "../PlaygroundDecisionOutput";
 
 const mocks = vi.hoisted(() => {
@@ -60,14 +64,14 @@ describe("decision execution", () => {
     container.remove();
   });
 
-  function mountRunningInstance() {
+  function mountRunningInstance(decisionRequest = createDecisionDraft()) {
     const store = createPlaygroundStore({ modelConfigByProvider: {} });
     const chatInstance = store.getState().instances[0];
     // A decision instance as the model menu creates one from a chat instance.
     const instance = {
       ...chatInstance,
       llmModel: chatInstance.model,
-      decisionRequest: createDecisionDraft(),
+      decisionRequest,
       model: {
         ...chatInstance.model,
         modelType: "DECISION" as const,
@@ -156,6 +160,117 @@ describe("decision execution", () => {
       container.querySelector('[data-testid="answer-department"]')?.textContent
     ).toBe("billing");
     expect(container.textContent).toContain("0 out");
+  });
+
+  it("labels the output from the request that ran, not the edited draft", async () => {
+    const draft = {
+      ...createDecisionDraft(),
+      questions: [
+        createDecisionQuestion({
+          type: "scale",
+          name: "severity",
+          instructions: "How severe is this request?",
+          levels: [
+            createScaleLevel({ label: "Low" }),
+            createScaleLevel({ label: "High" }),
+          ],
+        }),
+      ],
+    };
+    const { store, instanceId } = mountRunningInstance(draft);
+    act(() => store.getState().runPlaygroundInstances([instanceId]));
+    const call = mocks.commitMutation.mock.calls.length - 1;
+    await act(async () =>
+      getMutation(call).onCompleted?.(
+        {
+          runDecision: {
+            result: result([
+              {
+                __typename: "ScaleAnswer",
+                name: "severity",
+                expectedLevel: 0.9,
+                confidence: 0.8,
+                levelProbabilities: [
+                  { level: 0, probability: 0.1 },
+                  { level: 1, probability: 0.9 },
+                ],
+              },
+            ]),
+            error: null,
+            span: null,
+          },
+        },
+        null
+      )
+    );
+    const answerText = () =>
+      container.querySelector('[aria-label="Decision answers"]')?.textContent ??
+      "";
+    expect(answerText().indexOf("Low")).toBeLessThan(
+      answerText().indexOf("High")
+    );
+    // Reorder the draft's levels after the run.
+    act(() =>
+      store.setState({
+        instances: store.getState().instances.map((instance) => ({
+          ...instance,
+          decisionRequest: {
+            ...draft,
+            questions: [
+              {
+                ...draft.questions[0],
+                levels: [...draft.questions[0].levels].reverse(),
+              },
+            ],
+          },
+        })),
+      })
+    );
+    expect(answerText().indexOf("Low")).toBeLessThan(
+      answerText().indexOf("High")
+    );
+  });
+
+  it("shows a Yes / No answer with the probability of the shown answer", async () => {
+    const { store, instanceId } = mountRunningInstance({
+      ...createDecisionDraft(),
+      questions: [
+        createDecisionQuestion({
+          type: "predicate",
+          name: "billing",
+          instructions: "Is this about billing?",
+          predicate: {
+            trueDescription: "About billing",
+            falseDescription: "Not about billing",
+          },
+        }),
+      ],
+    });
+    act(() => store.getState().runPlaygroundInstances([instanceId]));
+    const call = mocks.commitMutation.mock.calls.length - 1;
+    await act(async () =>
+      getMutation(call).onCompleted?.(
+        {
+          runDecision: {
+            result: result([
+              {
+                __typename: "PredicateAnswer",
+                name: "billing",
+                probability: 0.06,
+              },
+            ]),
+            error: null,
+            span: null,
+          },
+        },
+        null
+      )
+    );
+    const answer = container.querySelector(
+      '[aria-label="billing probability"]'
+    );
+    expect(answer?.textContent).toContain("False");
+    expect(answer?.textContent).toContain("94%");
   });
 
   it("surfaces provider errors inline and retains the trace", async () => {
