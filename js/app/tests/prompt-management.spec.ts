@@ -189,9 +189,11 @@ test.describe("Prompt Management", () => {
 
     const versionLinks = page.locator("a[href*='/versions/']");
     await expect(versionLinks.first()).toBeVisible();
-    await expect(async () => {
-      await versionLinks.last().scrollIntoViewIfNeeded();
-      await expect(versionLinks).toHaveCount(numVersions, { timeout: 1_000 });
-    }).toPass();
+    await expect
+      .poll(async () => {
+        await versionLinks.last().scrollIntoViewIfNeeded();
+        return versionLinks.count();
+      })
+      .toBe(numVersions);
   });
 });
