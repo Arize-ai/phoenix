@@ -100,6 +100,7 @@ Each part does one job, so it can be changed and tested on its own:
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
+| `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which files a user-facing `bug` issue per new bug or updates the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
 
 ### Trust boundaries
 
@@ -130,6 +131,7 @@ rubrics/         outcome rubrics, inlined by dispatch.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
+log_scan.py      counts the day's server errors in Grafana and, if any, runs the railway-triage session
 ```
 
 `claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
@@ -147,9 +149,9 @@ dispatch.py      admits an issue, starts its session, and follows it to a review
 
 ## Grafana access
 
-The bug lane's `bug-fixer` and `bug-reproducer` reach the production server's telemetry through [`mcp-grafana`](https://github.com/grafana/mcp-grafana), with only read tools enabled: Loki for the server's logs (`query_loki_logs` and the label and pattern helpers), Tempo for its traces (`get_tempo_trace`, `search_tempo_traces`, `query_tempo_metrics` and the attribute helpers), and Prometheus for its metrics (`query_prometheus`, `query_prometheus_histogram` and the metric and label listers). Log lines carry a `trace_id`, so an agent can go from an error line to the failing span. The server runs where Grafana does, in streamable-HTTP mode with `--disable-write`, and requires a caller token that the `factory-grafana` vault supplies. `dispatch.py` attaches that vault to every lane session once `claude-lock.json` has it.
+The `railway-triage` agent and the bug lane's `bug-fixer` and `bug-reproducer` reach the production server's telemetry through [`mcp-grafana`](https://github.com/grafana/mcp-grafana), with only read tools enabled: Loki for the server's logs (`query_loki_logs` and the label and pattern helpers), Tempo for its traces (`get_tempo_trace`, `search_tempo_traces`, `query_tempo_metrics` and the attribute helpers), and Prometheus for its metrics (`query_prometheus`, `query_prometheus_histogram` and the metric and label listers). Log lines carry a `trace_id`, so an agent can go from an error line to the failing span. The server runs where Grafana does, in streamable-HTTP mode with `--disable-write`, and requires a caller token that the `factory-grafana` vault supplies. `dispatch.py` attaches that vault to every lane session once `claude-lock.json` has it.
 
-The deployment is the `phoenix-dev` Railway project in the Arize AI workspace: Phoenix at `phoenix-devs.up.railway.app`, Grafana (the all-in-one `grafana/otel-lgtm` image, so Loki is at datasource UID `loki`) at `lgtm-production-cfa4.up.railway.app`, and mcp-grafana as the `factory-grafana-mcp` service at `factory-grafana-mcp-production.up.railway.app`. The Grafana service account is `factory-log-scan` (Viewer).
+The deployment is the `phoenix-dev` Railway project in the Arize AI workspace: Phoenix at `phoenix-devs.up.railway.app`, Grafana (the all-in-one `grafana/otel-lgtm` image, so Loki is at datasource UID `loki`) at `lgtm-production-cfa4.up.railway.app`, and mcp-grafana as the `factory-grafana-mcp` service at `factory-grafana-mcp-production.up.railway.app`. The Grafana service account is `factory-log-scan` (Viewer) with one token for the scan and one for mcp-grafana.
 
 ### Grafana access bootstrap
 
@@ -161,8 +163,40 @@ The deployment is the `phoenix-dev` Railway project in the Arize AI workspace: P
    GRAFANA_URL=<Grafana's internal URL>  GRAFANA_SERVICE_ACCOUNT_TOKEN=<a Viewer service-account token>  MCP_GRAFANA_SERVER_TOKEN=<a long random caller token>
    ```
 
-   Railway's `startCommand` on an image service supplies the arguments. The caller token is required: without `MCP_GRAFANA_SERVER_TOKEN` the server answers anyone who can reach the domain. Set the `url` of the `grafana` MCP server in `agents/bug-fixer.md` and `agents/bug-reproducer.md` to `https://<domain>/mcp`. Merging that applies the agents; the Grafana vault is created by the same apply.
+   Railway's `startCommand` on an image service supplies the arguments. The caller token is required: without `MCP_GRAFANA_SERVER_TOKEN` the server answers anyone who can reach the domain. Set the `url` of the `grafana` MCP server in `agents/railway-triage.md`, `agents/bug-fixer.md` and `agents/bug-reproducer.md` to `https://<domain>/mcp`. Merging that applies the agents; the Grafana vault is created by the same apply.
 3. Add the caller token to the Grafana vault (its ID is in `claude-lock.json` on `factory-state`, under `./vaults/grafana.yaml`) as a `static_bearer` credential for `https://<domain>/mcp`, using `ant beta:vaults:credentials create`.
+
+## Log scan
+
+The scan closes the loop from production to a PR: an error in the server logs becomes an issue, and the bug lane picks it up with read access to the same telemetry.
+
+```mermaid
+flowchart LR
+  phoenix["Phoenix server<br/>OTLP logs"] --> loki["Loki"] --> grafana["Grafana"]
+  grafana -->|"any errors in the last day?"| scan["factory-log-scan.yml<br/>log_scan.py"]
+  scan --> triage["railway-triage session"]
+  triage <-->|"query_loki_logs"| mcp
+  triage -->|"one issue per bug<br/>bug + railway-dev labels"| issue["Issue"]
+  scan -->|"factory label<br/>when enabled"| issue
+  issue --> dispatch["factory-dispatch.yml"]
+  dispatch --> session["bug lane session"]
+  session <-->|"query_loki_logs"| mcp["mcp-grafana<br/>streamable HTTP, read-only"]
+  mcp --> grafana
+```
+
+`log_scan.py` runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy, and stops if it matches nothing, so quiet days cost nothing. Otherwise it starts a session with the `railway-triage` agent (`agents/railway-triage.md`, graded by `rubrics/railway-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has the Grafana read tools and the GitHub issue tools, and nothing that pushes code.
+
+The agent does the work a regex can't. It reads the window's lines through mcp-grafana and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs and a re-query LogQL in the body. It searches the open issues, not only those it filed, so a bug a human already reported gets a comment with new evidence, and the `railway-dev` label, instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. Each session has a spend cap of $10 at list price.
+
+The session files and comments as the machine account through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created with `FACTORY_GITHUB_TOKEN`, oldest first, up to three per run (`--max-dispatch`), since each label starts a bug-lane session at once with its own budget; the rest wait for a maintainer, and the step summary says how many. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and the machine account has the write access `dispatch.py` requires of a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` to `false` to pause it for the schedule, or untick `dispatch` on a manual run.
+
+### Log scan bootstrap
+
+Grafana access must be bootstrapped first.
+
+1. Create the `railway-dev` label, and a second token for the `factory-log-scan` service account. Set the repository variable `FACTORY_GRAFANA_URL` to the Grafana URL and the secret `FACTORY_GRAFANA_TOKEN` to that token. Set `FACTORY_GRAFANA_LOGQL` to the selector for server errors, for example `{service_name="arize-phoenix-server"} | detected_level=~"error|fatal"`, and `FACTORY_GRAFANA_LOKI_UID` if Grafana has more than one Loki datasource.
+2. Run **Factory Log Scan** by hand with `dry_run` on and a wide `hours` window; it prints how many lines the LogQL matches. Check the same query in Grafana Explore and tighten it until it selects server errors and not noise.
+3. Run the scan by hand with `dispatch` unticked and read the issues the triage session files; fix its prompt or rubric until the titles and grouping are right. Then run it once with `dispatch` on and watch a bug-lane session use the Grafana tools.
 
 ## Switching workspaces
 
