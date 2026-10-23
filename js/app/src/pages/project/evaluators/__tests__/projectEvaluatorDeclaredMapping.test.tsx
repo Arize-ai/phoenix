@@ -6,6 +6,7 @@
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -67,6 +68,7 @@ describe("a project evaluator's mapping as its variables change", () => {
               description: "",
               isBuiltin: false,
               includeExplanation: false,
+              inputDescriptions: {},
               inputMapping: { pathMapping: STORED_PATHS, literalMapping: {} },
             },
           }}
@@ -113,6 +115,7 @@ describe("a project evaluator's mapping as its variables change", () => {
               description: "",
               isBuiltin: false,
               includeExplanation: false,
+              inputDescriptions: {},
               inputMapping: { pathMapping: {}, literalMapping: {} },
             },
           }}
@@ -149,6 +152,7 @@ describe("a project evaluator's mapping as its variables change", () => {
               description: "",
               isBuiltin: false,
               includeExplanation: false,
+              inputDescriptions: {},
               inputMapping: { pathMapping: STORED_PATHS, literalMapping: {} },
             },
           }}
@@ -201,5 +205,75 @@ describe("a project evaluator's mapping as its variables change", () => {
     await renderDock(["context", "input"]);
     await renderDock([]);
     expect(store!.getState().evaluator.inputMapping.pathMapping).toEqual({});
+  });
+
+  const renderDescribed = (canDescribeInputs: boolean) =>
+    act(async () => {
+      root.render(
+        <EvaluatorStoreProvider
+          initialState={{
+            evaluator: {
+              kind: "LLM",
+              globalName: "",
+              name: "",
+              description: "",
+              isBuiltin: false,
+              includeExplanation: false,
+              inputDescriptions: { question: "What the user asked." },
+              inputMapping: { pathMapping: {}, literalMapping: {} },
+            },
+          }}
+        >
+          {({ store: storeInstance }) => {
+            store = storeInstance;
+            return (
+              <EvaluatorInputVariablesContext.Provider
+                value={["question", "rubric"]}
+              >
+                <ProjectEvaluatorInputMapping
+                  recordKind="span"
+                  canDescribeInputs={canDescribeInputs}
+                />
+              </EvaluatorInputVariablesContext.Provider>
+            );
+          }}
+        </EvaluatorStoreProvider>
+      );
+    });
+
+  it("shows a stored description and saves one written in the describe popover", async () => {
+    await renderDescribed(true);
+    expect(container.textContent).toContain("What the user asked.");
+    expect(
+      container.querySelector(
+        'button[aria-label="Edit description for question"]'
+      )
+    ).not.toBeNull();
+    const describeRubric = container.querySelector(
+      'button[aria-label="Add description for rubric"]'
+    );
+    const user = userEvent.setup();
+    await act(async () => {
+      await user.click(describeRubric!);
+    });
+    const textArea = document.body.querySelector("textarea");
+    expect(textArea).not.toBeNull();
+    await act(async () => {
+      await user.type(textArea!, "  The grading rubric.  ");
+      await user.click(document.body.querySelector('button[type="submit"]')!);
+    });
+    expect(container.textContent).toContain("The grading rubric.");
+    expect(store!.getState().evaluator.inputDescriptions).toEqual({
+      question: "What the user asked.",
+      rubric: "The grading rubric.",
+    });
+  });
+
+  it("shows descriptions without the describe link where they cannot be saved", async () => {
+    await renderDescribed(false);
+    expect(container.textContent).toContain("What the user asked.");
+    expect(
+      container.querySelector('button[aria-label*="description for"]')
+    ).toBeNull();
   });
 });

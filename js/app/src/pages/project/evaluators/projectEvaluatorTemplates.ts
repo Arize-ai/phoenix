@@ -163,6 +163,9 @@ export function buildTemplateCreationMode(
       defaultMessages: getProjectEvaluatorTemplateMessages(config),
       templateFormat: "MUSTACHE",
       includeExplanation: true,
+      inputDescriptions: Object.fromEntries(
+        (config.inputs ?? []).map((input) => [input.name, input.description])
+      ),
     },
   };
 }

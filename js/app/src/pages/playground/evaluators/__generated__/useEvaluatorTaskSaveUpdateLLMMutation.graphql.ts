@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1feef333ee0086f2fa9b8a24b28cb957>>
+ * @generated SignedSource<<4caf03a132b2b3263af91c8514a42d3b>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type UpdateDatasetLLMEvaluatorInput = {
   datasetId: string;
   description?: string | null;
   inputMapping?: EvaluatorInputMappingInput | null;
+  inputSchema?: any | null;
   name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   promptVersion: ChatPromptVersionInput;

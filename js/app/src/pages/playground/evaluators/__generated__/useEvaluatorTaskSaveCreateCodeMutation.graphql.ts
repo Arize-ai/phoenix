@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<581cc883201aa158b5a5cd2f2b40640b>>
+ * @generated SignedSource<<6628ee11b14548879e5d29a6a2584ab2>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateCodeEvaluatorInput = {
   description?: string | null;
   inputMapping?: EvaluatorInputMappingInput | null;
+  inputSchema?: any | null;
   language: Language;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;

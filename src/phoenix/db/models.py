@@ -3531,6 +3531,9 @@ class LLMEvaluator(Evaluator):
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
         _CategoricalOutputConfigList, nullable=False
     )
+    input_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
+    """The prompt's variables with a description on each the author described. NULL means
+    none were, and the schema is inferred from the prompt alone."""
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
@@ -3628,6 +3631,9 @@ class CodeEvaluator(Evaluator):
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
         _AnnotationConfigList, nullable=False, server_default="[]"
     )
+    input_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
+    """The `evaluate` parameters with a description on each the author described. NULL
+    means none were, and the schema is inferred from the current version's source alone."""
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )

@@ -10,7 +10,7 @@ from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.models import DEFAULT_EVALUATION_DELAY_SECONDS, MINIMUM_EVALUATION_DELAY_SECONDS
@@ -31,15 +31,12 @@ from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectE
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator as BuiltInEvaluatorClass,
 )
-from phoenix.server.api.evaluators import (
-    infer_input_schema_from_prompt_template,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.code_evaluator_schema import (
-    infer_python_evaluate_input_schema,
-    infer_typescript_evaluate_input_schema,
-)
 from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
+from phoenix.server.api.helpers.evaluator_input_schema import (
+    described_code_input_schema,
+    described_llm_input_schema,
+)
 from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
@@ -456,14 +453,10 @@ async def _infer_code_evaluator_input_schema(
     language_value = await info.context.data_loaders.code_evaluator_fields.load(
         (code_evaluator_id, models.CodeEvaluator.language)
     )
-    language = Language(language_value)
-    if language is Language.PYTHON:
-        schema, _ = infer_python_evaluate_input_schema(source_code)
-    elif language is Language.TYPESCRIPT:
-        schema, _ = infer_typescript_evaluate_input_schema(source_code)
-    else:
-        assert_never(language)
-    return JSON(schema)
+    stored_input_schema = await info.context.data_loaders.code_evaluator_fields.load(
+        (code_evaluator_id, models.CodeEvaluator.input_schema)
+    )
+    return JSON(described_code_input_schema(language_value, source_code, stored_input_schema))
 
 
 def to_gql_code_evaluator_version(
@@ -969,12 +962,13 @@ class LLMEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> JSON:
         prompt_version = await self._get_prompt_version(info)
-        return JSON(
-            infer_input_schema_from_prompt_template(
-                template=prompt_version.template,
-                template_format=prompt_version.template_format,
+        if self.db_record:
+            stored_input_schema = self.db_record.input_schema
+        else:
+            stored_input_schema = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.input_schema),
             )
-        )
+        return JSON(described_llm_input_schema(prompt_version, stored_input_schema))
 
     @strawberry.field
     async def user(

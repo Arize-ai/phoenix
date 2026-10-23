@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import type {
@@ -120,6 +120,11 @@ export interface SwitchableEvaluatorInputProps<
    */
   hideLabel?: boolean;
   /**
+   * Rendered at the end of the label row, such as a link that edits what the
+   * input should hold.
+   */
+  labelExtra?: ReactNode;
+  /**
    * Whether this field is required. When true, validation rules are added
    * and the label is marked with an asterisk.
    */
@@ -189,6 +194,13 @@ const inputContainerCSS = css`
   }
 `;
 
+const labelRowCSS = css`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--global-dimension-size-100);
+`;
+
 const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
   { id: "path", label: "Path" },
   { id: "literal", label: "Text" },
@@ -208,6 +220,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   pathInputValue,
   onPathInputChange,
   hideLabel,
+  labelExtra,
   isRequired,
   allowsLiteral = true,
   renderPathInput,
@@ -337,10 +350,26 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     />
   );
 
+  const renderLabel = (htmlFor: string) => {
+    if (hideLabel) {
+      return null;
+    }
+    const labelElement = <Label htmlFor={htmlFor}>{label}</Label>;
+    if (labelExtra == null) {
+      return labelElement;
+    }
+    return (
+      <div className="switchable-evaluator-input__label-row" css={labelRowCSS}>
+        {labelElement}
+        {labelExtra}
+      </div>
+    );
+  };
+
   if (!allowsLiteral) {
     return (
       <div css={fieldBaseCSS} data-required={isRequired || undefined}>
-        {!hideLabel && <Label htmlFor={`${fieldName}-path`}>{label}</Label>}
+        {renderLabel(`${fieldName}-path`)}
         {pathControl}
         {description && (
           <Text color="text-500" size="S">
@@ -353,7 +382,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
 
   return (
     <div css={fieldBaseCSS} data-required={isRequired || undefined}>
-      {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
+      {renderLabel(`${fieldName}-${mode}`)}
       <CompositeField>
         <Select
           aria-label={`Select input mode for ${label}`}
