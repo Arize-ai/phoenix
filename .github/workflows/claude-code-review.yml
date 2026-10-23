@@ -19,9 +19,9 @@ concurrency:
 jobs:
   claude-review:
     # Same-repo PRs only: fork-origin pull_request runs get neither repository
-    # secrets (ANTHROPIC_API_KEY is empty) nor an OIDC token (id-token: write
-    # is inert for forks), so the action's auth validation would fail the run
-    # on every external contribution. Skip instead of failing red.
+    # secrets nor an OIDC token (id-token: write is inert for forks), so the
+    # action's auth validation would fail the run on every external
+    # contribution. Skip instead of failing red.
     # Also skip drafts: synchronize fires on every push to a draft, and
     # ready_for_review already triggers a review when the PR leaves draft.
     if: |
@@ -63,7 +63,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
           allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
