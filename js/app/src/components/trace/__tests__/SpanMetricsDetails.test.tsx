@@ -83,13 +83,18 @@ describe("SpanMetricsDetails", () => {
         tokenCountTotal: 1500,
         tokenCountPrompt: 1000,
         tokenCountCompletion: 500,
+        costSummary: {
+          total: { cost: 0.25 },
+          prompt: { cost: 0.2 },
+          completion: { cost: 0.05 },
+        },
         costDetailSummaryEntries: [],
       }),
-      CostBreakdown: () => ({ cost: 0.25 }),
     });
 
     expect(container.textContent).toContain("Tokens and cost");
     expect(container.textContent).toContain("1,500");
+    expect(container.textContent).toContain("$0.2500");
   });
 
   it("drops the cost when the span was not priced", async () => {

@@ -16,7 +16,7 @@ These test the fake, or Relay and React, rather than Phoenix code:
 
 - Relay pagination plumbing (`usePaginationFragment`, `@connection`, `loadNext`). Relay owns it.
 - Scrolling, resizing, focus, or anything that depends on layout. jsdom has no layout, so the test only checks the numbers it assigned with `Object.defineProperty`.
-- Whole pages rendered against a hand-written Relay `Network` or payload that serves query results, cursors or pages. The fake has to match every fragment, ties the test to operation names and aliases, and tests its own pagination. Generate payloads with `MockPayloadGenerator` instead.
+- Whole pages rendered against a hand-written Relay `Network` or payload that serves query results, cursors or pages. The fake has to match every fragment, ties the test to operation names and aliases, and tests its own pagination. Generating the payload with `MockPayloadGenerator` does not change that; use it for the component tests above.
 - `vi.mock` of the module under test or of the loader hook that feeds it data.
 - Silencing `console.warn` or `console.error` so incomplete fake payloads pass.
 
