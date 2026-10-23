@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f0500ca3eca28b931788d491dd682475>>
+ * @generated SignedSource<<f25122d6746116b9e88b29742e61cb68>>
  * @lightSyntaxTransform
  */
 
@@ -10,6 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
@@ -117,6 +118,9 @@ export type ExperimentCompareTable_comparisons$data = {
     readonly datasetEvaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly evaluator: {
+            readonly kind: EvaluatorKind;
+          };
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
             readonly __typename: "CategoricalAnnotationConfig";
@@ -1056,6 +1060,24 @@ return {
                           "args": null,
                           "concreteType": null,
                           "kind": "LinkedField",
+                          "name": "evaluator",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "kind",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
                           "name": "outputConfigs",
                           "plural": true,
                           "selections": [
@@ -1136,6 +1158,6 @@ return {
 };
 })();
 
-(node as any).hash = "9beb4d9c0a20478e5942c19d3a58e082";
+(node as any).hash = "7f724c6db9ef2403c56f41dd1fe4309d";
 
 export default node;

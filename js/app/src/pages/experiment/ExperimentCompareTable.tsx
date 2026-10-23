@@ -296,6 +296,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 edges {
                   node {
                     name
+                    evaluator {
+                      kind
+                    }
                     outputConfigs {
                       __typename
                       ... on CategoricalAnnotationConfig {

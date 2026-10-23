@@ -221,6 +221,9 @@ export function ExperimentCompareListPage({
                 edges {
                   node {
                     name
+                    evaluator {
+                      kind
+                    }
                     outputConfigs {
                       __typename
                       ... on CategoricalAnnotationConfig {
