@@ -10,3 +10,17 @@ This repo uses a **Makefile** for all build, test, lint, and dev commands. Run `
 ## Python Dependency Version Policy
 
 **Never add pre-release versions to production dependencies in `pyproject.toml` files.** Pre-release suffixes (`aN`, `bN`, `rcN`, `.devN` per [PEP 440](https://peps.python.org/pep-0440/)) are implicitly excluded from pip's dependency resolution by default — they are only installed if explicitly requested via `--pre` or a pinned pre-release specifier. Adding a pre-release pin to a production dependency forces users to opt into unstable software or causes resolution failures. Dev/test dependency groups may use pre-release versions when necessary.
+
+## Pull Request Auto-Merge
+
+When you open or drive a PR and it is simple or ready to merge, **enable GitHub auto-merge** on it (e.g. `gh pr merge --auto --squash` or the equivalent GitHub MCP tool) so it lands as soon as required checks and approvals pass. Auto-merge never bypasses branch protection — it only removes the wait once the PR is green and approved.
+
+A PR qualifies when all of the following hold:
+
+- It is small and low-risk: docs, comments, typos, config tweaks, dependency patch bumps, test-only changes, or a narrowly scoped bug fix with test coverage.
+- It does not touch database migrations, auth/permissions, public API or schema contracts, release/publish workflows, or security-sensitive code.
+- Local checks for the changed packages (lint, format, typecheck, unit tests) pass, and CI is green or expected to be.
+- There are no unresolved review threads or open questions for the author or reviewers.
+- It is not a draft. Mark it ready for review before enabling auto-merge.
+
+If any of these is in doubt, do not enable auto-merge; leave the PR for a human to merge. Disable auto-merge if new commits or review feedback materially change the PR's scope.
