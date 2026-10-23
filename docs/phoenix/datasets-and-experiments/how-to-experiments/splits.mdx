@@ -22,7 +22,9 @@ Experiments can be run over previously configured splits either via the Python o
 
 #### Creating Splits
 
-Currently, Splits can be created in the UI on the dataset page. When inspecting the dataset you will see a new splits column along with a splits filter.
+Splits can be created in the UI on the dataset page, assigned when you upload a dataset, or managed programmatically with the TypeScript client (see [Managing Splits Programmatically](#managing-splits-programmatically)).
+
+When inspecting the dataset in the UI you will see a splits column along with a splits filter.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/splits_column_and_filter.png" alt="repetition carousel" />
@@ -52,7 +54,7 @@ A split can be assigned a name, description and a color
 
 #### Assigning Splits
 
-Splits can currently only be assigned from the UI on the dataset page. To assign dataset examples to splits, select a set of examples and using the split filter we can select splits and it will automatically assign those selected examples to the set of selected splits
+To assign dataset examples to splits in the UI, select a set of examples and using the split filter we can select splits and it will automatically assign those selected examples to the set of selected splits
 
 <Tabs>
 <Tab title="Assigning Splits">
@@ -65,6 +67,56 @@ Splits can currently only be assigned from the UI on the dataset page. To assign
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits_complete.png" alt="Split creation complete" />
 </Frame>
+</Tab>
+</Tabs>
+
+#### Managing Splits Programmatically
+
+<Tabs>
+<Tab title="Python" icon="python">
+Assign examples to splits when you upload a dataset by passing `split_key`, the name of a column that holds each example's split name (a plain string or a JSON list of names). Splits that don't exist yet are created.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+dataset = client.datasets.create_dataset(
+    name="my-dataset",
+    dataframe=df,  # has a "split" column with values like "train" or "test"
+    input_keys=["question"],
+    output_keys=["answer"],
+    split_key="split",
+)
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to create, edit, and delete splits on an existing dataset and to add or remove examples. These helpers require Phoenix server 19.20.0 or newer.
+
+```typescript
+import {
+  createDatasetSplit,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = { datasetName: "my-dataset" };
+
+const testSplit = await createDatasetSplit({
+  dataset,
+  name: "test",
+  exampleIds: ["example-1"], // example ids or nodeIds from getDatasetExamples
+});
+
+await updateDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+  addExampleIds: ["example-2"],
+  removeExampleIds: ["example-1"],
+});
+```
+
+See [Datasets in the TypeScript client](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets#manage-splits-on-an-existing-dataset) for all parameters and server version notes.
 </Tab>
 </Tabs>
 
