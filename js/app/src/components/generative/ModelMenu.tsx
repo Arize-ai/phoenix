@@ -104,8 +104,11 @@ type LeadingItemsProps = {
  */
 const KEY_DELIMITER = "\uE000";
 
-function getModelType(value: ModelMenuValue | null | undefined): ModelType {
-  return value?.modelType ?? "LLM";
+function getModelType(
+  value: ModelMenuValue | null | undefined,
+  defaultModelType: ModelType = "LLM"
+): ModelType {
+  return value?.modelType ?? defaultModelType;
 }
 
 type BuiltinModelInfo = {
@@ -212,6 +215,11 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     /** Restrict selection to one model type on specialized authoring forms. */
     fixedModelType?: ModelType;
     /**
+     * The tab the menu opens on when no model is selected yet.
+     * @default "LLM"
+     */
+    defaultModelType?: ModelType;
+    /**
      * Shown above the Decision tab's providers when choosing a decision model
      * has a side effect the user should know about first (e.g. it clears the
      * loaded dataset).
@@ -232,12 +240,13 @@ export function ModelMenu({
   credentialSource,
   supportsDecisionModels = false,
   fixedModelType,
+  defaultModelType,
   decisionTabNotice,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const [selectedModelType, setModelType] = useState<ModelType>(
-    getModelType(value)
+    getModelType(value, defaultModelType)
   );
   const modelType = fixedModelType ?? selectedModelType;
   const awsBedrockModelPrefix = usePreferencesContext(
@@ -352,7 +361,7 @@ export function ModelMenu({
     <MenuTrigger
       onOpenChange={(isOpen) => {
         if (isOpen) {
-          setModelType(getModelType(value));
+          setModelType(getModelType(value, defaultModelType));
           setSearchValue("");
         }
       }}

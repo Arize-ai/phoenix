@@ -25,6 +25,7 @@ const taskConfig: DecisionTaskConfig = {
   customProvider: { id: "provider-1", name: "My endpoint" },
   baseUrl: null,
   inputValuesPath: "metadata.inputs",
+  decisionVersion: null,
   inputs: [{ name: "ticket", description: null, jsonSchema: null }],
   state: { __typename: "DecisionObjectState", object: true },
   questions: [
