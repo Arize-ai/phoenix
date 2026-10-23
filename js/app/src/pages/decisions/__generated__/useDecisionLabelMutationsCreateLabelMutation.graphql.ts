@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<45aac80445c0380e6f50ddfb85bb6e06>>
+ * @generated SignedSource<<bbd526a9d9832d5a0cd1702130cd3232>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type useDecisionLabelMutationsCreateLabelMutation$data = {
   readonly createDecisionLabel: {
     readonly decisionLabels: ReadonlyArray<{
       readonly color: string | null;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
       readonly usageCount: number;
@@ -70,6 +71,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "description",
       "storageKey": null
     },
     {
@@ -160,16 +168,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9929491485b7fb4bec6244e548396f27",
+    "cacheID": "b93a36d59c01994cf3d05c54019325ac",
     "id": null,
     "metadata": {},
     "name": "useDecisionLabelMutationsCreateLabelMutation",
     "operationKind": "mutation",
-    "text": "mutation useDecisionLabelMutationsCreateLabelMutation(\n  $label: CreateDecisionLabelInput!\n) {\n  createDecisionLabel(input: $label) {\n    decisionLabels {\n      id\n      name\n      color\n      usageCount\n    }\n  }\n}\n"
+    "text": "mutation useDecisionLabelMutationsCreateLabelMutation(\n  $label: CreateDecisionLabelInput!\n) {\n  createDecisionLabel(input: $label) {\n    decisionLabels {\n      id\n      name\n      description\n      color\n      usageCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cd635d2c108741111dd129cbdf1c54ed";
+(node as any).hash = "997db50041ae834d4ad4c65fdb16e974";
 
 export default node;

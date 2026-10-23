@@ -30,8 +30,10 @@ enum DecisionAction {
 export function DecisionActionMenu({
   onDeleted,
   decisionId,
+  decisionName,
 }: {
   decisionId: string;
+  decisionName: string;
   onDeleted: () => void;
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -114,6 +116,7 @@ export function DecisionActionMenu({
         <Modal>
           <DeleteDecisionDialog
             decisionId={decisionId}
+            name={decisionName}
             onDeleted={() => {
               onDeleted();
               setShowDeleteDialog(false);

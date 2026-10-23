@@ -185,23 +185,27 @@ export function DecisionAnswerView({
         </div>
       );
     }
-    case "predicate":
+    case "predicate": {
+      // The bar shows how likely the shown answer is, so "False" reads with
+      // P(false), not the P(true) the model returns.
+      const isTrue = answer.probability == null || answer.probability >= 0.5;
+      const label =
+        answer.probability == null ? "–" : isTrue ? "True" : "False";
       return (
         <div css={distributionCSS} aria-label={`${answer.name} probability`}>
           <DistributionRow
-            label={
-              answer.probability == null
-                ? "–"
-                : answer.probability >= 0.5
-                  ? "True"
-                  : "False"
+            label={label}
+            value={
+              answer.probability == null || isTrue
+                ? answer.probability
+                : 1 - answer.probability
             }
-            value={answer.probability}
             isChosen
-            barLabel={`${answer.name} probability of true`}
+            barLabel={`${answer.name} probability of ${isTrue ? "true" : "false"}`}
           />
         </div>
       );
+    }
     case "refusal":
       return (
         <Text size="S" color="warning">

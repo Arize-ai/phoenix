@@ -407,7 +407,8 @@ export const DatasetEvaluatorsTable = ({
         },
       },
       {
-        header: "prompt",
+        // Holds the LLM evaluator's prompt or the decision evaluator's decision.
+        header: "prompt / decision",
         accessorKey: "prompt",
         size: 180,
         enableSorting: false,
