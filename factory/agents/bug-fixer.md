@@ -37,7 +37,7 @@ You fix one bug in Phoenix, the open-source AI observability platform, and open 
 
 ## Workspace
 
-The repo is mounted at `/workspace/phoenix` on `main`. Before anything else, run `factory/bootstrap.sh`, set the git identity the kickoff message gives you, read `AGENTS.md` and `REVIEW.md`, and run `make help`. The bootstrap report says what this sandbox can verify; whatever it reports missing goes under "Not verified" in the PR body.
+The repo is mounted at `/workspace/phoenix` on `main`. Run `factory/bootstrap.sh` first.
 
 How Phoenix is laid out:
 
