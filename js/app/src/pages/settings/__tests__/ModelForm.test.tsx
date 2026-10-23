@@ -72,6 +72,33 @@ describe("ModelForm", () => {
         container.querySelector<HTMLButtonElement>('button[type="submit"]')!
       );
     });
+  const click = (button: HTMLButtonElement) =>
+    act(async () => {
+      await userEvent.click(button);
+    });
+  const addPromptRow = () =>
+    click(
+      Array.from(container.querySelectorAll("button")).filter(
+        (button) => button.textContent === "Add row"
+      )[0]
+    );
+  // The first table holds the prompt rows; its last row holds "Add row"
+  const promptRows = () =>
+    Array.from(
+      container.querySelector("table")!.querySelectorAll("tbody > tr")
+    ).slice(0, -1);
+  const promptRowTokenTypeInput = (index: number) =>
+    promptRows()[index].querySelector<HTMLInputElement>(
+      'input[aria-label="Token type"]'
+    )!;
+  const removePromptRow = (index: number) =>
+    click(
+      promptRows()[index].querySelector<HTMLButtonElement>(
+        "td:last-child button"
+      )!
+    );
+  const duplicateErrorCount = () =>
+    container.textContent?.match(/Duplicate token type/g)?.length ?? 0;
 
   it("keeps the case of a custom provider and token type", async () => {
     await replaceText(providerInput(), "AcmeAI");
@@ -122,24 +149,39 @@ describe("ModelForm", () => {
   });
 
   it("rejects a token type that duplicates another on the same side", async () => {
-    const [addPromptRowButton] = Array.from(
-      container.querySelectorAll("button")
-    ).filter((button) => button.textContent === "Add row");
-    await act(async () => {
-      await userEvent.click(addPromptRowButton);
-    });
-    const [, addedTokenTypeInput] = Array.from(
-      container.querySelectorAll<HTMLInputElement>(
-        'input[aria-label="Token type"]'
-      )
-    );
-    await replaceText(addedTokenTypeInput, "INPUT");
+    await addPromptRow();
+    await replaceText(promptRowTokenTypeInput(1), "INPUT");
     await submit();
 
     expect(onSubmit).not.toHaveBeenCalled();
     // Only the later row is flagged, since that is the one to fix
-    expect(container.textContent?.match(/Duplicate token type/g)).toHaveLength(
-      1
-    );
+    expect(duplicateErrorCount()).toBe(1);
+  });
+
+  it("clears a duplicate error when the earlier row changes, without flagging empty rows", async () => {
+    await addPromptRow();
+    await replaceText(promptRowTokenTypeInput(1), "INPUT");
+    await submit();
+    expect(duplicateErrorCount()).toBe(1);
+
+    await addPromptRow();
+    await replaceText(promptRowTokenTypeInput(0), "audio");
+
+    expect(duplicateErrorCount()).toBe(0);
+    expect(container.textContent).not.toContain("Token type is required");
+  });
+
+  it("clears a duplicate error when the duplicated row is removed", async () => {
+    await addPromptRow();
+    await addPromptRow();
+    await replaceText(promptRowTokenTypeInput(1), "cache_read");
+    await replaceText(promptRowTokenTypeInput(2), "CACHE_READ");
+    await submit();
+    expect(duplicateErrorCount()).toBe(1);
+
+    await removePromptRow(1);
+
+    expect(promptRows()).toHaveLength(2);
+    expect(duplicateErrorCount()).toBe(0);
   });
 });

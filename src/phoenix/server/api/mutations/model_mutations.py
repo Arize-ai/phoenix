@@ -303,6 +303,8 @@ def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenP
     token_prices = [cost.token_prices for cost in costs]
     seen: set[tuple[bool, str]] = set()
     for token_price in token_prices:
+        if not token_price.token_type:
+            raise BadRequest("token type is required")
         key = (token_price.is_prompt, token_price.token_type.lower())
         if key in seen:
             kind = "prompt" if token_price.is_prompt else "completion"

@@ -217,6 +217,8 @@ export function ModelForm({
   const {
     control,
     handleSubmit,
+    getFieldState,
+    trigger,
     formState: { isDirty },
   } = useForm<ModelFormParams>({
     defaultValues: {
@@ -364,6 +366,8 @@ export function ModelForm({
             namePrefix="promptCosts"
             fields={promptCostFields}
             control={control}
+            getFieldState={getFieldState}
+            trigger={trigger}
             tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
             onAppend={appendPromptCost}
             onRemove={removePromptCost}
@@ -375,6 +379,8 @@ export function ModelForm({
             namePrefix="completionCosts"
             fields={completionCostFields}
             control={control}
+            getFieldState={getFieldState}
+            trigger={trigger}
             tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
             onAppend={appendCompletionCost}
             onRemove={removeCompletionCost}

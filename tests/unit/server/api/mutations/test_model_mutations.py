@@ -743,9 +743,19 @@ class TestModelMutations:
                 "Duplicate completion token type 'output'",
                 id="completion-side",
             ),
+            pytest.param(
+                [("input", "PROMPT"), ("", "PROMPT"), ("output", "COMPLETION")],
+                "token type is required",
+                id="empty-token-type",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("output", "COMPLETION"), ("   ", "COMPLETION")],
+                "token type is required",
+                id="whitespace-only-token-type",
+            ),
         ],
     )
-    async def test_create_model_with_duplicate_token_types_fails(
+    async def test_create_model_with_invalid_token_types_fails(
         self,
         gql_client: AsyncGraphQLClient,
         costs: list[tuple[str, str]],
