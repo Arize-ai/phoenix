@@ -8,6 +8,9 @@ tools:
   # always_allow: sessions run unattended, so nothing could answer an approval prompt.
   - type: agent_toolset_20260401
     default_config: {permission_policy: {type: always_allow}}
+    configs:
+      - {name: web_fetch, enabled: true}
+      - {name: web_search, enabled: true}
   - type: mcp_toolset
     mcp_server_name: github
     default_config: {enabled: false}

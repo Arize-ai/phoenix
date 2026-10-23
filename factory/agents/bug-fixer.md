@@ -9,6 +9,9 @@ tools:
   # factory-guard.yml fails factory PRs that edit automation files, and a human merges.
   - type: agent_toolset_20260401
     default_config: {permission_policy: {type: always_allow}}
+    configs:
+      - {name: web_fetch, enabled: true}
+      - {name: web_search, enabled: true}
   - type: mcp_toolset
     mcp_server_name: github
     default_config: {enabled: false}
