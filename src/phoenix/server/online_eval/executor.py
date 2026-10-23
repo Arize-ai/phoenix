@@ -210,6 +210,16 @@ class _HydratedEvaluatorSnapshot:
     output_configs: tuple[OutputConfigType, ...]
 
 
+def _evaluator_snapshot_key(
+    evaluator: models.Evaluator, project_evaluator_id: int
+) -> tuple[int, Optional[int]]:
+    """Bindings of one evaluator share its snapshot, except a decision judge's: its
+    annotations record which project evaluator they came from."""
+    if isinstance(evaluator, models.DecisionEvaluator):
+        return evaluator.id, project_evaluator_id
+    return evaluator.id, None
+
+
 @dataclass(frozen=True)
 class SharedHydrationFailure:
     """A batch-level database failure that must not consume any unit's retry budget."""
@@ -799,11 +809,12 @@ class OnlineEvalExecutor:
             matching_project_evaluator_ids.add(unit.project_evaluator_id)
 
         evaluator_snapshots: dict[
-            int, _HydratedEvaluatorSnapshot | HydrationFailure | Exception
+            tuple[int, Optional[int]], _HydratedEvaluatorSnapshot | HydrationFailure | Exception
         ] = {}
         for project_evaluator_id in matching_project_evaluator_ids:
             _, evaluator = project_evaluator_pairs[project_evaluator_id]
-            if evaluator.id in evaluator_snapshots:
+            snapshot_key = _evaluator_snapshot_key(evaluator, project_evaluator_id)
+            if snapshot_key in evaluator_snapshots:
                 continue
             resolved = resolved_by_project_evaluator_id[project_evaluator_id]
             assert resolved is not None
@@ -813,11 +824,12 @@ class OnlineEvalExecutor:
                         session,
                         evaluator,
                         resolved.version_id,
+                        project_evaluator_id=project_evaluator_id,
                     )
             except Exception as error:
-                evaluator_snapshots[evaluator.id] = error
+                evaluator_snapshots[snapshot_key] = error
             else:
-                evaluator_snapshots[evaluator.id] = (
+                evaluator_snapshots[snapshot_key] = (
                     hydrated_evaluator_snapshot
                     if hydrated_evaluator_snapshot is not None
                     else HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
@@ -827,7 +839,9 @@ class OnlineEvalExecutor:
             if outcome is not None:
                 continue
             _, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
-            evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
+            evaluator_snapshot_outcome = evaluator_snapshots[
+                _evaluator_snapshot_key(evaluator, unit.project_evaluator_id)
+            ]
             if isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception)):
                 outcomes[index] = evaluator_snapshot_outcome
                 continue
@@ -908,11 +922,15 @@ class OnlineEvalExecutor:
         session: AsyncSession,
         evaluator_orm: models.Evaluator,
         version_id: Optional[int],
+        *,
+        project_evaluator_id: Optional[int] = None,
     ) -> Optional[_HydratedEvaluatorSnapshot]:
         if isinstance(evaluator_orm, models.BuiltinEvaluator):
             return self._hydrate_builtin(evaluator_orm)
         if isinstance(evaluator_orm, models.DecisionEvaluator):
-            return await self._hydrate_decision(session, evaluator_orm)
+            return await self._hydrate_decision(
+                session, evaluator_orm, project_evaluator_id=project_evaluator_id
+            )
         if version_id is None:
             return None
         if isinstance(evaluator_orm, models.LLMEvaluator):
@@ -1052,13 +1070,18 @@ class OnlineEvalExecutor:
         self,
         session: AsyncSession,
         evaluator_orm: models.DecisionEvaluator,
+        *,
+        project_evaluator_id: Optional[int] = None,
     ) -> Optional[_HydratedEvaluatorSnapshot]:
         """A judge runs its pinned decision version, scored by its own policy. It has no
         request credentials, so the provider key comes from the server's secrets or
-        environment, as for LLM judges."""
+        environment, as for LLM judges. Its annotations name the project evaluator
+        they came from."""
         if evaluator_orm.selected_version is None:
             return None
-        definition = capture_decision_evaluator_definition(evaluator_orm)
+        definition = capture_decision_evaluator_definition(
+            evaluator_orm, project_evaluator_id=project_evaluator_id
+        )
         evaluator = await build_decision_evaluator(
             definition,
             session=session,

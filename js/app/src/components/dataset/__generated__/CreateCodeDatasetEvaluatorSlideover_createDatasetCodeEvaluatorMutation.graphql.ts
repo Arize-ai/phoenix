@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a05b6d57ba41b2f9d1e810d1da8b9330>>
+ * @generated SignedSource<<14480da5d9aa930da7b61fa12938eab9>>
  * @lightSyntaxTransform
  */
 
@@ -67,6 +67,10 @@ export type CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutati
 export type CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation$data = {
   readonly createDatasetCodeEvaluator: {
     readonly evaluator: {
+      readonly dataset: {
+        readonly evaluatorCount: number;
+        readonly id: string;
+      };
       readonly id: string;
       readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row" | "PlaygroundDatasetSection_evaluator">;
     };
@@ -105,11 +109,30 @@ v3 = {
 v4 = {
   "alias": null,
   "args": null,
+  "concreteType": "Dataset",
+  "kind": "LinkedField",
+  "name": "dataset",
+  "plural": false,
+  "selections": [
+    (v3/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluatorCount",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluatorInputMapping",
@@ -134,39 +157,39 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "isBuiltin",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*:: as any*/),
-    (v9/*:: as any*/),
+    (v5/*:: as any*/),
+    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -196,36 +219,36 @@ v10 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*:: as any*/),
-    (v9/*:: as any*/),
-    (v11/*:: as any*/),
-    (v12/*:: as any*/)
+    (v5/*:: as any*/),
+    (v10/*:: as any*/),
+    (v12/*:: as any*/),
+    (v13/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v14 = {
+v15 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*:: as any*/),
-    (v9/*:: as any*/),
+    (v5/*:: as any*/),
+    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -233,48 +256,48 @@ v14 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v11/*:: as any*/),
-    (v12/*:: as any*/)
+    (v12/*:: as any*/),
+    (v13/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "username",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "profilePictureUrl",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
@@ -283,50 +306,50 @@ v20 = {
   "plural": false,
   "selections": [
     (v3/*:: as any*/),
-    (v4/*:: as any*/)
+    (v5/*:: as any*/)
   ],
   "storageKey": null
 },
-v21 = [
-  (v4/*:: as any*/)
+v22 = [
+  (v5/*:: as any*/)
 ],
-v22 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "decisionId",
   "storageKey": null
 },
-v25 = {
+v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v26 = {
+v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v27 = [
-  (v4/*:: as any*/),
+v28 = [
+  (v5/*:: as any*/),
   (v3/*:: as any*/)
 ];
 return {
@@ -356,13 +379,14 @@ return {
             "plural": false,
             "selections": [
               (v3/*:: as any*/),
+              (v4/*:: as any*/),
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "PlaygroundDatasetSection_evaluator",
                 "selections": [
                   (v3/*:: as any*/),
-                  (v4/*:: as any*/),
                   (v5/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -372,8 +396,8 @@ return {
                     "plural": false,
                     "selections": [
                       (v3/*:: as any*/),
-                      (v6/*:: as any*/),
-                      (v7/*:: as any*/)
+                      (v7/*:: as any*/),
+                      (v8/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -385,10 +409,10 @@ return {
                     "name": "outputConfigs",
                     "plural": true,
                     "selections": [
-                      (v8/*:: as any*/),
-                      (v10/*:: as any*/),
-                      (v13/*:: as any*/),
-                      (v14/*:: as any*/)
+                      (v9/*:: as any*/),
+                      (v11/*:: as any*/),
+                      (v14/*:: as any*/),
+                      (v15/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -401,9 +425,9 @@ return {
                 "name": "DatasetEvaluatorsTable_row",
                 "selections": [
                   (v3/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v15/*:: as any*/),
+                  (v5/*:: as any*/),
                   (v16/*:: as any*/),
+                  (v17/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -412,8 +436,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v17/*:: as any*/),
-                      (v18/*:: as any*/)
+                      (v18/*:: as any*/),
+                      (v19/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -426,14 +450,14 @@ return {
                     "plural": false,
                     "selections": [
                       (v3/*:: as any*/),
-                      (v4/*:: as any*/),
-                      (v6/*:: as any*/),
-                      (v19/*:: as any*/),
-                      (v16/*:: as any*/),
+                      (v5/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v20/*:: as any*/),
+                      (v17/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v20/*:: as any*/),
+                          (v21/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -441,7 +465,7 @@ return {
                             "kind": "LinkedField",
                             "name": "promptVersionTag",
                             "plural": false,
-                            "selections": (v21/*:: as any*/),
+                            "selections": (v22/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -452,8 +476,8 @@ return {
                             "name": "promptVersion",
                             "plural": false,
                             "selections": [
-                              (v22/*:: as any*/),
-                              (v23/*:: as any*/)
+                              (v23/*:: as any*/),
+                              (v24/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -473,7 +497,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v3/*:: as any*/),
-                              (v24/*:: as any*/),
+                              (v25/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -481,11 +505,11 @@ return {
                                 "kind": "LinkedField",
                                 "name": "decision",
                                 "plural": false,
-                                "selections": (v21/*:: as any*/),
+                                "selections": (v22/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v22/*:: as any*/),
-                              (v23/*:: as any*/)
+                              (v23/*:: as any*/),
+                              (v24/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -496,7 +520,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v25/*:: as any*/),
+                          (v26/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -506,7 +530,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v3/*:: as any*/),
-                              (v4/*:: as any*/),
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -515,7 +539,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v26/*:: as any*/)
+                                  (v27/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -571,6 +595,7 @@ return {
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -579,17 +604,17 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v8/*:: as any*/),
+                  (v9/*:: as any*/),
                   (v3/*:: as any*/),
-                  (v6/*:: as any*/),
                   (v7/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v19/*:: as any*/),
-                  (v16/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v20/*:: as any*/),
+                  (v17/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v20/*:: as any*/),
+                      (v21/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -597,7 +622,7 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v27/*:: as any*/),
+                        "selections": (v28/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -608,8 +633,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v22/*:: as any*/),
                           (v23/*:: as any*/),
+                          (v24/*:: as any*/),
                           (v3/*:: as any*/)
                         ],
                         "storageKey": null
@@ -630,7 +655,7 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*:: as any*/),
-                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -638,11 +663,11 @@ return {
                             "kind": "LinkedField",
                             "name": "decision",
                             "plural": false,
-                            "selections": (v27/*:: as any*/),
+                            "selections": (v28/*:: as any*/),
                             "storageKey": null
                           },
-                          (v22/*:: as any*/),
-                          (v23/*:: as any*/)
+                          (v23/*:: as any*/),
+                          (v24/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -653,7 +678,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v25/*:: as any*/),
+                      (v26/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -663,7 +688,7 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*:: as any*/),
-                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -672,7 +697,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v26/*:: as any*/),
+                              (v27/*:: as any*/),
                               (v3/*:: as any*/)
                             ],
                             "storageKey": null
@@ -695,10 +720,10 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v8/*:: as any*/),
-                  (v10/*:: as any*/),
-                  (v13/*:: as any*/),
+                  (v9/*:: as any*/),
+                  (v11/*:: as any*/),
                   (v14/*:: as any*/),
+                  (v15/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -710,8 +735,8 @@ return {
                 ],
                 "storageKey": null
               },
-              (v15/*:: as any*/),
               (v16/*:: as any*/),
+              (v17/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -720,8 +745,8 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v17/*:: as any*/),
                   (v18/*:: as any*/),
+                  (v19/*:: as any*/),
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
@@ -756,16 +781,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9cd4c668d53373ec5ee849a0d7ab4940",
+    "cacheID": "32e7f4a65fabf97dcd812a5c9a17b009",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      dataset {\n        id\n        evaluatorCount\n      }\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "22d2ad1e1df3cdbcd18dda9d3a478c3b";
+(node as any).hash = "855b1c166caec2f173209f7bcddb309c";
 
 export default node;

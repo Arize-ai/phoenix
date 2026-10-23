@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a30f658cd7e4f0afd20f63e962d4a9a5>>
+ * @generated SignedSource<<4122a8b6e140744bdc12a6097e4a8fe5>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareListPage_aggregateData$data = {
@@ -15,6 +16,9 @@ export type ExperimentCompareListPage_aggregateData$data = {
     readonly datasetEvaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly evaluator: {
+            readonly kind: EvaluatorKind;
+          };
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
             readonly __typename: "CategoricalAnnotationConfig";
@@ -358,6 +362,24 @@ return {
                           "args": null,
                           "concreteType": null,
                           "kind": "LinkedField",
+                          "name": "evaluator",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "kind",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
                           "name": "outputConfigs",
                           "plural": true,
                           "selections": [
@@ -456,6 +478,6 @@ return {
 };
 })();
 
-(node as any).hash = "72d6f4996920dc99aa5ee715d73fe83f";
+(node as any).hash = "2f599c361edddf25885c1e1c6421cd3f";
 
 export default node;

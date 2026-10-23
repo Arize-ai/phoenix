@@ -82,6 +82,45 @@ describe("playgroundPageLoader", () => {
     expect(fetchPrompt).not.toHaveBeenCalled();
   });
 
+  describe("experiment params", () => {
+    const experiment = {
+      playgroundProps: { instances: [] },
+      datasetId: "dataset-1",
+      splitIds: ["split-1", "split-2"],
+      stateByDatasetId: {},
+      selectedDatasetEvaluatorIds: [],
+    };
+
+    it("redirects to put the experiment's dataset and splits in the URL", async () => {
+      fetchExperiment.mockResolvedValueOnce(experiment);
+      const response = await load("experimentId=exp-1").catch(
+        (thrown: unknown) => thrown
+      );
+      expect(response).toBeInstanceOf(Response);
+      const location = new URL(
+        (response as Response).headers.get("Location") ?? "",
+        "http://localhost"
+      );
+      expect(location.pathname).toBe("/playground");
+      expect(location.searchParams.get("experimentId")).toBe("exp-1");
+      expect(location.searchParams.get("datasetId")).toBe("dataset-1");
+      expect(location.searchParams.getAll("splitId")).toEqual([
+        "split-1",
+        "split-2",
+      ]);
+    });
+
+    it("loads the experiment once the URL names a dataset", async () => {
+      fetchExperiment.mockResolvedValueOnce(experiment);
+      await expect(
+        load("experimentId=exp-1&datasetId=dataset-1&splitId=split-1")
+      ).resolves.toMatchObject({
+        source: "experiment",
+        datasetId: "dataset-1",
+      });
+    });
+  });
+
   it("returns null with no task params", async () => {
     expect(await load("datasetId=D")).toBeNull();
     expect(fetchEvaluator).not.toHaveBeenCalled();

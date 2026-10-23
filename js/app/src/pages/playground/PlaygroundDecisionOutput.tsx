@@ -66,7 +66,9 @@ export function PlaygroundDecisionOutput({
   const output = typeof selected?.output === "string" ? selected.output : null;
   const raw = output == null ? "" : prettyPrint(output);
   if (!instance) return null;
-  const request = instance.decisionRequest ?? null;
+  // Label the output from the request that ran, not the live draft.
+  const request =
+    instance.decisionRunRequest ?? instance.decisionRequest ?? null;
   const runId = instance.activeRunId;
   const totalRepetitions = Object.keys(instance.repetitions).length;
   const skeletonLines = Math.max(1, request?.questions.length ?? 0);
