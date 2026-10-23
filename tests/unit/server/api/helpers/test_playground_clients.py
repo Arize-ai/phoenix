@@ -788,11 +788,11 @@ class TestAnthropicStreamingClient:
                 self.attributes.update(attributes)
 
         @asynccontextmanager
-        async def client_factory() -> Any:
+        async def create_client() -> AsyncIterator[Any]:
             yield SimpleNamespace(_client=None)
 
         client: Any = AnthropicClient(
-            client_factory=client_factory,
+            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
             model_name="claude-sonnet-5-5",
             provider="anthropic",
         )
