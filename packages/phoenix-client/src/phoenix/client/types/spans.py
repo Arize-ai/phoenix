@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from dataclasses import field as dataclass_field
 from typing import Any, Optional
 
@@ -134,91 +134,53 @@ class SpanQuery:
     _filter: Optional[SpanFilter] = dataclass_field(default=None)
     _explode: Optional[Explosion] = dataclass_field(default=None)
     _concat: Optional[Concatenation] = dataclass_field(default=None)
+    _concat_separator: str = dataclass_field(default="\n\n")
     _rename: Optional[dict[str, str]] = dataclass_field(default=None)
     _index: Optional[Projection] = dataclass_field(default=None)
     _index_has_been_set: bool = dataclass_field(default=False)
 
-    def select(self, *fields: str) -> "SpanQuery":
+    def select(self, *fields: str, **labeled_fields: str) -> "SpanQuery":
+        """Project ``fields`` as columns; a keyword argument names the column for its field."""
         select_dict: dict[str, Projection] = {}
-        for field in fields:
-            normalized = _normalize_field(field)
-            select_dict[normalized] = Projection(key=normalized)
-        return SpanQuery(
-            _select=select_dict,
-            _filter=self._filter,
-            _explode=self._explode,
-            _concat=self._concat,
-            _rename=self._rename,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
-        )
+        for label, field in (*zip(fields, fields), *labeled_fields.items()):
+            select_dict[_ALIASES.get(label, label)] = Projection(key=_normalize_field(field))
+        return replace(self, _select=select_dict)
 
     def where(self, condition: str) -> "SpanQuery":
         """Filter spans based on a condition."""
-        return SpanQuery(
-            _select=self._select,
-            _filter=SpanFilter(condition=condition),
-            _explode=self._explode,
-            _concat=self._concat,
-            _rename=self._rename,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
-        )
+        return replace(self, _filter=SpanFilter(condition=condition))
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
-        current_index = self._index.key if self._index else "context.span_id"
-        primary_index_key = current_index
-        # Create a new dictionary with normalized keys and values
-        normalized_kwargs: dict[str, str] = {}
-        for k, v in kwargs.items():
-            normalized_k = _normalize_field(k)
-            normalized_v = _normalize_field(v)
-            normalized_kwargs[normalized_k] = normalized_v
-        return SpanQuery(
-            _select=self._select,
-            _filter=self._filter,
+        primary_index_key = self._index.key if self._index else "context.span_id"
+        normalized_kwargs = {_normalize_field(k): _normalize_field(v) for k, v in kwargs.items()}
+        return replace(
+            self,
             _explode=Explosion(
                 key=key, kwargs=normalized_kwargs, primary_index_key=primary_index_key
             ),
-            _concat=self._concat,
-            _rename=self._rename,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
         )
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
         """Concatenate a field from the spans."""
-        # Create a new dictionary with normalized keys and values
-        normalized_kwargs: dict[str, str] = {}
-        for k, v in kwargs.items():
-            normalized_k = _normalize_field(k)
-            normalized_v = _normalize_field(v)
-            normalized_kwargs[normalized_k] = normalized_v
-        return SpanQuery(
-            _select=self._select,
-            _filter=self._filter,
-            _explode=self._explode,
-            _concat=Concatenation(key=key, kwargs=normalized_kwargs),
-            _rename=self._rename,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
+        normalized_kwargs = {_normalize_field(k): _normalize_field(v) for k, v in kwargs.items()}
+        return replace(
+            self,
+            _concat=Concatenation(
+                key=key, kwargs=normalized_kwargs, separator=self._concat_separator
+            ),
         )
+
+    def with_concat_separator(self, separator: str = "\n\n") -> "SpanQuery":
+        """Join concatenated values with ``separator`` instead of a blank line."""
+        concat = self._concat
+        if concat is not None:
+            concat = Concatenation(key=concat.key, kwargs=concat.kwargs, separator=separator)
+        return replace(self, _concat=concat, _concat_separator=separator)
 
     def rename(self, **kwargs: str) -> "SpanQuery":
         """Rename fields in the result."""
-        rename_dict: dict[str, str] = {}
-        for old_name, new_name in kwargs.items():
-            normalized_old = _normalize_field(old_name)
-            rename_dict[normalized_old] = new_name
-        return SpanQuery(
-            _select=self._select,
-            _filter=self._filter,
-            _explode=self._explode,
-            _concat=self._concat,
-            _rename=rename_dict,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
-        )
+        rename_dict = {_normalize_field(old): new for old, new in kwargs.items()}
+        return replace(self, _rename=rename_dict)
 
     def with_index(self, key: str) -> "SpanQuery":
         # If there's already an explosion, update its primary index key
@@ -232,12 +194,9 @@ class SpanQuery:
                 kwargs=new_explode.kwargs,
                 primary_index_key=_unalias(key),
             )
-        return SpanQuery(
-            _select=self._select,
-            _filter=self._filter,
+        return replace(
+            self,
             _explode=new_explode,
-            _concat=self._concat,
-            _rename=self._rename,
             # For the index projection, we follow the normalization as before.
             _index=Projection(key=_normalize_field(key)),
             _index_has_been_set=True,
