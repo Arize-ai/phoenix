@@ -178,7 +178,6 @@
 ### Experiments
 
 - [Run Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments): Run task functions against datasets with evaluators
-- [Evaluate a Prompt Change in Code](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change): Compare a baseline and edited prompt in an SDK experiment scored by a deterministic code evaluator
 - [Using Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators): Configure code and LLM evaluators for experiments
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
