@@ -1042,11 +1042,11 @@ class TestSandboxAndCodeEvaluatorPermissions:
       }
 
       subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
-        evaluatorPreview(input: $input) { id }
+        evaluatorPreview(input: $input) { key }
       }
 
       mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
-        previewEvaluator(input: $input) { results { id } }
+        previewEvaluator(input: $input) { results { key } }
       }
 
       mutation CreateDataset($input: CreateDatasetInput!) {

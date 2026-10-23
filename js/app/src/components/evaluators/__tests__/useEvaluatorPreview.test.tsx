@@ -105,7 +105,7 @@ describe("useEvaluatorPreview", () => {
     });
     expect(lastSubscription().variables.input).toMatchObject({
       ...REQUEST,
-      subjects: [{ id: "subject", context: SOURCE }],
+      subjects: [{ key: "subject", context: SOURCE }],
     });
     expect(preview.isRunning).toBe(true);
   });
@@ -127,7 +127,7 @@ describe("useEvaluatorPreview", () => {
     ];
     await act(async () => {
       lastSubscription().onNext({
-        evaluatorPreview: { id: "subject", error: null, results },
+        evaluatorPreview: { key: "subject", error: null, results },
       });
       lastSubscription().onCompleted();
     });
@@ -154,7 +154,7 @@ describe("useEvaluatorPreview", () => {
     await act(async () => {
       lastSubscription().onNext({
         evaluatorPreview: {
-          id: "subject",
+          key: "subject",
           error: "The Monty runtime is busy. Retry shortly.",
           results: [],
         },

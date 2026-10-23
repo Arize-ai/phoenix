@@ -82,9 +82,9 @@ async def stream_evaluator_preview(
     with their LLM calls and sandbox executions; each sandbox is torn down as its
     execution is cancelled.
     """
-    subject_ids = [subject.id for subject in input.subjects]
-    if len(set(subject_ids)) != len(subject_ids):
-        raise BadRequest("Each evaluator preview subject needs a unique id")
+    subject_keys = [subject.key for subject in input.subjects]
+    if len(set(subject_keys)) != len(subject_keys):
+        raise BadRequest("Each evaluator preview subject needs a unique key")
     if not input.subjects:
         return
     # Read from the server's configuration, never from the request: a preview that
@@ -216,16 +216,16 @@ async def _evaluate_subject(
             input_mapping=input_mapping,
         )
     except _SubjectRunError as error:
-        return EvaluatorPreviewSubjectResult(id=subject.id, results=[], error=str(error))
+        return EvaluatorPreviewSubjectResult(key=subject.key, results=[], error=str(error))
     except CustomGraphQLError as error:
-        return EvaluatorPreviewSubjectResult(id=subject.id, results=[], error=str(error))
+        return EvaluatorPreviewSubjectResult(key=subject.key, results=[], error=str(error))
     except Exception:
-        logger.exception("Evaluator preview subject %r failed", subject.id)
+        logger.exception("Evaluator preview subject %r failed", subject.key)
         return EvaluatorPreviewSubjectResult(
-            id=subject.id, results=[], error=UNEXPECTED_SUBJECT_ERROR
+            key=subject.key, results=[], error=UNEXPECTED_SUBJECT_ERROR
         )
     return EvaluatorPreviewSubjectResult(
-        id=subject.id,
+        key=subject.key,
         results=[_to_evaluation_result(eval_result) for eval_result in eval_results],
     )
 

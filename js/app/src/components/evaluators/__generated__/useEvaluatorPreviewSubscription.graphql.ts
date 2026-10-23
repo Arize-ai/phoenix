@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<81eaabdd1b26787feeca2e461c73d89c>>
+ * @generated SignedSource<<d853032e966e829f6b7efc773a0510ca>>
  * @lightSyntaxTransform
  */
 
@@ -412,7 +412,7 @@ export type EvaluatorInputMappingInput = {
 };
 export type EvaluatorPreviewSubjectInput = {
   context: any;
-  id: string;
+  key: string;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
@@ -424,7 +424,7 @@ export type useEvaluatorPreviewSubscription$variables = {
 export type useEvaluatorPreviewSubscription$data = {
   readonly evaluatorPreview: {
     readonly error: string | null;
-    readonly id: string;
+    readonly key: string;
     readonly results: ReadonlyArray<{
       readonly annotation: {
         readonly decision: {
@@ -497,59 +497,52 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "error",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "error",
+  "name": "name",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "value",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "value",
+  "name": "description",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "label",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "probability",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "probability",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "confidence",
   "storageKey": null
 },
-v9 = [
+v8 = [
   {
     "alias": null,
     "args": [
@@ -564,8 +557,14 @@ v9 = [
     "name": "evaluatorPreview",
     "plural": false,
     "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "key",
+        "storageKey": null
+      },
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -612,7 +611,7 @@ v9 = [
                     "name": "question",
                     "plural": false,
                     "selections": [
-                      (v3/*:: as any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -628,8 +627,8 @@ v9 = [
                         "name": "choices",
                         "plural": true,
                         "selections": [
-                          (v4/*:: as any*/),
-                          (v5/*:: as any*/)
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -641,8 +640,8 @@ v9 = [
                         "name": "levels",
                         "plural": true,
                         "selections": [
-                          (v6/*:: as any*/),
-                          (v5/*:: as any*/)
+                          (v5/*:: as any*/),
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -667,7 +666,7 @@ v9 = [
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v7/*:: as any*/)
+                          (v6/*:: as any*/)
                         ],
                         "type": "PredicateAnswer",
                         "abstractKey": null
@@ -682,7 +681,7 @@ v9 = [
                             "name": "choice",
                             "storageKey": null
                           },
-                          (v8/*:: as any*/),
+                          (v7/*:: as any*/),
                           {
                             "alias": "choiceProbabilities",
                             "args": null,
@@ -691,8 +690,8 @@ v9 = [
                             "name": "probabilities",
                             "plural": true,
                             "selections": [
-                              (v4/*:: as any*/),
-                              (v7/*:: as any*/)
+                              (v3/*:: as any*/),
+                              (v6/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -710,7 +709,7 @@ v9 = [
                             "name": "expectedLevel",
                             "storageKey": null
                           },
-                          (v8/*:: as any*/),
+                          (v7/*:: as any*/),
                           {
                             "alias": "levelProbabilities",
                             "args": null,
@@ -726,7 +725,7 @@ v9 = [
                                 "name": "level",
                                 "storageKey": null
                               },
-                              (v7/*:: as any*/)
+                              (v6/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -761,9 +760,15 @@ v9 = [
                 ],
                 "storageKey": null
               },
-              (v1/*:: as any*/),
-              (v3/*:: as any*/),
-              (v6/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
+                "storageKey": null
+              },
+              (v2/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -781,7 +786,7 @@ v9 = [
             ],
             "storageKey": null
           },
-          (v2/*:: as any*/)
+          (v1/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -795,7 +800,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "useEvaluatorPreviewSubscription",
-    "selections": (v9/*:: as any*/),
+    "selections": (v8/*:: as any*/),
     "type": "Subscription",
     "abstractKey": null
   },
@@ -804,19 +809,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "useEvaluatorPreviewSubscription",
-    "selections": (v9/*:: as any*/)
+    "selections": (v8/*:: as any*/)
   },
   "params": {
-    "cacheID": "462c421d4ee4c2a2a750a20f5af172e6",
+    "cacheID": "e5ee77ec51fe6507fa978ee137a2837b",
     "id": null,
     "metadata": {},
     "name": "useEvaluatorPreviewSubscription",
     "operationKind": "subscription",
-    "text": "subscription useEvaluatorPreviewSubscription(\n  $input: EvaluatorPreviewInput!\n) {\n  evaluatorPreview(input: $input) {\n    id\n    error\n    results {\n      evaluatorName\n      annotation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        id\n        name\n        label\n        score\n        explanation\n      }\n      error\n    }\n  }\n}\n"
+    "text": "subscription useEvaluatorPreviewSubscription(\n  $input: EvaluatorPreviewInput!\n) {\n  evaluatorPreview(input: $input) {\n    key\n    error\n    results {\n      evaluatorName\n      annotation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        id\n        name\n        label\n        score\n        explanation\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ee4eeadb32a985641323dcea3b22f87d";
+(node as any).hash = "e2b6e338946993f66f2703c6bd1d3927";
 
 export default node;

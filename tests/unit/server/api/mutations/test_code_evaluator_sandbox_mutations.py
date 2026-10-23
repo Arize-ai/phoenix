@@ -425,7 +425,7 @@ class TestUpdateSandboxProvider:
 _EVALUATOR_PREVIEW = """
 subscription EvaluatorPreview($input: EvaluatorPreviewInput!) {
     evaluatorPreview(input: $input) {
-        id
+        key
         error
         results {
             evaluatorName
@@ -595,7 +595,7 @@ class TestDisabledProviderAndConfigGuards:
                     "input": {
                         "evaluator": {"codeEvaluatorId": evaluator_gid},
                         "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "subjects": [{"id": "a", "context": {"output": "test"}}],
+                        "subjects": [{"key": "a", "context": {"output": "test"}}],
                     }
                 },
             ):
@@ -1184,7 +1184,7 @@ class TestCodeEvaluatorSandboxMutationIds:
                     "input": {
                         "evaluator": {"codeEvaluatorId": evaluator_gid},
                         "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "subjects": [{"id": "a", "context": {"output": "test"}}],
+                        "subjects": [{"key": "a", "context": {"output": "test"}}],
                     }
                 },
             ):
@@ -1730,7 +1730,7 @@ class TestMontyCodeEvaluatorPersistence:
                     "input": {
                         "evaluator": {"inlineCodeEvaluator": definition},
                         "inputMapping": _OUTPUT_MAPPING,
-                        "subjects": [{"id": "a", "context": {"output": "well darn it"}}],
+                        "subjects": [{"key": "a", "context": {"output": "well darn it"}}],
                     }
                 },
             )
@@ -1868,7 +1868,7 @@ class TestMontyCodeEvaluatorPersistence:
                     "input": {
                         "evaluator": {"codeEvaluatorId": evaluator_gid},
                         "inputMapping": _OUTPUT_MAPPING,
-                        "subjects": [{"id": "a", "context": {"output": "anything"}}],
+                        "subjects": [{"key": "a", "context": {"output": "anything"}}],
                     }
                 },
             )

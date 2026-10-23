@@ -28,7 +28,7 @@ class EvaluatorPreviewMutationMixin:
     async def preview_evaluator(
         self, info: Info[Context, None], input: EvaluatorPreviewInput
     ) -> EvaluatorPreviewPayload:
-        by_id = {
-            result.id: result async for result in stream_evaluator_preview(info.context, input)
+        by_key = {
+            result.key: result async for result in stream_evaluator_preview(info.context, input)
         }
-        return EvaluatorPreviewPayload(results=[by_id[subject.id] for subject in input.subjects])
+        return EvaluatorPreviewPayload(results=[by_key[subject.key] for subject in input.subjects])

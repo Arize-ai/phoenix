@@ -22,14 +22,17 @@ class EvaluationResult:
 class EvaluatorPreviewSubjectResult:
     """What the evaluator returned for one subject of an evaluator preview."""
 
-    id: str = strawberry.field(description="The id the subject was sent with.")
+    key: str = strawberry.field(description="The key the subject was sent with.")
     results: list[EvaluationResult] = strawberry.field(
         description="One result per annotation the evaluator produces; empty when error is set."
     )
     error: Optional[str] = strawberry.field(
         default=None,
         description=(
-            "Why the evaluator could not run on this subject at all, such as a sandbox "
-            "runtime that was busy or timed out. The other subjects are unaffected."
+            "Why the evaluator could not run on this subject at all: the Monty runtime "
+            "was busy, unavailable, shutting down or out of time, its worker stopped, or "
+            "the run failed unexpectedly. A failure of the evaluation itself, such as an "
+            "LLM error or a timeout in any other sandbox, arrives on that result's error "
+            "instead. The other subjects are unaffected."
         ),
     )
