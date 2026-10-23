@@ -322,6 +322,32 @@ px project get my-project --format raw --no-progress | jq -r '.id'  # Resolve na
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px project retention set <project-identifier> <policy-id>`
+
+Assign an existing trace retention policy to a project. Requires an admin when authentication is enabled. Prompts for confirmation unless `--yes` is passed, because a shorter retention window lets the next sweep permanently delete traces. Outputs the resulting `project_id` and `policy_id`.
+
+```bash
+px project retention set my-project UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI= --yes
+```
+
+### `px project retention reset <project-identifier>`
+
+Reset a project to the default trace retention policy. Sends an explicit `null` policy assignment; the output's `policy_id` is `null`.
+
+```bash
+px project retention reset my-project --yes --format raw --no-progress
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<project-identifier>` | Project name or ID | — |
+| `<policy-id>` | Retention policy GlobalID (`set` only) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
 ### `px trace list [directory]`
 
 Fetch recent traces from the configured project.
