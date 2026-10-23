@@ -1,6 +1,6 @@
 # Factory assessment
 
-Coordinators post this on their PR with `add_issue_comment` right after opening it, so a reviewer can pick a review depth before reading the diff. It complements the PR body, which describes the change but never grades it. Keep each line to one sentence.
+Coordinators post this on their PR with `add_issue_comment` right after opening it, so a reviewer can pick a review depth before reading the diff. It complements the PR body, which describes the change but never grades it. Keep each line to one sentence, with nothing outside the template. Post it once per PR. When a later change makes a line wrong, edit that comment with `update_issue_comment`; never post a second assessment.
 
 ```markdown
 ## Factory assessment

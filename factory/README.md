@@ -86,9 +86,9 @@ Each part does one job, so it can be changed and tested on its own:
 | Part | Job |
 |---|---|
 | `dispatch.py start` | Admits the issue: the requester has write access, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
-| Lane coordinator | Runs `bootstrap.sh`, delegates, implements within 400 changed lines, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
+| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
 | `bug-reproducer` | Writes a test that fails for the reported reason before any fix exists, or reports `NEEDS_BROWSER` with the cause when only a browser or running server can show it |
-| `feature-analyst` | Runs a probe showing `main` lacks the behavior, then plans slices under 400 lines, or returns `NEEDS_DECISION` |
+| `feature-analyst` | Runs a probe showing `main` lacks the behavior, then plans slices, or returns `NEEDS_DECISION` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
