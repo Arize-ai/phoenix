@@ -9,16 +9,16 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "1",
-      "hash": "c2bc4395d62dc060e1f7af18eeef2b1e",
-      "remote_hash": "868bbc83dfb11eb65f558736b12326c1"
+      "version": "2",
+      "hash": "2cc0870b0692cd49da6797dcf9420721",
+      "remote_hash": "ea487b34abf3e4fdc257efdacfc674f7"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
       "id": "agent_01A2ZcG9J6JbhkdCLWRTKLgh",
-      "version": "1",
-      "hash": "4b1ea8626aac5db2ca3dfd1e4868d9ad",
-      "remote_hash": "35607a15c19f61e560dcfa4a93e3c770"
+      "version": "2",
+      "hash": "8cb4281e691ff10e373b6e0bed7faf3c",
+      "remote_hash": "7d72156db092781e4740b9e7bc44ad88"
     },
     "./agents/docs-writer.md": {
       "kind": "agent",
@@ -37,30 +37,30 @@
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "1",
-      "hash": "4b3913799a62862ac4a971d44d83b1e8",
-      "remote_hash": "f72510642e0605f8f74bec5537567aba"
+      "version": "2",
+      "hash": "7fe9a16b2c9d5809f9b69b648e095f4d",
+      "remote_hash": "d0617406d4cd1a6f6e55294576390484"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JBG5XRUNjf8qr4xPULMD6N",
-      "version": "1",
-      "hash": "fb41c7a51f076c127a13bddcaa1a260c",
-      "remote_hash": "e98ee446d00de14a18e947dd6e9cf225"
+      "version": "2",
+      "hash": "b726f49b20c0a8be52f00c858f38d4f8",
+      "remote_hash": "f0a9f66acd40feab462b71b29c458be7"
     },
     "./agents/packages-reviewer.md": {
       "kind": "agent",
       "id": "agent_01Nzaij62n117CaDuWJtsgrL",
-      "version": "1",
-      "hash": "3b19c57c604bc17edca9ae675e295f17",
-      "remote_hash": "d9bffc82ceffd8d8faf52013da86fea0"
+      "version": "2",
+      "hash": "4d17a695a4ed1cd791cf1d1a702f9ecb",
+      "remote_hash": "118763951ea040a47f647198cf55a382"
     },
     "./agents/server-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JJRUnbPL4cZ9gbcTQtUgZn",
-      "version": "1",
-      "hash": "3b809468e5f218683410e9656dd6be0d",
-      "remote_hash": "e25388a01050901d6ec0f3025d26d5db"
+      "version": "2",
+      "hash": "eceab49d8f38693d288b129a6e07dd08",
+      "remote_hash": "15f9a829b03ff64d50bdbe9b48f6816e"
     },
     "./environments/phoenix-dev.yaml": {
       "kind": "environment",
