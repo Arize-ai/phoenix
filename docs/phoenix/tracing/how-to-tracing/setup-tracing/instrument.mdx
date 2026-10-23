@@ -685,7 +685,7 @@ with tracer.start_as_current_span("llm_span", openinference_span_kind="llm") as 
     span.set_input(messages)
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-5.6-sol",
             messages=messages,
         )
     except Exception as error:
@@ -968,7 +968,7 @@ with tracer.start_as_current_span(
     attributes=process_input(
         messages=messages,
         invocation_parameters={"temperature": temperature},
-        model="gpt-4",
+        model="gpt-5.6-sol",
     ),
     openinference_span_kind="llm",
 ) as span:
@@ -1006,7 +1006,7 @@ with tracer.start_as_current_span(
     attributes=process_input(
         messages=messages,
         invocation_parameters={"temperature": temperature},
-        model="gpt-4",
+        model="gpt-5.6-sol",
     ),
     openinference_span_kind="llm",
 ) as span:
@@ -1062,7 +1062,7 @@ def invoke_llm(
 invoke_llm(
     messages=[{"role": "user", "content": "Hello, world!"}],
     temperature=0.5,
-    model="gpt-4",
+    model="gpt-5.6-sol",
 )
 ```
 
@@ -1145,7 +1145,7 @@ async def stream_llm_response(
 async for chunk in stream_llm_response(
     messages=[{"role": "user", "content": "Hello, world!"}],
     temperature=0.5,
-    model="gpt-4",
+    model="gpt-5.6-sol",
 ):
     print(chunk)
 ```
@@ -1320,7 +1320,7 @@ const invokeLLM = withSpan(
   }
 );
 
-await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-4", 0.5);
+await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-5.6-sol", 0.5);
 ```
 </Tab>
 
@@ -1342,7 +1342,7 @@ ctx, span := tracer.Start(ctx, "invoke_llm",
         attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindLLM),
         attribute.String(semconv.LLMProvider, semconv.LLMProviderOpenAI),
         attribute.String(semconv.LLMSystem, semconv.LLMSystemOpenAI),
-        attribute.String(semconv.LLMModelName, "gpt-4"),
+        attribute.String(semconv.LLMModelName, "gpt-5.6-sol"),
         attribute.String(semconv.InputValue, "Hello, world!"),
     ),
 )

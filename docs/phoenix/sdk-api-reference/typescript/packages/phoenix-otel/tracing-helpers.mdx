@@ -191,7 +191,7 @@ const renderPrompt = tracePrompt(
 // traceLLM — call a language model
 const chatCompletion = traceLLM(
   async (messages: Message[]) =>
-    client.chat.completions.create({ model: "gpt-4", messages }),
+    client.chat.completions.create({ model: "gpt-5.6-sol", messages }),
   { name: "chat-completion" }
 );
 

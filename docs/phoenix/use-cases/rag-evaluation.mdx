@@ -105,7 +105,7 @@ Let's use an [essay by Paul Graham](https://www.paulgraham.com/worked.html) to b
 documents = SimpleDirectoryReader("./data/paul_graham/").load_data()
 
 # Define an LLM
-llm = OpenAI(model="gpt-4")
+llm = OpenAI(model="gpt-5.6-sol")
 
 # Build index with a chunk_size of 512
 node_parser = SimpleNodeParser.from_defaults(chunk_size=512)

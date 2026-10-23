@@ -45,7 +45,7 @@ You can now use LiteLLM as normal and calls will be traces in Phoenix.
 
 ```python
 import litellm
-completion_response = litellm.completion(model="gpt-3.5-turbo",
+completion_response = litellm.completion(model="openai/gpt-5.6-terra",
                    messages=[{"content": "What's the capital of China?", "role": "user"}])
 print(completion_response)
 ```

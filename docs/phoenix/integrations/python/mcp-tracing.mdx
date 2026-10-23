@@ -93,7 +93,7 @@ tracer = tracer_provider.get_tracer("financial-analysis-server")
 
 # Configure OpenAI client
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-MODEL = "gpt-4-turbo"
+MODEL = "gpt-5.6-sol"
 
 # Create MCP server
 mcp = FastMCP("Financial Analysis Server")

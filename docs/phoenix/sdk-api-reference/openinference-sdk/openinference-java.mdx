@@ -48,8 +48,8 @@ Tracer otelTracer = GlobalOpenTelemetry.getTracer("my-app");
 OITracer tracer = new OITracer(otelTracer);
 
 // Create an LLM span
-Span span = tracer.llmSpanBuilder("chat", "gpt-4")
-    .setAttribute(SpanAttributes.LLM_MODEL_NAME, "gpt-4")
+Span span = tracer.llmSpanBuilder("chat", "gpt-5.6-sol")
+    .setAttribute(SpanAttributes.LLM_MODEL_NAME, "gpt-5.6-sol")
     .setAttribute(SpanAttributes.LLM_PROVIDER, "openai")
     .startSpan();
 ```
@@ -129,8 +129,8 @@ Tracer otelTracer = GlobalOpenTelemetry.getTracer("my-app");
 OITracer tracer = new OITracer(otelTracer);
 
 // Create an LLM span
-Span span = tracer.llmSpanBuilder("chat", "gpt-4")
-    .setAttribute(SpanAttributes.LLM_MODEL_NAME, "gpt-4")
+Span span = tracer.llmSpanBuilder("chat", "gpt-5.6-sol")
+    .setAttribute(SpanAttributes.LLM_MODEL_NAME, "gpt-5.6-sol")
     .setAttribute(SpanAttributes.LLM_PROVIDER, "openai")
     .startSpan();
 
@@ -161,7 +161,7 @@ LangChain4jInstrumentor.instrument();
 // Use LangChain4j as normal - traces will be automatically created
 OpenAiChatModel model = OpenAiChatModel.builder()
     .apiKey("your-api-key")
-    .modelName("gpt-4")
+    .modelName("gpt-5.6-sol")
     .build();
 
 String response = model.generate("What is the capital of France?");
