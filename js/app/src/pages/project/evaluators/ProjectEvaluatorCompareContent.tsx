@@ -2,30 +2,41 @@ import { css } from "@emotion/react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { Flex } from "@phoenix/components";
+import { Flex, Skeleton } from "@phoenix/components";
 import type { ProjectEvaluatorCompareContent_evaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareContent_evaluator.graphql";
 import type { ProjectEvaluatorCompareContentQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareContentQuery.graphql";
 import { ProjectEvaluatorCompareMatrix } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareMatrix";
 import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareStats";
 
 import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
+import type { CompareTarget } from "./projectEvaluatorCompareFilterUtils";
 import { CompareSelectionProvider } from "./ProjectEvaluatorCompareSelectionContext";
-import { ProjectEvaluatorCompareTargets } from "./ProjectEvaluatorCompareTargets";
+import {
+  ProjectEvaluatorCompareTargets,
+  ProjectEvaluatorCompareTargetsSkeleton,
+} from "./ProjectEvaluatorCompareTargets";
 import { ProjectEvaluatorCompareTimeSeries } from "./ProjectEvaluatorCompareTimeSeries";
 
 // A fixed row height, so toggling a chart's view (and with it the legend or
 // headers it shows) never shifts the page; each plot absorbs the difference.
 const COMPARISON_CHARTS_ROW_HEIGHT_PX = 380;
 
-const comparisonChartsCSS = css`
+const comparisonColumnsCSS = css`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: ${COMPARISON_CHARTS_ROW_HEIGHT_PX}px;
   gap: var(--global-dimension-size-200);
   @media (max-width: 1100px) {
     grid-template-columns: minmax(0, 1fr);
   }
 `;
+
+const comparisonChartsCSS = css`
+  ${comparisonColumnsCSS};
+  grid-auto-rows: ${COMPARISON_CHARTS_ROW_HEIGHT_PX}px;
+`;
+
+const STATS_CARD_SKELETON_HEIGHT_PX = 200;
+const MATRIX_CARD_SKELETON_HEIGHT_PX = 320;
 
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareContent_evaluator on ProjectEvaluator {
@@ -155,5 +166,37 @@ export function ProjectEvaluatorCompareContent({
         />
       </Flex>
     </CompareSelectionProvider>
+  );
+}
+
+/**
+ * A loading placeholder for {@link ProjectEvaluatorCompareContent}: the two
+ * comparison charts, the stats cards, the label overlap matrix and the
+ * matching targets table, in the loaded layout.
+ */
+export function ProjectEvaluatorCompareContentSkeleton({
+  target,
+}: {
+  target: CompareTarget;
+}) {
+  return (
+    <Flex direction="column" gap="size-200">
+      <div css={comparisonChartsCSS}>
+        <Skeleton height="100%" borderRadius="medium" />
+        <Skeleton height="100%" borderRadius="medium" />
+      </div>
+      <div css={comparisonColumnsCSS}>
+        <Skeleton
+          height={STATS_CARD_SKELETON_HEIGHT_PX}
+          borderRadius="medium"
+        />
+        <Skeleton
+          height={STATS_CARD_SKELETON_HEIGHT_PX}
+          borderRadius="medium"
+        />
+      </div>
+      <Skeleton height={MATRIX_CARD_SKELETON_HEIGHT_PX} borderRadius="medium" />
+      <ProjectEvaluatorCompareTargetsSkeleton target={target} />
+    </Flex>
   );
 }

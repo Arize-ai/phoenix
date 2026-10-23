@@ -4,8 +4,9 @@ import { Group, Panel } from "react-resizable-panels";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Loading, Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
+import { TableSkeleton } from "@phoenix/components/table";
 import { EVALUATOR_FILTER_PARAM } from "@phoenix/constants/searchParams";
 import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -75,7 +76,9 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <Suspense fallback={<Loading />}>
+      <Suspense
+        fallback={<TableSkeleton hasToolbar isSelectable rowCount="fill" />}
+      >
         <ProjectEvaluatorsTableProvider>
           <ProjectEvaluatorsPageContent
             projectId={projectId}

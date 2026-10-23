@@ -11,7 +11,7 @@ import {
   Heading,
   Icon,
   Icons,
-  Loading,
+  Skeleton,
   Text,
   Token,
 } from "@phoenix/components";
@@ -19,6 +19,7 @@ import { EmptyState } from "@phoenix/components/core/empty";
 import { useTimeRangeSearch } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
@@ -284,7 +285,9 @@ export function ProjectEvaluatorCompareTargets({
           >
             {/* Keep current rows visible while the next selection loads. */}
             <div css={targetsTableCSS} aria-busy={isPending}>
-              <Suspense fallback={<Loading />}>
+              <Suspense
+                fallback={<CompareTargetsTableSkeleton target={target} />}
+              >
                 <ErrorBoundary
                   key={table.seedCondition}
                   fallback={CompareTargetsError}
@@ -303,6 +306,37 @@ export function ProjectEvaluatorCompareTargets({
         </StreamStateProvider>
       </ProjectProvider>
     </div>
+  );
+}
+
+/**
+ * A loading placeholder for {@link ProjectEvaluatorCompareTargets}: the
+ * section heading above the matching targets table.
+ */
+export function ProjectEvaluatorCompareTargetsSkeleton({
+  target,
+}: {
+  target: CompareTarget;
+}) {
+  return (
+    <div css={targetsSectionCSS}>
+      <div css={targetsHeadingCSS}>
+        <Skeleton height="var(--global-line-height-l)" width={240} />
+      </div>
+      <CompareTargetsTableSkeleton target={target} />
+    </div>
+  );
+}
+
+const COMPARE_TARGETS_SKELETON_ROW_COUNT = 10;
+
+function CompareTargetsTableSkeleton({ target }: { target: CompareTarget }) {
+  return (
+    <TableSkeleton
+      hasToolbar
+      isSelectable={target !== "SESSION"}
+      rowCount={COMPARE_TARGETS_SKELETON_ROW_COUNT}
+    />
   );
 }
 
