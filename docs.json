@@ -925,7 +925,8 @@
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
               "docs/phoenix/integrations/sandboxes/vercel",
-              "docs/phoenix/integrations/sandboxes/modal"
+              "docs/phoenix/integrations/sandboxes/modal",
+              "docs/phoenix/integrations/sandboxes/docker"
             ]
           },
           {
@@ -1413,6 +1414,7 @@
           {
             "group": "09.2026",
             "pages": [
+              "docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics",
               "docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis",
               "docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi",
               "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"

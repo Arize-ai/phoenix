@@ -1285,6 +1285,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/e2b</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
@@ -1299,6 +1303,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/modal</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/docker</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
@@ -2215,6 +2223,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics</loc>
+    <lastmod>2026-10-06T18:17:14+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis</loc>

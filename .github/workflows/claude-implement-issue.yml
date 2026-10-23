@@ -100,7 +100,7 @@ jobs:
       - name: Run Claude Code
         if: steps.guard.outputs.ready == 'true'
         id: claude
-        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        uses: anthropics/claude-code-action@ed670b4cf9de2a5a570d130d2f6197b9e543cd64 # v1.0.240
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -178,7 +178,7 @@ jobs:
             - [ ] REQUIRED: `.scratch/pr-body.md` created with a clear PR description
             - [ ] REQUIRED: `.scratch/pr-title.txt` created with a conventional-commit title
             - [ ] RECOMMENDED: Screenshots or examples included when applicable
-          claude_args: '--model opus --allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(make:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(npx:*)","Bash(mkdir:*)"'
+          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(make:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(npx:*)","Bash(mkdir:*)"'
 
       - name: Commit and open PR
         if: steps.guard.outputs.ready == 'true' && steps.claude.outcome == 'success'

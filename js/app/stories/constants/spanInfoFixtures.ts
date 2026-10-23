@@ -1411,9 +1411,8 @@ export const unparsableAttributesSpan: SpanInfoFixture = {
 };
 
 /**
- * A decision span. Decision spans are experimental and have no cards or
- * attribute conventions of their own yet, so an empty one shows only its
- * attributes.
+ * A decision span. The input card names the decision model the provider
+ * reports in its response, which can differ from the one requested.
  */
 export const decisionSpan: SpanInfoFixture = {
   id: "U3BhbjpkZWNpc2lvbg==",
@@ -1422,9 +1421,37 @@ export const decisionSpan: SpanInfoFixture = {
   statusMessage: "",
   attributes: JSON.stringify({
     openinference: { span: { kind: "DECISION" } },
+    decision: {
+      system: "typesafe",
+      provider: "typesafe",
+      request: { model_name: "jev-latest" },
+      response: { model_name: "jev-1.13.0" },
+      token_count: { input: 339, output: 31 },
+    },
   }),
-  input: null,
-  output: null,
+  input: {
+    value: JSON.stringify({
+      state: "I was charged twice for my subscription.",
+      questions: {
+        route: {
+          type: "choice",
+          criteria: {
+            allow: "Ordinary customer support request",
+            review: "Needs human review",
+          },
+        },
+      },
+    }),
+    mimeType: "json",
+  },
+  output: {
+    value: JSON.stringify({
+      answers: {
+        route: { type: "choice", choice: "allow", confidence: 0.97 },
+      },
+    }),
+    mimeType: "json",
+  },
   documentRetrievalMetrics: [],
   documentEvaluations: [],
 };

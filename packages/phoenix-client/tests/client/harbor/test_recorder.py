@@ -260,7 +260,7 @@ class TestExamplePayload:
             "task_name": "task-a",
             "instruction": "do the thing",
         }
-        assert example["output"] == {}, "Harbor verifies end state, not a reference response"
+        assert example["output"] == {}, "Tasks without a reference keep their output blank"
         assert example["metadata"]["task_digest"] == "sha256:" + "a" * 64
         assert example["metadata"]["task_version"] == "1.2.0"
 
@@ -280,6 +280,22 @@ class TestExamplePayload:
 
 
 class TestSyncDataset:
+    async def test_sync_includes_reference_changes_on_the_matching_example(self) -> None:
+        datasets = FakeDatasets(
+            FakeDataset([example_row("task-a", "node-a"), example_row("task-b", "node-b")])
+        )
+        plugin_recorder = recorder(FakeClient(datasets))
+        for reference in ({"count": 117}, {"count": 118}, {}):
+            await plugin_recorder.sync_dataset(
+                plan(tasks=(task("task-a", reference_output=reference), task("task-b")))
+            )
+            examples = datasets.calls[-1]["examples"]
+            assert examples[0]["id"] == "task-a"
+            assert examples[0]["output"] == reference
+            assert examples[1]["id"] == "task-b"
+            assert examples[1]["output"] == {}
+        assert datasets.calls[0]["examples"] != datasets.calls[1]["examples"]
+
     async def test_uploads_the_full_task_snapshot(self) -> None:
         datasets = FakeDatasets(FakeDataset([example_row("task-a", "node-a")]))
         snapshot = await recorder(FakeClient(datasets)).sync_dataset(plan())

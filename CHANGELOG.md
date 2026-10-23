@@ -1,5 +1,23 @@
 # Changelog
 
+## [20.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.18.0...arize-phoenix-v20.19.0) (2026-10-01)
+
+
+### Features
+
+* **datagen:** send each recorded application to its own project ([#16682](https://github.com/Arize-ai/phoenix/issues/16682)) ([d99a4db](https://github.com/Arize-ai/phoenix/commit/d99a4dbf4910372f4d952e476776a7e2b13b279f))
+* **tracing:** add the DECISION span kind across the platform ([#16657](https://github.com/Arize-ai/phoenix/issues/16657)) ([43d1a54](https://github.com/Arize-ai/phoenix/commit/43d1a54406835f452fa44fb3becbb91f778d077a))
+
+
+### Bug Fixes
+
+* honor external resources flag for WASM and UI ([#16639](https://github.com/Arize-ai/phoenix/issues/16639)) ([7a71a21](https://github.com/Arize-ai/phoenix/commit/7a71a21a7eaaf94082f6f271d4b4ffd9f318532e))
+
+
+### Documentation
+
+* remove legacy evaluation cookbooks ([#16651](https://github.com/Arize-ai/phoenix/issues/16651)) ([4506880](https://github.com/Arize-ai/phoenix/commit/450688042c1df9640279be568bc4888140cab9e0))
+
 ## [20.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.17.0...arize-phoenix-v20.18.0) (2026-09-30)
 
 

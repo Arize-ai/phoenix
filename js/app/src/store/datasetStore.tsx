@@ -3,10 +3,11 @@ import { ConnectionHandler } from "relay-runtime";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { DATASET_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
-  isExperimentMetricChartKey,
+  sanitizeExperimentMetricChartKeys,
 } from "@phoenix/pages/dataset/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -47,6 +48,10 @@ export interface DatasetStoreProps {
    * The metric charts to show above the experiments table
    */
   experimentsMetricChartKeys: ExperimentMetricChartKey[];
+  /**
+   * Whether the metric charts above the experiments table are shown
+   */
+  areExperimentsMetricChartsVisible: boolean;
 }
 
 export type InitialDatasetStoreProps = Pick<
@@ -73,10 +78,14 @@ export interface DatasetStoreState extends DatasetStoreProps {
    * Set the metric charts to show above the experiments table
    */
   setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => void;
+  /**
+   * Show or hide the metric charts above the experiments table
+   */
+  setAreExperimentsMetricChartsVisible: (isVisible: boolean) => void;
 }
 
 const makeDatasetStoreKey = (datasetId: string) =>
-  `arize-phoenix-dataset-${datasetId}`;
+  `${DATASET_STORAGE_KEY_PREFIX}${datasetId}`;
 
 export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
   return create<DatasetStoreState>()(
@@ -131,6 +140,12 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
               type: "setExperimentsMetricChartKeys",
             });
           },
+          areExperimentsMetricChartsVisible: true,
+          setAreExperimentsMetricChartsVisible: (isVisible: boolean) => {
+            set({ areExperimentsMetricChartsVisible: isVisible }, false, {
+              type: "setAreExperimentsMetricChartsVisible",
+            });
+          },
         }),
         {
           name: "datasetStore",
@@ -138,23 +153,24 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
       ),
       {
         name: makeDatasetStoreKey(initialProps.datasetId),
-        // Only the chart selection is a persistent preference; the rest of
-        // the store (latest version, refresh state) must stay fresh per load
+        // Only the chart preferences persist; the rest of the store (latest
+        // version, refresh state) must stay fresh per load
         partialize: (state) => ({
           experimentsMetricChartKeys: state.experimentsMetricChartKeys,
+          areExperimentsMetricChartsVisible:
+            state.areExperimentsMetricChartsVisible,
         }),
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,
             ...(persistedState as Partial<DatasetStoreState>),
           };
-          // Persisted chart keys may reference charts that no longer exist in
-          // the chart catalog; drop them so stale keys don't render as empty
-          // panels
-          const keys = merged.experimentsMetricChartKeys;
-          merged.experimentsMetricChartKeys = Array.isArray(keys)
-            ? keys.filter(isExperimentMetricChartKey)
-            : DEFAULT_EXPERIMENT_METRIC_CHART_KEYS;
+          merged.experimentsMetricChartKeys = sanitizeExperimentMetricChartKeys(
+            merged.experimentsMetricChartKeys,
+            DEFAULT_EXPERIMENT_METRIC_CHART_KEYS
+          );
+          merged.areExperimentsMetricChartsVisible =
+            merged.areExperimentsMetricChartsVisible !== false;
           return merged;
         },
       }

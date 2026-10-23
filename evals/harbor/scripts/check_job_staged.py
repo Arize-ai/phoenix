@@ -23,7 +23,14 @@ from typing import Any
 
 import yaml
 
-STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.db")
+# Globs relative to each task's environment/ directory.
+STAGED = (
+    "Dockerfile",
+    "wheels/arize_phoenix-*.whl",
+    "wheels/harbor_verifiers-*.whl",
+    "container_assets",
+    "data/phoenix.db",
+)
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 
 
@@ -50,7 +57,8 @@ def main() -> int:
 
     failures = []
     for task in job_tasks(job):
-        missing = [part for part in STAGED if not (task / "environment" / part).exists()]
+        environment = task / "environment"
+        missing = [part for part in STAGED if not any(environment.glob(part))]
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")
     agents = job.get("agents") or []

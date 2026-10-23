@@ -8,7 +8,6 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from importlib.metadata import version
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -106,6 +105,14 @@ ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
 Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
 GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
 for GitHub Enterprise Server or air-gapped deployments.
+"""
+ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
+"""
+Whether Phoenix MCP connection uses code-mode. Defaults to True. Under code mode,
+the assistant sees discovery tools (search, get_schema, tags, list_tools) plus a
+sandboxed `execute` tool; set to False to give it one tool per read-only REST
+endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE is the same switch for the MCP
+server mounted at /mcp, which external clients use.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
@@ -865,7 +872,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY, DOCKER. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -3661,6 +3668,10 @@ def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
 
 
+def get_env_agents_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, True)
+
+
 def get_env_mask_internal_server_errors() -> bool:
     return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
@@ -3783,7 +3794,6 @@ def verify_server_environment_variables() -> None:
         )
 
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
