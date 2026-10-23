@@ -1,6 +1,11 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import {
+  ConnectionHandler,
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+} from "react-relay";
 
 import {
   Button,
@@ -14,6 +19,7 @@ import {
   PopoverArrow,
   View,
 } from "@phoenix/components";
+import type { TagPromptVersionButtonSetTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonSetTagMutation.graphql";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -163,22 +169,19 @@ function TagList({
     );
   }, [allVersionTags]);
 
-  const [commitSetTag, isCommitting] = useMutation(graphql`
-    mutation TagPromptVersionButtonSetTagMutation(
-      $input: SetPromptVersionTagInput!
-      $promptId: ID!
-    ) {
-      setPromptVersionTag(input: $input) {
-        query {
-          prompt: node(id: $promptId) {
-            ... on Prompt {
-              ...PromptVersionsList__main
-            }
+  const [commitSetTag, isCommitting] =
+    useMutation<TagPromptVersionButtonSetTagMutation>(graphql`
+      mutation TagPromptVersionButtonSetTagMutation(
+        $input: SetPromptVersionTagInput!
+      ) {
+        setPromptVersionTag(input: $input) {
+          promptVersionTag {
+            id
+            name
           }
         }
       }
-    }
-  `);
+    `);
   return (
     <ul>
       {allVersionTagsWithDefaults.map((tagName: string) => {
@@ -213,7 +216,44 @@ function TagList({
                           promptVersionId: versionId,
                           description,
                         },
-                        promptId: promptId,
+                      },
+                      // A tag belongs to one version at a time, so move it in
+                      // place rather than refetching the paginated versions list
+                      updater: (store) => {
+                        const tag = store
+                          .getRootField("setPromptVersionTag")
+                          ?.getLinkedRecord("promptVersionTag");
+                        const prompt = store.get(promptId);
+                        if (!tag || !prompt) {
+                          return;
+                        }
+                        const loadedVersions =
+                          ConnectionHandler.getConnection(
+                            prompt,
+                            "PromptVersionsList__pagedVersions"
+                          )
+                            ?.getLinkedRecords("edges")
+                            ?.map((edge) => edge?.getLinkedRecord("node")) ??
+                          [];
+                        [...loadedVersions, store.get(versionId)].forEach(
+                          (version) => {
+                            const versionTags =
+                              version?.getLinkedRecords("tags");
+                            if (!version || !versionTags) {
+                              return;
+                            }
+                            const otherTags = versionTags.filter(
+                              (versionTag) =>
+                                versionTag?.getDataID() !== tag.getDataID()
+                            );
+                            version.setLinkedRecords(
+                              version.getDataID() === versionId
+                                ? [...otherTags, tag]
+                                : otherTags,
+                              "tags"
+                            );
+                          }
+                        );
                       },
                       onCompleted: () => {
                         onTagSet(tagName);
