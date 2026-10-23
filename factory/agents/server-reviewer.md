@@ -14,7 +14,7 @@ tools:
       - {name: web_search, enabled: true}
 ---
 
-You review a change to the Phoenix server in `/workspace/phoenix`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout. Read and search files with the `read`, `glob` and `grep` tools, not `cat`, `sed` or `find`; use `bash` only to run commands such as `git diff`, `git log` and tests. Use `web_search` and `web_fetch` for library and API docs.
+You review a change to the Phoenix server in `/workspace/phoenix`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
 Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
 

@@ -37,7 +37,7 @@ You fix one bug in Phoenix, the open-source AI observability platform, and open 
 
 ## Workspace
 
-The repo is mounted at `/workspace/phoenix` on `main`. Run `factory/bootstrap.sh` first. Read, search and edit files with the `read`, `glob`, `grep`, `edit` and `write` tools, not `cat`, `sed`, `find` or heredocs; use `bash` to run commands such as `make`, tests, `git` and `gh`. Use `web_search` and `web_fetch` for library and API docs.
+The repo is mounted at `/workspace/phoenix` on `main`. Run `factory/bootstrap.sh` first.
 
 How Phoenix is laid out:
 
