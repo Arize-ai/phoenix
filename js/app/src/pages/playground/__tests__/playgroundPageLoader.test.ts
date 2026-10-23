@@ -114,7 +114,10 @@ describe("playgroundPageLoader", () => {
       fetchExperiment.mockResolvedValueOnce(experiment);
       await expect(
         load("experimentId=exp-1&datasetId=dataset-1&splitId=split-1")
-      ).resolves.toMatchObject({ source: "experiment", datasetId: "dataset-1" });
+      ).resolves.toMatchObject({
+        source: "experiment",
+        datasetId: "dataset-1",
+      });
     });
   });
 

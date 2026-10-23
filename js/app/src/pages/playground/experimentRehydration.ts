@@ -372,8 +372,7 @@ export async function fetchExperimentPlaygroundProps(
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id
   );
-  const splitIds =
-    node.datasetSplits?.edges.map((edge) => edge.node.id) ?? [];
+  const splitIds = node.datasetSplits?.edges.map((edge) => edge.node.id) ?? [];
 
   if (taskConfig.__typename === "DecisionTaskConfig") {
     return {
