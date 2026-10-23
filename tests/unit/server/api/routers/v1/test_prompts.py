@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import string
 from contextlib import AbstractContextManager, nullcontext
-from datetime import datetime
 from enum import Enum
 from secrets import token_hex
 from typing import Any, Optional, Union
@@ -607,7 +606,7 @@ class TestPrompts:
             GlobalID.from_id(data.pop("id")), PromptVersion.__name__
         )
         assert id_ == prompt_version.id
-        assert datetime.fromisoformat(data.pop("created_at")) == prompt_version.created_at
+        assert data.pop("created_at") == prompt_version.created_at.isoformat()
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),

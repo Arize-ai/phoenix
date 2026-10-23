@@ -37,6 +37,7 @@ def _make_prompt_version(
 ) -> v1.PromptVersion:
     version = v1.PromptVersion(
         id="version-1",
+        created_at="2026-10-14T10:00:00+00:00",
         model_provider="OPENAI",
         model_name="gpt-4o",
         template={
