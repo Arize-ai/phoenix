@@ -41,7 +41,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 _SUBSCRIPTION = """
   subscription($input: EvaluatorPreviewInput!) {
     evaluatorPreview(input: $input) {
-      id
+      key
       error
       results {
         evaluatorName
@@ -60,12 +60,12 @@ _SUBSCRIPTION = """
 
 
 async def _preview(gql_client: AsyncGraphQLClient, **input_fields: Any) -> dict[str, Any]:
-    """Every subject's result, keyed by subject id; fails on a duplicate report."""
+    """Every subject's result, keyed by subject key; fails on a duplicate report."""
     by_id: dict[str, Any] = {}
     async for payload in gql_client.subscription(_SUBSCRIPTION, {"input": input_fields}):
         result = payload["evaluatorPreview"]
-        assert result["id"] not in by_id, f"subject {result['id']} reported twice"
-        by_id[result["id"]] = result
+        assert result["key"] not in by_id, f"subject {result['key']} reported twice"
+        by_id[result["key"]] = result
     return by_id
 
 
@@ -164,8 +164,8 @@ class TestEvaluatorPreviewSubscription:
                 pathMapping={"text": "$.output"},
             ),
             subjects=[
-                dict(id="found", context={"output": "hello world"}),
-                dict(id="missing", context={"output": "goodbye world"}),
+                dict(key="found", context={"output": "hello world"}),
+                dict(key="missing", context={"output": "goodbye world"}),
             ],
         )
 
@@ -199,14 +199,14 @@ class TestEvaluatorPreviewSubscription:
         gql_client: AsyncGraphQLClient,
         contains_evaluator_gid: str,
     ) -> None:
-        with pytest.raises(RuntimeError, match="unique id"):
+        with pytest.raises(RuntimeError, match="unique key"):
             await _preview(
                 gql_client,
                 evaluator=dict(builtInEvaluatorId=contains_evaluator_gid),
                 inputMapping=_EMPTY_MAPPING,
                 subjects=[
-                    dict(id="same", context={"output": "a"}),
-                    dict(id="same", context={"output": "b"}),
+                    dict(key="same", context={"output": "a"}),
+                    dict(key="same", context={"output": "b"}),
                 ],
             )
 
@@ -219,7 +219,7 @@ class TestEvaluatorPreviewSubscription:
                 gql_client,
                 evaluator=dict(),
                 inputMapping=_EMPTY_MAPPING,
-                subjects=[dict(id="a", context={"output": "test"})],
+                subjects=[dict(key="a", context={"output": "test"})],
             )
 
     async def test_reports_every_output_of_a_multi_output_evaluator(
@@ -236,8 +236,8 @@ class TestEvaluatorPreviewSubscription:
                 evaluator=_BUILTIN_PLACEHOLDER,
                 inputMapping=_EMPTY_MAPPING,
                 subjects=[
-                    dict(id="a", context={"output": "good"}),
-                    dict(id="b", context={"output": "bad"}),
+                    dict(key="a", context={"output": "good"}),
+                    dict(key="b", context={"output": "bad"}),
                 ],
             )
 
@@ -267,20 +267,20 @@ class TestEvaluatorPreviewSubscription:
                 evaluator=_BUILTIN_PLACEHOLDER,
                 inputMapping=_EMPTY_MAPPING,
                 subjects=[
-                    dict(id="ok", context={"output": "fine"}),
-                    dict(id="busy", context={"output": "busy"}),
-                    dict(id="boom", context={"output": "boom"}),
+                    dict(key="ok", context={"output": "fine"}),
+                    dict(key="busy", context={"output": "busy"}),
+                    dict(key="boom", context={"output": "boom"}),
                 ],
             )
 
         assert results["ok"]["error"] is None
         assert results["ok"]["results"][0]["annotation"]["score"] == 1.0
         assert results["busy"] == {
-            "id": "busy",
+            "key": "busy",
             "error": "The Monty runtime is busy. Retry shortly.",
             "results": [],
         }
-        assert results["boom"] == {"id": "boom", "error": UNEXPECTED_SUBJECT_ERROR, "results": []}
+        assert results["boom"] == {"key": "boom", "error": UNEXPECTED_SUBJECT_ERROR, "results": []}
 
     async def test_runs_at_most_the_concurrency_cap_at_once(
         self,
@@ -304,7 +304,7 @@ class TestEvaluatorPreviewSubscription:
                 gql_client,
                 evaluator=_BUILTIN_PLACEHOLDER,
                 inputMapping=_EMPTY_MAPPING,
-                subjects=[dict(id=str(i), context={"output": str(i)}) for i in range(6)],
+                subjects=[dict(key=str(i), context={"output": str(i)}) for i in range(6)],
             )
 
         assert set(results) == {str(i) for i in range(6)}
@@ -317,7 +317,7 @@ class TestPreviewEvaluatorMutation:
     _MUTATION = """
       mutation($input: EvaluatorPreviewInput!) {
         previewEvaluator(input: $input) {
-          results { id error results { evaluatorName error annotation { score } } }
+          results { key error results { evaluatorName error annotation { score } } }
         }
       }
     """
@@ -342,7 +342,7 @@ class TestPreviewEvaluatorMutation:
                         "evaluator": _BUILTIN_PLACEHOLDER,
                         "inputMapping": _EMPTY_MAPPING,
                         "subjects": [
-                            {"id": f"s{i}", "context": {"output": str(i)}} for i in range(3)
+                            {"key": f"s{i}", "context": {"output": str(i)}} for i in range(3)
                         ],
                     }
                 },
@@ -350,13 +350,13 @@ class TestPreviewEvaluatorMutation:
 
         assert response.data and not response.errors, response.errors
         results = response.data["previewEvaluator"]["results"]
-        assert [r["id"] for r in results] == ["s0", "s1", "s2"]
+        assert [r["key"] for r in results] == ["s0", "s1", "s2"]
         assert results[0]["results"] == [
             {"evaluatorName": "accuracy", "error": None, "annotation": {"score": 0.0}},
             {"evaluatorName": "tone", "error": None, "annotation": {"score": 1.0}},
         ]
         assert results[1] == {
-            "id": "s1",
+            "key": "s1",
             "error": "The Monty runtime is busy. Retry shortly.",
             "results": [],
         }
@@ -380,7 +380,7 @@ class TestPreviewEvaluatorMutation:
                         }
                     },
                     "inputMapping": _EMPTY_MAPPING,
-                    "subjects": [{"id": "a", "context": {"output": "x"}}],
+                    "subjects": [{"key": "a", "context": {"output": "x"}}],
                 }
             },
         )
@@ -416,9 +416,13 @@ class TestEvaluatorPreviewCancellation:
             evaluator=MagicMock(),
             input_mapping=MagicMock(),
             subjects=[
-                EvaluatorPreviewSubjectInput(id="fast", context=cast(JSON, {"output": "fast"})),
-                EvaluatorPreviewSubjectInput(id="slow-1", context=cast(JSON, {"output": "slow-1"})),
-                EvaluatorPreviewSubjectInput(id="slow-2", context=cast(JSON, {"output": "slow-2"})),
+                EvaluatorPreviewSubjectInput(key="fast", context=cast(JSON, {"output": "fast"})),
+                EvaluatorPreviewSubjectInput(
+                    key="slow-1", context=cast(JSON, {"output": "slow-1"})
+                ),
+                EvaluatorPreviewSubjectInput(
+                    key="slow-2", context=cast(JSON, {"output": "slow-2"})
+                ),
             ],
         )
         first_result = asyncio.Event()
@@ -473,7 +477,7 @@ class TestInlineCodeEvaluatorPreview:
             },
             inputMapping=_EMPTY_MAPPING,
             subjects=[
-                {"id": str(i), "context": context}
+                {"key": str(i), "context": context}
                 for i, context in enumerate(contexts or [{"output": {"answer": "4"}}])
             ],
             applyOnlineEvaluationLimits=apply_online_evaluation_limits,
@@ -574,7 +578,17 @@ class TestInlineCodeEvaluatorPreview:
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
     ) -> None:
+        # Each sandbox scores the output it was handed, so a subject that received
+        # another subject's inputs would report that subject's score.
+        score_by_output = {"a": 0.25, "b": 0.5, "c": 0.75}
+
+        async def execute_with_inputs(code: str, **kwargs: Any) -> ExecutionResult:
+            score = score_by_output[kwargs["inputs"]["_inputs"]["output"]]
+            stdout = f"{PHOENIX_RESULT_BEGIN}\n{score}\n{PHOENIX_RESULT_END}\n"
+            return ExecutionResult(stdout=stdout, stderr="", error=None)
+
         backend = self._backend()
+        backend.execute_with_inputs = AsyncMock(side_effect=execute_with_inputs)
 
         with patch("phoenix.server.api.evaluators.build_sandbox_backend", return_value=backend):
             results = await self._preview_inline_code_evaluator(
@@ -584,8 +598,9 @@ class TestInlineCodeEvaluatorPreview:
             )
 
         assert {
-            subject_id: r["results"][0]["annotation"]["score"] for subject_id, r in results.items()
-        } == {"0": 1.0, "1": 1.0, "2": 1.0}
+            subject_key: r["results"][0]["annotation"]["score"]
+            for subject_key, r in results.items()
+        } == {"0": 0.25, "1": 0.5, "2": 0.75}
         assert results["0"]["results"][0]["evaluatorName"] == "inline_code_eval"
         # Previews stay off the session manager: no shared session to serialize on, no
         # slot taken from the per-provider cap, nothing left behind to close.
@@ -670,7 +685,7 @@ class TestInlineCodeEvaluatorPreview:
                 sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
             )
 
-        assert results["0"] == {"id": "0", "error": expected_message, "results": []}
+        assert results["0"] == {"key": "0", "error": expected_message, "results": []}
         assert "internal" not in expected_message
 
 
@@ -708,7 +723,7 @@ class TestCodeEvaluatorPreviewNoSandbox:
                 gql_client,
                 evaluator={"codeEvaluatorId": gid},
                 inputMapping=_EMPTY_MAPPING,
-                subjects=[{"id": "a", "context": {"output": "test"}}],
+                subjects=[{"key": "a", "context": {"output": "test"}}],
             )
 
 
@@ -764,7 +779,7 @@ class TestStoredCodeEvaluatorPreview:
                 gql_client,
                 evaluator={"codeEvaluatorId": gid},
                 inputMapping=_EMPTY_MAPPING,
-                subjects=[{"id": "a", "context": {"output": "test"}}],
+                subjects=[{"key": "a", "context": {"output": "test"}}],
             )
 
         (result,) = results["a"]["results"]

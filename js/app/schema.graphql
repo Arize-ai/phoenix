@@ -3036,15 +3036,15 @@ type EvaluatorPreviewPayload {
 
 input EvaluatorPreviewSubjectInput {
   """
-  Chosen by the caller and echoed on the subject's result; unique per request.
+  Chosen by the caller and echoed on the subject's result; unique per request. Not an id, so a client cache that normalizes by id leaves the subject alone.
   """
-  id: String!
+  key: String!
   context: JSON!
 }
 
 type EvaluatorPreviewSubjectResult {
-  """The id the subject was sent with."""
-  id: String!
+  """The key the subject was sent with."""
+  key: String!
 
   """
   One result per annotation the evaluator produces; empty when error is set.
@@ -3052,7 +3052,7 @@ type EvaluatorPreviewSubjectResult {
   results: [EvaluationResult!]!
 
   """
-  Why the evaluator could not run on this subject at all, such as a sandbox runtime that was busy or timed out. The other subjects are unaffected.
+  Why the evaluator could not run on this subject at all: the Monty runtime was busy, unavailable, shutting down or out of time, its worker stopped, or the run failed unexpectedly. A failure of the evaluation itself, such as an LLM error or a timeout in any other sandbox, arrives on that result's error instead. The other subjects are unaffected.
   """
   error: String
 }

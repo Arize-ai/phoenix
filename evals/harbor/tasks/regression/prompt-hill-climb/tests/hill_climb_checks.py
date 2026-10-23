@@ -183,15 +183,15 @@ def preview_scores(
         evaluator=_preview_ref(evaluator),
         input_mapping=input_mapping,
         subjects=[
-            EvaluatorPreviewSubjectInput(id=str(index), context=context)
+            EvaluatorPreviewSubjectInput(key=str(index), context=context)
             for index, context in enumerate(contexts)
         ],
     )
     results = phoenix_api.graphql_client().preview_evaluator(preview, timeout=300.0)
-    by_id = {result.id: result for result in results.preview_evaluator.results}
-    if len(by_id) != len(contexts):
-        raise ValueError(f"{len(contexts)} contexts produced {len(by_id)} results")
-    return [_as_score(by_id[str(index)]) for index in range(len(contexts))]
+    by_key = {result.key: result for result in results.preview_evaluator.results}
+    if len(by_key) != len(contexts):
+        raise ValueError(f"{len(contexts)} contexts produced {len(by_key)} results")
+    return [_as_score(by_key[str(index)]) for index in range(len(contexts))]
 
 
 def _as_score(subject: PreviewEvaluatorPreviewEvaluatorResults) -> float:

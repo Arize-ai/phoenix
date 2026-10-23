@@ -19,7 +19,7 @@ export type EvaluatorPreviewSubjectResult =
 const subscription = graphql`
   subscription useEvaluatorPreviewSubscription($input: EvaluatorPreviewInput!) {
     evaluatorPreview(input: $input) {
-      id
+      key
       error
       results {
         evaluatorName
@@ -123,7 +123,7 @@ export function useSingleSubjectEvaluatorPreview() {
           resolve(outcome);
         };
         const preview = startPreview(
-          { ...rest, subjects: [{ id: "subject", context }] },
+          { ...rest, subjects: [{ key: "subject", context }] },
           {
             onSubjectResult: (subjectResult) => {
               result = subjectResult;

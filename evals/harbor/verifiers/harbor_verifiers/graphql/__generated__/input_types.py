@@ -233,8 +233,8 @@ class EvaluatorPreviewInput(BaseModel):
 
 
 class EvaluatorPreviewSubjectInput(BaseModel):
-    id: str
-    "Chosen by the caller and echoed on the subject's result; unique per request."
+    key: str
+    "Chosen by the caller and echoed on the subject's result; unique per request. Not an id, so a client cache that normalizes by id leaves the subject alone."
     context: Any
 
 

@@ -16,7 +16,7 @@ class PreviewEvaluatorPreviewEvaluator(BaseModel):
 
 
 class PreviewEvaluatorPreviewEvaluatorResults(BaseModel):
-    id: str
+    key: str
     error: Optional[str]
     results: list["PreviewEvaluatorPreviewEvaluatorResultsResults"]
 

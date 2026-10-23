@@ -683,7 +683,12 @@ function useEvaluatorPreviewRuns({
       evaluator,
       state.evaluator.inputMapping
     );
-    const pendingKeys = new Set(rows.map(({ key }) => key));
+    // A record can be listed twice under one key (an in-progress trace with two
+    // root spans); the server rejects a repeated key, so each is sent once.
+    const subjectContextByKey = new Map(
+      rows.map(({ key, context }) => [key, context])
+    );
+    const pendingKeys = new Set(subjectContextByKey.keys());
     setRunError(null);
     setRuns((current) => {
       const next = { ...current };
@@ -714,14 +719,17 @@ function useEvaluatorPreviewRuns({
       {
         evaluator,
         inputMapping: state.evaluator.inputMapping,
-        subjects: rows.map(({ key, context }) => ({ id: key, context })),
+        subjects: [...subjectContextByKey].map(([key, context]) => ({
+          key,
+          context,
+        })),
         applyOnlineEvaluationLimits: true,
         credentials: toGqlCredentials(credentials),
       },
       {
         onSubjectResult(result) {
           settle(
-            result.id,
+            result.key,
             result.error != null
               ? { status: "error", fingerprint, message: result.error }
               : { status: "done", fingerprint, results: [...result.results] }

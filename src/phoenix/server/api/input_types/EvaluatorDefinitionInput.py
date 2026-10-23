@@ -189,8 +189,11 @@ def _node_id(global_id: GlobalID, expected_type_name: str, noun: str) -> int:
 class EvaluatorPreviewSubjectInput:
     """One record to run the previewed evaluator on."""
 
-    id: str = strawberry.field(
-        description="Chosen by the caller and echoed on the subject's result; unique per request."
+    key: str = strawberry.field(
+        description=(
+            "Chosen by the caller and echoed on the subject's result; unique per request. "
+            "Not an id, so a client cache that normalizes by id leaves the subject alone."
+        )
     )
     context: JSON
 

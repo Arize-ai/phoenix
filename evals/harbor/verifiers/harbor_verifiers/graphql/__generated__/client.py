@@ -165,7 +165,7 @@ class Client(BaseClient):
             mutation PreviewEvaluator($input: EvaluatorPreviewInput!) {
               previewEvaluator(input: $input) {
                 results {
-                  id
+                  key
                   error
                   results {
                     error

@@ -27,9 +27,9 @@ export function createEvaluatorPreviewEnvironment(
       (_request, variables) =>
         Observable.create((sink) => {
           const { subjects } = variables.input as EvaluatorPreviewInput;
-          for (const { id } of subjects) {
+          for (const { key } of subjects) {
             sink.next({
-              data: { evaluatorPreview: { id, error: null, results } },
+              data: { evaluatorPreview: { key, error: null, results } },
             });
           }
           sink.complete();
