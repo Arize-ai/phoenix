@@ -52,6 +52,7 @@ def capture_decision_evaluator_definition(
     name: Optional[str] = None,
     description: Optional[str] = None,
     dataset_evaluator_id: Optional[int] = None,
+    project_evaluator_id: Optional[int] = None,
 ) -> InlineDecisionEvaluatorDefinition:
     version = evaluator.selected_version
     if version is None:
@@ -72,6 +73,7 @@ def capture_decision_evaluator_definition(
             evaluator_id=evaluator.id,
             decision_version_id=version.id,
             dataset_evaluator_id=dataset_evaluator_id,
+            project_evaluator_id=project_evaluator_id,
         ),
     )
 

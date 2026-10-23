@@ -41,7 +41,7 @@ from openinference.semconv.trace import (
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode, Tracer
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import getenv
@@ -225,6 +225,15 @@ def describe_http_failure(provider_name: str, status_code: int) -> str:
     else:
         hint = "Check the API key, model access, endpoint, and question configuration."
     return f"{provider_name} decision request failed (HTTP {status_code}). {hint}"
+
+
+class UnreadableCustomProviderError(BadRequest):
+    """A custom provider's stored configuration can't be decrypted or parsed, so the run
+    fails before any request is sent. Like a provider failure, it is recorded as a span."""
+
+    def __init__(self, message: str, *, provider_name: str) -> None:
+        super().__init__(message)
+        self.provider_name = provider_name
 
 
 class DecisionRateLimitError(BadRequest):
@@ -864,8 +873,9 @@ async def get_custom_provider_decision_client(
 
     Raises:
         NotFound: No custom provider has this ID.
-        BadRequest: The provider serves no decision models, its configuration can't
-            be read, or its endpoint is not a plain HTTP(S) URL.
+        BadRequest: The provider serves no decision models or its endpoint is not a
+            plain HTTP(S) URL.
+        UnreadableCustomProviderError: Its stored configuration can't be read.
     """
     record = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
     if record is None:
@@ -873,12 +883,27 @@ async def get_custom_provider_decision_client(
     if not sdk_offers_decisions(record.sdk):
         raise BadRequest(f"Custom provider '{record.name}' does not serve decision models.")
     _require_model_name(model_name)
+    # The reasons name what failed, never the configuration's values.
     try:
-        config = GenerativeModelCustomerProviderConfig.model_validate_json(
-            decrypt(record.config)
-        ).root
+        decrypted = decrypt(record.config)
     except Exception as error:
-        raise BadRequest(f"Could not read custom provider '{record.name}'.") from error
+        raise UnreadableCustomProviderError(
+            f"Could not read custom provider '{record.name}': its stored configuration "
+            "can't be decrypted, which happens when PHOENIX_SECRET changed after it was "
+            "saved. Re-enter its settings under Settings > AI Providers.",
+            provider_name=record.name,
+        ) from error
+    try:
+        config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted).root
+    except ValidationError as error:
+        fields = sorted(
+            {".".join(str(part) for part in detail["loc"]) or "(root)" for detail in error.errors()}
+        )
+        raise UnreadableCustomProviderError(
+            f"Could not read custom provider '{record.name}': its stored configuration is "
+            f"invalid ({', '.join(fields)}). Edit it under Settings > AI Providers.",
+            provider_name=record.name,
+        ) from error
     client_class: type[DecisionClient]
     if isinstance(config, OpenAICustomProviderConfig):
         client_class = OpenAIDecisionClient

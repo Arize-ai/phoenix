@@ -37,7 +37,13 @@ export type JSONEditorProps = Omit<
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
-  const { jsonSchema, optionalLint, basicSetup, ...restProps } = props;
+  const {
+    jsonSchema,
+    optionalLint,
+    basicSetup,
+    "aria-label": ariaLabel,
+    ...restProps
+  } = props;
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
@@ -47,6 +53,11 @@ export function JSONEditor(props: JSONEditorProps) {
     const baseExtensions = [
       json(),
       EditorView.lineWrapping,
+      // The editable element is what assistive tech focuses, so it carries
+      // the name; on the wrapper it names nothing.
+      ...(ariaLabel
+        ? [EditorView.contentAttributes.of({ "aria-label": ariaLabel })]
+        : []),
       // Reserve Mod-Enter for the submit button
       keymap.of([
         ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
@@ -68,7 +79,7 @@ export function JSONEditor(props: JSONEditorProps) {
       );
     }
     return baseExtensions;
-  }, [jsonSchema, shouldLint]);
+  }, [ariaLabel, jsonSchema, shouldLint]);
 
   return (
     <CodeMirror

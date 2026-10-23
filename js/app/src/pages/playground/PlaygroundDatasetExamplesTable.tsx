@@ -622,11 +622,11 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
-  const decisionRequest = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)
-        ?.decisionRequest
-  );
+  // Label the outputs from the request that ran, not the live draft.
+  const decisionRequest = usePlaygroundContext((state) => {
+    const instance = state.instances.find((item) => item.id === instanceId);
+    return instance?.decisionRunRequest ?? instance?.decisionRequest;
+  });
   const onViewDetails = useCallback(
     () => onViewExperimentRunDetailsPress(exampleIndex),
     [onViewExperimentRunDetailsPress, exampleIndex]

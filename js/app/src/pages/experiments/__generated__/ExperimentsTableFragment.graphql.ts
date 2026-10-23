@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15311e8169dd780425b9b9d063bf3034>>
+ * @generated SignedSource<<6b2c32655b0410063fd4b09734f2a835>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
@@ -31,6 +32,9 @@ export type ExperimentsTableFragment$data = {
   readonly datasetEvaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
+        readonly evaluator: {
+          readonly kind: EvaluatorKind;
+        };
         readonly name: string;
         readonly outputConfigs: ReadonlyArray<{
           readonly __typename: "CategoricalAnnotationConfig";
@@ -396,6 +400,24 @@ return {
               "plural": false,
               "selections": [
                 (v9/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "evaluator",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "kind",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -795,6 +817,6 @@ return {
 };
 })();
 
-(node as any).hash = "84b7af5cdcea5ae4d0af355e310ed08f";
+(node as any).hash = "993043fa8b6c933d0cb942a0c4ae8710";
 
 export default node;

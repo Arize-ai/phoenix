@@ -1,4 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -237,6 +238,14 @@ export function createPlaygroundPageLoader(
       const result = await fetchers.fetchExperimentProps(experimentId);
 
       if (result) {
+        // Put the experiment's dataset and splits in the URL, where the
+        // dataset picker and the examples table read them.
+        if (result.datasetId && !url.searchParams.has("datasetId")) {
+          const next = new URLSearchParams(url.searchParams);
+          next.set("datasetId", result.datasetId);
+          result.splitIds.forEach((splitId) => next.append("splitId", splitId));
+          throw redirect(`${url.pathname}?${next.toString()}`);
+        }
         return {
           source: "experiment",
           playgroundProps: result.playgroundProps,

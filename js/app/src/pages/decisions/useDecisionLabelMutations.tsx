@@ -46,6 +46,7 @@ export const useDecisionLabelMutations = () => {
             ) {
             id
             name
+            description
             color
             usageCount
           }

@@ -72,6 +72,8 @@ async def test_saved_decision_evaluator_discovery_and_owned_tag(
         variables={"input": {"decisionId": decision["id"]}},
     )
     assert result.errors and "referenced by an evaluator" in result.errors[0].message
+    # The message names the evaluator that blocks the delete.
+    assert "(triage-judge)" in result.errors[0].message
 
 
 async def test_dataset_binding_and_mixed_refusal_preview(

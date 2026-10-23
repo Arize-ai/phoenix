@@ -1,10 +1,16 @@
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
-import { isDecisionInstance } from "@phoenix/store/playground";
+import {
+  createDecisionDraft,
+  getChatForDecisionToPrompt,
+} from "@phoenix/pages/playground/decisionUtils";
+import { generateMessageId, isDecisionInstance } from "@phoenix/store";
 
 export type PlaygroundModelMenuProps = {
   /**
@@ -26,6 +32,7 @@ export function PlaygroundModelMenu({
   supportsDecisionModels = false,
   decisionTabNotice,
 }: PlaygroundModelMenuProps) {
+  const store = usePlaygroundStore();
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
@@ -86,6 +93,12 @@ export function PlaygroundModelMenu({
     }
 
     const wasDecision = isDecisionInstance(instance);
+    const chat = wasDecision
+      ? getChatForDecisionToPrompt({
+          instance,
+          templateFormat: store.getState().templateFormat,
+        })
+      : null;
     if (wasDecision) {
       // Restore the chat configuration the instance had before it became a
       // decision instance. Without one, start from a clean chat model: the
@@ -125,8 +138,18 @@ export function PlaygroundModelMenu({
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
         modelType: "LLM",
+        ...(chat ? { responseFormat: chat.responseFormat } : {}),
       },
     });
+    if (chat) {
+      store.getState().addMessage({
+        playgroundInstanceId,
+        messages: chat.messages.map((message) => ({
+          ...message,
+          id: generateMessageId(),
+        })),
+      });
+    }
   };
 
   if (!instance) {
@@ -138,6 +161,8 @@ export function PlaygroundModelMenu({
       value={value}
       onChange={handleChange}
       supportsDecisionModels={supportsDecisionModels}
+      // A decision task with no model picked yet opens on the Decision tab.
+      defaultModelType={isDecisionInstance(instance) ? "DECISION" : "LLM"}
       decisionTabNotice={decisionTabNotice}
       isDisabled={instance.activeRunId != null}
     />
