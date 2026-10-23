@@ -217,8 +217,8 @@ function TagList({
                           description,
                         },
                       },
-                      // A tag belongs to one version at a time, so move it in
-                      // place rather than refetching the paginated versions list
+                      // A tag belongs to one version at a time, so it also has
+                      // to leave whichever loaded version held it before
                       updater: (store) => {
                         const tag = store
                           .getRootField("setPromptVersionTag")

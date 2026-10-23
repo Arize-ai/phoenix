@@ -103,6 +103,8 @@ function createTestEnvironment() {
             __typename: "Prompt",
             id: PROMPT_ID,
             name: "my-prompt",
+            // unaliased for selections without arguments (server default of 50)
+            promptVersions: serveVersions({ productionTagVersionId }),
             pagedVersions: serveVersions({
               first: variables.first,
               after: variables.after,
