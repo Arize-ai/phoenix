@@ -141,7 +141,7 @@ async def test_dataset_binding_and_mixed_refusal_preview(
                     "literalMapping": {},
                     "pathMapping": {"ticket": "input.ticket"},
                 },
-                "subjects": [{"id": "0", "context": {"input": {"ticket": {"id": 1}}}}],
+                "subjects": [{"key": "0", "context": {"input": {"ticket": {"id": 1}}}}],
             }
         },
     )
@@ -430,7 +430,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
                         "literalMapping": {},
                         "pathMapping": {"ticket": "input.ticket"},
                     },
-                    "subjects": [{"id": "0", "context": {"input": {"ticket": {"id": 1}}}}],
+                    "subjects": [{"key": "0", "context": {"input": {"ticket": {"id": 1}}}}],
                     **extra,
                 }
             },
@@ -468,7 +468,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
                 "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 "datasetEvaluatorId": binding_id,
-                "subjects": [{"id": "0", "context": {}}],
+                "subjects": [{"key": "0", "context": {}}],
             }
         },
     )
@@ -482,7 +482,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
                 "evaluator": {"decisionEvaluatorId": evaluator["id"]},
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
-                "subjects": [{"id": "0", "context": {}}],
+                "subjects": [{"key": "0", "context": {}}],
             }
         },
     )
@@ -1030,7 +1030,7 @@ mutation($input: EvaluatorPreviewInput!) {
                     }
                 },
                 "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
-                "subjects": [{"id": "0", "context": {"output": {"text": "An answer"}}}],
+                "subjects": [{"key": "0", "context": {"output": {"text": "An answer"}}}],
             }
         },
     )
