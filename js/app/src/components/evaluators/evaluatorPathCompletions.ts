@@ -1119,13 +1119,20 @@ export type EvaluatorPathResolution =
  * just the record the typeahead offers — a path written before the record grew
  * a root of its own still reads a real value, and must not be flagged as if it
  * named nothing.
+ *
+ * Until a record is sampled the source is a skeleton with nothing under its
+ * top-level keys, so a path that reads nothing there is `unverifiable` rather
+ * than `unresolved`: nothing has checked it yet.
  */
 export function resolveEvaluatorPath({
   source,
   path,
+  hasSampledRecord = true,
 }: {
   source: Record<string, unknown>;
   path: string;
+  /** Whether `source` is a real record rather than the skeleton. */
+  hasSampledRecord?: boolean;
 }): EvaluatorPathResolution {
   if (path === "") {
     return { status: "resolved", value: undefined, matches: [] };
@@ -1145,6 +1152,9 @@ export function resolveEvaluatorPath({
   }
   const found = findEvaluatorPathMatches({ source, steps: parsed.steps });
   if (found.status === "unmatched") {
+    if (!hasSampledRecord) {
+      return { status: "unverifiable" };
+    }
     return {
       status: "unresolved",
       range: { from: found.step.from, to: found.step.to },
