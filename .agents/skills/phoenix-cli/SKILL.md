@@ -45,6 +45,7 @@ px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt-versions list <prompt-identifier>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
@@ -386,7 +387,12 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 ```
+
+`prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
+an array of full version objects. `created_at` is absent on older servers (blank
+in pretty output); tags are not included. Use the IDs with `prompt get --version`.
 
 ## Annotation Configs
 
