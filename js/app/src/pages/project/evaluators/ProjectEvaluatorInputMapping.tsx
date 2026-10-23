@@ -19,8 +19,8 @@ import {
  * Where the evaluator's declared variables are read from on the record it
  * runs on, one full-width row per variable: the name above the path field,
  * and under the field what the variable should hold, when the author has
- * described it. A "describe" link at the end of the name row edits that text
- * in a popover, so the rows stay as tall as their fields.
+ * described it, with an "edit" link at the end of that line that edits the
+ * text in a popover, so the rows stay as tall as their fields.
  *
  * `input`, `output`, and `metadata` read their matching context fields when
  * left blank. Other variables need a path unless they are optional code
@@ -93,7 +93,7 @@ export const ProjectEvaluatorInputMapping = ({
             key={variable}
             fieldName={escapeFieldNameForReactHookForm(variable)}
             label={variable}
-            labelExtra={
+            descriptionExtra={
               canDescribeInputs ? (
                 <EvaluatorInputDescriptionEditor
                   inputName={variable}

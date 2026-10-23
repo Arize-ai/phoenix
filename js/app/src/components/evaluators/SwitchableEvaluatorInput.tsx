@@ -120,10 +120,11 @@ export interface SwitchableEvaluatorInputProps<
    */
   hideLabel?: boolean;
   /**
-   * Rendered at the end of the label row, such as a link that edits what the
-   * input should hold.
+   * Rendered under the input, at the end of the description line, such as a
+   * link that edits what the input should hold. Shown with or without a
+   * description.
    */
-  labelExtra?: ReactNode;
+  descriptionExtra?: ReactNode;
   /**
    * Whether this field is required. When true, validation rules are added
    * and the label is marked with an asterisk.
@@ -194,11 +195,15 @@ const inputContainerCSS = css`
   }
 `;
 
-const labelRowCSS = css`
+const descriptionRowCSS = css`
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  // The link keeps to the end of the description's first line.
+  align-items: flex-start;
   gap: var(--global-dimension-size-100);
+  .switchable-evaluator-input__description-extra {
+    margin-left: auto;
+    flex: none;
+  }
 `;
 
 const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
@@ -220,7 +225,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   pathInputValue,
   onPathInputChange,
   hideLabel,
-  labelExtra,
+  descriptionExtra,
   isRequired,
   allowsLiteral = true,
   renderPathInput,
@@ -350,18 +355,25 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     />
   );
 
-  const renderLabel = (htmlFor: string) => {
-    if (hideLabel) {
+  const renderDescription = () => {
+    if (!description && descriptionExtra == null) {
       return null;
     }
-    const labelElement = <Label htmlFor={htmlFor}>{label}</Label>;
-    if (labelExtra == null) {
-      return labelElement;
-    }
     return (
-      <div className="switchable-evaluator-input__label-row" css={labelRowCSS}>
-        {labelElement}
-        {labelExtra}
+      <div
+        className="switchable-evaluator-input__description-row"
+        css={descriptionRowCSS}
+      >
+        {description && (
+          <Text color="text-500" size="S">
+            {description}
+          </Text>
+        )}
+        {descriptionExtra != null && (
+          <span className="switchable-evaluator-input__description-extra">
+            {descriptionExtra}
+          </span>
+        )}
       </div>
     );
   };
@@ -369,20 +381,16 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   if (!allowsLiteral) {
     return (
       <div css={fieldBaseCSS} data-required={isRequired || undefined}>
-        {renderLabel(`${fieldName}-path`)}
+        {!hideLabel && <Label htmlFor={`${fieldName}-path`}>{label}</Label>}
         {pathControl}
-        {description && (
-          <Text color="text-500" size="S">
-            {description}
-          </Text>
-        )}
+        {renderDescription()}
       </div>
     );
   }
 
   return (
     <div css={fieldBaseCSS} data-required={isRequired || undefined}>
-      {renderLabel(`${fieldName}-${mode}`)}
+      {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
       <CompositeField>
         <Select
           aria-label={`Select input mode for ${label}`}
@@ -433,11 +441,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           )}
         </div>
       </CompositeField>
-      {description && (
-        <Text color="text-500" size="S">
-          {description}
-        </Text>
-      )}
+      {renderDescription()}
     </div>
   );
 }

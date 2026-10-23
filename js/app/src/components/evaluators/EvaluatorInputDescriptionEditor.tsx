@@ -35,7 +35,7 @@ const triggerCSS = css`
 `;
 
 /**
- * A "describe" link that opens a popover for writing what an evaluator input
+ * An "edit" link that opens a popover for writing what an evaluator input
  * should hold. Keeps the mapping form compact: the description is edited on
  * demand rather than in a field of its own on every row.
  */
@@ -57,7 +57,7 @@ export function EvaluatorInputDescriptionEditor({
         css={triggerCSS}
         aria-label={`${description ? "Edit" : "Add"} description for ${inputName}`}
       >
-        describe
+        edit
       </AriaButton>
       <Popover placement="bottom end">
         <PopoverArrow />

@@ -241,7 +241,7 @@ describe("a project evaluator's mapping as its variables change", () => {
       );
     });
 
-  it("shows a stored description and saves one written in the describe popover", async () => {
+  it("shows a stored description and saves one written in the edit popover", async () => {
     await renderDescribed(true);
     expect(container.textContent).toContain("What the user asked.");
     expect(
@@ -249,12 +249,12 @@ describe("a project evaluator's mapping as its variables change", () => {
         'button[aria-label="Edit description for question"]'
       )
     ).not.toBeNull();
-    const describeRubric = container.querySelector(
+    const editRubric = container.querySelector(
       'button[aria-label="Add description for rubric"]'
     );
     const user = userEvent.setup();
     await act(async () => {
-      await user.click(describeRubric!);
+      await user.click(editRubric!);
     });
     const textArea = document.body.querySelector("textarea");
     expect(textArea).not.toBeNull();
@@ -269,7 +269,7 @@ describe("a project evaluator's mapping as its variables change", () => {
     });
   });
 
-  it("shows descriptions without the describe link where they cannot be saved", async () => {
+  it("shows descriptions without the edit link where they cannot be saved", async () => {
     await renderDescribed(false);
     expect(container.textContent).toContain("What the user asked.");
     expect(
