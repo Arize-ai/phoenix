@@ -500,6 +500,27 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 ---
 
+### `px prompt untag <prompt-version-id> --tag <tag-name>`
+
+Delete a tag from a prompt version. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed. On success it prints `{deleted: true, prompt_version_id, tag_name}`.
+
+```bash
+# Delete with an interactive confirmation prompt
+px prompt untag UHJvbXB0VmVyc2lvbjox --tag production
+
+# Skip the confirmation prompt (for scripts and agents)
+px prompt untag UHJvbXB0VmVyc2lvbjox --tag production --yes --format raw --no-progress
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--tag <tag-name>`  | Name of the tag to delete  | required |
+| `-y, --yes`         | Skip confirmation prompt   | —        |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress`     | Suppress progress output   | —        |
+
+---
+
 ### `px project list`
 
 List all available Phoenix projects.
