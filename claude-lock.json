@@ -9,58 +9,58 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "4",
-      "hash": "95ec2857364f70fa0c48905f0b882a4d",
-      "remote_hash": "6acdce00ee9bf64f1ac04f26503efdac"
+      "version": "5",
+      "hash": "086fe097066a3b0c33999160da0a7ae0",
+      "remote_hash": "f1b395f8ef35b3b26eb55da59066ebe6"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
       "id": "agent_01A2ZcG9J6JbhkdCLWRTKLgh",
-      "version": "3",
-      "hash": "5f8126f5a1bc8c626fe976d824590ed3",
-      "remote_hash": "0b91d7c54a14c6c54a67d85662a0e62d"
+      "version": "4",
+      "hash": "ae9742da579be14066232821b3a4c7cf",
+      "remote_hash": "9ad48fd6eb7bce6bc21005f969c63629"
     },
     "./agents/docs-writer.md": {
       "kind": "agent",
       "id": "agent_017gUzHtyPT7QVNMRuVCDwGK",
-      "version": "3",
-      "hash": "504413a28ba349907f71a9e10d118393",
-      "remote_hash": "6911440964a2c7d843dfc7bb5e08eb01"
+      "version": "4",
+      "hash": "d2f32bd3a42a5d10c0bccec76d59126c",
+      "remote_hash": "eceda89ce89ceda822393ffa7637ae22"
     },
     "./agents/feature-analyst.md": {
       "kind": "agent",
       "id": "agent_01Mkxi7NutSTNxqfaNsnFGK6",
-      "version": "3",
-      "hash": "4da1a280ada4c89099c470f9daa999d4",
-      "remote_hash": "a69d74a2cf6028bc91159ab877c30c08"
+      "version": "4",
+      "hash": "24dc93fd5099b63973eb85281870950d",
+      "remote_hash": "106bad72abdc2fc9480c2fe16f1052ee"
     },
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "4",
-      "hash": "421e08f9bd907b5483bc52f7107e17ac",
-      "remote_hash": "4d6c9f41c945abce639cc4e926c01d5d"
+      "version": "5",
+      "hash": "8a2a34f7d1406912a82c86d7dc5896c3",
+      "remote_hash": "5348bbc16ebfc798a85ce9bc108e94a7"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JBG5XRUNjf8qr4xPULMD6N",
-      "version": "3",
-      "hash": "e42d4d03848a73f3104ccef8b2736db8",
-      "remote_hash": "3fc0c49f362af07b21ca860469f32e2c"
+      "version": "4",
+      "hash": "e528599a5b61c49eb1b61d9994e2d83e",
+      "remote_hash": "3ad3c0359b85ecc51af0918ccdb939f9"
     },
     "./agents/packages-reviewer.md": {
       "kind": "agent",
       "id": "agent_01Nzaij62n117CaDuWJtsgrL",
-      "version": "3",
-      "hash": "158d42319696484ffc4656c93222ffef",
-      "remote_hash": "e032e1ecb932b72ed38d0102aeb5ff27"
+      "version": "4",
+      "hash": "8d07692ba0af57493acce5e3386791f0",
+      "remote_hash": "6d07d79d1eff5edb25fd0cda797d1f16"
     },
     "./agents/server-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JJRUnbPL4cZ9gbcTQtUgZn",
-      "version": "3",
-      "hash": "980eafd2c77c837dc72090d1f0146575",
-      "remote_hash": "93dd8aff81b413820154b9d45fe7fa49"
+      "version": "4",
+      "hash": "4556fdf746ae152fc717bcb52aab5fbc",
+      "remote_hash": "92f49dc0edb078dc811c2ff4fc814883"
     },
     "./environments/phoenix-dev.yaml": {
       "kind": "environment",
