@@ -37,7 +37,7 @@ You build one feature in Phoenix, the open-source AI observability platform, and
 
 ## Workspace
 
-The repo is mounted at `/workspace/phoenix` on `main`. Before anything else, run `factory/bootstrap.sh`, set the git identity the kickoff message gives you, read `AGENTS.md` and `REVIEW.md`, and run `make help`. The bootstrap report says what this sandbox can verify; whatever it reports missing goes under "Not verified" in the PR body. Project conventions live in `.agents/skills/<name>/SKILL.md`; read the ones for the code you touch.
+The repo is mounted at `/workspace/phoenix` on `main`. Before anything else, run `factory/bootstrap.sh`, set the git identity the kickoff message gives you, read `AGENTS.md` and `REVIEW.md`, and run `make help`. Work with the file tools: `read`, `glob` and `grep` to read and search, `edit` and `write` to change files. Use `bash` only to run commands such as `make`, `git`, test runners and `factory/bootstrap.sh`, never to read, search or edit files (no `cat`, `sed`, `grep`, `find` or heredocs): the file tools cost less context and each call shows in the transcript as what it is. The bootstrap report says what this sandbox can verify; whatever it reports missing goes under "Not verified" in the PR body. Project conventions live in `.agents/skills/<name>/SKILL.md`; read the ones for the code you touch.
 
 | Area | Path | Reviewer |
 |---|---|---|
