@@ -1,0 +1,83 @@
+name: Factory Log Scan
+
+# Once a day at 5am Eastern (09:00 UTC; 4am Eastern while daylight saving is off),
+# factory/log_scan.py asks Grafana whether Phoenix logged any server errors in the last
+# day. If so it starts a railway-triage session, which reads the errors and the code, checks
+# the open `grafana` issues, and files a user-facing issue for each new bug or comments on
+# the issue that already covers it. When enabled, the new issues then get the `factory`
+# label so factory-dispatch.yml runs the bug lane on them. The label is applied with the
+# machine-account token: one applied by GITHUB_TOKEN would not start the dispatch
+# workflow, and the machine account has the write access dispatch.py requires.
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: Hours to scan, ending now
+        default: "24"
+      dispatch:
+        description: Add the factory label to the issues the session files
+        type: boolean
+        default: false
+      dry_run:
+        description: Count the window's errors without starting a session
+        type: boolean
+        default: false
+
+concurrency:
+  group: factory-log-scan
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      FACTORY_GRAFANA_URL: ${{ vars.FACTORY_GRAFANA_URL }}
+      FACTORY_GRAFANA_LOGQL: ${{ vars.FACTORY_GRAFANA_LOGQL }}
+      FACTORY_GRAFANA_LOKI_UID: ${{ vars.FACTORY_GRAFANA_LOKI_UID }}
+      FACTORY_GRAFANA_TOKEN: ${{ secrets.FACTORY_GRAFANA_TOKEN }}
+      FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the Anthropic SDK
+        run: pip install --quiet "anthropic==1.12.1"
+
+      # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
+      - name: Pull claude-lock.json
+        run: |
+          git fetch --quiet --depth=1 origin factory-state
+          git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
+
+      - name: Triage
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          HOURS: ${{ inputs.hours || '24' }}
+          # The schedule follows the FACTORY_LOG_SCAN_DISPATCH repository variable; a manual
+          # run follows its own input.
+          DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_LOG_SCAN_DISPATCH == 'true' || inputs.dispatch == true }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: |
+          if [ -z "$FACTORY_GRAFANA_URL" ]; then
+            echo "FACTORY_GRAFANA_URL is not set; see Log scan in factory/README.md."
+            exit 1
+          fi
+          ARGS=(--repo "$GH_REPO" --hours "$HOURS")
+          [ "$DISPATCH" = "true" ] && ARGS+=(--dispatch)
+          [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
+          python factory/log_scan.py "${ARGS[@]}"
