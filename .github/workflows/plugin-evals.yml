@@ -74,12 +74,13 @@ jobs:
             # Measured: $18.93 and 27 minutes per full run.
             max_cost_usd: "30"
             timeout_minutes: 45
-          # phoenix-tracing: no cases yet, so the leg skips before setup.
-          # `warn` until its Δ is calibrated.
+          # phoenix-tracing: 0.10 headroom under its measured +0.25 baseline
+          # (3-run with-without pass on sonnet-5; see
+          # evals/phoenix-tracing/README.md).
           - skill: phoenix-tracing
             model: claude-sonnet-5
             min_delta: "0.15"
-            gate: warn
+            gate: block
             max_cost_usd: "25"
             timeout_minutes: 40
     name: evals (${{ matrix.skill }})
