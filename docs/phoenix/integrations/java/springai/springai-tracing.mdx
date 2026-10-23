@@ -103,7 +103,7 @@ registry.observationConfig().observationHandler(new SpringAIInstrumentor(tracer)
 // 3. Build Spring AI model
 String apiKey = System.getenv("OPENAI_API_KEY");
 OpenAiApi openAiApi = OpenAiApi.builder().apiKey(apiKey).build();
-OpenAiChatOptions options = OpenAiChatOptions.builder().model("gpt-5.6-sol").build();
+OpenAiChatOptions options = OpenAiChatOptions.builder().model("gpt-5.6-luna").build();
 
 OpenAiChatModel model = OpenAiChatModel.builder()
     .openAiApi(openAiApi)

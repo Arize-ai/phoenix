@@ -235,7 +235,7 @@ const tracer = trace.getTracer("llm-service");
 tracer.startActiveSpan("llm-inference", (span) => {
   const attributes = getLLMAttributes({
     provider: "openai",
-    modelName: "gpt-5.6-sol",
+    modelName: "gpt-5.6-luna",
     inputMessages: [{ role: "user", content: "What is AI?" }],
     outputMessages: [{ role: "assistant", content: "AI is..." }],
     tokenCount: { prompt: 10, completion: 50, total: 60 },
