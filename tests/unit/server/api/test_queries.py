@@ -13,6 +13,7 @@ from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
+    ContinuousOutputConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -880,6 +881,252 @@ async def test_experiment_run_metric_comparisons(
             },
         },
     }
+
+
+async def test_experiment_run_metric_comparisons_annotations(
+    gql_client: AsyncGraphQLClient,
+    experiment_run_annotation_comparison_experiments: tuple[
+        models.Experiment, tuple[models.Experiment, ...]
+    ],
+) -> None:
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          annotations {
+            annotationName
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+        }
+      }
+    """
+    base_experiment, compare_experiments = experiment_run_annotation_comparison_experiments
+    variables = {
+        "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+        "compareExperimentIds": [
+            str(GlobalID("Experiment", str(experiment.id))) for experiment in compare_experiments
+        ],
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert response.data == {
+        "experimentRunMetricComparisons": {
+            "annotations": [
+                {
+                    "annotationName": "accuracy",
+                    "numRunsImproved": 2,
+                    "numRunsRegressed": 1,
+                    "numRunsEqual": 1,
+                    "numRunsWithoutComparison": 1,
+                },
+                {
+                    "annotationName": "refusal",
+                    "numRunsImproved": 1,
+                    "numRunsRegressed": 1,
+                    "numRunsEqual": 0,
+                    "numRunsWithoutComparison": 3,
+                },
+            ]
+        }
+    }
+
+
+@pytest.fixture
+async def experiment_run_annotation_comparison_experiments(
+    db: DbSessionFactory,
+) -> tuple[models.Experiment, tuple[models.Experiment, ...]]:
+    """
+    Creates experiments with the following annotation scores for each example. A list holds the
+    scores of an example's repetitions.
+
+    accuracy (MAXIMIZE, set on the dataset evaluator)
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          0.9                0.5                     0.7
+    2          0.2                0.8                     missing
+    3          0.5                0.5                     missing
+    4          [0.1, 0.6]         0.4                     missing
+    5          0.3                missing                 missing
+
+    refusal (MINIMIZE, inherited from the base LLM evaluator)
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          0.1                0.3                     0.2
+    2          0.4                0.2                     missing
+    3          no score           0.1                     missing
+
+    The annotations "notes" (an evaluator with no direction) and "unknown" (no evaluator) are
+    recorded for every run and must not be compared.
+    """
+    async with db() as session:
+        project = models.Project(name="annotation-comparison-project")
+        session.add(project)
+        dataset = models.Dataset(name="annotation-comparison-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        examples = [models.DatasetExample(dataset_id=dataset.id) for _ in range(5)]
+        session.add_all(examples)
+        await session.flush()
+
+        prompt = models.Prompt(name=Identifier(root="refusal-prompt"), metadata_={})
+        session.add(prompt)
+        await session.flush()
+        session.add(
+            models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+        )
+        llm_evaluator = models.LLMEvaluator(
+            name=Identifier(root="refusal-evaluator"),
+            metadata_={},
+            prompt_id=prompt.id,
+            output_configs=[
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="refusal",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="refused", score=1.0),
+                        CategoricalAnnotationValue(label="answered", score=0.0),
+                    ],
+                ),
+            ],
+        )
+        code_evaluator = models.CodeEvaluator(
+            name=Identifier(root="code-evaluator"),
+            metadata_={},
+            language="PYTHON",
+        )
+        session.add_all([llm_evaluator, code_evaluator])
+        await session.flush()
+        session.add_all(
+            [
+                models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=code_evaluator.id,
+                    name=Identifier(root="accuracy-evaluator"),
+                    output_configs=[
+                        ContinuousOutputConfig(
+                            type="CONTINUOUS",
+                            name="accuracy",
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                        )
+                    ],
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project_id=project.id,
+                ),
+                models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=llm_evaluator.id,
+                    name=Identifier(root="refusal-evaluator"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project_id=project.id,
+                ),
+                models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=code_evaluator.id,
+                    name=Identifier(root="notes-evaluator"),
+                    output_configs=[
+                        ContinuousOutputConfig(
+                            type="CONTINUOUS",
+                            name="notes",
+                            optimization_direction=OptimizationDirection.NONE,
+                        )
+                    ],
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project_id=project.id,
+                ),
+            ]
+        )
+
+        experiments = [
+            models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=name,
+                repetitions=2,
+                metadata_={},
+                project_name=project.name,
+            )
+            for name in ("base", "compare-1", "compare-2")
+        ]
+        session.add_all(experiments)
+        await session.flush()
+
+        # experiment index -> example index -> annotation name -> scores of the repetitions
+        scores: dict[int, dict[int, dict[str, list[Optional[float]]]]] = {
+            0: {
+                0: {"accuracy": [0.9], "refusal": [0.1]},
+                1: {"accuracy": [0.2], "refusal": [0.4]},
+                2: {"accuracy": [0.5], "refusal": [None]},
+                3: {"accuracy": [0.1, 0.6]},
+                4: {"accuracy": [0.3]},
+            },
+            1: {
+                0: {"accuracy": [0.5], "refusal": [0.3]},
+                1: {"accuracy": [0.8], "refusal": [0.2]},
+                2: {"accuracy": [0.5], "refusal": [0.1]},
+                3: {"accuracy": [0.4]},
+            },
+            2: {
+                0: {"accuracy": [0.7], "refusal": [0.2]},
+            },
+        }
+        now = datetime.now(timezone.utc)
+        for experiment_index, example_scores in scores.items():
+            for example_index, annotation_scores in example_scores.items():
+                num_repetitions = max(len(values) for values in annotation_scores.values())
+                for repetition in range(num_repetitions):
+                    run = models.ExperimentRun(
+                        experiment_id=experiments[experiment_index].id,
+                        dataset_example_id=examples[example_index].id,
+                        repetition_number=repetition + 1,
+                        output={},
+                        start_time=now,
+                        end_time=now,
+                    )
+                    session.add(run)
+                    await session.flush()
+                    run_scores = {
+                        name: values[repetition]
+                        for name, values in annotation_scores.items()
+                        if repetition < len(values)
+                    }
+                    for name, score in {**run_scores, "notes": 1.0, "unknown": 1.0}.items():
+                        session.add(
+                            models.ExperimentRunAnnotation(
+                                experiment_run_id=run.id,
+                                name=name,
+                                annotator_kind="CODE",
+                                label=None,
+                                score=score,
+                                explanation=None,
+                                error=None,
+                                metadata_={},
+                                start_time=now,
+                                end_time=now,
+                            )
+                        )
+        await session.flush()
+    return experiments[0], (experiments[1], experiments[2])
 
 
 @dataclass

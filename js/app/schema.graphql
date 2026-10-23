@@ -2205,6 +2205,29 @@ type ExperimentRunAnnotationEdge {
   node: ExperimentRunAnnotation!
 }
 
+type ExperimentRunAnnotationMetricComparison {
+  """
+  The number of runs in which the base experiment improved on the best run in any compare experiment.
+  """
+  numRunsImproved: Int!
+
+  """
+  The number of runs in which the base experiment regressed on the best run in any compare experiment.
+  """
+  numRunsRegressed: Int!
+
+  """
+  The number of runs in which the base experiment is equal to the best run in any compare experiment.
+  """
+  numRunsEqual: Int!
+
+  """
+  The number of runs in the base experiment that could not be compared, either because the base experiment run was missing a value or because all compare experiment runs were missing values.
+  """
+  numRunsWithoutComparison: Int!
+  annotationName: String!
+}
+
 enum ExperimentRunAnnotatorKind {
   LLM
   HUMAN
@@ -2268,6 +2291,11 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
+
+  """
+  Comparisons of the annotation scores of the dataset's evaluators that have an optimization direction, ordered by annotation name.
+  """
+  annotations: [ExperimentRunAnnotationMetricComparison!]!
 }
 
 """The sort key and direction for experiment run connections"""

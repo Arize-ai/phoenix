@@ -83,6 +83,7 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     Evaluator,
     LLMEvaluator,
+    get_effective_output_configs,
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -213,6 +214,11 @@ class ExperimentRunMetricComparison:
 
 
 @strawberry.type
+class ExperimentRunAnnotationMetricComparison(ExperimentRunMetricComparison):
+    annotation_name: str
+
+
+@strawberry.type
 class ExperimentRunMetricComparisons:
     latency: ExperimentRunMetricComparison
     total_token_count: ExperimentRunMetricComparison
@@ -221,6 +227,12 @@ class ExperimentRunMetricComparisons:
     total_cost: ExperimentRunMetricComparison
     prompt_cost: ExperimentRunMetricComparison
     completion_cost: ExperimentRunMetricComparison
+    annotations: list[ExperimentRunAnnotationMetricComparison] = strawberry.field(
+        description=(
+            "Comparisons of the annotation scores of the dataset's evaluators that have an "
+            "optimization direction, ordered by annotation name."
+        )
+    )
 
 
 @strawberry.type
@@ -950,6 +962,12 @@ class Query:
         async with info.context.db.read() as session:
             result = (await session.execute(comparisons_query)).first()
         assert result is not None
+        annotations = await _experiment_run_annotation_comparisons(
+            info,
+            base_experiment_rowid=base_experiment_rowid,
+            compare_experiment_rowids=compare_experiment_rowids,
+            num_total_runs=result.num_base_experiment_runs,
+        )
 
         return ExperimentRunMetricComparisons(
             latency=ExperimentRunMetricComparison(
@@ -994,6 +1012,7 @@ class Query:
                 num_runs_equal=result.num_completion_cost_is_equal,
                 num_total_runs=result.num_base_experiment_runs,
             ),
+            annotations=annotations,
         )
 
     @strawberry.field
@@ -2010,6 +2029,128 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
     return longest
 
 
+async def _experiment_run_annotation_comparisons(
+    info: Info[Context, None],
+    *,
+    base_experiment_rowid: int,
+    compare_experiment_rowids: list[int],
+    num_total_runs: int,
+) -> list[ExperimentRunAnnotationMetricComparison]:
+    """
+    Compares the base experiment's annotation scores with the compare experiments', per
+    annotation whose dataset evaluator has an optimization direction. As for the other run
+    metrics, each side is reduced to its best run per example, which is the highest score when
+    maximizing and the lowest when minimizing.
+    """
+    async with info.context.db.read() as session:
+        dataset_evaluators = (
+            await session.scalars(
+                select(models.DatasetEvaluators)
+                .join(
+                    models.Experiment,
+                    models.Experiment.dataset_id == models.DatasetEvaluators.dataset_id,
+                )
+                .where(models.Experiment.id == base_experiment_rowid)
+            )
+        ).all()
+    # The base evaluators are only needed for the dataset evaluators without their own configs
+    base_evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
+        [
+            dataset_evaluator.evaluator_id
+            for dataset_evaluator in dataset_evaluators
+            if dataset_evaluator.output_configs is None
+        ]
+    )
+    base_evaluator_by_id = {
+        evaluator.id: evaluator for evaluator in base_evaluators if evaluator is not None
+    }
+    directions: dict[str, Literal["maximize", "minimize"]] = {}
+    for dataset_evaluator in dataset_evaluators:
+        evaluator = base_evaluator_by_id.get(dataset_evaluator.evaluator_id)
+        for config in get_effective_output_configs(dataset_evaluator, evaluator):
+            if config.optimization_direction is OptimizationDirection.MAXIMIZE:
+                directions[config.name] = "maximize"
+            elif config.optimization_direction is OptimizationDirection.MINIMIZE:
+                directions[config.name] = "minimize"
+    if not directions:
+        return []
+
+    comparisons: list[ExperimentRunAnnotationMetricComparison] = []
+    optimization_direction: Literal["maximize", "minimize"]
+    for optimization_direction in ("maximize", "minimize"):
+        annotation_names = [
+            name for name, direction in directions.items() if direction == optimization_direction
+        ]
+        if not annotation_names:
+            continue
+        best = func.max if optimization_direction == "maximize" else func.min
+
+        def best_score_per_example(*, compare: bool, alias: str) -> Any:
+            return (
+                select(
+                    models.ExperimentRun.dataset_example_id,
+                    models.ExperimentRunAnnotation.name,
+                    best(models.ExperimentRunAnnotation.score).label("score"),
+                )
+                .join(
+                    models.ExperimentRunAnnotation,
+                    models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+                )
+                .where(
+                    models.ExperimentRun.experiment_id.in_(compare_experiment_rowids)
+                    if compare
+                    else models.ExperimentRun.experiment_id == base_experiment_rowid
+                )
+                .where(models.ExperimentRunAnnotation.name.in_(annotation_names))
+                .where(models.ExperimentRunAnnotation.score.is_not(None))
+                .group_by(
+                    models.ExperimentRun.dataset_example_id,
+                    models.ExperimentRunAnnotation.name,
+                )
+                .subquery()
+                .alias(alias)
+            )
+
+        base_scores = best_score_per_example(compare=False, alias="base_annotation_scores")
+        compare_scores = best_score_per_example(compare=True, alias="compare_annotation_scores")
+        query = (
+            select(
+                base_scores.c.name,
+                *(
+                    _comparison_count_expression(
+                        base_column=base_scores.c.score,
+                        compare_column=compare_scores.c.score,
+                        optimization_direction=optimization_direction,
+                        comparison_type=comparison_type,
+                    ).label(comparison_type)
+                    for comparison_type in ("improvement", "regression", "equality")
+                ),
+            )
+            .select_from(base_scores)
+            .join(
+                compare_scores,
+                onclause=and_(
+                    base_scores.c.dataset_example_id == compare_scores.c.dataset_example_id,
+                    base_scores.c.name == compare_scores.c.name,
+                ),
+            )
+            .group_by(base_scores.c.name)
+        )
+        async with info.context.db.read() as session:
+            rows = (await session.execute(query)).all()
+        for row in rows:
+            comparisons.append(
+                ExperimentRunAnnotationMetricComparison(
+                    annotation_name=row.name,
+                    num_runs_improved=row.improvement,
+                    num_runs_regressed=row.regression,
+                    num_runs_equal=row.equality,
+                    num_total_runs=num_total_runs,
+                )
+            )
+    return sorted(comparisons, key=lambda comparison: comparison.annotation_name)
+
+
 def _comparison_count_expression(
     *,
     base_column: ColumnElement[Any],
@@ -2021,13 +2162,18 @@ def _comparison_count_expression(
     Given a base and compare column, returns an expression counting the number of
     improvements, regressions, or equalities given the optimization direction.
     """
-    if optimization_direction == "maximize":
-        raise NotImplementedError
-
     if comparison_type == "improvement":
-        condition = compare_column > base_column
+        condition = (
+            compare_column > base_column
+            if optimization_direction == "minimize"
+            else compare_column < base_column
+        )
     elif comparison_type == "regression":
-        condition = compare_column < base_column
+        condition = (
+            compare_column < base_column
+            if optimization_direction == "minimize"
+            else compare_column > base_column
+        )
     elif comparison_type == "equality":
         condition = compare_column == base_column
     else:
