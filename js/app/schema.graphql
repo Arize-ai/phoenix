@@ -2899,7 +2899,7 @@ type EvaluatorComparisonSummary {
   evaluator: ProjectEvaluator!
 
   """
-  The annotation name whose rows are compared: the evaluator's primary result name. Any annotation stored under this name counts, whichever source wrote it.
+  The annotation name whose rows are compared: the selected output's, by default the evaluator's primary result. Any annotation stored under this name counts, whichever source wrote it.
   """
   annotationName: String!
 
@@ -2914,7 +2914,7 @@ type EvaluatorComparisonSummary {
   threshold: Float
 
   """
-  Distribution of this evaluator's primary result over the entities in range that both evaluators annotated, whether or not both results are binnable.
+  Distribution of this side's result over the entities in range annotated under both sides' names, whether or not both results are binnable.
   """
   sharedDistribution: EvaluatorDistribution!
 }
@@ -2937,12 +2937,15 @@ input EvaluatorDefinitionInput @oneOf {
   inlineCodeEvaluator: InlineCodeEvaluatorInput
 }
 
-"""Independent distribution of a project evaluator's primary result."""
+"""Independent distribution of one of a project evaluator's results."""
 type EvaluatorDistribution {
   """
-  Targets with an annotation in range, including results without scores or labels.
+  Targets with an annotation in range, including results without scores or labels. Excludes decision refusals.
   """
   evaluatedCount: Int!
+
+  """Targets whose annotation in range is a decision refusal."""
+  refusedCount: Int!
 
   """The configured score flag threshold, or null for categorical outputs."""
   threshold: Float
@@ -4719,9 +4722,9 @@ type Project implements Node {
   sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
 
   """
-  Compare two of this project's evaluators over one shared population: entities in the time range evaluated by both. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
+  Compare two outputs of this project's evaluators over one shared population: entities in the time range evaluated under both. Each side uses its evaluator's primary output unless annotationNameA or annotationNameB names another of its outputs, so both sides may be one evaluator. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
   """
-  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
+  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null, annotationNameA: String = null, annotationNameB: String = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -4821,9 +4824,9 @@ type ProjectEvaluator implements Node {
   failureSummary(timeRange: TimeRange!): ProjectEvaluatorFailureSummary!
 
   """
-  Distribution of this evaluator's primary output over all annotated targets in range. Spans and traces filter on trace start time; sessions on session start time. Uses the latest annotation per target and name across annotation identifiers.
+  Distribution of one of this evaluator's outputs over all annotated targets in range: the output written under annotationName, or the primary output when it is omitted. Spans and traces filter on trace start time; sessions on session start time. Uses the latest annotation per target and name across annotation identifiers.
   """
-  distribution(timeRange: TimeRange!): EvaluatorDistribution!
+  distribution(timeRange: TimeRange!, annotationName: String = null): EvaluatorDistribution!
 
   """
   Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.

@@ -100,8 +100,9 @@ class EvaluatorComparisonSummary:
     )
     annotation_name: str = strawberry.field(
         description=(
-            "The annotation name whose rows are compared: the evaluator's primary result "
-            "name. Any annotation stored under this name counts, whichever source wrote it."
+            "The annotation name whose rows are compared: the selected output's, by default "
+            "the evaluator's primary result. Any annotation stored under this name counts, "
+            "whichever source wrote it."
         )
     )
     labels: list[str] = strawberry.field(
@@ -123,8 +124,8 @@ class EvaluatorComparisonSummary:
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Distribution of this evaluator's primary result over the entities in range "
-            "that both evaluators annotated, whether or not both results are binnable."
+            "Distribution of this side's result over the entities in range annotated under "
+            "both sides' names, whether or not both results are binnable."
         )
     )
     async def shared_distribution(self, info: Info[Context, None]) -> EvaluatorDistribution:

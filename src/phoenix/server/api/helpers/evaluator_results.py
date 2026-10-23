@@ -13,18 +13,25 @@ from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 
-def primary_result_annotation(
+def result_annotation(
     project_evaluator: models.ProjectEvaluator,
     evaluator: Optional[models.Evaluator],
+    annotation_name: Optional[str] = None,
 ) -> tuple[str, Optional[OutputConfigType]]:
-    """Resolve the annotation name and output config of an evaluator's primary result.
-
-    The primary result is the first output config's result, named per
-    `result_annotation_names`.
-    """
+    """Resolve the annotation name and output config of the named result, or of the primary
+    (first output config's) result when no name is given."""
     configs = as_output_configs(getattr(evaluator, "output_configs", None))
     names = result_annotation_names(project_evaluator.name.root, configs)
-    return names[0], configs[0] if configs else None
+    if annotation_name is None:
+        index = 0
+    elif annotation_name in names:
+        index = names.index(annotation_name)
+    else:
+        raise BadRequest(
+            f"Evaluator {project_evaluator.name.root!r} writes no results under "
+            f"{annotation_name!r}; expected one of {names!r}"
+        )
+    return names[index], configs[index] if configs else None
 
 
 @dataclass(frozen=True)
@@ -109,10 +116,12 @@ def latest_evaluator_annotations(
     annotation_names: Sequence[str],
     time_range: TimeRange,
 ) -> Subquery:
-    """Keep the most recently updated annotation per target and name across identifiers."""
+    """Keep the most recently updated annotation per target and name across identifiers;
+    `refused` reads the `metadata.decision.status` that `project_decision_response` writes."""
     level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
     if level is None:
         raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
+    refused = level.annotation.metadata_[("decision", "status")].as_string() == "refused"
     row_number = (
         func.row_number()
         .over(
@@ -126,6 +135,7 @@ def latest_evaluator_annotations(
         level.annotation.name.label("name"),
         level.annotation.label.label("label"),
         level.annotation.score.label("score"),
+        refused.label("refused"),
         row_number,
         project_rowid=project_rowid,
         evaluation_target=evaluation_target,
@@ -138,6 +148,7 @@ def latest_evaluator_annotations(
             annotated.c.name,
             annotated.c.label,
             annotated.c.score,
+            annotated.c.refused,
         )
         .where(annotated.c.row_number == 1)
         .subquery("latest_evaluator_annotations")

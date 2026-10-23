@@ -19,12 +19,16 @@ class EvaluatorLabelCount:
     count: int = 0
 
 
-@strawberry.type(description="Independent distribution of a project evaluator's primary result.")
+@strawberry.type(description="Independent distribution of one of a project evaluator's results.")
 class EvaluatorDistribution:
     evaluated_count: int = strawberry.field(
         description=(
-            "Targets with an annotation in range, including results without scores or labels."
+            "Targets with an annotation in range, including results without scores or labels. "
+            "Excludes decision refusals."
         )
+    )
+    refused_count: int = strawberry.field(
+        description="Targets whose annotation in range is a decision refusal."
     )
     threshold: Optional[float] = strawberry.field(
         description="The configured score flag threshold, or null for categorical outputs."
