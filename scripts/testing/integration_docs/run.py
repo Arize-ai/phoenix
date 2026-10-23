@@ -15,7 +15,6 @@ import json
 import os
 import re
 import shlex
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -305,9 +304,9 @@ def run_example(
     endpoint: str,
     project: str,
 ) -> str:
-    uv = shutil.which("uv")
-    if uv is None:
-        raise HarnessError("uv is required to create an isolated environment for the example")
+    uv = REPO_ROOT / "scripts/uv.sh"
+    if not uv.is_file():
+        raise HarnessError(f"Repository uv wrapper not found: {uv}")
     with tempfile.TemporaryDirectory(prefix=f"phoenix-doc-{spec.id}-") as temp_dir:
         temp = Path(temp_dir)
         venv = temp / ".venv"
