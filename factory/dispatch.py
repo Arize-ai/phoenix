@@ -24,6 +24,7 @@ FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
 ENVIRONMENT_LOCK_KEY = "./environments/phoenix-dev.yaml"
 VAULT_LOCK_KEY = "./vaults/github.yaml"
+GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 FACTORY_LABEL = "factory"
 
 LANE_AGENT_LOCK_KEYS = {
@@ -178,6 +179,13 @@ def read_lock_id(*, lock: dict[str, Any], lock_key: str) -> str:
         ) from None
 
 
+def read_vault_ids(*, lock: dict[str, Any]) -> list[str]:
+    return [
+        read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY),
+        read_lock_id(lock=lock, lock_key=GRAFANA_VAULT_LOCK_KEY),
+    ]
+
+
 def format_session_link(*, session_id: str) -> str:
     """Link the session in the Claude Console, or show its ID if the workspace is unknown."""
     try:
@@ -218,7 +226,7 @@ def start_session(
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
-        vault_ids=[read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY)],
+        vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
         metadata={"repo": repo, "issue": str(issue_number), "lane": lane},
         budget={
