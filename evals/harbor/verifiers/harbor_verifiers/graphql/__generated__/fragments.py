@@ -166,6 +166,7 @@ class ExperimentFields(BaseModel):
     description: Optional[str]
     metadata: Any
     created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
     average_run_latency_ms: Optional[float] = Field(alias="averageRunLatencyMs")
     cost_summary: "ExperimentFieldsCostSummary" = Field(alias="costSummary")
     runs: "ExperimentFieldsRuns"

@@ -42,6 +42,7 @@ details = {
 scores = verify.write_reward(
     float(passed),
     details,
+    instruction=hc.STEP_INSTRUCTIONS["step_02_hill_climb"],
     first_experiment_imperfect=first_experiment_imperfect,
     all_experiments_fully_scored=all_experiments_fully_scored,
     last_experiment_passes_all=last_experiment_passes_all,
