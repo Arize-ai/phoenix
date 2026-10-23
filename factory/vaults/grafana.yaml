@@ -1,0 +1,5 @@
+# The vault container only. Its one credential, a static bearer token for the factory's
+# Grafana MCP server keyed by that server's URL, is added out of band - see Log scan in
+# factory/README.md.
+type: vault
+display_name: factory-grafana
