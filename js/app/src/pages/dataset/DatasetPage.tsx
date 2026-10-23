@@ -19,8 +19,12 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
+import { TableSkeleton } from "@phoenix/components/table";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import { DatasetMetricsPageSkeleton } from "@phoenix/pages/dataset/metrics/DatasetMetricsPage";
+import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
+import { ExperimentsPageSkeleton } from "@phoenix/pages/experiments/ExperimentsPage";
 
 import type {
   DatasetPageQuery,
@@ -156,6 +160,10 @@ function DatasetPageContent({
   dataset: DatasetPageQuery$data["dataset"];
 }) {
   const datasetId = dataset.id;
+  // The experiments and metrics tabs render ExperimentsEmpty once loaded when
+  // there are no experiments, so their fallbacks show it too rather than a
+  // skeleton of charts and a table that will never appear.
+  const hasExperiments = Boolean(dataset.experimentCount);
   const latestVersionId = useMemo(() => {
     const versions = dataset.latestVersions;
     if (versions?.edges && versions.edges.length > 0) {
@@ -247,27 +255,45 @@ function DatasetPageContent({
           <Tab id="versions">Versions</Tab>
         </TabList>
         <LazyTabPanel id="experiments">
-          <Suspense>
+          <Suspense
+            fallback={
+              hasExperiments ? (
+                <ExperimentsPageSkeleton />
+              ) : (
+                <ExperimentsEmpty />
+              )
+            }
+          >
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="examples">
-          <Suspense>
+          <Suspense
+            fallback={<TableSkeleton hasToolbar isSelectable rowCount="fill" />}
+          >
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="evaluators">
-          <Suspense>
+          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="metrics">
-          <Suspense>
+          <Suspense
+            fallback={
+              hasExperiments ? (
+                <DatasetMetricsPageSkeleton />
+              ) : (
+                <ExperimentsEmpty />
+              )
+            }
+          >
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="versions">
-          <Suspense>
+          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>

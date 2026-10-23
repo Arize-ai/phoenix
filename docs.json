@@ -45,7 +45,8 @@
   "seo": {
     "metatags": {
       "canonical": "https://arize.com"
-    }
+    },
+    "indexing": "all"
   },
   "navigation": {
     "tabs": [
@@ -672,6 +673,13 @@
                 ]
               },
               {
+                "group": "Atomic Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/atomic-agents",
+                  "docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing"
+                ]
+              },
+              {
                 "group": "AutoGen",
                 "pages": [
                   "docs/phoenix/integrations/python/autogen",
@@ -771,6 +779,13 @@
                 "pages": [
                   "docs/phoenix/integrations/python/nvidia",
                   "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing"
+                ]
+              },
+              {
+                "group": "Pipecat",
+                "pages": [
+                  "docs/phoenix/integrations/python/pipecat",
+                  "docs/phoenix/integrations/python/pipecat/pipecat-tracing"
                 ]
               },
               {
@@ -1364,6 +1379,7 @@
           {
             "group": "10.2026",
             "pages": [
+              "docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon",
               "docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools",
               "docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans"
             ]

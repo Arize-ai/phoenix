@@ -1,10 +1,7 @@
 import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
-import {
-  pulseAnimation,
-  skeletonFillCSS,
-} from "@phoenix/components/core/loading";
+import { skeletonFillCSS } from "@phoenix/components/core/loading";
 import { classNames } from "@phoenix/utils/classNames";
 
 /** The space between neighboring segments, in pixels. */
@@ -59,7 +56,6 @@ const segmentChartCSS = css`
   }
 
   &.segment-chart--skeleton {
-    ${pulseAnimation}
     .segment-chart__segment {
       ${skeletonFillCSS}
       width: 100%;

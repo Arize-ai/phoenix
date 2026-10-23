@@ -1029,6 +1029,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/atomic-agents</loc>
+    <lastmod>2026-10-15T21:34:48+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing</loc>
+    <lastmod>2026-10-15T21:34:48+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/autogen</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1155,6 +1163,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/nvidia/nemo-agent-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/pipecat</loc>
+    <lastmod>2026-10-23T15:55:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/pipecat/pipecat-tracing</loc>
+    <lastmod>2026-10-23T15:55:15+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/portkey</loc>
@@ -2215,6 +2231,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon</loc>
+    <lastmod>2026-10-21T14:18:32+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools</loc>

@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Loading } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
+import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { evaluatorsPageLoaderQuery } from "@phoenix/pages/evaluators/__generated__/evaluatorsPageLoaderQuery.graphql";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
@@ -22,7 +23,7 @@ export const EvaluatorsPage = () => {
     <EvaluatorsFilterProvider>
       <Flex direction="column" height="100%">
         <EvaluatorsFilterBar />
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<TableSkeleton rowCount="fill" />}>
           <GlobalEvaluatorsTable query={query} />
         </Suspense>
       </Flex>

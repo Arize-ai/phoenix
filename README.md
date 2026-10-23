@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.md" />
 </p>
 
-Arize Phoenix is Arize's open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For managed production workflows, Arize also offers [Arize AX](https://arize.com/products/ax/). Phoenix provides:
+Arize Phoenix is Arize's open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For managed production workflows, Arize also offers [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme). Phoenix provides:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
 - [**_Evaluation_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
@@ -64,7 +64,7 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 Phoenix runs practically anywhere, including your local machine, a containerized deployment, or in the cloud. See [Environments](https://arize.com/docs/phoenix/environments) for a walkthrough of each option, or jump straight into the [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix is open-source and self-hosted. For a managed platform, Arize offers [Arize AX](https://arize.com/products/ax/) — the same OpenTelemetry/OpenInference instrumentation works with both. See the [full comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix is open-source and self-hosted. For a managed platform, Arize offers [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme) — the same OpenTelemetry/OpenInference instrumentation works with both. See the [full comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Table of Contents
 
@@ -184,12 +184,14 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | | [Restate](https://arize.com/docs/phoenix/integrations/python/restate) | `openinference-instrumentation-openai-agents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai-agents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai-agents) |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/mcp.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/mcp.png"></picture> | [MCP](https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp) | `openinference-instrumentation-mcp` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-mcp.svg)](https://pypi.python.org/pypi/openinference-instrumentation-mcp) |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/pydanticai-color.png" height="14"> | [Pydantic AI](https://arize.com/docs/phoenix/integrations/python/pydantic) | `openinference-instrumentation-pydantic-ai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pydantic-ai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pydantic-ai) |
+| | [Pipecat](https://arize.com/docs/phoenix/integrations/python/pipecat) | `openinference-instrumentation-pipecat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pipecat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pipecat) |
 | | [AG2](https://arize.com/docs/phoenix/integrations/python/ag2) | `openinference-instrumentation-ag2` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-ag2.svg)](https://pypi.python.org/pypi/openinference-instrumentation-ag2) |
 | | [Autogen AgentChat](https://arize.com/docs/phoenix/integrations/frameworks/autogen/autogen-tracing) | `openinference-instrumentation-autogen-agentchat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-autogen-agentchat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-autogen-agentchat) |
 | | [Portkey](https://arize.com/docs/phoenix/integrations/portkey) | `openinference-instrumentation-portkey` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-portkey.svg)](https://pypi.python.org/pypi/openinference-instrumentation-portkey) |
 | | [Agent Spec](https://arize.com/docs/phoenix/tracing/integrations-tracing/agentspec) | `openinference-instrumentation-agentspec` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agentspec.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agentspec) |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/claude-color.png" height="14"> | [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk) | `openinference-instrumentation-claude-agent-sdk` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-claude-agent-sdk.svg)](https://pypi.python.org/pypi/openinference-instrumentation-claude-agent-sdk) |
 | | [TypeSafe AI](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python) | `openinference-instrumentation-typesafe` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-typesafe.svg)](https://pypi.python.org/pypi/openinference-instrumentation-typesafe) |
+| | [Atomic Agents](https://arize.com/docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing) | `atomic-agents[observability]` | [![PyPI Version](https://img.shields.io/pypi/v/atomic-agents.svg)](https://pypi.python.org/pypi/atomic-agents) |
 
 ## Span Processors
 

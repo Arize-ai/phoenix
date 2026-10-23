@@ -9,11 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.91",
+    "@ai-sdk/openai": "^4.0.96",
     "@ai-sdk/otel": "^1.0.137",
     "@arizeai/phoenix-otel": "workspace:*",
     "ai": "^7.0.137",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

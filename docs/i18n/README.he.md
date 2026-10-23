@@ -44,7 +44,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.he.md" />
 </p>
 
-Arize Phoenix היא פלטפורמת ה-AI observability בקוד פתוח של Arize, המיועדת לניסויים, להערכה ולפתרון תקלות. עבור תהליכי עבודה מנוהלים בסביבת ייצור, Arize מציעה גם את [Arize AX](https://arize.com/products/ax/). Phoenix מספקת:
+Arize Phoenix היא פלטפורמת ה-AI observability בקוד פתוח של Arize, המיועדת לניסויים, להערכה ולפתרון תקלות. עבור תהליכי עבודה מנוהלים בסביבת ייצור, Arize מציעה גם את [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-he). Phoenix מספקת:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - מעקב אחר זמן הריצה של אפליקציית ה-LLM שלכם באמצעות אינסטרומנטציה מבוססת OpenTelemetry.
 - [**_הערכה (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - שימוש במודלי LLM כדי למדוד את ביצועי האפליקציה שלכם באמצעות evals של תגובות ושל אחזור (retrieval).
@@ -64,7 +64,7 @@ Phoenix אינה תלויה בספק או בשפה, ומציעה תמיכה מו
 Phoenix רצה כמעט בכל מקום, כולל המחשב המקומי שלכם, פריסה בקונטיינר או בענן. ראו [סביבות](https://arize.com/docs/phoenix/environments) להסבר מפורט על כל אפשרות, או קפצו ישירות אל [המדריך המהיר ל-Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix היא בקוד פתוח ובאירוח עצמי. עבור פלטפורמה מנוהלת, Arize מציעה את [Arize AX](https://arize.com/products/ax/) — אותה אינסטרומנטציה של OpenTelemetry/OpenInference עובדת עם שתיהן. ראו את [ההשוואה המלאה](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix היא בקוד פתוח ובאירוח עצמי. עבור פלטפורמה מנוהלת, Arize מציעה את [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-he) — אותה אינסטרומנטציה של OpenTelemetry/OpenInference עובדת עם שתיהן. ראו את [ההשוואה המלאה](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## תוכן העניינים
 
