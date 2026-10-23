@@ -40,10 +40,19 @@ vi.mock("@phoenix/components/code", () => ({
 vi.mock("../PromptComboBox", () => ({
   PromptComboBox: ({
     onChange,
+    inputValue,
+    onInputChange,
   }: {
     onChange: (promptId: string | null) => void;
+    inputValue?: string;
+    onInputChange?: (value: string) => void;
   }) => (
     <>
+      <input
+        aria-label="Prompt name"
+        value={inputValue ?? ""}
+        onChange={(event) => onInputChange?.(event.target.value)}
+      />
       <button type="button" onClick={() => onChange("prompt-1")}>
         Select prompt
       </button>
@@ -158,7 +167,81 @@ describe("SavePromptForm", () => {
       JSON.stringify(promptMetadata, null, 2)
     );
   });
+
+  it("converts spaces to dashes as the prompt name is typed", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      typeInto(getPromptNameInput(container), "my prompt");
+    });
+    expect(getPromptNameInput(container).value).toBe("my-prompt");
+  });
+
+  it("fills the prompt name when selecting an existing prompt", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("Existing prompt");
+  });
+
+  it("clears the prompt name on deselect unless a new name was typed", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    await act(async () => {
+      getButton(container, "Clear prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("");
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    await act(async () => {
+      typeInto(getPromptNameInput(container), "new name");
+    });
+    await act(async () => {
+      getButton(container, "Clear prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("new-name");
+  });
 });
+
+async function renderSavePromptForm(root: Root) {
+  await act(async () => {
+    root.render(
+      <ThemeProvider themeMode="light" disableBodyTheme>
+        <SavePromptForm
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ThemeProvider>
+    );
+  });
+}
+
+function getPromptNameInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="Prompt name"]'
+  );
+  expect(input).not.toBeNull();
+  return input!;
+}
+
+/**
+ * Sets the value the way a browser does, so React's onChange fires.
+ */
+function typeInto(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  )?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
 function getMetadataEditor(container: HTMLElement): HTMLTextAreaElement {
   const editor = container.querySelector<HTMLTextAreaElement>(
