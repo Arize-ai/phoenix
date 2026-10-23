@@ -2,6 +2,7 @@ import type { PromptVersion } from "../../../src/types/prompts";
 
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "test",
+  created_at: "2026-01-01T00:00:00+00:00",
   description: "Test prompt",
   model_provider: "OPENAI",
   model_name: "gpt-4",
