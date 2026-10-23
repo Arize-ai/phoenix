@@ -55,6 +55,7 @@ class EvaluatorTaskSourceInput:
 
     evaluator_id: Optional[GlobalID] = None
     prompt_version_id: Optional[GlobalID] = None
+    decision_version_id: Optional[GlobalID] = None
     dataset_evaluator_id: Optional[GlobalID] = None
     project_evaluator_id: Optional[GlobalID] = None
 
@@ -62,13 +63,17 @@ class EvaluatorTaskSourceInput:
         if (
             self.evaluator_id is None
             and self.prompt_version_id is None
+            and self.decision_version_id is None
             and self.dataset_evaluator_id is None
             and self.project_evaluator_id is None
         ):
             return None
         return EvaluatorSource(
-            evaluator_id=_optional_node_id(self.evaluator_id, ("LLMEvaluator", "CodeEvaluator")),
+            evaluator_id=_optional_node_id(
+                self.evaluator_id, ("LLMEvaluator", "CodeEvaluator", "DecisionEvaluator")
+            ),
             prompt_version_id=_optional_node_id(self.prompt_version_id, ("PromptVersion",)),
+            decision_version_id=_optional_node_id(self.decision_version_id, ("DecisionVersion",)),
             dataset_evaluator_id=_optional_node_id(
                 self.dataset_evaluator_id, ("DatasetEvaluator",)
             ),
@@ -96,8 +101,9 @@ class EvaluatorTaskInput:
     input_mapping: EvaluatorInputMappingInput
     source: Optional[EvaluatorTaskSourceInput] = strawberry.field(
         default=None,
-        description="The saved evaluator, prompt version and dataset or project binding the "
-        "task was opened from, kept on the experiment so its calibration can be traced back.",
+        description="The saved evaluator, its prompt or decision version, and the dataset or "
+        "project binding the task was opened from, kept on the experiment so its calibration "
+        "can be traced back.",
     )
 
 

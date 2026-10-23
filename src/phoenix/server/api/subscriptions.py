@@ -64,6 +64,7 @@ from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_c
 from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     EvaluatorTaskInput,
+    EvaluatorTaskSourceInput,
     ExperimentsOverDatasetInput,
     ExperimentTaskInput,
     PromptTaskInput,
@@ -721,11 +722,8 @@ async def _resolve_evaluator_task(
     # Pin what the experiment freezes: a stored evaluator's current version, not a
     # pointer its owner can edit while the experiment is paused.
     definition = await pin_evaluator_definition(task.evaluator.to_definition(), session=session)
-    source = task.source.to_source() if task.source is not None else None
-    if source is not None:
-        if isinstance(definition, BuiltInEvaluatorDefinition):
-            raise BadRequest("A built-in evaluator task does not take a source")
-        definition = definition.model_copy(update={"source": source})
+    if task.source is not None:
+        definition = await _with_task_source(definition, task.source, session=session)
     evaluator = await build_evaluator_from_definition(
         definition=definition,
         session=session,
@@ -741,6 +739,70 @@ async def _resolve_evaluator_task(
             "and underscores, and start and end with a letter or digit"
         )
     return _ResolvedEvaluatorTask(definition=definition, evaluator=evaluator, name=name)
+
+
+_SOURCE_EVALUATOR_TYPE_NAMES = {
+    "LLM": "LLMEvaluator",
+    "CODE": "CodeEvaluator",
+    "DECISION": "DecisionEvaluator",
+}
+
+
+async def _with_task_source(
+    definition: EvaluatorDefinition,
+    task_source: EvaluatorTaskSourceInput,
+    *,
+    session: AsyncSession,
+) -> EvaluatorDefinition:
+    source = task_source.to_source()
+    if source is None:
+        return definition
+    if isinstance(definition, BuiltInEvaluatorDefinition):
+        raise BadRequest("A built-in evaluator task does not take a source")
+    kind = evaluator_kind_of(definition)
+    expected_type_name = _SOURCE_EVALUATOR_TYPE_NAMES[kind]
+    if (
+        task_source.evaluator_id is not None
+        and task_source.evaluator_id.type_name != expected_type_name
+    ):
+        raise BadRequest(
+            f"Expected a {expected_type_name} id for the source evaluator, "
+            f"got {task_source.evaluator_id.type_name}: {task_source.evaluator_id}"
+        )
+    if source.prompt_version_id is not None and kind != "LLM":
+        raise BadRequest("Only an LLM evaluator task's source takes a prompt version")
+    if source.decision_version_id is not None and kind != "DECISION":
+        raise BadRequest("Only a decision evaluator task's source takes a decision version")
+    if source.dataset_evaluator_id is not None and source.project_evaluator_id is not None:
+        raise BadRequest("A source takes a dataset evaluator or a project evaluator, not both")
+    pinned = definition.source
+    if pinned is not None:
+        if source.evaluator_id not in (None, pinned.evaluator_id):
+            raise BadRequest("The source evaluator is not the evaluator this task runs")
+        if source.decision_version_id not in (None, pinned.decision_version_id):
+            raise BadRequest("The source decision version is not the version this task runs")
+        binding_evaluator_id = None
+        if source.dataset_evaluator_id is not None:
+            binding_evaluator_id = await session.scalar(
+                select(models.DatasetEvaluators.evaluator_id).where(
+                    models.DatasetEvaluators.id == source.dataset_evaluator_id
+                )
+            )
+        elif source.project_evaluator_id is not None:
+            binding_evaluator_id = await session.scalar(
+                select(models.ProjectEvaluator.evaluator_id).where(
+                    models.ProjectEvaluator.id == source.project_evaluator_id
+                )
+            )
+        if binding_evaluator_id not in (None, pinned.evaluator_id):
+            raise BadRequest("The source binding is for a different evaluator than this task runs")
+        source = pinned.model_copy(
+            update={
+                "dataset_evaluator_id": source.dataset_evaluator_id,
+                "project_evaluator_id": source.project_evaluator_id,
+            }
+        )
+    return definition.model_copy(update={"source": source})
 
 
 async def _ensure_project(session: AsyncSession, project_name: str) -> None:
