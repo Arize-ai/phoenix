@@ -78,3 +78,44 @@ function formatAnnotationConfigsPretty(configs: AnnotationConfig[]): string {
 
   return formatTable(rows);
 }
+
+/**
+ * Result of `px project annotation-config unassign`. The route answers 204
+ * with no body, so the CLI echoes the identifiers it sent.
+ */
+export interface ProjectAnnotationConfigUnassignResult {
+  unassigned: true;
+  /**
+   * Project name or ID, as passed on the command line.
+   */
+  project: string;
+  /**
+   * Annotation config name or ID, as passed on the command line.
+   */
+  config: string;
+}
+
+export interface FormatProjectAnnotationConfigUnassignOutputOptions {
+  /**
+   * The unassignment to report.
+   */
+  result: ProjectAnnotationConfigUnassignResult;
+  /**
+   * Output format. Defaults to `"pretty"`.
+   */
+  format?: OutputFormat;
+}
+
+export function formatProjectAnnotationConfigUnassignOutput({
+  result,
+  format,
+}: FormatProjectAnnotationConfigUnassignOutputOptions): string {
+  const selected = format || "pretty";
+  if (selected === "raw") {
+    return JSON.stringify(result);
+  }
+  if (selected === "json") {
+    return JSON.stringify(result, null, 2);
+  }
+  return `Unassigned annotation config ${result.config} from project ${result.project}. The config was not deleted.`;
+}
