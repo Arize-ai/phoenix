@@ -18,6 +18,7 @@ Read the relevant file(s) based on the task:
 | `references/components.md` | Creating, composing, or refactoring components |
 | `references/relay.md` | Using Relay |
 | `references/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
+| `references/testing.md` | Writing or reviewing Vitest unit tests in `js/app/` |
 | `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
 | `references/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 

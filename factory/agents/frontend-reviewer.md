@@ -21,6 +21,7 @@ Hold the change to `REVIEW.md` and the skills in `.agents/skills/`: `phoenix-fro
 - Design system: existing components and CSS tokens, BEM class names, links rendered with link components rather than buttons that navigate, and errors and dialogs per `phoenix-design`.
 - New reusable components ship Storybook stories.
 - Object arguments instead of boolean positional parameters, and named exports.
+- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass. Suggest the lower layer instead (a pure function, hook or Relay updater test), or deleting it and listing the behavior under Not verified. `phoenix-frontend` `references/testing.md` says which tests are worth writing.
 
 `make lint-frontend`, `make typecheck-frontend` and oxfmt already gate formatting and types; don't report what they catch.
 

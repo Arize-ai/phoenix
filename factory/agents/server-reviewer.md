@@ -22,7 +22,8 @@ Hold the change to `REVIEW.md` and `.agents/skills/phoenix-server/SKILL.md` (plu
 - Data-mutating operations emit events so subscribers stay in sync.
 - User-supplied URLs and headers are validated before the server dials out.
 - No secrets or internal details reach error messages or logs.
-- New endpoints and mutations have tests, including authorization tests, and each test fails if the behavior it covers is removed.
+- New endpoints and mutations have tests, including authorization tests.
+- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that mocks the module under test, patches out the database or query it is meant to check, or asserts only on what a mock returned. Suggest a test against the real `db` and `gql_client` fixtures instead, or deleting it and listing the behavior under Not verified.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
 

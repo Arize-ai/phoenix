@@ -87,7 +87,7 @@ Each part does one job, so it can be changed and tested on its own:
 |---|---|
 | `dispatch.py start` | Admits the issue: the requester has write access, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
 | Lane coordinator | Runs `bootstrap.sh`, delegates, implements within 400 changed lines, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
-| `bug-reproducer` | Writes a test that fails for the reported reason before any fix exists |
+| `bug-reproducer` | Writes a test that fails for the reported reason before any fix exists, or reports `NEEDS_BROWSER` with the cause when only a browser or running server can show it |
 | `feature-analyst` | Runs a probe showing `main` lacks the behavior, then plans slices under 400 lines, or returns `NEEDS_DECISION` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
