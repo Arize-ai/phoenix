@@ -292,6 +292,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [LlamaIndex Workflows Tracing](https://arize.com/docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing): Trace LlamaIndex workflow orchestration
 - [MCP Tracing (Python)](https://arize.com/docs/phoenix/integrations/python/mcp-tracing): Trace MCP client and server interactions
 - [NeMo Agent Tracing](https://arize.com/docs/phoenix/integrations/python/nvidia/nemo-agent-tracing): Trace NVIDIA NeMo agent workflows
+- [Pipecat Tracing](https://arize.com/docs/phoenix/integrations/python/pipecat/pipecat-tracing): Auto-instrument Pipecat voice agents with one span per conversation turn and sessions grouped by conversation id
 - [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
 - [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework

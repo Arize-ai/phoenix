@@ -1,0 +1,140 @@
+---
+title: "Pipecat Tracing"
+description: "Trace Pipecat voice agents in Phoenix: one span per conversation turn with the speech-to-text, LLM, tool and text-to-speech stages beneath it, grouped into a session by conversation id."
+---
+
+[Pipecat](https://www.pipecat.ai) is an open-source Python framework for building real-time voice and multimodal conversational agents. It runs the audio transport, speech-to-text, LLM, and text-to-speech stages of a conversation as one streaming pipeline.
+
+The [`openinference-instrumentation-pipecat`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pipecat) package records each user-to-assistant turn as a parent span, with a child span for every pipeline stage that ran during the turn. Pass a `conversation_id` to the pipeline and Phoenix groups all of that conversation's turns into a [session](/docs/phoenix/tracing/llm-traces/sessions).
+
+## Install
+
+```bash
+pip install openinference-instrumentation-pipecat pipecat-ai arize-phoenix-otel
+```
+
+Match the instrumentor to your Pipecat version. Pipecat 1.3 replaced `PipelineTask` with `PipelineWorker`, and only instrumentor 2.0 and later wraps `PipelineWorker`.
+
+| `openinference-instrumentation-pipecat` | `pipecat-ai` | Python |
+| :--- | :--- | :--- |
+| `>=2.0` | `>=1.3` | `>=3.11` |
+| `>=1.0, <2.0` | `>=1.0, <1.3` | `>=3.11` |
+| `<=0.1.4` | `<1.0` | `>=3.10` |
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT=[your_phoenix_project_name]
+```
+
+Register Phoenix before you build the pipeline. The Pipecat instrumentor is discovered through the `openinference_instrumentor` entry point, so `auto_instrument=True` turns it on:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="pipecat-voice-agent",
+    auto_instrument=True,
+)
+```
+
+<Info>
+  To activate it by hand, for example with your own `TracerProvider`, use `PipecatInstrumentor().instrument(tracer_provider=tracer_provider)` from `openinference.instrumentation.pipecat`.
+</Info>
+
+## Run Pipecat
+
+Build the pipeline as usual. The one thing to add is a `conversation_id` on the `PipelineWorker`, so every turn of the conversation lands in the same Phoenix session:
+
+```python expandable
+import os
+from datetime import datetime
+
+from pipecat.frames.frames import LLMRunFrame
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.worker import PipelineParams, PipelineWorker
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.runner.types import RunnerArguments
+from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.services.openai.stt import OpenAISTTService
+from pipecat.services.openai.tts import OpenAITTSService
+from pipecat.transports.base_transport import BaseTransport
+
+conversation_id = f"demo_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+
+async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
+    stt = OpenAISTTService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o-transcribe")
+    llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"))
+    tts = OpenAITTSService(api_key=os.getenv("OPENAI_API_KEY"), voice="ballad")
+
+    context = LLMContext(
+        [{"role": "system", "content": "You are a helpful voice assistant. Keep answers short."}]
+    )
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
+
+    pipeline = Pipeline(
+        [
+            transport.input(),
+            stt,
+            user_aggregator,
+            llm,
+            tts,
+            transport.output(),
+            assistant_aggregator,
+        ]
+    )
+
+    worker = PipelineWorker(
+        pipeline,
+        params=PipelineParams(enable_metrics=True, enable_usage_metrics=True),
+        conversation_id=conversation_id,  # groups this conversation's turns into one Phoenix session
+    )
+
+    @transport.event_handler("on_client_connected")
+    async def on_client_connected(transport, client):
+        await worker.queue_frames([LLMRunFrame()])
+
+    runner = PipelineRunner(handle_sigint=runner_args.handle_sigint)
+    await runner.run(worker)
+```
+
+Start the bot and talk to it. For a complete runnable bot with tool calling, see the [instrumentor's example](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pipecat/examples).
+
+## Observe
+
+Phoenix traces Pipecat's real-time voice and multimodal pipelines automatically. Each turn is one trace, and turns that share a `conversation_id` appear together in the **Sessions** tab.
+
+### Conversation & Session Tracking
+
+* **Conversation Sessions**: All turns sharing a `conversation_id` grouped into a single session
+* **Turn Boundaries**: Each user-to-assistant exchange captured as a parent span
+* **End-to-End Latency**: The full audio-in to audio-out path for every turn
+
+### Pipeline Stage Spans
+
+* **LLM Calls**: Prompts, responses, token counts, and model metadata from your LLM service
+* **Speech-to-Text (STT)**: Input audio transcription with latency
+* **Text-to-Speech (TTS)**: Output audio synthesis with latency
+* **Tool / Function Calls**: When the LLM service invokes tools, their inputs, outputs, and duration
+
+### Performance & Reliability Monitoring
+
+* **Stage Latency**: Per-stage timing to identify bottlenecks in the audio pipeline
+* **Token Usage**: Prompt, completion, and total tokens across the conversation
+* **Errors**: Failures inside any pipeline stage surfaced as span errors
+
+## Resources
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pipecat)
+
+* [Runnable example with tool calling](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pipecat/examples/trace/001-trace.py)
+
+* [Pipecat OpenTelemetry docs](https://docs.pipecat.ai/server/utilities/opentelemetry)
