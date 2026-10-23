@@ -17,6 +17,7 @@ import {
   extractDecisionVariables,
   getDecisionDatasetBlockedReason,
   getDecisionDatasetProblem,
+  getChatForDecisionToPrompt,
   getDecisionValidationError,
   maskUntouchedErrors,
   normalizeDecisionAnswer,
@@ -1198,5 +1199,36 @@ describe("normalizeDecisionAnswer for experiment run outputs", () => {
         { index: 2, probability: 0.5 },
       ],
     });
+  });
+});
+
+describe("getChatForDecisionToPrompt", () => {
+  it("asks an LLM the same questions when the decision has no messages", () => {
+    const draft = createDecisionDraft();
+    const chat = getChatForDecisionToPrompt({
+      instance: {
+        template: { __type: "chat", messageIds: [] },
+        decisionRequest: draft,
+      },
+      templateFormat: TemplateFormats.Mustache,
+    });
+    expect(chat?.messages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+    ]);
+    expect(chat?.messages[1].content).toBe(draft.state);
+    expect(chat?.responseFormat.type).toBe("json_schema");
+  });
+
+  it("keeps the messages a decision instance already had", () => {
+    expect(
+      getChatForDecisionToPrompt({
+        instance: {
+          template: { __type: "chat", messageIds: [1, 2] },
+          decisionRequest: createDecisionDraft(),
+        },
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBeNull();
   });
 });

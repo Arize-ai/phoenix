@@ -170,6 +170,29 @@ async def test_a_judge_annotates_a_span_with_one_call_per_span(
     assert (route.label, route.score) == (None, None)
     assert route.metadata_["decision"]["status"] == "refused"
     assert by_name[f"{name}.quality"].score == 1.5
+    source = correct.metadata_["decision"]["source"]
+    assert (source["evaluator_id"], source["project_evaluator_id"]) == (judge_id, binding_id)
+
+
+async def test_each_binding_of_a_judge_names_itself_as_the_source(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_ids = [await _bind(db, project_id, judge_id) for _ in range(2)]
+    for binding_id in binding_ids:
+        await _materialize(db, span_rowid, binding_id)
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=_response()))
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    by_name = {annotation.name: annotation for annotation in await _annotations(db)}
+    for binding_id in binding_ids:
+        async with db() as session:
+            binding = await session.get(models.ProjectEvaluator, binding_id)
+            assert binding is not None
+        source = by_name[f"{binding.name.root}.correct"].metadata_["decision"]["source"]
+        assert source["project_evaluator_id"] == binding_id
 
 
 async def test_a_rate_limited_judge_retries_without_spending_an_attempt(
