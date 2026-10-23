@@ -24,7 +24,6 @@ FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
 ENVIRONMENT_LOCK_KEY = "./environments/phoenix-dev.yaml"
 VAULT_LOCK_KEY = "./vaults/github.yaml"
-REPO_MOUNT_PATH = "/workspace/phoenix"
 FACTORY_LABEL = "factory"
 
 LANE_AGENT_LOCK_KEYS = {
@@ -217,7 +216,6 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "mount_path": REPO_MOUNT_PATH,
                 "checkout": {"type": "branch", "name": "main"},
             }
         ],
