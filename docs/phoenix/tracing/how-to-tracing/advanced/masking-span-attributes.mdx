@@ -22,9 +22,12 @@ The possible settings are:
 | OPENINFERENCE\_HIDE\_LLM\_INVOCATION\_PARAMETERS | Hides LLM invocation parameters                              | bool | False   |
 | OPENINFERENCE\_HIDE\_LLM\_PROMPTS                | Hides LLM prompts span attributes                            | bool | False   |
 | OPENINFERENCE\_HIDE\_LLM\_TOOLS                  | Hides tool definitions advertised to the LLM (`llm.tools.*`)  | bool | False   |
+| OPENINFERENCE\_HIDE\_RETRIEVAL\_DOCUMENTS        | Hides retrieved document content and metadata (`retrieval.documents.*`) | bool | False   |
 | OPENINFERENCE\_BASE64\_IMAGE\_MAX\_LENGTH        | Limits characters of a base64 encoding of an image           | int  | 32,000  |
 
 Note: `OPENINFERENCE_HIDE_LLM_TOOLS` is also applied when `OPENINFERENCE_HIDE_INPUTS` is enabled, consistent with how `OPENINFERENCE_HIDE_INPUT_MESSAGES` and `OPENINFERENCE_HIDE_LLM_PROMPTS` behave.
+
+Note: `OPENINFERENCE_HIDE_RETRIEVAL_DOCUMENTS` is also applied when `OPENINFERENCE_HIDE_OUTPUTS` is enabled. It requires `openinference-instrumentation` 0.1.71 or later and is available in the Python instrumentors only.
 
 To set up this configuration you can either:
 
@@ -62,6 +65,7 @@ Below is an example of how to set these values in code using our OpenAI Python a
         hide_llm_invocation_parameters=...,
         hide_llm_prompts=...,
         hide_llm_tools=...,
+        hide_retrieval_documents=...,
         base64_image_max_length=...,
     )
 
