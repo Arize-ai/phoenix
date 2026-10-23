@@ -178,6 +178,18 @@ def read_lock_id(*, lock: dict[str, Any], lock_key: str) -> str:
         ) from None
 
 
+def format_session_link(*, session_id: str) -> str:
+    """Link the session in the Claude Console, or show its ID if the workspace is unknown."""
+    try:
+        workspace_id = json.loads(LOCK_FILE_PATH.read_text())["origin"]["workspace_id"]
+    except (OSError, ValueError, KeyError):
+        return f"`{session_id}`"
+    return (
+        f"[`{session_id}`](https://platform.claude.com/workspaces/{workspace_id}"
+        f"/sessions/{session_id})"
+    )
+
+
 def start_session(
     *,
     client: anthropic.Anthropic,
@@ -429,8 +441,8 @@ def watch_session(
     )
     if session is None:
         return (
-            f"🏭 The factory's **{lane}** session `{session_id}` is still running after "
-            f"{watch_minutes} minutes. Check it in the Claude Console."
+            f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+            f"is still running after {watch_minutes} minutes."
         )
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
@@ -537,7 +549,8 @@ def watch_session(
                 break
 
     report_lines = [
-        f"🏭 The factory's **{lane}** session `{session_id}` {status_line}.",
+        f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+        f"{status_line}.",
         "",
         f"Outcome: **{run_outcome}** · rubric: `{outcome_result}` · "
         f"stop reason: `{stop_reason}` · "
@@ -619,7 +632,8 @@ def run_start(*, args: argparse.Namespace) -> None:
     comment_on_issue(
         issue_number=args.issue,
         body=(
-            f"🏭 The factory started the **{lane}** lane for this issue (session `{session_id}`). "
+            f"🏭 The factory started the **{lane}** lane for this issue "
+            f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
     )
@@ -628,7 +642,10 @@ def run_start(*, args: argparse.Namespace) -> None:
 
 def run_watch(*, args: argparse.Namespace) -> None:
     # Report on the issue even when watching fails; the error still fails the job.
-    report = f"🏭 The factory lost track of session `{args.session_id}`; see the workflow run."
+    report = (
+        f"🏭 The factory lost track of session {format_session_link(session_id=args.session_id)}; "
+        "see the workflow run."
+    )
     try:
         report = watch_session(
             client=anthropic.Anthropic(),
