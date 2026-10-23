@@ -1,0 +1,84 @@
+name: Integration Docs
+
+on:
+  pull_request:
+    paths:
+      - "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx"
+      - "docs/snippets/register-tracer-python.mdx"
+      - "scripts/testing/integration_docs/**"
+      - "Makefile"
+      - ".github/workflows/integration-docs.yml"
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openai-python:
+    name: OpenAI Python integration doc
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+
+      - name: Install Phoenix
+        run: uv sync --frozen
+
+      - name: Start Phoenix and run the documented example
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run phoenix serve --host 127.0.0.1 --port 6006 > "${RUNNER_TEMP}/phoenix.log" 2>&1 &
+          phoenix_pid=$!
+          trap 'kill "${phoenix_pid}" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:6006/healthz >/dev/null; then
+              break
+            fi
+            if [[ "${attempt}" -eq 60 ]]; then
+              cat "${RUNNER_TEMP}/phoenix.log"
+              echo "Phoenix did not become ready" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          make test-doc-integration-openai-python
+
+      - name: Add integration report to job summary
+        if: always()
+        run: |
+          report="ci-results/integration-docs/openai-python-integration.md"
+          if [[ -f "${report}" ]]; then
+            cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload integration report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openai-python-integration-report
+          path: ci-results/integration-docs/openai-python-integration.*
+          if-no-files-found: warn
