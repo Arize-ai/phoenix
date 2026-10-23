@@ -782,6 +782,13 @@
                 ]
               },
               {
+                "group": "Pipecat",
+                "pages": [
+                  "docs/phoenix/integrations/python/pipecat",
+                  "docs/phoenix/integrations/python/pipecat/pipecat-tracing"
+                ]
+              },
+              {
                 "group": "Portkey",
                 "pages": [
                   "docs/phoenix/integrations/python/portkey",
