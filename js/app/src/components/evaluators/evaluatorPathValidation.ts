@@ -11,11 +11,8 @@ export type EvaluatorPathError = {
 };
 
 /**
- * What is wrong with a mapping path, or null where nothing is known to be.
- *
- * A path that does not parse is always wrong. One that reads nothing is only
- * wrong once a record has been sampled: before that the source is a skeleton
- * with nothing under its top-level keys, so every real path would be missing.
+ * What is wrong with a mapping path, or null where nothing is known to be:
+ * a path that does not parse, or one that reads nothing on a sampled record.
  */
 export function getEvaluatorPathError({
   source,
@@ -26,7 +23,7 @@ export function getEvaluatorPathError({
   path: string;
   hasSampledRecord: boolean;
 }): EvaluatorPathError | null {
-  const resolution = resolveEvaluatorPath({ source, path });
+  const resolution = resolveEvaluatorPath({ source, path, hasSampledRecord });
   if (resolution.status === "invalid") {
     return {
       status: "invalid",
@@ -34,7 +31,7 @@ export function getEvaluatorPathError({
       range: resolution.range,
     };
   }
-  if (resolution.status === "unresolved" && hasSampledRecord) {
+  if (resolution.status === "unresolved") {
     return {
       status: "unresolved",
       errorMessage: UNRESOLVED_PATH_MESSAGE,

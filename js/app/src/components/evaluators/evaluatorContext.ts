@@ -173,7 +173,7 @@ function materializePath({
   path: string;
   hasSampledRecord: boolean;
 }): MaterializedEvaluatorContextEntry {
-  const resolution = resolveEvaluatorPath({ source, path });
+  const resolution = resolveEvaluatorPath({ source, path, hasSampledRecord });
   // The value comes along even before a record has been sampled: the generic
   // skeleton still has the shape authoring tools drill through, and status
   // alone decides whether anything of it may be shown as a preview.
@@ -186,10 +186,7 @@ function materializePath({
       }
     : {
         name,
-        status:
-          resolution.status === "invalid" || hasSampledRecord
-            ? resolution.status
-            : "unverifiable",
+        status: resolution.status,
         provenance: { kind: "path", path },
       };
 }
