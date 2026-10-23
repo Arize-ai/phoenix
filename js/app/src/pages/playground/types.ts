@@ -35,4 +35,9 @@ export interface PlaygroundInstanceProps {
    * Used in evaluator context where routing must come from custom providers or env vars.
    */
   disableEphemeralRouting?: boolean;
+  /**
+   * Whether to hide the "Duplicate this task" button.
+   * Used in evaluator context, where an instance is not a playground task.
+   */
+  disableDuplicate?: boolean;
 }
