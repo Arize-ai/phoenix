@@ -6,6 +6,7 @@ import httpx
 import httpx2
 import pytest
 import respx
+from cryptography.fernet import Fernet
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -1238,6 +1239,38 @@ async def test_openai_custom_provider_runs_the_decisions_api(
     assert sent.headers["openai-project"] == "proj-decisions"
     assert sent.headers["x-team"] == "decisions"
     assert "openai-organization" not in sent.headers
+
+
+async def test_an_unreadable_custom_provider_fails_with_a_reason_and_a_span(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    provider_id = await create_custom_provider(
+        gql_client, "System One proxy", "system-one-proxy", TYPESAFE_PROVIDER_CONFIG
+    )
+    row_id = int(GlobalID.from_id(provider_id).node_id)
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, row_id)
+        assert record is not None
+        # Saved under another PHOENIX_SECRET, so this server can't decrypt it.
+        record.config = Fernet(Fernet.generate_key()).encrypt(b"{}")
+    with respx.mock:
+        result = await gql_client.execute(
+            MUTATION, variables={"input": custom_provider_run(provider_id)}
+        )
+    assert result.data and not result.errors, result.errors
+    payload = result.data["runDecision"]
+    assert payload["result"] is None
+    assert payload["error"].startswith(
+        "Could not read custom provider 'System One proxy': its stored configuration "
+        "can't be decrypted"
+    )
+    assert "ts-custom-key" not in payload["error"]
+    assert payload["span"] is not None
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert (span.status_code, span.status_message) == ("ERROR", payload["error"])
+        assert span.attributes["decision"]["provider"] == "System One proxy"
 
 
 async def test_custom_provider_without_decision_models_is_refused(

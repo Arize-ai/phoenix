@@ -210,12 +210,15 @@ function SaveDecisionForm({
       const state = store.getState();
       const instance = state.instances.find((item) => item.id === instanceId);
       if (!instance) return;
+      // Like prompts, a new decision's description describes the decision;
+      // a new version's describes what changed in it.
+      const description = values.description.trim() || null;
       let version;
       try {
         version = toDecisionVersionInput({
           instance,
           templateFormat: state.templateFormat,
-          description: values.description,
+          description: selectedDecision ? description : null,
         });
       } catch (error) {
         onError(error instanceof Error ? error.message : String(error));
@@ -248,7 +251,9 @@ function SaveDecisionForm({
         return;
       }
       createDecision({
-        variables: { input: { name: values.name.trim(), version, tags } },
+        variables: {
+          input: { name: values.name.trim(), description, version, tags },
+        },
         onCompleted: ({ createDecision }) =>
           onSaved({
             id: createDecision.id,

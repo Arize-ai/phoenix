@@ -129,4 +129,57 @@ describe("decision library actions", () => {
     expect(document.body.textContent).toContain("Cannot be empty");
     expect(commit).not.toHaveBeenCalled();
   });
+
+  async function typeInto(
+    element: HTMLInputElement | HTMLTextAreaElement,
+    value: string
+  ) {
+    const setter = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(element),
+      "value"
+    )?.set;
+    await act(async () => {
+      setter?.call(element, value);
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  it("sends the tag's description, trimmed", async () => {
+    await render(
+      <SetDecisionTagButton
+        versionId="version-1"
+        tagNames={["staging"]}
+        onSaved={vi.fn()}
+      />
+    );
+    await clickButton("Set version tag");
+    const nameInput = document.querySelector<HTMLInputElement>(
+      '[role="dialog"] input'
+    );
+    const descriptionInput = document.querySelector<HTMLTextAreaElement>(
+      '[role="dialog"] textarea'
+    );
+    expect(nameInput).not.toBeNull();
+    expect(descriptionInput).not.toBeNull();
+    await typeInto(nameInput!, "staging");
+    expect(document.body.textContent).toContain(
+      "Leave empty to keep the tag's description."
+    );
+    await typeInto(descriptionInput!, "  Release candidate  ");
+    const form = document.querySelector("form");
+    await act(async () =>
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      )
+    );
+    expect(commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: {
+          versionId: "version-1",
+          name: "staging",
+          description: "Release candidate",
+        },
+      })
+    );
+  });
 });

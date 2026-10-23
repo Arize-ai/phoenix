@@ -269,17 +269,24 @@ class SavedDecisionMutationMixin:
     ) -> DeleteDecisionMutationPayload:
         row_id = from_global_id_with_expected_type(input.decision_id, Decision.__name__)
         async with info.context.db() as session:
-            if await session.scalar(
-                select(models.DecisionEvaluator.id)
-                .join(
-                    models.DecisionVersion,
-                    models.DecisionEvaluator.decision_version_id == models.DecisionVersion.id,
+            evaluator_names = (
+                await session.scalars(
+                    select(models.DecisionEvaluator.name)
+                    .join(
+                        models.DecisionVersion,
+                        models.DecisionEvaluator.decision_version_id == models.DecisionVersion.id,
+                    )
+                    .where(models.DecisionVersion.decision_id == row_id)
+                    .order_by(models.DecisionEvaluator.name)
                 )
-                .where(models.DecisionVersion.decision_id == row_id)
-                .limit(1)
-            ):
+            ).all()
+            if evaluator_names:
+                names = ", ".join(name.root for name in evaluator_names)
+                noun, pronoun = (
+                    ("an evaluator", "it") if len(evaluator_names) == 1 else ("evaluators", "them")
+                )
                 raise Conflict(
-                    "This decision is referenced by an evaluator; delete the evaluator first"
+                    f"This decision is referenced by {noun} ({names}); delete {pronoun} first"
                 )
             result = await session.execute(
                 delete(models.Decision).where(models.Decision.id == row_id)

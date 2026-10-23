@@ -21,13 +21,40 @@ import {
 import { CanModify } from "@phoenix/components/auth";
 import { JSONBlock } from "@phoenix/components/code";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
+import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { useTheme } from "@phoenix/contexts";
+import { DECISION_QUESTION_TYPES } from "@phoenix/pages/playground/decisionUtils";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { DecisionVersionDetails_definition$key } from "./__generated__/DecisionVersionDetails_definition.graphql";
 import type { DecisionVersionDetails_version$key } from "./__generated__/DecisionVersionDetails_version.graphql";
 import { SetDecisionTagButton } from "./DecisionActions";
 import { decisionVersionToText } from "./decisionVersionUtils";
+
+const levelListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+`;
+
+const QUESTION_TYPE_BY_TYPENAME = {
+  DecisionPredicateQuestion: "predicate",
+  DecisionChoiceQuestion: "choice",
+  DecisionScaleQuestion: "scale",
+} as const;
+
+/** The question type as the playground's question editor names it. */
+function getQuestionTypeLabel(typename: string): string | null {
+  const type =
+    QUESTION_TYPE_BY_TYPENAME[
+      typename as keyof typeof QUESTION_TYPE_BY_TYPENAME
+    ];
+  return (
+    DECISION_QUESTION_TYPES.find((questionType) => questionType.id === type)
+      ?.label ?? null
+  );
+}
 
 const definitionFragment = graphql`
   fragment DecisionVersionDetails_definition on DecisionVersion {
@@ -243,15 +270,17 @@ export function DecisionVersionDetails({
                 <Heading level={3}>Inputs</Heading>
                 {definition.inputs.map((input) => (
                   <View key={input.name} paddingY="size-100">
-                    <Text weight="heavy">{input.name}</Text>
-                    {input.description ? (
-                      <Text>{input.description}</Text>
-                    ) : null}
-                    {input.jsonSchema ? (
-                      <JSONBlock
-                        value={JSON.stringify(input.jsonSchema, null, 2)}
-                      />
-                    ) : null}
+                    <Flex direction="column" gap="size-50">
+                      <Text weight="heavy">{input.name}</Text>
+                      {input.description ? (
+                        <Text>{input.description}</Text>
+                      ) : null}
+                      {input.jsonSchema ? (
+                        <JSONBlock
+                          value={JSON.stringify(input.jsonSchema, null, 2)}
+                        />
+                      ) : null}
+                    </Flex>
                   </View>
                 ))}
               </section>
@@ -285,10 +314,12 @@ export function DecisionVersionDetails({
                     return (
                       <Flex key={index} direction="column" gap="size-100">
                         <Heading level={4}>{question.name}</Heading>
+                        <Text color="text-700">
+                          {getQuestionTypeLabel(question.__typename)}
+                        </Text>
                         <Text>{question.instructions}</Text>
                         {question.__typename === "DecisionPredicateQuestion" ? (
                           <>
-                            <Text color="text-700">Predicate</Text>
                             {question.criteria?.true ? (
                               <Text>True: {question.criteria.true}</Text>
                             ) : null}
@@ -308,7 +339,9 @@ export function DecisionVersionDetails({
                             ))}
                           </ul>
                         ) : question.__typename === "DecisionScaleQuestion" ? (
-                          <ol start={0}>
+                          // Levels run low to high; their labels already
+                          // number them, so the list adds no markers.
+                          <ol css={levelListCSS}>
                             {question.levels.map((level, levelIndex) => (
                               <li key={levelIndex}>
                                 {level.label}
@@ -333,7 +366,10 @@ export function DecisionVersionDetails({
           <Flex direction="column" gap="size-100">
             <Text>
               Provider:{" "}
-              {definition.customProvider?.name ?? definition.modelProvider}
+              {definition.customProvider?.name ??
+                (isModelProvider(definition.modelProvider)
+                  ? ModelProviders[definition.modelProvider]
+                  : definition.modelProvider)}
             </Text>
             <Text>Model: {definition.modelName}</Text>
           </Flex>
