@@ -13,7 +13,6 @@ import {
   transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
-import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 
 /**
  * The field name used by react-hook-form and as the error key in the validation registry.
@@ -84,6 +83,7 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
+  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
   // Register with the evaluator store so the parent can trigger
@@ -118,10 +118,24 @@ export const EvaluatorNameInput = ({
             error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
         const displayedError = shouldShowError ? error.message : undefined;
 
-        const handleChange = withInputTransform(
-          transformIdentifierInput,
-          field.onChange
-        );
+        const handleChange = (value: string) => {
+          const input = inputRef.current;
+          const selectionStart = input?.selectionStart ?? value.length;
+
+          const transformed = transformIdentifierInput(value);
+
+          // Calculate new cursor position by transforming the text before cursor
+          const beforeCursor = value.slice(0, selectionStart);
+          const newCursorPosition =
+            transformIdentifierInput(beforeCursor).length;
+
+          field.onChange(transformed);
+
+          // Restore cursor position after React updates the DOM
+          requestAnimationFrame(() => {
+            input?.setSelectionRange(newCursorPosition, newCursorPosition);
+          });
+        };
 
         const handleFocus = () => {
           // Reset blur state so deferred validation doesn't run while typing
@@ -147,7 +161,7 @@ export const EvaluatorNameInput = ({
             {...props}
           >
             <Label>Name</Label>
-            <Input placeholder={placeholder} />
+            <Input ref={inputRef} placeholder={placeholder} />
             <FieldError>{displayedError}</FieldError>
           </TextField>
         );

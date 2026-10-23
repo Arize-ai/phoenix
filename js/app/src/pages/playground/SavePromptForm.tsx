@@ -27,7 +27,6 @@ import {
   replaceWhitespaceWithDashes,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
-import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
@@ -169,13 +168,11 @@ export function SavePromptForm({
               isRequired
               onBlur={onBlur}
               inputValue={promptInputValue}
-              onInputChange={withInputTransform(
-                replaceWhitespaceWithDashes,
-                (value) => {
-                  setPromptInputValue(value);
-                  onChange(value);
-                }
-              )}
+              onInputChange={(value) => {
+                const transformed = replaceWhitespaceWithDashes(value);
+                setPromptInputValue(transformed);
+                onChange(transformed);
+              }}
               errorMessage={fieldState.error?.message}
               allowsCustomValue
               onChange={(promptId) => {
@@ -183,9 +180,7 @@ export function SavePromptForm({
                 setSelectedPromptId(
                   typeof promptId === "string" ? promptId : null
                 );
-                // inputValue is controlled, so the ComboBox won't sync it with
-                // the selection on its own: fill in the selected prompt's
-                // name, and clear it on deselect unless the user typed a name
+                // Sync the controlled inputValue with the selection by hand
                 const selectedName = prompts?.prompts?.edges?.find(
                   (edge) => edge?.prompt?.id === promptId
                 )?.prompt?.name;
@@ -389,10 +384,7 @@ function NewTagInlineForm({
         size="S"
         aria-label="New tag name"
         value={inputValue}
-        onChange={withInputTransform(
-          replaceWhitespaceWithDashes,
-          setInputValue
-        )}
+        onChange={(value) => setInputValue(replaceWhitespaceWithDashes(value))}
         isInvalid={!!error}
         css={css`
           flex: 1 1 auto;

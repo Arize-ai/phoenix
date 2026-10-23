@@ -31,7 +31,6 @@ import {
   replaceWhitespaceWithDashes,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
-import { withInputTransform } from "@phoenix/utils/inputTransformUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export const ClonePromptDialog = ({
@@ -156,10 +155,9 @@ export const ClonePromptDialog = ({
                         isInvalid={!!error?.message}
                         isDisabled={disabled}
                         value={value}
-                        onChange={withInputTransform(
-                          replaceWhitespaceWithDashes,
-                          onChange
-                        )}
+                        onChange={(value) =>
+                          onChange(replaceWhitespaceWithDashes(value))
+                        }
                         onBlur={onBlur}
                       >
                         <Label>Name</Label>

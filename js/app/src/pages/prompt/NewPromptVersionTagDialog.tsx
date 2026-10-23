@@ -28,7 +28,6 @@ import {
   replaceWhitespaceWithDashes,
   validateIdentifier,
 } from "../../utils/identifierUtils";
-import { withInputTransform } from "../../utils/inputTransformUtils";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -124,10 +123,9 @@ export function NewPromptVersionDialog({
                   }) => (
                     <TextField
                       isInvalid={invalid}
-                      onChange={withInputTransform(
-                        replaceWhitespaceWithDashes,
-                        onChange
-                      )}
+                      onChange={(value) =>
+                        onChange(replaceWhitespaceWithDashes(value))
+                      }
                       onBlur={onBlur}
                       name={name}
                       value={value}

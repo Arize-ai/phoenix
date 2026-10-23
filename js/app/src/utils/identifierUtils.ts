@@ -73,10 +73,8 @@ export function validateIdentifier(value: string): ValidateResult {
 }
 
 /**
- * Collapses each run of whitespace in `value` into a single dash, leaving every
- * other character (including uppercase and disallowed characters) untouched so
- * that validation can still flag them. Leading and trailing whitespace become
- * dashes rather than being trimmed so the caller can keep typing.
+ * Collapses each run of whitespace in `value` into a single dash, leaving all
+ * other characters untouched so validation can still flag them.
  *
  * Use this as a controlled-input transformer when only spaces should be
  * converted; to also lowercase and strip disallowed characters, use
