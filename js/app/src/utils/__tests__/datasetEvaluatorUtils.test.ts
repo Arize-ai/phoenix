@@ -207,6 +207,19 @@ describe("datasetEvaluatorsToAnnotationConfigs", () => {
     ]);
   });
 
+  it("reads the kind from the bound evaluator when the binding has none", () => {
+    const configs = datasetEvaluatorsToAnnotationConfigs([
+      {
+        evaluator: { kind: "DECISION" },
+        name: "dogfood_cs_action_match",
+        outputConfigs: [continuousConfig("action_matches")],
+      },
+    ]);
+    expect(configs.map((config) => config.name)).toEqual([
+      "dogfood_cs_action_match",
+    ]);
+  });
+
   it("leaves other kinds' output config names untouched", () => {
     const configs = datasetEvaluatorsToAnnotationConfigs([
       {

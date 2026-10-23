@@ -104,8 +104,29 @@ type LeadingItemsProps = {
  */
 const KEY_DELIMITER = "\uE000";
 
-function getModelType(value: ModelMenuValue | null | undefined): ModelType {
-  return value?.modelType ?? "LLM";
+function getModelType(
+  value: ModelMenuValue | null | undefined,
+  defaultModelType: ModelType = "LLM"
+): ModelType {
+  return value?.modelType ?? defaultModelType;
+}
+
+/**
+ * The provider whose icon the trigger shows. A custom-provider selection
+ * carries `provider` only to satisfy the value shape, so its icon comes from
+ * the provider's SDK, as in the menu.
+ */
+function getSelectedProviderKey(
+  value: ModelMenuValue | null | undefined,
+  customProviders: readonly CustomProviderInfo[]
+): string | undefined {
+  if (value?.customProvider == null) return value?.provider;
+  const customProvider = customProviders.find(
+    (provider) => provider.id === value.customProvider?.id
+  );
+  return customProvider
+    ? getProviderKeyForGenerativeModelSDK(customProvider.sdk)
+    : undefined;
 }
 
 type BuiltinModelInfo = {
@@ -212,6 +233,11 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     /** Restrict selection to one model type on specialized authoring forms. */
     fixedModelType?: ModelType;
     /**
+     * The tab the menu opens on when no model is selected yet.
+     * @default "LLM"
+     */
+    defaultModelType?: ModelType;
+    /**
      * Shown above the Decision tab's providers when choosing a decision model
      * has a side effect the user should know about first (e.g. it clears the
      * loaded dataset).
@@ -232,12 +258,13 @@ export function ModelMenu({
   credentialSource,
   supportsDecisionModels = false,
   fixedModelType,
+  defaultModelType,
   decisionTabNotice,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const [selectedModelType, setModelType] = useState<ModelType>(
-    getModelType(value)
+    getModelType(value, defaultModelType)
   );
   const modelType = fixedModelType ?? selectedModelType;
   const awsBedrockModelPrefix = usePreferencesContext(
@@ -329,13 +356,9 @@ export function ModelMenu({
     [contains]
   );
 
-  // A custom-provider selection carries `provider` only to satisfy the
-  // value shape — it names no real provider, so no provider icon is shown
-  const selectedProvider = value?.provider;
+  const selectedProvider = getSelectedProviderKey(value, customProviders);
   const isValidSelectedProvider =
-    value?.customProvider == null &&
-    selectedProvider &&
-    isModelProvider(selectedProvider);
+    selectedProvider != null && isModelProvider(selectedProvider);
 
   const selectedLeadingItem =
     selectedLeadingItemId != null
@@ -352,7 +375,7 @@ export function ModelMenu({
     <MenuTrigger
       onOpenChange={(isOpen) => {
         if (isOpen) {
-          setModelType(getModelType(value));
+          setModelType(getModelType(value, defaultModelType));
           setSearchValue("");
         }
       }}

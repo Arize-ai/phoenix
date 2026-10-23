@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<358fc60c783ba8313ed3560634c89773>>
+ * @generated SignedSource<<c08595e8f9ab8c1bc4fca822052885c2>>
  * @lightSyntaxTransform
  */
 
@@ -10,6 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type ExperimentCompareDetailsQuery$variables = {
@@ -23,6 +24,9 @@ export type ExperimentCompareDetailsQuery$data = {
     readonly datasetEvaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly evaluator: {
+            readonly kind: EvaluatorKind;
+          };
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
             readonly __typename: "CategoricalAnnotationConfig";
@@ -670,14 +674,21 @@ v32 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "kind",
   "storageKey": null
 },
 v33 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v34 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v32/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -695,36 +706,36 @@ v33 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v34 = {
+v35 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v35 = {
+v36 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v36 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v17/*:: as any*/),
-    (v32/*:: as any*/),
-    (v34/*:: as any*/),
-    (v35/*:: as any*/)
-  ],
-  "type": "ContinuousAnnotationConfig",
-  "abstractKey": null
-},
 v37 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v32/*:: as any*/),
+    (v33/*:: as any*/),
+    (v35/*:: as any*/),
+    (v36/*:: as any*/)
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v38 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v17/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -732,13 +743,13 @@ v37 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v34/*:: as any*/),
-    (v35/*:: as any*/)
+    (v35/*:: as any*/),
+    (v36/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v38 = {
+v39 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -907,13 +918,25 @@ return {
                             "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
+                            "selections": [
+                              (v32/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
                               (v21/*:: as any*/),
-                              (v33/*:: as any*/),
-                              (v36/*:: as any*/),
-                              (v37/*:: as any*/)
+                              (v34/*:: as any*/),
+                              (v37/*:: as any*/),
+                              (v38/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -991,7 +1014,7 @@ return {
                           (v10/*:: as any*/),
                           (v11/*:: as any*/),
                           (v12/*:: as any*/),
-                          (v38/*:: as any*/),
+                          (v39/*:: as any*/),
                           (v16/*:: as any*/),
                           {
                             "alias": null,
@@ -1023,7 +1046,7 @@ return {
                                       (v20/*:: as any*/),
                                       (v25/*:: as any*/),
                                       (v26/*:: as any*/),
-                                      (v38/*:: as any*/)
+                                      (v39/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -1094,13 +1117,27 @@ return {
                             "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
+                            "selections": [
+                              (v21/*:: as any*/),
+                              (v32/*:: as any*/),
+                              (v7/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
                               (v21/*:: as any*/),
-                              (v33/*:: as any*/),
-                              (v36/*:: as any*/),
+                              (v34/*:: as any*/),
                               (v37/*:: as any*/),
+                              (v38/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -1133,16 +1170,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c985a9a444427206c2e2a34245c7e9f8",
+    "cacheID": "c78e07efbc5aa31397062c1bf2ad7d01",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  decision {\n                    status\n                    question {\n                      name\n                      type\n                      choices {\n                        value\n                        description\n                      }\n                      levels {\n                        label\n                        description\n                      }\n                    }\n                    answer {\n                      __typename\n                      ... on PredicateAnswer {\n                        probability\n                      }\n                      ... on ChoiceAnswer {\n                        choice\n                        confidence\n                        choiceProbabilities: probabilities {\n                          value\n                          probability\n                        }\n                      }\n                      ... on ScaleAnswer {\n                        expectedLevel\n                        confidence\n                        levelProbabilities: probabilities {\n                          level\n                          probability\n                        }\n                      }\n                    }\n                    requestedModel\n                    resolvedModel\n                    modelProvider\n                  }\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries(includeEphemeral: true) {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  decision {\n                    status\n                    question {\n                      name\n                      type\n                      choices {\n                        value\n                        description\n                      }\n                      levels {\n                        label\n                        description\n                      }\n                    }\n                    answer {\n                      __typename\n                      ... on PredicateAnswer {\n                        probability\n                      }\n                      ... on ChoiceAnswer {\n                        choice\n                        confidence\n                        choiceProbabilities: probabilities {\n                          value\n                          probability\n                        }\n                      }\n                      ... on ScaleAnswer {\n                        expectedLevel\n                        confidence\n                        levelProbabilities: probabilities {\n                          level\n                          probability\n                        }\n                      }\n                    }\n                    requestedModel\n                    resolvedModel\n                    modelProvider\n                  }\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries(includeEphemeral: true) {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            evaluator {\n              __typename\n              kind\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "39a861c44102c69435739f4167c3d394";
+(node as any).hash = "093f72a07cb0942ce5c3dbb74a5b3357";
 
 export default node;
