@@ -538,6 +538,24 @@ Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hi
 
 ---
 
+### `px project create`
+
+Create a Phoenix project. On success, prints a confirmation with the new project's ID to stdout. Exits with `ExitCode.INVALID_ARGUMENT` (3) when `--name` is missing.
+
+```bash
+px project create --name my-project
+px project create --name my-project --no-progress
+```
+
+| Option             | Description                        | Default |
+| ------------------ | ---------------------------------- | ------- |
+| `--name <name>`    | Project name (required)            | —       |
+| `--endpoint <url>` | Phoenix API endpoint               | —       |
+| `--api-key <key>`  | Phoenix API key for authentication | —       |
+| `--no-progress`    | Suppress progress output           | —       |
+
+---
+
 ### `px session list`
 
 List sessions for a project.

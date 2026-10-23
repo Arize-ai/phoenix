@@ -45,7 +45,7 @@ describe("Phoenix CLI", () => {
 
     expect(projectCommand).toBeDefined();
     expect(projectCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get"])
+      expect.arrayContaining(["list", "get", "create"])
     );
     expect(
       program.commands.find((command) => command.name() === "projects")
