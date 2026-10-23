@@ -1,0 +1,145 @@
+---
+title: "OpenLIT Tracing"
+description: "Convert OpenLIT's OpenTelemetry spans to OpenInference with a span processor and view LLM, framework, and agent traces from OpenLIT-instrumented apps in Phoenix."
+---
+
+[OpenLIT](https://github.com/openlit/openlit) is an open-source, OpenTelemetry-native observability package that auto-instruments 20+ LLM providers, frameworks, and vector databases. If your application already uses OpenLIT, the [`openinference-instrumentation-openlit`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openlit) span processor converts OpenLIT's spans to OpenInference semantic conventions, so they display in Phoenix with span kinds, inputs, outputs, and token counts.
+
+## Install
+
+This example traces a [LangGraph](https://langchain-ai.github.io/langgraph/) agent that calls OpenAI:
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openlit openlit langchain-openai langgraph
+```
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+```
+
+Register Phoenix, add the OpenInference span processor ahead of the Phoenix exporter, then initialize OpenLIT:
+
+```python
+import openlit
+from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
+from phoenix.otel import BatchSpanProcessor, HTTPSpanExporter, register
+
+tracer_provider = register(project_name="openlit")
+
+# Convert OpenLIT's spans to OpenInference. This replaces register()'s default
+# exporter, so add the Phoenix exporter back after it.
+tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+tracer_provider.add_span_processor(BatchSpanProcessor(HTTPSpanExporter()))
+
+# openlit.init() picks up the global tracer provider that register() set.
+# disable_metrics stops OpenLIT printing metrics to the console.
+openlit.init(disable_metrics=True)
+```
+
+<Info>
+  **Processor ordering matters.** `register()` installs a default exporter-backed processor. Adding `OpenInferenceSpanProcessor()` replaces that default, and the `BatchSpanProcessor` you add after it exports the converted spans to Phoenix.
+</Info>
+
+## Run OpenLIT
+
+This email composer agent has three LangGraph nodes, each backed by an OpenAI call: generate an outline, write the email, and rewrite it if it doesn't match the requested tone.
+
+```python expandable
+from typing import Literal
+
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
+
+llm = ChatOpenAI(model="gpt-5.4-mini")
+
+
+class EmailState(TypedDict, total=False):
+    subject: str
+    bullet_points: str
+    desired_tone: str  # for example, "formal" or "friendly"
+    outline: str
+    draft_email: str
+    final_email: str
+
+
+def generate_outline(state: EmailState) -> EmailState:
+    """Generate an outline from the bullet points."""
+    prompt = (
+        "Create a concise outline for an email.\n"
+        f"Subject: {state['subject']}\n"
+        f"Bullet points:\n{state['bullet_points']}\n"
+        "Return the outline as numbered points."
+    )
+    return {"outline": llm.invoke(prompt).content}
+
+
+def write_email(state: EmailState) -> EmailState:
+    """Write the email from the outline in the requested tone."""
+    prompt = (
+        f"Write a complete email using this outline:\n{state['outline']}\n\n"
+        f"Tone: {state['desired_tone']}\n"
+        "Start with a greeting, use professional formatting, and keep it concise."
+    )
+    return {"draft_email": llm.invoke(prompt).content}
+
+
+def tone_gate(state: EmailState) -> Literal["Pass", "Fail"]:
+    """Check whether the draft matches the requested tone."""
+    prompt = (
+        f"Check whether the following email matches the desired tone {state['desired_tone']}:\n\n"
+        f"{state['draft_email']}\n\n"
+        "If it does, return 'Pass'. Otherwise, return 'Fail'. Return only that word."
+    )
+    return "Pass" if "Pass" in llm.invoke(prompt).content else "Fail"
+
+
+def reform_tone(state: EmailState) -> EmailState:
+    """Rewrite the email to match the requested tone."""
+    prompt = (
+        f"Reform the following email to match a {state['desired_tone']} tone:\n\n"
+        f"{state['draft_email']}\n\n"
+        "Keep the content unchanged, but adjust phrasing, tone, and sign-off."
+    )
+    return {"final_email": llm.invoke(prompt).content}
+
+
+graph = StateGraph(EmailState)
+graph.add_node("outline_generator", generate_outline)
+graph.add_node("email_writer", write_email)
+graph.add_node("tone_reformer", reform_tone)
+graph.add_edge(START, "outline_generator")
+graph.add_edge("outline_generator", "email_writer")
+graph.add_conditional_edges("email_writer", tone_gate, {"Pass": END, "Fail": "tone_reformer"})
+graph.add_edge("tone_reformer", END)
+email_chain = graph.compile()
+
+result = email_chain.invoke(
+    {
+        "subject": "Quarterly Sales Recap & Next Steps",
+        "bullet_points": (
+            "- Q1 revenue up 18%\n- Need feedback on new pricing tiers\n"
+            "- Reminder: submit pipeline forecasts by Friday"
+        ),
+        "desired_tone": "friendly",
+    }
+)
+print(result.get("final_email", result.get("draft_email")))
+tracer_provider.force_flush()
+```
+
+## Observe
+
+Open the `openlit` project in Phoenix. Each OpenAI call that OpenLIT captures appears as an LLM span with the prompt, response, model name, and token usage, converted to OpenInference by the span processor.
+
+## Resources
+
+* [OpenInference OpenLIT span processor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openlit)
+* [OpenLIT on GitHub](https://github.com/openlit/openlit)
+* [OpenLIT documentation](https://docs.openlit.io/)

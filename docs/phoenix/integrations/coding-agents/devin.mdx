@@ -1,0 +1,154 @@
+---
+title: "Devin"
+description: "Trace Devin CLI interactions, per-generation model calls, token usage, and tool calls in Phoenix."
+keywords: ["devin", "devin cli", "devin tracing", "phoenix", "agent tracing"]
+---
+
+> Trace Devin CLI interactions, model calls, token usage, and tool calls in Phoenix for full observability.
+
+[Devin](https://devin.ai/) is Cognition's autonomous software engineer. The [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit instruments the Devin CLI and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each agent interaction emits its own trace: a root agent span, per-generation LLM spans with real token counts, and tool spans for tool calls.
+
+Devin's hook payloads are thin, carrying no session ID and no token or model data, so the rich content is read from Devin's live SQLite session database instead. The harness registers a `Stop` hook that fires at the end of **each** agent response: it resolves the session, reads the generations that have appeared since the last emission, and emits one self-contained trace for that interaction. Traces therefore appear as each interaction completes, not only after the session exits. A `SessionEnd` hook is also registered as a final flush for an interrupted last turn.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=devin). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- devin
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat devin
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh devin         # macOS / Linux
+install.bat devin          # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name. It writes credentials to `~/.arize/harness/config.json` and registers `Stop` and `SessionEnd` command hooks under the top-level `hooks` key in Devin's user config: `~/.config/devin/config.json` on macOS and Linux, `%APPDATA%\devin\config.json` on Windows.
+
+<Warning>
+Devin allows comments in its config files. The installer reads them, but writes the file back as plain JSON, so comments in a config it has to modify are not preserved. A config it cannot parse is left untouched and the install aborts with an error rather than overwriting your settings.
+</Warning>
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile so they apply to every Devin session.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="devin"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+### Default settings
+
+| Setting | Default |
+| :--- | :--- |
+| Harness key | `devin` |
+| Project name | `devin` |
+| Phoenix endpoint | `http://localhost:6006` |
+| Hook config file | `~/.config/devin/config.json` (Windows: `%APPDATA%\devin\config.json`) |
+| Hook events registered | `Stop`, `SessionEnd` |
+| Data source | `~/.local/share/devin/cli/sessions.db`, opened read-only |
+| State directory | `~/.arize/harness/state/devin/` |
+| Log file | `~/.arize/harness/logs/devin.log` |
+
+<Note>
+On Windows only the config file moves, to `%APPDATA%`. The sessions database stays home-relative at `%USERPROFILE%\.local\share\devin\cli\sessions.db`, the same layout as macOS and Linux. If traces do not appear, check `~/.arize/harness/logs/devin.log` for the database path the hook tried.
+</Note>
+
+## Observe
+
+Once tracing is enabled, Devin activity is streamed to Phoenix. Each agent interaction is captured as a trace. You'll see:
+
+- **Interaction traces** — one root agent span per agent response, carrying the user prompt as input, the final assistant text as output, the model name, and interaction token totals
+- **LLM spans** — one per real model generation, with that generation's prompt, completion, and cache token counts, model name, and reasoning content
+- **Tool spans** — one per tool call, parented to the LLM span that issued it, with the serialized tool arguments as input
+- **Session grouping** — interactions from the same session grouped by `session.id`
+
+Real generations are deduped by `metadata.request_id`. Devin rebuilds the message chain as the conversation grows, so the same generation reappears under new node IDs, and a per-session, per-request watermark ensures each generation is emitted exactly once. The database is opened read-only in WAL-respecting mode, so the newest turn's rows are visible without disturbing Devin's writers.
+
+### Span shape
+
+The root agent span carries `session.id`, `input.value`, `output.value`, `llm.model_name`, the `llm.token_count.*` totals (including `prompt_details.cache_read` and `prompt_details.cache_write`), `project.name`, an optional `user.id`, and `devin.backend` for the agent backend.
+
+### What does not carry over
+
+- **LLM spans do not carry `input.value`.** The per-generation prompt messages sent to the model are not reconstructed from the database, so the interaction's user prompt lives on the root agent span instead. A generation that issued only tool calls, with no assistant text or reasoning, has an empty `output.value`; its visible output appears on the later generation that answers the user. No output is lost, it is attributed to the generation that produced it.
+- **Tool output is best-effort.** Tool results are not reliably present in the live database at the moment `Stop` fires, so a tool span may carry only its input arguments.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Devin tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/devin/README.md).
+
+Errors always land in `~/.arize/harness/logs/devin.log`. Set `export ARIZE_VERBOSE=true` before launching Devin to also log routine hook activity.
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall devin
+```
+
+Uninstall removes only the `Stop` and `SessionEnd` hook entries the installer added, leaving any hooks you added yourself untouched.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://devin.ai/"
+    title="Devin"
+    horizontal
+  />
+</CardGroup>

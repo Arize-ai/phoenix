@@ -1,0 +1,121 @@
+---
+title: "n8n Tracing"
+description: "Export n8n workflow, node, and agent OpenTelemetry spans to Phoenix over OTLP to inspect workflow latency, node failures, and agent behavior."
+keywords: ["n8n", "opentelemetry", "otlp", "workflow tracing", "agent tracing", "phoenix"]
+---
+
+[n8n](https://n8n.io/) can export workflow and node execution traces over OTLP. Recent n8n versions can also emit agent spans using OpenTelemetry GenAI semantic conventions. Send these spans to Phoenix to inspect workflow latency, node failures, and agent behavior. No workflow changes are required — you configure n8n with environment variables.
+
+<Note>
+n8n OpenTelemetry tracing is marked preview in n8n's documentation. OTEL tracing is available from n8n `2.19.0`, UI-based OTEL configuration is available from `2.27.0`, and agent tracing is available from `2.33.0`. Validate the behavior on your n8n version before relying on it for production operations.
+</Note>
+
+## Prerequisites
+
+- A self-hosted n8n instance with OpenTelemetry tracing support. Use n8n `2.19.0` or later for workflow tracing and `2.33.0` or later for agent tracing.
+- A running Phoenix instance that your n8n processes can reach.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=n8n). If you prefer, you can also [self-host Phoenix](/docs/phoenix/environments#container) next to n8n.
+
+Note your Phoenix **endpoint** — for example `http://localhost:6006` for a local instance or `https://app.phoenix.arize.com/s/<your-space-name>` for Phoenix Cloud — and, if authentication is enabled, an **API key** from the settings page.
+
+## Configure n8n
+
+Set these variables on each n8n process that should emit traces, including main, worker, and webhook processors in queue mode:
+
+```bash
+export N8N_OTEL_ENABLED=true
+export N8N_OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:6006
+export N8N_OTEL_EXPORTER_OTLP_TRACING_PATH=/v1/traces
+export N8N_OTEL_EXPORTER_SERVICE_NAME=n8n
+export OTEL_RESOURCE_ATTRIBUTES="openinference.project.name=n8n"
+```
+
+If your Phoenix instance has authentication enabled (for example, Phoenix Cloud), set the endpoint to your instance URL and pass your API key as a header:
+
+```bash
+export N8N_OTEL_EXPORTER_OTLP_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>
+export N8N_OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <your-phoenix-api-key>"
+```
+
+Restart n8n after setting the environment variables.
+
+<Note>
+n8n appends `N8N_OTEL_EXPORTER_OTLP_TRACING_PATH` to `N8N_OTEL_EXPORTER_OTLP_ENDPOINT`. Set the endpoint to the base Phoenix URL and the tracing path to `/v1/traces`. Keep the default `http/protobuf` protocol: Phoenix receives OTLP over HTTP on the same port as its UI. When n8n runs in a container and Phoenix runs on the host, use a hostname the container can resolve, such as `http://host.docker.internal:6006`.
+</Note>
+
+`OTEL_RESOURCE_ATTRIBUTES` sets the Phoenix project through the `openinference.project.name` resource attribute. Without it, n8n traces land in the `default` project.
+
+For production deployments, you can use n8n's `_FILE` variants for sensitive values when your deployment platform mounts secrets as files.
+
+### Run n8n in a container
+
+This example runs n8n with tracing pointed at a Phoenix instance on the host:
+
+```bash
+docker run -it --rm --name n8n \
+  -p 5678:5678 \
+  -e N8N_OTEL_ENABLED=true \
+  -e N8N_OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:6006 \
+  -e N8N_OTEL_EXPORTER_SERVICE_NAME=n8n \
+  -e OTEL_RESOURCE_ATTRIBUTES="openinference.project.name=n8n" \
+  -v n8n_data:/home/node/.n8n \
+  docker.n8n.io/n8nio/n8n
+```
+
+## Enable n8n agent tracing
+
+In n8n `2.33.0` or later, agent runs emit spans through the same exporter. Agent tracing is on by default once `N8N_OTEL_ENABLED=true`; set it explicitly to make the configuration clear:
+
+```bash
+export N8N_AGENTS_TRACING_ENABLED=true
+```
+
+By default, n8n agent tracing may record prompts, tool arguments, responses, and tool results. To reduce sensitive data capture:
+
+```bash
+export N8N_AGENTS_TRACING_RECORD_INPUTS=false
+export N8N_AGENTS_TRACING_RECORD_OUTPUTS=false
+```
+
+## Observe
+
+1. Run an n8n workflow.
+1. Open Phoenix and select the **`n8n`** project.
+1. Look for `workflow.execute` and `node.execute` spans. Agent runs also appear as GenAI spans if agent tracing is enabled.
+
+If you configured OpenTelemetry from the n8n UI, use n8n's **Send test trace** action to verify the exporter before running a workflow.
+
+n8n exports:
+
+- `workflow.execute` spans for workflow executions
+- `node.execute` spans for node executions
+- W3C trace context propagation for inbound webhooks and outbound HTTP requests
+- agent spans using OpenTelemetry GenAI semantic conventions when agent tracing is enabled
+
+## Troubleshooting
+
+- **No traces in Phoenix.** Confirm `N8N_OTEL_ENABLED=true`, the endpoint is the base Phoenix URL that n8n can reach, and the tracing path is `/v1/traces`. For an instance with authentication, confirm the `authorization` header carries a valid API key. n8n logs an error at startup if it can't reach the endpoint.
+- **Traces land in the `default` project.** Confirm `OTEL_RESOURCE_ATTRIBUTES` includes `openinference.project.name=n8n` on every n8n process.
+- **Only production executions appear.** n8n exports production executions by default. Set `N8N_OTEL_TRACES_PRODUCTION_ONLY=false` to trace all executions, including manual test runs from the editor.
+- **Node spans are missing.** Confirm `N8N_OTEL_TRACES_INCLUDE_NODE_SPANS=true`.
+- **Agent spans are missing.** Confirm your n8n version supports agent tracing and `N8N_AGENTS_TRACING_ENABLED=true`.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="book-open"
+    href="https://docs.n8n.io/deploy/host-n8n/keep-n8n-running/trace-executions-with-opentelemetry/"
+    title="n8n OpenTelemetry tracing"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://docs.n8n.io/deploy/host-n8n/configure-n8n/basic-configuration/use-environment-variables/opentelemetry/"
+    title="n8n OpenTelemetry environment variables"
+    horizontal
+  />
+</CardGroup>

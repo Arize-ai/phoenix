@@ -1,0 +1,52 @@
+---
+title: "TrueFoundry AI Gateway Tracing"
+description: "Configure the TrueFoundry AI Gateway to export a trace for every gateway request to Phoenix over OTLP, with no application code changes."
+keywords: ["truefoundry", "ai gateway", "llm gateway", "opentelemetry", "otlp", "phoenix"]
+---
+
+[TrueFoundry](https://www.truefoundry.com/ai-gateway) is an enterprise AI gateway that fronts 1000+ models across 40+ providers behind a single OpenAI-compatible endpoint. The gateway is OpenTelemetry-native: with a one-time configuration in the TrueFoundry dashboard, **every** request that flows through the gateway is exported to Phoenix as a trace — no application code or instrumentation required.
+
+<Note>
+This page configures the gateway to export traces for all of its traffic. To instead instrument your **own application's** calls to the gateway from Python, see the [TrueFoundry LLM provider integration](/docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing).
+</Note>
+
+## Launch Phoenix
+
+The gateway exports traces from TrueFoundry's infrastructure, so it needs a Phoenix instance it can reach over the internet. The simplest option is a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=truefoundry); a [self-hosted Phoenix](/docs/phoenix/self-hosting) with a public HTTPS endpoint also works. A Phoenix running on `localhost` is not reachable from the gateway.
+
+From the settings page in your Phoenix instance, copy your:
+
+- **Endpoint** — for Phoenix Cloud, `https://app.phoenix.arize.com/s/<your-space-name>`
+- **API key** — required when authentication is enabled, as it is on Phoenix Cloud
+
+## Configure trace export in TrueFoundry
+
+In the TrueFoundry dashboard, navigate to **AI Gateway → Controls → Settings**, scroll to **OTEL Config**, and click the edit button. Then enable **OTEL Traces Exporter Configuration** and configure it to point at Phoenix:
+
+1. Set **Config Type** to **HTTP Configuration**.
+1. Set the **Traces Endpoint** to your Phoenix endpoint followed by `/v1/traces`, for example `https://app.phoenix.arize.com/s/<your-space-name>/v1/traces`.
+1. Set **Encoding** to **Proto**. Phoenix accepts OTLP over HTTP with protobuf encoding only.
+1. Click **+ Add Headers** and add an `Authorization` header with the value `Bearer <your-phoenix-api-key>`. Skip this step if your Phoenix instance doesn't have authentication enabled.
+1. Under **Additional Resource Attributes**, add `openinference.project.name` with the Phoenix project name you want, such as `truefoundry-gateway`. Without it, gateway traces land in the `default` project.
+1. (Optional) Enable **Exclude Request Data** to omit LLM and MCP request and response bodies if you don't want prompt content sent to Phoenix.
+1. Click **Save** to activate automatic trace export.
+
+## Observe
+
+Once configured, every request through the gateway is exported to Phoenix. Open the project you set in `openinference.project.name` to see traces appear shortly after gateway activity. Each trace includes the model, prompt, response, token usage, and latency for the gateway request, with the `tfy-llm-gateway` service name.
+
+## Troubleshooting
+
+- **No traces in Phoenix.** Confirm the endpoint ends in `/v1/traces`, the encoding is **Proto** rather than **Json**, and the `Authorization` header value starts with `Bearer `.
+- **Traces land in the `default` project.** Confirm the `openinference.project.name` resource attribute is set in the OTEL config.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="book-open"
+    href="https://www.truefoundry.com/docs/ai-gateway/intro-to-llm-gateway"
+    title="TrueFoundry AI Gateway Documentation"
+    horizontal
+  />
+</CardGroup>

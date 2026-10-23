@@ -62,9 +62,11 @@ Integrate Phoenix with AI coding assistants to debug and analyze your LLM applic
 Trace your sessions with a coding agent — turns, tool calls, and token costs — in Phoenix, no application code changes required. Install the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit and pick your agent:
 
 <CardGroup cols={3}>
+  <Card title="Antigravity" icon="terminal" href="/docs/phoenix/integrations/coding-agents/antigravity" />
   <Card title="Claude Code" icon="terminal" href="/docs/phoenix/integrations/coding-agents/claude-code" />
   <Card title="Codex" icon="terminal" href="/docs/phoenix/integrations/coding-agents/codex" />
   <Card title="Cursor" icon="terminal" href="/docs/phoenix/integrations/coding-agents/cursor" />
+  <Card title="Devin" icon="terminal" href="/docs/phoenix/integrations/coding-agents/devin" />
   <Card title="GitHub Copilot" icon="terminal" href="/docs/phoenix/integrations/coding-agents/copilot" />
   <Card title="Gemini CLI" icon="terminal" href="/docs/phoenix/integrations/coding-agents/gemini" />
   <Card title="Kiro" icon="terminal" href="/docs/phoenix/integrations/coding-agents/kiro" />
@@ -107,6 +109,10 @@ Phoenix captures detailed traces from your AI applications, giving you visibilit
       <Card title="Microsoft Agent Framework" icon="microsoft" href="/docs/phoenix/integrations/python/microsoft-agent-framework" />
       <Card title="MCP" href="/docs/phoenix/integrations/python/mcp-tracing" icon="plug" description="MCP tracing integration"/>
       <Card title="Agent Spec" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/agentspec-greyscale-logo.svg" href="/docs/phoenix/integrations/python/agentspec" />
+    <Card title="Bedrock AgentCore" icon="cloud" href="/docs/phoenix/integrations/python/bedrock-agentcore" />
+    <Card title="LiveKit Agents" icon="microphone" href="/docs/phoenix/integrations/python/livekit-agents" />
+    <Card title="Semantic Kernel" icon="microsoft" href="/docs/phoenix/integrations/python/semantic-kernel" />
+    <Card title="Temporal" icon="clock" href="/docs/phoenix/integrations/python/temporal" />
     </CardGroup>
   </Tab>
   <Tab title="TypeScript" icon="js">
@@ -127,6 +133,12 @@ Phoenix captures detailed traces from your AI applications, giving you visibilit
       <Card title="LangChain4j" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif" href="/docs/phoenix/integrations/java/langchain4j" />
       <Card title="Spring AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/spring-ai.png" href="/docs/phoenix/integrations/java/springai" />
       <Card title="Arconia" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg" href="/docs/phoenix/integrations/java/arconia" />
+    <Card title="Java Annotations" icon="at" href="/docs/phoenix/integrations/java/annotation" />
+    </CardGroup>
+  </Tab>
+  <Tab title=".NET" icon="microsoft">
+    <CardGroup cols={4}>
+    <Card title="Microsoft Agent Framework" icon="microsoft" href="/docs/phoenix/integrations/dotnet/microsoft-agent-framework" />
     </CardGroup>
   </Tab>
   <Tab title="Go" icon="golang">
@@ -158,6 +170,20 @@ Phoenix provides native tracing support for all major LLM providers:
   <Card title="Ollama" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ollama.svg" href="/docs/phoenix/integrations/llm-providers/ollama" />
   <Card title="Together AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/together-card.png" href="/docs/phoenix/integrations/llm-providers/together" />
   <Card title="TypeSafe AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" href="/docs/phoenix/integrations/llm-providers/typesafe" />
+  <Card title="Baseten" icon="server" href="/docs/phoenix/integrations/llm-providers/baseten" />
+  <Card title="Cerebras" icon="server" href="/docs/phoenix/integrations/llm-providers/cerebras" />
+  <Card title="DeepSeek" icon="server" href="/docs/phoenix/integrations/llm-providers/deepseek" />
+  <Card title="Doubleword" icon="server" href="/docs/phoenix/integrations/llm-providers/doubleword" />
+  <Card title="Fireworks AI" icon="server" href="/docs/phoenix/integrations/llm-providers/fireworks-ai" />
+  <Card title="Gravitee" icon="server" href="/docs/phoenix/integrations/llm-providers/gravitee" />
+  <Card title="Hugging Face Inference Providers" icon="server" href="/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers" />
+  <Card title="Novita AI" icon="server" href="/docs/phoenix/integrations/llm-providers/novita-ai" />
+  <Card title="PrismML" icon="server" href="/docs/phoenix/integrations/llm-providers/prismml" />
+  <Card title="Qwen" icon="server" href="/docs/phoenix/integrations/llm-providers/qwen" />
+  <Card title="TrueFoundry" icon="server" href="/docs/phoenix/integrations/llm-providers/truefoundry" />
+  <Card title="vLLM" icon="server" href="/docs/phoenix/integrations/llm-providers/vllm" />
+  <Card title="xAI Grok" icon="server" href="/docs/phoenix/integrations/llm-providers/xai" />
+  <Card title="Z.ai" icon="server" href="/docs/phoenix/integrations/llm-providers/z-ai" />
 </CardGroup>
 
 ### Platforms
@@ -171,6 +197,10 @@ Integrate Phoenix with AI development platforms and infrastructure:
   <Card title="LangFlow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/af9de5c3-image.avif" href="/docs/phoenix/integrations/platforms/langflow" />
   <Card title="Prompt Flow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/693da124-image.avif" href="/docs/phoenix/integrations/platforms/prompt-flow" />
   <Card title="Scalekit" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/scalekit.png" href="/docs/phoenix/integrations/platforms/scalekit" />
+  <Card title="n8n" icon="diagram-project" href="/docs/phoenix/integrations/platforms/n8n" />
+  <Card title="Open WebUI" icon="window-maximize" href="/docs/phoenix/integrations/platforms/openwebui" />
+  <Card title="OpenRouter Broadcast" icon="tower-broadcast" href="/docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast" />
+  <Card title="TrueFoundry AI Gateway" icon="network-wired" href="/docs/phoenix/integrations/platforms/truefoundry" />
   <Card title="Envoy AI Gateway" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg" href="https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix" />
   <Card title="LiteLLM Proxy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a22c16d3-image.avif" href="/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing" />
 </CardGroup>
@@ -211,6 +241,8 @@ Connect external evaluation frameworks and libraries to Phoenix:
   <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" icon="check-circle" description="Model quality diagnostics"/>
   <Card title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" icon="code" description="Pydantic-based evals"/>
   <Card title="MLflow" href="/docs/phoenix/integrations/evaluation-integrations/mlflow" icon="chart-line" description="MLflow evaluation tracking"/>
+  <Card title="Microsoft Azure AI Evaluation" href="/docs/phoenix/integrations/evaluation-integrations/azure-ai-evaluation" icon="microsoft" description="Azure AI Evaluation SDK scores"/>
+  <Card title="NVIDIA RAG Metrics via Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas-nvidia-rag-metrics" icon="clipboard-check" description="NVIDIA RAG metrics from Ragas"/>
 </CardGroup>
 
 ---
@@ -220,8 +252,8 @@ Connect external evaluation frameworks and libraries to Phoenix:
 Normalize and convert data from other instrumentation libraries by adding span processors that unify traces to the OpenInference format:
 
 <CardGroup cols={3}>
-  <Card title="OpenLIT" href="https://pypi.org/project/openinference-instrumentation-openlit/" icon="arrows-rotate" description="OpenLIT span processor"/>
-  <Card title="OpenLLMetry (Traceloop)" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" icon="arrows-rotate" description="OpenLLMetry span processor"/>
+  <Card title="OpenLIT" href="/docs/phoenix/integrations/python/openlit" icon="arrows-rotate" description="OpenLIT span processor"/>
+  <Card title="OpenLLMetry (Traceloop)" href="/docs/phoenix/integrations/python/openllmetry" icon="arrows-rotate" description="OpenLLMetry span processor"/>
 </CardGroup>
 
 ---

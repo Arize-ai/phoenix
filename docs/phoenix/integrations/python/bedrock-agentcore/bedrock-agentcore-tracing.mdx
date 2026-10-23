@@ -1,0 +1,191 @@
+---
+title: "Bedrock AgentCore Tracing"
+description: "Trace Strands agents deployed on AWS Bedrock AgentCore Runtime with OpenInference and send every invocation's agent, chain, and LLM spans to Phoenix."
+---
+
+[AWS Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/) is a managed runtime for deploying agentic applications. Your agent code runs as a containerized service that AWS provisions and operates. AgentCore is framework-agnostic and works with Strands Agents, CrewAI, LangGraph, LlamaIndex, Google ADK, and the OpenAI Agents SDK.
+
+Phoenix captures every invocation by configuring the AgentCore-deployed agent to export OpenTelemetry traces to Phoenix through the same [`openinference-instrumentation-strands-agents`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-strands-agents) span processor used in the [Strands Agents tracing guide](/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing).
+
+<Note>
+  This is a **deployment workflow**. The AgentCore starter toolkit ships your agent file to AWS: it provisions an ECR repository, builds and pushes the agent container, creates an IAM execution role, and launches the runtime. The deployed container sends spans over the network, so it needs a Phoenix instance it can reach, such as [Phoenix Cloud](https://app.phoenix.arize.com) or a self-hosted Phoenix with a public endpoint. A `localhost` Phoenix only works when you run the agent locally.
+</Note>
+
+## Prerequisites
+
+* Python 3.10+
+* A Phoenix instance reachable from AWS, plus a Phoenix API key if your instance requires authentication
+* An AWS account with:
+  * [Bedrock model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) enabled for the foundation model your agent uses
+  * Bedrock AgentCore available in your AWS region. Check the [Bedrock AgentCore docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/) for the current list of regions.
+  * IAM permissions to create ECR repositories, execution roles, and AgentCore runtimes
+* Docker running locally, because the starter toolkit builds the agent container image on your machine before pushing it to ECR
+
+## Install
+
+```bash
+pip install bedrock-agentcore bedrock-agentcore-starter-toolkit \
+  openinference-instrumentation-strands-agents \
+  strands-agents arize-phoenix-otel
+```
+
+Add the runtime dependencies to your project's `requirements.txt`. The starter toolkit installs these into the AgentCore container at deploy time:
+
+```text
+bedrock-agentcore
+openinference-instrumentation-strands-agents
+strands-agents
+arize-phoenix-otel
+```
+
+## Setup
+
+Set your Phoenix and AWS credentials as environment variables:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/[your-space-name]
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT_NAME=bedrock-agentcore
+
+# AWS credentials, either long-lived or SSO/STS temporary credentials
+export AWS_ACCESS_KEY_ID=[your_aws_access_key_id]
+export AWS_SECRET_ACCESS_KEY=[your_aws_secret_access_key]
+export AWS_REGION=us-west-2  # an AgentCore region
+export AWS_SESSION_TOKEN=[your_session_token]  # only for SSO, STS, or federated credentials
+```
+
+Create the agent's runtime file. This is the file AgentCore packages into the deployable container. The tracing setup matches the [Strands Agents tracing guide](/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing), with one runtime-specific step: AgentCore registers its own tracer provider by default, so you disable AgentCore's built-in OpenTelemetry at deploy time (see [Run Bedrock AgentCore](#run-bedrock-agentcore)) and let `register()` install the Phoenix tracer provider globally.
+
+```python strands_claude.py
+import os
+
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from openinference.instrumentation.strands_agents import (
+    StrandsAgentsToOpenInferenceProcessor,
+)
+from phoenix.otel import BatchSpanProcessor, HTTPSpanExporter, register
+from strands import Agent
+from strands.models.bedrock import BedrockModel
+
+# register() reads PHOENIX_PROJECT_NAME, PHOENIX_COLLECTOR_ENDPOINT, and
+# PHOENIX_API_KEY from the environment, and makes Phoenix the global tracer
+# provider so Strands' internal tracer finds it.
+tracer_provider = register()
+
+# This processor rewrites Strands' native spans into OpenInference spans, so it
+# must run before the Phoenix exporter that sends spans to your collector.
+tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
+tracer_provider.add_span_processor(BatchSpanProcessor(HTTPSpanExporter()))
+
+# AgentCore calls strands_agent_bedrock for every /invocations request.
+app = BedrockAgentCoreApp()
+
+
+@app.entrypoint
+def strands_agent_bedrock(payload, context=None):
+    agent = Agent(
+        name="OceanAssistant",
+        model=BedrockModel(
+            model_id="us.anthropic.claude-sonnet-4-6",
+            region_name=os.environ.get("AWS_REGION", "us-west-2"),
+        ),
+        system_prompt="Answer concisely in two sentences.",
+    )
+    response = agent(payload.get("prompt", ""))
+    return response.message["content"][0]["text"]
+
+
+if __name__ == "__main__":
+    app.run()
+```
+
+<Info>
+  **Processor ordering matters.** `register()` installs a default exporter-backed processor. Adding `StrandsAgentsToOpenInferenceProcessor()` replaces that default, and the `BatchSpanProcessor` you add after it exports the converted OpenInference spans to Phoenix.
+</Info>
+
+### Test the agent locally
+
+Before you deploy, you can run the same file locally. `app.run()` serves the agent on port 8080, the same `/invocations` contract AgentCore uses:
+
+```bash
+python strands_claude.py
+```
+
+In another terminal, send a request:
+
+```bash
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Why is the ocean salty? Answer in two sentences."}'
+```
+
+The trace appears in your Phoenix project. Locally you can point `PHOENIX_COLLECTOR_ENDPOINT` at `http://localhost:6006`.
+
+## Run Bedrock AgentCore
+
+Configure and launch the AgentCore deployment. The starter toolkit creates the ECR repository and the execution role on the first run.
+
+```python deploy.py
+import os
+
+from bedrock_agentcore_starter_toolkit import Runtime
+from boto3.session import Session
+
+region = Session().region_name
+
+agentcore_runtime = Runtime()
+
+agentcore_runtime.configure(
+    entrypoint="strands_claude.py",
+    auto_create_execution_role=True,
+    auto_create_ecr=True,
+    requirements_file="requirements.txt",
+    region=region,
+    agent_name="strands_agentcore_phoenix_observability",
+    memory_mode="NO_MEMORY",
+    # Disable AgentCore's built-in OpenTelemetry, because strands_claude.py
+    # registers its own Phoenix tracer provider.
+    disable_otel=True,
+)
+
+# Pass the Phoenix settings to the deployed container as environment variables.
+agentcore_runtime.launch(
+    env_vars={
+        "PHOENIX_COLLECTOR_ENDPOINT": os.environ["PHOENIX_COLLECTOR_ENDPOINT"],
+        "PHOENIX_API_KEY": os.environ["PHOENIX_API_KEY"],
+        "PHOENIX_PROJECT_NAME": os.environ["PHOENIX_PROJECT_NAME"],
+        # AWS recommends this when you use a non-AWS observability backend,
+        # so AgentCore doesn't also export to CloudWatch.
+        "DISABLE_ADOT_OBSERVABILITY": "true",
+    },
+)
+
+# invoke() posts to the AgentCore Runtime endpoint and returns the response.
+result = agentcore_runtime.invoke(
+    {"prompt": "Why is the ocean salty? Answer in two sentences."}
+)
+print(result)
+```
+
+```bash
+python deploy.py
+```
+
+## Observe
+
+Each invocation appears in your Phoenix project as one trace, with the same shape as the [Strands Agents tracing guide](/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): an `invoke_agent OceanAssistant` agent span wrapping an `execute_event_loop_cycle` chain span and a `chat` LLM span for the `us.anthropic.claude-sonnet-4-6` call, with the prompt, response, and token usage attached. The first invocation after `launch` can take a minute or two while the container provisions.
+
+## Troubleshooting
+
+* **`Overriding of current TracerProvider is not allowed`.** AgentCore registers its own tracer provider on startup. Pass `disable_otel=True` to `configure(...)` and set `DISABLE_ADOT_OBSERVABILITY=true` in `env_vars` at `launch(...)` so `register()` can install the Phoenix tracer provider.
+* **No spans from the deployed agent.** Confirm `PHOENIX_COLLECTOR_ENDPOINT` points at a Phoenix instance reachable from AWS (not `localhost`) and that `PHOENIX_API_KEY` is passed in `env_vars`.
+* **`AccessDeniedException` from Bedrock at invocation time.** The auto-created execution role has minimal permissions. Attach `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` to it. The role ARN is in the `configure(...)` return value.
+* **Spans for an invocation arrive late.** `BatchSpanProcessor` exports on a timer. To export at the end of each invocation, call `tracer_provider.force_flush()` before your `@app.entrypoint` function returns.
+* **Region mismatch.** The `BedrockModel(region_name=...)` region and the AgentCore Runtime region must agree, or the model call fails with `ValidationException`.
+
+## Resources
+
+* [Bedrock AgentCore documentation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/)
+* [AgentCore sample notebooks](https://github.com/awslabs/amazon-bedrock-agentcore-samples)
+* [OpenInference Strands Agents package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-strands-agents)
+* [Strands Agents tracing guide](/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing)

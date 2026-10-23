@@ -1,0 +1,88 @@
+---
+title: "Gravitee Tracing"
+description: "Phoenix provides auto-instrumentation for the Gravitee AI Gateway LLM Proxy through the OpenAI Python library, since the proxy exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+The [Gravitee AI Gateway](https://documentation.gravitee.io/apim/ai-agent-management/llm-proxy) LLM Proxy is a governed front door to your LLM providers: one OpenAI-compatible endpoint that fronts OpenAI, Anthropic, Gemini, Bedrock, Vertex AI, and any OpenAI-compatible provider, with subscriptions, token-based rate limiting, and guard rails applied at the gateway. The proxy exposes `/chat/completions`, `/responses`, `/embeddings`, and `/models` at `https://<gateway-host>/<context-path>`, so any OpenAI client works with `base_url` set to the proxy. Phoenix captures every call through the [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) package, the same instrumentor that covers OpenAI's hosted API.
+
+<Note>
+This guide instruments **your application's** calls to the gateway, producing OpenInference LLM spans with prompts, responses, and token usage. Gravitee's own OpenTelemetry support emits gateway HTTP spans instead, which do not carry LLM attributes.
+</Note>
+
+## Prerequisites
+
+- A deployed Gravitee LLM Proxy API. This requires a self-hosted or hybrid APIM installation (4.10 or later) and an [Enterprise license](https://documentation.gravitee.io/apim/introduction/enterprise-edition). See [Proxy your LLMs](https://documentation.gravitee.io/apim/ai-agent-management/llm-proxy/proxy-your-llms).
+- A subscription API key for a plan on that API
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your LLM Proxy URL and subscription API key, along with your Phoenix connection details, as environment variables:
+
+```bash
+export GRAVITEE_BASE_URL="https://<gateway-host>/<context-path>"
+export GRAVITEE_API_KEY="<your-subscription-api-key>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Gravitee
+
+```python
+import os
+import openai
+
+# Point the OpenAI client at the Gravitee LLM Proxy context path.
+client = openai.OpenAI(
+    base_url=os.environ["GRAVITEE_BASE_URL"],
+    # An API Key plan reads the subscription key from a custom header, so the
+    # `api_key` argument is unused. The OpenAI client still requires a value.
+    api_key="unused",
+    default_headers={"X-Gravitee-Api-Key": os.environ["GRAVITEE_API_KEY"]},
+)
+
+response = client.chat.completions.create(
+    # Model IDs are namespaced by context path. List yours with
+    # `curl $GRAVITEE_BASE_URL/models`.
+    model="llmtest:gpt-5.4-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": "Why is the ocean salty? Answer in two sentences.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+<Tip>
+If your LLM Proxy is secured with a JWT or OAuth2 plan instead, Gravitee reads a bearer token from the `Authorization` header. Pass the token as `api_key=` and drop `default_headers`.
+</Tip>
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at the Gravitee LLM Proxy will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Gravitee spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Gravitee**: An API Key plan expects the subscription key in a custom header (`X-Gravitee-Api-Key` by default), not in `Authorization: Bearer`. Passing the key as `api_key=` alone fails. If your plan overrides the header name, use that name in `default_headers`
+* **`404` on the request path**: The base URL is your Gateway URL plus the LLM Proxy context path, with no `/v1` segment (e.g. `https://gateway.example.com/llmtest`). The OpenAI client appends `/chat/completions` itself
+* **Model not found**: Model IDs are namespaced by context path in a `context-path:model-name` format (e.g. `llmtest:gpt-5.4-mini`). Copy the exact ID from `curl $GRAVITEE_BASE_URL/models`
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Gravitee LLM Proxy Documentation" href="https://documentation.gravitee.io/apim/ai-agent-management/llm-proxy" icon="book" horizontal description="Gravitee AI Gateway LLM Proxy docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

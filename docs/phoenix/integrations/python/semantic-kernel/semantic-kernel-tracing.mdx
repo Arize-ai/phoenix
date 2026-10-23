@@ -1,0 +1,97 @@
+---
+title: "Semantic Kernel Tracing"
+description: "Trace Python Semantic Kernel applications in Phoenix by converting OpenLIT's OpenTelemetry spans to OpenInference, with prompts, responses, and token usage."
+---
+
+[Semantic Kernel](https://learn.microsoft.com/en-us/semantic-kernel/) is Microsoft's open-source SDK for blending LLMs with conventional code through kernel functions, plugins, and prompt templates. Semantic Kernel emits OpenTelemetry spans when [OpenLIT](https://github.com/openlit/openlit) is initialized, and the [`openinference-instrumentation-openlit`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openlit) span processor converts them into the OpenInference format Phoenix displays.
+
+<Note>
+  This guide covers the Python implementation of Semantic Kernel. The same OpenTelemetry approach applies to Semantic Kernel for [C#](https://learn.microsoft.com/en-us/semantic-kernel/concepts/enterprise-readiness/observability/?pivots=programming-language-csharp) and [Java](https://learn.microsoft.com/en-us/semantic-kernel/concepts/enterprise-readiness/observability/?pivots=programming-language-java).
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openlit openlit semantic-kernel openai
+```
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+```
+
+Register Phoenix, add the OpenInference span processor ahead of the Phoenix exporter, then initialize OpenLIT:
+
+```python instrumentation.py
+import openlit
+from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
+from phoenix.otel import BatchSpanProcessor, HTTPSpanExporter, register
+
+tracer_provider = register(project_name="semantic-kernel")
+
+# Convert OpenLIT's spans to OpenInference. This replaces register()'s default
+# exporter, so add the Phoenix exporter back after it.
+tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+tracer_provider.add_span_processor(BatchSpanProcessor(HTTPSpanExporter()))
+
+# openlit.init() picks up the global tracer provider that register() set.
+# disable_metrics stops OpenLIT printing metrics to the console.
+openlit.init(disable_metrics=True)
+```
+
+<Info>
+  **Processor ordering matters.** `register()` installs a default exporter-backed processor. Adding `OpenInferenceSpanProcessor()` replaces that default, and the `BatchSpanProcessor` you add after it exports the converted spans to Phoenix.
+</Info>
+
+## Run Semantic Kernel
+
+```python example.py
+# Import instrumentation first so tracing is set up before Semantic Kernel runs.
+from instrumentation import tracer_provider
+
+import asyncio
+
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
+from semantic_kernel.contents import ChatHistory
+
+
+async def main() -> None:
+    # OpenAIChatCompletion reads OPENAI_API_KEY from the environment.
+    kernel = Kernel()
+    chat = OpenAIChatCompletion(ai_model_id="gpt-5.5")
+    kernel.add_service(chat)
+
+    history = ChatHistory()
+    history.add_user_message("Why is the ocean salty? Answer in two sentences.")
+    response = await chat.get_chat_message_content(
+        chat_history=history,
+        settings=chat.get_prompt_execution_settings_class()(),
+    )
+    print(str(response))
+
+
+asyncio.run(main())
+tracer_provider.force_flush()
+```
+
+## Observe
+
+Open the `semantic-kernel` project in Phoenix. Each chat completion appears as a `chat gpt-5.5` LLM span (the name reflects the model you called), with the prompt, response, and token usage attached.
+
+## Troubleshooting
+
+* **Code ran but no spans appear.** OpenLIT must be initialized after the tracer provider is registered. Confirm `register()` and `openlit.init()` both run before any Semantic Kernel call.
+* **Other LLM providers.** Semantic Kernel supports Azure OpenAI, Anthropic, Google, and other AI services through its `connectors.ai.<provider>` modules. The same OpenLIT and OpenInference setup covers them.
+
+## Resources
+
+* [Semantic Kernel documentation](https://learn.microsoft.com/en-us/semantic-kernel/)
+* [Semantic Kernel on GitHub](https://github.com/microsoft/semantic-kernel)
+* [OpenInference OpenLIT span processor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openlit)
+* [OpenLIT tracing guide](/docs/phoenix/integrations/python/openlit/openlit-tracing)

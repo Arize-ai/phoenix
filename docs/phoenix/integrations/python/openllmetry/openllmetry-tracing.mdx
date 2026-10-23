@@ -1,0 +1,80 @@
+---
+title: "OpenLLMetry Tracing"
+description: "Trace LLM apps instrumented with Traceloop's OpenLLMetry SDK in Phoenix by converting their OpenTelemetry spans to OpenInference with a span processor."
+---
+
+[OpenLLMetry](https://github.com/traceloop/openllmetry) is Traceloop's open-source set of OpenTelemetry instrumentations for 20+ LLM providers and frameworks. The [Traceloop SDK](https://www.traceloop.com/docs/openllmetry/introduction) (`traceloop-sdk`) is the `Traceloop.init()` wrapper that activates those instrumentations, so this page covers both. The [`openinference-instrumentation-openllmetry`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openllmetry) span processor converts OpenLLMetry's spans to OpenInference semantic conventions before they're exported to Phoenix.
+
+## Install
+
+```bash
+pip install traceloop-sdk openinference-instrumentation-openllmetry arize-phoenix-otel openai httpx
+```
+
+`traceloop-sdk` imports `httpx` without declaring it as a dependency, so install it explicitly.
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+```
+
+Pass the OpenInference span processor and a Phoenix exporter to `Traceloop.init()`. The conversion processor must come before the exporting processor:
+
+```python instrumentation.py
+from openinference.instrumentation.openllmetry import OpenInferenceSpanProcessor
+from phoenix.otel import PROJECT_NAME, HTTPSpanExporter, SimpleSpanProcessor
+from traceloop.sdk import Traceloop
+
+project_name = "openllmetry"
+
+# HTTPSpanExporter reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+Traceloop.init(
+    app_name=project_name,
+    disable_batch=True,
+    processor=[OpenInferenceSpanProcessor(), SimpleSpanProcessor(HTTPSpanExporter())],
+    resource_attributes={PROJECT_NAME: project_name},
+)
+```
+
+OpenLLMetry instruments every provider it supports the same way. To trace a different provider, swap the OpenAI client below for [another supported provider](https://www.traceloop.com/docs/openllmetry/tracing/supported) and keep the setup unchanged.
+
+<Info>
+  Prefer individual instrumentors to the Traceloop SDK? Install the specific OpenLLMetry instrumentor, such as `opentelemetry-instrumentation-openai`, and instrument it against a Phoenix tracer provider that has `OpenInferenceSpanProcessor()` added before the exporter. The conversion step is the same.
+</Info>
+
+## Run OpenLLMetry
+
+```python example.py
+# Import instrumentation first so Traceloop.init() activates OpenLLMetry's
+# instrumentation before the OpenAI client is used.
+from instrumentation import project_name  # noqa: F401
+
+from openai import OpenAI
+
+# The client reads OPENAI_API_KEY from the environment.
+client = OpenAI()
+
+response = client.chat.completions.create(
+    model="gpt-5.4-mini",
+    messages=[
+        {"role": "user", "content": "Write a haiku about observability."},
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Open the `openllmetry` project in Phoenix. The trace contains an `openai.chat` span with its span kind set to LLM, the prompt and response, the model name, and token usage.
+
+## Resources
+
+* [OpenInference OpenLLMetry span processor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openllmetry)
+* [OpenLLMetry on GitHub](https://github.com/traceloop/openllmetry)
+* [Traceloop SDK documentation](https://www.traceloop.com/docs/openllmetry/introduction)

@@ -1,0 +1,142 @@
+---
+title: "OpenRouter Broadcast"
+description: "Configure OpenRouter Broadcast to export a trace for every OpenRouter request to Phoenix through an OpenTelemetry Collector, with no application code changes."
+keywords: ["openrouter", "openrouter broadcast", "opentelemetry", "otlp", "opentelemetry collector", "phoenix"]
+---
+
+[OpenRouter](https://openrouter.ai/) is a multi-provider LLM gateway — one API key and an OpenAI-compatible endpoint for 100+ models. OpenRouter's **Broadcast** feature is OpenTelemetry-native: with a one-time configuration in the OpenRouter dashboard, **every** request routed through OpenRouter is exported as a trace — no application code or instrumentation required.
+
+<Note>
+This page configures OpenRouter to broadcast traces for all of its traffic. To instead instrument your **own application's** calls to OpenRouter from Python, see [OpenRouter Tracing](/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing).
+</Note>
+
+## How it works
+
+OpenRouter sends Broadcast traces from its own infrastructure using OTLP over HTTP with **JSON** encoding. Phoenix accepts OTLP over HTTP with **protobuf** encoding, so you run an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) between the two. The collector:
+
+- receives OpenRouter's OTLP/JSON traces on a public HTTPS endpoint
+- sets the Phoenix project with the `openinference.project.name` resource attribute
+- forwards the traces to Phoenix as OTLP/protobuf
+
+Because OpenRouter connects from the internet, both the collector and the Phoenix instance it forwards to must be reachable from where they run. The collector must be publicly reachable over HTTPS; a collector or Phoenix on `localhost` is not reachable from OpenRouter.
+
+## Launch Phoenix
+
+The simplest option is a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=openrouter-broadcast). You can also [self-host Phoenix](/docs/phoenix/self-hosting) alongside the collector.
+
+From the settings page in your Phoenix instance, copy your:
+
+- **Endpoint** — for Phoenix Cloud, `https://app.phoenix.arize.com/s/<your-space-name>`
+- **API key** — required when authentication is enabled, as it is on Phoenix Cloud
+
+## Run an OpenTelemetry Collector
+
+Create `otel-collector-config.yaml`. The `bearertokenauth` extension makes the collector reject requests that don't carry your shared token, so only OpenRouter can send it traces:
+
+```yaml
+extensions:
+  bearertokenauth:
+    token: ${env:COLLECTOR_TOKEN}
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: bearertokenauth
+
+processors:
+  batch:
+  resource/phoenix_project:
+    attributes:
+      - key: openinference.project.name
+        value: openrouter
+        action: upsert
+
+exporters:
+  otlp_http/phoenix:
+    endpoint: ${env:PHOENIX_COLLECTOR_ENDPOINT}
+    headers:
+      authorization: "Bearer ${env:PHOENIX_API_KEY}"
+
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource/phoenix_project, batch]
+      exporters: [otlp_http/phoenix]
+```
+
+The `otlp_http` exporter appends `/v1/traces` to the endpoint and sends protobuf by default, which is what Phoenix expects. If your Phoenix instance doesn't have authentication enabled, remove the `headers` block.
+
+Run the collector with your Phoenix credentials and a token of your choice:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/<your-space-name>"
+export PHOENIX_API_KEY="<your-phoenix-api-key>"
+export COLLECTOR_TOKEN="<a-long-random-string>"
+
+docker run --rm --name otel-collector \
+  -p 4318:4318 \
+  -e PHOENIX_COLLECTOR_ENDPOINT \
+  -e PHOENIX_API_KEY \
+  -e COLLECTOR_TOKEN \
+  -v "$PWD/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml" \
+  otel/opentelemetry-collector-contrib:latest
+```
+
+Expose port `4318` on a public HTTPS URL, for example behind your cloud load balancer or a reverse proxy that terminates TLS. The rest of this page calls that URL `https://<your-collector-host>`.
+
+## Configure Broadcast in OpenRouter
+
+1. In the OpenRouter dashboard, navigate to **Settings → Observability** and toggle **Enable Broadcast**.
+1. Add the **OpenTelemetry Collector** destination.
+1. Set the **Endpoint** to `https://<your-collector-host>/v1/traces`.
+1. Set **Headers** to a JSON object that carries your collector token:
+
+    ```json
+    {
+      "Authorization": "Bearer <a-long-random-string>"
+    }
+    ```
+
+1. Click **Test Connection**. OpenRouter only saves the configuration if the test passes.
+1. Save the destination.
+
+- **Custom metadata:** the `trace` field on an OpenRouter request is sent as span attributes, so you can attach your own identifiers to each trace.
+- **Privacy mode:** enable it to exclude prompt and completion content from broadcast traces; metadata and usage data are still sent.
+
+## Observe
+
+Once Broadcast is enabled, every request through OpenRouter is exported to Phoenix. Open the **`openrouter`** project, or the name you set in the collector's `resource/phoenix_project` processor, to see traces appear shortly after activity. Each trace includes the model, prompt, response, token usage, and latency for the request.
+
+## Troubleshooting
+
+- **Test Connection fails.** Confirm the collector is reachable at the public HTTPS URL, the endpoint ends in `/v1/traces`, and the `Authorization` header matches `COLLECTOR_TOKEN`.
+- **Test Connection passes but no traces appear in Phoenix.** Check the collector logs for export errors. Confirm `PHOENIX_COLLECTOR_ENDPOINT` is your Phoenix base URL without `/v1/traces`, and that `PHOENIX_API_KEY` is valid.
+- **Traces land in the `default` project.** Confirm the `resource/phoenix_project` processor is listed in the traces pipeline.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="book-open"
+    href="https://openrouter.ai/docs/guides/features/broadcast/otel-collector"
+    title="OpenRouter Broadcast to an OpenTelemetry Collector"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://opentelemetry.io/docs/collector/"
+    title="OpenTelemetry Collector"
+    horizontal
+  />
+  <Card
+    icon="book"
+    href="https://openrouter.ai/docs"
+    title="OpenRouter Documentation"
+    horizontal
+  />
+</CardGroup>

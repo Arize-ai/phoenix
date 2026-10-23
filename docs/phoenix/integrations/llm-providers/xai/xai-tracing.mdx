@@ -1,0 +1,70 @@
+---
+title: "xAI Grok Tracing"
+description: "Trace xAI Grok calls in Phoenix with OpenInference auto-instrumentation for the OpenAI Python SDK, since xAI provides an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[xAI](https://x.ai/api) provides Grok models through an API that is compatible with the OpenAI SDK. Set the OpenAI client's `base_url` to `https://api.x.ai/v1` and use [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) to send Grok traces to Phoenix.
+
+<Note>
+This page instruments OpenAI SDK calls to xAI's API. It is not a separate xAI-specific OpenInference instrumentor.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your xAI API key as an environment variable:
+
+```bash
+export XAI_API_KEY="<your-xai-api-key>"
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run xAI Grok
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.x.ai/v1",
+    api_key=os.environ["XAI_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model="grok-4.6",
+    messages=[
+        {
+            "role": "user",
+            "content": "What can traces reveal about a failed AI agent run?",
+        },
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at xAI Grok will be streamed to your running Phoenix for observability and evaluation. Each call appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **Spans missing**: `register(..., auto_instrument=True)` must run before your application sends requests, and `openinference-instrumentation-openai` must be installed in the same environment
+* **`401` from xAI**: Use your xAI API key, not an OpenAI key
+* **Model not found**: Replace `grok-4.6` with a Grok model available in your xAI account
+* **Base URL**: Ensure you're using `https://api.x.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="xAI Quickstart" href="https://docs.x.ai/developers/quickstart" icon="book" horizontal description="xAI API docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

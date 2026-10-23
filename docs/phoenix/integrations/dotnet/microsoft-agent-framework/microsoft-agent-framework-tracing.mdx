@@ -1,0 +1,165 @@
+---
+title: "Microsoft Agent Framework Tracing for .NET"
+description: "Trace Microsoft Agent Framework agents in C# with OpenTelemetry GenAI semantic conventions and send agent, model, and tool spans to Phoenix."
+---
+
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
+[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/?pivots=programming-language-csharp) is Microsoft's open-source SDK for building AI agents. Its C# SDK emits OpenTelemetry spans that follow the [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/). Phoenix converts those spans to OpenInference when they arrive, so you only need the OpenTelemetry SDK and an OTLP exporter. No OpenInference package is required. See [Translating semantic conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions).
+
+## Prerequisites
+
+- .NET 10 SDK
+- An `OPENAI_API_KEY` from the [OpenAI Platform](https://platform.openai.com/api-keys)
+
+## Launch Phoenix
+
+<StartPhoenix />
+
+## Install
+
+Create a console project and add the Microsoft Agent Framework OpenAI connector and the OpenTelemetry Protocol exporter:
+
+```bash
+dotnet new console --framework net10.0 --name MicrosoftAgentFramework
+cd MicrosoftAgentFramework
+dotnet add package Microsoft.Agents.AI.OpenAI --version 1.24.0
+dotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol --version 1.19.1
+```
+
+## Setup
+
+Set the Phoenix endpoint, the project name, and your OpenAI key:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+export PHOENIX_PROJECT_NAME="microsoft-agent-framework-csharp"
+export OPENAI_API_KEY="<your-openai-api-key>"
+
+# Only if your Phoenix instance has authentication enabled
+# export PHOENIX_API_KEY="<your-phoenix-api-key>"
+```
+
+Replace the contents of `Program.cs` with the code below. It configures an OTLP HTTP exporter that sends spans to `<PHOENIX_COLLECTOR_ENDPOINT>/v1/traces`, sets the Phoenix project with the `openinference.project.name` resource attribute, and builds one agent with a `GetWeather` function tool. GPT-6.1 Sol requires the Responses API for tool calling, so the agent uses `GetResponsesClient()`.
+
+<Warning>
+`EnableSensitiveData = true` records prompts, responses, tool arguments, and tool results on the spans. Enable it only when you trust the trace destination. Set it to `false` to omit message content.
+</Warning>
+
+```csharp Program.cs expandable
+﻿#pragma warning disable OPENAI001
+
+using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
+using OpenAI;
+using OpenAI.Responses;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
+const string sourceName = "Microsoft.AgentFramework.Sample";
+var phoenixEndpoint = Environment.GetEnvironmentVariable("PHOENIX_COLLECTOR_ENDPOINT")
+    ?? "http://localhost:6006";
+var phoenixApiKey = Environment.GetEnvironmentVariable("PHOENIX_API_KEY");
+var projectName = Environment.GetEnvironmentVariable("PHOENIX_PROJECT_NAME")
+    ?? "microsoft-agent-framework-csharp";
+var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")!;
+
+using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+    .SetResourceBuilder(ResourceBuilder.CreateDefault()
+        .AddService("microsoft-agent-framework-csharp")
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["openinference.project.name"] = projectName
+        }))
+    .AddSource(sourceName)
+    .AddOtlpExporter(options =>
+    {
+        options.Endpoint = new Uri($"{phoenixEndpoint.TrimEnd('/')}/v1/traces");
+        options.Protocol = OtlpExportProtocol.HttpProtobuf;
+        if (!string.IsNullOrEmpty(phoenixApiKey))
+        {
+            options.Headers = $"Authorization=Bearer {phoenixApiKey}";
+        }
+    })
+    .Build();
+
+Console.WriteLine("Phoenix tracing initialized.");
+
+var openAiClient = new OpenAIClient(openAiKey);
+
+var agent = openAiClient.GetResponsesClient().AsAIAgent(
+        model: "gpt-6.1-sol",
+        name: "weather-agent",
+        instructions:
+            "You are a concise weather assistant. Always call the GetWeather " +
+            "tool once before answering.",
+        tools: [AIFunctionFactory.Create(WeatherTools.GetWeather)])
+    .AsBuilder()
+    .UseOpenTelemetry(
+        sourceName, telemetry => telemetry.EnableSensitiveData = true)
+    .Build();
+
+var result = await agent.RunAsync("What is the weather in San Francisco?");
+Console.WriteLine(result);
+```
+
+`UseOpenTelemetry` instruments the agent and emits spans for the agent invocation, each chat call, and each function execution. The tracer provider listens to the same source name passed to `UseOpenTelemetry` and exports those spans to Phoenix.
+
+## Add a tool
+
+Create `WeatherTools.cs` for the function tool the agent calls:
+
+```csharp WeatherTools.cs
+using System.ComponentModel;
+
+static class WeatherTools
+{
+    [Description("Returns the current weather for a city.")]
+    public static string GetWeather(
+        [Description("The city to check.")] string city) =>
+        $"Sunny and 72°F in {city}.";
+}
+```
+
+## Run Microsoft Agent Framework
+
+Run the project from the `MicrosoftAgentFramework` directory:
+
+```bash
+dotnet run
+```
+
+You should see output like:
+
+```text wrap
+Phoenix tracing initialized.
+It's sunny and 72°F in San Francisco.
+```
+
+## Observe
+
+Open Phoenix and select the **`microsoft-agent-framework-csharp`** project. Each `agent.RunAsync()` call appears as one trace:
+
+| Span | Span kind | What it shows |
+| :--- | :--- | :--- |
+| `invoke_agent weather-agent(...)` | `AGENT` | The root span for the run, with the agent name, the final response, the model, and total token usage |
+| `chat gpt-6.1-sol` | `LLM` | Each model call, with input and output messages, the model name, and token counts. The agent makes one call to request the tool and one to write the answer |
+| `execute_tool GetWeather` | `TOOL` | The function call, with its arguments and result |
+
+## Troubleshooting
+
+- **No traces in Phoenix.** Confirm `PHOENIX_COLLECTOR_ENDPOINT` points at your Phoenix instance and is set in the same shell that runs `dotnet run`. The exporter appends `/v1/traces` to it. If authentication is enabled, set `PHOENIX_API_KEY`.
+- **No agent spans.** The source name passed to `UseOpenTelemetry` must match the source registered with `.AddSource(sourceName)`.
+- **Spans land in the `default` project.** Confirm the `openinference.project.name` resource attribute is set.
+- **Prompts or tool content are missing.** Set `EnableSensitiveData = true` in the agent's OpenTelemetry configuration.
+- **`401` from OpenAI.** Verify `OPENAI_API_KEY` is valid and can access `gpt-6.1-sol`. Replace the model with one available to your account if needed.
+
+## Resources
+
+<CardGroup>
+  <Card title="Microsoft Agent Framework documentation" href="https://learn.microsoft.com/en-us/agent-framework/overview/?pivots=programming-language-csharp" icon="book-open" horizontal />
+  <Card title="Microsoft Agent Framework observability" href="https://learn.microsoft.com/en-us/agent-framework/agents/observability?pivots=programming-language-csharp" icon="book-open" horizontal />
+  <Card title="Microsoft Agent Framework on GitHub" href="https://github.com/microsoft/agent-framework" icon="github" horizontal />
+</CardGroup>

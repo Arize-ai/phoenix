@@ -1,0 +1,301 @@
+---
+title: "NVIDIA RAG Metrics via Ragas"
+description: "Use NVIDIA's RAG metrics in Ragas (Answer Accuracy, Context Relevance, Response Groundedness) to grade Phoenix traces and to score Phoenix experiments."
+---
+
+NVIDIA's RAG evaluation metrics ship inside [Ragas](https://docs.ragas.io/en/stable/) as a dedicated collection: [`AnswerAccuracy`](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/nvidia_metrics/) (does the response match a reference), [`ContextRelevance`](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/nvidia_metrics/) (does the retrieved context cover the question), and [`ResponseGroundedness`](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/nvidia_metrics/) (is the response supported by the context). They follow NVIDIA's published RAG quality benchmarks and reuse Ragas's prompting and execution machinery.
+
+This guide shows two ways to use them with Phoenix:
+
+- **Flow 1** grades existing Phoenix traces with `ResponseGroundedness` and logs the scores back as span annotations.
+- **Flow 2** uploads a small dataset, runs a Phoenix experiment with the same metric as an evaluator, and records a score for each run.
+
+For the standard Ragas metrics, such as tool call accuracy and agent goal accuracy, see the [Ragas evaluation guide](/docs/phoenix/integrations/evaluation-integrations/ragas).
+
+Both flows share the same setup. Run the code blocks below in order in a single Python session, because each block builds on imports and variables from earlier ones.
+
+## Prerequisites
+
+- Python 3.11+
+- An `OPENAI_API_KEY` from the [OpenAI Platform](https://platform.openai.com/api-keys). It's used for both the model under trace and the judge model for NVIDIA's metrics.
+- A running Phoenix instance. See [Phoenix setup](/docs/phoenix/get-started).
+
+## Install
+
+```bash
+# Pin langchain-community<0.4: Ragas 0.4.x still imports ChatVertexAI from
+# langchain_community.chat_models.vertexai, which langchain-community 0.4+
+# removed. The 0.3.x line keeps that import path so `import ragas` works.
+pip install ragas 'langchain-community<0.4' arize-phoenix-otel arize-phoenix-client openai openinference-instrumentation-openai pandas
+```
+
+## Configure credentials
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+export OPENAI_API_KEY="<your-openai-api-key>"
+
+# Only if your Phoenix instance has authentication enabled
+# export PHOENIX_API_KEY="<your-phoenix-api-key>"
+```
+
+## Define the metric
+
+The shared setup creates NVIDIA's `ResponseGroundedness` metric (from `ragas.metrics.collections`) backed by `gpt-4.1` through Ragas's `llm_factory`, the two-row dataset that both flows score, and a Phoenix client. The judge is pinned to `gpt-4.1` because Ragas doesn't remap `max_tokens` to `max_completion_tokens` for GPT-5 reasoning models with dotted version names, so they reject the request. `gpt-4.1` is non-reasoning, accepts `max_tokens`, and is deterministic at `temperature=0`.
+
+```python
+# combined.py
+import asyncio
+import json
+import time
+
+import pandas as pd
+from openai import AsyncOpenAI
+from phoenix.client import Client
+from ragas.llms import llm_factory
+from ragas.metrics.collections import ResponseGroundedness
+
+TIMESTAMP = int(time.time())
+
+# NVIDIA ResponseGroundedness scores 0.0–1.0: 1.0 means the response is
+# fully supported by the retrieved context, 0.0 means it isn't.
+ragas_llm = llm_factory(
+    "gpt-4.1",
+    client=AsyncOpenAI(),
+    temperature=0,  # gpt-4.1 is non-reasoning: deterministic judging, accepts max_tokens
+)
+response_groundedness = ResponseGroundedness(llm=ragas_llm)
+
+# Two-row dataset: row 0 is factual (the answer matches the reference),
+# row 1 is hallucinated. Both flows grade these same rows.
+ROWS = [
+    {
+        "input":     "What is the capital of France?",
+        "output":    "Paris is the capital of France.",
+        "reference": "Paris is the capital and most populous city of France.",
+    },
+    {
+        "input":     "What is the capital of France?",
+        "output":    "Berlin is the capital of France.",
+        "reference": "Paris is the capital and most populous city of France.",
+    },
+]
+
+px_client = Client()
+```
+
+## Flow 1: Evaluate existing traces
+
+### Trace some LLM calls
+
+Register Phoenix tracing with OpenAI auto-instrumentation, make two calls that each echo a known answer so the trace contains predictable text, then pull the resulting spans back from Phoenix.
+
+```python
+from openai import OpenAI
+from phoenix.otel import register
+
+PROJECT_NAME = f"nv-ragas-tracing-example-{TIMESTAMP}"
+
+# auto_instrument=True picks up the installed OpenInference OpenAI instrumentor.
+tracer_provider = register(project_name=PROJECT_NAME, auto_instrument=True)
+
+oai = OpenAI()
+for row in ROWS:
+    oai.chat.completions.create(
+        model="gpt-5.4-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a fact-recall assistant. The user states the "
+                    "exact answer to use; reply with that verbatim."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {row['input']}\n"
+                    f"Answer (reply verbatim): {row['output']}"
+                ),
+            },
+        ],
+    )
+
+tracer_provider.force_flush()
+print(f"Project: {PROJECT_NAME}")
+
+spans_df = None
+for _ in range(12):
+    time.sleep(5)
+    spans_df = px_client.spans.get_spans_dataframe(project_identifier=PROJECT_NAME)
+    if len(spans_df) >= len(ROWS):
+        break
+else:
+    raise RuntimeError("Spans never appeared after 60s")
+
+spans_df = spans_df.sort_values("start_time").reset_index(drop=True)
+```
+
+### Run the metric
+
+The metric exposes `ascore(response=..., retrieved_contexts=[...])` directly. It's async, so wrap each call in `asyncio.run(...)` from synchronous code. The OpenAI instrumentor records the full response as JSON in `attributes.output.value`, so the code reads the message text out of it.
+
+```python
+scores = []
+labels = []
+for i, row in spans_df.iterrows():
+    response = json.loads(row["attributes.output.value"])
+    result = asyncio.run(
+        response_groundedness.ascore(
+            response=response["choices"][0]["message"]["content"],
+            retrieved_contexts=[ROWS[i]["reference"]],
+        )
+    )
+    score = float(result.value)
+    scores.append(score)
+    labels.append("grounded" if score >= 0.5 else "ungrounded")
+```
+
+### Log evaluations to Phoenix
+
+`log_span_annotations_dataframe` reads a dataframe indexed by span ID with `score` and `label` columns, and attaches each row to its span as an annotation.
+
+```python
+eval_df = pd.DataFrame(
+    {
+        "span_id": spans_df["context.span_id"],
+        "score":   scores,
+        "label":   labels,
+    }
+).set_index("span_id")
+
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=eval_df,
+    annotation_name="nv_response_groundedness",
+    annotator_kind="LLM",
+)
+
+flow1_display = pd.DataFrame(
+    {
+        "input":  [r["input"]  for r in ROWS],
+        "output": [r["output"] for r in ROWS],
+        "score":  scores,
+    }
+)
+print("Flow 1 results:")
+print(flow1_display.to_string())
+```
+
+You should see output like:
+
+```text wrap
+Flow 1 results:
+                            input                            output  score
+0  What is the capital of France?   Paris is the capital of France.    1.0
+1  What is the capital of France?  Berlin is the capital of France.    0.0
+```
+
+Open the `nv-ragas-tracing-example-<timestamp>` project in Phoenix (the name printed above). Each traced `ChatCompletion` span now has an `nv_response_groundedness` annotation with the score and the `grounded` or `ungrounded` label.
+
+<Note>
+Ragas calls the judge model through the OpenAI SDK, so the auto-instrumentation also traces the judge calls into the same project as additional `ChatCompletion` spans. Only the two spans fetched before evaluation are annotated.
+</Note>
+
+## Flow 2: Run an experiment
+
+### Create a dataset
+
+```python
+DATASET_NAME = f"nv-ragas-experiment-example-ds-{TIMESTAMP}"
+dataset = px_client.datasets.create_dataset(
+    name=DATASET_NAME,
+    dataframe=pd.DataFrame(ROWS),
+    input_keys=["input"],
+    output_keys=["output"],
+    metadata_keys=["reference"],
+)
+print(f"Dataset: {DATASET_NAME}")
+```
+
+### Define the task
+
+The task returns the stored answer for each example so the experiment grades the same two responses as Flow 1. In a real experiment, the task would call your RAG application.
+
+```python
+def task(input, expected):
+    return expected["output"]
+```
+
+### Wrap the metric as an evaluator
+
+Phoenix binds experiment evaluator arguments by name: `output` is the task's result and `metadata` is the example's metadata. `run_experiment` calls evaluators synchronously, so the wrapper uses `asyncio.run(...)` around the metric's `ascore`. Return a dictionary with `score` and `label`.
+
+```python
+def nv_response_groundedness_eval(output, metadata):
+    result = asyncio.run(
+        response_groundedness.ascore(
+            response=output if isinstance(output, str) else str(output),
+            retrieved_contexts=[metadata["reference"]],
+        )
+    )
+    score = float(result.value)
+    return {
+        "score": score,
+        "label": "grounded" if score >= 0.5 else "ungrounded",
+    }
+```
+
+### Run the experiment
+
+```python
+from phoenix.client.experiments import run_experiment
+
+EXPERIMENT_NAME = f"nv-ragas-experiment-example-{TIMESTAMP}"
+experiment = run_experiment(
+    dataset=dataset,
+    task=task,
+    evaluators={"nv_response_groundedness": nv_response_groundedness_eval},
+    experiment_name=EXPERIMENT_NAME,
+)
+print(f"Experiment: {EXPERIMENT_NAME}")
+
+outputs = {run["id"]: run["output"] for run in experiment["task_runs"]}
+flow2_display = pd.DataFrame(
+    [
+        {
+            "output": outputs[ev.experiment_run_id],
+            "score":  ev.result["score"],
+            "label":  ev.result["label"],
+        }
+        for ev in experiment["evaluation_runs"]
+    ]
+).sort_values("score", ascending=False, ignore_index=True)
+print("Flow 2 results:")
+print(flow2_display.to_string())
+```
+
+You should see output like:
+
+```text wrap
+Flow 2 results:
+                             output  score       label
+0   Paris is the capital of France.    1.0    grounded
+1  Berlin is the capital of France.    0.0  ungrounded
+```
+
+Open **Datasets** in Phoenix and select `nv-ragas-experiment-example-ds-<timestamp>`. The experiment `nv-ragas-experiment-example-<timestamp>` lists one run per example, each with its `nv_response_groundedness` score and label.
+
+## Troubleshooting
+
+- **`Skipping a sample by assigning it nan score`.** The judge call failed (rate limit, model error, and so on) and Ragas swallowed the exception. Check the warnings above this message for the actual error.
+- **`NotImplementedError: Async evaluator must use async_evaluate`.** `run_experiment` runs evaluators synchronously. Keep the evaluator a plain `def` that calls `asyncio.run(...)`, or use `async_run_experiment` with an `async def` evaluator.
+- **Spans never appear.** Confirm `PHOENIX_COLLECTOR_ENDPOINT` points at your Phoenix instance and, if authentication is enabled, that `PHOENIX_API_KEY` is set.
+- **Using `AnswerAccuracy` or `ContextRelevance` instead.** Swap `ResponseGroundedness` for `AnswerAccuracy` (requires a reference answer) or `ContextRelevance` (requires the user input and retrieved contexts). The wiring is otherwise identical. See the [Ragas NVIDIA metrics docs](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/nvidia_metrics/) for each metric's required fields.
+
+## Resources
+
+<CardGroup>
+  <Card title="Ragas NVIDIA metrics documentation" href="https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/nvidia_metrics/" icon="book-open" horizontal />
+  <Card title="Ragas on GitHub" href="https://github.com/explodinggradients/ragas" icon="github" horizontal />
+  <Card title="Ragas evaluation with Phoenix" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="book-open" horizontal />
+</CardGroup>

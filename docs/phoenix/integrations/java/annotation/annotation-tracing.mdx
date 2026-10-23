@@ -1,0 +1,326 @@
+---
+title: "Java Annotation Tracing"
+description: "Trace Java AI applications with OpenInference @Agent, @Chain, @LLM, and @Tool annotations and send spans to Phoenix."
+---
+
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
+[`openinference-instrumentation-annotation`](https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-annotation) adds annotation-driven tracing to any Java application. Annotate your methods with `@Chain`, `@LLM`, `@Tool`, `@Agent`, or `@Span`, and a ByteBuddy agent intercepts each call at class load to produce OpenInference spans backed by OpenTelemetry. Use it when you've built an agent or pipeline by hand and want OpenInference semantics without a framework-specific instrumentor.
+
+## Prerequisites
+
+- Java 17 or higher, and Gradle
+- An `OPENAI_API_KEY` from the [OpenAI Platform](https://platform.openai.com/api-keys)
+
+## Launch Phoenix
+
+<StartPhoenix />
+
+## Install
+
+Add the dependencies to `build.gradle`:
+
+```groovy
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // OpenInference annotation instrumentor + semantic conventions
+    implementation 'com.arize:openinference-instrumentation-annotation:0.1.2'
+    implementation 'com.arize:openinference-semantic-conventions:0.1.12'
+
+    // OpenTelemetry SDK + OTLP exporter
+    implementation 'io.opentelemetry:opentelemetry-sdk:1.50.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.50.0'
+}
+
+// Required: emits parameter names into the class file so the
+// annotation agent can attach them as span attributes. Without this,
+// parameters appear as `arg0`, `arg1`, ... in your spans.
+compileJava {
+    options.compilerArgs += '-parameters'
+}
+
+application {
+    mainClass = 'example.Main'
+}
+```
+
+<Note>
+The `-parameters` compiler flag is required. It keeps parameter names in the class file so the annotation agent can record them as span attributes. Without it, parameters appear as `arg0`, `arg1`, and so on.
+</Note>
+
+## Setup
+
+Set the Phoenix endpoint, the project name, and your OpenAI key:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+export PHOENIX_PROJECT_NAME="annotation-tracing-example"
+export OPENAI_API_KEY="<your-openai-api-key>"
+
+# Only if your Phoenix instance has authentication enabled
+# export PHOENIX_API_KEY="<your-phoenix-api-key>"
+```
+
+The annotation instrumentor needs three things at startup: the ByteBuddy agent installed **before** any annotated class is loaded, an `OITracer` wrapping an OpenTelemetry tracer, and that `OITracer` registered with the `OpenInferenceAgent` so the intercepted methods know where to emit spans. The exporter sends spans over OTLP HTTP to `<PHOENIX_COLLECTOR_ENDPOINT>/v1/traces`.
+
+```java expandable
+// src/main/java/example/Main.java
+package example;
+
+import com.arize.instrumentation.OITracer;
+import com.arize.instrumentation.OpenInferenceAgent;
+import com.arize.instrumentation.annotation.OpenInferenceAgentInstaller;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+public class Main {
+
+    public static void main(String[] args) throws Exception {
+        // Install the ByteBuddy agent BEFORE the JVM loads any annotated
+        // class. QAService is first referenced further down in main(), so
+        // installing here (as the first statement) is in time.
+        OpenInferenceAgentInstaller.install();
+
+        String endpoint = System.getenv().getOrDefault(
+            "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006");
+        String apiKey = System.getenv("PHOENIX_API_KEY");
+        String project = System.getenv().getOrDefault(
+            "PHOENIX_PROJECT_NAME", "annotation-tracing-example");
+
+        // The openinference.project.name resource attribute selects the
+        // Phoenix project that receives the traces.
+        Resource resource = Resource.getDefault().merge(Resource.create(
+            Attributes.of(
+                AttributeKey.stringKey("service.name"), "annotation",
+                AttributeKey.stringKey("openinference.project.name"),
+                project)));
+
+        // OTLP HTTP exporter pointed at the Phoenix collector.
+        OtlpHttpSpanExporterBuilder exporterBuilder = OtlpHttpSpanExporter.builder()
+            .setEndpoint(endpoint.replaceAll("/+$", "") + "/v1/traces");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            exporterBuilder.addHeader("Authorization", "Bearer " + apiKey);
+        }
+        OtlpHttpSpanExporter exporter = exporterBuilder.build();
+
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(BatchSpanProcessor.builder(exporter)
+                .setScheduleDelay(Duration.ofSeconds(1))
+                .build())
+            .setResource(resource)
+            .build();
+
+        OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .setPropagators(ContextPropagators.create(
+                W3CTraceContextPropagator.getInstance()))
+            .buildAndRegisterGlobal();
+
+        // The OITracer wraps the SDK tracer with OpenInference semantic
+        // attribute handling. Register it on the global agent so every
+        // annotated method routes its span through it.
+        OITracer tracer = new OITracer(
+            tracerProvider.get("com.arize.annotation"));
+        OpenInferenceAgent.register(tracer);
+
+        System.out.println("Phoenix tracing initialized for Annotations.");
+
+        // First reference to QAService: class loading happens here,
+        // safely AFTER OpenInferenceAgentInstaller.install() above.
+        QAService service = new QAService();
+        String answer = service.answer(
+            "Why is the ocean salty? Answer in two sentences.");
+        System.out.println(answer);
+
+        // Flush and shut down before exit, or the JVM may exit before the
+        // BatchSpanProcessor delivers its queue.
+        tracerProvider.forceFlush().join(10, TimeUnit.SECONDS);
+        tracerProvider.shutdown().join(10, TimeUnit.SECONDS);
+        OpenInferenceAgent.unregister();
+    }
+}
+```
+
+### Available annotations
+
+| Annotation | Span kind | Notes |
+| :--------- | :-------- | :---- |
+| `@Chain`   | `CHAIN`   | Generic intermediate step (retrieval, transformation, etc.) |
+| `@LLM`     | `LLM`     | A call to a language model |
+| `@Tool`    | `TOOL`    | A function the agent or LLM invoked. Accepts `description` |
+| `@Agent`   | `AGENT`   | Top-level orchestration method |
+| `@Span`    | Any       | Generic span; requires an explicit `kind` (for example `RETRIEVER` or `EMBEDDING`) |
+
+Parameters are captured as `input.value` and the return value as `output.value`. Use `@ExcludeFromSpan` on a parameter to drop it from the input attribute, and `@SpanMapping` to map a parameter or field to a specific OpenInference semantic convention attribute.
+
+## Run annotated code
+
+Annotate your service methods with the span kind that fits each step. The agent intercepts the methods at class load, so there's nothing else to wire up.
+
+```java expandable
+// src/main/java/example/QAService.java
+package example;
+
+import com.arize.instrumentation.annotation.Agent;
+import com.arize.instrumentation.annotation.Chain;
+import com.arize.instrumentation.annotation.ExcludeFromSpan;
+import com.arize.instrumentation.annotation.LLM;
+import com.arize.instrumentation.annotation.Tool;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class QAService {
+
+    private static final HttpClient HTTP = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(10))
+        .build();
+
+    @Agent(name = "qa-agent")
+    public String answer(String question) {
+        String context = retrieve(question);
+        Map<String, Object> weather = getWeather("San Francisco");
+        return generate(question, context, weather);
+    }
+
+    @Chain(name = "retriever")
+    public String retrieve(String query) {
+        return "OpenInference is an open standard for AI tracing.";
+    }
+
+    @Tool(name = "weather",
+          description = "Gets current weather for a location")
+    public Map<String, Object> getWeather(String location) {
+        return Map.of("temp", 68, "condition", "foggy",
+                      "location", location);
+    }
+
+    @LLM(name = "generator")
+    public String generate(String question, String context,
+                           @ExcludeFromSpan Map<String, Object> weather) {
+        // @ExcludeFromSpan keeps the weather parameter out of the
+        // captured input so the LLM span doesn't pick up unrelated
+        // metadata that the language model never sees.
+        String prompt = "Use this context to answer the question.\n"
+                      + "Context: " + context + "\n\n"
+                      + "Question: " + question;
+        return openAiChatCompletion(prompt);
+    }
+
+    // Plain HTTPS call to OpenAI — no SDK with its own observability
+    // hooks, so the only spans Phoenix receives are the annotation-driven
+    // ones from @Agent / @Chain / @Tool / @LLM above.
+    private String openAiChatCompletion(String prompt) {
+        try {
+            String body = "{\"model\":\"gpt-5.5\","
+                + "\"messages\":[{\"role\":\"user\",\"content\":\""
+                + jsonEscape(prompt) + "\"}]}";
+
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+                .timeout(Duration.ofMinutes(3))
+                .header("Authorization",
+                        "Bearer " + System.getenv("OPENAI_API_KEY"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+            HttpResponse<String> resp = HTTP.send(req,
+                HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                throw new RuntimeException("OpenAI HTTP "
+                    + resp.statusCode() + ": " + resp.body());
+            }
+            return extractContent(resp.body());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Minimal extractor — pulls "content":"..." out of the response
+    // body. Replace with Jackson / Gson in production code.
+    private static String extractContent(String json) {
+        Matcher m = Pattern.compile(
+            "\"content\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"")
+            .matcher(json);
+        if (!m.find()) {
+            throw new RuntimeException("no content in: " + json);
+        }
+        return m.group(1)
+            .replace("\\n", "\n")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+    }
+
+    private static String jsonEscape(String s) {
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
+    }
+}
+```
+
+Build and run:
+
+```bash
+gradle run
+```
+
+You should see output like:
+
+```text wrap
+Phoenix tracing initialized for Annotations.
+The ocean is salty because rivers dissolve mineral salts from rocks and soil and carry them to the sea, where they accumulate over millions of years. Water leaves the ocean through evaporation, but the salts remain.
+```
+
+## Observe
+
+Open Phoenix and select the **`annotation-tracing-example`** project. Each call to `service.answer(...)` produces one trace:
+
+```
+qa-agent (AGENT)
+├── retriever (CHAIN)
+├── weather (TOOL)
+└── generator (LLM)
+```
+
+Select the root `qa-agent` span to inspect the captured inputs and outputs of each step.
+
+## Troubleshooting
+
+- **No spans, but `OpenInferenceAgentInstaller.install()` ran.** The ByteBuddy agent only rewrites classes loaded **after** it installs. Make `install()` the first statement in `main`, and don't reference any annotated class before that line.
+- **Parameters appear as `arg0`, `arg1`, and so on.** The compiler stripped parameter names. Add `compileJava { options.compilerArgs += '-parameters' }` to `build.gradle`, as in the Install step.
+- **Spans dropped at JVM exit.** `BatchSpanProcessor` exports asynchronously. Call `tracerProvider.forceFlush().join(...)` and `tracerProvider.shutdown().join(...)` before `main` returns.
+- **Lost spans across thread boundaries.** OpenTelemetry context doesn't follow work onto a `CompletableFuture`, `ExecutorService`, or reactive pipeline automatically. Wrap the work with `io.opentelemetry.context.Context.current().wrap(...)`.
+- **Hiding sensitive fields.** Pass a `TraceConfig` when you construct the `OITracer`: `new OITracer(provider.get("..."), TraceConfig.builder().hideInputs(true).hideOutputs(true).build())`.
+
+## Resources
+
+<CardGroup>
+  <Card title="Annotation instrumentor README" href="https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-annotation" icon="github" horizontal description="Source and full annotation reference"/>
+  <Card title="OpenInference package" href="https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-annotation" icon="box" horizontal description="OpenInference Java package on Maven Central"/>
+</CardGroup>

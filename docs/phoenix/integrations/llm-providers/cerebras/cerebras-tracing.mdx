@@ -1,0 +1,73 @@
+---
+title: "Cerebras Tracing"
+description: "Phoenix provides auto-instrumentation for Cerebras Inference through the OpenAI Python library, since Cerebras exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Cerebras Inference](https://www.cerebras.ai/) exposes an OpenAI-compatible API for high-speed LLM inference. Set the OpenAI client's `base_url` to Cerebras and use [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) to send request, response, token, latency, and error spans to Phoenix.
+
+<Note>
+This is OpenAI SDK instrumentation pointed at Cerebras' OpenAI-compatible endpoint. It is not a separate Cerebras-specific instrumentor.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Cerebras API key and the model you want to call, along with your Phoenix connection details, as environment variables:
+
+```bash
+export CEREBRAS_API_KEY="<your-cerebras-api-key>"
+export CEREBRAS_MODEL="<your-cerebras-model-id>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Cerebras
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.cerebras.ai/v1",
+    api_key=os.environ["CEREBRAS_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model=os.environ["CEREBRAS_MODEL"],
+    messages=[
+        {
+            "role": "user",
+            "content": "Summarize why fast inference still needs observability.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Cerebras will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Cerebras spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Cerebras**: Use your Cerebras API key, not your OpenAI key
+* **Model not found**: Confirm `CEREBRAS_MODEL` matches a model available in your Cerebras account
+* **Base URL**: Ensure you're using `https://api.cerebras.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Cerebras Inference Documentation" href="https://inference-docs.cerebras.ai/" icon="book" horizontal description="Cerebras Inference API docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

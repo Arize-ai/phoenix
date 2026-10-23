@@ -1,0 +1,149 @@
+---
+title: "Antigravity"
+description: "Trace Google Antigravity CLI and IDE turns, model calls, and tool invocations in Phoenix."
+keywords: ["antigravity", "google antigravity", "antigravity tracing", "phoenix", "agent tracing"]
+---
+
+> Trace Google Antigravity CLI and IDE turns, model calls, and tool invocations in Phoenix for full observability.
+
+[Google Antigravity](https://antigravity.google/) is Google's agentic development platform. The [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit instruments Antigravity hook events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each user turn becomes one trace. No application code changes required.
+
+This harness is **transcript-driven**. Antigravity's hooks are control-plane triggers that carry only pointers (`transcriptPath`, `conversationId`, `workspacePaths`), while the real model and tool content lives in the per-turn `transcript_full.jsonl` the agent writes. The `Stop` hook parses that transcript and reconstructs the spans.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=antigravity). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- antigravity
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat antigravity
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh antigravity   # macOS / Linux
+install.bat antigravity    # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name. It writes credentials to `~/.arize/harness/config.json` and registers hooks under the top-level `arize-tracing` key in `~/.gemini/config/hooks.json`, Antigravity's global hooks file.
+
+<Note>
+`~/.gemini/config/hooks.json` is Antigravity's hooks file and is distinct from the Gemini CLI's `~/.gemini/settings.json`. The two harnesses are separate, so installing one does not affect the other. For the Gemini CLI, see [Gemini CLI](/docs/phoenix/integrations/coding-agents/gemini).
+</Note>
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile so they apply to every Antigravity session.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="antigravity"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+### Default settings
+
+| Setting | Default |
+| :--- | :--- |
+| Harness key | `antigravity` |
+| Project name | `antigravity` |
+| Phoenix endpoint | `http://localhost:6006` |
+| Hook config file | `~/.gemini/config/hooks.json` |
+| Hook events registered | `PreInvocation`, `Stop` |
+| State directory | `~/.arize/harness/state/antigravity/` |
+| Log file | `~/.arize/harness/logs/antigravity.log` |
+
+## Observe
+
+Once tracing is enabled, Antigravity activity is streamed to Phoenix. You'll see:
+
+- **Turn traces** — one `Turn` chain span per user turn, as the trace root
+- **LLM spans** — named `LLM: {model}`, one per model call in the turn
+- **Tool spans** — one tool span per tool invocation, carrying `tool.name`
+- **Session grouping** — turns from the same conversation grouped by `session.id`
+
+### Hooks captured
+
+| Hook | Captured Data |
+| :--- | :------------ |
+| `PreInvocation` | Fires before each model invocation; records turn state |
+| `Stop` | Fires after the user turn completes; parses the transcript and emits the full span tree |
+
+Each hook has a 30-second timeout. See `HOOK_TIMEOUT_SECONDS` in the harness's `constants.py` if you need to adjust it.
+
+## Limitations
+
+**Token counts are not captured.** Antigravity does not expose per-turn token usage on any local surface, neither the hook payload nor the transcript. Rather than report zeros, `llm.token_count.*` attributes are intentionally left off Antigravity spans.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Antigravity tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/antigravity/README.md).
+
+Errors always land in `~/.arize/harness/logs/antigravity.log`. Set `export ARIZE_VERBOSE=true` before launching Antigravity to also log routine hook activity.
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall antigravity
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://antigravity.google/"
+    title="Google Antigravity"
+    horizontal
+  />
+</CardGroup>
