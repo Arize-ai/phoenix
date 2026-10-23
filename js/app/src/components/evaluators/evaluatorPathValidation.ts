@@ -13,12 +13,9 @@ export type EvaluatorPathError = {
 /**
  * What is wrong with a mapping path, or null where nothing is known to be.
  *
- * A path that does not parse is wrong on its own. One that parses but reads
- * nothing is only wrong once a record has been read: until one is sampled the
- * source is the record kind's skeleton, which has the top-level keys and
- * nothing under them, so every real path would read as missing there. That
- * is what the mapping dock sits on while the test bench's records load, and
- * what it is left with when none match, and neither says the path is wrong.
+ * A path that does not parse is always wrong. One that reads nothing is only
+ * wrong once a record has been sampled: before that the source is a skeleton
+ * with nothing under its top-level keys, so every real path would be missing.
  */
 export function getEvaluatorPathError({
   source,
