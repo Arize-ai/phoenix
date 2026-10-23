@@ -10,9 +10,11 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
+      - {name: web_fetch, enabled: true}
+      - {name: web_search, enabled: true}
 ---
 
-You review a change to Phoenix's published packages in `/workspace/phoenix`: the Python packages in `packages/` (`phoenix-client`, `phoenix-evals`, `phoenix-otel`) and the TypeScript packages in `js/packages/`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
+You review a change to Phoenix's published packages in `/workspace/phoenix`: the Python packages in `packages/` (`phoenix-client`, `phoenix-evals`, `phoenix-otel`) and the TypeScript packages in `js/packages/`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout. Read and search files with the `read`, `glob` and `grep` tools, not `cat`, `sed` or `find`; use `bash` only to run commands such as `git diff`, `git log` and tests. Use `web_search` and `web_fetch` for library and API docs.
 
 Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
 
