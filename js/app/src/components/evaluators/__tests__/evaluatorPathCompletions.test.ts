@@ -673,6 +673,26 @@ describe("resolveEvaluatorPath", () => {
     expect(resolveEvaluatorPath({ source: {}, path: "metadata.nope" })).toEqual(
       { status: "unverifiable" }
     );
+    // The skeleton has top-level keys, so only the caller knows it is not
+    // a record: a path that reads nothing on it is not yet wrong.
+    const skeleton = { input: {}, output: {}, metadata: {} };
+    expect(
+      resolveEvaluatorPath({
+        source: skeleton,
+        path: "metadata.nope",
+        hasSampledRecord: false,
+      })
+    ).toEqual({ status: "unverifiable" });
+    expect(
+      resolveEvaluatorPath({ source: skeleton, path: "metadata.nope" }).status
+    ).toBe("unresolved");
+    expect(
+      resolveEvaluatorPath({
+        source: skeleton,
+        path: "metadata.events.0",
+        hasSampledRecord: false,
+      }).status
+    ).toBe("invalid");
   });
 
   it("blames the text where a path the server rejects goes wrong", () => {
