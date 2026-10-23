@@ -111,6 +111,24 @@ function getModelType(
   return value?.modelType ?? defaultModelType;
 }
 
+/**
+ * The provider whose icon the trigger shows. A custom-provider selection
+ * carries `provider` only to satisfy the value shape, so its icon comes from
+ * the provider's SDK, as in the menu.
+ */
+function getSelectedProviderKey(
+  value: ModelMenuValue | null | undefined,
+  customProviders: readonly CustomProviderInfo[]
+): string | undefined {
+  if (value?.customProvider == null) return value?.provider;
+  const customProvider = customProviders.find(
+    (provider) => provider.id === value.customProvider?.id
+  );
+  return customProvider
+    ? getProviderKeyForGenerativeModelSDK(customProvider.sdk)
+    : undefined;
+}
+
 type BuiltinModelInfo = {
   type: "builtin";
   providerKey: string;
@@ -338,13 +356,9 @@ export function ModelMenu({
     [contains]
   );
 
-  // A custom-provider selection carries `provider` only to satisfy the
-  // value shape — it names no real provider, so no provider icon is shown
-  const selectedProvider = value?.provider;
+  const selectedProvider = getSelectedProviderKey(value, customProviders);
   const isValidSelectedProvider =
-    value?.customProvider == null &&
-    selectedProvider &&
-    isModelProvider(selectedProvider);
+    selectedProvider != null && isModelProvider(selectedProvider);
 
   const selectedLeadingItem =
     selectedLeadingItemId != null

@@ -138,6 +138,15 @@ function DecisionDetails({
               description
               decisionVersionId
             }
+            # The version numbers the tag table shows; tags carry only ids.
+            taggedVersionNumbers: versions(first: 100) {
+              edges {
+                node {
+                  id
+                  sequenceNumber
+                }
+              }
+            }
             ...DecisionLabels
             ...DecisionPage_versions
             version(versionId: $versionId) {
@@ -162,6 +171,12 @@ function DecisionDetails({
     );
   const version = decision.version;
   const tagNames = decision.versionTags.map((tag) => tag.name);
+  const versionNumberById = new Map(
+    decision.taggedVersionNumbers.edges.map(({ node }) => [
+      node.id,
+      node.sequenceNumber,
+    ])
+  );
   const versionDetails = version ? (
     <DecisionVersionDetails
       versionRef={version}
@@ -372,7 +387,9 @@ function DecisionDetails({
                           <Link
                             to={`/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
                           >
-                            {tag.decisionVersionId}
+                            {versionNumberById.has(tag.decisionVersionId)
+                              ? `Version ${versionNumberById.get(tag.decisionVersionId)}`
+                              : tag.decisionVersionId}
                           </Link>
                         </td>
                         <td>{tag.description || "—"}</td>

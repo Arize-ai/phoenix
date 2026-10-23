@@ -223,6 +223,8 @@ export function DecisionsTable(props: DecisionsTableProps) {
           modelProvider: edge.decision.version?.modelProvider ?? "OPENAI",
           latestVersionId: edge.decision.version?.id ?? "",
           ...edge.decision,
+          // An emptied description reads as no description ("--").
+          description: edge.decision.description || null,
         };
       }),
     [data]
@@ -414,6 +416,7 @@ export function DecisionsTable(props: DecisionsTableProps) {
               </StopPropagation>
               <DecisionActionMenu
                 decisionId={row.original.id}
+                decisionName={row.original.name}
                 onDeleted={() => {
                   refetch(queryArgs, { fetchPolicy: "network-only" });
                 }}

@@ -204,8 +204,8 @@ describe("decision execution", () => {
       )
     );
     const answerText = () =>
-      container.querySelector('[aria-label="Decision answers"]')
-        ?.textContent ?? "";
+      container.querySelector('[aria-label="Decision answers"]')?.textContent ??
+      "";
     expect(answerText().indexOf("Low")).toBeLessThan(
       answerText().indexOf("High")
     );
@@ -229,6 +229,48 @@ describe("decision execution", () => {
     expect(answerText().indexOf("Low")).toBeLessThan(
       answerText().indexOf("High")
     );
+  });
+
+  it("shows a Yes / No answer with the probability of the shown answer", async () => {
+    const { store, instanceId } = mountRunningInstance({
+      ...createDecisionDraft(),
+      questions: [
+        createDecisionQuestion({
+          type: "predicate",
+          name: "billing",
+          instructions: "Is this about billing?",
+          predicate: {
+            trueDescription: "About billing",
+            falseDescription: "Not about billing",
+          },
+        }),
+      ],
+    });
+    act(() => store.getState().runPlaygroundInstances([instanceId]));
+    const call = mocks.commitMutation.mock.calls.length - 1;
+    await act(async () =>
+      getMutation(call).onCompleted?.(
+        {
+          runDecision: {
+            result: result([
+              {
+                __typename: "PredicateAnswer",
+                name: "billing",
+                probability: 0.06,
+              },
+            ]),
+            error: null,
+            span: null,
+          },
+        },
+        null
+      )
+    );
+    const answer = container.querySelector(
+      '[aria-label="billing probability"]'
+    );
+    expect(answer?.textContent).toContain("False");
+    expect(answer?.textContent).toContain("94%");
   });
 
   it("surfaces provider errors inline and retains the trace", async () => {
