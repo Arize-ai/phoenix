@@ -1,6 +1,7 @@
 name: Factory Dispatch
 
-# A maintainer labels a triaged issue `factory` (or dispatches it by hand). dispatch.py
+# A maintainer labels a triaged issue `factory` or dispatches it by hand, or Factory
+# Candidates dispatches a triage candidate whose author has write access. dispatch.py
 # checks that the issue is ready, picks the lane from its triage labels and starts the
 # lane's Managed Agents session. It then follows the session: CI failures and automated
 # review findings go back to the agent, the PR leaves draft once required CI passes, and
@@ -25,7 +26,8 @@ permissions:
 jobs:
   dispatch:
     # dispatch.py starts a session only for someone with write access, so a label applied
-    # by an issue template or a triage-only account is turned away.
+    # by an issue template or a triage-only account is turned away. A run that a workflow
+    # dispatched answers to the issue's author instead.
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory'
     # The job lasts as long as its session, so a second trigger for the same issue queues
     # behind it and then finds the open PR. This sits on the job, not the workflow, so

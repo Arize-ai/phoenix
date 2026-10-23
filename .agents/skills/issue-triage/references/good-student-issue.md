@@ -7,9 +7,9 @@ students taking CS146S".
 > 2026-09-22 to 2026-12-15; contributions start week 2, 2026-09-28). When the
 > class ends, remove it in three edits: delete this file, delete its row in the
 > SKILL.md gate-policy table, and drop the `"good student issue"` example from
-> the SKILL.md `description`. Also retire
-> `.github/workflows/claude-issue-triage.yml`, the only caller. Stages 1–6 of the
-> triage workflow do not depend on this policy.
+> the SKILL.md `description`. Also drop it from the prompt in
+> `.github/workflows/claude-issue-triage.yml`. Stages 1–6 of the triage workflow
+> do not depend on this policy.
 
 ## Audience
 

@@ -80,11 +80,12 @@ jobs:
 
             Triage open issues on Arize-ai/phoenix. Work the skill's stages in order.
 
-            Stage 7 uses the good-student-issue gate policy, which you MUST read from:
+            Stage 7 uses two gate policies, which you MUST read from:
 
               .agents/skills/issue-triage/references/good-student-issue.md
+              .agents/skills/issue-triage/references/factory-candidate.md
 
-            That is the only gate policy in effect.
+            Those are the only gate policies in effect.
 
             Run scope:
               created:    ${{ inputs.created || '(none - whole backlog)' }}

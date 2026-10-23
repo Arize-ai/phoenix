@@ -44,6 +44,8 @@ LANE_OUTCOMES = {
 }
 # Repository permissions that may start the factory; GitHub reports `maintain` as `write`.
 STARTING_PERMISSIONS = {"admin", "write"}
+# The sender of a run that a workflow here dispatched with its GITHUB_TOKEN.
+WORKFLOW_LOGIN = "github-actions[bot]"
 # Labels triage applies when an issue is not ready to build.
 NOT_READY_LABELS = {
     "needs information": "it is labeled `needs information`",
@@ -566,16 +568,21 @@ def run_start(*, args: argparse.Namespace) -> None:
             "view",
             str(args.issue),
             "--json",
-            "number,state,labels,assignees,closedByPullRequestsReferences",
+            "number,state,author,labels,assignees,closedByPullRequestsReferences",
         )
     )
     label_names = [label["name"] for label in issue["labels"]]
     lane = args.lane or select_lane(label_names=label_names)
+    # factory-candidates.yml dispatches triage candidates as the workflow, so those runs
+    # answer to the issue's author: only an issue someone with write access wrote starts.
+    requester_login = (
+        issue["author"]["login"] if args.requested_by == WORKFLOW_LOGIN else args.requested_by
+    )
     admission_problem = find_admission_problem(
         issue=issue,
         open_pr_urls=list_open_pr_urls(issue=issue),
-        requester_login=args.requested_by,
-        requester_permission=read_repo_permission(login=args.requested_by),
+        requester_login=requester_login,
+        requester_permission=read_repo_permission(login=requester_login),
     )
     if admission_problem is None and lane is None:
         admission_problem = (
