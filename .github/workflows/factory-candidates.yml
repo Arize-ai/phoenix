@@ -6,6 +6,9 @@ name: Factory Candidates
 # checks that author again before it starts a session. Every other candidate waits for a
 # maintainer to add the `factory` label.
 on:
+  # zizmor: ignore[dangerous-triggers] Claude Issue Triage runs only on a schedule or a
+  # maintainer's dispatch, never for a fork. This workflow checks nothing out, reads no
+  # artifacts and runs no code from the triggering run; it only reads issue labels.
   workflow_run:
     workflows: [Claude Issue Triage]
     types: [completed]
