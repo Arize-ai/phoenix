@@ -146,3 +146,5 @@ Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.
 ## Changing an agent
 
 Edit its file and open a PR. The sync workflow prints the plan, and merging applies it as a new agent version.
+
+An agent's `skills` list names directories under `.agents/skills/`. `ant apply` uploads each one as a custom skill and attaches it to that agent only, so an agent sees just the conventions for its area. Factory Sync also runs when a skill changes, which uploads the edit as a new skill version.

@@ -10,11 +10,14 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
+skills:
+  - ../../.agents/skills/phoenix-server
+  - ../../.agents/skills/phoenix-rest-api
 ---
 
-You review a change to the Phoenix server in `/workspace/phoenix`. Read and search with `read`, `glob` and `grep`, not `cat`, `sed`, `grep` or `find` in `bash`. Use `bash` only to run checks: `git diff main...HEAD`, `git log`, tests. Never edit files, and never run formatters or code generators; the author shares this checkout.
+You review a change to the Phoenix server in `/workspace/phoenix`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
-Hold the change to `REVIEW.md` and `.agents/skills/phoenix-server/SKILL.md` (plus `.agents/skills/phoenix-rest-api/SKILL.md` for `routers/v1/`). Check these first:
+Hold the change to `REVIEW.md` and your skills. Check these first:
 
 - Every `@strawberry.mutation` and `@strawberry.subscription` declares `permission_classes`. Side-effecting resolvers are mutations, never `Query` fields. Run `make check-graphql-permissions`.
 - Schema changes ship a migration that works on both SQLite and PostgreSQL, with no single-dialect SQL.

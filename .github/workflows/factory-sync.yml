@@ -5,10 +5,10 @@ name: Factory Sync
 # `ant apply` writes, not config, so it lives on the factory-state branch, never on main.
 on:
   pull_request:
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/**] # agents attach skills from .agents/skills
   push:
     branches: [main]
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/**]
   # Applies main by hand, e.g. after deleting factory-state to switch workspaces.
   workflow_dispatch:
 
