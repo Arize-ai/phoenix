@@ -39,6 +39,8 @@ instrumentation.manuallyInstrument(Anthropic);
 console.log("Anthropic instrumentation registered");
 ```
 
+From `@anthropic-ai/sdk` 0.134.0, the Anthropic SDK also records its own traces. With the instrumentation on, every call would appear twice in Phoenix, with tokens and cost counted twice. Pass `openTelemetry: false` when you create the client, as in the example below, or set `ANTHROPIC_OPEN_TELEMETRY=false` in your environment.
+
 ## Run Anthropic
 
 Import the `instrumentation.ts` file first, then use Anthropic as usual.
@@ -50,6 +52,7 @@ import Anthropic from "@anthropic-ai/sdk";
 // set ANTHROPIC_API_KEY in environment, or pass it in arguments
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  openTelemetry: false, // the instrumentation traces calls; skip the SDK's own spans
 });
 
 async function main() {
