@@ -41,6 +41,13 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
         dataset {
           id
         }
+        datasetSplits {
+          edges {
+            node {
+              id
+            }
+          }
+        }
         job {
           maxConcurrency
           datasetEvaluators {
@@ -61,6 +68,13 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                 name
               }
               inputValuesPath
+              decisionVersion {
+                id
+                decision {
+                  id
+                  name
+                }
+              }
               inputs {
                 name
                 description
@@ -218,6 +232,8 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
 export type ExperimentRehydrationResult = {
   playgroundProps: Partial<PlaygroundProps>;
   datasetId: string | null;
+  /** The dataset splits the experiment ran over; empty for the whole dataset. */
+  splitIds: string[];
   stateByDatasetId: Record<
     string,
     {
@@ -243,7 +259,7 @@ function taskConfigToPlaygroundProps(
   maxConcurrency: number,
   datasetId: string | null,
   selectedDatasetEvaluatorIds: string[]
-): ExperimentRehydrationResult {
+): Omit<ExperimentRehydrationResult, "splitIds"> {
   const prompt = taskConfig.prompt;
   const provider = prompt.modelProvider as ModelProvider;
 
@@ -356,22 +372,30 @@ export async function fetchExperimentPlaygroundProps(
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id
   );
+  const splitIds =
+    node.datasetSplits?.edges.map((edge) => edge.node.id) ?? [];
 
   if (taskConfig.__typename === "DecisionTaskConfig") {
-    return decisionTaskConfigToPlaygroundProps({
-      taskConfig,
-      maxConcurrency: job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
-      datasetId: node.dataset?.id ?? null,
-      selectedDatasetEvaluatorIds,
-    });
+    return {
+      ...decisionTaskConfigToPlaygroundProps({
+        taskConfig,
+        maxConcurrency: job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+        datasetId: node.dataset?.id ?? null,
+        selectedDatasetEvaluatorIds,
+      }),
+      splitIds,
+    };
   }
   if (taskConfig.__typename !== "PromptTaskConfig") return null;
-  return taskConfigToPlaygroundProps(
-    taskConfig,
-    job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
-    node.dataset?.id ?? null,
-    selectedDatasetEvaluatorIds
-  );
+  return {
+    ...taskConfigToPlaygroundProps(
+      taskConfig,
+      job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+      node.dataset?.id ?? null,
+      selectedDatasetEvaluatorIds
+    ),
+    splitIds,
+  };
 }
 
 /** Rebuild a fixed-question decision task from its frozen experiment configuration. */
@@ -392,7 +416,7 @@ export function decisionTaskConfigToPlaygroundProps({
   maxConcurrency: number;
   datasetId: string | null;
   selectedDatasetEvaluatorIds: string[];
-}): ExperimentRehydrationResult {
+}): Omit<ExperimentRehydrationResult, "splitIds"> {
   if (!isModelProvider(taskConfig.modelProvider)) {
     throw new Error(`Unknown decision provider: ${taskConfig.modelProvider}`);
   }
@@ -402,10 +426,20 @@ export function decisionTaskConfigToPlaygroundProps({
       ? TemplateFormats.FString
       : TemplateFormats.Mustache;
   const defaults = createDecisionTaskInstance();
+  const savedVersion = taskConfig.decisionVersion;
   const instance: PlaygroundInstance = {
     ...defaults,
     id: generateInstanceId(),
     decisionRequest: savedDecisionVersionToDraft({ version, templateFormat }),
+    // Keep the link to the saved version the experiment ran, if it still exists.
+    decision: savedVersion
+      ? {
+          id: savedVersion.decision.id,
+          name: savedVersion.decision.name,
+          versionId: savedVersion.id,
+          tag: null,
+        }
+      : null,
     model: {
       ...defaults.model,
       provider: taskConfig.modelProvider,
