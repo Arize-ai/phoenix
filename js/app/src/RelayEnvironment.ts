@@ -10,6 +10,7 @@ import {
 import invariant from "tiny-invariant";
 
 import { authFetch } from "@phoenix/authFetch";
+import { ServerResponseError } from "@phoenix/components/exception/serverConnectionError";
 import { BASE_URL } from "@phoenix/config";
 
 import {
@@ -63,15 +64,17 @@ function fetchJsonObservable<T>(
         } catch {
           const text = (await responseClone.text()).trim();
           if (text === "") {
-            throw new Error(
-              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
+            throw new ServerResponseError(
+              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`,
+              response.status
             );
           }
           // The body is likely an HTML error page from a gateway or proxy.
           // Include a snippet to make the failure easier to diagnose.
           const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
-          throw new Error(
-            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`
+          throw new ServerResponseError(
+            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`,
+            response.status
           );
         }
         // A non-OK status with a parseable body still indicates a failure.
@@ -86,8 +89,9 @@ function fetchJsonObservable<T>(
             0,
             ERROR_BODY_SNIPPET_LENGTH
           );
-          throw new Error(
-            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`
+          throw new ServerResponseError(
+            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`,
+            response.status
           );
         }
         return data;
@@ -123,7 +127,7 @@ function fetchJsonObservable<T>(
  * the results of GraphQL queries from your server (or other data source). See more at
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
-const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
+export const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
   fetchJsonObservable(
     graphQLPath,
     {
