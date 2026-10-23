@@ -3,8 +3,9 @@
 The script is a gate and a starter. It counts the error lines Loki has for the window;
 with none, it exits without spending anything. Otherwise it starts a session with the
 railway-triage agent, which reads the errors and the code, checks the open `railway-dev` issues,
-and files or updates issues itself. With `--dispatch`, every `railway-dev` issue the session
-created then gets the `factory` label so factory-dispatch.yml runs the bug lane on it.
+and files or updates issues itself. Unless `--no-dispatch` is given, the `railway-dev` issues
+the session created then get the `factory` label, up to `--max-dispatch` of them, so
+factory-dispatch.yml runs the bug lane on each.
 
 Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token
 with the Viewer role), FACTORY_GRAFANA_LOGQL (the selector for server errors), optionally
@@ -197,9 +198,15 @@ def main() -> None:
         "--watch-minutes", type=int, default=90, help="How long to wait for the session"
     )
     parser.add_argument(
-        "--dispatch",
+        "--no-dispatch",
         action="store_true",
-        help="Label the issues the session created `factory` so the bug lane runs on them",
+        help="Don't label the issues the session created `factory`",
+    )
+    parser.add_argument(
+        "--max-dispatch",
+        type=int,
+        default=3,
+        help="Most issues to label `factory` per run; each starts a bug-lane session",
     )
     parser.add_argument("--dry-run", action="store_true", help="Count the errors and stop")
     args = parser.parse_args()
@@ -265,9 +272,12 @@ def main() -> None:
 
     # The session files and comments as the machine account; find what it touched by time.
     touched_issues = list_source_issues(repo=args.repo, token=github_token, since=session_start)
-    for issue in touched_issues:
+    dispatched = 0
+    for issue in sorted(touched_issues, key=lambda issue: issue["createdAt"]):
         is_new = parse_timestamp(issue["createdAt"]) >= session_start
-        if is_new and args.dispatch:
+        dispatch = is_new and not args.no_dispatch and dispatched < args.max_dispatch
+        if dispatch:
+            dispatched += 1
             run_gh(
                 "issue",
                 "edit",
@@ -279,11 +289,20 @@ def main() -> None:
                 token=github_token,
             )
         verb = "filed" if is_new else "updated"
-        suffix = ", labeled factory" if is_new and args.dispatch else ""
+        suffix = ", labeled factory" if dispatch else ""
         print(f"{verb}{suffix} #{issue['number']}: {issue['title']}")
         summary.append(f"- {verb}{suffix}: [#{issue['number']}]({issue['url']}) {issue['title']}\n")
     if not touched_issues:
         summary.append("No issues filed or updated.\n")
+    undispatched = (
+        sum(1 for issue in touched_issues if parse_timestamp(issue["createdAt"]) >= session_start)
+        - dispatched
+    )
+    if undispatched and not args.no_dispatch:
+        summary.append(
+            f"\n{undispatched} new issue(s) left for a maintainer to label: the per-run cap is "
+            f"{args.max_dispatch}.\n"
+        )
     write_step_summary(summary)
     if stop_reason != "end_turn":
         raise SystemExit(f"The session stopped with {stop_reason}; see the Claude Console.")

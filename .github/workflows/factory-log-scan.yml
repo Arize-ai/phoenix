@@ -12,9 +12,9 @@ on:
         description: Hours to scan, ending now
         default: "24"
       dispatch:
-        description: Add the factory label to the issues the session files
+        description: Add the factory label to the issues the session files, up to the per-run cap
         type: boolean
-        default: false
+        default: true
       dry_run:
         description: Count the window's errors without starting a session
         type: boolean
@@ -63,9 +63,9 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
           HOURS: ${{ inputs.hours || '24' }}
-          # The schedule follows the FACTORY_LOG_SCAN_DISPATCH repository variable; a manual
-          # run follows its own input.
-          DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_LOG_SCAN_DISPATCH == 'true' || inputs.dispatch == true }}
+          # Set the FACTORY_LOG_SCAN_DISPATCH repository variable to 'false' to pause dispatch
+          # from the schedule; a manual run follows its own input.
+          DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_LOG_SCAN_DISPATCH != 'false' || inputs.dispatch == true }}
           DRY_RUN: ${{ inputs.dry_run == true }}
         run: |
           if [ -z "$FACTORY_GRAFANA_URL" ]; then
@@ -73,6 +73,6 @@ jobs:
             exit 1
           fi
           ARGS=(--repo "$GH_REPO" --hours "$HOURS")
-          [ "$DISPATCH" = "true" ] && ARGS+=(--dispatch)
+          [ "$DISPATCH" = "true" ] || ARGS+=(--no-dispatch)
           [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
           python factory/log_scan.py "${ARGS[@]}"
