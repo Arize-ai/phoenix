@@ -481,6 +481,11 @@ export interface PlaygroundInstance {
    */
   decisionRequest?: DecisionRequestDraft | null;
   /**
+   * The decision request the latest run sent. Its output is read against
+   * this, not the draft, so editing the draft never relabels an old result.
+   */
+  decisionRunRequest?: DecisionRequestDraft | null;
+  /**
    * An ID to uniquely identify the instance
    */
   id: number;

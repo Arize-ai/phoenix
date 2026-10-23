@@ -1179,6 +1179,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             return {
               ...instance,
               activeRunId: generateRunId(),
+              decisionRunRequest: instance.decisionRequest
+                ? structuredClone(instance.decisionRequest)
+                : instance.decisionRequest,
               repetitions: Object.fromEntries(
                 Array.from({ length: repetitions }, (_, i) => [
                   i + 1,
