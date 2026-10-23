@@ -33,6 +33,7 @@ def _boot_message() -> BootMessage:
         agent_assistant_enabled=True,
         docs_mcp_url=None,
         prometheus_enabled=False,
+        otlp_log_export_enabled=False,
         smtp_hostname="",
         telemetry_enabled=True,
     )

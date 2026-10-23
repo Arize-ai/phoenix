@@ -120,7 +120,7 @@ Good fit signals:
 `tests/test.sh`:
 ```bash
 #!/bin/bash
-uvx --from 'harbor-rewardkit==0.2.*' rewardkit /tests
+uvx --python '>=3.12,<3.14' --from 'harbor-rewardkit==0.2.*' rewardkit /tests
 ```
 
 Note: the package is named `harbor-rewardkit` but the executable is `rewardkit`,
@@ -230,7 +230,7 @@ Network access has three layers:
 
 1. **Baselines** — set when an environment starts, restored between phases
 2. **Phase overrides** — optional; only during `agent.run()` or `verify()`
-3. **Run-time merges** — `--allow-environment-host`, `--allow-agent-host` on `harbor run`
+3. **Run-time merges** — `--allow-environment-host`, `--allow-agent-host`, `--allow-verifier-host` on `harbor run`
 
 | Field | Layer | When applied |
 | --- | --- | --- |
@@ -240,6 +240,7 @@ Network access has three layers:
 | `[verifier].network_mode`, `[steps.verifier].network_mode` | Override | During matching `verify()` |
 | `--allow-environment-host` | Run-time | Merged into `environment.extra_allowed_hosts` → `[environment]` baseline |
 | `--allow-agent-host` | Run-time | Merged into `agent.extra_allowed_hosts` → agent phase allowlist |
+| `--allow-verifier-host` | Run-time | Merged into `verifier.extra_allowed_hosts` → verifier phase allowlist (and separate verifier env baseline) |
 
 Modes: `public`, `no-network`, or `allowlist` with `allowed_hosts = ["pypi.org"]`
 (exact hostnames, IPv4/IPv6 address literals or CIDR ranges, or leading wildcard hostnames, when supported by the selected environment; not URLs,
@@ -285,13 +286,14 @@ Run-time host flags for eval jobs without editing `task.toml`:
 ```bash
 harbor run -p "<task-path>" -a oracle \
   --allow-environment-host pypi.org \   # env start (Dockerfile apt/curl)
-  --allow-agent-host files.pythonhosted.org   # agent.run() only
+  --allow-agent-host files.pythonhosted.org \  # agent.run() only
+  --allow-verifier-host llm-proxy.example.com   # verify() only (e.g. LLM judge proxy)
 ```
 
 On a `public` baseline, run-time host flags emit a warning and are ignored.
 
 Examples: `examples/tasks/network-policy-matrix/`. Full reference:
-`docs/content/docs/tasks/index.mdx` (Network policy section).
+`docs-mintlify/tasks/network-policies.mdx`.
 
 For Reward Kit judges needing API keys:
 ```toml
@@ -391,14 +393,14 @@ with cwd = WORKDIR. Non-zero exit aborts the step and the trial. Have it
 ```toml
 schema_version = "1.4"
 
-[task]
-name = "<org>/<task-name>"
-version = "1.0.0"
-
 # How per-step rewards roll up into the trial-level verifier_result.
 # "mean" (default): per-key mean across steps that produced a result.
 # "final": the last step's verifier_result verbatim.
 multi_step_reward_strategy = "mean"
+
+[task]
+name = "<org>/<task-name>"
+version = "1.0.0"
 
 [[steps]]
 name = "scaffold"              # Must match the directory under steps/
@@ -454,7 +456,7 @@ aggregation strategy.
 
 ### Full reference + worked example
 
-- Docs: `docs/content/docs/tasks/multi-step.mdx`
+- Docs: `docs-mintlify/tasks/multi-step.mdx`
 - Example task: `examples/tasks/hello-multi-step-advanced/`
 
 ## Special features (mention if relevant)

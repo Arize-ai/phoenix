@@ -69,25 +69,25 @@ export type GenerateFilterConditionResult<
 
 async function streamExpression({
   model,
-  system,
+  instructions,
   messages,
   onDelta,
   abortSignal,
 }: {
   model: LanguageModel;
-  system: string;
+  instructions: string;
   messages: ModelMessage[];
   onDelta?: (partialExpression: string) => void;
   abortSignal?: AbortSignal;
 }): Promise<string> {
-  const result = streamText({ model, system, messages, abortSignal });
+  const result = streamText({ model, instructions, messages, abortSignal });
   let text = "";
   let lastDeltaEmitTime = 0;
   // Consume the full stream, not just the text: the SDK reports stream
   // failures and aborts as parts rather than throwing, and dropping them
   // would pass off whatever text arrived before the break as the model's
   // finished answer.
-  for await (const part of result.fullStream) {
+  for await (const part of result.stream) {
     if (part.type === "error") {
       throw part.error instanceof Error
         ? part.error
@@ -136,11 +136,11 @@ export async function generateFilterCondition<
 }: GenerateFilterConditionArgs<TValidationResult>): Promise<
   GenerateFilterConditionResult<TValidationResult>
 > {
-  const system = buildAIQuerySystemPrompt(dsl);
+  const instructions = buildAIQuerySystemPrompt(dsl);
   const messages: ModelMessage[] = [{ role: "user", content: query }];
   const expression = await streamExpression({
     model,
-    system,
+    instructions,
     messages,
     onDelta,
     abortSignal,
@@ -173,7 +173,7 @@ export async function generateFilterCondition<
   // twice tends to keep missing.
   const repaired = await streamExpression({
     model,
-    system,
+    instructions,
     messages: [
       ...messages,
       { role: "assistant", content: expression },

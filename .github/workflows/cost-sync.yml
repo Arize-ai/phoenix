@@ -49,6 +49,11 @@ jobs:
       # passed to the action below (so no write-scoped App token is minted via
       # OIDC). Publishing happens in the separate publish-pr job with a PAT.
       contents: read
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -141,7 +146,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           # Hand the action the read-only workflow token instead of letting it
           # mint a write-scoped Claude App token via OIDC. Claude never writes
@@ -428,6 +436,12 @@ jobs:
         # truncate the command mid-string.
         run: |
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
+      - name: Approve pull request
+        if: steps.cpr.outputs.pull-request-number != ''
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ steps.cpr.outputs.pull-request-number }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}
 
   slack-notification:
     name: Slack Notification

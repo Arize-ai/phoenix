@@ -166,7 +166,9 @@ export function SystemAPIKeysTable({
         end: ["actions"],
       },
     },
-    manualSorting: true,
+    // the keys are listed in the order the server returns them; with no
+    // sorted row model a sortable header would toggle state and do nothing
+    enableSorting: false,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;

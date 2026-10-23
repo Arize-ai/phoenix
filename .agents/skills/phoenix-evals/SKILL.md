@@ -1,6 +1,6 @@
 ---
 name: phoenix-evals
-description: Build and run evaluators for AI/LLM applications using Phoenix.
+description: Build, run, and validate evaluators for AI/LLM applications with Phoenix, in Python or TypeScript (including Vercel AI SDK apps) — code-based checks and LLM-as-a-judge, run over exported traces or dataframes or as Phoenix experiments, gate them in CI, and validate judges against human-labeled data.
 license: Apache-2.0
 compatibility: Requires Phoenix server. Python skills need phoenix and openai packages; TypeScript skills need @arizeai/phoenix-client.
 metadata:
@@ -75,6 +75,6 @@ evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} 
 | Error analysis first | Can't automate what you haven't observed |
 | Custom > generic | Build from your failures |
 | Code first | Deterministic before LLM |
-| Validate judges | >80% TPR/TNR |
+| Validate judges | >80% accuracy, >70% TPR/TNR |
 | Binary > Likert | Pass/fail, not 1-5 |
 | Invariants gate, signals trend | `assert`/`expect` hard invariants (CI red); log LLM-judge quality signals and gate the aggregate (acceptance criteria), not every case |

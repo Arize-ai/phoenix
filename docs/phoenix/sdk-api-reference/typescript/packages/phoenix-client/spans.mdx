@@ -32,6 +32,8 @@ for (const span of result.spans) {
 }
 ```
 
+`getSpans` returns spans in insertion order, most recently inserted first, which is not always the order in which they started. To page by start time, call `GET /v1/projects/{project_identifier}/spans` with `sort=start_time`, or use `get_spans(sort="start_time")` in the Python client (Phoenix server 20.16.0 or newer).
+
 ### Filtering by Attributes
 
 Use the `attributes` parameter to filter spans by OpenInference attribute key-value pairs. Multiple entries are ANDed together. The JS type of the value determines how the stored attribute is matched: a `number` matches a stored integer or float, a `boolean` matches a stored boolean, and a `string` matches a stored string.

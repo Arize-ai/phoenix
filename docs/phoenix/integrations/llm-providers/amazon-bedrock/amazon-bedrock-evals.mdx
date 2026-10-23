@@ -18,7 +18,7 @@ Use the `"litellm"` provider with a Bedrock model ID:
 ```python
 from phoenix.evals import LLM
 
-llm = LLM(provider="litellm", model="bedrock/anthropic.claude-3-sonnet-20240229-v1:0")
+llm = LLM(provider="litellm", model="bedrock/us.anthropic.claude-sonnet-4-6")
 ```
 
 LiteLLM reads AWS credentials from the standard environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION_NAME`).
@@ -29,7 +29,7 @@ LiteLLM reads AWS credentials from the standard environment variables (`AWS_ACCE
 from phoenix.evals import LLM, evaluate_dataframe
 from phoenix.evals.metrics import FaithfulnessEvaluator
 
-llm = LLM(provider="litellm", model="bedrock/anthropic.claude-3-sonnet-20240229-v1:0")
+llm = LLM(provider="litellm", model="bedrock/us.anthropic.claude-sonnet-4-6")
 evaluator = FaithfulnessEvaluator(llm=llm)
 
 results_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
@@ -56,5 +56,5 @@ os.environ["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
 os.environ["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
 os.environ["AWS_SESSION_TOKEN"] = creds["SessionToken"]
 
-llm = LLM(provider="litellm", model="bedrock/anthropic.claude-3-sonnet-20240229-v1:0")
+llm = LLM(provider="litellm", model="bedrock/us.anthropic.claude-sonnet-4-6")
 ```

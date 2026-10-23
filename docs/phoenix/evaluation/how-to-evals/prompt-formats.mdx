@@ -60,9 +60,11 @@ Arrays of message objects with `role` and `content` fields.
 
     **Supported roles:**
 
-    * `"system"` - Instructions for the model.
-    * `"user"` - User messages and input context.
-    * `"assistant"` - Assistant/model responses (for multi-turn conversations or few-shot examples)
+    * `"system"` (alias `"developer"`) - Instructions for the model.
+    * `"user"` (alias `"human"`) - User messages and input context.
+    * `"assistant"` (aliases `"ai"`, `"model"`) - Assistant/model responses (for multi-turn conversations or few-shot examples)
+
+    Role names are case-insensitive, so you can reuse message lists written for LangChain (`"human"`, `"ai"`) or Google (`"model"`) as-is.
   </Tab>
 
   <Tab title="TypeScript" icon="js">

@@ -18,6 +18,9 @@ export async function projectLoader(args: LoaderFunctionArgs) {
           id
           ... on Project {
             name
+            # Fetched on every visit, so the Relay store answer that
+            # ProjectOnboardingOverlay decides from on mount is never stale.
+            hasTraces
           }
         }
       }

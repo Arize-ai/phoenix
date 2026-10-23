@@ -10,8 +10,8 @@ import {
   Icon,
   Icons,
   LazyTabPanel,
-  Loading,
   PageHeader,
+  Skeleton,
   Tab,
   TabList,
   Tabs,
@@ -27,11 +27,15 @@ import {
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
-import { CodeDatasetEvaluatorVersions } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
+import {
+  CodeDatasetEvaluatorVersions,
+  CodeDatasetEvaluatorVersionsSkeleton,
+} from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
@@ -66,10 +70,50 @@ export function DatasetEvaluatorDetailsPage() {
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<DatasetEvaluatorDetailsPageSkeleton />}>
         <DatasetEvaluatorDetailsPageContent data={data} />
       </Suspense>
     </TimeRangeProvider>
+  );
+}
+
+const DETAILS_SECTION_SKELETON_HEIGHT = 240;
+
+/**
+ * A loading placeholder for the evaluator details page: the header's title
+ * and description, the tab list, and the configuration sections.
+ */
+function DatasetEvaluatorDetailsPageSkeleton() {
+  return (
+    <main css={mainCSS} role="status" aria-label="loading">
+      <View padding="size-200" flex="none">
+        <Flex direction="column" gap="size-50">
+          <Skeleton height={24} width={320} />
+          <Skeleton height={16} width={480} />
+        </Flex>
+      </View>
+      <View paddingX="size-200" flex="none">
+        <Skeleton height={32} width={320} />
+      </View>
+      <View padding="size-200">
+        <Flex
+          direction="column"
+          gap="size-300"
+          maxWidth={1600}
+          marginStart="auto"
+          marginEnd="auto"
+        >
+          <Skeleton
+            height={DETAILS_SECTION_SKELETON_HEIGHT}
+            borderRadius="medium"
+          />
+          <Skeleton
+            height={DETAILS_SECTION_SKELETON_HEIGHT}
+            borderRadius="medium"
+          />
+        </Flex>
+      </View>
+    </main>
   );
 }
 
@@ -156,7 +200,7 @@ function DatasetEvaluatorDetailsPageContent({
         </LazyTabPanel>
         {isCodeEvaluator && (
           <LazyTabPanel id="versions">
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
               <CodeDatasetEvaluatorVersions
                 datasetEvaluatorId={datasetEvaluator.id}
               />
@@ -164,7 +208,9 @@ function DatasetEvaluatorDetailsPageContent({
           </LazyTabPanel>
         )}
         <LazyTabPanel id="spans">
-          <Suspense fallback={<Loading />}>
+          <Suspense
+            fallback={<TableSkeleton hasToolbar isSelectable rowCount="fill" />}
+          >
             <DatasetEvaluatorSpans projectId={datasetEvaluator.project.id} />
           </Suspense>
         </LazyTabPanel>

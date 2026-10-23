@@ -1,0 +1,129 @@
+name: Factory Sync
+
+# Git is the source of truth for the factory's Managed Agents resources.
+# Pull requests print the plan; a merge to main applies it. claude-lock.json is state that
+# `ant apply` writes, not config, so it lives on the factory-state branch, never on main.
+on:
+  pull_request:
+    paths: [factory/**]
+  push:
+    branches: [main]
+    paths: [factory/**]
+  # Applies main by hand, e.g. after deleting factory-state to switch workspaces.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ANT_VERSION: "1.40.0" # relative paths under multiagent.subagents.predefined_agents need >= 1.40.0
+  LOCK_BRANCH: factory-state # holds only claude-lock.json
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    # Plans are read-only, so a newer push to the same PR replaces its plan, and plans never
+    # share a group with applies, where a queued plan could cancel a pending apply.
+    concurrency:
+      group: factory-sync-plan-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" ant
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # Inline rather than a script under factory/: this job runs a PR's checkout with the
+      # workspace key, and a factory PR can change factory/ but not workflows.
+      - name: Pull claude-lock.json
+        run: |
+          # Only a missing branch means there is no lock yet. Any other failure stops here,
+          # because planning or applying without the lock creates every resource again.
+          STATUS=0
+          git ls-remote --exit-code --heads origin "$LOCK_BRANCH" > /dev/null || STATUS=$?
+          if [ "$STATUS" -eq 2 ]; then
+            echo "No $LOCK_BRANCH branch yet, so every resource will be created."
+            exit 0
+          fi
+          [ "$STATUS" -eq 0 ] || exit "$STATUS"
+          git fetch --quiet --depth=1 origin "$LOCK_BRANCH:refs/remotes/origin/$LOCK_BRANCH"
+          git show "refs/remotes/origin/$LOCK_BRANCH:claude-lock.json" > claude-lock.json
+      # --dry-run exits 0 even when the plan is blocked, so read the plan in the log.
+      - name: Plan
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --dry-run -v .
+
+  apply:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    # Nothing locks claude-lock.json, so only one apply may run at a time. A pending apply
+    # replaced by a newer one loses nothing: the newer run applies main at a later commit.
+    concurrency:
+      group: factory-sync-apply
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push claude-lock.json to the factory-state branch
+    defaults:
+      run:
+        working-directory: factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" ant
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Pull claude-lock.json
+        id: pull
+        run: |
+          # Only a missing branch means there is no lock yet. Any other failure stops here,
+          # because planning or applying without the lock creates every resource again.
+          STATUS=0
+          git ls-remote --exit-code --heads origin "$LOCK_BRANCH" > /dev/null || STATUS=$?
+          if [ "$STATUS" -eq 2 ]; then
+            echo "No $LOCK_BRANCH branch yet, so every resource will be created."
+            exit 0
+          fi
+          [ "$STATUS" -eq 0 ] || exit "$STATUS"
+          git fetch --quiet --depth=1 origin "$LOCK_BRANCH:refs/remotes/origin/$LOCK_BRANCH"
+          git show "refs/remotes/origin/$LOCK_BRANCH:claude-lock.json" > claude-lock.json
+      - name: Apply
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --yes .
+      # Push even when apply failed partway: a partial apply still records what it created,
+      # and a lock file that loses those IDs makes the next apply create duplicates.
+      - name: Push claude-lock.json
+        if: always() && steps.pull.outcome == 'success'
+        env:
+          PUSH_TOKEN: ${{ github.token }}
+        run: |
+          [ -s claude-lock.json ] || exit 0
+          PARENT=$(git rev-parse --verify --quiet "refs/remotes/origin/$LOCK_BRANCH" || true)
+          if [ -n "$PARENT" ] && git show "$PARENT:claude-lock.json" | cmp -s - claude-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The branch holds only the lock, so build its commit without touching the checkout.
+          BLOB=$(git hash-object -w claude-lock.json)
+          TREE=$(printf '100644 blob %s\tclaude-lock.json\n' "$BLOB" | git mktree)
+          COMMIT=$(git commit-tree "$TREE" ${PARENT:+-p "$PARENT"} -m "chore(factory): update claude-lock.json" -m "Applied main at $GITHUB_SHA.")
+          REMOTE="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git push --quiet "$REMOTE" "$COMMIT:refs/heads/$LOCK_BRANCH"; then
+            echo "::error::Could not push claude-lock.json to $LOCK_BRANCH; push this lock by hand before the next apply."
+            cat claude-lock.json
+            exit 1
+          fi

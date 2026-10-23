@@ -205,7 +205,7 @@ async function recordChatUsage({
 }): Promise<void> {
   if (controller.signal.aborted || selection.kind === "browser") return;
   try {
-    const turnUsage = await result.totalUsage;
+    const turnUsage = await result.usage;
     const prompt = turnUsage.inputTokens ?? 0;
     const completion = turnUsage.outputTokens ?? 0;
     const total = turnUsage.totalTokens ?? prompt + completion;

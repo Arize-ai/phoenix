@@ -6,6 +6,8 @@ import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/exp
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
+import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
+
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
@@ -91,7 +93,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "ann-1",
-                name: "qa_correctness",
+                name: "answer_relevance",
                 label: "correct",
                 score: 0.95,
                 metadata: null,
@@ -103,10 +105,23 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
-                id: "ann-2",
-                name: "has_results",
+                id: "ann-2-coverage",
+                name: "column_coverage",
                 label: null,
-                score: 1.0,
+                score: 0.5,
+                metadata: null,
+                trace: {
+                  traceId: "eval-trace-exp1-2-coverage",
+                  projectId: "project-456",
+                },
+              },
+            },
+            {
+              annotation: {
+                id: "ann-2",
+                name: "verbosity",
+                label: null,
+                score: 0.86,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp1-2",
@@ -149,9 +164,9 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "ann-3",
-                name: "qa_correctness",
+                name: "answer_relevance",
                 label: null,
-                score: 0.87,
+                score: 0.62,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp2-1",
@@ -161,10 +176,23 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
-                id: "ann-4",
-                name: "has_results",
+                id: "ann-4-coverage",
+                name: "column_coverage",
                 label: null,
-                score: 1.0,
+                score: 0.74,
+                metadata: null,
+                trace: {
+                  traceId: "eval-trace-exp2-2-coverage",
+                  projectId: "project-789",
+                },
+              },
+            },
+            {
+              annotation: {
+                id: "ann-4",
+                name: "verbosity",
+                label: null,
+                score: 0.5,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp2-2",
@@ -207,9 +235,9 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "ann-5",
-                name: "qa_correctness",
+                name: "answer_relevance",
                 label: null,
-                score: 0.65,
+                score: 0.18,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-1",
@@ -219,10 +247,23 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
-                id: "ann-6",
-                name: "has_results",
+                id: "ann-6-coverage",
+                name: "column_coverage",
                 label: null,
-                score: 0.0,
+                score: 0.5,
+                metadata: null,
+                trace: {
+                  traceId: "eval-trace-exp3-2-coverage",
+                  projectId: "project-123",
+                },
+              },
+            },
+            {
+              annotation: {
+                id: "ann-6",
+                name: "verbosity",
+                label: null,
+                score: 0.12,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-2",
@@ -263,9 +304,9 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "ann-7",
-                name: "qa_correctness",
+                name: "answer_relevance",
                 label: null,
-                score: 0.78,
+                score: 0.41,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-3",
@@ -275,10 +316,23 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
-                id: "ann-8",
-                name: "has_results",
+                id: "ann-8-coverage",
+                name: "column_coverage",
                 label: null,
-                score: 1.0,
+                score: 0.33,
+                metadata: null,
+                trace: {
+                  traceId: "eval-trace-exp3-4-coverage",
+                  projectId: "project-123",
+                },
+              },
+            },
+            {
+              annotation: {
+                id: "ann-8",
+                name: "verbosity",
+                label: null,
+                score: 0.5,
                 metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-4",
@@ -327,12 +381,17 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
 
 const mockAnnotationSummaries: AnnotationSummaries = [
   {
-    annotationName: "qa_correctness",
+    annotationName: "answer_relevance",
     minScore: 0.0,
     maxScore: 1.0,
   },
   {
-    annotationName: "has_results",
+    annotationName: "column_coverage",
+    minScore: 0.0,
+    maxScore: 1.0,
+  },
+  {
+    annotationName: "verbosity",
     minScore: 0.0,
     maxScore: 1.0,
   },
@@ -350,6 +409,7 @@ const meta: Meta<StoryArgs> = {
   component: ExperimentRunOutputs,
   parameters: {
     layout: "fullscreen",
+    themeLayout: "column",
     docs: {
       description: {
         component: `
@@ -388,7 +448,7 @@ const Template: Story = (args) => {
           args.experimentRepetitionsByExperimentId
         }
         annotationSummaries={args.annotationSummaries}
-        annotationConfigs={[]}
+        annotationConfigs={experimentAnnotationConfigs}
         referenceOutput={args.referenceOutput}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}

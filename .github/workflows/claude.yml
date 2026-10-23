@@ -56,7 +56,7 @@ jobs:
       # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only
       # used for the initial checkout and the github_ci MCP server.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
+      id-token: write # Required: OIDC for the Claude App token exchange and for workload identity federation (Claude API auth)
       actions: read # Used by the action's github_ci MCP server (workflow token, not app token) to read CI results on PRs
     steps:
       - name: Checkout repository
@@ -83,7 +83,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           # Surface the full Claude SDK message stream in the step log (denied-tool
           # details, tool calls, reasoning) instead of the sanitized summary. Inputs

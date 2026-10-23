@@ -3,9 +3,10 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
@@ -13,7 +14,6 @@ import { TracingRoot } from "@phoenix/pages/TracingRoot";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
 import { PendingDSLFilter } from "./PendingDSLFilter";
-import { ProjectOnboarding } from "./ProjectOnboarding";
 import {
   ProjectPageQueriesTracesQuery,
   useProjectPageQueryReferenceContext,
@@ -51,12 +51,6 @@ function TracesTabContent({
     tracesQueryReference
   );
 
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
-
   return <TracesTable project={data.project} seed={seed} />;
 }
 
@@ -75,7 +69,13 @@ export const ProjectTracesPage = () => {
         <TraceFiltersProvider key={seedKey}>
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={TracesFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              }
+            >
               {hasTracesQuery ? (
                 <TracesTabContent
                   tracesQueryReference={tracesQueryReference}
@@ -84,19 +84,26 @@ export const ProjectTracesPage = () => {
               ) : tracesFilterSeed === null ? (
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
-                <PendingDSLFilter
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveTracesSeed(condition)
-                  }
-                  onRejected={() => resolveTracesSeed("", false)}
-                  renderField={(fieldProps) => (
-                    <TraceFilterConditionFieldWithVocabulary {...fieldProps} />
-                  )}
-                />
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <PendingDSLFilter
+                    isSelectable={true}
+                    onValidCondition={({ condition }: { condition: string }) =>
+                      resolveTracesSeed(condition)
+                    }
+                    onRejected={() => resolveTracesSeed("", false)}
+                    renderField={(fieldProps) => (
+                      <TraceFilterConditionFieldWithVocabulary
+                        {...fieldProps}
+                      />
+                    )}
+                  />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <Loading />
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>
