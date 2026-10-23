@@ -56,7 +56,7 @@ TERMINAL_OUTCOME_RESULTS = {"satisfied", "max_iterations_reached", "failed", "in
 CONFIGURATION_CHECKS = {"CLAAssistant"}
 # Rounds of CI failures and review findings sent back to the session.
 MAX_FEEDBACK_ROUNDS = 3
-REVIEW_WORKFLOW_FILE = "claude-code-review.yml"
+REVIEW_CHECK_NAME = "Claude Code Review"
 REVIEW_RUN_START_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 60
 MAX_FAILED_JOB_LOGS = 6
@@ -337,8 +337,8 @@ def format_cost(*, session: Any) -> str:
 def wait_for_review_run(*, head_sha: str, created_after: datetime, deadline: float) -> bool:
     """Wait for the automated code review of `head_sha` to finish; False if it never started.
 
-    Runs created before `created_after` are ignored: the review workflow also logs a run,
-    with its job skipped, for every push while the PR is still a draft.
+    Check runs started before `created_after` are ignored, so a review of the same commit
+    from before the PR left draft doesn't count.
     """
     start_deadline = time.monotonic() + REVIEW_RUN_START_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
@@ -346,17 +346,17 @@ def wait_for_review_run(*, head_sha: str, created_after: datetime, deadline: flo
             review_run
             for review_run in json.loads(
                 run_gh(
-                    "run",
-                    "list",
-                    "--workflow",
-                    REVIEW_WORKFLOW_FILE,
-                    "--commit",
-                    head_sha,
-                    "--json",
-                    "status,createdAt",
+                    "api",
+                    f"repos/{{owner}}/{{repo}}/commits/{head_sha}/check-runs",
+                    "-f",
+                    f"check_name={REVIEW_CHECK_NAME}",
+                    "-X",
+                    "GET",
+                    "--jq",
+                    "[.check_runs[] | {status, started_at}]",
                 )
             )
-            if datetime.fromisoformat(review_run["createdAt"].replace("Z", "+00:00"))
+            if datetime.fromisoformat(review_run["started_at"].replace("Z", "+00:00"))
             >= created_after
         ]
         if review_runs and all(review_run["status"] == "completed" for review_run in review_runs):
