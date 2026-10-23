@@ -2,13 +2,7 @@ import { act, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter, Route, Routes } from "react-router";
-import {
-  Environment,
-  Network,
-  Observable,
-  RecordSource,
-  Store,
-} from "relay-runtime";
+import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -45,51 +39,39 @@ const EVALUATOR_TRACE_ROUTE =
 const EVALUATOR_TRACE_PATH =
   "/datasets/RGF0YXNldDox/evaluators/RXZhbHVhdG9yOjE/trace-1";
 
-const spanPayload = {
-  __typename: "Span",
-  id: SPAN_NODE_ID,
-  spanId: "0123456789abcdef",
-  trace: {
-    __typename: "Trace",
-    id: "VHJhY2U6MQ==",
-    traceId: "trace-1",
-  },
-  project: {
-    __typename: "Project",
-    id: PROJECT_NODE_ID,
-    annotationConfigs: { configs: [], edges: [] },
-  },
-  name: "chat completion",
-  spanKind: "llm",
-  // aliased from `propagatedStatusCode` by SpanDetailsQuery
-  statusCode: "OK",
-  // aliased from `statusCode` by the SpanHeader_span and SpanAside_span fragments
-  code: "OK",
-  statusMessage: "",
-  startTime: "2026-01-01T00:00:00.000Z",
-  endTime: "2026-01-01T00:00:01.000Z",
-  parentId: null,
-  latencyMs: 1000,
-  tokenCountTotal: 42,
-  costSummary: { total: { cost: 0.01 } },
-  input: { value: "hello", mimeType: "text" },
-  output: { value: "world", mimeType: "text" },
-  attributes: "{}",
-  events: [],
-  documentRetrievalMetrics: [],
-  documentEvaluations: [],
-};
-
 function createTestEnvironment() {
-  return new Environment({
-    network: Network.create(() =>
-      Observable.create((sink) => {
-        sink.next({ data: { span: spanPayload } });
-        sink.complete();
-      })
-    ),
-    store: new Store(new RecordSource()),
-  });
+  const environment = createMockEnvironment();
+  // Generates the whole SpanDetailsQuery response, fragments included, so the
+  // test only spells out the fields its assertions depend on
+  environment.mock.queueOperationResolver((operation) =>
+    MockPayloadGenerator.generate(operation, {
+      Node: () => ({ __typename: "Span" }),
+      Span: () => ({
+        id: SPAN_NODE_ID,
+        name: "chat completion",
+        startTime: "2026-01-01T00:00:00.000Z",
+        endTime: "2026-01-01T00:00:01.000Z",
+        attributes: "{}",
+        events: [],
+      }),
+      Project: () => ({ id: PROJECT_NODE_ID }),
+      // Product queries carry no scalar type info, so enums and numbers reach
+      // the String resolver; key them by schema field name, not alias
+      String: ({ name }) => {
+        switch (name) {
+          case "statusCode":
+          case "propagatedStatusCode":
+            return "OK";
+          case "spanKind":
+            return "llm";
+          default:
+            // falls back to the generated mock value
+            return undefined;
+        }
+      },
+    })
+  );
+  return environment;
 }
 
 let container: HTMLDivElement;
