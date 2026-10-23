@@ -23,6 +23,7 @@ Hold the change to `REVIEW.md`, plus `.agents/skills/phoenix-typescript/SKILL.md
 - Generated clients are regenerated, not hand-edited (`make openapi`), when the server API changed.
 - Clients surface the server's error detail and validate options before sending a request.
 - New public functions have docstrings or TSDoc, and the package docs are updated.
+- Each new test would fail if the behavior it covers were removed, and exercises real code at the lowest layer that shows it (`REVIEW.md`: no tests that only exercise mocks or restate the implementation). Flag as blocking a test that hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass. Suggest the lower layer instead, or deleting it and listing the behavior under Not verified.
 
 Report findings as `REVIEW.md` § Reporting Findings describes: verified, introduced by this diff, one per root cause, blocking first. Say "No findings." if there are none.
 
