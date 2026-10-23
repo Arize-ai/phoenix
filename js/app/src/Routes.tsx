@@ -173,21 +173,20 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
 };
 
 // :promptId's loader always revalidates so versions saved elsewhere show up,
-// except when moving between versions of the same prompt: its query holds
-// only the first page of the paginated versions list, so re-running it would
-// drop the pages already scrolled in, including the version just clicked.
-const revalidatePromptUnlessSwitchingVersions: ShouldRevalidateFunction = ({
+// except when opening or switching versions of the same prompt: its query
+// holds only the first page of the paginated versions list, so re-running it
+// would drop the pages already scrolled in, including the version just clicked.
+const revalidatePromptUnlessOpeningVersion: ShouldRevalidateFunction = ({
   currentUrl,
   nextUrl,
   currentParams,
   nextParams,
 }) => {
   if (currentUrl.href === nextUrl.href) return true;
-  const isSwitchingVersions =
+  const isOpeningVersion =
     currentParams.promptId === nextParams.promptId &&
-    currentParams.versionId != null &&
     nextParams.versionId != null;
-  return !isSwitchingVersions;
+  return !isOpeningVersion;
 };
 
 // Shared by the traces and spans tabs, which both host the compare drawer
@@ -862,7 +861,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            shouldRevalidate={revalidatePromptUnlessSwitchingVersions}
+            shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
