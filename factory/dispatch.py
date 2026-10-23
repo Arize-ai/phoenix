@@ -180,11 +180,10 @@ def read_lock_id(*, lock: dict[str, Any], lock_key: str) -> str:
 
 
 def read_vault_ids(*, lock: dict[str, Any]) -> list[str]:
-    """Return the session's vault IDs: GitHub always, Grafana once `ant apply` has created it."""
-    vault_ids = [read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY)]
-    if GRAFANA_VAULT_LOCK_KEY in lock["resources"]:
-        vault_ids.append(lock["resources"][GRAFANA_VAULT_LOCK_KEY]["id"])
-    return vault_ids
+    return [
+        read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY),
+        read_lock_id(lock=lock, lock_key=GRAFANA_VAULT_LOCK_KEY),
+    ]
 
 
 def format_session_link(*, session_id: str) -> str:
