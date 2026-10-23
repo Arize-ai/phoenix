@@ -401,7 +401,7 @@ def run_one(spec: IntegrationSpec, endpoint: str) -> dict[str, Any]:
         result["error"] = str(exc)
         if isinstance(exc, subprocess.CalledProcessError):
             result.update(
-                command=exc.cmd,
+                command=str(exc.cmd),
                 returncode=exc.returncode,
                 stdout=exc.stdout,
                 stderr=exc.stderr,
