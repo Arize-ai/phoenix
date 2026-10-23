@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "description": "Runnable Phoenix integration documentation checks. Add an entry only after its example and verifier are supported.",
+  "integrations": [
+    {
+      "id": "openai-python",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    }
+  ]
+}

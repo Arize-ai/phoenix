@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
-	test-doc-integration-openai-python \
+	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -80,7 +80,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
-	@echo -e "  test-doc-integration-openai-python - Run the Python OpenAI docs example against a running Phoenix server"
+	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
@@ -277,8 +277,8 @@ dev-frontend: ## Frontend only (React dev server)
 # Testing
 #=============================================================================
 
-test-doc-integration-openai-python: ## Run the Python OpenAI integration doc against a running Phoenix server
-	@$(UV) run python scripts/testing/integration_docs/openai_python.py
+test-integration-docs: ## Run configured integration docs against a running Phoenix server
+	@$(UV) run python scripts/testing/integration_docs/run.py
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
