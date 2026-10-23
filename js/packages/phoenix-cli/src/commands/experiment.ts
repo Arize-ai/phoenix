@@ -71,46 +71,34 @@ interface ExperimentExportOptions extends CommonOptions<"csv" | "json"> {
 }
 
 /**
- * Download experiment JSON data
+ * Download an experiment's runs as text in the requested format.
+ *
+ * Keeps the two typed `client.GET` calls so the generated OpenAPI types still
+ * narrow each path, but shares the response validation so the error handling
+ * lives in one place.
  */
-async function downloadExperimentJson(
+async function downloadExperiment(
   client: PhoenixClient,
-  experimentId: string
+  experimentId: string,
+  format: "csv" | "json"
 ): Promise<string> {
-  const response = await client.GET("/v1/experiments/{experiment_id}/json", {
-    params: {
-      path: {
-        experiment_id: experimentId,
-      },
-    },
-    parseAs: "text",
-  });
+  const response =
+    format === "csv"
+      ? await client.GET("/v1/experiments/{experiment_id}/csv", {
+          params: { path: { experiment_id: experimentId } },
+          parseAs: "text",
+        })
+      : await client.GET("/v1/experiments/{experiment_id}/json", {
+          params: { path: { experiment_id: experimentId } },
+          parseAs: "text",
+        });
 
   if (response.error || response.data === undefined) {
-    throw new Error(`Failed to download experiment: ${response.error}`);
-  }
-
-  return response.data as string;
-}
-
-/**
- * Download experiment data as CSV
- */
-async function downloadExperimentCsv(
-  client: PhoenixClient,
-  experimentId: string
-): Promise<string> {
-  const response = await client.GET("/v1/experiments/{experiment_id}/csv", {
-    params: {
-      path: {
-        experiment_id: experimentId,
-      },
-    },
-    parseAs: "text",
-  });
-
-  if (response.error || response.data === undefined) {
-    throw new Error(`Failed to download experiment: ${response.error}`);
+    const detail =
+      typeof response.error === "string"
+        ? response.error
+        : JSON.stringify(response.error);
+    throw new Error(`Failed to download experiment: ${detail}`);
   }
 
   return response.data as string;
@@ -123,14 +111,16 @@ async function downloadExperimentCsv(
  * a clear error for anything other than `csv` or `json` so the handler can turn
  * it into an INVALID_ARGUMENT exit instead of a confusing downstream failure.
  */
-export function normalizeExperimentExportFormat(
+function normalizeExperimentExportFormat(
   format: string | undefined
 ): "csv" | "json" {
   const normalized = (format ?? "json").trim().toLowerCase();
   if (normalized === "csv" || normalized === "json") {
     return normalized;
   }
-  throw new Error(`Invalid --format "${format}". Supported formats: csv, json.`);
+  throw new Error(
+    `Invalid --format "${format}". Supported formats: csv, json.`
+  );
 }
 
 /**
@@ -197,7 +187,7 @@ async function writeExperimentsToDirectory(
         noProgress: options.noProgress,
       });
 
-      const jsonData = await downloadExperimentJson(client, experiment.id);
+      const jsonData = await downloadExperiment(client, experiment.id, "json");
 
       const filename = `${experiment.id}.json`;
       const filepath = path.join(directory, filename);
@@ -255,7 +245,7 @@ async function experimentGetHandler(
     });
 
     // Download experiment JSON
-    const jsonData = await downloadExperimentJson(client, experimentId);
+    const jsonData = await downloadExperiment(client, experimentId, "json");
 
     writeProgress({
       message: `Downloaded experiment data`,
@@ -336,10 +326,7 @@ async function experimentExportHandler(
       noProgress: !options.progress,
     });
 
-    const data =
-      format === "csv"
-        ? await downloadExperimentCsv(client, experimentId)
-        : await downloadExperimentJson(client, experimentId);
+    const data = await downloadExperiment(client, experimentId, format);
 
     if (options.output) {
       fs.writeFileSync(options.output, data, "utf-8");

@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import type { componentsV1 } from "@arizeai/phoenix-testing";
 import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -245,6 +248,128 @@ describe("experiment get", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining("Error fetching experiment")
+    );
+  });
+});
+
+describe("experiment export", () => {
+  const RUNS_JSON = JSON.stringify(
+    [{ id: "run-1", example_id: "ex-1", output: "4", error: null }],
+    null,
+    2
+  );
+  const RUNS_CSV = "id,example_id,output,error\nrun-1,ex-1,4,\n";
+
+  it("defaults to the JSON endpoint and prints the body to stdout", async () => {
+    const captured: { experimentId?: string; count: number } = { count: 0 };
+    mock.server.use(
+      http.get(
+        "/v1/experiments/{experiment_id}/json",
+        ({ params, response }) => {
+          captured.count += 1;
+          captured.experimentId = params.experiment_id;
+          return response(200).text(RUNS_JSON);
+        }
+      )
+    );
+    const io = captureCliOutput();
+
+    await createExperimentCommand().parseAsync(
+      ["export", "exp-001", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(captured.experimentId).toBe("exp-001");
+    expect(io.stdout).toHaveBeenCalledWith(RUNS_JSON);
+  });
+
+  it("hits the CSV endpoint with --format csv (case-insensitive)", async () => {
+    const captured = { count: 0 };
+    mock.server.use(
+      http.get("/v1/experiments/{experiment_id}/csv", ({ response }) => {
+        captured.count += 1;
+        return response(200).text(RUNS_CSV);
+      })
+    );
+    const io = captureCliOutput();
+
+    await createExperimentCommand().parseAsync(
+      ["export", "exp-001", "--format", "CSV", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(io.stdout).toHaveBeenCalledWith(RUNS_CSV);
+  });
+
+  it("writes to a file with --output and prints nothing to stdout", async () => {
+    mock.server.use(
+      http.get("/v1/experiments/{experiment_id}/csv", ({ response }) =>
+        response(200).text(RUNS_CSV)
+      )
+    );
+    const io = captureCliOutput();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "px-experiment-export-"));
+    const outPath = path.join(dir, "out.csv");
+
+    try {
+      await createExperimentCommand().parseAsync(
+        [
+          "export",
+          "exp-001",
+          "--format",
+          "csv",
+          "--output",
+          outPath,
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      );
+
+      expect(fs.readFileSync(outPath, "utf-8")).toBe(RUNS_CSV);
+      expect(io.stdout).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits INVALID_ARGUMENT on an unsupported --format", async () => {
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createExperimentCommand().parseAsync(
+        ["export", "exp-001", "--format", "xml", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Supported formats: csv, json")
+    );
+  });
+
+  it("exits FAILURE when the experiment does not exist", async () => {
+    mock.server.use(
+      http.get("/v1/experiments/{experiment_id}/json", ({ response }) =>
+        response(404).text("Experiment not found")
+      )
+    );
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createExperimentCommand().parseAsync(
+        ["export", "missing", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Error exporting experiment")
     );
   });
 });
