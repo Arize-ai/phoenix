@@ -9,6 +9,10 @@ import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
+import {
+  evaluatorInputDescriptionsSchema,
+  type EvaluatorInputSchemaInput,
+} from "@phoenix/schemas";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
@@ -32,7 +36,7 @@ export function buildInputSchemaInput({
 }: {
   variables: readonly string[];
   inputDescriptions: Record<string, string>;
-}): { type: "object"; properties: Record<string, { description?: string }> } {
+}): EvaluatorInputSchemaInput {
   return {
     type: "object",
     properties: Object.fromEntries(
@@ -46,24 +50,16 @@ export function buildInputSchemaInput({
 
 /**
  * The descriptions an evaluator's input schema carries, by input name, as the
- * form holds them. Anything that is not a schema object with string
- * descriptions is ignored.
+ * form holds them. Blank descriptions and malformed entries are left out.
  */
 export function getInputDescriptionsFromSchema(
   inputSchema: unknown
 ): Record<string, string> {
-  if (!isObject(inputSchema)) return {};
-  const properties = (inputSchema as { properties?: unknown }).properties;
-  if (!isObject(properties)) return {};
+  const parsed = evaluatorInputDescriptionsSchema.safeParse(inputSchema);
+  if (!parsed.success) return {};
   return Object.fromEntries(
-    Object.entries(properties as Record<string, unknown>).flatMap(
-      ([name, property]) => {
-        if (!isObject(property)) return [];
-        const description = (property as { description?: unknown }).description;
-        return typeof description === "string" && description.trim()
-          ? [[name, description]]
-          : [];
-      }
+    Object.entries(parsed.data.properties).flatMap(([name, { description }]) =>
+      description?.trim() ? [[name, description]] : []
     )
   );
 }
