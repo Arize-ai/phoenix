@@ -1,11 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { userEvent, within } from "storybook/test";
 
 import { Flex } from "@phoenix/components";
-import type { EvaluatorOutputPreviewMutation } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
@@ -15,10 +13,13 @@ import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
+import {
+  createEvaluatorPreviewEnvironment,
+  type EvaluatorPreviewOutputResult,
+} from "../../utils/evaluatorPreviewRelayEnvironment";
 import { OptionGrid } from "../../utils/OptionGrid";
 
-type PreviewResult =
-  EvaluatorOutputPreviewMutation["response"]["evaluatorPreviews"]["results"][number];
+type PreviewResult = EvaluatorPreviewOutputResult;
 
 function annotationResult({
   id,
@@ -54,14 +55,8 @@ function TestedEvaluator({
   outputConfigs: AnnotationConfig[];
   results: PreviewResult[];
 }) {
-  const [environment] = useState(
-    () =>
-      new Environment({
-        network: Network.create(async () => ({
-          data: { evaluatorPreviews: { results } },
-        })),
-        store: new Store(new RecordSource()),
-      })
+  const [environment] = useState(() =>
+    createEvaluatorPreviewEnvironment(results)
   );
   return (
     <RelayEnvironmentProvider environment={environment}>

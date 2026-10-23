@@ -1,4 +1,4 @@
-import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,

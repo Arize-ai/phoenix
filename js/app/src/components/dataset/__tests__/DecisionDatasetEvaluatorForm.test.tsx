@@ -18,8 +18,9 @@ import { createDecisionTaskInstance } from "@phoenix/store/playground";
 import { DecisionDatasetEvaluatorForm } from "../DecisionDatasetEvaluatorForm";
 import type { DecisionEvaluatorData } from "../decisionDatasetEvaluatorUtils";
 
-const { commit, notifySuccess, loadVersion } = vi.hoisted(() => ({
+const { commit, preview, notifySuccess, loadVersion } = vi.hoisted(() => ({
   commit: vi.fn(),
+  preview: vi.fn(),
   notifySuccess: vi.fn(),
   loadVersion: vi.fn(),
 }));
@@ -29,6 +30,9 @@ vi.mock("react-relay", async (importOriginal) => ({
     (config: object) => commit(node.params.name, config),
     false,
   ],
+}));
+vi.mock("@phoenix/components/evaluators/useEvaluatorPreview", () => ({
+  useSingleSubjectEvaluatorPreview: () => preview,
 }));
 vi.mock("@phoenix/contexts/NotificationContext", () => ({
   useNotifySuccess: () => notifySuccess,
@@ -192,7 +196,6 @@ const saved: DecisionEvaluatorData = {
 };
 const CREATE = "DecisionDatasetEvaluatorForm_createMutation";
 const UPDATE = "DecisionDatasetEvaluatorForm_updateMutation";
-const PREVIEW = "DecisionDatasetEvaluatorForm_previewMutation";
 
 describe("Decision dataset evaluator authoring", () => {
   let container: HTMLDivElement;
@@ -201,6 +204,7 @@ describe("Decision dataset evaluator authoring", () => {
   const onSaved = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks();
+    preview.mockReturnValue(new Promise(() => undefined));
     loadVersion.mockImplementation(
       ({ decisionVersionId }: { decisionVersionId: string }) =>
         Promise.resolve({
@@ -304,7 +308,7 @@ describe("Decision dataset evaluator authoring", () => {
   it("asks for a decision model when a test has none", async () => {
     await render();
     await click("Test");
-    expect(calls(PREVIEW)).toHaveLength(0);
+    expect(preview).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain(
       "Pick a decision model to test."
     );
@@ -319,8 +323,8 @@ describe("Decision dataset evaluator authoring", () => {
     await click("Map answer");
     await click("Test");
     expect(calls(CREATE)).toHaveLength(0);
-    expect(calls(PREVIEW)).toHaveLength(1);
-    expect(calls(PREVIEW)[0][1].variables.input.previews[0]).toMatchObject({
+    expect(preview).toHaveBeenCalledOnce();
+    expect(preview.mock.calls[0][0]).toMatchObject({
       evaluator: {
         inlineDecisionEvaluator: {
           name: "quality",

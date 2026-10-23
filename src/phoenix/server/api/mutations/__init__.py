@@ -3,9 +3,6 @@ import strawberry
 from phoenix.server.api.mutations.agent_session_mutations import AgentSessionMutationMixin
 from phoenix.server.api.mutations.annotation_config_mutations import AnnotationConfigMutationMixin
 from phoenix.server.api.mutations.api_key_mutations import ApiKeyMutationMixin
-from phoenix.server.api.mutations.chat_mutations import (
-    ChatCompletionMutationMixin,
-)
 from phoenix.server.api.mutations.dataset_label_mutations import DatasetLabelMutationMixin
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMutationMixin
@@ -16,6 +13,9 @@ from phoenix.server.api.mutations.document_annotations_mutations import (
     DocumentAnnotationMutationMixin,
 )
 from phoenix.server.api.mutations.evaluator_mutations import EvaluatorMutationMixin
+from phoenix.server.api.mutations.evaluator_preview_mutations import (
+    EvaluatorPreviewMutationMixin,
+)
 from phoenix.server.api.mutations.experiment_mutations import ExperimentMutationMixin
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     GenerativeModelCustomProviderMutationMixin,
@@ -50,13 +50,13 @@ class Mutation(
     AgentSessionMutationMixin,
     AnnotationConfigMutationMixin,
     ApiKeyMutationMixin,
-    ChatCompletionMutationMixin,
     DatasetLabelMutationMixin,
     DatasetMutationMixin,
     DatasetSplitMutationMixin,
     DecisionMutationMixin,
     DocumentAnnotationMutationMixin,
     EvaluatorMutationMixin,
+    EvaluatorPreviewMutationMixin,
     ExperimentMutationMixin,
     GenerativeModelCustomProviderMutationMixin,
     ModelMutationMixin,

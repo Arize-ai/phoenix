@@ -2783,9 +2783,10 @@ type EvaluationQueueTarget {
 
 type EvaluationResult {
   evaluatorName: String!
+
+  """answered, error, or refused when a decision judge declined to answer."""
   status: String
   annotation: ExperimentRunAnnotation
-  trace: Trace
   error: String
 }
 
@@ -3021,29 +3022,50 @@ type EvaluatorLabelCount {
   count: Int!
 }
 
-input EvaluatorPreviewItemInput {
+input EvaluatorPreviewInput {
+  """The evaluator to run. Optional only when datasetEvaluatorId names one."""
   evaluator: EvaluatorDefinitionInput = null
-  context: JSON!
-  inputMapping: EvaluatorInputMappingInput!
 
   """
   Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy.
   """
   datasetEvaluatorId: ID = null
+  inputMapping: EvaluatorInputMappingInput!
+  subjects: [EvaluatorPreviewSubjectInput!]!
 
   """
   Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
   """
   applyOnlineEvaluationLimits: Boolean! = false
-}
-
-input EvaluatorPreviewsInput {
-  previews: [EvaluatorPreviewItemInput!]!
   credentials: [GenerativeCredentialInput!]
 }
 
-type EvaluatorPreviewsPayload {
+type EvaluatorPreviewPayload {
+  """One result per subject, in the order the subjects were sent."""
+  results: [EvaluatorPreviewSubjectResult!]!
+}
+
+input EvaluatorPreviewSubjectInput {
+  """
+  Chosen by the caller and echoed on the subject's result; unique per request. Not an id, so a client cache that normalizes by id leaves the subject alone.
+  """
+  key: String!
+  context: JSON!
+}
+
+type EvaluatorPreviewSubjectResult {
+  """The key the subject was sent with."""
+  key: String!
+
+  """
+  One result per annotation the evaluator produces; empty when error is set.
+  """
   results: [EvaluationResult!]!
+
+  """
+  Why the evaluator could not run on this subject at all: the Monty runtime was busy, unavailable, shutting down or out of time, its worker stopped, or the run failed unexpectedly. A failure of the evaluation itself, such as an LLM error or a timeout in any other sandbox, arrives on that result's error instead. The other subjects are unaffected.
+  """
+  error: String
 }
 
 enum EvaluatorScope {
@@ -4018,7 +4040,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
@@ -4113,6 +4134,11 @@ type Mutation {
   Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
   """
   createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
+
+  """
+  The evaluatorPreview subscription for callers that cannot read a stream, such as scripts: it runs the same preview and returns once every subject has reported.
+  """
+  previewEvaluator(input: EvaluatorPreviewInput!): EvaluatorPreviewPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
@@ -6608,6 +6634,7 @@ type StoredDecisionEvaluatorDefinition {
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
   experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  evaluatorPreview(input: EvaluatorPreviewInput!): EvaluatorPreviewSubjectResult!
 }
 
 type SystemApiKey implements ApiKey & Node {

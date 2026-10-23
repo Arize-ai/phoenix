@@ -26,6 +26,10 @@ import {
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
+import {
+  type EvaluatorPreviewSubjectResult,
+  useSingleSubjectEvaluatorPreview,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
 import { ModelMenu } from "@phoenix/components/generative";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
@@ -57,7 +61,6 @@ import {
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 import type { DecisionDatasetEvaluatorForm_createMutation } from "./__generated__/DecisionDatasetEvaluatorForm_createMutation.graphql";
-import type { DecisionDatasetEvaluatorForm_previewMutation } from "./__generated__/DecisionDatasetEvaluatorForm_previewMutation.graphql";
 import type { DecisionDatasetEvaluatorForm_updateMutation } from "./__generated__/DecisionDatasetEvaluatorForm_updateMutation.graphql";
 import {
   commitAsync,
@@ -147,7 +150,7 @@ function DecisionDatasetEvaluatorFormContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<
-    DecisionDatasetEvaluatorForm_previewMutation["response"]["evaluatorPreviews"]["results"]
+    EvaluatorPreviewSubjectResult["results"]
   >([]);
   const isEditing = !!initialEvaluator;
   const selectedDecisionId =
@@ -272,27 +275,8 @@ function DecisionDatasetEvaluatorFormContent({
         }
       }
     `);
-  const [preview, isPreviewing] =
-    useMutation<DecisionDatasetEvaluatorForm_previewMutation>(graphql`
-      mutation DecisionDatasetEvaluatorForm_previewMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            error
-            annotation {
-              ...decisionAnnotation_annotation @relay(mask: false)
-              id
-              name
-              label
-              score
-              explanation
-            }
-          }
-        }
-      }
-    `);
+  const preview = useSingleSubjectEvaluatorPreview();
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const getDefinition = (purpose: "save" | "test" = "save") => {
     if (isLoading || !isVersionReady)
@@ -334,25 +318,16 @@ function DecisionDatasetEvaluatorFormContent({
     try {
       const evaluator = getDefinition("test");
       const state = store.getState();
-      preview({
-        variables: {
-          input: {
-            previews: [
-              {
-                evaluator,
-                context: state.evaluatorMappingSource.source,
-                inputMapping: getInputMapping(),
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
-          },
-        },
-        onCompleted: (response, errors) => {
-          if (errors?.length)
-            setPreviewError(errors.map(({ message }) => message).join("\n"));
-          else setPreviewResults(response.evaluatorPreviews.results);
-        },
-        onError: (error) => setPreviewError(getMutationErrorMessage(error)),
+      setIsPreviewing(true);
+      void preview({
+        evaluator,
+        context: state.evaluatorMappingSource.source,
+        inputMapping: getInputMapping(),
+        credentials: toGqlCredentials(credentials),
+      }).then((response) => {
+        setIsPreviewing(false);
+        if (response.ok) setPreviewResults(response.result.results);
+        else setPreviewError(response.error);
       });
     } catch (error) {
       setPreviewError(getMutationErrorMessage(error));

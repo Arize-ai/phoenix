@@ -1,8 +1,15 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Fragment, Suspense, useState, useSyncExternalStore } from "react";
-import { graphql, useMutation } from "react-relay";
+import {
+  Fragment,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Group, Panel } from "react-resizable-panels";
+import type { Disposable } from "relay-runtime";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
@@ -21,7 +28,12 @@ import {
   Text,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import type {
+  InlineCodeEvaluatorInput,
+  InlineLLMEvaluatorInput,
+} from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
+import { useEvaluatorPreview } from "@phoenix/components/evaluators/useEvaluatorPreview";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -38,11 +50,6 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import type {
-  InlineCodeEvaluatorInput,
-  InlineLLMEvaluatorInput,
-  ProjectEvaluatorTestBenchPreviewMutation,
-} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestBenchPreviewMutation.graphql";
 import {
   getRecordMappingDiagnostics,
   useEvaluatorMappingSourceBoundToRow,
@@ -54,6 +61,7 @@ import {
   formatRecordedRunSummary,
   getRecordedRunResultState,
   isRecordedRunEntryRunnable,
+  type FinishedRecordedRun,
   type RecordedRun,
   type RecordedRunEntry,
   type RecordedRunRow,
@@ -69,7 +77,6 @@ import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
 } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
@@ -167,12 +174,18 @@ export function ProjectEvaluatorTestBench({
     rowKey: focusedRow?.key ?? null,
     context: focusedRow?.context,
   });
-  const { runs, runOnRow, isRunnable, runBlocker, currentFingerprint } =
-    useEvaluatorPreviewRuns({
-      codeEvaluatorId,
-      inlineCode,
-      playgroundStore,
-    });
+  const {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  } = useEvaluatorPreviewRuns({
+    codeEvaluatorId,
+    inlineCode,
+    playgroundStore,
+  });
   const declaredVariables = useEvaluatorInputVariables();
   const entries: RecordedRunEntry[] = rows.map((row) => {
     const missingCount = getRecordMappingDiagnostics({
@@ -215,6 +228,7 @@ export function ProjectEvaluatorTestBench({
           "previews are not saved to the project",
         ]}
         blocker={runBlocker}
+        runError={runError}
       >
         <Button
           size="S"
@@ -222,11 +236,7 @@ export function ProjectEvaluatorTestBench({
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }
           isDisabled={!isRunnable || runnableEntries.length === 0}
-          onPress={() => {
-            for (const { row } of runnableEntries) {
-              runOnRow(row);
-            }
-          }}
+          onPress={() => runOnRows(runnableEntries.map(({ row }) => row))}
         >
           {formatBulkTestLabel({
             runnableCount: runnableEntries.length,
@@ -253,7 +263,7 @@ export function ProjectEvaluatorTestBench({
             onFocusRow={setFocusedKey}
             isRunnable={isRunnable}
             runBlocker={runBlocker}
-            onRunRow={runOnRow}
+            onRunRow={(row) => runOnRows([row])}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onLoadMore={onLoadMore}
@@ -273,7 +283,7 @@ export function ProjectEvaluatorTestBench({
               requiredVariables={requiredVariables}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRow(focusedEntry.row)}
+              onRun={() => runOnRows([focusedEntry.row])}
             />
           ) : null}
         </Panel>
@@ -325,10 +335,13 @@ function TestBenchHeader({
   countLine,
   summaryParts,
   blocker,
+  runError,
   children,
 }: TestBenchHeaderProps & {
   summaryParts: readonly (string | null)[];
   blocker: string | null;
+  /** Why the last test could not run at all; the same for every row. */
+  runError?: string | null;
   children: ReactNode;
 }) {
   const records = formatEvaluationTargetPlural(targetType);
@@ -367,6 +380,14 @@ function TestBenchHeader({
           <Icon svg={<Icons.AlertTriangle />} color="warning" />
           <Text size="S" color="warning">
             {blocker}.
+          </Text>
+        </div>
+      ) : null}
+      {runError ? (
+        <div className="test-bench__blocker" role="alert">
+          <Icon svg={<Icons.AlertCircle />} color="danger" />
+          <Text size="S" color="danger">
+            {runError}
           </Text>
         </div>
       ) : null}
@@ -516,7 +537,7 @@ function withPreviewName(
 }
 
 /**
- * The evaluator the preview mutation runs, built the same way at render time
+ * The evaluator the preview runs, built the same way at render time
  * for the fingerprint and at click time for the request, so a run's
  * fingerprint and the bench's current one can only differ when the
  * definition did.
@@ -598,25 +619,19 @@ function useEvaluatorPreviewRuns({
   const evaluatorStore = useEvaluatorStoreInstance();
   const credentials = useCredentialsContext((state) => state);
   const [runs, setRuns] = useState<Record<string, RecordedRun>>({});
-  const [previewEvaluator] =
-    useMutation<ProjectEvaluatorTestBenchPreviewMutation>(graphql`
-      mutation ProjectEvaluatorTestBenchPreviewMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              name
-              label
-              score
-              explanation
-            }
-            error
-          }
-        }
+  const [runError, setRunError] = useState<string | null>(null);
+  const startPreview = useEvaluatorPreview();
+  // Closing the bench closes its streams, and the server stops their work.
+  const activePreviewsRef = useRef(new Set<Disposable>());
+  useEffect(() => {
+    const activePreviews = activePreviewsRef.current;
+    return () => {
+      for (const preview of activePreviews) {
+        preview.dispose();
       }
-    `);
+      activePreviews.clear();
+    };
+  }, []);
   // Subscribed so an edit to the prompt, model, mapping, or annotation config
   // re-renders the bench and the fingerprint below moves with it.
   const definitionState = useEvaluatorStore(
@@ -651,7 +666,11 @@ function useEvaluatorPreviewRuns({
     ? null
     : "Fix the evaluator's annotation configuration to test";
 
-  const runOnRow = (row: RecordedRunRow) => {
+  /** Tests the rows in one stream; each row fills in as its result arrives. */
+  const runOnRows = (rows: readonly RecordedRunRow[]) => {
+    if (rows.length === 0) {
+      return;
+    }
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
@@ -664,69 +683,102 @@ function useEvaluatorPreviewRuns({
       evaluator,
       state.evaluator.inputMapping
     );
-    const rowKey = row.key;
+    // A record can be listed twice under one key (an in-progress trace with two
+    // root spans); the server rejects a repeated key, so each is sent once.
+    const subjectContextByKey = new Map(
+      rows.map(({ key, context }) => [key, context])
+    );
+    const pendingKeys = new Set(subjectContextByKey.keys());
+    setRunError(null);
     setRuns((current) => {
-      const previous = current[rowKey];
-      return {
-        ...current,
-        [rowKey]: {
+      const next = { ...current };
+      for (const rowKey of pendingKeys) {
+        const previous = current[rowKey];
+        next[rowKey] = {
           status: "running",
           fingerprint,
           previous:
             previous?.status === "running" ? previous.previous : previous,
-        },
-      };
+        };
+      }
+      return next;
     });
-    previewEvaluator({
-      variables: {
-        input: {
-          previews: [
-            {
-              context: row.context,
-              evaluator,
-              inputMapping: state.evaluator.inputMapping,
-              applyOnlineEvaluationLimits: true,
-            },
-          ],
-          credentials: toGqlCredentials(credentials),
-        },
+    const settle = (rowKey: string, run: FinishedRecordedRun) => {
+      pendingKeys.delete(rowKey);
+      setRuns((current) => ({ ...current, [rowKey]: run }));
+    };
+    let isFinished = false;
+    let preview: Disposable | null = null;
+    const finish = () => {
+      isFinished = true;
+      if (preview != null) {
+        activePreviewsRef.current.delete(preview);
+      }
+    };
+    preview = startPreview(
+      {
+        evaluator,
+        inputMapping: state.evaluator.inputMapping,
+        subjects: [...subjectContextByKey].map(([key, context]) => ({
+          key,
+          context,
+        })),
+        applyOnlineEvaluationLimits: true,
+        credentials: toGqlCredentials(credentials),
       },
-      onCompleted(response, errors) {
-        if (errors?.length) {
-          setRuns((current) => ({
-            ...current,
-            [rowKey]: {
+      {
+        onSubjectResult(result) {
+          settle(
+            result.key,
+            result.error != null
+              ? { status: "error", fingerprint, message: result.error }
+              : { status: "done", fingerprint, results: [...result.results] }
+          );
+        },
+        onError(message) {
+          finish();
+          // The definition could not run at all, so no row has a verdict
+          // from it: the error shows once, and the rows keep what they had.
+          setRunError(message);
+          setRuns((current) => {
+            const next = { ...current };
+            for (const rowKey of pendingKeys) {
+              const run = current[rowKey];
+              if (run?.status !== "running") {
+                continue;
+              }
+              if (run.previous) {
+                next[rowKey] = run.previous;
+              } else {
+                delete next[rowKey];
+              }
+            }
+            return next;
+          });
+        },
+        onCompleted() {
+          finish();
+          for (const rowKey of [...pendingKeys]) {
+            settle(rowKey, {
               status: "error",
               fingerprint,
-              message: errors.map(({ message }) => message).join("\n"),
-            },
-          }));
-          return;
-        }
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
-            status: "done",
-            fingerprint,
-            results: [...response.evaluatorPreviews.results],
-          },
-        }));
-      },
-      onError(mutationError) {
-        setRuns((current) => ({
-          ...current,
-          [rowKey]: {
-            status: "error",
-            fingerprint,
-            message:
-              getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                "\n"
-              ) ?? mutationError.message,
-          },
-        }));
-      },
-    });
+              message: "The preview returned no result for this record",
+            });
+          }
+        },
+      }
+    );
+    if (!isFinished) {
+      activePreviewsRef.current.add(preview);
+    }
   };
 
-  return { runs, runOnRow, isRunnable, runBlocker, currentFingerprint };
+  return {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  };
 }

@@ -1,4 +1,4 @@
-import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
 import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import type { PlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";

@@ -216,23 +216,26 @@ class EvaluatorInputMappingInput(BaseModel):
     path_mapping: Any = Field(alias="pathMapping")
 
 
-class EvaluatorPreviewItemInput(BaseModel):
+class EvaluatorPreviewInput(BaseModel):
     evaluator: Optional["EvaluatorDefinitionInput"] = None
-    context: Any
-    input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
+    "The evaluator to run. Optional only when datasetEvaluatorId names one."
     dataset_evaluator_id: Optional[str] = Field(
         alias="datasetEvaluatorId", default=None
     )
     "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy."
+    input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
+    subjects: list["EvaluatorPreviewSubjectInput"]
     apply_online_evaluation_limits: bool = Field(
         alias="applyOnlineEvaluationLimits", default=False
     )
     "Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request."
-
-
-class EvaluatorPreviewsInput(BaseModel):
-    previews: list["EvaluatorPreviewItemInput"]
     credentials: Optional[list["GenerativeCredentialInput"]] = None
+
+
+class EvaluatorPreviewSubjectInput(BaseModel):
+    key: str
+    "Chosen by the caller and echoed on the subject's result; unique per request. Not an id, so a client cache that normalizes by id leaves the subject alone."
+    context: Any
 
 
 class FreeformAnnotationConfigInput(BaseModel):
@@ -477,8 +480,7 @@ DecisionScoringPolicyInput.model_rebuild()
 DecisionStateInput.model_rebuild()
 DecisionVersionInput.model_rebuild()
 EvaluatorDefinitionInput.model_rebuild()
-EvaluatorPreviewItemInput.model_rebuild()
-EvaluatorPreviewsInput.model_rebuild()
+EvaluatorPreviewInput.model_rebuild()
 InlineCodeEvaluatorInput.model_rebuild()
 InlineDecisionEvaluatorInput.model_rebuild()
 InlineLLMEvaluatorInput.model_rebuild()
