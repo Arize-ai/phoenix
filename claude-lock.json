@@ -9,9 +9,9 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "2",
-      "hash": "2cc0870b0692cd49da6797dcf9420721",
-      "remote_hash": "ea487b34abf3e4fdc257efdacfc674f7"
+      "version": "3",
+      "hash": "e782ef9adb3c49a82b1382183f4fee1c",
+      "remote_hash": "408d901a7532b5de67dc019aa311da7b"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
@@ -23,23 +23,23 @@
     "./agents/docs-writer.md": {
       "kind": "agent",
       "id": "agent_017gUzHtyPT7QVNMRuVCDwGK",
-      "version": "1",
-      "hash": "e997cc5cc5f54c38849ec068d9b0c1f8",
-      "remote_hash": "f0189cc2ec50b06d8d352f7b18523d7d"
+      "version": "2",
+      "hash": "1a1719051d015deb49aaa467f7a017a5",
+      "remote_hash": "55cf041431c8a834dbfc3fd279821bea"
     },
     "./agents/feature-analyst.md": {
       "kind": "agent",
       "id": "agent_01Mkxi7NutSTNxqfaNsnFGK6",
-      "version": "1",
-      "hash": "c36ffe77661f42a7f8de090d81934a12",
-      "remote_hash": "73c9b7deb068d885767c959005451745"
+      "version": "2",
+      "hash": "0b3b735a10243b189aeeaf2693288a1f",
+      "remote_hash": "8b14cfe56be8a0cf006db7aeaa3f2e0c"
     },
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "2",
-      "hash": "7fe9a16b2c9d5809f9b69b648e095f4d",
-      "remote_hash": "d0617406d4cd1a6f6e55294576390484"
+      "version": "3",
+      "hash": "7202ae7844ee09e92d1ba2dd86d21aec",
+      "remote_hash": "114d9fa7cf2d23f69807df9740b2b0c5"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
