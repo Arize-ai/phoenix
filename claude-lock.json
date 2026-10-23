@@ -9,16 +9,16 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "5",
-      "hash": "086fe097066a3b0c33999160da0a7ae0",
-      "remote_hash": "f1b395f8ef35b3b26eb55da59066ebe6"
+      "version": "6",
+      "hash": "99a720d6756c3fcad4fbebe9d5ff30cf",
+      "remote_hash": "25ad3994123aec490cfe42b677769ae4"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
       "id": "agent_01A2ZcG9J6JbhkdCLWRTKLgh",
-      "version": "4",
-      "hash": "ae9742da579be14066232821b3a4c7cf",
-      "remote_hash": "9ad48fd6eb7bce6bc21005f969c63629"
+      "version": "5",
+      "hash": "2dc607322e06ea201d699c3fa0506ac3",
+      "remote_hash": "bce1455567067b34012805ad463fa4c7"
     },
     "./agents/docs-writer.md": {
       "kind": "agent",
@@ -55,6 +55,13 @@
       "hash": "8d07692ba0af57493acce5e3386791f0",
       "remote_hash": "6d07d79d1eff5edb25fd0cda797d1f16"
     },
+    "./agents/railway-triage.md": {
+      "kind": "agent",
+      "id": "agent_013UyMYC4Xu5W2SRWMPjC49f",
+      "version": "1",
+      "hash": "429ae3a1d67fa84f57e7dc6600e5625c",
+      "remote_hash": "aa88bd6e2b5b2c690555fd61f6c90a96"
+    },
     "./agents/server-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JJRUnbPL4cZ9gbcTQtUgZn",
@@ -73,6 +80,12 @@
       "id": "vlt_011CgHfgnXragfz9pvf4A4ic",
       "hash": "2b52a0459e496befbe0a8379a03ccb09",
       "remote_hash": "2b52a0459e496befbe0a8379a03ccb09"
+    },
+    "./vaults/grafana.yaml": {
+      "kind": "vault",
+      "id": "vlt_011CgKuNBSrTWEdHPMPiSfE2",
+      "hash": "16ca5b12d4a626306eb33be5c615d72d",
+      "remote_hash": "16ca5b12d4a626306eb33be5c615d72d"
     }
   }
 }
