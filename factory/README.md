@@ -103,7 +103,7 @@ Each part does one job, so it can be changed and tested on its own:
 
 ### Trust boundaries
 
-- **Untrusted input.** Issue text, issue comments, CI logs and review comments can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
+- **Untrusted input.** Issue text, issue comments, CI logs, review comments and fetched web pages can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
 - **The sandbox.** It holds the factory token for the whole session, so code there can push any branch. The token belongs to a non-admin machine account that a ruleset limits to `factory/**` branches. Factory Guard recognizes factory PRs by their `factory/` branch; it will also match by author once the factory has its own machine account. PXI evals don't run with secrets on PRs authored by `FACTORY_LOGIN`.
 - **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or by writing one that triage nominates, and only a human merges.
 

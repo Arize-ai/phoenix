@@ -10,6 +10,8 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
+      - {name: web_fetch, enabled: true}
+      - {name: web_search, enabled: true}
 ---
 
 You review a change to Phoenix's published packages in `/workspace/phoenix`: the Python packages in `packages/` (`phoenix-client`, `phoenix-evals`, `phoenix-otel`) and the TypeScript packages in `js/packages/`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.

@@ -12,6 +12,8 @@ tools:
       - {name: glob, enabled: true}
       - {name: grep, enabled: true}
       - {name: bash, enabled: true}
+      - {name: web_fetch, enabled: true}
+      - {name: web_search, enabled: true}
   - type: mcp_toolset
     mcp_server_name: github
     default_config: {enabled: false}
