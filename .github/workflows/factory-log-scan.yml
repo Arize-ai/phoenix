@@ -1,13 +1,8 @@
 name: Factory Log Scan
 
-# Once a day at 5am Eastern (09:00 UTC; 4am Eastern while daylight saving is off),
-# factory/log_scan.py asks Grafana whether Phoenix logged any server errors in the last
-# day. If so it starts a railway-triage session, which reads the errors and the code, checks
-# the open `railway-dev` issues, and files a user-facing issue for each new bug or comments on
-# the issue that already covers it. When enabled, the new issues then get the `factory`
-# label so factory-dispatch.yml runs the bug lane on them. The label is applied with the
-# machine-account token: one applied by GITHUB_TOKEN would not start the dispatch
-# workflow, and the machine account has the write access dispatch.py requires.
+# Daily: if Phoenix logged server errors in the last day, run the railway-triage agent, which
+# files or updates issues for them. Labels with the machine-account token, since a label
+# applied by GITHUB_TOKEN would not start factory-dispatch.yml.
 on:
   schedule:
     - cron: "0 9 * * *"
