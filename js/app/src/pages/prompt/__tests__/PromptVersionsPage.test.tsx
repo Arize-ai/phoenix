@@ -219,7 +219,6 @@ describe("PromptVersionsPage", () => {
 
     await loadAllVersions();
 
-    // The oldest version, version 1, must be reachable from the list
     expect(getRenderedVersionItems()).toHaveLength(TOTAL_VERSIONS);
     expect(getVersionItemText(getVersionId(1))).toBeDefined();
     expect(unexpectedWarnings).toEqual([]);
@@ -252,7 +251,6 @@ describe("PromptVersionsPage", () => {
       await user.click(productionCheckbox);
     });
 
-    // The list is not reset to its first page, and the tag moved rows
     expect(getRenderedVersionItems()).toHaveLength(TOTAL_VERSIONS);
     expect(getVersionItemText(olderVersionId)).toContain(PRODUCTION_TAG.name);
     expect(getVersionItemText(getVersionId(TOTAL_VERSIONS))).not.toContain(
