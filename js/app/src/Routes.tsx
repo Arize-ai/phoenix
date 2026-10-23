@@ -172,6 +172,24 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// :promptId's loader always revalidates so versions saved elsewhere show up,
+// except when moving between versions of the same prompt: its query holds
+// only the first page of the paginated versions list, so re-running it would
+// drop the pages already scrolled in, including the version just clicked.
+const revalidatePromptUnlessSwitchingVersions: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+}) => {
+  if (currentUrl.href === nextUrl.href) return true;
+  const isSwitchingVersions =
+    currentParams.promptId === nextParams.promptId &&
+    currentParams.versionId != null &&
+    nextParams.versionId != null;
+  return !isSwitchingVersions;
+};
+
 // Shared by the traces and spans tabs, which both host the compare drawer
 const compareTracesRouteHandle = {
   agentRoute: {
@@ -844,9 +862,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            // force this route to always revalidate, preventing stale versions from being
-            // displayed when navigating back to the prompt page after gql mutation
-            shouldRevalidate={() => true}
+            shouldRevalidate={revalidatePromptUnlessSwitchingVersions}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {

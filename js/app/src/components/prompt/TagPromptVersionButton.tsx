@@ -96,6 +96,7 @@ export function TagPromptVersionButton({
         }}
       >
         <NewPromptVersionDialog
+          promptId={promptId}
           promptVersionId={versionId}
           onDismiss={() => setShowNewTagDialog(false)}
           onNewTagCreated={(newTag) => {
@@ -175,6 +176,7 @@ function TagList({
           promptVersionTag {
             id
             name
+            promptVersionId
           }
         }
       }

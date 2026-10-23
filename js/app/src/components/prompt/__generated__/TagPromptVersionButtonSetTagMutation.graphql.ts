@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f34dded972ddb80c635b8e75c87b936c>>
+ * @generated SignedSource<<3c2b0602a136cb7b27b0179ad1e170e4>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type TagPromptVersionButtonSetTagMutation$data = {
     readonly promptVersionTag: {
       readonly id: string;
       readonly name: string;
+      readonly promptVersionId: string;
     } | null;
   };
 };
@@ -73,6 +74,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "promptVersionId",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -99,16 +107,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "1beb6404bf5bd56948e20c89e13053a7",
+    "cacheID": "5c5d28c661d4d918f165516095b7a487",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n      name\n      promptVersionId\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "efa8c165db468f31d3c7269519e880bb";
+(node as any).hash = "fac68f8d5a8c9cd286ee972ac9543d39";
 
 export default node;

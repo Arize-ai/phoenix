@@ -157,7 +157,7 @@ test.describe("Prompt Management", () => {
     page,
   }) => {
     const promptName = `many-versions-${randomUUID().slice(0, 8)}`;
-    // The server's default page size is 50, so this needs a second page
+    // The versions list loads 50 versions per page, so this needs a second page
     const numVersions = 60;
     for (let versionIndex = 1; versionIndex <= numVersions; versionIndex++) {
       const response = await page.request.post("/v1/prompts", {
@@ -195,5 +195,11 @@ test.describe("Prompt Management", () => {
         return versionLinks.count();
       })
       .toBe(numVersions);
+
+    await versionLinks.last().click();
+    await expect(page.getByTestId("prompt-chat-messages-card")).toContainText(
+      "message 1"
+    );
+    await expect(versionLinks).toHaveCount(numVersions);
   });
 });
