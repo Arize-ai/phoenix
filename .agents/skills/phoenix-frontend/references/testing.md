@@ -24,7 +24,7 @@ Cover these with a Playwright test in `js/app/tests/` (see the `phoenix-playwrig
 
 ## Relay components
 
-Use `relay-test-utils` ([guide](https://raw.githubusercontent.com/facebook/relay/refs/heads/main/website/versioned_docs/version-v21.0.1/guides/testing-relay-components.mdx)) instead of building an `Environment` with a hand-written `Network` and payload. `vitest.setup.ts` maps the `jest.fn` it calls to `vi.fn`.
+Use `relay-test-utils` ([guide](https://relay.dev/docs/guides/testing-relay-components/)) instead of building an `Environment` with a hand-written `Network` and payload. `vitest.setup.ts` maps the `jest.fn` it calls to `vi.fn`.
 
 - `createMockEnvironment()` gives a store-backed environment whose operations stay pending until the test resolves them: `environment.mock.resolveMostRecentOperation(...)` / `rejectMostRecentOperation(...)` inside `act`, or `queueOperationResolver(...)` before render to answer them as they are sent. Assert the loading state before resolving, the error state after rejecting.
 - `MockPayloadGenerator.generate(operation, resolvers)` fills every field of the operation, fragments included. Resolvers are keyed by GraphQL type (`Span`, `Project`, `ID`, `String`) and return only the fields the assertions depend on. Return `{ __typename: "Span" }` from `Node` for `node(id:)` queries.
