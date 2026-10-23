@@ -25,6 +25,7 @@ px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
 px trace delete <trace-identifier>
+px trace transfer <trace-id...> --to <project>
 px trace-annotations delete
 px span list
 px span annotate <span-id>
@@ -246,6 +247,8 @@ px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progr
 px trace annotate <trace-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px trace add-note <trace-id> --text "needs follow-up"
 px trace add-note <trace-id> --text "needs follow-up" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px trace transfer <trace-id> <trace-id> --to <project> --yes --format raw --no-progress     # move traces (from one source project) into another project
+px trace list --format raw --no-progress | jq -r '.[].traceId' | px trace transfer --file - --to <project> --yes  # IDs from stdin
 px trace-annotations delete --identifier "<coding-annotation-id>" --all -y            # nuke every annotation tied to this coding annotation identifier
 ```
 
