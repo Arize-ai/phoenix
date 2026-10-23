@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
-import {
-  ConnectionHandler,
-  graphql,
-  useLazyLoadQuery,
-  useMutation,
-} from "react-relay";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
   Button,
@@ -24,6 +19,8 @@ import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
+
+import { movePromptVersionTag } from "./movePromptVersionTag";
 
 type TagPromptVersionButtonProps = {
   promptId: string;
@@ -217,43 +214,17 @@ function TagList({
                           description,
                         },
                       },
-                      // A tag belongs to one version at a time, so it also has
-                      // to leave whichever loaded version held it before
-                      updater: (store) => {
-                        const tag = store
-                          .getRootField("setPromptVersionTag")
-                          ?.getLinkedRecord("promptVersionTag");
-                        const prompt = store.get(promptId);
-                        if (!tag || !prompt) {
-                          return;
+                      updater: (store, data) => {
+                        const tagId =
+                          data?.setPromptVersionTag.promptVersionTag?.id;
+                        if (tagId) {
+                          movePromptVersionTag({
+                            store,
+                            promptId,
+                            versionId,
+                            tagId,
+                          });
                         }
-                        const loadedVersions =
-                          ConnectionHandler.getConnection(
-                            prompt,
-                            "PromptVersionsList__pagedVersions"
-                          )
-                            ?.getLinkedRecords("edges")
-                            ?.map((edge) => edge?.getLinkedRecord("node")) ??
-                          [];
-                        [...loadedVersions, store.get(versionId)].forEach(
-                          (version) => {
-                            const versionTags =
-                              version?.getLinkedRecords("tags");
-                            if (!version || !versionTags) {
-                              return;
-                            }
-                            const otherTags = versionTags.filter(
-                              (versionTag) =>
-                                versionTag?.getDataID() !== tag.getDataID()
-                            );
-                            version.setLinkedRecords(
-                              version.getDataID() === versionId
-                                ? [...otherTags, tag]
-                                : otherTags,
-                              "tags"
-                            );
-                          }
-                        );
                       },
                       onCompleted: () => {
                         onTagSet(tagName);

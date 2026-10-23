@@ -152,4 +152,46 @@ test.describe("Prompt Management", () => {
 
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
   });
+
+  test("versions tab lists every version of a prompt with more than one page of versions", async ({
+    page,
+  }) => {
+    const promptName = `many-versions-${randomUUID().slice(0, 8)}`;
+    // The server's default page size is 50, so this needs a second page
+    const numVersions = 60;
+    for (let versionIndex = 1; versionIndex <= numVersions; versionIndex++) {
+      const response = await page.request.post("/v1/prompts", {
+        data: {
+          prompt: { name: promptName },
+          version: {
+            description: `version ${versionIndex}`,
+            model_provider: "OPENAI",
+            model_name: "gpt-4o-mini",
+            template_type: "CHAT",
+            template_format: "MUSTACHE",
+            template: {
+              type: "chat",
+              messages: [{ role: "user", content: `message ${versionIndex}` }],
+            },
+            invocation_parameters: { type: "openai", openai: {} },
+          },
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+    }
+
+    await page.goto("/prompts");
+    await page.getByRole("link", { name: promptName }).click();
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    const versionsTab = page.getByRole("tab", { name: /versions/i });
+    await expect(versionsTab).toContainText(String(numVersions));
+    await versionsTab.click();
+
+    const versionLinks = page.locator("a[href*='/versions/']");
+    await expect(versionLinks.first()).toBeVisible();
+    await expect(async () => {
+      await versionLinks.last().scrollIntoViewIfNeeded();
+      await expect(versionLinks).toHaveCount(numVersions, { timeout: 1_000 });
+    }).toPass();
+  });
 });
