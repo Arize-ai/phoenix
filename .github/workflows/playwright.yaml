@@ -177,7 +177,7 @@ jobs:
       # same versions and surface them via the same env-var contract that
       # ensure_wasm_binary() / DenoAdapter consume.
       - name: Install Deno (TypeScript sandbox provider)
-        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.1.4
       - name: Pre-download CPython WASM binary
