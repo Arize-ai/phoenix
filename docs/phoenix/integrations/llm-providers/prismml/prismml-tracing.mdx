@@ -43,8 +43,8 @@ response = client.chat.completions.create(
             "content": "Why is the ocean salty? Answer in two sentences.",
         },
     ],
-    temperature=0.5,
-    top_p=0.85,
+    # Bonsai models think before answering, which can use thousands of tokens.
+    max_tokens=8192,
 )
 
 print(response.choices[0].message.content)
@@ -59,6 +59,7 @@ Now that you have tracing set up, all invocations of the OpenAI client pointed a
 * **Spans missing**: `register(..., auto_instrument=True)` must run before your application sends requests, and `openinference-instrumentation-openai` must be installed in the same environment
 * **`Connection refused` or `ConnectError` to `localhost:8080`**: The PrismML server is not running or is listening on a different port. Start it with PrismML's [server instructions](https://docs.prismml.com/run/server)
 * **Model not found**: The server exposes the model it loaded. Use the model name returned by `GET http://localhost:8080/v1/models`, or use `bonsai` as shown in this guide
+* **Empty or cut-off answer**: Thinking used up `max_tokens` before the model finished. PrismML recommends a `max_tokens` of 8,192 or more with thinking on
 
 ## Resources
 
