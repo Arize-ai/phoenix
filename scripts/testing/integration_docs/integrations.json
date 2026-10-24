@@ -69,6 +69,70 @@
         "required_attributes": ["llm.model_name"],
         "non_empty_attributes": ["llm.model_name"]
       }
+    },
+    {
+      "id": "ollama-python",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {"source": "section_code", "language": "javascript"},
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-go",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {"source": "section_code", "language": "go"},
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
     }
   ]
 }

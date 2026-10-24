@@ -576,7 +576,9 @@
                 "group": "Ollama",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/ollama",
-                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing"
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk"
                 ]
               },
               {

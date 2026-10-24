@@ -31,6 +31,13 @@ and verifies spans using the Phoenix API. Reports are written under
 `ci-results/integration-docs/`. `PHOENIX_ENDPOINT` can override the local
 endpoint.
 
+For Ollama checks, also start Ollama and pull the configured model before
+running the harness. The current Ollama entries use `llama3.2:1b`; Python uses
+the native Ollama client, while Node.js and Go use the OpenAI SDK against
+Ollama's local OpenAI-compatible endpoint. CI reads each integration's
+`services` declaration, starts Ollama when that shard needs it, and pulls the
+declared model. Ollama checks do not require a provider API key.
+
 ## CI behavior
 
 - Pull requests classify changed files. Enabled integration docs run only when
@@ -43,6 +50,8 @@ endpoint.
   shard reports are merged into one artifact, job summary, and PR comment.
 - Each invocation uses a unique Phoenix project, so shards do not contend for
   shared project state.
+- Local services are declared per integration in `integrations.json` and
+  prepared only in the shards assigned to those docs.
 
 ## Add an integration
 

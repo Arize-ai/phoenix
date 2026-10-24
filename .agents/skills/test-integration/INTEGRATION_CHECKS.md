@@ -10,6 +10,9 @@ do not trigger a full integration run.
 | Enabled | OpenAI Python | `docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx` | Checks documented output and an LLM span with a model name. |
 | Enabled | OpenAI JavaScript | `docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx` | Checks documented output and an LLM span with a model name. |
 | Enabled | OpenAI Go | `docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx` | Checks documented output and an LLM span with a model name. |
+| Enabled | Ollama Python | `docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx` | Native Ollama client; CI pulls `llama3.2:1b` locally. |
+| Enabled | Ollama Node.js | `docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
+| Enabled | Ollama Go | `docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
 
 Add integrations one at a time after the runner supports their language and
 example shape, credentials are declared, and the verifier checks the behavior

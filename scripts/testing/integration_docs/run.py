@@ -104,10 +104,6 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     f"Integration {integration_id} has unsupported setup source "
                     f"{setup_source!r}"
                 )
-            if language == "python" and setup_source != "referenced_components":
-                raise HarnessError(
-                    f"Integration {integration_id} Python setup must use referenced_components"
-                )
             if language != "python" and setup_source != "section_code":
                 raise HarnessError(
                     f"Integration {integration_id} {language} setup must use section_code"

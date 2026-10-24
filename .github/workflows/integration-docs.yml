@@ -81,6 +81,20 @@ jobs:
           go-version: "1.26"
       - name: Install Phoenix
         run: uv sync --frozen
+      - name: Prepare selected docs and local services
+        shell: bash
+        env:
+          RUNNABLE_DOCS: ${{ needs.classify.outputs.runnable_docs }}
+          SHARD: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
+          REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          python -c 'import json, os; from pathlib import Path; Path(os.environ["REPORT_DIR"] + "/docs.json").write_text(json.dumps(json.loads(os.environ["RUNNABLE_DOCS"])))'
+          python scripts/testing/integration_docs/prepare_services.py \
+            --docs-file "${REPORT_DIR}/docs.json" \
+            --shard "${SHARD}/${SHARD_TOTAL}"
       - name: Start Phoenix and run this shard
         shell: bash
         env:
@@ -91,8 +105,6 @@ jobs:
         run: |
           set -euo pipefail
           report_dir="ci-results/integration-docs/shard-${SHARD}"
-          mkdir -p "${report_dir}"
-          python -c 'import json, os; from pathlib import Path; Path(os.environ["REPORT_DIR"] + "/docs.json").write_text(json.dumps(json.loads(os.environ["RUNNABLE_DOCS"])))'
           uv run phoenix serve --host 127.0.0.1 --port 6006 > "${RUNNER_TEMP}/phoenix.log" 2>&1 &
           phoenix_pid=$!
           trap 'kill "${phoenix_pid}" 2>/dev/null || true' EXIT
