@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { validateIdentifier } from "../identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  transformIdentifierInput,
+  validateIdentifier,
+} from "../identifierUtils";
 
 describe("validateIdentifier", () => {
   describe("valid identifiers", () => {
@@ -116,5 +120,55 @@ describe("validateIdentifier", () => {
         "Must have only lowercase alphanumeric characters, dashes, and underscores"
       );
     });
+  });
+});
+
+describe("replaceWhitespaceWithDashes", () => {
+  it("should replace a single space with a dash", () => {
+    expect(replaceWhitespaceWithDashes("my identifier")).toBe("my-identifier");
+  });
+  it("should collapse multiple consecutive spaces into one dash", () => {
+    expect(replaceWhitespaceWithDashes("my   identifier")).toBe(
+      "my-identifier"
+    );
+  });
+  it("should replace tabs and newlines from pasted text", () => {
+    expect(replaceWhitespaceWithDashes("my\tpasted\n identifier")).toBe(
+      "my-pasted-identifier"
+    );
+  });
+  it("should keep leading and trailing whitespace as dashes", () => {
+    expect(replaceWhitespaceWithDashes(" my identifier ")).toBe(
+      "-my-identifier-"
+    );
+  });
+  it("should leave other disallowed characters for validation to flag", () => {
+    expect(replaceWhitespaceWithDashes("my+identifier")).toBe("my+identifier");
+    expect(replaceWhitespaceWithDashes("My Identifier")).toBe("My-Identifier");
+  });
+  it("should leave a valid identifier unchanged", () => {
+    expect(replaceWhitespaceWithDashes("my-identifier_1")).toBe(
+      "my-identifier_1"
+    );
+  });
+});
+
+describe("transformIdentifierInput", () => {
+  it("should replace a single space with a dash", () => {
+    expect(transformIdentifierInput("my identifier")).toBe("my-identifier");
+  });
+  it("should collapse multiple consecutive spaces into one dash", () => {
+    expect(transformIdentifierInput("my   identifier")).toBe("my-identifier");
+  });
+  it("should replace tabs and newlines from pasted text", () => {
+    expect(transformIdentifierInput("my\tpasted\n identifier")).toBe(
+      "my-pasted-identifier"
+    );
+  });
+  it("should keep a trailing dash so the user can keep typing", () => {
+    expect(transformIdentifierInput("my ")).toBe("my-");
+  });
+  it("should lowercase and strip disallowed characters", () => {
+    expect(transformIdentifierInput("My+Identifier!")).toBe("myidentifier");
   });
 });

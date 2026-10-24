@@ -10,6 +10,7 @@ import {
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
   IDENTIFIER_ERROR_MESSAGES,
+  transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 
@@ -17,16 +18,6 @@ import {
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
-
-/**
- * Transforms an evaluator name by lowercasing, converting spaces to dashes,
- * and stripping disallowed characters.
- */
-const transformEvaluatorName = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/ /g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -131,11 +122,12 @@ export const EvaluatorNameInput = ({
           const input = inputRef.current;
           const selectionStart = input?.selectionStart ?? value.length;
 
-          const transformed = transformEvaluatorName(value);
+          const transformed = transformIdentifierInput(value);
 
           // Calculate new cursor position by transforming the text before cursor
           const beforeCursor = value.slice(0, selectionStart);
-          const newCursorPosition = transformEvaluatorName(beforeCursor).length;
+          const newCursorPosition =
+            transformIdentifierInput(beforeCursor).length;
 
           field.onChange(transformed);
 

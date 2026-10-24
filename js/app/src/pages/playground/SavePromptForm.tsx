@@ -23,7 +23,10 @@ import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
@@ -164,10 +167,11 @@ export function SavePromptForm({
               placeholder="Select or enter new prompt name"
               isRequired
               onBlur={onBlur}
-              defaultInputValue={promptInputValue}
+              inputValue={promptInputValue}
               onInputChange={(value) => {
-                setPromptInputValue(value);
-                onChange(value);
+                const transformed = replaceWhitespaceWithDashes(value);
+                setPromptInputValue(transformed);
+                onChange(transformed);
               }}
               errorMessage={fieldState.error?.message}
               allowsCustomValue
@@ -176,6 +180,18 @@ export function SavePromptForm({
                 setSelectedPromptId(
                   typeof promptId === "string" ? promptId : null
                 );
+                // Sync the controlled inputValue with the selection by hand
+                const selectedName = prompts?.prompts?.edges?.find(
+                  (edge) => edge?.prompt?.id === promptId
+                )?.prompt?.name;
+                if (selectedName) {
+                  setPromptInputValue(selectedName);
+                } else if (promptId == null && selectedPrompt) {
+                  const deselectedName = selectedPrompt.prompt.name;
+                  setPromptInputValue((current) =>
+                    current === deselectedName ? "" : current
+                  );
+                }
               }}
               promptId={selectedPromptId}
             />
@@ -368,7 +384,7 @@ function NewTagInlineForm({
         size="S"
         aria-label="New tag name"
         value={inputValue}
-        onChange={setInputValue}
+        onChange={(value) => setInputValue(replaceWhitespaceWithDashes(value))}
         isInvalid={!!error}
         css={css`
           flex: 1 1 auto;
