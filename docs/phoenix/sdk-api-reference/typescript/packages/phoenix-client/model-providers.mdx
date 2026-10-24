@@ -1,0 +1,19 @@
+---
+title: "Model Providers"
+description: "List the built-in model providers enabled on a Phoenix server"
+---
+
+```ts
+import { getModelProviders } from "@arizeai/phoenix-client/models";
+
+const modelProviders = await getModelProviders();
+```
+
+Each result has a typed `provider` identifier and a display `name`. The list reflects the server's `PHOENIX_ALLOWED_PROVIDERS` setting and can be empty.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/models/getModelProviders.ts</code></li>
+  </ul>
+</section>
