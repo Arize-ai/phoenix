@@ -888,7 +888,7 @@ provides-extras = ["pytest", "evals", "harbor"]
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "3.9.3"
+version = "3.9.4"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
