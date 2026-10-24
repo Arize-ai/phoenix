@@ -153,7 +153,7 @@ def create_prompt_version_from_anthropic(
     )
     tool_kwargs: _ToolKwargs = {}
     if "tools" in obj:
-        tool_kwargs["tools"] = list(_get_tool_params(obj["tools"]))
+        tool_kwargs["tools"] = list(obj["tools"])
     if "tool_choice" in obj:
         tool_kwargs["tool_choice"] = obj["tool_choice"]
     if (tools := _ToolKwargsConversion.from_anthropic(tool_kwargs)) is not None:
@@ -988,12 +988,3 @@ class _RoleConversion:
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]
-
-
-def _get_tool_params(
-    tools: Iterable[ToolUnionParam],
-) -> Iterator[ToolParam]:
-    for tool in tools:
-        if "type" in tool:
-            continue
-        yield tool

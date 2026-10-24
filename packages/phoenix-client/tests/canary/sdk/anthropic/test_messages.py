@@ -27,10 +27,13 @@ if TYPE_CHECKING:
     from anthropic.types import (
         MessageParam,
         TextBlockParam,
+        ToolChoiceAnyParam,
         ToolChoiceNoneParam,
         ToolParam,
         ToolResultBlockParam,
+        ToolUnionParam,
         ToolUseBlockParam,
+        WebSearchTool20250305Param,
     )
     from anthropic.types.message_create_params import MessageCreateParamsBase
 
@@ -211,6 +214,32 @@ class TestToolKwargs:
         captured prompt must replay with both, not drop the tools."""
         tools: list[ToolParam] = [_tool(), _tool()]
         tool_choice: ToolChoiceNoneParam = {"type": "none"}
+        obj = cast(
+            "MessageCreateParamsBase",
+            {
+                "model": _str(),
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": _str()}],
+                "tools": tools,
+                "tool_choice": tool_choice,
+            },
+        )
+        prompt = create_prompt_version_from_anthropic(obj)
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert not DeepDiff(tools, kwargs.get("tools"))
+        assert kwargs.get("tool_choice") == tool_choice
+
+    @pytest.mark.parametrize("with_function_tool", [True, False])
+    def test_server_tools_are_kept(self, with_function_tool: bool) -> None:
+        """Server tools such as web search carry a `type` and no `input_schema`, and
+        must be captured as raw tools rather than dropped."""
+        web_search: WebSearchTool20250305Param = {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 3,
+        }
+        tools: list[ToolUnionParam] = [_tool(), web_search] if with_function_tool else [web_search]
+        tool_choice: ToolChoiceAnyParam = {"type": "any"}
         obj = cast(
             "MessageCreateParamsBase",
             {
