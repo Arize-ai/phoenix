@@ -44,6 +44,16 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ru.md" />
 </p>
 
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix — это open-source платформа наблюдаемости (observability) для ИИ от Arize, предназначенная для экспериментов, оценки и устранения неполадок. Для управляемых production-процессов Arize также предлагает [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ru). Phoenix предоставляет:
 
 - [**_Трассировка_**](https://arize.com/docs/phoenix/tracing/llm-traces) — трассируйте выполнение Вашего LLM-приложения с помощью инструментирования на основе OpenTelemetry.
@@ -314,3 +324,13 @@ Copyright 2025 Arize AI, Inc. Все права защищены.
 Части этого кода защищены одним или несколькими патентами США. См. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Это программное обеспечение распространяется на условиях Elastic License 2.0 (ELv2). См. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

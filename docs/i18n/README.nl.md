@@ -44,6 +44,16 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.nl.md" />
 </p>
 
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix is het open-source AI-observability-platform van Arize, ontworpen voor experimenteren, evalueren en troubleshooting. Voor beheerde productieworkflows biedt Arize ook [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-nl) aan. Phoenix biedt:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace de runtime van uw LLM-applicatie met instrumentatie op basis van OpenTelemetry.
@@ -314,3 +324,13 @@ Copyright 2025 Arize AI, Inc. Alle rechten voorbehouden.
 Delen van deze code worden beschermd door een of meer Amerikaanse patenten. Zie de [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Deze software is gelicentieerd onder de voorwaarden van de Elastic License 2.0 (ELv2). Zie [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

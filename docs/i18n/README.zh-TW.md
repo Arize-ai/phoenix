@@ -44,6 +44,16 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.zh-TW.md" />
 </p>
 
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix 是 Arize 推出的開源 AI 可觀測性平台，專為實驗、評估與問題排查而設計。針對託管式的正式環境工作流程，Arize 也提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh-tw)。Phoenix 提供：
 
 - [**_追蹤 (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - 透過以 OpenTelemetry 為基礎的檢測，追蹤 LLM 應用程式的執行過程。
@@ -314,3 +324,13 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 本程式碼的部分內容受一項或多項美國專利保護。請參閱 [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE)。
 
 本軟體依據 Elastic License 2.0 (ELv2) 條款授權。請參閱 [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE)。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

@@ -44,6 +44,16 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.hu.md" />
 </p>
 
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) platformot is kínálja. A Phoenix a következőket nyújtja:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Kövesse nyomon LLM-alkalmazása futását OpenTelemetry-alapú instrumentációval.
@@ -314,3 +324,13 @@ Copyright 2025 Arize AI, Inc. Minden jog fenntartva.
 A kód egyes részeit egy vagy több amerikai egyesült államokbeli szabadalom védi. Lásd az [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) fájlt.
 
 Ez a szoftver az Elastic License 2.0 (ELv2) feltételei szerint licencelt. Lásd a [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) fájlt.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>
