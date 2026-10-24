@@ -584,3 +584,47 @@ class TestGetSpansSort:
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         spans = Spans(client).get_spans(project_identifier="my-project")
         assert len(spans) == 1
+
+
+def _annotations_transport(seen_span_ids: list[str]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "/v1/projects/default/span_annotations" in str(request.url)
+        seen_span_ids.extend(parse_qs(urlparse(str(request.url)).query).get("span_ids", []))
+        return httpx.Response(200, json={"data": [], "next_cursor": None})
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.parametrize("column", ["context.span_id", "span_id"])
+def test_get_span_annotations_dataframe_reads_either_span_id_column(column: str) -> None:
+    seen: list[str] = []
+    with httpx.Client(
+        transport=_annotations_transport(seen), base_url="http://test"
+    ) as http_client:
+        Spans(http_client).get_span_annotations_dataframe(
+            spans_dataframe=pd.DataFrame({column: ["span-1", "span-2", None]})
+        )
+    assert sorted(seen) == ["span-1", "span-2"]
+
+
+def test_get_span_annotations_dataframe_without_span_id_column_raises_value_error() -> None:
+    with httpx.Client(transport=_annotations_transport([]), base_url="http://test") as http_client:
+        with pytest.raises(ValueError, match="context.span_id"):
+            Spans(http_client).get_span_annotations_dataframe(
+                spans_dataframe=pd.DataFrame({"name": ["a"]})
+            )
+
+
+@pytest.mark.parametrize("column", ["context.span_id", "span_id"])
+async def test_async_get_span_annotations_dataframe_reads_either_span_id_column(
+    column: str,
+) -> None:
+    seen: list[str] = []
+    async with httpx.AsyncClient(
+        transport=_annotations_transport(seen), base_url="http://test"
+    ) as http_client:
+        await AsyncSpans(http_client).get_span_annotations_dataframe(
+            spans_dataframe=pd.DataFrame({column: ["span-1", "span-2", None]}),
+            project_identifier="default",
+        )
+    assert sorted(seen) == ["span-1", "span-2"]
