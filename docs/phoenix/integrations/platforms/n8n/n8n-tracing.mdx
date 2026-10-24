@@ -67,7 +67,7 @@ docker run -it --rm --name n8n \
 
 ## Enable n8n agent tracing
 
-In n8n `2.33.0` or later, agent runs emit spans through the same exporter. Agent tracing is on by default once `N8N_OTEL_ENABLED=true`; set it explicitly to make the configuration clear:
+In n8n `2.33.0` or later, runs of agents built with n8n's **Agents** feature emit agent and LLM spans through the same exporter, including the model name and token counts. The **AI Agent** workflow node isn't covered: it appears only as a `node.execute` span. Agent tracing is on by default once `N8N_OTEL_ENABLED=true`; set it explicitly to make the configuration clear:
 
 ```bash
 export N8N_AGENTS_TRACING_ENABLED=true
@@ -84,7 +84,7 @@ export N8N_AGENTS_TRACING_RECORD_OUTPUTS=false
 
 1. Run an n8n workflow.
 1. Open Phoenix and select the **`n8n`** project.
-1. Look for `workflow.execute` and `node.execute` spans. Agent runs also appear as GenAI spans if agent tracing is enabled.
+1. Look for `workflow.execute` and `node.execute` spans. Runs of n8n Agents also appear as an agent span with LLM child spans if agent tracing is enabled.
 
 If you configured OpenTelemetry from the n8n UI, use n8n's **Send test trace** action to verify the exporter before running a workflow.
 
