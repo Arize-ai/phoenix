@@ -25,6 +25,50 @@
         "required_attributes": ["llm.model_name"],
         "non_empty_attributes": ["llm.model_name"]
       }
+    },
+    {
+      "id": "openai-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "openai-go",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
     }
   ]
 }

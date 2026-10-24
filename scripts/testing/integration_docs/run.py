@@ -43,6 +43,10 @@ EMBEDDED_CODE = re.compile(
     re.MULTILINE,
 )
 PIP_COMMAND = re.compile(r"(?:^|\s)(?:python\s+-m\s+)?pip3?\s+install\b(?P<args>.*)$")
+NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+install\b(?P<args>.*)$")
+GO_GET_COMMAND = re.compile(r"(?:^|\s)go\s+get\b(?P<args>.*)$")
+GO_IMPORT_BLOCK = re.compile(r"(?m)^import\s*\((.*?)^\)", re.DOTALL)
+GO_IMPORT_PATH = re.compile(r'^(?:[A-Za-z_]\w*\s+)?"(?P<path>[^"]+)"$')
 
 
 class HarnessError(RuntimeError):
@@ -56,6 +60,7 @@ class IntegrationSpec:
     language: str
     install_section: str
     run_section: str
+    setup_section: str
     required_env: tuple[str, ...]
     python_version: str
     setup: dict[str, str]
@@ -86,20 +91,33 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             language = str(raw["language"]).lower()
             if integration_id in seen_ids or document in seen_documents:
                 raise HarnessError(f"Duplicate integration id or document: {integration_id}")
-            if language != "python":
+            if language not in {"python", "javascript", "go"}:
                 raise HarnessError(
                     f"Integration {integration_id} uses unsupported language {language!r}; "
-                    "add a language runner before registering it"
+                    "supported languages are Python, JavaScript, and Go"
                 )
             setup = raw["setup"]
             verification = raw["verification"]
-            if setup.get("source") != "referenced_components":
+            setup_source = setup.get("source")
+            if setup_source not in {"referenced_components", "section_code"}:
                 raise HarnessError(
                     f"Integration {integration_id} has unsupported setup source "
-                    f"{setup.get('source')!r}"
+                    f"{setup_source!r}"
                 )
-            if setup.get("language", "python").lower() != "python":
-                raise HarnessError(f"Integration {integration_id} setup language must be Python")
+            if language == "python" and setup_source != "referenced_components":
+                raise HarnessError(
+                    f"Integration {integration_id} Python setup must use referenced_components"
+                )
+            if language != "python" and setup_source != "section_code":
+                raise HarnessError(
+                    f"Integration {integration_id} {language} setup must use section_code"
+                )
+            code_language = str(setup.get("language", language)).lower()
+            if code_language != language:
+                raise HarnessError(
+                    f"Integration {integration_id} setup language {code_language!r} "
+                    f"must match {language!r}"
+                )
             if verification.get("kind") != "phoenix_spans":
                 raise HarnessError(
                     f"Integration {integration_id} has unsupported verifier "
@@ -114,6 +132,7 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     language=language,
                     install_section=str(raw["install_section"]),
                     run_section=str(raw["run_section"]),
+                    setup_section=str(raw.get("setup_section", "Setup")),
                     required_env=tuple(raw.get("required_env", [])),
                     python_version=str(raw.get("python_version", "3.11")),
                     setup={str(key): str(value) for key, value in setup.items()},
@@ -139,22 +158,28 @@ def section_body(document_text: str, heading: str) -> str:
     return document_text[match.end() : end]
 
 
-def python_fence(section: str, context: str) -> str:
+def code_fence(section: str, language: str, context: str) -> str:
     for block in FENCE.finditer(section):
-        if block.group("language").lower() == "python":
+        if block.group("language").lower() == language:
             return block.group("body").strip()
-    raise HarnessError(f"No Python code block found in {context}")
+    raise HarnessError(f"No {language} code block found in {context}")
 
 
-def package_names(section: str) -> list[str]:
-    """Read pip install requirements without executing commands from the page."""
+def package_names(section: str, language: str) -> list[str]:
+    """Read package requirements without executing commands from the page."""
     normalized = section.replace("\\\r\n", " ").replace("\\\n", " ")
+    commands = {
+        "python": PIP_COMMAND,
+        "javascript": NPM_COMMAND,
+        "go": GO_GET_COMMAND,
+    }
+    install_command = commands[language]
     packages: list[str] = []
     for line in normalized.splitlines():
         command = line.strip()
         if not command or command.startswith("#"):
             continue
-        match = PIP_COMMAND.search(command)
+        match = install_command.search(command)
         if not match:
             continue
         for token in shlex.split(match.group("args")):
@@ -167,7 +192,7 @@ def package_names(section: str) -> list[str]:
             packages.append(token)
     unique = list(dict.fromkeys(packages))
     if not unique:
-        raise HarnessError("Install section must contain a pip install command")
+        raise HarnessError(f"Install section must contain a {language} dependency command")
     return unique
 
 
@@ -214,16 +239,52 @@ def component_setup(spec: IntegrationSpec, document_text: str, project: str) -> 
     return "\n\n".join(snippets)
 
 
-def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], str]:
+def combine_go_files(setup: str, run: str) -> str:
+    """Combine setup and run snippets into one Go file with one import block."""
+    imports: list[str] = []
+    bodies: list[str] = []
+    for source in (setup, run):
+        source = re.sub(r"(?m)^package\s+\w+\s*$", "", source)
+
+        def collect_imports(match: re.Match[str]) -> str:
+            for line in match.group(1).splitlines():
+                import_line = line.strip()
+                if import_line and import_line not in imports:
+                    imports.append(import_line)
+            return ""
+
+        source = GO_IMPORT_BLOCK.sub(collect_imports, source)
+        bodies.append(source.strip())
+
+    for import_line in imports:
+        if not GO_IMPORT_PATH.match(import_line):
+            raise HarnessError(f"Unsupported Go import declaration: {import_line}")
+    imports_block = "import (\n\t" + "\n\t".join(imports) + "\n)"
+    return "package main\n\n" + imports_block + "\n\n" + "\n\n".join(bodies) + "\n"
+
+
+def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dict[str, str]]:
     text = spec.document.read_text()
-    packages = package_names(section_body(text, spec.install_section))
-    setup = component_setup(spec, text, project)
-    run = python_fence(section_body(text, spec.run_section), f"## {spec.run_section}")
-    flush_code = spec.setup.get("flush_code", "").strip()
-    sections = [setup, run]
-    if flush_code:
-        sections.append(flush_code)
-    return packages, "\n\n".join(sections)
+    packages = package_names(section_body(text, spec.install_section), spec.language)
+    if spec.setup["source"] == "referenced_components":
+        setup = component_setup(spec, text, project)
+    else:
+        setup = code_fence(
+            section_body(text, spec.setup_section), spec.language, f"## {spec.setup_section}"
+        )
+    run = code_fence(
+        section_body(text, spec.run_section), spec.language, f"## {spec.run_section}"
+    )
+
+    if spec.language == "python":
+        sections = [setup, run]
+        flush_code = spec.setup.get("flush_code", "").strip()
+        if flush_code:
+            sections.append(flush_code)
+        return packages, {"example.py": "\n\n".join(sections)}
+    if spec.language == "javascript":
+        return packages, {"instrumentation.js": setup, "example.js": run}
+    return packages, {"main.go": combine_go_files(setup, run)}
 
 
 def request_json(url: str, api_key: str | None) -> dict[str, Any]:
@@ -308,37 +369,68 @@ def python_executable(venv: Path) -> Path:
 def run_example(
     spec: IntegrationSpec,
     packages: list[str],
-    program: str,
+    program: dict[str, str],
     endpoint: str,
     project: str,
 ) -> str:
-    uv = REPO_ROOT / "scripts/uv.sh"
-    if not uv.is_file():
-        raise HarnessError(f"Repository uv wrapper not found: {uv}")
     with tempfile.TemporaryDirectory(prefix=f"phoenix-doc-{spec.id}-") as temp_dir:
         temp = Path(temp_dir)
-        venv = temp / ".venv"
-        subprocess.run(
-            [uv, "venv", "--seed", "--python", spec.python_version, str(venv)],
-            check=True,
-            cwd=REPO_ROOT,
-        )
-        subprocess.run(
-            [uv, "pip", "install", "--python", str(python_executable(venv)), *packages],
-            check=True,
-            cwd=temp,
-        )
-        sample = temp / "example.py"
-        sample.write_text(program)
         env = os.environ.copy()
         env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint
         env["PHOENIX_PROJECT_NAME"] = project
+        if spec.language == "python":
+            uv = REPO_ROOT / "scripts/uv.sh"
+            if not uv.is_file():
+                raise HarnessError(f"Repository uv wrapper not found: {uv}")
+            venv = temp / ".venv"
+            subprocess.run(
+                [uv, "venv", "--seed", "--python", spec.python_version, str(venv)],
+                check=True,
+                cwd=REPO_ROOT,
+            )
+            subprocess.run(
+                [uv, "pip", "install", "--python", str(python_executable(venv)), *packages],
+                check=True,
+                cwd=temp,
+            )
+            sample = temp / "example.py"
+            sample.write_text(program[sample.name])
+            command = [str(python_executable(venv)), str(sample)]
+        elif spec.language == "javascript":
+            (temp / "package.json").write_text('{"private":true,"type":"module"}\n')
+            for filename, source in program.items():
+                (temp / filename).write_text(source)
+            env["npm_config_cache"] = os.environ.get(
+                "NPM_CONFIG_CACHE", os.environ.get("npm_config_cache", str(temp / ".npm-cache"))
+            )
+            subprocess.run(
+                ["npm", "install", "--no-audit", "--no-fund", "--no-save", *packages],
+                check=True,
+                cwd=temp,
+                env=env,
+                timeout=600,
+            )
+            command = ["node", "example.js"]
+        else:
+            (temp / "main.go").write_text(program["main.go"])
+            env["GOPATH"] = os.environ.get("GOPATH", str(temp / ".go-path"))
+            env["GOMODCACHE"] = os.environ.get("GOMODCACHE", str(temp / ".go-mod-cache"))
+            env["GOCACHE"] = os.environ.get("GOCACHE", str(temp / ".go-build-cache"))
+            subprocess.run(["go", "mod", "init", "integration-docs-test"], check=True, cwd=temp)
+            subprocess.run(
+                ["go", "get", *packages],
+                check=True,
+                cwd=temp,
+                env=env,
+                timeout=600,
+            )
+            command = ["go", "run", "."]
         completed = subprocess.run(
-            [str(python_executable(venv)), str(sample)],
+            command,
             check=True,
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=300,
             env=env,
             cwd=temp,
         )

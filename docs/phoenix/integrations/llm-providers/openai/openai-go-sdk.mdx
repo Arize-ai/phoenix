@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -64,8 +65,13 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	projectName := os.Getenv("PHOENIX_PROJECT_NAME")
+	if projectName == "" {
+		projectName = "openai-go-app"
+	}
 	res, _ := resource.New(ctx, resource.WithAttributes(
-		semconv.ServiceName("openai-go-app"),
+		semconv.ServiceName(projectName),
+		attribute.String("openinference.project.name", projectName),
 	))
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
@@ -86,6 +92,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/openai/openai-go"
@@ -99,23 +106,33 @@ import (
 
 func main() {
 	ctx := context.Background()
-	tp, _ := initTracer(ctx)
+	projectName := os.Getenv("PHOENIX_PROJECT_NAME")
+	if projectName == "" {
+		projectName = "openai-go-app"
+	}
+	tp, err := initTracer(ctx)
+	if err != nil {
+		log.Fatalf("initialize tracer: %v", err)
+	}
 	defer tp.Shutdown(ctx)
 
 	client := openai.NewClient(
 		option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
-		option.WithMiddleware(openaiotel.Middleware(otel.Tracer("openai-go-app"))),
+		option.WithMiddleware(openaiotel.Middleware(otel.Tracer(projectName))),
 	)
 
 	ctx = instrumentation.WithSession(ctx, "session-abc")
 	ctx = instrumentation.WithUser(ctx, "user-xyz")
 
-	resp, _ := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+	resp, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model: shared.ChatModelGPT4o,
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage("Write a haiku."),
 		},
 	})
+	if err != nil {
+		log.Fatalf("openai completion: %v", err)
+	}
 	fmt.Println(resp.Choices[0].Message.Content)
 }
 ```

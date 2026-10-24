@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx"
+      - "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx"
+      - "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx"
       - "docs/snippets/register-tracer-python.mdx"
       - "scripts/testing/integration_docs/**"
       - "Makefile"
@@ -20,8 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  openai-python:
-    name: OpenAI Python integration doc
+  openai-sdk-docs:
+    name: OpenAI SDK integration docs
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -41,6 +43,16 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26"
 
       - name: Install Phoenix
         run: uv sync --frozen
