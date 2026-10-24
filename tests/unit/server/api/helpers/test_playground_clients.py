@@ -308,11 +308,11 @@ class TestOpenAIBaseStreamingClient:
         ]
 
         @asynccontextmanager
-        async def factory() -> AsyncIterator[Any]:
+        async def create_client() -> AsyncIterator[Any]:
             yield AsyncOpenAI(api_key="test-key", max_retries=0)
 
         client = OpenAICompatibleClient(
-            client_factory=factory,
+            client_factory=LLMClientFactory(create_client, ("openai", "test")),
             model_name="test-model",
             provider="openai",
         )
