@@ -5289,6 +5289,12 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description The creation timestamp of the prompt version.
+             */
+            created_at: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
