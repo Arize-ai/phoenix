@@ -388,6 +388,36 @@ px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 ```
 
+### Addressing an experiment by its number
+
+Each experiment carries `sequence_number`, the 1-based position it holds within
+its dataset in creation order. That is the number the UI shows, so it is what a
+user means by "experiment 3". `experiment list` reports it:
+
+```bash
+px experiment list --dataset my-dataset --format raw --no-progress | jq '.[] | {sequence_number, id, name}'
+```
+
+`experiment list` pages newest-first and has no flag for either the direction
+or the number, so resolving a low sequence number through it means paging back
+to the oldest page. Call REST instead and ask for exactly the ones you want:
+
+```bash
+# Just experiments 1 and 3
+curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  "$PHOENIX_ENDPOINT/v1/datasets/$DATASET_ID/experiments?sequence_numbers=1&sequence_numbers=3"
+
+# Oldest first, so the lowest numbers are on the first page
+curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  "$PHOENIX_ENDPOINT/v1/datasets/$DATASET_ID/experiments?sort_dir=asc&limit=20"
+```
+
+`sequence_numbers` is repeatable and filters without paging; `sort_dir` is
+`asc` or `desc` (default). `$DATASET_ID` is the dataset GlobalID — get it from
+`px dataset get <name> --format raw --no-progress | jq -r '.dataset_id'`. Confirm the
+`sequence_number` on what comes back matches what was asked for before
+reporting a result.
+
 ## Annotation Configs
 
 Full CRUD: `list`, `get`, `create`, `update`, `delete`. Types are `CATEGORICAL` (labels + optional scores), `CONTINUOUS` (numeric range), `FREEFORM` (free text).
@@ -435,6 +465,35 @@ Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `
 arbitrary one. There is no `traces` connection: to list traces, query `spans`
 with `filterCondition: "parent_span is None"`, which keeps root spans, as the
 UI's traces table does. See [Filter expressions](#filter-expressions) below.
+
+### Experiments by sequence number
+
+`Dataset.experiments` defaults to newest-first, so the low sequence numbers —
+the ones a user names when they say "experiment 2" — sit on the oldest page.
+`sequenceNumbers: [Int!]` resolves them directly instead of paging:
+
+```bash
+px api graphql '{
+  datasets(first: 1) { edges { node { experiments(sequenceNumbers: [1, 3]) {
+    edges { node { id sequenceNumber name } } } } } }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[].node'
+```
+
+`sort: ExperimentSort` orders the connection: `col` is `sequenceNumber` or
+`createdAt`, `dir` is `asc` or `desc`.
+
+```bash
+px api graphql '{
+  datasets(first: 1) { edges { node { experiments(
+    first: 20
+    sort: { col: sequenceNumber, dir: asc }
+  ) { edges { node { sequenceNumber name } } } } } }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[].node'
+```
+
+Check that the `sequenceNumber` on each returned node matches what was asked
+for before reporting a result — a number that does not exist in the dataset is
+simply absent from the response rather than an error.
 
 ### Filter expressions
 

@@ -24,7 +24,7 @@ register(project_name="my-app", auto_instrument=True)
 pip install arize-phoenix-otel
 ```
 
-**Supported:** Python 3.10-3.13
+**Supported:** Python 3.11-3.14
 
 ## Configuration
 
