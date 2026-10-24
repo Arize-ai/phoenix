@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
@@ -115,6 +116,54 @@ class TestRegister:
 
         exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
+
+    @pytest.mark.parametrize(
+        "env_endpoint, expected_endpoint",
+        [
+            ("http://localhost:6006/v1/traces", "http://localhost:6006/v1/traces"),
+            ("http://example.com/phoenix", "http://example.com/phoenix/v1/traces"),
+            ("http://example.com/phoenix/v1/traces", "http://example.com/phoenix/v1/traces"),
+        ],
+    )
+    def test_register_infers_http_for_env_endpoint_with_path(
+        self, env_endpoint: str, expected_endpoint: str
+    ) -> None:
+        with patch.dict(os.environ, {"PHOENIX_COLLECTOR_ENDPOINT": env_endpoint}):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                tracer_provider = register(verbose=False, set_global_tracer_provider=False)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert len(processors) == 1
+
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, HTTPSpanExporter)
+        assert exporter._endpoint == expected_endpoint
+
+    def test_register_infers_grpc_for_env_endpoint_without_path(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006"}):
+            tracer_provider = register(verbose=False, set_global_tracer_provider=False)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert len(processors) == 1
+
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, GRPCSpanExporter)
+        assert exporter._endpoint == "localhost:4317"
+
+    def test_register_explicit_grpc_ignores_env_endpoint_path(self) -> None:
+        env_endpoint = "http://example.com/phoenix/v1/traces"
+        with patch.dict(os.environ, {"PHOENIX_COLLECTOR_ENDPOINT": env_endpoint}):
+            tracer_provider = register(
+                protocol="grpc", verbose=False, set_global_tracer_provider=False
+            )
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert len(processors) == 1
+
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, GRPCSpanExporter)
+        assert exporter._endpoint == "example.com:4317"
 
     @patch("phoenix.otel.otel.get_env_client_headers")
     def test_register_with_headers(self, mock_env_headers: Any) -> None:
@@ -354,6 +403,17 @@ class TestTracerProvider:
 
     def test_tracer_provider_with_http_endpoint(self) -> None:
         endpoint = "http://localhost:4318/v1/traces"
+        tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert len(processors) == 1
+
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, HTTPSpanExporter)
+        assert exporter._endpoint == endpoint
+
+    def test_tracer_provider_with_prefixed_http_endpoint(self) -> None:
+        endpoint = "http://example.com/phoenix/v1/traces"
         tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
 
         processors = tracer_provider._active_span_processor._span_processors
