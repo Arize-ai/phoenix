@@ -483,6 +483,23 @@ px prompt list --format raw --no-progress | jq '.[].name'
 
 ---
 
+### `px prompt-versions list <prompt-identifier>`
+
+List all versions of a prompt by name or ID, newest first. The table shows each
+version's ID, description, model provider, model name, and creation date. Creation
+dates are blank when connected to an older server. Tags are not included.
+
+```bash
+px prompt-versions list my-evaluator
+px prompt-versions list my-evaluator --limit 10 --format json
+px prompt-versions list my-evaluator --format raw --no-progress | jq '.[].id'
+```
+
+Without `--limit`, fetches all pages. JSON and raw output contain an array of full
+version objects; `created_at` is only present when the server returns it.
+
+---
+
 ### `px prompt get <prompt-identifier>`
 
 Fetch a prompt. The `text` format is ideal for piping to AI assistants.
@@ -497,6 +514,9 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 | `--tag <name>`      | Get version by tag                 | —        |
 | `--version <id>`    | Get specific version               | latest   |
 | `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+
+Use `px prompt-versions list <prompt-identifier>` to discover version IDs for
+`--version`.
 
 ---
 

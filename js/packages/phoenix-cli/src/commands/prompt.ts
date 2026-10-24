@@ -323,7 +323,10 @@ export function createPromptGetCommand(): Command {
     )
     .option("--no-progress", "Disable progress indicators")
     .option("--tag <tag>", "Get prompt version by tag name")
-    .option("--version <version_id>", "Get specific prompt version by ID")
+    .option(
+      "--version <version_id>",
+      "Get specific prompt version by ID (discover IDs with px prompt-versions list)"
+    )
     .action(promptHandler);
 }
 
