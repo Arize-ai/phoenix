@@ -1,8 +1,6 @@
 name: Integration Docs
 
 on:
-  push:
-    branches: [codex-openai-python-integration-harness]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   schedule:
