@@ -973,14 +973,22 @@ def create_evaluator(
                 direction=direction,
             )
 
-        # Handle tuples by processing each element
+        # Handle tuples by processing each element.
+        # bool is a subclass of int, so it must be classified before numbers.
+        # A number is the score and a bool is the label, in either order.
+        # A bool supplies the score only when the tuple has no number.
         if isinstance(result, tuple):
             tuple_score_data: Dict[str, Any] = {}
+            saw_number = False
             for item in result:
-                if isinstance(item, (int, float, bool)):
-                    tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
-                    if "label" not in tuple_score_data and isinstance(item, bool):
-                        tuple_score_data["label"] = str(item)  # may get overwritten
+                if isinstance(item, bool):
+                    if "label" not in tuple_score_data:
+                        tuple_score_data["label"] = str(item)
+                    if not saw_number:
+                        tuple_score_data["score"] = float(item)
+                elif isinstance(item, (int, float)):
+                    tuple_score_data["score"] = item
+                    saw_number = True
                 elif isinstance(item, str):
                     if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
                         tuple_score_data["label"] = item
