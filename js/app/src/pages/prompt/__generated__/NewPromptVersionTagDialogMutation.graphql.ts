@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<81a847bbae04fd5c75c837b60ea2e79b>>
+ * @generated SignedSource<<bafe40a3c9109c65a0e3cb9777ea2235>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type SetPromptVersionTagInput = {
   description?: string | null;
   name: string;
@@ -16,15 +15,14 @@ export type SetPromptVersionTagInput = {
 };
 export type NewPromptVersionTagDialogMutation$variables = {
   input: SetPromptVersionTagInput;
-  promptVersionId: string;
 };
 export type NewPromptVersionTagDialogMutation$data = {
   readonly setPromptVersionTag: {
-    readonly query: {
-      readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsList_data">;
-      };
-    };
+    readonly promptVersionTag: {
+      readonly id: string;
+      readonly name: string;
+      readonly promptVersionId: string;
+    } | null;
   };
 };
 export type NewPromptVersionTagDialogMutation = {
@@ -38,80 +36,66 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "input"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "promptVersionId"
   }
 ],
 v1 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
-  }
-],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "promptVersionId"
-  }
-],
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "NewPromptVersionTagDialogMutation",
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
+    ],
+    "concreteType": "PromptVersionTagMutationPayload",
+    "kind": "LinkedField",
+    "name": "setPromptVersionTag",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "PromptVersionTagMutationPayload",
+        "args": null,
+        "concreteType": "PromptVersionTag",
         "kind": "LinkedField",
-        "name": "setPromptVersionTag",
+        "name": "promptVersionTag",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": (v2/*:: as any*/),
-                "concreteType": null,
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "args": null,
-                    "kind": "FragmentSpread",
-                    "name": "PromptVersionTagsList_data"
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "promptVersionId",
             "storageKey": null
           }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "NewPromptVersionTagDialogMutation",
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -120,87 +104,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "NewPromptVersionTagDialogMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "PromptVersionTagMutationPayload",
-        "kind": "LinkedField",
-        "name": "setPromptVersionTag",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": (v2/*:: as any*/),
-                "concreteType": null,
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersionTag",
-                        "kind": "LinkedField",
-                        "name": "tags",
-                        "plural": true,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "type": "PromptVersion",
-                    "abstractKey": null
-                  },
-                  (v3/*:: as any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "bfc7b301944fc8273b56810aa777401c",
+    "cacheID": "df5ac258295bdce47280b043147f5e76",
     "id": null,
     "metadata": {},
     "name": "NewPromptVersionTagDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation NewPromptVersionTagDialogMutation(\n  $input: SetPromptVersionTagInput!\n  $promptVersionId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      node(id: $promptVersionId) {\n        __typename\n        ...PromptVersionTagsList_data\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
+    "text": "mutation NewPromptVersionTagDialogMutation(\n  $input: SetPromptVersionTagInput!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n      name\n      promptVersionId\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a6e4352854be2ab5fd0c10368a3469ad";
+(node as any).hash = "477e6cb4227b4970f2f109fae4502d00";
 
 export default node;
