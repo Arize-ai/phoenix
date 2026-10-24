@@ -1,0 +1,106 @@
+---
+title: "LiveKit Agents Tracing"
+description: "Send LiveKit Agents' built-in OpenTelemetry spans to Phoenix for observability into voice and multimodal agent sessions, turns, and model calls."
+---
+
+[LiveKit Agents](https://docs.livekit.io/agents/) is an open-source framework for building real-time voice and multimodal AI agents. It includes built-in OpenTelemetry tracing: pass LiveKit a tracer provider and it emits spans for agent sessions, turns, speaking activity, and model calls. Point that tracer provider at Phoenix to see every session in one place.
+
+<Note>
+  This page uses LiveKit's native OpenTelemetry pipeline. It doesn't need a LiveKit-specific OpenInference instrumentor.
+</Note>
+
+## Install
+
+```bash
+pip install livekit-agents arize-phoenix-otel
+```
+
+## Setup
+
+Set your Phoenix endpoint as an environment variable, along with your LiveKit server credentials:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export LIVEKIT_URL=[your_livekit_server_url]
+export LIVEKIT_API_KEY=[your_livekit_api_key]
+export LIVEKIT_API_SECRET=[your_livekit_api_secret]
+```
+
+Create a Phoenix tracer provider and hand it to LiveKit before the session starts. LiveKit can also attach metadata to every span, which is useful for stable session or room attributes:
+
+```python instrumentation.py
+from livekit.agents.telemetry import set_tracer_provider
+from opentelemetry.util.types import AttributeValue
+from phoenix.otel import BatchSpanProcessor, register
+
+tracer_provider = register(project_name="livekit-agents")
+
+# When you pass metadata, LiveKit adds its own span processor to the provider,
+# which would replace register()'s default exporter. Add the Phoenix exporter
+# explicitly so it stays in place.
+tracer_provider.add_span_processor(BatchSpanProcessor())
+
+
+def configure_livekit_tracing(
+    metadata: dict[str, AttributeValue] | None = None,
+):
+    set_tracer_provider(tracer_provider, metadata=metadata)
+    return tracer_provider
+```
+
+## Run LiveKit Agents
+
+Configure tracing before the agent session starts, then flush spans when the job shuts down:
+
+```python agent.py
+from instrumentation import configure_livekit_tracing
+
+from livekit.agents import Agent, AgentSession, JobContext
+
+
+class Assistant(Agent):
+    def __init__(self) -> None:
+        super().__init__(instructions="You are a helpful voice AI assistant.")
+
+
+async def entrypoint(ctx: JobContext):
+    tracer_provider = configure_livekit_tracing(
+        metadata={
+            "session.id": ctx.room.name,
+            "livekit.room.name": ctx.room.name,
+        }
+    )
+
+    async def flush_trace():
+        tracer_provider.force_flush()
+
+    ctx.add_shutdown_callback(flush_trace)
+
+    session = AgentSession()
+    await session.start(agent=Assistant(), room=ctx.room)
+```
+
+Pass your speech-to-text, LLM, and text-to-speech plugins to `AgentSession` as usual, and start the worker with the [LiveKit Agents CLI](https://docs.livekit.io/agents/start/voice-ai/). Setting `session.id` in the metadata groups each room's spans into a Phoenix [session](/docs/phoenix/tracing/llm-traces/sessions).
+
+## Observe
+
+Run an agent session and open the `livekit-agents` project in Phoenix. Depending on your LiveKit version and plugins, the trace includes:
+
+* Agent session and turn spans
+* User and agent speaking spans
+* Lifecycle spans for agent activity
+* Model and realtime-model spans, with metrics
+* Any custom metadata you attach through `set_tracer_provider`
+
+LiveKit spans are native OpenTelemetry spans. To also capture rich prompt, response, token, and tool detail for the LLM SDK your agent calls, add the matching [OpenInference instrumentor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) and pass it the same `tracer_provider`.
+
+## Troubleshooting
+
+* **No spans in Phoenix.** Confirm `configure_livekit_tracing()` runs before `AgentSession.start(...)`, and that `force_flush()` runs before the worker exits.
+* **Spans land in the wrong project.** Set `project_name` in `register()`, or set `PHOENIX_PROJECT_NAME` in the worker's environment.
+
+## Resources
+
+* [LiveKit Agents documentation](https://docs.livekit.io/agents/)
+* [LiveKit tracing documentation](https://docs.livekit.io/deploy/observability/tracing/)

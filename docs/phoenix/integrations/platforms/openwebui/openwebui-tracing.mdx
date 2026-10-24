@@ -1,0 +1,112 @@
+---
+title: "Open WebUI Tracing"
+description: "Export Open WebUI's built-in OpenTelemetry backend traces to Phoenix over OTLP to inspect route latency, database calls, and outbound model requests."
+keywords: ["open webui", "openwebui", "opentelemetry", "otlp", "tracing", "phoenix"]
+---
+
+[Open WebUI](https://openwebui.com/) supports OpenTelemetry export for its backend services. Point its OTLP exporter at Phoenix to see backend spans for each request — no code changes required.
+
+<Note>
+This page covers Open WebUI's built-in backend telemetry. It captures service spans such as FastAPI routes, database calls, Redis calls, and outbound HTTP requests. It is not a full LLM conversation tracing integration by itself. See [Add richer LLM traces](#add-richer-llm-traces).
+</Note>
+
+## Prerequisites
+
+- A self-hosted Open WebUI deployment
+- A running Phoenix instance that Open WebUI can reach
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=openwebui). If you prefer, you can also [self-host Phoenix](/docs/phoenix/environments#container) next to Open WebUI.
+
+Note your Phoenix **endpoint** — for example `http://localhost:6006` for a local instance or `https://app.phoenix.arize.com/s/<your-space-name>` for Phoenix Cloud — and, if authentication is enabled, an **API key** from the settings page.
+
+## Configure Open WebUI
+
+Set these environment variables on the Open WebUI service. They switch the exporter to OTLP over HTTP and send spans to Phoenix's `/v1/traces` endpoint:
+
+```bash
+ENABLE_OTEL=true
+ENABLE_OTEL_TRACES=true
+OTEL_OTLP_SPAN_EXPORTER=http
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:6006/v1/traces
+OTEL_SERVICE_NAME=open-webui
+OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=open-webui
+```
+
+`OTEL_RESOURCE_ATTRIBUTES` sets the Phoenix project through the `openinference.project.name` resource attribute. Without it, Open WebUI traces land in the `default` project.
+
+<Note>
+With `OTEL_OTLP_SPAN_EXPORTER=http`, Open WebUI uses `OTEL_EXPORTER_OTLP_ENDPOINT` as-is, so include the `/v1/traces` path. Open WebUI defaults to OTLP over gRPC; a self-hosted Phoenix also accepts gRPC on port `4317`, but HTTP works for both self-hosted Phoenix and Phoenix Cloud.
+</Note>
+
+If your Phoenix instance has authentication enabled (for example, Phoenix Cloud), point the endpoint at your instance and pass your API key with the standard OpenTelemetry headers variable:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
+OTEL_EXPORTER_OTLP_HEADERS=authorization=Bearer%20<your-phoenix-api-key>
+```
+
+Leave `OTEL_BASIC_AUTH_USERNAME` and `OTEL_BASIC_AUTH_PASSWORD` unset. Open WebUI only falls back to `OTEL_EXPORTER_OTLP_HEADERS` when basic auth isn't configured.
+
+### Run Open WebUI in a container
+
+This example runs Open WebUI with tracing pointed at a Phoenix instance on the host:
+
+```bash
+docker run -d --name open-webui \
+  -p 3000:8080 \
+  -e ENABLE_OTEL=true \
+  -e ENABLE_OTEL_TRACES=true \
+  -e OTEL_OTLP_SPAN_EXPORTER=http \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:6006/v1/traces \
+  -e OTEL_SERVICE_NAME=open-webui \
+  -e OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=open-webui \
+  -v open-webui:/app/backend/data \
+  ghcr.io/open-webui/open-webui:main
+```
+
+## Observe
+
+1. Use Open WebUI and trigger backend requests, such as signing in or sending a chat message.
+1. Open Phoenix and select the **`open-webui`** project.
+1. Look for Open WebUI spans as requests complete.
+
+Open WebUI's built-in OpenTelemetry instrumentation includes spans for:
+
+- FastAPI routes
+- SQLAlchemy database queries
+- Redis calls
+- outgoing HTTP requests made with `requests`, `httpx`, and `aiohttp`
+- errors and latency on backend operations
+
+## Add richer LLM traces
+
+Open WebUI's built-in telemetry is useful for backend operations, but it doesn't include the full prompt, response, token, tool, and model metadata you expect from LLM observability. For richer LLM traces, instrument the model-provider path that Open WebUI calls:
+
+- If Open WebUI sends traffic through an OpenAI-compatible gateway or provider, instrument that gateway or provider path with the matching [OpenInference integration](/docs/phoenix/integrations).
+- If you maintain a custom Open WebUI Pipeline or filter, emit OpenTelemetry spans that follow [OpenInference semantic conventions](https://github.com/Arize-ai/openinference/tree/main/spec) and export them to Phoenix.
+- If Open WebUI calls a local model server such as vLLM, combine this page with [vLLM tracing](/docs/phoenix/integrations/llm-providers/vllm/vllm-tracing).
+
+## Troubleshooting
+
+- **No traces in Phoenix.** Confirm `ENABLE_OTEL=true`, `ENABLE_OTEL_TRACES=true`, and `OTEL_OTLP_SPAN_EXPORTER=http`, and that the Open WebUI container can reach the endpoint. The endpoint must end in `/v1/traces`.
+- **Traces land in the `default` project.** Confirm `OTEL_RESOURCE_ATTRIBUTES` includes `openinference.project.name=open-webui`.
+- **Spans appear but LLM details are limited.** Open WebUI's built-in telemetry is backend telemetry. Add OpenInference instrumentation to the provider, gateway, or custom Pipeline path for richer LLM spans.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="book-open"
+    href="https://docs.openwebui.com/reference/monitoring/otel/"
+    title="Open WebUI OpenTelemetry"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+</CardGroup>
