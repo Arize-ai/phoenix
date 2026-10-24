@@ -44,6 +44,22 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ar.md" />
 </p>
 
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix هي منصة Arize مفتوحة المصدر لقابلية مراقبة الذكاء الاصطناعي (AI observability)، وهي مصممة للتجريب والتقييم واستكشاف الأخطاء وإصلاحها. ولسير العمل المُدار في بيئات الإنتاج، تقدم Arize أيضًا [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ar). توفر Phoenix ما يلي:
 
 - [**_التتبع (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - تتبّع وقت تشغيل تطبيق LLM الخاص بك باستخدام أدوات قياس (instrumentation) مبنية على OpenTelemetry.
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. جميع الحقوق محفوظة.
 أجزاء من هذا الكود محمية ببراءة اختراع أمريكية واحدة أو أكثر. راجع [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 هذا البرنامج مرخّص بموجب شروط Elastic License 2.0 (ELv2). راجع [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>
