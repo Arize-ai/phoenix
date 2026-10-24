@@ -473,6 +473,20 @@ px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
 
 ---
 
+### `px experiment export <experiment-id>`
+
+Export an experiment's runs as JSON (default) or CSV, to stdout or a file.
+
+```bash
+# Print an experiment as JSON
+px experiment export RXhwZXJpbWVudDox
+
+# Write an experiment to a CSV file
+px experiment export RXhwZXJpbWVudDox --format csv --output experiment.csv
+```
+
+---
+
 ### `px prompt list`
 
 List all prompts.
