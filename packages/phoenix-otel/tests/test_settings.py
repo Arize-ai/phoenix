@@ -123,6 +123,11 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {"PHOENIX_API_KEY": "env-key"}, clear=True):
             assert get_env_phoenix_auth_header() == {"authorization": "Bearer env-key"}
 
+    def test_bom_prefixed_first_key_is_read(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_bytes(b"\xef\xbb\xbfPHOENIX_API_KEY=file-key\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer file-key"}
+
     def test_walks_up_to_parent_directories(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
