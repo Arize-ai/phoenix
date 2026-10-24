@@ -40,8 +40,10 @@ languages and verifier types instead of silently skipping them.
 The Python parser reads package names from `pip install` lines without
 executing commands from the docs. Setup code is resolved from imported MDX
 components, with quoted JSX props substituted into JavaScript template
-expressions. The verifier polls Phoenix's versioned spans endpoint and checks
-the configured span kind and required attributes.
+expressions. Set `project_name_prop` in the setup configuration when the
+component's project name should be replaced with the run's unique project name.
+The verifier polls Phoenix's versioned spans endpoint and checks the configured
+span kind and required attributes.
 
 The GitHub workflow currently triggers only for the OpenAI Python page, its
 shared tracer component, and harness changes. Expand those path filters and

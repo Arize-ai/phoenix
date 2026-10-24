@@ -171,7 +171,7 @@ def package_names(section: str) -> list[str]:
     return unique
 
 
-def component_setup(spec: IntegrationSpec, document_text: str) -> str:
+def component_setup(spec: IntegrationSpec, document_text: str, project: str) -> str:
     """Resolve Python setup snippets imported and rendered by the MDX page."""
     imported = {
         match.group("name"): match.group("path") for match in IMPORT.finditer(document_text)
@@ -194,6 +194,14 @@ def component_setup(spec: IntegrationSpec, document_text: str) -> str:
             item.group("name"): item.group("value")
             for item in JSX_ATTRIBUTE.finditer(component.group("props"))
         }
+        project_name_prop = spec.setup.get("project_name_prop")
+        if project_name_prop:
+            if project_name_prop not in props:
+                raise HarnessError(
+                    f"Setup component is missing configured project name prop "
+                    f"{project_name_prop!r}"
+                )
+            props[project_name_prop] = project
         for block in EMBEDDED_CODE.finditer(component_text):
             if block.group("language").lower() != spec.setup.get("language", "python").lower():
                 continue
@@ -206,10 +214,10 @@ def component_setup(spec: IntegrationSpec, document_text: str) -> str:
     return "\n\n".join(snippets)
 
 
-def extract_example(spec: IntegrationSpec) -> tuple[list[str], str]:
+def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], str]:
     text = spec.document.read_text()
     packages = package_names(section_body(text, spec.install_section))
-    setup = component_setup(spec, text)
+    setup = component_setup(spec, text, project)
     run = python_fence(section_body(text, spec.run_section), f"## {spec.run_section}")
     flush_code = spec.setup.get("flush_code", "").strip()
     sections = [setup, run]
@@ -363,7 +371,7 @@ def run_one(spec: IntegrationSpec, endpoint: str) -> dict[str, Any]:
         "status": "fail",
     }
     try:
-        packages, program = extract_example(spec)
+        packages, program = extract_example(spec, project)
         result["packages"] = packages
     except (HarnessError, OSError) as exc:
         result.update(status="fail", error=str(exc))

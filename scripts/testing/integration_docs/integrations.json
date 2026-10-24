@@ -13,6 +13,7 @@
       "setup": {
         "source": "referenced_components",
         "language": "python",
+        "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
       "output": {
