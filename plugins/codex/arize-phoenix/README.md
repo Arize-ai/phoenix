@@ -20,7 +20,8 @@ Requires Node.js, and Phoenix 19.0.0 or later, which serves `/mcp`.
 | File | Purpose |
 | ---- | ------- |
 | `plugin.json`, `mcp.json` | Portable manifest and MCP server declaration. |
-| `.codex-plugin/plugin.json`, `.mcp.json` | Codex overlay that turns the `${VAR}` entries in `mcp.json` into forwarded environment variables. Codex reads the portable files first; the overlay only adds `env_vars`. |
+| `.codex-plugin/plugin.json`, `.mcp.json` | Codex overlay that turns the `${VAR}` entries in `mcp.json` into forwarded environment variables. Codex reads the portable files first; the overlay adds `env_vars` and points Codex at `skills/`. |
+| `skills/` | Symlinks to the public Phoenix skills in the repository's `skills/` folder, written by `make skills`. |
 | `scripts/phoenix-mcp` | The stdio launcher. |
 
 ## Install locally

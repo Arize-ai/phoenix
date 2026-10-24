@@ -1,23 +1,9 @@
-# Phoenix Coding Agent Skills
+# Contributor skills
 
-This directory contains [skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach coding agents how to work with Phoenix. They can be used with Claude Code, Cursor, and other compatible tools.
+Skills in this folder are for people working on Phoenix itself and never ship to users.
 
-## Public Skills
+- **Phoenix contributor skills** are marked in their `SKILL.md` frontmatter with `metadata.internal: true`, which keeps the skills CLI from offering them. `make skills` adds the flag to any that lack it.
+- **Vendored third-party skills** are listed in the root [`skills-lock.json`](../../skills-lock.json) and refreshed by the daily skills update. Do not edit them here.
+- **Symlinks** to the public skills in [`skills/`](../../skills/) let contributors use those too. `make skills` writes them.
 
-| Skill | Description |
-| ----- | ----------- |
-| [phoenix-cli](phoenix-cli/) | Debug LLM applications using the Phoenix CLI. Fetch traces, annotate spans and traces, analyze errors, inspect datasets, and query the GraphQL API. |
-| [phoenix-error-analysis](phoenix-error-analysis/) | Read sampled traces, spans, or sessions, write free-form notes, then group them into narrow one-dimension annotations with counts that pick eval targets and fix priorities. |
-| [phoenix-evals](phoenix-evals/) | Build, run, and validate evaluators for AI/LLM applications using Phoenix. Code first, LLM for nuance, validate against humans. |
-| [phoenix-tracing](phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications with Phoenix. Covers setup, span types, and production deployment. |
-
-The [Cursor plugin](../../.cursor-plugin/README.md) ships these three skills by listing their paths in `.cursor-plugin/plugin.json`. If you rename or move one, update that list.
-
-## Internal Skills
-
-Every other skill in this directory is for people working on Phoenix itself and is marked in its `SKILL.md` frontmatter with:
-
-```yaml
-metadata:
-  internal: true
-```
+Public skills live in [`skills/`](../../skills/); see its README for how a skill chooses where it ships.

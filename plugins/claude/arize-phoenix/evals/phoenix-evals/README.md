@@ -66,7 +66,7 @@ claude plugin eval . \
   --tag phoenix-evals \
   --ablation with-without \
   --judge-model claude-sonnet-5 \
-  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/.agents/skills/**)"
+  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/skills/**)"
 ```
 
 Iterate on one case with `--case 06-ts-relevance-judge --runs 1`. The fire cases write a file
@@ -90,7 +90,7 @@ cd plugins/claude/arize-phoenix
 claude plugin eval . --tag phoenix-evals --ablation with-without \
   --judge-model claude-sonnet-5 --trust-plugin --no-publish \
   --json /tmp/pe.json \
-  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/.agents/skills/**)"
+  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/skills/**)"
 # run with the project's Python (needs arize-phoenix-client): uv run, or the venv directly
 uv run python evals/record_to_phoenix.py /tmp/pe.json   # or: ../../../.venv/bin/python …
 ```
