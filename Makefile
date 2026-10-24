@@ -286,7 +286,7 @@ dev-frontend: ## Frontend only (React dev server)
 #=============================================================================
 
 test-integration-docs: ## Run configured integration docs against a running Phoenix server
-	@$(UV) run python scripts/testing/integration_docs/run.py
+	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"

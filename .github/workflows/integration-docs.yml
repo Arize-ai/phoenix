@@ -2,17 +2,15 @@ name: Integration Docs
 
 on:
   pull_request:
-    paths:
-      - "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx"
-      - "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx"
-      - "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx"
-      - "docs/snippets/register-tracer-python.mdx"
-      - "scripts/testing/integration_docs/**"
-      - "Makefile"
-      - ".github/workflows/integration-docs.yml"
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
+    inputs:
+      docs:
+        description: Optional space-separated enabled document paths to run
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,10 +20,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  openai-sdk-docs:
-    name: OpenAI SDK integration docs
+  classify:
+    name: Classify integration docs
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      run_mode: ${{ steps.classify.outputs.run_mode }}
+      runnable_docs: ${{ steps.classify.outputs.runnable_docs }}
+      shard_list: ${{ steps.classify.outputs.shard_list }}
+      shard_total: ${{ steps.classify.outputs.shard_total }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Classify change set
+        id: classify
+        env:
+          INPUT_DOCS: ${{ inputs.docs }}
+        run: python scripts/testing/integration_docs/classify_changes.py
+
+  check-shard:
+    name: Integration docs shard ${{ matrix.shard }}
+    needs: classify
+    if: needs.classify.outputs.run_mode != 'none'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.classify.outputs.shard_list) }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
@@ -33,61 +63,108 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.11"
-
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
-
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
-
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "1.26"
-
       - name: Install Phoenix
         run: uv sync --frozen
-
-      - name: Start Phoenix and run the documented example
+      - name: Start Phoenix and run this shard
         shell: bash
+        env:
+          RUNNABLE_DOCS: ${{ needs.classify.outputs.runnable_docs }}
+          SHARD: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
+          REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
         run: |
           set -euo pipefail
+          report_dir="ci-results/integration-docs/shard-${SHARD}"
+          mkdir -p "${report_dir}"
+          python -c 'import json, os; from pathlib import Path; Path(os.environ["REPORT_DIR"] + "/docs.json").write_text(json.dumps(json.loads(os.environ["RUNNABLE_DOCS"])))'
           uv run phoenix serve --host 127.0.0.1 --port 6006 > "${RUNNER_TEMP}/phoenix.log" 2>&1 &
           phoenix_pid=$!
           trap 'kill "${phoenix_pid}" 2>/dev/null || true' EXIT
-
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:6006/healthz >/dev/null; then
-              break
-            fi
-            if [[ "${attempt}" -eq 60 ]]; then
-              cat "${RUNNER_TEMP}/phoenix.log"
-              echo "Phoenix did not become ready" >&2
-              exit 1
-            fi
+            if curl --fail --silent http://127.0.0.1:6006/healthz >/dev/null; then break; fi
+            if [[ "${attempt}" -eq 60 ]]; then cat "${RUNNER_TEMP}/phoenix.log"; echo "Phoenix did not become ready" >&2; exit 1; fi
             sleep 2
           done
-
-          make test-integration-docs
-
-      - name: Add integration report to job summary
+          make test-integration-docs INTEGRATION_DOCS_ARGS="--docs-file ${report_dir}/docs.json --shard ${SHARD}/${SHARD_TOTAL} --output-dir ${report_dir}"
+      - name: Upload shard report
         if: always()
-        run: |
-          report="ci-results/integration-docs/integration-docs.md"
-          if [[ -f "${report}" ]]; then
-            cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
-          fi
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: integration-docs-shard-${{ matrix.shard }}
+          path: ci-results/integration-docs/shard-${{ matrix.shard }}/integration-docs.*
+          if-no-files-found: warn
 
-      - name: Upload integration report
+  aggregate:
+    name: Aggregate integration docs results
+    if: always() && needs.classify.result == 'success'
+    needs: [classify, check-shard]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Download shard reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: integration-docs-shard-*
+          path: ci-results/integration-docs/shards
+          merge-multiple: false
+      - name: Build aggregate report
+        env:
+          RUN_MODE: ${{ needs.classify.outputs.run_mode }}
+          CLASSIFICATION_REASON: ${{ needs.classify.outputs.reason }}
+          SHARD_RESULT: ${{ needs.check-shard.result }}
+        run: >-
+          python scripts/testing/integration_docs/aggregate.py
+          --reports ci-results/integration-docs/shards
+          --output-dir ci-results/integration-docs
+          --run-mode "${RUN_MODE}"
+          --reason "${CLASSIFICATION_REASON}"
+          --shard-result "${SHARD_RESULT}"
+      - name: Add aggregate report to job summary
+        if: always()
+        run: cat ci-results/integration-docs/integration-docs.md >> "${GITHUB_STEP_SUMMARY}"
+      - name: Comment on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- phoenix-integration-docs-report -->';
+            const report = fs.readFileSync('ci-results/integration-docs/integration-docs.md', 'utf8');
+            const body = `${marker}\n${report}\n\nWorkflow: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            for (const comment of comments.filter(({ body }) => body?.includes(marker))) {
+              await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+      - name: Upload aggregate report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

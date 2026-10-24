@@ -582,18 +582,46 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--doc", help="Run one configured integration document")
+    selection.add_argument(
+        "--docs-file", type=Path, help="JSON file containing configured document paths to run"
+    )
     selection.add_argument("--list", action="store_true", help="List configured documents")
+    parser.add_argument(
+        "--shard", help="Run one deterministic shard, formatted as INDEX/TOTAL (1-based)"
+    )
     parser.add_argument("--endpoint", default=os.environ.get("PHOENIX_ENDPOINT", DEFAULT_ENDPOINT))
     parser.add_argument(
         "--output-dir", type=Path, default=REPO_ROOT / "ci-results/integration-docs"
     )
     args = parser.parse_args()
     try:
-        specs = select_specs(load_specs(), args.doc)
+        specs = load_specs()
+        if args.doc:
+            specs = select_specs(specs, args.doc)
+        elif args.docs_file:
+            try:
+                documents = json.loads(args.docs_file.read_text())
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HarnessError(f"Could not read docs file {args.docs_file}: {exc}") from exc
+            if not isinstance(documents, list) or not all(isinstance(doc, str) for doc in documents):
+                raise HarnessError("Docs file must contain a JSON array of document paths")
+            selected: list[IntegrationSpec] = []
+            for document in documents:
+                selected.extend(select_specs(specs, document))
+            specs = list({spec.id: spec for spec in selected}.values())
         if args.list:
             for spec in specs:
                 print(f"{spec.id}\t{spec.document.relative_to(REPO_ROOT)}\t{spec.language}")
             return 0
+        if args.shard:
+            try:
+                index_text, total_text = args.shard.split("/", maxsplit=1)
+                shard_index, shard_total = int(index_text), int(total_text)
+            except (ValueError, TypeError) as exc:
+                raise HarnessError("Shard must be formatted as INDEX/TOTAL") from exc
+            if shard_total < 1 or shard_index < 1 or shard_index > shard_total:
+                raise HarnessError("Shard index must be between 1 and the positive shard total")
+            specs = [spec for index, spec in enumerate(specs) if index % shard_total == shard_index - 1]
         start = datetime.now(timezone.utc)
         records = [run_one(spec, args.endpoint) for spec in specs]
         summary = summarize(records, start)
