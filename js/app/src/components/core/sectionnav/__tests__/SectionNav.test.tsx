@@ -90,6 +90,19 @@ describe("createScrollTracking", () => {
     const tracking = createScrollTracking();
     tracking.pause("defaultActiveId");
     expect(tracking.settle()).toBe(false);
+    expect(tracking.isPaused).toBe(true);
+    tracking.noteScroll();
+    expect(tracking.settle()).toBe(true);
+    expect(tracking.isPaused).toBe(false);
+  });
+
+  it("lets a click replace the held default section", () => {
+    const tracking = createScrollTracking();
+    tracking.pause("defaultActiveId");
+    tracking.pause("click");
+    tracking.noteScroll();
+    expect(tracking.settle()).toBe(false);
+    expect(tracking.isPaused).toBe(false);
   });
 
   it("follows the user who scrolls while the default section is held", () => {
@@ -181,7 +194,8 @@ beforeEach(() => {
   // jsdom has no layout, so every section would resolve as scrolled past.
   // The shared setup's observer reports on observe, which would resolve those
   // meaningless positions on mount; keep the observer silent so these tests
-  // see only the nav's own state. Scroll following is covered in a browser.
+  // see only the nav's own state. Following real scrolling needs layout, so
+  // it is not covered here.
   vi.stubGlobal(
     "IntersectionObserver",
     class {
