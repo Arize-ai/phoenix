@@ -12,11 +12,6 @@ export interface SectionNavSectionProps extends StylableProps {
   id: string;
   /** Visible heading; also names the section for assistive technology */
   heading: ReactNode;
-  /**
-   * The heading's level in the page outline
-   * @default 3
-   */
-  headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   children?: ReactNode;
   className?: string;
   ref?: Ref<HTMLElement>;
@@ -30,7 +25,6 @@ export interface SectionNavSectionProps extends StylableProps {
 export function SectionNavSection({
   id,
   heading,
-  headingLevel = 3,
   children,
   css: _css,
   className,
@@ -46,7 +40,7 @@ export function SectionNavSection({
       className={classNames("section-nav-section", className)}
       css={css(sectionNavSectionCSS, _css)}
     >
-      <Heading id={headingId} level={headingLevel} weight="heavy">
+      <Heading id={headingId} weight="heavy">
         {heading}
       </Heading>
       {children}
