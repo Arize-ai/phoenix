@@ -1,5 +1,18 @@
 # Changelog
 
+## [20.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.26.0...arize-phoenix-v20.26.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **playground:** refresh MiniMax text model presets ([#17237](https://github.com/Arize-ai/phoenix/issues/17237)) ([a49a47b](https://github.com/Arize-ai/phoenix/commit/a49a47b395f58fe237e668c70ee64a6ff64150a1))
+
+
+### Documentation
+
+* add star history chart and rank badge to READMEs ([#17238](https://github.com/Arize-ai/phoenix/issues/17238)) ([3123853](https://github.com/Arize-ai/phoenix/commit/3123853a35186c8bccb528b175dfe9e3c92aa144))
+* **integrations:** add Microsoft Agent Framework tracing page ([#17209](https://github.com/Arize-ai/phoenix/issues/17209)) ([a772dad](https://github.com/Arize-ai/phoenix/commit/a772dadf7d72feb62444ec281b845dd9414b892a))
+
 ## [20.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.25.0...arize-phoenix-v20.26.0) (2026-10-23)
 
 
