@@ -30,6 +30,7 @@ export * from "./token";
 export * from "./slider";
 export * from "./counter";
 export * from "./tabs";
+export * from "./sectionnav";
 export * from "./loading";
 export * from "./select";
 export * from "./media";
