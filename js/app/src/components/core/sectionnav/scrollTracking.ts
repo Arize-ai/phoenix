@@ -12,11 +12,12 @@ export type ScrollTracking = {
   pause: (reason: ScrollTrackingPauseReason) => void;
   /** The scroll container scrolled, for whatever reason */
   noteScroll: () => void;
-  /** The user acted to scroll (wheel, touch, scroll keys) */
+  /** The user acted to scroll (wheel, touch, scroll keys, scrollbar press) */
   noteUserScrollInput: () => void;
   /**
-   * Scrolling has settled. Ends any pause and returns whether the current
-   * section should be resolved from the scroll position.
+   * Scrolling has settled. Ends a click's pause, or a held default once the
+   * user has scrolled, and returns whether the current section should be
+   * resolved from the scroll position.
    */
   settle: () => boolean;
 };
@@ -55,6 +56,9 @@ export function createScrollTracking(): ScrollTracking {
     settle() {
       if (pauseReason == null) {
         return true;
+      }
+      if (pauseReason === "defaultActiveId" && !hasUserScrolled) {
+        return false;
       }
       const shouldResolve = hasUserScrolled;
       pauseReason = null;

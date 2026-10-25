@@ -105,8 +105,8 @@ export function SectionNav({
   );
   const navRef = useRef<HTMLElement | null>(null);
   const trackingRef = useRef(createScrollTracking());
-  // Hold `defaultActiveId` until scrolling first settles, across effect
-  // re-runs (e.g. Strict Mode's) that happen before then
+  // Hold `defaultActiveId` until the user scrolls, across effect re-runs
+  // (e.g. Strict Mode's or a changed section set) that happen before then
   const isHoldingDefaultRef = useRef(defaultActiveId != null);
   // Pauses tracking until the scroll settles; set up by the effect, which owns
   // the settle timer
@@ -226,8 +226,11 @@ export function SectionNav({
     let settleTimeout: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       clearTimeout(settleTimeout);
-      isHoldingDefaultRef.current = false;
-      if (tracking.settle()) {
+      const shouldResolve = tracking.settle();
+      if (!tracking.isPaused) {
+        isHoldingDefaultRef.current = false;
+      }
+      if (shouldResolve) {
         resolve();
       }
     };
@@ -272,6 +275,10 @@ export function SectionNav({
       passive: true,
     });
     scrollEventTarget.addEventListener("keydown", handleKeyDown);
+    // a press on the container's own scrollbar
+    scrollEventTarget.addEventListener("pointerdown", handleUserScrollInput, {
+      passive: true,
+    });
 
     updateBarHeight();
     if (isHoldingDefaultRef.current) {
@@ -291,6 +298,10 @@ export function SectionNav({
       scrollEventTarget.removeEventListener("wheel", handleUserScrollInput);
       scrollEventTarget.removeEventListener("touchmove", handleUserScrollInput);
       scrollEventTarget.removeEventListener("keydown", handleKeyDown);
+      scrollEventTarget.removeEventListener(
+        "pointerdown",
+        handleUserScrollInput
+      );
       container.style.removeProperty("--section-nav-height");
     };
   }, [sectionIdsKey, scrollContainerRef, orientation]);
