@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveActiveSectionId } from "../resolveActiveSectionId";
+import { createScrollTracking } from "../scrollTracking";
 import { SectionNav, type SectionNavProps } from "../SectionNav";
 import { SectionNavSection } from "../SectionNavSection";
 
@@ -55,6 +56,57 @@ describe("resolveActiveSectionId", () => {
   });
 });
 
+describe("createScrollTracking", () => {
+  it("follows the scroll position when not paused", () => {
+    const tracking = createScrollTracking();
+    expect(tracking.isPaused).toBe(false);
+    tracking.noteScroll();
+    expect(tracking.settle()).toBe(true);
+  });
+
+  it("holds a clicked link through the click's own scroll", () => {
+    const tracking = createScrollTracking();
+    tracking.pause("click");
+    tracking.noteScroll();
+    tracking.noteScroll();
+    expect(tracking.isPaused).toBe(true);
+    expect(tracking.settle()).toBe(false);
+    expect(tracking.isPaused).toBe(false);
+    // later scrolling is the user's and is followed
+    tracking.noteScroll();
+    expect(tracking.settle()).toBe(true);
+  });
+
+  it("follows the user who scrolls elsewhere during a click's scroll", () => {
+    const tracking = createScrollTracking();
+    tracking.pause("click");
+    tracking.noteScroll();
+    tracking.noteUserScrollInput();
+    expect(tracking.settle()).toBe(true);
+    expect(tracking.isPaused).toBe(false);
+  });
+
+  it("holds the default section until the user scrolls", () => {
+    const tracking = createScrollTracking();
+    tracking.pause("defaultActiveId");
+    expect(tracking.settle()).toBe(false);
+  });
+
+  it("follows the user who scrolls while the default section is held", () => {
+    const tracking = createScrollTracking();
+    tracking.pause("defaultActiveId");
+    tracking.noteScroll();
+    expect(tracking.settle()).toBe(true);
+  });
+
+  it("forgets user input from before a pause", () => {
+    const tracking = createScrollTracking();
+    tracking.noteUserScrollInput();
+    tracking.pause("click");
+    expect(tracking.settle()).toBe(false);
+  });
+});
+
 const SECTIONS = [
   { id: "annotations", label: "Annotations" },
   { id: "input", label: "Input" },
@@ -64,7 +116,6 @@ const SECTIONS = [
 let container: HTMLDivElement;
 let root: Root;
 let prefersReducedMotion: boolean;
-let intersectionCallbacks: IntersectionObserverCallback[];
 const scrollIntoView = vi.fn();
 const originalScrollIntoView = Element.prototype.scrollIntoView;
 
@@ -113,19 +164,9 @@ async function click(element: Element) {
   });
 }
 
-/** Report a scroll-position change the way the browser's observer would */
-async function reportIntersection() {
-  await act(async () => {
-    for (const callback of intersectionCallbacks) {
-      callback([], {} as IntersectionObserver);
-    }
-  });
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   prefersReducedMotion = false;
-  intersectionCallbacks = [];
   vi.stubGlobal(
     "matchMedia",
     vi.fn().mockImplementation((query: string) => ({
@@ -137,14 +178,13 @@ beforeEach(() => {
       removeEventListener: vi.fn(),
     }))
   );
-  // The shared jsdom setup reports every element as intersecting the moment
-  // it is observed; these tests decide when the observer reports instead.
+  // jsdom has no layout, so every section would resolve as scrolled past.
+  // The shared setup's observer reports on observe, which would resolve those
+  // meaningless positions on mount; keep the observer silent so these tests
+  // see only the nav's own state. Scroll following is covered in a browser.
   vi.stubGlobal(
     "IntersectionObserver",
     class {
-      constructor(callback: IntersectionObserverCallback) {
-        intersectionCallbacks.push(callback);
-      }
       observe() {}
       unobserve() {}
       disconnect() {}
@@ -257,49 +297,5 @@ describe("SectionNav", () => {
     });
     expect(event.defaultPrevented).toBe(false);
     expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-
-  // jsdom has no layout, so every section's top is reported at 0 — at or
-  // above the bar's bottom edge — and resolving the scroll position always
-  // picks the last section.
-  it("follows the scroll position", async () => {
-    const onChange = vi.fn();
-    await render({ onChange });
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Output:true"]);
-    expect(onChange).toHaveBeenCalledExactlyOnceWith("output");
-  });
-
-  it("keeps a clicked link current while its scroll is in progress, then resumes following the scroll position", async () => {
-    await render();
-    await click(link("Input"));
-    // sections passing the bar mid-scroll do not steal the active state
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await act(async () => {
-      vi.advanceTimersByTime(50);
-      window.dispatchEvent(new Event("scroll"));
-      vi.advanceTimersByTime(100);
-    });
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Input:true"]);
-    // once scrolling settles, the user's own scrolling is followed again
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Output:true"]);
-  });
-
-  it("keeps the default active section current until the user scrolls", async () => {
-    await render({ defaultActiveId: "input" });
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await reportIntersection();
-    expect(currentLinks()).toEqual(["Output:true"]);
   });
 });

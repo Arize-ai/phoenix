@@ -1,12 +1,12 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import {
-  Button,
   Dialog,
   Drawer,
-  Flex,
+  DrawerPlane,
+  OverlayFrameProvider,
   SectionNav,
   SectionNavSection,
   Text,
@@ -16,7 +16,6 @@ import type {
   SectionNavOrientation,
 } from "@phoenix/components";
 import {
-  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -142,6 +141,22 @@ const sectionsCSS = css`
   }
 `;
 
+const drawerFrameCSS = css`
+  position: relative;
+  width: 720px;
+  height: 360px;
+  overflow: hidden;
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+`;
+
+const drawerBodyCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
 /**
  * Section ids must be unique in the document, and both a Docs page and the
  * side-by-side theme layout render a story more than once
@@ -211,7 +226,6 @@ function RunDetailsPane({
 }
 
 export const Default: StoryFn = () => <RunDetailsPane />;
-Default.tags = ["!dev"];
 Default.parameters = { themeLayout: "column" };
 
 export const Rail: StoryFn = () => (
@@ -231,41 +245,33 @@ Overflow.tags = ["!dev"];
 Overflow.parameters = { themeLayout: "row" };
 
 /**
- * Inside a drawer's scrolling body, the way a run's details read in a
- * detail panel. Open the drawer, then scroll or click a link.
+ * In a drawer's scrolling body, the way a run's details read in a detail
+ * panel. The drawer is held open; scroll its body or click a link. Kept off
+ * the Docs page because the drawer's dialog takes focus when it mounts.
  */
 export const InDrawer: StoryFn = () => {
-  const [isOpen, setIsOpen] = useState(false);
   const idPrefix = useId();
   const sections = withIdPrefix(idPrefix, MANY_SECTIONS);
   return (
-    <>
-      <Button onPress={() => setIsOpen(true)}>Open run details</Button>
-      <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <Dialog>
-          {({ close }) => (
+    <OverlayFrameProvider>
+      <div css={drawerFrameCSS}>
+        <DrawerPlane style={{ inset: 0, position: "absolute" }} />
+        <Drawer isOpen onClose={() => {}} defaultSize="80%">
+          <Dialog>
             <DialogContent>
               <DialogHeader>
-                <Flex direction="row" gap="size-200" alignItems="center">
-                  <DialogCloseButton close={close} aria-label="Close" />
-                  <DialogTitle>Run 3 of 12</DialogTitle>
-                </Flex>
+                <DialogTitle>Run 3 of 12</DialogTitle>
               </DialogHeader>
-              <div
-                css={css`
-                  flex: 1 1 auto;
-                  min-height: 0;
-                  overflow-y: auto;
-                `}
-              >
+              <div css={drawerBodyCSS}>
                 <SectionNav aria-label="Run details" sections={sections} />
                 <Sections sections={sections} />
               </div>
             </DialogContent>
-          )}
-        </Dialog>
-      </Drawer>
-    </>
+          </Dialog>
+        </Drawer>
+      </div>
+    </OverlayFrameProvider>
   );
 };
-InDrawer.tags = ["!dev"];
+InDrawer.tags = ["!autodocs"];
+InDrawer.parameters = { themeLayout: "column" };

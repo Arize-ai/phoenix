@@ -13,6 +13,10 @@ import { classNames } from "@phoenix/utils/classNames";
 
 import { useHorizontalOverflow } from "../tabs/useHorizontalOverflow";
 import { resolveActiveSectionId } from "./resolveActiveSectionId";
+import {
+  createScrollTracking,
+  type ScrollTrackingPauseReason,
+} from "./scrollTracking";
 import { sectionNavCSS } from "./styles";
 
 /**
@@ -21,6 +25,17 @@ import { sectionNavCSS } from "./styles";
  * link click that turns out not to scroll at all.
  */
 const SCROLL_SETTLE_MS = 150;
+
+/** Keys that scroll the focused scroll container */
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
 
 export type SectionNavItem = {
   /** The `id` of the `SectionNavSection` this link scrolls to */
@@ -89,10 +104,15 @@ export function SectionNav({
     defaultActiveId ?? sections[0]?.id ?? null
   );
   const navRef = useRef<HTMLElement | null>(null);
-  // Set by a link click: ignore scroll position until that scroll settles, so
-  // the clicked link stays active while sections slide past the bar.
-  const isTrackingPausedRef = useRef(false);
-  const pauseTrackingRef = useRef<() => void>(() => {});
+  const trackingRef = useRef(createScrollTracking());
+  // Hold `defaultActiveId` until scrolling first settles, across effect
+  // re-runs (e.g. Strict Mode's) that happen before then
+  const isHoldingDefaultRef = useRef(defaultActiveId != null);
+  // Pauses tracking until the scroll settles; set up by the effect, which owns
+  // the settle timer
+  const pauseTrackingRef = useRef<(reason: ScrollTrackingPauseReason) => void>(
+    () => {}
+  );
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)"
   );
@@ -114,7 +134,6 @@ export function SectionNav({
   // Re-subscribe when the set of sections changes, not when the parent passes
   // a new but equal `sections` array.
   const sectionIdsKey = sections.map((section) => section.id).join("\n");
-  const hasDefaultActiveId = defaultActiveId != null;
 
   useEffect(() => {
     const nav = navRef.current;
@@ -131,6 +150,7 @@ export function SectionNav({
         ? scrollParent
         : doc.documentElement);
     const isDocument = isDocumentScroller(container);
+    const tracking = trackingRef.current;
     const scrollEventTarget: HTMLElement | Window = isDocument
       ? win
       : container;
@@ -155,7 +175,7 @@ export function SectionNav({
       isDocument ? win.innerHeight : container.clientHeight;
 
     const resolve = () => {
-      if (isTrackingPausedRef.current) {
+      if (tracking.isPaused) {
         return;
       }
       const { scrollTop, scrollHeight, clientHeight } = container;
@@ -206,18 +226,27 @@ export function SectionNav({
     let settleTimeout: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       clearTimeout(settleTimeout);
-      if (isTrackingPausedRef.current) {
-        isTrackingPausedRef.current = false;
-        return;
+      isHoldingDefaultRef.current = false;
+      if (tracking.settle()) {
+        resolve();
       }
-      resolve();
     };
     const scheduleSettle = () => {
       clearTimeout(settleTimeout);
       settleTimeout = setTimeout(settle, SCROLL_SETTLE_MS);
     };
-    pauseTrackingRef.current = () => {
-      isTrackingPausedRef.current = true;
+    const handleScroll = () => {
+      tracking.noteScroll();
+      scheduleSettle();
+    };
+    const handleUserScrollInput = () => tracking.noteUserScrollInput();
+    const handleKeyDown = (event: Event) => {
+      if (event instanceof KeyboardEvent && SCROLL_KEYS.has(event.key)) {
+        tracking.noteUserScrollInput();
+      }
+    };
+    pauseTrackingRef.current = (reason) => {
+      tracking.pause(reason);
       scheduleSettle();
     };
 
@@ -232,30 +261,39 @@ export function SectionNav({
       resizeObserver.observe(container);
     }
     win.addEventListener("resize", handleResize);
-    scrollEventTarget.addEventListener("scroll", scheduleSettle, {
+    scrollEventTarget.addEventListener("scroll", handleScroll, {
       passive: true,
     });
     scrollEventTarget.addEventListener("scrollend", settle);
+    scrollEventTarget.addEventListener("wheel", handleUserScrollInput, {
+      passive: true,
+    });
+    scrollEventTarget.addEventListener("touchmove", handleUserScrollInput, {
+      passive: true,
+    });
+    scrollEventTarget.addEventListener("keydown", handleKeyDown);
 
     updateBarHeight();
-    if (hasDefaultActiveId) {
-      // Keep the given section active until the user scrolls
-      pauseTrackingRef.current();
+    if (isHoldingDefaultRef.current) {
+      pauseTrackingRef.current("defaultActiveId");
     }
     observeSections();
 
     return () => {
       clearTimeout(settleTimeout);
-      isTrackingPausedRef.current = false;
+      tracking.settle();
       pauseTrackingRef.current = () => {};
       observer?.disconnect();
       resizeObserver.disconnect();
       win.removeEventListener("resize", handleResize);
-      scrollEventTarget.removeEventListener("scroll", scheduleSettle);
+      scrollEventTarget.removeEventListener("scroll", handleScroll);
       scrollEventTarget.removeEventListener("scrollend", settle);
+      scrollEventTarget.removeEventListener("wheel", handleUserScrollInput);
+      scrollEventTarget.removeEventListener("touchmove", handleUserScrollInput);
+      scrollEventTarget.removeEventListener("keydown", handleKeyDown);
       container.style.removeProperty("--section-nav-height");
     };
-  }, [sectionIdsKey, scrollContainerRef, orientation, hasDefaultActiveId]);
+  }, [sectionIdsKey, scrollContainerRef, orientation]);
 
   const handleLinkClick = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -278,7 +316,7 @@ export function SectionNav({
     // Scroll the pane ourselves rather than following the link, which would
     // write the hash into the app's URL; `onChange` is there to opt into that.
     event.preventDefault();
-    pauseTrackingRef.current();
+    pauseTrackingRef.current("click");
     changeActiveId(id);
     section.scrollIntoView({
       block: "start",
