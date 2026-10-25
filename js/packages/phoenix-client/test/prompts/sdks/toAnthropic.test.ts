@@ -200,7 +200,7 @@ describe("toAnthropic type compatibility", () => {
             },
             {
               id: "123",
-              input: '{"image_url":"test.jpg","edit_type":"blur"}',
+              input: { image_url: "test.jpg", edit_type: "blur" },
               name: "edit_image",
               type: "tool_use",
             },

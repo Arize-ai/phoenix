@@ -200,7 +200,7 @@ describe("toAI type compatibility", () => {
               type: "text",
             },
             {
-              input: '{"image_url":"test.jpg","edit_type":"blur"}',
+              input: { image_url: "test.jpg", edit_type: "blur" },
               toolCallId: "123",
               toolName: "edit_image",
               type: "tool-call",
