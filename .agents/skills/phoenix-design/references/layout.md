@@ -6,9 +6,17 @@ Loading states MUST use skeleton loaders so the page does not shift between load
 
 A skeleton MUST be made of skeleton components only. It MUST NOT draw borders, dividers, separators, backgrounds, card frames, titles or other text; padding and gaps that only place the skeletons are allowed. See the `Skeleton` Docs page in Storybook (`Page Skeleton Composition`).
 
+Content edited in place MUST keep the width it has at rest. Size its container from the space available within explicit minimum and maximum widths, never from its content: a column that sizes to its content changes width when read-only text is swapped for a text area or code editor, and its neighbors move with it.
+
 ## Scroll behavior
 
 Pages SHOULD have only one scrollable region. Scroll traps where the user's scroll gets captured by a nested container MUST be avoided.
+
+## Narrow widths
+
+Actions MUST stay on screen at every width. In a row that ends in actions, keep the actions at a fixed size and let the content before them give way first: group the content, give each part a `flex-basis`, and let the group wrap (`flex-wrap: wrap`) so its parts stack before the row overflows. Do not lay such rows out as a `<table>`, because a table cannot reflow and pushes its last column out of view instead.
+
+Content that can still exceed its container at small widths MUST scroll along that axis rather than clip. `View` and `Card` clip overflow by default, so anything inside them that can outgrow them needs a scrolling region of its own. Scroll only the axis that overflows, which keeps this consistent with a single scrollable region per page.
 
 ## Interaction patterns
 
