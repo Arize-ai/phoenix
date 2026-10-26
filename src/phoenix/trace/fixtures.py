@@ -15,10 +15,10 @@ from typing import (
 )
 from urllib.parse import urljoin
 
-import httpx
+import httpx2
 import pandas as pd
 import pyarrow as pa
-from httpx import ConnectError, HTTPStatusError
+from httpx2 import ConnectError, HTTPStatusError
 from pyarrow import Table
 
 from phoenix.db.insertion.dataset import DatasetKeys
@@ -443,7 +443,7 @@ def send_dataset_fixtures(
     while time() < expiration:
         try:
             url = urljoin(endpoint, "/healthz")
-            httpx.get(url=url).raise_for_status()
+            httpx2.get(url=url).raise_for_status()
         except ConnectError:
             sleep(0.1)
             continue
@@ -463,7 +463,7 @@ def send_dataset_fixtures(
                 fname, fdata, ftype, fheaders = _prepare_pyarrow(fixture.dataframe, keys)
             else:
                 fname, fdata, ftype, fheaders = _prepare_csv_bytes(fixture.csv, fixture.name, keys)
-            httpx.post(
+            httpx2.post(
                 url=upload_url,
                 files={"file": (fname, fdata, ftype, fheaders)},
                 data={
