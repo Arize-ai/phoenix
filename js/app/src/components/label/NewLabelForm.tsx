@@ -116,7 +116,11 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
                   <Label>Color</Label>
                   <ColorSwatchPicker
                     value={value}
-                    onChange={(newColor) => onChange(newColor.toString())}
+                    // The label color columns accept lowercase #rrggbb only;
+                    // the picker's default string form is rgba().
+                    onChange={(newColor) =>
+                      onChange(newColor.toString("hex").toLowerCase())
+                    }
                   >
                     <ColorSwatchPickerItem color="#ff9b88">
                       <ColorSwatch size="L" />
