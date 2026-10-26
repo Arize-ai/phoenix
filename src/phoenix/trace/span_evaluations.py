@@ -203,8 +203,9 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             UUID: The ID of the evaluations, which can be used as a key to load
             the evaluations from disk using `load`.
         """
-        directory = Path(directory) if directory else TRACE_DATASETS_DIR
-        path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
+        path = (
+            Path(directory) if directory else TRACE_DATASETS_DIR
+        ) / EVAL_PARQUET_FILE_NAME.format(id=self.id)
         table = self.to_pyarrow_table()
         parquet.write_table(table, path)
         return self.id

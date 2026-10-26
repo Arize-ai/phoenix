@@ -8,6 +8,7 @@ from typing import Any, Callable, Literal, overload
 
 import pydantic
 from openinference.instrumentation import (
+    OITracer,
     get_input_attributes,
     get_metadata_attributes,
     get_output_attributes,
@@ -15,7 +16,7 @@ from openinference.instrumentation import (
     safe_json_dumps,
 )
 from openinference.semconv.trace import OpenInferenceMimeTypeValues
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
@@ -79,14 +80,14 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
     ``span_name`` overrides the default ``{agent name}.iter`` span name.
     """
 
-    tracer: Tracer
+    tracer: OITracer
     span_name: str | None
 
     def __init__(
         self,
         wrapped: AbstractAgent[AgentDepsT, OutputDataT],
         *,
-        tracer: Tracer,
+        tracer: OITracer,
         span_name: str | None = None,
     ) -> None:
         super().__init__(wrapped)
