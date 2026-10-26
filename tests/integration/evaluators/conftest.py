@@ -3,7 +3,7 @@
 from secrets import token_hex
 from typing import Any, Iterator, Mapping
 
-import httpx
+import httpx2
 import pytest
 
 from .._helpers import _AppInfo, _gql, _httpx_client, _server
@@ -35,7 +35,7 @@ def _env(
 
 
 @pytest.fixture
-def client(_app: _AppInfo) -> Iterator[httpx.Client]:
+def client(_app: _AppInfo) -> Iterator[httpx2.Client]:
     with _httpx_client(_app, _app.admin_secret) as client:
         yield client
 
@@ -70,7 +70,7 @@ def sandbox_id(_app: _AppInfo) -> Iterator[str]:
 
 
 @pytest.fixture
-def dataset_id(client: httpx.Client, _app: _AppInfo) -> Iterator[str]:
+def dataset_id(client: httpx2.Client, _app: _AppInfo) -> Iterator[str]:
     dataset = _graphql(
         _app,
         """
@@ -85,7 +85,7 @@ def dataset_id(client: httpx.Client, _app: _AppInfo) -> Iterator[str]:
 
 
 @pytest.fixture
-def project(client: httpx.Client) -> Iterator[dict[str, Any]]:
+def project(client: httpx2.Client) -> Iterator[dict[str, Any]]:
     response = client.post("v1/projects", json={"name": f"eval-{token_hex(8)}"})
     response.raise_for_status()
     project = response.json()["data"]

@@ -3,7 +3,7 @@
 from secrets import token_hex
 from typing import Any
 
-import httpx
+import httpx2
 
 from .._helpers import _AppInfo, _gql
 
@@ -20,7 +20,7 @@ def _graphql(app: _AppInfo, query: str, variables: dict[str, Any]) -> dict[str, 
 
 
 def _create_dataset_evaluator(
-    client: httpx.Client, dataset_id: str, body: dict[str, Any]
+    client: httpx2.Client, dataset_id: str, body: dict[str, Any]
 ) -> dict[str, Any]:
     response = client.post(f"v1/datasets/{dataset_id}/evaluators", json=body)
     assert response.status_code == 201, response.text
@@ -29,7 +29,7 @@ def _create_dataset_evaluator(
 
 
 def _judge_prompt_version(
-    client: httpx.Client, *, label_values: tuple[str, str] = ("correct", "incorrect")
+    client: httpx2.Client, *, label_values: tuple[str, str] = ("correct", "incorrect")
 ) -> str:
     """Create a judge prompt through the prompts API and return its version's GlobalID."""
     response = client.post(
@@ -97,7 +97,7 @@ def _pin(prompt_version_id: str) -> dict[str, Any]:
     return {"selector": {"type": "version", "prompt_version_id": prompt_version_id}}
 
 
-def _llm_definition(client: httpx.Client) -> dict[str, Any]:
+def _llm_definition(client: httpx2.Client) -> dict[str, Any]:
     """Create a standalone LLM definition that runs a new judge prompt."""
     response = client.post(
         "v1/evaluators",
@@ -114,7 +114,7 @@ def _llm_definition(client: httpx.Client) -> dict[str, Any]:
     return data
 
 
-def _code_definition(client: httpx.Client, sandbox_id: str) -> dict[str, Any]:
+def _code_definition(client: httpx2.Client, sandbox_id: str) -> dict[str, Any]:
     """Create a standalone code definition."""
     response = client.post(
         "v1/evaluators",
