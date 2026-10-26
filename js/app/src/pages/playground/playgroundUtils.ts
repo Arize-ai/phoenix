@@ -44,6 +44,7 @@ import type {
   CanonicalToolChoice,
   CanonicalToolDefinition,
   ChatMessage,
+  DecisionPromptDraft,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -1278,7 +1279,7 @@ export const extractVariablesFromInstance = ({
   // its chat template is the one it restores when switched back to an LLM.
   if (isDecisionInstance(instance)) {
     return extractDecisionVariables({
-      draft: instance.decisionRequest,
+      draft: instance.decisionPrompt,
       templateFormat,
     });
   }
@@ -1576,19 +1577,25 @@ const getBaseChatCompletionInput = ({
 };
 
 /**
- * Denormalize a playground instance with the actual messages
+ * Denormalize a playground instance with the actual messages and decision prompt
  *
  * A playground instance differs from a playground normalized instance in that it contains the actual messages
- * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ * and decision prompts and not just their ids. This function will replace the ids with the actual values.
  */
 export const denormalizePlaygroundInstance = (
-  instance: PlaygroundNormalizedInstance,
-  allInstanceMessages: Record<number, ChatMessage>
+  { decisionPromptId, ...instance }: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>,
+  allInstanceDecisionPrompts: Record<number, DecisionPromptDraft>
 ): PlaygroundInstance => {
+  const decisionPrompt =
+    decisionPromptId != null
+      ? allInstanceDecisionPrompts[decisionPromptId]
+      : decisionPromptId;
   if (instance.template.__type === "chat") {
     const { messageIds: _, ...rest } = instance.template;
     return {
       ...instance,
+      decisionPrompt,
       template: {
         ...rest,
         messages: instance.template.messageIds.map(
@@ -1597,8 +1604,11 @@ export const denormalizePlaygroundInstance = (
       },
     } satisfies PlaygroundInstance;
   }
-  // it cannot be a normalized instance if it is not a chat template
-  return instance as PlaygroundInstance;
+  return {
+    ...instance,
+    decisionPrompt,
+    template: instance.template,
+  } satisfies PlaygroundInstance;
 };
 
 /**
@@ -2222,6 +2232,7 @@ export const getChatCompletionInput = ({
     templateFormat,
     input,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     repetitions,
     streaming,
   } = playgroundStore.getState();
@@ -2236,7 +2247,11 @@ export const getChatCompletionInput = ({
 
   // Compute template variables for mustache / f-string substitution
   const playgroundInstances = instances.map((i) =>
-    denormalizePlaygroundInstance(i, instanceMessages)
+    denormalizePlaygroundInstance(
+      i,
+      instanceMessages,
+      allInstanceDecisionPrompts
+    )
   );
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
@@ -2247,7 +2262,8 @@ export const getChatCompletionInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2329,6 +2345,7 @@ export const getPromptTaskInput = ({
     instances,
     templateFormat,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     stateByDatasetId,
     streaming,
   } = playgroundStore.getState();
@@ -2344,7 +2361,8 @@ export const getPromptTaskInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");

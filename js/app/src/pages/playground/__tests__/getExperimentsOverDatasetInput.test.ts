@@ -271,13 +271,13 @@ describe("getExperimentsOverDatasetInput", () => {
 
     if (decisionId == null) throw new Error("Could not add a decision");
 
+    store.playgroundStore.getState().updateDecisionPrompt({
+      instanceId: decisionId,
+      request: { ...createDecisionDraft(), state: "{{ticket}}" },
+    });
     store.playgroundStore.getState().updateInstance({
       instanceId: decisionId,
       patch: {
-        decisionRequest: {
-          ...createDecisionDraft(),
-          state: "{{ticket}}",
-        },
         decision: { id: "D1", name: "triage", versionId: "DV1", tag: null },
         model: {
           provider: "OLLAMA",
