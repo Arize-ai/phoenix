@@ -69,7 +69,7 @@ const FALLBACK_ERROR_MESSAGE =
   "Could not execute the decision request. Check the connection and provider configuration.";
 
 /**
- * Runs an instance's decision spec against its model whenever
+ * Runs an instance's decision prompt against its model whenever
  * that instance gets a new active run. Repetitions are sequential and
  * non-streaming. Disposed or stale runs never overwrite a newer run.
  */
@@ -94,9 +94,9 @@ export function useDecisionRunner(instanceId: number) {
     const snapshot = denormalizePlaygroundInstance(
       normalizedSnapshot,
       state.allInstanceMessages,
-      state.allInstanceDecisionSpecs
+      state.allInstanceDecisionPrompts
     );
-    const decision = snapshot.decisionSpec;
+    const decision = snapshot.decisionPrompt;
     if (!decision) return undefined;
     // Resolve template variables and credentials once per run so every
     // repetition sends the same request.

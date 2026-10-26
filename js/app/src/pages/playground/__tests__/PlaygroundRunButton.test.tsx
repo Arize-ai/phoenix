@@ -8,7 +8,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
-import { selectPlaygroundInstanceDecisionSpec } from "@phoenix/store/playground/selectors";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
@@ -53,7 +53,7 @@ describe("PlaygroundRunButton with decision instances", () => {
         },
       },
     });
-    store.getState().updateDecisionSpec({
+    store.getState().updateDecisionPrompt({
       instanceId: chatInstance.id,
       request: createDecisionDraft(),
     });
@@ -88,7 +88,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     );
   }
 
-  it("runs a valid decision spec when no dataset is loaded", () => {
+  it("runs a valid decision prompt when no dataset is loaded", () => {
     const { runPlaygroundInstances } = mount(null);
     const button = runButton();
     expect(button?.disabled).toBe(false);
@@ -99,11 +99,11 @@ describe("PlaygroundRunButton with decision instances", () => {
   it("explains which instance blocks the run when its request is invalid", async () => {
     const { store, runPlaygroundInstances } = mount(null);
     const instance = store.getState().instances[0];
-    const request = selectPlaygroundInstanceDecisionSpec(instance.id)(
+    const request = selectPlaygroundInstanceDecisionPrompt(instance.id)(
       store.getState()
     )!;
     act(() =>
-      store.getState().updateDecisionSpec({
+      store.getState().updateDecisionPrompt({
         instanceId: instance.id,
         request: {
           ...request,
@@ -134,10 +134,10 @@ describe("PlaygroundRunButton with decision instances", () => {
     const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
     const instance = store.getState().instances[0];
     act(() =>
-      store.getState().updateDecisionSpec({
+      store.getState().updateDecisionPrompt({
         instanceId: instance.id,
         request: {
-          ...selectPlaygroundInstanceDecisionSpec(instance.id)(
+          ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
             store.getState()
           )!,
           state: "{{ticket}}",

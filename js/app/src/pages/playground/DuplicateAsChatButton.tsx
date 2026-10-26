@@ -16,7 +16,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { generateMessageId } from "@phoenix/store";
-import { selectPlaygroundInstanceDecisionSpec } from "@phoenix/store/playground/selectors";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { buildChatFromDecisionDraft } from "./decisionUtils";
@@ -28,7 +28,7 @@ import type { PlaygroundInstanceProps } from "./types";
  * the questions and criteria become the system message, the state the user
  * message, and the answer shape a response format. The copy uses the chat
  * model this task had before it became a decision task, else the preferred
- * default, and keeps the decision spec, so picking a decision model on it
+ * default, and keeps the decision prompt, so picking a decision model on it
  * restores the original. The decision task stays as it is, so the two run
  * side by side.
  */
@@ -56,14 +56,14 @@ export function DuplicateAsChatButton({
       addMessage,
     } = store.getState();
     const source = instances.find((candidate) => candidate.id === instanceId);
-    const decisionSpec = selectPlaygroundInstanceDecisionSpec(instanceId)(
+    const decisionPrompt = selectPlaygroundInstanceDecisionPrompt(instanceId)(
       store.getState()
     );
-    if (!source || !decisionSpec) return;
+    if (!source || !decisionPrompt) return;
     const copyId = duplicateInstance(instanceId);
     if (copyId == null) return;
     const { messages, responseFormat } = buildChatFromDecisionDraft({
-      draft: decisionSpec,
+      draft: decisionPrompt,
       templateFormat,
     });
     const provider = defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
@@ -78,7 +78,7 @@ export function DuplicateAsChatButton({
       patch: {
         task: { type: "prompt" },
         decision: null,
-        decisionSpecId: null,
+        decisionPromptId: null,
         model: { ...chatModel, modelType: "LLM", responseFormat },
         template: { __type: "chat", messageIds: [] },
       },

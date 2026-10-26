@@ -11,7 +11,7 @@ import {
   getChatForDecisionToPrompt,
 } from "@phoenix/pages/playground/decisionUtils";
 import { generateMessageId, isDecisionInstance } from "@phoenix/store";
-import { selectPlaygroundInstanceDecisionSpec } from "@phoenix/store/playground/selectors";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 export type PlaygroundModelMenuProps = {
   /**
@@ -89,8 +89,8 @@ export function PlaygroundModelMenu({
         },
       });
       // Keep a request the instance already had; start one otherwise.
-      if (instance.decisionSpecId == null) {
-        store.getState().updateDecisionSpec({
+      if (instance.decisionPromptId == null) {
+        store.getState().updateDecisionPrompt({
           instanceId: playgroundInstanceId,
           request: createDecisionDraft(),
         });
@@ -102,7 +102,7 @@ export function PlaygroundModelMenu({
     const chat = wasDecision
       ? getChatForDecisionToPrompt({
           instance,
-          decisionSpec: selectPlaygroundInstanceDecisionSpec(
+          decisionPrompt: selectPlaygroundInstanceDecisionPrompt(
             playgroundInstanceId
           )(store.getState()),
           templateFormat: store.getState().templateFormat,

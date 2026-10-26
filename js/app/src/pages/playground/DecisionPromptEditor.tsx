@@ -27,15 +27,15 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   selectPlaygroundInstance,
-  selectPlaygroundInstanceDecisionSpec,
+  selectPlaygroundInstanceDecisionPrompt,
 } from "@phoenix/store/playground/selectors";
 import type {
   DecisionQuestionDraft,
-  DecisionSpecDraft,
+  DecisionPromptDraft,
 } from "@phoenix/store/playground/types";
 
 const STATE_EDITOR_MODES: ReadonlyArray<
-  DecisionSpecDraft["stateEditorMode"]
+  DecisionPromptDraft["stateEditorMode"]
 > = ["text", "json", "input", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
@@ -78,7 +78,7 @@ const statePreviewCSS = css`
   overflow: hidden;
 `;
 
-function DecisionStatePreview({ request }: { request: DecisionSpecDraft }) {
+function DecisionStatePreview({ request }: { request: DecisionPromptDraft }) {
   const variables = usePlaygroundContext(
     (state) => state.input.variablesValueCache
   );
@@ -117,24 +117,24 @@ function DecisionStatePreview({ request }: { request: DecisionSpecDraft }) {
 }
 
 /**
- * One instance's decision spec, laid out like a chat template: the state
+ * One instance's decision prompt, laid out like a chat template: the state
  * is one card and each question is another, so a decision column reads the
  * same way as a prompt column beside it.
  */
-export function DecisionSpecEditor({
+export function DecisionPromptEditor({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
   const isRunning = usePlaygroundContext(
     (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
   );
-  const decisionSpecId = usePlaygroundContext(
-    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionSpecId
+  const decisionPromptId = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionPromptId
   );
-  const decisionSpec = usePlaygroundContext(
-    selectPlaygroundInstanceDecisionSpec(instanceId)
+  const decisionPrompt = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionPrompt(instanceId)
   );
-  const updateDecisionSpec = usePlaygroundContext(
-    (state) => state.updateDecisionSpec
+  const updateDecisionPrompt = usePlaygroundContext(
+    (state) => state.updateDecisionPrompt
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   // The state is the evidence the user supplies, so it takes the user
@@ -143,7 +143,7 @@ export function DecisionSpecEditor({
   // Deleting a question removes the focused element; focus moves here so
   // keyboard users are not dropped to the document body.
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
-  const request = decisionSpec ?? createDecisionDraft();
+  const request = decisionPrompt ?? createDecisionDraft();
   // Fields the user has left. Empty required fields are reported only once
   // the user has been there, so a new question or option does not open in
   // an error state; see maskUntouchedErrors.
@@ -160,8 +160,8 @@ export function DecisionSpecEditor({
   });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
-  const update = (patch: Partial<DecisionSpecDraft>) =>
-    updateDecisionSpec({ instanceId, request: { ...request, ...patch } });
+  const update = (patch: Partial<DecisionPromptDraft>) =>
+    updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -296,7 +296,7 @@ export function DecisionSpecEditor({
             <TemplateEditor
               // Loading replaces the draft and its id; typing must keep the
               // editor mounted.
-              key={`text-${instanceId}-${decisionSpecId}-${templateFormat}`}
+              key={`text-${instanceId}-${decisionPromptId}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}

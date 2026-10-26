@@ -125,7 +125,7 @@ export type DecisionScaleLevelDraft = {
 };
 
 /**
- * One typed question in the decision spec. Every type keeps its own
+ * One typed question in the decision prompt. Every type keeps its own
  * criteria so switching the type back and forth does not lose work.
  */
 export type DecisionQuestionDraft = {
@@ -145,11 +145,11 @@ export type DecisionInputDeclaration = {
 };
 
 /**
- * One instance's decision spec: the state (evidence) and the typed
+ * One instance's decision prompt: the state (evidence) and the typed
  * questions asked about it. Each decision instance owns its own, like a
  * prompt, so instances can be compared and mixed with chat instances.
  */
-export type DecisionSpecDraft = {
+export type DecisionPromptDraft = {
   /**
    * The state as written: a template (`text`), a JSON value (`json`), one
    * input passed through unchanged (`input`), or the comma-separated names of
@@ -308,7 +308,7 @@ export type PlaygroundMode = "task" | "evaluator";
 
 /**
  * The task type shown in the task menu. It determines the playground mode
- * and the instance's data: decision tasks hold a decision spec and model.
+ * and the instance's data: decision tasks hold a decision prompt and model.
  * New task types are added here and in the mode mapping.
  */
 export type PlaygroundTaskType = "prompt" | "decision" | "evaluator";
@@ -476,15 +476,15 @@ export interface PlaygroundInstance {
   /** Preserve chat configuration while the instance is a decision. */
   llmModel?: ModelConfig;
   /**
-   * The decision spec this instance runs when its task is a decision. Each instance owns its own, like a prompt, so instances can be
+   * The decision prompt this instance runs when its task is a decision. Each instance owns its own, like a prompt, so instances can be
    * compared and mixed with chat instances.
    */
-  decisionSpec?: DecisionSpecDraft | null;
+  decisionPrompt?: DecisionPromptDraft | null;
   /**
-   * The decision spec the latest run used. Its output is read against
+   * The decision prompt the latest run used. Its output is read against
    * this, not the draft, so editing the draft never relabels an old result.
    */
-  decisionRunRequest?: DecisionSpecDraft | null;
+  decisionRunRequest?: DecisionPromptDraft | null;
   /**
    * An ID to uniquely identify the instance
    */
@@ -511,7 +511,7 @@ export interface PlaygroundInstance {
    */
   prompt?: PlaygroundInstancePrompt | null;
   /**
-   * The saved decision version the instance's decision spec was loaded
+   * The saved decision version the instance's decision prompt was loaded
    * from or last saved as, if any
    */
   decision?: PlaygroundInstanceDecision | null;
@@ -689,18 +689,18 @@ export type PlaygroundNormalizedChatTemplate = Omit<
 
 /**
  * A playground instance, with normalized chat completion template messages
- * and a normalized decision spec
+ * and a normalized decision prompt
  */
 export type PlaygroundNormalizedInstance = Omit<
   PlaygroundInstance,
-  "template" | "decisionSpec"
+  "template" | "decisionPrompt"
 > & {
   template: PlaygroundTextCompletionTemplate | PlaygroundNormalizedChatTemplate;
   /**
-   * The id of the instance's decision spec in `allInstanceDecisionSpecs`,
+   * The id of the instance's decision prompt in `allInstanceDecisionPrompts`,
    * if it has one. Like a message id, it is unique across all instances.
    */
-  decisionSpecId?: number | null;
+  decisionPromptId?: number | null;
 };
 
 export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
@@ -727,11 +727,11 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   externallyUpdatedToolRevisionById: Record<number, number>;
 
   /**
-   * A map of decision spec id to decision spec
+   * A map of decision prompt id to decision prompt
    *
-   * decision spec ids must be globally unique across all instances
+   * decision prompt ids must be globally unique across all instances
    */
-  allInstanceDecisionSpecs: Record<number, DecisionSpecDraft>;
+  allInstanceDecisionPrompts: Record<number, DecisionPromptDraft>;
 
   /**
    * A map of instance id to whether the instance is dirty
@@ -932,13 +932,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
-   * Replace one instance's decision spec and mark the instance dirty.
-   * Only the request's entry in `allInstanceDecisionSpecs` changes, so
+   * Replace one instance's decision prompt and mark the instance dirty.
+   * Only the request's entry in `allInstanceDecisionPrompts` changes, so
    * typing in a decision leaves `instances` as it is.
    */
-  updateDecisionSpec: (params: {
+  updateDecisionPrompt: (params: {
     instanceId: number;
-    request: DecisionSpecDraft;
+    request: DecisionPromptDraft;
   }) => void;
   /**
    * Set multiple variable values in the input

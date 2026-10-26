@@ -29,7 +29,7 @@ import {
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { getPlaygroundInstancesWithDecisionSpecs } from "@phoenix/store/playground/selectors";
+import { getPlaygroundInstancesWithDecisionPrompts } from "@phoenix/store/playground/selectors";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
@@ -45,7 +45,7 @@ type SaveDecisionFormValues = {
 };
 
 /**
- * Saves an instance's decision spec and model as a saved decision: a new
+ * Saves an instance's decision prompt and model as a saved decision: a new
  * decision when the name is new, or a new version of the one picked. The
  * instance is then tied to the saved version, so a later save adds another
  * version and dataset runs record which version they ran.
@@ -209,7 +209,7 @@ function SaveDecisionForm({
     (values: SaveDecisionFormValues) => {
       onError(null);
       const state = store.getState();
-      const instance = getPlaygroundInstancesWithDecisionSpecs(state).find(
+      const instance = getPlaygroundInstancesWithDecisionPrompts(state).find(
         (item) => item.id === instanceId
       );
       if (!instance) return;

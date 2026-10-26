@@ -18,9 +18,9 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { getPlaygroundInstancesWithDecisionSpecs } from "@phoenix/store/playground/selectors";
+import { getPlaygroundInstancesWithDecisionPrompts } from "@phoenix/store/playground/selectors";
 import type {
-  DecisionSpecDraft,
+  DecisionPromptDraft,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 
@@ -43,7 +43,7 @@ function getInstanceLabel(index: number): string {
 /** The first reason a decision instance cannot run, or null when all can. */
 function getInvalidDecisionReason(
   instances: readonly (Pick<PlaygroundNormalizedInstance, "model" | "task"> & {
-    decisionSpec: DecisionSpecDraft | null | undefined;
+    decisionPrompt: DecisionPromptDraft | null | undefined;
   })[]
 ): string | null {
   for (const [index, instance] of instances.entries()) {
@@ -52,9 +52,9 @@ function getInvalidDecisionReason(
     if (!instance.model.modelName?.trim()) {
       return `Instance ${label}: pick a decision model.`;
     }
-    const problem = instance.decisionSpec
-      ? getDecisionValidationError(instance.decisionSpec)
-      : "no decision request";
+    const problem = instance.decisionPrompt
+      ? getDecisionValidationError(instance.decisionPrompt)
+      : "no decision prompt";
     if (problem) return `Instance ${label}: ${problem}`;
   }
   return null;
@@ -72,17 +72,17 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-  // An invalid decision spec is refused with its first problem as the
+  // An invalid decision prompt is refused with its first problem as the
   // reason, since the error may sit in a collapsed card. Over a dataset, a
   // decision the examples can't fill is refused the same way.
   const blockedReason = usePlaygroundContext((state) => {
-    const instancesWithDecisionSpecs =
-      getPlaygroundInstancesWithDecisionSpecs(state);
+    const instancesWithDecisionPrompts =
+      getPlaygroundInstancesWithDecisionPrompts(state);
     return (
-      getInvalidDecisionReason(instancesWithDecisionSpecs) ??
+      getInvalidDecisionReason(instancesWithDecisionPrompts) ??
       (state.datasetId != null
         ? getDecisionDatasetBlockedReason({
-            instances: instancesWithDecisionSpecs,
+            instances: instancesWithDecisionPrompts,
             templateFormat: state.templateFormat,
           })
         : null)

@@ -8,9 +8,9 @@ import {
   createDecisionTaskInstance,
   createPlaygroundStore,
 } from "@phoenix/store/playground/playgroundStore";
-import { selectPlaygroundInstanceDecisionSpec } from "@phoenix/store/playground/selectors";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
-import { DecisionSpecEditor } from "../DecisionSpecEditor";
+import { DecisionPromptEditor } from "../DecisionPromptEditor";
 import { createDecisionDraft } from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
@@ -30,7 +30,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionSpec: draft },
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
     ],
   });
   const container = document.createElement("div");
@@ -48,7 +48,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
           }}
         >
           <PlaygroundContext.Provider value={store}>
-            <DecisionSpecEditor playgroundInstanceId={1} />
+            <DecisionPromptEditor playgroundInstanceId={1} />
           </PlaygroundContext.Provider>
         </ThemeContext.Provider>
       )
@@ -58,7 +58,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
     );
     expect(editor?.value).toBe("First {{ticket}}");
     await act(async () =>
-      store.getState().updateDecisionSpec({
+      store.getState().updateDecisionPrompt({
         instanceId: 1,
         request: { ...draft, state: "Typed {{ticket}}" },
       })
@@ -71,7 +71,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
         instanceId: 1,
         instance: {
           ...createDecisionTaskInstance(),
-          decisionSpec: { ...draft, state: "Second {{ticket}}" },
+          decisionPrompt: { ...draft, state: "Second {{ticket}}" },
         },
       })
     );
@@ -95,7 +95,7 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionSpec: draft },
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
     ],
     input: { variablesValueCache: { state: '{"ticket":"Refund"}' } },
   });
@@ -114,7 +114,7 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
           }}
         >
           <PlaygroundContext.Provider value={store}>
-            <DecisionSpecEditor playgroundInstanceId={1} />
+            <DecisionPromptEditor playgroundInstanceId={1} />
           </PlaygroundContext.Provider>
         </ThemeContext.Provider>
       )
@@ -131,7 +131,7 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
     expect(objectButton).not.toBeNull();
     await act(async () => objectButton?.click());
     expect(
-      selectPlaygroundInstanceDecisionSpec(store.getState().instances[0].id)(
+      selectPlaygroundInstanceDecisionPrompt(store.getState().instances[0].id)(
         store.getState()
       )?.stateEditorMode
     ).toBe("inputs");
