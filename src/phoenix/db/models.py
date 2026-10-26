@@ -3479,8 +3479,10 @@ class DecisionEvaluator(Evaluator):
         server_default="DECISION",
         nullable=False,
     )
-    decision_version_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_versions.id", ondelete="RESTRICT"), index=True
+    decision_version_tag_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_version_tags.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     scoring_policy: Mapped[DecisionScoringPolicy] = mapped_column(
         _DecisionScoringPolicy, nullable=False
@@ -3488,8 +3490,12 @@ class DecisionEvaluator(Evaluator):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    decision_version_tag: Mapped["DecisionVersionTag"] = relationship("DecisionVersionTag")
     selected_version: Mapped["DecisionVersion"] = relationship(
         "DecisionVersion",
+        secondary="decision_version_tags",
+        viewonly=True,
+        uselist=False,
         innerjoin=True,
         lazy="joined",
     )

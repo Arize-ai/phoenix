@@ -17,6 +17,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.decision_version_tags import (
+    validate_decision_version_tag_delete,
+    validate_decision_version_tag_move,
+)
 from phoenix.server.api.helpers.decision_versions import validate_decision_custom_provider
 from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.queries import Query
@@ -105,16 +109,19 @@ def _metadata(metadata: Optional[JSON]) -> dict[str, object]:
 async def _upsert_tag(
     session: AsyncSession,
     *,
-    decision_id: int,
-    decision_version_id: int,
+    version: models.DecisionVersion,
     name: Identifier,
     description: Optional[str],
     user_id: Optional[int],
 ) -> models.DecisionVersionTag:
-    """Create the tag, or move it to the version if the decision already has it."""
+    """Create the tag, or move it to the version if the decision already has it.
+
+    A tag that a decision evaluator runs through only moves to a version with the same inputs
+    and outputs; otherwise Conflict is raised.
+    """
     tag = await session.scalar(
         select(models.DecisionVersionTag).where(
-            models.DecisionVersionTag.decision_id == decision_id,
+            models.DecisionVersionTag.decision_id == version.decision_id,
             models.DecisionVersionTag.name == name,
         )
     )
@@ -122,13 +129,14 @@ async def _upsert_tag(
         tag = models.DecisionVersionTag(
             name=name,
             description=description,
-            decision_id=decision_id,
-            decision_version_id=decision_version_id,
+            decision_id=version.decision_id,
+            decision_version_id=version.id,
             user_id=user_id,
         )
         session.add(tag)
     else:
-        tag.decision_version_id = decision_version_id
+        await validate_decision_version_tag_move(session, tag, version)
+        tag.decision_version_id = version.id
         if description is not None:
             tag.description = description
     await session.flush()
@@ -168,8 +176,7 @@ class SavedDecisionMutationMixin:
             for tag in input.tags or ():
                 await _upsert_tag(
                     session,
-                    decision_id=decision.id,
-                    decision_version_id=version.id,
+                    version=version,
                     name=tag.name,
                     description=tag.description,
                     user_id=user_id,
@@ -240,8 +247,7 @@ class SavedDecisionMutationMixin:
             for tag in input.tags or ():
                 await _upsert_tag(
                     session,
-                    decision_id=decision.id,
-                    decision_version_id=version.id,
+                    version=version,
                     name=tag.name,
                     description=tag.description,
                     user_id=user_id,
@@ -273,10 +279,11 @@ class SavedDecisionMutationMixin:
                 await session.scalars(
                     select(models.DecisionEvaluator.name)
                     .join(
-                        models.DecisionVersion,
-                        models.DecisionEvaluator.decision_version_id == models.DecisionVersion.id,
+                        models.DecisionVersionTag,
+                        models.DecisionEvaluator.decision_version_tag_id
+                        == models.DecisionVersionTag.id,
                     )
-                    .where(models.DecisionVersion.decision_id == row_id)
+                    .where(models.DecisionVersionTag.decision_id == row_id)
                     .order_by(models.DecisionEvaluator.name)
                 )
             ).all()
@@ -308,8 +315,7 @@ class SavedDecisionMutationMixin:
                 raise NotFound(f"Decision version not found: {input.decision_version_id}")
             tag = await _upsert_tag(
                 session,
-                decision_id=version.decision_id,
-                decision_version_id=version.id,
+                version=version,
                 name=input.name,
                 description=input.description,
                 user_id=_user_id(info),
@@ -333,6 +339,7 @@ class SavedDecisionMutationMixin:
             tag = await session.get(models.DecisionVersionTag, tag_id)
             if tag is None:
                 raise NotFound(f"Decision version tag not found: {input.decision_version_tag_id}")
+            await validate_decision_version_tag_delete(session, tag)
             decision = await session.get(models.Decision, tag.decision_id)
             assert decision is not None
             await session.delete(tag)

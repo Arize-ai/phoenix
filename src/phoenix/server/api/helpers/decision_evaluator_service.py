@@ -1,9 +1,11 @@
 """Saved decision evaluators and dataset bindings, with owned pins and compatibility checks."""
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
-from sqlalchemy import select, true
+from sqlalchemy import delete, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -82,7 +84,12 @@ def _new_decision_evaluator(
         metadata_={},
         user_id=user_id,
         kind="DECISION",
-        decision_version_id=version.id,
+        decision_version_tag=models.DecisionVersionTag(
+            name=Identifier.model_validate(f"{name.root}-evaluator-{token_hex(4)}"),
+            decision_id=version.decision_id,
+            decision_version_id=version.id,
+            user_id=user_id,
+        ),
         selected_version=version,
         scoring_policy=resolve_scoring_policy(
             version.questions,
@@ -102,7 +109,7 @@ class CreateDecisionEvaluatorInput:
 async def create_decision_evaluator(
     context: EvaluatorServiceContext, input: CreateDecisionEvaluatorInput
 ) -> models.DecisionEvaluator:
-    """Create a saved judge pinned to an explicit decision version."""
+    """Create a saved judge that runs an explicit decision version through a tag it owns."""
     try:
         async with context.db() as session:
             version = await _version(session, input.decision_version_id)
@@ -221,8 +228,12 @@ async def _apply_decision_version_and_policy(
     await validate_bound_decision_update(
         session, evaluator, version, editing_binding_id=editing_binding_id
     )
-    evaluator.decision_version_id = version.id
-    evaluator.selected_version = version
+    if version.id != evaluator.selected_version.id:
+        tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
+        assert tag is not None
+        tag.decision_version_id = version.id
+        evaluator.selected_version = version
+        evaluator.updated_at = datetime.now(timezone.utc)
     evaluator.scoring_policy = policy
 
 
@@ -261,7 +272,7 @@ async def patch_decision_evaluator(
 async def delete_decision_evaluator(
     context: EvaluatorServiceContext, evaluator_id: GlobalID
 ) -> None:
-    """Delete an unbound judge."""
+    """Delete an unbound judge with the tag it runs through; the decision is kept."""
     async with context.db() as session:
         evaluator = await session.get(
             models.DecisionEvaluator,
@@ -271,7 +282,12 @@ async def delete_decision_evaluator(
         if evaluator is None:
             return
         await _refuse_bound_evaluator(session, evaluator.id, evaluator_id)
+        tag_id = evaluator.decision_version_tag_id
         await session.delete(evaluator)
+        await session.flush()
+        await session.execute(
+            delete(models.DecisionVersionTag).where(models.DecisionVersionTag.id == tag_id)
+        )
 
 
 # The keys of the context a dataset evaluator judges a run with (see experiment_runner).

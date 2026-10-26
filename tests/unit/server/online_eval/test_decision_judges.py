@@ -74,7 +74,11 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
             name=Identifier(f"judge-{token_hex(4)}"),
             description=None,
             metadata_={},
-            decision_version_id=version.id,
+            decision_version_tag=models.DecisionVersionTag(
+                name=Identifier(f"judge-{token_hex(4)}"),
+                decision=decision,
+                decision_version=version,
+            ),
             scoring_policy=DecisionScoringPolicy(
                 questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
             ),

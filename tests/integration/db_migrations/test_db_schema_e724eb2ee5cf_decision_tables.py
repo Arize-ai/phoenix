@@ -60,7 +60,9 @@ async def test_decision_tables_schema(
     other = await _run_async(_engine, lambda conn: _insert_decision(conn, "other"))
     other_version = await _run_async(_engine, lambda conn: _insert_version(conn, other))
 
-    await _run_async(_engine, lambda conn: _insert_tag(conn, "production", triage, triage_version))
+    production = await _run_async(
+        _engine, lambda conn: _insert_tag(conn, "production", triage, triage_version)
+    )
     # A tag name is unique within a decision, not across decisions.
     await _run_async(_engine, lambda conn: _insert_tag(conn, "production", other, other_version))
     with pytest.raises(Exception, match="(?i)unique"):
@@ -135,9 +137,9 @@ async def test_decision_tables_schema(
         ).scalar_one()
         conn.execute(
             text(
-                "INSERT INTO decision_evaluators (id, decision_version_id, scoring_policy) VALUES (:id, :version, '{}')"
+                "INSERT INTO decision_evaluators (id, decision_version_tag_id, scoring_policy) VALUES (:id, :tag, '{}')"
             ),
-            {"id": row_id, "version": triage_version},
+            {"id": row_id, "tag": production},
         )
         conn.commit()
         assert isinstance(row_id, int)
@@ -221,19 +223,21 @@ def _insert_version(conn: Connection, decision_id: int) -> int:
     return version_id
 
 
-def _insert_tag(conn: Connection, name: str, decision_id: int, version_id: int) -> None:
+def _insert_tag(conn: Connection, name: str, decision_id: int, version_id: int) -> int:
     try:
-        conn.execute(
+        tag_id = conn.execute(
             text(
                 "INSERT INTO decision_version_tags (name, decision_id, decision_version_id) "
-                "VALUES (:name, :decision_id, :version_id)"
+                "VALUES (:name, :decision_id, :version_id) RETURNING id"
             ),
             {"name": name, "decision_id": decision_id, "version_id": version_id},
-        )
+        ).scalar_one()
         conn.commit()
     except Exception:
         conn.rollback()
         raise
+    assert isinstance(tag_id, int)
+    return tag_id
 
 
 def _insert_labels_and_clone(conn: Connection, source_id: int, clone_id: int) -> None:

@@ -1,9 +1,11 @@
 """Saved decision evaluators, their owned version pins, and dataset previews."""
 
+import re
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -17,7 +19,13 @@ from phoenix.server.api.helpers.decision_clients import (
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
-from .test_saved_decision_mutations import CREATE_VERSION, create, version_input
+from .test_saved_decision_mutations import (
+    CREATE_VERSION,
+    DELETE_TAG,
+    SET_TAG,
+    create,
+    version_input,
+)
 
 CREATE_EVALUATOR = """
 mutation ($input: CreateDecisionEvaluatorInput!) {
@@ -74,6 +82,68 @@ async def test_saved_decision_evaluator_discovery_and_owned_tag(
     assert result.errors and "referenced by an evaluator" in result.errors[0].message
     # The message names the evaluator that blocks the delete.
     assert "(triage-judge)" in result.errors[0].message
+
+
+async def test_an_evaluator_runs_its_tag_and_tag_writes_cannot_break_it(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+
+    async def tags() -> list[dict[str, Any]]:
+        result = await gql_client.execute(
+            "query($id:ID!){node(id:$id){... on Decision{versionTags{id name decisionVersionId}}}}",
+            variables={"id": decision["id"]},
+        )
+        assert result.data and not result.errors, result.errors
+        tags: list[dict[str, Any]] = result.data["node"]["versionTags"]
+        return tags
+
+    async def running_version_id() -> str:
+        result = await gql_client.execute(
+            "query($id:ID!){node(id:$id){... on DecisionEvaluator{decisionVersion{id}}}}",
+            variables={"id": evaluator["id"]},
+        )
+        assert result.data and not result.errors, result.errors
+        version_id: str = result.data["node"]["decisionVersion"]["id"]
+        return version_id
+
+    async def save_version(**overrides: Any) -> str:
+        result = await gql_client.execute(
+            CREATE_VERSION,
+            variables={"input": {"decisionId": decision["id"], **overrides}},
+        )
+        assert result.data and not result.errors, result.errors
+        version_id: str = result.data["createDecisionVersion"]["version"]["id"]
+        return version_id
+
+    [tag] = await tags()
+    assert re.fullmatch(r"triage-judge-evaluator-[0-9a-f]{8}", tag["name"])
+    assert tag["decisionVersionId"] == decision["version"]["id"]
+
+    # Saving a version with the evaluator's tag promotes it.
+    promoted_id = await save_version(
+        version=version_input(modelName="tev2"), tags=[{"name": tag["name"]}]
+    )
+    assert await running_version_id() == promoted_id
+
+    breaking_id = await save_version(
+        version=version_input(
+            questions=[{"predicate": {"name": "renamed", "instructions": "New question?"}}]
+        )
+    )
+    result = await gql_client.execute(
+        SET_TAG, variables={"input": {"decisionVersionId": breaking_id, "name": tag["name"]}}
+    )
+    assert result.errors
+    assert "'triage-judge'" in result.errors[0].message
+    assert "would break it" in result.errors[0].message
+    assert await running_version_id() == promoted_id
+
+    result = await gql_client.execute(
+        DELETE_TAG, variables={"input": {"decisionVersionTagId": tag["id"]}}
+    )
+    assert result.errors and "cannot be deleted" in result.errors[0].message
+    assert await tags() == [{**tag, "decisionVersionId": promoted_id}]
 
 
 async def test_dataset_binding_and_mixed_refusal_preview(
@@ -258,6 +328,7 @@ async def test_detaching_last_binding_keeps_the_standalone_judge(
     assert result.data and not result.errors, result.errors
     async with db() as session:
         assert await session.get(models.Evaluator, judge_id) is None
+        assert not (await session.scalars(select(models.DecisionVersionTag))).all()
 
 
 async def bind(
