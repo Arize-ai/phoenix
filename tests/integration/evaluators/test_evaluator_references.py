@@ -2,13 +2,13 @@
 
 from typing import Any
 
-import httpx
+import httpx2
 
 from ._helpers import _binding_body, _code_definition, _create_dataset_evaluator
 
 
 def test_definition_survives_dataset_and_project_references(
-    client: httpx.Client, dataset_id: str, sandbox_id: str, project: dict[str, Any]
+    client: httpx2.Client, dataset_id: str, sandbox_id: str, project: dict[str, Any]
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     definition_route = f"v1/evaluators/{definition['id']}"
