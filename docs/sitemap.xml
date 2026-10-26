@@ -186,6 +186,11 @@
   </url>
 
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide</loc>
+    <lastmod>2026-10-07T00:00:00+00:00</lastmod>
+  </url>
+
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/cookbooks</loc>
     
   </url>
@@ -627,6 +632,16 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
     <lastmod>2025-12-12T01:23:03.604Z</lastmod>
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
+
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing</loc>
+
   </url>
 
   <url>

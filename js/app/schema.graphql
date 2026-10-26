@@ -915,7 +915,7 @@ input CreateDatasetLLMEvaluatorInput {
 
 input CreateDatasetLabelInput {
   name: String!
-  description: String
+  description: String = null
   color: String!
   datasetIds: [ID!]
 }

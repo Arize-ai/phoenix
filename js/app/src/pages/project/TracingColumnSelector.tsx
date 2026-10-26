@@ -1,4 +1,4 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
 import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
@@ -9,6 +9,7 @@ import {
   ColumnSelector,
   mergeColumnOrder,
 } from "@phoenix/components/table";
+import type { Column } from "@phoenix/components/table/tableFeatures";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { normalizeAnnotationColumnOrder } from "./tableUtils";
@@ -33,13 +34,12 @@ export interface AnnotationColumnKind {
   getColumnId: (name: string) => string;
 }
 
-export interface TracingColumnSelectorProps {
+export interface TracingColumnSelectorProps<TData extends RowData> {
   /**
    * All of the top-level columns of the table, including visible dynamic
    * annotation columns.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: Column<any>[];
+  columns: Column<TData>[];
   /** Columns that are always visible. They remain reorderable. */
   unHidableColumnIds: string[];
   annotationKinds: AnnotationColumnKind[];
@@ -47,7 +47,7 @@ export interface TracingColumnSelectorProps {
   columnLabels?: Record<string, string>;
 }
 
-function getColumnLabel(column: Column<unknown>): string {
+function getColumnLabel<TData extends RowData>(column: Column<TData>): string {
   const header = column.columnDef.header;
   return typeof header === "string" ? header : column.id;
 }
@@ -58,12 +58,12 @@ function getColumnLabel(column: Column<unknown>): string {
  * as one flat, reorderable list, and writes visibility back to the map that
  * owns each column.
  */
-export function TracingColumnSelector({
+export function TracingColumnSelector<TData extends RowData>({
   columns,
   unHidableColumnIds,
   annotationKinds,
   columnLabels = {},
-}: TracingColumnSelectorProps) {
+}: TracingColumnSelectorProps<TData>) {
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnVisibility = useTracingContext(
     (state) => state.setColumnVisibility

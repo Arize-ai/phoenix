@@ -9,6 +9,7 @@ import {
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
 
@@ -40,9 +41,10 @@ export function ProjectTimeRangeControls(props: {
   } = useStreamState();
   const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
-  // Parent routes see child params, so these are set while a drawer is open
-  const { traceId, sessionId } = useParams();
-  const isDetailOpen = traceId != null || sessionId != null;
+  // Parent routes see child params, so this is set while the session drawer
+  // is open; the trace and compare drawers are known from the selected traces
+  const { sessionId } = useParams();
+  const isDetailOpen = useSelectedTraceSlots().length > 0 || sessionId != null;
   const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
   const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
 

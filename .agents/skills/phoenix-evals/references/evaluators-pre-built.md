@@ -166,6 +166,7 @@ high_scores = results_df[scores > 0.9]  # Also sample
 ## Validation Required
 
 ```python
+# pip install scikit-learn  (not a Phoenix dependency)
 from sklearn.metrics import classification_report
 
 print(classification_report(human_labels, evaluator_results["label"]))

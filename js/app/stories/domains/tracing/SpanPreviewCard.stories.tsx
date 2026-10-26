@@ -136,8 +136,9 @@ const longContent = loadedCard({
 });
 
 /**
- * Six evals on one span, one of them scored twice, so the section's length
- * and its unfavorable-first order can be judged at a glance.
+ * Six evals on one span, one of them scored twice, with scores spread across
+ * each config's range so the section's length, its unfavorable-first order
+ * and its graded colors can be judged at a glance.
  */
 const manyEvals = loadedCard({
   id: "many-evals",
@@ -149,7 +150,26 @@ const manyEvals = loadedCard({
   costSummary: { total: { cost: 0.0126 } },
   metricsDetails: finalMetrics,
   annotations: [
-    ...(spanAnnotationsBySpanId["llm-final"] ?? []),
+    {
+      name: "hallucination",
+      label: "factual",
+      score: 0,
+    },
+    {
+      name: "faithfulness",
+      label: null,
+      score: 0.73,
+    },
+    {
+      name: "toxicity",
+      label: null,
+      score: 0.41,
+    },
+    {
+      name: "context_precision",
+      label: null,
+      score: 0.22,
+    },
     {
       name: "qa_correctness",
       label: "incorrect",

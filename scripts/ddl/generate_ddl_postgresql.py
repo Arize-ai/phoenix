@@ -46,7 +46,7 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Iterator
+from typing import Any, Generator
 
 import pglast
 import psycopg
@@ -1212,7 +1212,7 @@ def validate_schema_syntax(schema_file: Path) -> bool:
 
 
 @contextmanager
-def ephemeral_postgresql() -> Iterator[URL]:
+def ephemeral_postgresql() -> Generator[URL]:
     """Create an ephemeral PostgreSQL instance for DDL extraction.
 
     Creates a temporary PostgreSQL server that automatically cleans up when done.

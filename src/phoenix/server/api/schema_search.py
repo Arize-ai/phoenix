@@ -48,7 +48,6 @@ from graphql import (
 )
 from graphql.execution.values import get_argument_values
 from graphql.language import (
-    ArgumentNode,
     FieldNode,
     ListValueNode,
     NameNode,
@@ -59,7 +58,7 @@ from graphql.language import (
     print_ast,
 )
 from graphql.pyutils import Undefined, is_collection
-from graphql.utilities import ast_from_value, value_from_ast
+from graphql.utilities import ast_from_value, coerce_input_literal, value_to_literal
 
 __all__ = [
     "READ_ROOTS",
@@ -449,7 +448,7 @@ def _default(value_def: _ValueDef) -> str:
     delivers the current default, else a rendering by type that does. A default
     no literal delivers is marked rather than misspelled. Rendered once per
     argument or input field, since the checks are not cheap."""
-    if value_def.default_value is Undefined:
+    if value_def.default is None and value_def.default_value is Undefined:
         return ""
     key = (id(value_def), _BUILD_EPOCH[0])
     cached = _DEFAULTS.get(key)
@@ -463,23 +462,59 @@ def _default(value_def: _ValueDef) -> str:
 
 
 def _render_default(value_def: _ValueDef) -> str:
-    value = value_def.default_value
+    try:
+        value = _coerced_default(value_def)
+    except Exception:
+        return f" = {_UNPRINTABLE}"
     candidates: list[Optional[str]] = []
+    default_input = value_def.default
+    if default_input is not None and default_input.literal is not None:
+        candidates.append(print_ast(default_input.literal))
     ast = value_def.ast_node
     if ast is not None and ast.default_value is not None:
         candidates.append(print_ast(ast.default_value))
-    for by_name in (False, True):
-        for by_output in (False, True):
-            try:
-                candidates.append(
-                    _literal(value, value_def.type, enum_by_name=by_name, keys_by_output=by_output)
-                )
-            except Exception:
-                pass
+    values = [value]
+    if default_input is not None and default_input.value is not Undefined:
+        values.append(default_input.value)
+    for candidate in values:
+        for by_name in (False, True):
+            for by_output in (False, True):
+                try:
+                    candidates.append(
+                        _literal(
+                            candidate,
+                            value_def.type,
+                            enum_by_name=by_name,
+                            keys_by_output=by_output,
+                        )
+                    )
+                except Exception:
+                    pass
+    if default_input is not None and default_input.value is not Undefined:
+        try:
+            node = value_to_literal(default_input.value, value_def.type)
+            if node is not None:
+                candidates.append(print_ast(node))
+        except Exception:
+            pass
     for literal in candidates:
         if literal is not None and "\n" not in literal and _delivers(value_def, literal):
             return f" = {literal}"
     return f" = {_UNPRINTABLE}"
+
+
+def _coerced_default(value_def: _ValueDef) -> object:
+    """The default a resolver receives, through the execution coercion API."""
+    argument = (
+        value_def
+        if isinstance(value_def, GraphQLArgument)
+        else GraphQLArgument(
+            value_def.type, default_value=value_def.default_value, default=value_def.default
+        )
+    )
+    field = GraphQLField(GraphQLInt, args={"x": argument})
+    values = get_argument_values(field, FieldNode(name=NameNode(value="f"), arguments=()))
+    return next(iter(values.values()), Undefined)
 
 
 def _delivers(value_def: _ValueDef, literal: str) -> bool:
@@ -488,23 +523,12 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
     try:
         node = parse_const_value(literal)
         if (
-            value_from_ast(node, value_def.type) is Undefined
+            coerce_input_literal(node, value_def.type) is Undefined
             or not _names_known_fields(node, value_def.type)
             or _repeats_a_field(node)
         ):
             return False  # the literal is not valid input for the current type
-        if isinstance(value_def, GraphQLArgument):
-            field = GraphQLField(GraphQLInt, args={"x": value_def})
-            omitted = get_argument_values(
-                field, FieldNode(name=NameNode(value="f"), arguments=[]), {}
-            )
-            given = ArgumentNode(name=NameNode(value="x"), value=node)
-            supplied = get_argument_values(
-                field, FieldNode(name=NameNode(value="f"), arguments=[given]), {}
-            )
-            return _equivalent(*omitted.values(), *supplied.values())
-        # An omitted input field passes its default through uncoerced.
-        return _equivalent(value_from_ast(node, value_def.type), value_def.default_value)
+        return _equivalent(coerce_input_literal(node, value_def.type), _coerced_default(value_def))
     except Exception:
         return False
 
@@ -659,8 +683,8 @@ def _literal(
     """``value`` written as an input literal of ``type_``, or None when it cannot be.
 
     An enum value is written by serialization, or with ``enum_by_name`` taken as
-    a name already: graphql-core reads a default inside an input object as names
-    but a top-level default as values. A custom scalar's literal is what it
+    a name already: external defaults use enum names, while coerced defaults
+    use internal values. A custom scalar's literal is what it
     serializes to, accepted only when the scalar reads it back as the same value."""
     if isinstance(type_, GraphQLNonNull):
         type_ = type_.of_type
@@ -757,7 +781,9 @@ def _signature(name: str, field: _FieldLike) -> str:
     # The marker stands for the three cursor arguments exactly as the legend
     # spells them, so one with a default of its own is written out.
     collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS) and all(
-        args[a].default_value is Undefined and args[a].deprecation_reason is None
+        args[a].default is None
+        and args[a].default_value is Undefined
+        and args[a].deprecation_reason is None
         for a in ("last", "after", "before")
     )
     rendered: list[str] = []

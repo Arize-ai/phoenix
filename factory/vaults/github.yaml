@@ -1,0 +1,5 @@
+# The vault container only. Its one credential, a static bearer token for the factory's
+# machine account keyed by https://api.githubcopilot.com/mcp/, is added out of band -
+# see factory/README.md.
+type: vault
+display_name: factory-github

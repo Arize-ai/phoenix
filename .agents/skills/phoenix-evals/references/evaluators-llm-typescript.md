@@ -22,20 +22,26 @@ Answer (helpful/not_helpful):`,
 });
 ```
 
-## Decision-Only Models
+## Decision Models
 
-`model` also accepts an AI SDK evaluation model (e.g. TypeSafe's Jev), a cheaper, faster classifier for high-volume labeling:
+Any classification evaluator, including every built-in, also accepts an AI SDK decision model such as OpenAI's `gpt-6-luna` or TypeSafe's Jev. A decision model picks one of the labels directly instead of generating text, so it is a cheaper, faster judge for high-volume labeling. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later.
 
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
-import { typeSafeAi } from "@ai-sdk/typesafe-ai";
+import { openai } from "@ai-sdk/openai";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
-const hallucination = createHallucinationEvaluator({
-  model: typeSafeAi.evaluationModel("jev-latest"),
+const correctness = createCorrectnessEvaluator({
+  model: openai.decisionModel("gpt-6-luna"),
 });
+// { label: "incorrect", score: 0,
+//   metadata: { probabilities: { correct: 0.02, incorrect: 0.98 }, confidence: 0.96, modelId: "gpt-6-luna" } }
 ```
 
-Results have no `explanation`; `metadata` holds per-label `probabilities` and `modelId`. No spans are emitted.
+- **No explanation.** `explanation` is always undefined; `metadata.probabilities` maps each label to its probability, and `metadata.confidence` is set when the provider reports one.
+- **Plain-text prompt.** The template is rendered as usual, then sent as one plain-text state; message roles are dropped.
+- **Refusals throw.** A refusal throws the AI SDK's `Experimental_DecisionRefusalError`; in `runExperiment` it is recorded as that evaluation's error.
+- **String IDs are language models.** Wrap the ID with the provider's `decisionModel()`. `isDecisionModel(model)` and the `DecisionModel` type are exported for branching on this yourself.
+- **Not for calculations.** Decision models can't reason step by step; use a language model for judgments that need arithmetic or unit conversion.
 
 ## Template Variables
 

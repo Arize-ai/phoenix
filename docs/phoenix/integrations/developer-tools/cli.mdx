@@ -1,0 +1,115 @@
+---
+title: "Phoenix CLI"
+sidebarTitle: "CLI"
+description: Let any coding agent query your Phoenix traces, datasets, experiments, and prompts from the terminal.
+---
+
+`px` is the Phoenix CLI. Any coding agent with a terminal can use it to reach your traces, sessions, datasets, experiments, and prompts: you ask in plain language, the agent runs `px` underneath. The [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches it the commands.
+
+## CLI or MCP server?
+
+- **CLI**: your agent runs `px` commands in the terminal. You see each command and can run it yourself. Use it with agents that can run shell commands, such as Claude Code, Codex, and Cursor.
+- **MCP server**: your agent talks to Phoenix directly, with no commands to run. Use it with agents that have no terminal, such as Claude Desktop, or when you installed the Claude Code or Codex plugin, which sets it up for you.
+
+| | Phoenix CLI (`px`) | [MCP server](/docs/phoenix/integrations/mcp) |
+| --- | --- | --- |
+| Setup | Install, set `PHOENIX_ENDPOINT` | `px setup mcp --agent <agent>` |
+| Surface | The `px` commands | Every Phoenix REST operation, composed in one `execute` call |
+| Output | Tables, or `--format json` | Results filtered and joined server-side |
+
+## Install
+
+Install the Phoenix CLI globally:
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Point it at your Phoenix instance. Add `PHOENIX_API_KEY` if your instance has auth enabled.
+
+```bash
+export PHOENIX_ENDPOINT=http://localhost:6006
+```
+
+Verify the install and the connection:
+
+```bash
+px --help
+px project list
+```
+
+`project list` works before you have sent a single trace: every Phoenix has a project named `default`, created on first start, where traces land when no project name is set. A wrong endpoint fails with `Error fetching projects: fetch failed`.
+
+Once your app is sending traces to a named project, set `PHOENIX_PROJECT` to that name so commands do not need `--project`. Not sending traces yet? [Connect a project with px setup](#connect-a-project-with-px-setup) wires an app to Phoenix and waits for a real trace.
+
+## Connect a project with px setup
+
+`px setup` is the fastest way to add tracing to an app. Run it from the app's root directory while Phoenix is running. It saves the connection (endpoint, project, and key) to a gitignored `.env.phoenix` file, hands your coding agent the instrumentation task, and does not finish until a real trace arrives. It hands off to Claude Code, Codex, Cursor, and OpenCode.
+
+<CodeGroup>
+```bash npx
+npx -y @arizeai/phoenix-cli setup
+```
+
+```bash Installed
+px setup
+```
+</CodeGroup>
+
+`px setup` warns on a dirty git tree before it starts, so the agent's edits stay separate from your own work. When it finishes, open your project in Phoenix and check the **Traces** tab. If nothing arrived, see the [tracing FAQ](/docs/phoenix/tracing/concepts-tracing/faqs-tracing).
+
+### Re-run one step
+
+The connection questions only need answering once. On a project that is already registered, re-run just the slice you need:
+
+```bash
+px setup instrument   # Instrument and verify traces again
+px setup skills       # Install the coding-agent skills alone
+px setup mcp          # Register the Phoenix MCP server with a coding agent
+```
+
+### Run without prompts (CI or agents)
+
+```bash
+# Connection only. Writes .env.phoenix, no source changes.
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too. --agent is required when there is no terminal to choose one.
+px setup --no-input --instrument --agent claude --yolo --format raw
+```
+
+A run that instruments succeeds only if a trace arrived; the agent's own claim that it finished does not count. Exit code `6` means the wait ran out with no trace: the connection, `.env.phoenix`, and the agent's edits are in place, but tracing is unverified. In a pipeline, treat `6` as "configured but unverified" and re-run `px setup instrument`. Pass `--docs-mcp` or `--no-docs-mcp` so a non-interactive run never stalls on the docs MCP question. In `--format json|raw`, the `verification` field carries the same verdict. The [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#px-setup) lists every flag.
+
+### Use an unsupported agent
+
+If your agent is not one of the four, paste this prompt into it instead:
+
+```text
+Follow the instructions from https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md and ask me questions as needed.
+```
+
+## What your agent can do with it
+
+Common agent workflows with `px`:
+
+- investigate trace failures and performance regressions
+- inspect and compare experiment runs
+- list and fetch datasets for evaluation workflows
+- inspect and retrieve prompt versions and content
+- annotate spans and traces with what it found, so the finding stays with the data
+
+Example prompt:
+
+```text
+Debug my agent's tool-call failures. Use Phoenix CLI to inspect traces, recent experiments, and relevant prompts, then summarize root causes.
+```
+
+Annotations, notes, and annotation configs are the only things `px` writes to Phoenix. It does not create datasets, edit prompts, or run experiments; do that with the SDK, as in [Evaluate](/docs/phoenix/get-started/get-started-evaluations), or from the UI. The fix itself goes in your code.
+
+## Learn more
+
+- [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) installs the CLI alongside the MCP server and skills for your agent.
+- `px --help` lists every command, and `px <command> --help` its flags. The [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) has them all.
+- [Skills](/docs/phoenix/integrations/developer-tools/skills) teach an agent how to use these commands.
+- [MCP Server](/docs/phoenix/integrations/mcp) is the alternative for clients that cannot run a shell.
+- [PXI](/docs/phoenix/pxi) is the same idea inside Phoenix itself, with no terminal.

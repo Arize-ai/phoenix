@@ -21,8 +21,8 @@
 | Name | In | Type | Required | Description |
 |------|-----|------|----------|-------------|
 | `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
-| `page` | query | number | No | Page number of the results |
-| `limit` | query | number | No | Number of results per page |
+| `page` | query | integer | No | Page number of the results |
+| `limit` | query | integer | No | Number of results per page |
 | `name` | query | string | No | Filter by partial name match |
 | `sourceSandboxId` | query | string | No | Filter by the ID of the sandbox the snapshot was created from |
 | `sort` | query | string | No | Field to sort by |

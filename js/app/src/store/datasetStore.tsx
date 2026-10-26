@@ -52,6 +52,11 @@ export interface DatasetStoreProps {
    * Whether the metric charts above the experiments table are shown
    */
   areExperimentsMetricChartsVisible: boolean;
+  /**
+   * Whether the experiments table shows each experiment's deltas against the
+   * dataset's baseline experiment
+   */
+  areExperimentsDeltasVisible: boolean;
 }
 
 export type InitialDatasetStoreProps = Pick<
@@ -82,6 +87,10 @@ export interface DatasetStoreState extends DatasetStoreProps {
    * Show or hide the metric charts above the experiments table
    */
   setAreExperimentsMetricChartsVisible: (isVisible: boolean) => void;
+  /**
+   * Show or hide the experiments table's deltas against the baseline
+   */
+  setAreExperimentsDeltasVisible: (isVisible: boolean) => void;
 }
 
 const makeDatasetStoreKey = (datasetId: string) =>
@@ -146,6 +155,12 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
               type: "setAreExperimentsMetricChartsVisible",
             });
           },
+          areExperimentsDeltasVisible: true,
+          setAreExperimentsDeltasVisible: (isVisible: boolean) => {
+            set({ areExperimentsDeltasVisible: isVisible }, false, {
+              type: "setAreExperimentsDeltasVisible",
+            });
+          },
         }),
         {
           name: "datasetStore",
@@ -153,12 +168,13 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
       ),
       {
         name: makeDatasetStoreKey(initialProps.datasetId),
-        // Only the chart preferences persist; the rest of the store (latest
+        // Only the view preferences persist; the rest of the store (latest
         // version, refresh state) must stay fresh per load
         partialize: (state) => ({
           experimentsMetricChartKeys: state.experimentsMetricChartKeys,
           areExperimentsMetricChartsVisible:
             state.areExperimentsMetricChartsVisible,
+          areExperimentsDeltasVisible: state.areExperimentsDeltasVisible,
         }),
         merge: (persistedState, currentState) => {
           const merged = {
@@ -171,6 +187,8 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
           );
           merged.areExperimentsMetricChartsVisible =
             merged.areExperimentsMetricChartsVisible !== false;
+          merged.areExperimentsDeltasVisible =
+            merged.areExperimentsDeltasVisible !== false;
           return merged;
         },
       }

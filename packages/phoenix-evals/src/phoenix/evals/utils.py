@@ -10,8 +10,8 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
-from jsonpath_ng import parse  # type: ignore
-from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
+from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.parser import JsonPathParser
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
@@ -287,7 +287,7 @@ def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = 
         JsonPathParserError: If the path is not parseable (invalid syntax).
         ValueError: If the path is invalid or not found (missing key, index out of bounds, etc).
     """
-    expr = parse(path)
+    expr = JsonPathParser().parse(path)
     matches = expr.find(data)
     if not matches:
         raise ValueError(f"Path not found: {path}")

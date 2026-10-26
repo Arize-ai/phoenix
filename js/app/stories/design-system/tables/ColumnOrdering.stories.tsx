@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useState } from "react";
 
 import { Checkbox, Flex, Text, View } from "@phoenix/components";
@@ -20,6 +15,8 @@ import {
   useColumnOrder,
 } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 type Person = {
   id: string;
@@ -122,7 +119,6 @@ function ReorderableTable({
   columns: ColumnDef<Person>[];
   withSelector?: boolean;
 }) {
-  "use no memo";
   const [columnOrder, setColumnOrder] = useState<string[]>(() =>
     getTopLevelColumnIds(columns)
   );
@@ -142,15 +138,14 @@ function ReorderableTable({
     columnVisibility,
   });
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<Person>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: mockPeople,
     state: {
       columnOrder: leafColumnOrder,
       columnVisibility,
     },
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const selectorColumns = columnOrder.flatMap((id) => {

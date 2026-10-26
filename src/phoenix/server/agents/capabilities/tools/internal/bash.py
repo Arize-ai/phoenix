@@ -60,10 +60,15 @@ should not be assumed to work.
 - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or \
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
+- awk's postfix increment on an array element returns the new value, so the \
+`!seen[$1]++` dedupe idiom prints nothing; use `sort -u`, jq's `unique_by` / \
+`group_by`, or `!($1 in seen) {seen[$1]=1; print}`.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
 `phoenix-gql schema --search <text>` finds the types and fields to query and \
 `--names <A,B>` prints named ones in full; run `phoenix-gql --help` for usage \
-and current permissions.
+and current permissions. Pass filter strings such as `name == 'X'` through \
+a `--vars-file` written with a quoted heredoc rather than inlining them, so their \
+quotes never nest inside shell quotes.
 - Dataset reads go through here. `Query.datasets(filter: {col: name, value: "..."}, \
 first, after)` lists datasets (names are unique — check before a `ui.dataset.create`). \
 `node(id: <datasetId>) { ... on Dataset { examples(first, after) { edges { node { id \
@@ -178,6 +183,10 @@ Examples:
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
+  cat > vars.json <<'EOF'
+  {"f": "name == 'X' and status_code == 'ERROR'"}
+  EOF
+  phoenix-gql 'query($f: String!) { node(id: "UHJvamVjdDox") { ... on Project { recordCount(filterCondition: $f) } } }' --vars-file vars.json
 """
 )
 

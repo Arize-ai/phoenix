@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from inspect import Signature, signature
@@ -26,6 +26,8 @@ from pydantic_ai.messages import (
     DocumentUrl,
     FilePart,
     ImageUrl,
+    InstructionBaselinePart,
+    InstructionDeltaPart,
     ModelMessage,
     ModelRequest,
     ModelRequestPart,
@@ -33,6 +35,7 @@ from pydantic_ai.messages import (
     ModelResponsePart,
     NativeToolCallPart,
     NativeToolReturnPart,
+    RetryFeedbackPart,
     RetryPromptPart,
     SpeechPart,
     SystemPromptPart,
@@ -183,7 +186,7 @@ def _get_message_io_attributes(
     *,
     message: ModelMessage,
     role: Literal["input", "output"],
-) -> dict[str, AttributeValue]:
+) -> Mapping[str, AttributeValue]:
     value, mime_type = _get_message_io_value(message)
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)
@@ -246,7 +249,10 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             UserPromptPart,
             ToolReturnPart,
             RetryPromptPart,
+            RetryFeedbackPart,
             ToolAvailabilityDeltaPart,
+            InstructionDeltaPart,
+            InstructionBaselinePart,
         ),
     ):
         return _get_text_content_from_model_request_part(part)
@@ -282,7 +288,18 @@ def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | N
                 return None
             texts.append(text)
         return "\n".join(texts)
-    if isinstance(part, (ToolReturnPart, RetryPromptPart, ToolAvailabilityDeltaPart, SpeechPart)):
+    if isinstance(
+        part,
+        (
+            ToolReturnPart,
+            RetryPromptPart,
+            RetryFeedbackPart,
+            ToolAvailabilityDeltaPart,
+            InstructionDeltaPart,
+            InstructionBaselinePart,
+            SpeechPart,
+        ),
+    ):
         return None
     assert_never(part)
 

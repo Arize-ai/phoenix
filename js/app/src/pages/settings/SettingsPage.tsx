@@ -5,15 +5,7 @@ import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useMatch, useNavigate } from "react-router";
 
-import {
-  Icon,
-  Icons,
-  Loading,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "@phoenix/components";
+import { Icon, Icons, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import { PxiGlyphOutline } from "@phoenix/components/agent";
 import { McpSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
@@ -22,6 +14,8 @@ import {
   useViewerCanManageSecrets,
 } from "@phoenix/contexts";
 import { useMediaQuery } from "@phoenix/hooks";
+
+import { SettingsCardSkeleton } from "./SettingsCardSkeleton";
 
 /**
  * Below this width the vertical tab rail would squeeze the settings content
@@ -143,7 +137,7 @@ export function SettingsPage() {
         <Collection items={tabs}>
           {(item) => (
             <TabPanel id={item.id} css={settingsTabPanelCSS}>
-              <Suspense fallback={<Loading />}>
+              <Suspense fallback={<SettingsCardSkeleton />}>
                 <Outlet />
               </Suspense>
             </TabPanel>

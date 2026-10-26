@@ -124,4 +124,4 @@ client.traces.add_trace_annotation(
 
 ## API Reference
 
-- [Python Client API](https://arize-phoenix.readthedocs.io/projects/client/en/latest/)
+- [Python Client API](https://arize-phoenix.readthedocs.io/projects/client/)

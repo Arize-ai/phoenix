@@ -1,5 +1,7 @@
 """OAuth2 relying party: Phoenix logs users in via an external IdP."""
 
+import html
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -23,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.datastructures import URL, URLPath
-from starlette.responses import RedirectResponse
+from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Router
 from typing_extensions import Annotated, NotRequired, TypeGuard
 
@@ -140,6 +142,53 @@ async def login(
     return response
 
 
+_SERVER_OWNED_PATH_PREFIXES = ("/oauth2/authorize",)
+
+
+def _is_server_owned_path(path: Optional[str]) -> bool:
+    if not path:
+        return False
+    return any(
+        path == prefix or path.startswith((f"{prefix}?", f"{prefix}/"))
+        for prefix in _SERVER_OWNED_PATH_PREFIXES
+    )
+
+
+def _create_redirect_response(request: Request, return_url: Optional[str]) -> Response:
+    path_part, sep, query = (return_url or "/").partition("?")
+    redirect_path = f"{prepend_root_path(request.scope, path_part)}{sep}{query}"
+    if _is_server_owned_path(return_url):
+        # A 302 from the cross-site IdP callback keeps the redirect chain cross-site,
+        # withholding SameSite=Strict cookies; commit a same-origin document first.
+        escaped_url = html.escape(redirect_path)
+        js_url = json.dumps(redirect_path).replace("<", "\\u003c").replace(">", "\\u003e")
+        content = (
+            "<!doctype html>"
+            "<html>"
+            "<head>"
+            '<meta charset="utf-8">'
+            "<title>Redirecting...</title>"
+            # Matches the default theme background in templates/index.html so the
+            # interstitial doesn't flash white before the next page paints.
+            "<style>html{background:#0e0e0e;color-scheme:dark}</style>"
+            f"<script>window.location.replace({js_url});</script>"
+            "</head>"
+            "<body>"
+            f'<noscript><a href="{escaped_url}">Continue</a></noscript>'
+            "</body>"
+            "</html>"
+        )
+        return HTMLResponse(
+            content=content,
+            status_code=200,
+            headers={"Cache-Control": "no-store"},
+        )
+    return RedirectResponse(
+        url=redirect_path,
+        status_code=302,
+    )
+
+
 @router.get("/{idp_name}/tokens", dependencies=create_tokens_dependencies)
 async def create_tokens(
     request: Request,
@@ -153,7 +202,7 @@ async def create_tokens(
     code_verifier: Optional[str] = Cookie(
         default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
     ),  # RFC 7636 §4.1
-) -> RedirectResponse:
+) -> Response:
     # Security Note: Query parameters should be treated as untrusted user input. Never display
     # these values directly to users as they could be manipulated for XSS, phishing, or social
     # engineering attacks.
@@ -270,11 +319,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    redirect_path = prepend_root_path(request.scope, return_url or "/")
-    response = RedirectResponse(
-        url=redirect_path,
-        status_code=302,
-    )
+    response = _create_redirect_response(request, return_url)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )

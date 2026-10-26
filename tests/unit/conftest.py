@@ -55,6 +55,7 @@ from phoenix.db.engines import (
 from phoenix.db.engines import (
     aio_postgresql_engine,
     aio_sqlite_engine,
+    configure_sqlite_transactions,
     set_sqlite_pragma,
 )
 from phoenix.db.facilitator import Facilitator
@@ -422,6 +423,7 @@ def _memoized_fastapi_type_adapters(
 # construction, so it is not a function of its arguments alone.
 _ROUTER_BUILDER_NAMES = (
     "create_v1_router",
+    "create_client_errors_router",
     "create_agents_router",
     "create_legacy_agents_router",
 )
@@ -802,6 +804,7 @@ def _named_memory_sqlite_engine(uri: str) -> AsyncEngine:
         json_serializer=_json_serializer,
     )
     sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
     return engine
 
 

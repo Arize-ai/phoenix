@@ -437,6 +437,32 @@ class TestBasicFlow:
         # Should redirect to a safe default (e.g., root path)
         assert redirect_location.startswith("/"), "Redirect should be to a relative path"
 
+    async def test_server_owned_return_url_serves_html_navigation_with_cookies(
+        self,
+        _oidc_server: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that server-owned returnUrl returns a 200 HTML navigation with session cookies."""
+        return_url = "/oauth2/authorize?client_id=mcp-gateway&state=xyz"
+        client = _httpx_client(_app)
+        login_res = client.post(
+            f"oauth2/{_oidc_server}/login",
+            params={"returnUrl": return_url},
+        )
+        assert login_res.status_code == 302
+        callback_url = await _get_callback_url(_app, login_res.headers["location"])
+        assert _oidc_server.user_email is not None
+        email = sanitize_email(_oidc_server.user_email)
+
+        response = _httpx_client(_app, cookies=dict(login_res.cookies)).get(callback_url)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        assert response.cookies.get("phoenix-access-token") is not None
+        assert response.cookies.get("phoenix-refresh-token") is not None
+        _verify_sensitive_cookies_cleaned(response.headers.get_list("set-cookie"))
+        assert f'window.location.replace("{return_url}");' in response.text
+        await _verify_user_exists_with_role(_app, email, UserRoleInput.VIEWER, cleanup=True)
+
     async def test_unknown_idp_is_rejected(self, _app: _AppInfo) -> None:
         """Test that unknown IDP names are rejected."""
         client = _httpx_client(_app)

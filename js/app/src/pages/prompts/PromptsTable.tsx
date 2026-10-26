@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
   useCallback,
@@ -14,7 +9,7 @@ import {
   useRef,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useResolvedPath } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -41,6 +36,8 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useViewerCanModify } from "@phoenix/contexts";
@@ -63,7 +60,7 @@ const PROMPTS_POLL_INTERVAL_MS = 60_000;
 const defaultColumnSettings = {
   minSize: 120,
   size: 200,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const promptsTableCSS = css`
   th,
@@ -90,7 +87,6 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  "use no memo";
   const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
     usePromptsFilterContext();
   const columnVisibility = usePromptsTableContext(
@@ -108,6 +104,7 @@ export function PromptsTable(props: PromptsTableProps) {
     (state) => state.setColumnOrder
   );
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
 
   const toggleLabelFilter = useCallback(
     (labelId: string) => {
@@ -254,7 +251,7 @@ export function PromptsTable(props: PromptsTableProps) {
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
             >
-              <Link to={`${row.original.id}`}>
+              <Link to={`${basePath}/${row.original.id}`}>
                 <Truncate maxWidth="100%">{row.original.name}</Truncate>
               </Link>
             </CellWithControlsWrap>
@@ -318,7 +315,7 @@ export function PromptsTable(props: PromptsTableProps) {
         },
         cell: ({ row }) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/versions`}>
+            <Link to={`${basePath}/${row.original.id}/versions`}>
               {row.original.versionCount}
             </Link>
           </StopPropagation>
@@ -336,7 +333,7 @@ export function PromptsTable(props: PromptsTableProps) {
               }
             >
               <Link
-                to={`${row.original.id}/versions/${row.original.latestVersionId}`}
+                to={`${basePath}/${row.original.id}/versions/${row.original.latestVersionId}`}
               >
                 <Truncate maxWidth={200} title={row.original.latestVersionId}>
                   {row.original.latestVersionId}
@@ -356,7 +353,7 @@ export function PromptsTable(props: PromptsTableProps) {
               {row.original.versionTags.map((tag) => (
                 <li key={tag.id}>
                   <Link
-                    to={`${row.original.id}/versions/${tag.promptVersionId}`}
+                    to={`${basePath}/${row.original.id}/versions/${tag.promptVersionId}`}
                   >
                     <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
                   </Link>
@@ -421,7 +418,7 @@ export function PromptsTable(props: PromptsTableProps) {
       });
     }
     return cols;
-  }, [refetch, queryArgs, canModify, toggleLabelFilter]);
+  }, [basePath, refetch, queryArgs, canModify, toggleLabelFilter]);
 
   const {
     leafColumnOrder,
@@ -436,8 +433,8 @@ export function PromptsTable(props: PromptsTableProps) {
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -445,15 +442,14 @@ export function PromptsTable(props: PromptsTableProps) {
       columnVisibility,
       columnOrder: leafColumnOrder,
       columnPinning: {
-        right: [ACTIONS_COLUMN_ID],
+        start: [],
+        end: [ACTIONS_COLUMN_ID],
       },
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     // Key rows by prompt ID rather than by index. Row cells host overlays
     // (the action menu and its label submenu) that are bound to
     // `row.original.id`; with index-based keys a refetch that re-orders the
@@ -462,22 +458,13 @@ export function PromptsTable(props: PromptsTableProps) {
     getRowId: (row) => row.id,
   });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const columnSizeVars = useMemo(() => {
-    const headers = getFlatHeaders();
-    const columnSizes: Record<string, number> = {};
-    for (const header of headers) {
-      columnSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      columnSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return columnSizes;
-    // Disabled lint as per TanStack's performant column resizing example.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  const columnSizeVars: Record<string, number> = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -595,7 +582,7 @@ export function PromptsTable(props: PromptsTableProps) {
                     <tr
                       key={row.id}
                       onClick={() => {
-                        navigate(`${row.original.id}`);
+                        navigate(`${basePath}/${row.original.id}`);
                       }}
                     >
                       {row.getVisibleCells().map((cell) => (

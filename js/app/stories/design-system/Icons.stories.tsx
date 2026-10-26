@@ -274,7 +274,7 @@ const THUMBNAIL_ICONS: (keyof typeof Icons)[] = [
   "Key",
   "Grid",
   "Trace",
-  "Workflow",
+  "Span",
   "Funnel",
   "Book",
   "FileText",

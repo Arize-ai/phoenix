@@ -1,0 +1,153 @@
+---
+title: "Atomic Agents Tracing"
+description: "Trace Atomic Agents in Phoenix: an AGENT span per agent run, a TOOL span per tool call and an LLM span per model attempt, all through the framework's own OpenTelemetry instrumentor."
+---
+
+[Atomic Agents](https://github.com/eigenwise/atomic-agents) is a lightweight, modular Python framework for building agentic AI applications from small, single-purpose components. Every agent is a typed function: a Pydantic input schema in, a Pydantic output schema out, with the LLM call handled by [Instructor](https://python.useinstructor.com/).
+
+Atomic Agents ships its own OpenTelemetry instrumentor. From version 2.15.0 it emits OpenTelemetry GenAI semantic-convention spans (`invoke_agent`, `execute_tool`, `chat`) and adds the OpenInference span kinds and attributes automatically when the `phoenix` extra is installed, so Phoenix shows `AGENT`, `TOOL` and `LLM` spans with no provider instrumentor required.
+
+## Install
+
+```bash
+pip install "atomic-agents[phoenix]" arize-phoenix-otel sympy
+```
+
+The `phoenix` extra pulls in `openinference-instrumentation` and `openinference-semantic-conventions` next to `opentelemetry-api`.
+
+Atomic Agents emits one `LLM` span per Instructor attempt with the model, token usage, retry count and validation errors. If you prefer the provider instrumentor's LLM spans instead (they include the full message lists), install it and turn ours off:
+
+```bash
+pip install openinference-instrumentation-openai
+export ATOMIC_AGENTS_TRACE_LLM_SPANS=false
+```
+
+Run only one of the two, or every model call shows up twice.
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT=[your_phoenix_project_name]
+```
+
+Register Phoenix with auto-instrumentation. The Atomic Agents instrumentor is discovered through the `openinference_instrumentor` entry point, so no extra code is needed:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="atomic-agents-app",
+    auto_instrument=True,
+)
+```
+
+<Info>
+  To activate the instrumentor by hand (for example with your own `TracerProvider`), use `AtomicAgentsInstrumentor().instrument(tracer_provider=tracer_provider, config=TracingConfig(...))` from `atomic_agents.observability`. `TracingConfig` controls input and output hiding, the attribute size cap and whether LLM spans are emitted; an OpenInference `TraceConfig` is accepted as well.
+</Info>
+
+## Run Atomic Agents
+
+Atomic Agents has no built-in tool-calling loop: your code calls an agent, then a tool, then another agent. Each call is a root span on its own, so wrap a unit of work in a parent span to see one trace per turn:
+
+```python expandable
+import instructor
+import openai
+from pydantic import Field
+from sympy import sympify
+
+from atomic_agents import (
+    AgentConfig,
+    AtomicAgent,
+    BaseIOSchema,
+    BaseTool,
+    BaseToolConfig,
+    BasicChatInputSchema,
+    BasicChatOutputSchema,
+)
+
+tracer = tracer_provider.get_tracer(__name__)
+client = instructor.from_openai(openai.OpenAI())
+
+
+class CalculationPlanSchema(BaseIOSchema):
+    """An arithmetic expression that answers the user's question."""
+
+    expression: str = Field(..., description="A Python arithmetic expression, for example '12 * 7 + 3'.")
+
+
+class CalculatorInputSchema(BaseIOSchema):
+    """Expression to evaluate."""
+
+    expression: str = Field(...)
+
+
+class CalculatorOutputSchema(BaseIOSchema):
+    """Result of the evaluation."""
+
+    result: str = Field(...)
+
+
+class CalculatorTool(BaseTool[CalculatorInputSchema, CalculatorOutputSchema]):
+    def run(self, params: CalculatorInputSchema) -> CalculatorOutputSchema:
+        return CalculatorOutputSchema(result=str(sympify(params.expression)))
+
+
+class CalculationResultSchema(BaseIOSchema):
+    """The question together with the evaluated expression."""
+
+    question: str = Field(...)
+    expression: str = Field(...)
+    result: str = Field(...)
+
+
+planner = AtomicAgent[BasicChatInputSchema, CalculationPlanSchema](
+    AgentConfig(client=client, model="gpt-5-mini", name="planner")
+)
+answerer = AtomicAgent[CalculationResultSchema, BasicChatOutputSchema](
+    AgentConfig(client=client, model="gpt-5-mini", name="answerer")
+)
+calculator = CalculatorTool(BaseToolConfig(title="calculator"))
+
+question = "If 3 friends split a 47 euro bill and add a 15 percent tip, how much does each pay?"
+
+with tracer.start_as_current_span("answer_question", openinference_span_kind="chain") as turn:
+    turn.set_input(question)
+    plan = planner.run(BasicChatInputSchema(chat_message=question))
+    calculation = calculator.run(CalculatorInputSchema(expression=plan.expression))
+    answer = answerer.run(
+        CalculationResultSchema(question=question, expression=plan.expression, result=calculation.result)
+    )
+    turn.set_output(answer.chat_message)
+
+print(answer.chat_message)
+```
+
+## Observe
+
+The trace in Phoenix looks like this:
+
+```
+CHAIN  answer_question
+├── AGENT  invoke_agent planner
+│   └── LLM  chat gpt-5-mini
+├── TOOL   execute_tool calculator
+└── AGENT  invoke_agent answerer
+    └── LLM  chat gpt-5-mini
+```
+
+Agent spans carry `gen_ai.agent.name` (the `AgentConfig.name`, or the class when unset), `gen_ai.request.model`, `gen_ai.provider.name`, the input and output as JSON, token usage totals, the number of LLM attempts and `atomic_agents.*` attributes for the Instructor mode, the schema names, the history size entering the turn, the registered context providers and a hash of the static system prompt sections. Tool spans carry `gen_ai.tool.name`, `gen_ai.tool.description`, the input JSON schema and the tool's input and output. LLM spans carry the request and response model, per-attempt usage (including cached and reasoning tokens) and a `validation_error` event when Instructor retries. Streaming runs (`run_stream`, `run_async_stream`) record the final response, or the last partial plus `atomic_agents.stream.closed_early` when the consumer stops early.
+
+Wrap calls in `using_session`, `using_user` or `using_metadata` from `openinference.instrumentation` to group spans by conversation or user; `using_session` also sets `gen_ai.conversation.id`. To redact agent, tool and LLM payloads, set `ATOMIC_AGENTS_TRACE_HIDE_INPUTS=true` and `ATOMIC_AGENTS_TRACE_HIDE_OUTPUTS=true` (`OPENINFERENCE_HIDE_INPUTS` and `OPENINFERENCE_HIDE_OUTPUTS` still work).
+
+## Resources
+
+* [Atomic Agents observability guide](https://eigenwise.github.io/atomic-agents/guides/observability.html)
+
+* [Phoenix tracing example in the Atomic Agents repository](https://github.com/eigenwise/atomic-agents/tree/main/atomic-examples/phoenix-tracing)
+
+* [Atomic Agents on GitHub](https://github.com/eigenwise/atomic-agents)

@@ -93,7 +93,9 @@ const image = Image.debianSlim('3.12')
 #### fromDockerfile()
 
 ```ts
-static fromDockerfile(path: string): Image;
+static fromDockerfile(path: string, options?: {
+  strictContext?: boolean;
+}): Image;
 ```
 
 Creates an Image from an existing Dockerfile.
@@ -101,6 +103,7 @@ Creates an Image from an existing Dockerfile.
 **Parameters**:
 
 - `path` _string_ - The path to the Dockerfile.
+- `options?` _###### strictContext?_ - `boolean`
 
 
 **Returns**:
@@ -193,7 +196,13 @@ const image = Image
 #### dockerfileCommands()
 
 ```ts
-dockerfileCommands(dockerfileCommands: string[], contextDir?: string): Image;
+dockerfileCommands(
+   dockerfileCommands: string[],
+   contextDir?: string,
+   options?: {
+  strictContext?: boolean;
+}
+): Image;
 ```
 
 Extends an image with arbitrary Dockerfile-like commands.
@@ -202,6 +211,7 @@ Extends an image with arbitrary Dockerfile-like commands.
 
 - `dockerfileCommands` _string\[\]_ - The commands to add to the Dockerfile.
 - `contextDir?` _string_ - The path to the context directory.
+- `options?` _###### strictContext?_ - `boolean`
 
 
 **Returns**:

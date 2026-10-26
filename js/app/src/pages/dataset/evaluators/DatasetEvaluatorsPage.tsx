@@ -6,13 +6,13 @@ import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 import z from "zod";
 
-import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorsLoaderQuery.graphql";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
@@ -28,7 +28,7 @@ import { DatasetEvaluatorsFilterProvider } from "@phoenix/pages/evaluators/Datas
 export function DatasetEvaluatorsPage() {
   return (
     <DatasetEvaluatorsFilterProvider>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
         <DatasetEvaluatorsPageContent />
       </Suspense>
     </DatasetEvaluatorsFilterProvider>
@@ -150,7 +150,7 @@ export function DatasetEvaluatorsPageContent() {
             min-height: 0;
           `}
         >
-          <Suspense fallback={<Loading />}>
+          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <DatasetEvaluatorsTable
               {...evaluatorsTableProps}
               builtInEvaluators={builtInEvaluators}

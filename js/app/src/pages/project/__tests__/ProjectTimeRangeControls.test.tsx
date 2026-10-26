@@ -85,9 +85,11 @@ function renderProjectRoute(path: string) {
             }
           >
             <Route path="traces" element={null}>
+              <Route path="compare" element={null} />
               <Route path=":traceId" element={null} />
             </Route>
             <Route path="spans" element={null}>
+              <Route path="compare" element={null} />
               <Route path=":traceId" element={null} />
             </Route>
             <Route path="sessions" element={null}>
@@ -131,6 +133,8 @@ describe("ProjectTimeRangeControls", () => {
     "/projects/p/traces/t1",
     "/projects/p/spans/t1",
     "/projects/p/sessions/s1",
+    "/projects/p/traces/compare?traceId=t1&traceId=t2",
+    "/projects/p/spans/compare?traceId=t1&traceId=t2&selectedSpanNodeId=s1",
   ])("pauses streaming and disables the toggle while %s is open", (path) => {
     renderProjectRoute(path);
     act(() => {

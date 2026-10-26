@@ -19,7 +19,7 @@ class EvaluationSummary:
 
     @strawberry.field
     def count(self) -> int:
-        return cast(int, self.df.record_count.sum())
+        return int(self.df.record_count.sum())
 
     @strawberry.field
     def labels(self) -> list[str]:
@@ -48,8 +48,8 @@ class EvaluationSummary:
 
     @strawberry.field
     def score_count(self) -> int:
-        return cast(int, self.df.score_count.sum())
+        return int(self.df.score_count.sum())
 
     @strawberry.field
     def label_count(self) -> int:
-        return cast(int, self.df.label_count.sum())
+        return int(self.df.label_count.sum())
