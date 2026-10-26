@@ -18,7 +18,11 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
+import { getPlaygroundInstancesWithDecisionPrompts } from "@phoenix/store/playground/selectors";
+import type {
+  DecisionPromptDraft,
+  PlaygroundNormalizedInstance,
+} from "@phoenix/store/playground/types";
 
 import {
   getDecisionDatasetBlockedReason,
@@ -38,10 +42,9 @@ function getInstanceLabel(index: number): string {
 
 /** The first reason a decision instance cannot run, or null when all can. */
 function getInvalidDecisionReason(
-  instances: readonly Pick<
-    PlaygroundNormalizedInstance,
-    "model" | "decisionRequest" | "task"
-  >[]
+  instances: readonly (Pick<PlaygroundNormalizedInstance, "model" | "task"> & {
+    decisionPrompt: DecisionPromptDraft | null | undefined;
+  })[]
 ): string | null {
   for (const [index, instance] of instances.entries()) {
     if (!isDecisionInstance(instance)) continue;
@@ -49,9 +52,9 @@ function getInvalidDecisionReason(
     if (!instance.model.modelName?.trim()) {
       return `Instance ${label}: pick a decision model.`;
     }
-    const problem = instance.decisionRequest
-      ? getDecisionValidationError(instance.decisionRequest)
-      : "no decision request";
+    const problem = instance.decisionPrompt
+      ? getDecisionValidationError(instance.decisionPrompt)
+      : "no decision prompt";
     if (problem) return `Instance ${label}: ${problem}`;
   }
   return null;
@@ -69,19 +72,22 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-  const isDatasetMode = usePlaygroundContext(
-    (state) => state.datasetId != null
-  );
-  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  // An invalid decision request is refused with its first problem as the
+  // An invalid decision prompt is refused with its first problem as the
   // reason, since the error may sit in a collapsed card. Over a dataset, a
   // decision the examples can't fill is refused the same way.
-  const invalidDecisionReason = getInvalidDecisionReason(instances);
-  const blockedReason =
-    invalidDecisionReason ??
-    (isDatasetMode
-      ? getDecisionDatasetBlockedReason({ instances, templateFormat })
-      : null);
+  const blockedReason = usePlaygroundContext((state) => {
+    const instancesWithDecisionPrompts =
+      getPlaygroundInstancesWithDecisionPrompts(state);
+    return (
+      getInvalidDecisionReason(instancesWithDecisionPrompts) ??
+      (state.datasetId != null
+        ? getDecisionDatasetBlockedReason({
+            instances: instancesWithDecisionPrompts,
+            templateFormat: state.templateFormat,
+          })
+        : null)
+    );
+  });
 
   const isJudgingRole = usePlaygroundContext(
     (state) => getPlaygroundMode(state.instances) === "evaluator"

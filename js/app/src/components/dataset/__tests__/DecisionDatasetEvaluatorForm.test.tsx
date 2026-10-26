@@ -69,8 +69,8 @@ vi.mock("@phoenix/components/evaluators/EvaluatorInputMapping", () => ({
     );
   },
 }));
-vi.mock("@phoenix/pages/playground/DecisionRequestEditor", () => ({
-  DecisionRequestEditor: () => {
+vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
+  DecisionPromptEditor: () => {
     const store = usePlaygroundStore();
     return (
       <button
@@ -85,19 +85,22 @@ vi.mock("@phoenix/pages/playground/DecisionRequestEditor", () => ({
                 provider: "TYPESAFE",
                 modelType: "DECISION",
               },
-              decisionRequest: {
-                state: "answer",
-                stateEditorMode: "inputs",
-                questions: [
-                  createDecisionQuestion({
-                    type: "predicate",
-                    name: "relevant",
-                    instructions: "Evaluate this revised question",
-                  }),
-                ],
-              },
             },
             dirty: true,
+          });
+          store.getState().updateDecisionPrompt({
+            instanceId: 1,
+            request: {
+              state: "answer",
+              stateEditorMode: "inputs",
+              questions: [
+                createDecisionQuestion({
+                  type: "predicate",
+                  name: "relevant",
+                  instructions: "Evaluate this revised question",
+                }),
+              ],
+            },
           });
         }}
       >
@@ -219,7 +222,7 @@ describe("Decision dataset evaluator authoring", () => {
               versionId: decisionVersionId,
               tag: null,
             },
-            decisionRequest: {
+            decisionPrompt: {
               state: "answer",
               stateEditorMode: "inputs",
               questions: [

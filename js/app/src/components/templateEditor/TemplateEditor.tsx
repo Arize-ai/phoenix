@@ -7,7 +7,13 @@ import type {
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -84,6 +90,11 @@ const singleLineExtensions = [
  * or, when the readOnly prop is true, the editor will reset on all value changes.
  * This is necessary because controlled react-codemirror editors incessantly reset
  * cursor position when value is updated.
+ *
+ * What the user types is still kept as the value, matching the document, so
+ * the cursor stays put. react-codemirror rebuilds its view from the value when
+ * a Suspense boundary above it hides and reveals it; without this, the editor
+ * would show its first value again while the parent holds the edit.
  */
 export const TemplateEditor = ({
   templateFormat,
@@ -92,9 +103,23 @@ export const TemplateEditor = ({
   availablePaths,
   "aria-label": ariaLabel = "Prompt template",
   singleLine = false,
+  onChange,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
+  // A stable handler: react-codemirror reconfigures the editor whenever
+  // `onChange` changes, and the value now updates on every keystroke.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const handleChange = useCallback<NonNullable<typeof onChange>>(
+    (nextValue, viewUpdate) => {
+      setValue(nextValue);
+      onChangeRef.current?.(nextValue, viewUpdate);
+    },
+    []
+  );
   const { theme } = useTheme();
   const evaluationContext = useTemplateEvaluatorContext();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
@@ -168,6 +193,7 @@ export const TemplateEditor = ({
         editorViewRef.current = editorView;
       }}
       {...props}
+      onChange={handleChange}
       value={value}
     />
   );
