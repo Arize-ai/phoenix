@@ -3729,7 +3729,7 @@ async def test_create_session_route_rejects_long_title(
 
 async def test_create_session_route_rejects_a_decision_only_provider(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
         "/v1/agent_sessions",

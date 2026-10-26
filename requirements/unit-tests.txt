@@ -17,6 +17,7 @@ psycopg[binary,pool]
 pyarrow-stubs
 pytest-postgresql
 responses
+respx>=0.22.0
 syrupy
 tenacity
 tiktoken

@@ -1,6 +1,6 @@
 """Dataset binding deletion removes trace projects while retaining shared definitions."""
 
-import httpx
+import httpx2
 
 from .._helpers import _AppInfo, _httpx_client
 from ._helpers import (
@@ -17,7 +17,7 @@ from ._helpers import (
 
 
 def test_code_binding_overrides_and_cross_api_readback(
-    client: httpx.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
+    client: httpx2.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     body = _binding_body(definition["id"])
@@ -93,7 +93,7 @@ def test_code_binding_overrides_and_cross_api_readback(
 
 
 def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
-    client: httpx.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
+    client: httpx2.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     body = _binding_body(definition["id"])
@@ -136,7 +136,7 @@ def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
 
 
 def test_builtin_binding_and_read_only_definition(
-    client: httpx.Client, dataset_id: str, _app: _AppInfo
+    client: httpx2.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
     builtin = _graphql(_app, "query { builtInEvaluators { id name } }", {})["builtInEvaluators"][0]
     definition_route = f"v1/evaluators/{builtin['id']}"
@@ -178,7 +178,7 @@ def test_builtin_binding_and_read_only_definition(
 
 
 def test_llm_binding_overrides_across_shared_bindings(
-    client: httpx.Client, dataset_id: str, _app: _AppInfo
+    client: httpx2.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
     dataset_name = _graphql(
         _app,
@@ -250,7 +250,7 @@ def test_llm_binding_overrides_across_shared_bindings(
 
 
 def test_dataset_endpoint_errors_and_auth(
-    client: httpx.Client, dataset_id: str, _app: _AppInfo
+    client: httpx2.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
     collection = f"v1/datasets/{dataset_id}/evaluators"
     response = client.post(collection, json={"name": "invalid"})

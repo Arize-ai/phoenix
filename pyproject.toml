@@ -150,6 +150,7 @@ dev = [
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",
+  "respx>=0.22.0",
   "strawberry-graphql[opentelemetry,cli]==0.336.2",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
