@@ -103,15 +103,6 @@ export const _resetToolId = () => {
   playgroundToolId = 0;
 };
 
-/**
- * Resets the playground decision request ID to 0
- *
- * NB: This is only used for testing purposes
- */
-export const _resetDecisionRequestId = () => {
-  playgroundDecisionRequestId = 0;
-};
-
 export const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   __type: "chat",
   messages: [
@@ -172,7 +163,7 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
  * An instance without the field keeps it absent, so merging the result over
  * another instance leaves that instance's request alone.
  */
-export function normalizeDecisionRequest<
+function normalizeDecisionRequest<
   T extends Pick<PlaygroundInstance, "decisionRequest">,
 >(
   instance: T
