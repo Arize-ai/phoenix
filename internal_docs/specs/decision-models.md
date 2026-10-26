@@ -138,7 +138,7 @@ are in [Open Questions](#16-open-questions).
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#56-evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
 | [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
-| [Evaluator version pinning](#58-evaluator-version-pinning) | Direct `decision_version_id` (`NOT NULL`, `ON DELETE RESTRICT`) on `decision_evaluators` | A release ships `decision_evaluators` and `/v1/evaluators` for decision judges |
+| [Evaluator version pinning](#58-evaluator-version-pinning) | Each evaluator runs through its own generated tag (`decision_version_tag_id`, `NOT NULL`, `ON DELETE RESTRICT`); tag writes that change inputs or outputs, and deleting a tag in use, are refused | A release ships `decision_evaluators` and `/v1/evaluators` for decision judges |
 
 The first six choose a format at a boundary: the stored version, the run
 output, the span, a dataset's reference answers, the SDK arguments handed to
@@ -497,15 +497,38 @@ ships.
 How `decision_evaluators` records the `DecisionVersion` a saved judge runs, and
 how that choice relates to `LLMEvaluator`'s tag history.
 
-**Current default:** `decision_evaluators` stores `decision_version_id`
-(`NOT NULL`, `ON DELETE RESTRICT`) directly, with no `decision_id` and no
-`decision_version_tag_id`. Every create or update API (GraphQL and REST) takes
-`decision_version_id`, and `selected_version` joins `DecisionVersion` via an
-`INNER JOIN`. `decision_version_tags` remains exclusively for user-managed
-release tags (`production`, `staging`) on saved decisions. We err on the side
-of simplicity for now given the complex deliberations below between direct
-version pinning, the original lightweight tag workflow (`ON DELETE SET NULL`),
-and the later `#16680` tag hardening.
+**Current default (decided 2026-10-26, Option 3 below without its redundant
+column):** a `DecisionEvaluator` runs through a `{name}-evaluator-{hex}` tag of
+its own, as an `LLMEvaluator` does. `decision_evaluators.decision_version_tag_id`
+(`NOT NULL`, `ON DELETE RESTRICT`) replaces `decision_version_id`. The tag holds
+the decision, so there is no `decision_id` column, and `selected_version` is an
+inner-joined, view-only relationship through the tag. Create and update APIs
+(GraphQL and REST) still take a decision version ID: creating an evaluator puts
+its tag on that version, and editing the evaluator's version moves the tag.
+Saving a decision version with the evaluator's tag checked, or setting the tag
+on another version, promotes that version when the inputs, question names and
+types, choices, and scale levels are unchanged, and is refused with `409`
+otherwise. Deleting a tag an evaluator runs through is refused
+(`helpers/decision_version_tags.py`).
+
+Neither kind falls back to the latest version any more. `ef09e3bc213f` gives
+every `LLMEvaluator` whose tag was deleted a new tag on its prompt's newest
+version, and makes `prompt_version_tag_id` `NOT NULL`.
+
+**Why:** promoting a version by checking the evaluator's tag on save is the
+documented `LLMEvaluator` workflow, and decision judges now share it, so both
+kinds pick their version the same way. The no-tag fallback was the one path a
+check at write time cannot cover, because every save moves "latest". Without it,
+every change to what an evaluator runs is checked when it happens. Changes to
+inputs or outputs go through the evaluator editor, which adapts the scoring
+policy and checks other bindings, so a tag write never rewrites scoring. Accepted
+from the Option 3 critique below: generated tags appear in `decision.versionTags`
+and the **Save decision** dialog and cannot be deleted while their evaluator
+exists, and a checked save on an incompatible version fails with `409`. Not
+carried over: the redundant `decision_id` column and the outer-join locking
+workaround.
+
+The deliberation below is kept as the record of the alternatives.
 
 **How `LLMEvaluator` got here (and the hardening that flew under the radar):**
 
@@ -639,8 +662,8 @@ and the later `#16680` tag hardening.
     guards, and outer-join locking workarounds—while `DecisionCell` and
     `/v1/evaluators` hide the tag anyway.
 
-**Decide before** a release ships `decision_evaluators` and `/v1/evaluators` for
-decision judges.
+**Decided** before a release ships `decision_evaluators` and `/v1/evaluators` for
+decision judges; see the current default above.
 
 ## 6. Goals
 
