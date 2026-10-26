@@ -11,6 +11,7 @@ import {
   getChatForDecisionToPrompt,
 } from "@phoenix/pages/playground/decisionUtils";
 import { generateMessageId, isDecisionInstance } from "@phoenix/store";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 export type PlaygroundModelMenuProps = {
   /**
@@ -64,8 +65,6 @@ export function PlaygroundModelMenu({
         dirty: true,
         patch: {
           task: { type: "decision" },
-          // Keep a request the instance already had; start one otherwise.
-          decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
           // Remember the chat configuration so switching back restores it.
           llmModel: wasDecision ? instance.llmModel : instance.model,
           model: {
@@ -89,6 +88,13 @@ export function PlaygroundModelMenu({
           experiment: null,
         },
       });
+      // Keep a decision prompt the instance already had; start one otherwise.
+      if (instance.decisionPromptId == null) {
+        store.getState().updateDecisionPrompt({
+          instanceId: playgroundInstanceId,
+          request: createDecisionDraft(),
+        });
+      }
       return;
     }
 
@@ -96,6 +102,9 @@ export function PlaygroundModelMenu({
     const chat = wasDecision
       ? getChatForDecisionToPrompt({
           instance,
+          decisionPrompt: selectPlaygroundInstanceDecisionPrompt(
+            playgroundInstanceId
+          )(store.getState()),
           templateFormat: store.getState().templateFormat,
         })
       : null;

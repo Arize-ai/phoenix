@@ -139,6 +139,7 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
+import { getPlaygroundInstancesWithDecisionPrompts } from "@phoenix/store/playground/selectors";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { getDecisionDatasetBlockedReason } from "./decisionUtils";
@@ -335,7 +336,7 @@ function PlaygroundContent() {
   // Over a dataset, why the page's decision instances can't run, if they can't.
   const decisionDatasetBlockedReason = usePlaygroundContext((state) =>
     getDecisionDatasetBlockedReason({
-      instances: state.instances,
+      instances: getPlaygroundInstancesWithDecisionPrompts(state),
       templateFormat: state.templateFormat,
     })
   );
@@ -829,11 +830,11 @@ function PlaygroundContent() {
   }, [isRunning, hasUnsavedExampleChanges]);
 
   const hasDecisionInputState = usePlaygroundContext((state) =>
-    state.instances.some(
+    getPlaygroundInstancesWithDecisionPrompts(state).some(
       (instance) =>
         isDecisionInstance(instance) &&
-        (instance.decisionRequest?.stateEditorMode === "input" ||
-          instance.decisionRequest?.stateEditorMode === "inputs")
+        (instance.decisionPrompt?.stateEditorMode === "input" ||
+          instance.decisionPrompt?.stateEditorMode === "inputs")
     )
   );
   const panelIds = useMemo(

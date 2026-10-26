@@ -401,7 +401,7 @@ export function DecisionVersionDetails({
         extra={
           <CopyToClipboardButton
             text={curl}
-            aria-label="Copy decision request"
+            aria-label="Copy decision prompt"
           />
         }
       >

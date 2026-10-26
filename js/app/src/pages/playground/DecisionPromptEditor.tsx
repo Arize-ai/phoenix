@@ -25,13 +25,17 @@ import {
 } from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceDecisionPrompt,
+} from "@phoenix/store/playground/selectors";
 import type {
   DecisionQuestionDraft,
-  DecisionRequestDraft,
+  DecisionPromptDraft,
 } from "@phoenix/store/playground/types";
 
 const STATE_EDITOR_MODES: ReadonlyArray<
-  DecisionRequestDraft["stateEditorMode"]
+  DecisionPromptDraft["stateEditorMode"]
 > = ["text", "json", "input", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
@@ -74,7 +78,7 @@ const statePreviewCSS = css`
   overflow: hidden;
 `;
 
-function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
+function DecisionStatePreview({ request }: { request: DecisionPromptDraft }) {
   const variables = usePlaygroundContext(
     (state) => state.input.variablesValueCache
   );
@@ -113,31 +117,33 @@ function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
 }
 
 /**
- * One instance's decision request, laid out like a chat template: the state
+ * One instance's decision prompt, laid out like a chat template: the state
  * is one card and each question is another, so a decision column reads the
  * same way as a prompt column beside it.
  */
-export function DecisionRequestEditor({
+export function DecisionPromptEditor({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((item) => item.id === instanceId)
+  const isRunning = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
   );
-  const updateDecisionRequest = usePlaygroundContext(
-    (state) => state.updateDecisionRequest
+  const decisionPromptId = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionPromptId
+  );
+  const decisionPrompt = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionPrompt(instanceId)
+  );
+  const updateDecisionPrompt = usePlaygroundContext(
+    (state) => state.updateDecisionPrompt
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const editorRevision = usePlaygroundContext(
-    (state) => state.externallyUpdatedDecisionRevisionById[instanceId] ?? 0
-  );
   // The state is the evidence the user supplies, so it takes the user
   // message tint, as a chat template's user message would.
   const stateStyles = useChatMessageStyles("user");
-  const isRunning = instance?.activeRunId != null;
   // Deleting a question removes the focused element; focus moves here so
   // keyboard users are not dropped to the document body.
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
-  const request = instance?.decisionRequest ?? createDecisionDraft();
+  const request = decisionPrompt ?? createDecisionDraft();
   // Fields the user has left. Empty required fields are reported only once
   // the user has been there, so a new question or option does not open in
   // an error state; see maskUntouchedErrors.
@@ -154,8 +160,8 @@ export function DecisionRequestEditor({
   });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
-  const update = (patch: Partial<DecisionRequestDraft>) =>
-    updateDecisionRequest({ instanceId, request: { ...request, ...patch } });
+  const update = (patch: Partial<DecisionPromptDraft>) =>
+    updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -288,8 +294,9 @@ export function DecisionRequestEditor({
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor
-              // Loading replaces the draft; typing must keep the editor mounted.
-              key={`text-${instanceId}-${editorRevision}-${templateFormat}`}
+              // Loading replaces the draft and its id; typing must keep the
+              // editor mounted.
+              key={`text-${instanceId}-${decisionPromptId}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}
