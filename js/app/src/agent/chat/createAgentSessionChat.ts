@@ -17,6 +17,7 @@ import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import { isSessionSelfCancellationGraceActive } from "@phoenix/agent/chat/sessionCancellation";
 import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { flushToolApprovals } from "@phoenix/agent/chat/toolApprovalFlush";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
@@ -353,7 +354,12 @@ export function createAgentSessionChat({
         });
         return;
       }
-      store.getState().setSessionBusyElsewhere(sessionId, true);
+      if (
+        !isBusyRejection ||
+        !isSessionSelfCancellationGraceActive(store, sessionId)
+      ) {
+        store.getState().setSessionBusyElsewhere(sessionId, true);
+      }
     },
     onFinish: ({ messages: finalMessages, message }) => {
       turnCompletionGate.handleFinish({ finalMessages, message });

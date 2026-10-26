@@ -386,6 +386,9 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
+  locallyCancelledSessionAtBySessionId: Partial<Record<string, number>>;
+  markSessionLocallyCancelled: (sessionId: string, timestamp?: number) => void;
+  clearSessionLocallyCancelled: (sessionId: string) => void;
   setAgentsConfig: (
     patch: Partial<
       Pick<
@@ -822,6 +825,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               state.pendingPatchExperimentsByToolCallId,
               sessionId
             );
+          const newLocallyCancelledSessionAtBySessionId = {
+            ...state.locallyCancelledSessionAtBySessionId,
+          };
+          delete newLocallyCancelledSessionAtBySessionId[sessionId];
           return {
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
@@ -833,6 +840,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
               newPendingPatchExperimentsByToolCallId,
+            locallyCancelledSessionAtBySessionId:
+              newLocallyCancelledSessionAtBySessionId,
           };
         },
         false,
@@ -860,6 +869,33 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setPermissions" }
+      );
+    },
+    locallyCancelledSessionAtBySessionId: {},
+    markSessionLocallyCancelled: (sessionId, timestamp = Date.now()) => {
+      set(
+        (state) => ({
+          locallyCancelledSessionAtBySessionId: {
+            ...state.locallyCancelledSessionAtBySessionId,
+            [sessionId]: timestamp,
+          },
+        }),
+        false,
+        { type: "markSessionLocallyCancelled" }
+      );
+    },
+    clearSessionLocallyCancelled: (sessionId) => {
+      set(
+        (state) => {
+          if (!(sessionId in state.locallyCancelledSessionAtBySessionId)) {
+            return state;
+          }
+          const next = { ...state.locallyCancelledSessionAtBySessionId };
+          delete next[sessionId];
+          return { locallyCancelledSessionAtBySessionId: next };
+        },
+        false,
+        { type: "clearSessionLocallyCancelled" }
       );
     },
     setAgentsConfig: (patch) => {

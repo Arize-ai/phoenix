@@ -6,9 +6,11 @@ import { useRelayEnvironment } from "react-relay";
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import { getTurnClientState } from "@phoenix/agent/chat/createAgentSessionChat";
 import { cleanupResolvedPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
+import { isSessionSelfCancellationGraceActive } from "@phoenix/agent/chat/sessionCancellation";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
+import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
   fetchAgentSessionSyncState,
@@ -76,6 +78,39 @@ function getFetchedAgentSession(
     : null;
 }
 
+function applyActiveSessionBusyState({
+  store,
+  sessionId,
+}: {
+  store: AgentStore;
+  sessionId: string;
+}): void {
+  if (!isSessionSelfCancellationGraceActive(store, sessionId)) {
+    store.getState().setSessionBusyElsewhere(sessionId, true);
+  }
+}
+
+function canApplyFetchedSessionTranscript({
+  chatInstance,
+  store,
+  sessionId,
+}: {
+  chatInstance: Chat<AgentUIMessage>;
+  store: AgentStore;
+  sessionId: string;
+}): boolean {
+  if (
+    isRequestActive(chatInstance.status) ||
+    (store.getState().isCompactionPendingBySessionId[sessionId] ?? false)
+  ) {
+    return false;
+  }
+  if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
+    return false;
+  }
+  return true;
+}
+
 export function useAgentSessionSync({
   persistedSessionId,
   chatInstance,
@@ -126,6 +161,9 @@ export function useAgentSessionSync({
       return;
     }
     const state = store.getState();
+    if (isSessionSelfCancellationGraceActive(store, persistedSessionId)) {
+      return;
+    }
     // Never treat this client's own in-flight turn as busy elsewhere.
     if (
       state.isBusyElsewhereBySessionId[persistedSessionId] !== true &&
@@ -152,9 +190,12 @@ export function useAgentSessionSync({
       }
       shouldSyncOnNextPollSetupRef.current = false;
       if (syncState.isActive) {
-        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        applyActiveSessionBusyState({ store, sessionId: persistedSessionId });
         return;
       }
+
+      // A successful probe confirms that the session lock is free.
+      store.getState().clearSessionLocallyCancelled(persistedSessionId);
       // Read busy state fresh from the store: the probe may have set it on a
       // previous tick and this closure could be stale.
       const wasBusyElsewhere =
@@ -182,22 +223,20 @@ export function useAgentSessionSync({
       if (agentSession.isActive) {
         // Another client claimed the turn lock between the probe and the
         // full fetch; treat this tick as busy and let the next tick resync.
-        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        applyActiveSessionBusyState({ store, sessionId: persistedSessionId });
         return;
       }
+
+      store.getState().clearSessionLocallyCancelled(persistedSessionId);
       // This client started its own turn (or a compaction) while the fetch
       // was in flight; never replace its in-flight optimistic messages.
       if (
-        isRequestActive(chatInstance.status) ||
-        (store.getState().isCompactionPendingBySessionId[persistedSessionId] ??
-          false)
+        !canApplyFetchedSessionTranscript({
+          chatInstance,
+          store,
+          sessionId: persistedSessionId,
+        })
       ) {
-        return;
-      }
-      // A flush of this client's outputs or answers is still in flight, so
-      // the fetched transcript predates it. Applying it would reset answers
-      // the user gave, and an approval cannot be re-derived.
-      if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
         return;
       }
       // Clear a lingering conflict error only after the other client's turn
