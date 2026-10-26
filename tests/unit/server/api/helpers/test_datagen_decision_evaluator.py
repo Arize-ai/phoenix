@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 
 import anyio
 import httpx
+import httpx2
 import pytest
 from phoenix.client.resources.datasets import Dataset
 from pydantic import SecretStr
@@ -41,7 +42,7 @@ async def _name_dataset(db: DbSessionFactory) -> Dataset:
 
 
 def _seeder(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset: Dataset,
     writes: list[str],
     versions: list[dict[str, Any]] | None = None,
@@ -56,7 +57,12 @@ def _seeder(
                     writes.append(f"{request.method} {request.url.path}")
                     if versions is not None:
                         versions.append(body["variables"]["input"]["version"])
-        response = anyio.from_thread.run(httpx_client.send, request)
+        response = anyio.from_thread.run(
+            httpx_client.send,
+            httpx2.Request(
+                request.method, str(request.url), headers=request.headers, content=request.content
+            ),
+        )
         return httpx.Response(
             response.status_code,
             headers={
@@ -75,7 +81,7 @@ def _seeder(
 
 
 async def test_seed_reuses_judge_and_binding_and_repairs_drift(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     empty_dataset: None,
     monkeypatch: pytest.MonkeyPatch,
@@ -206,7 +212,7 @@ async def test_other_datasets_do_not_receive_an_accuracy_judge() -> None:
 
 
 async def test_seed_refuses_an_evaluator_of_another_type_with_the_same_name(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     empty_dataset: None,
     sandbox_config: models.SandboxConfig,
@@ -239,7 +245,7 @@ async def test_seed_refuses_an_evaluator_of_another_type_with_the_same_name(
 
 
 async def test_seed_refuses_an_accuracy_binding_to_another_evaluator(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     empty_dataset: None,
 ) -> None:

@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from secrets import token_hex
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -75,7 +75,7 @@ def code_definition(_app: _AppInfo, dataset_id: str) -> Iterator[dict[str, Any]]
 
 
 def test_shared_code_definition(
-    client: httpx.Client, code_definition: dict[str, Any], _app: _AppInfo
+    client: httpx2.Client, code_definition: dict[str, Any], _app: _AppInfo
 ) -> None:
     route = f"v1/evaluators/{code_definition['id']}"
     response = client.get(route)
@@ -123,7 +123,7 @@ def test_shared_code_definition(
     assert result["node"] == {"description": "shared", "currentVersion": {"sourceCode": source}}
 
 
-def test_definition_errors(client: httpx.Client) -> None:
+def test_definition_errors(client: httpx2.Client) -> None:
     assert client.get("v1/evaluators/bad-id").status_code == 422
     assert client.patch("v1/evaluators/bad-id", json={"type": "code"}).status_code == 422
     assert client.get("v1/evaluators", params={"cursor": "bad-cursor"}).status_code == 422
@@ -196,7 +196,7 @@ def llm_definition(dataset_id: str, _app: _AppInfo) -> dict[str, Any]:
     return binding
 
 
-def _version_content(client: httpx.Client, prompt_version_id: str) -> dict[str, Any]:
+def _version_content(client: httpx2.Client, prompt_version_id: str) -> dict[str, Any]:
     response = client.get(f"v1/prompt_versions/{prompt_version_id}")
     assert response.status_code == 200, response.text
     return {key: value for key, value in response.json()["data"].items() if key != "id"}
@@ -207,7 +207,7 @@ def _pin(prompt_version_id: str) -> dict[str, Any]:
 
 
 def test_llm_definition_from_dataset(
-    client: httpx.Client, llm_definition: dict[str, Any], _app: _AppInfo
+    client: httpx2.Client, llm_definition: dict[str, Any], _app: _AppInfo
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
     response = client.get(route)
@@ -266,7 +266,7 @@ def test_llm_definition_from_dataset(
 
 
 def test_llm_definition_missing_custom_provider(
-    client: httpx.Client, llm_definition: dict[str, Any]
+    client: httpx2.Client, llm_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
     response = client.get(route)
@@ -285,7 +285,7 @@ def test_llm_definition_missing_custom_provider(
 
 
 def test_llm_definition_reuses_regular_prompt_version(
-    client: httpx.Client, llm_definition: dict[str, Any]
+    client: httpx2.Client, llm_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
     response = client.get(route)
@@ -307,7 +307,7 @@ def test_llm_definition_reuses_regular_prompt_version(
     assert client.get(route).json()["data"]["prompt"] == moved
 
 
-def _judge_prompt_version(client: httpx.Client, prompt_name: str) -> str:
+def _judge_prompt_version(client: httpx2.Client, prompt_name: str) -> str:
     response = client.post(
         "v1/prompts",
         json={
@@ -373,7 +373,7 @@ def _llm_body(name: str, prompt_version_id: str) -> dict[str, Any]:
     }
 
 
-def test_standalone_llm_definition_lifecycle(client: httpx.Client) -> None:
+def test_standalone_llm_definition_lifecycle(client: httpx2.Client) -> None:
     prompt_name = f"judge-{token_hex(8)}"
     version_id = _judge_prompt_version(client, prompt_name)
     name = f"standalone-llm-{token_hex(8)}"
@@ -445,7 +445,9 @@ def _code_body(name: str, sandbox_config_id: str) -> dict[str, Any]:
     }
 
 
-def test_standalone_code_definition_lifecycle(client: httpx.Client, sandbox_config_id: str) -> None:
+def test_standalone_code_definition_lifecycle(
+    client: httpx2.Client, sandbox_config_id: str
+) -> None:
     name = f"standalone-{token_hex(8)}"
     response = client.post("v1/evaluators", json=_code_body(name, sandbox_config_id))
     assert response.status_code == 201, response.text
@@ -515,7 +517,7 @@ def test_standalone_code_definition_lifecycle(client: httpx.Client, sandbox_conf
 
 
 def test_bound_code_definition_cannot_be_deleted(
-    client: httpx.Client, code_definition: dict[str, Any]
+    client: httpx2.Client, code_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{code_definition['id']}"
     response = client.delete(route)
@@ -525,7 +527,7 @@ def test_bound_code_definition_cannot_be_deleted(
 
 
 def test_bound_llm_definition_cannot_be_deleted(
-    client: httpx.Client, llm_definition: dict[str, Any]
+    client: httpx2.Client, llm_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
     response = client.delete(route)
@@ -534,13 +536,13 @@ def test_bound_llm_definition_cannot_be_deleted(
     assert client.get(route).status_code == 200
 
 
-def test_delete_rejects_malformed_ids(client: httpx.Client) -> None:
+def test_delete_rejects_malformed_ids(client: httpx2.Client) -> None:
     response = client.delete("v1/evaluators/bad-id")
     assert response.status_code == 422, response.text
     assert response.json()["code"] == "invalid_argument"
 
 
-def test_sandbox_configs_are_discoverable(client: httpx.Client, sandbox_config_id: str) -> None:
+def test_sandbox_configs_are_discoverable(client: httpx2.Client, sandbox_config_id: str) -> None:
     response = client.get("v1/sandbox_configs", params={"language": "PYTHON"})
     assert response.status_code == 200, response.text
     configs = {config["id"]: config for config in response.json()["data"]}

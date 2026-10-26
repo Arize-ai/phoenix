@@ -131,7 +131,7 @@ class TestPrompts:
 
     async def test_custom_provider_round_trip(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, source_versions = await self._insert_prompt_versions(db, n=1)
@@ -215,7 +215,7 @@ class TestPrompts:
     )
     async def test_invalid_custom_provider_is_atomic(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         new_prompt: bool,
         provider_id: str,
@@ -246,7 +246,7 @@ class TestPrompts:
     @pytest.mark.parametrize("new_prompt", [True, False])
     async def test_incompatible_custom_provider_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         new_prompt: bool,
     ) -> None:
@@ -287,7 +287,7 @@ class TestPrompts:
 
     async def test_create_prompt_rejects_mismatched_provider(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, versions = await self._insert_prompt_versions(db, n=1)
@@ -313,7 +313,7 @@ class TestPrompts:
 
     async def test_rest_rejects_decision_provider_on_chat_prompts(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """TypeSafe decision models are not chat models; both REST creation
         endpoints must reject them the same way the GraphQL mutations do."""
