@@ -47,8 +47,8 @@ export function InstanceVariablesProvider({
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
-  const allInstanceDecisionRequests = usePlaygroundContext(
-    (state) => state.allInstanceDecisionRequests
+  const allInstanceDecisionSpecs = usePlaygroundContext(
+    (state) => state.allInstanceDecisionSpecs
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
@@ -59,7 +59,7 @@ export function InstanceVariablesProvider({
       const enrichedInstance = denormalizePlaygroundInstance(
         instance,
         allInstanceMessages,
-        allInstanceDecisionRequests
+        allInstanceDecisionSpecs
       );
 
       result[instance.id] = extractVariablesFromInstance({
@@ -72,7 +72,7 @@ export function InstanceVariablesProvider({
   }, [
     instances,
     allInstanceMessages,
-    allInstanceDecisionRequests,
+    allInstanceDecisionSpecs,
     templateFormat,
   ]);
   // Typing in a template or a decision recomputes the map on every keystroke,

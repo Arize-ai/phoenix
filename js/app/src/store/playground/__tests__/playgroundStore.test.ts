@@ -15,7 +15,7 @@ import {
   getInitialInstances,
 } from "../playgroundStore";
 import { getPlaygroundMode } from "../playgroundTask";
-import { selectPlaygroundInstanceDecisionRequest } from "../selectors";
+import { selectPlaygroundInstanceDecisionSpec } from "../selectors";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
@@ -66,7 +66,7 @@ describe("decision instances in the store", () => {
         },
       },
     });
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId,
       request: createDecisionDraft(),
     });
@@ -86,13 +86,13 @@ describe("decision instances in the store", () => {
   });
 });
 
-describe("normalized decision requests", () => {
+describe("normalized decision specs", () => {
   function createDecisionStore() {
     const draft = createDecisionDraft();
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
       instances: [
-        { ...createDecisionTaskInstance(), id: 1, decisionRequest: draft },
+        { ...createDecisionTaskInstance(), id: 1, decisionSpec: draft },
       ],
     });
     return { store, draft };
@@ -102,10 +102,10 @@ describe("normalized decision requests", () => {
     const { store, draft } = createDecisionStore();
     const [instance] = store.getState().instances;
 
-    expect(instance).not.toHaveProperty("decisionRequest");
-    expect(instance.decisionRequestId).not.toBeNull();
+    expect(instance).not.toHaveProperty("decisionSpec");
+    expect(instance.decisionSpecId).not.toBeNull();
     expect(
-      store.getState().allInstanceDecisionRequests[instance.decisionRequestId!]
+      store.getState().allInstanceDecisionSpecs[instance.decisionSpecId!]
     ).toEqual(draft);
   });
 
@@ -115,9 +115,9 @@ describe("normalized decision requests", () => {
   it("edits a request without replacing the instances", () => {
     const { store, draft } = createDecisionStore();
     const before = store.getState();
-    const otherRequests = { ...before.allInstanceDecisionRequests };
+    const otherRequests = { ...before.allInstanceDecisionSpecs };
 
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId: 1,
       request: { ...draft, state: "Typed {{ticket}}" },
     });
@@ -125,10 +125,10 @@ describe("normalized decision requests", () => {
 
     expect(after.instances).toBe(before.instances);
     expect(after.instances[0]).toBe(before.instances[0]);
-    expect(selectPlaygroundInstanceDecisionRequest(1)(after)?.state).toBe(
+    expect(selectPlaygroundInstanceDecisionSpec(1)(after)?.state).toBe(
       "Typed {{ticket}}"
     );
-    expect(Object.keys(after.allInstanceDecisionRequests)).toEqual(
+    expect(Object.keys(after.allInstanceDecisionSpecs)).toEqual(
       Object.keys(otherRequests)
     );
     expect(after.dirtyInstances[1]).toBe(true);
@@ -137,16 +137,16 @@ describe("normalized decision requests", () => {
   it("gives an instance without a request its first one", () => {
     const store = createPlaygroundStore({ modelConfigByProvider: {} });
     const [chat] = store.getState().instances;
-    expect(chat.decisionRequestId).toBeUndefined();
+    expect(chat.decisionSpecId).toBeUndefined();
 
     const draft = createDecisionDraft();
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId: chat.id,
       request: draft,
     });
 
     expect(
-      selectPlaygroundInstanceDecisionRequest(chat.id)(store.getState())
+      selectPlaygroundInstanceDecisionSpec(chat.id)(store.getState())
     ).toBe(draft);
   });
 
@@ -156,24 +156,24 @@ describe("normalized decision requests", () => {
     if (copyId == null) throw new Error("expected a copy");
     const [source, copy] = store.getState().instances;
 
-    expect(copy.decisionRequestId).not.toBe(source.decisionRequestId);
+    expect(copy.decisionSpecId).not.toBe(source.decisionSpecId);
     expect(
-      selectPlaygroundInstanceDecisionRequest(copyId)(store.getState())
+      selectPlaygroundInstanceDecisionSpec(copyId)(store.getState())
     ).toEqual(draft);
 
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId: copyId,
       request: { ...draft, state: "Only the copy" },
     });
     expect(
-      selectPlaygroundInstanceDecisionRequest(1)(store.getState())?.state
+      selectPlaygroundInstanceDecisionSpec(1)(store.getState())?.state
     ).toBe(draft.state);
   });
 
   it("snapshots the request a run sends, so later edits do not relabel it", () => {
     const { store, draft } = createDecisionStore();
     store.getState().runPlaygroundInstances();
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId: 1,
       request: { ...draft, state: "Edited after the run" },
     });
@@ -183,23 +183,23 @@ describe("normalized decision requests", () => {
 
   it("lands a loaded request under a new id and clears the dirty flag", () => {
     const { store, draft } = createDecisionStore();
-    store.getState().updateDecisionRequest({
+    store.getState().updateDecisionSpec({
       instanceId: 1,
       request: { ...draft, state: "Unsaved" },
     });
-    const previousId = store.getState().instances[0].decisionRequestId;
+    const previousId = store.getState().instances[0].decisionSpecId;
     const loaded = { ...draft, state: "Saved {{ticket}}" };
 
     store.getState().loadInstance({
       instanceId: 1,
-      instance: { ...createDecisionTaskInstance(), decisionRequest: loaded },
+      instance: { ...createDecisionTaskInstance(), decisionSpec: loaded },
     });
 
     // A new id remounts the uncontrolled state editor, as new message ids do.
-    expect(store.getState().instances[0].decisionRequestId).not.toBe(
+    expect(store.getState().instances[0].decisionSpecId).not.toBe(
       previousId
     );
-    expect(selectPlaygroundInstanceDecisionRequest(1)(store.getState())).toBe(
+    expect(selectPlaygroundInstanceDecisionSpec(1)(store.getState())).toBe(
       loaded
     );
     expect(store.getState().dirtyInstances[1]).toBe(false);
@@ -1573,7 +1573,7 @@ describe("addInstance", () => {
     expect(first.task).toEqual({ type: "prompt" });
     expect(second.task).toEqual({ type: "decision" });
     expect(
-      selectPlaygroundInstanceDecisionRequest(second.id)(store.getState())
+      selectPlaygroundInstanceDecisionSpec(second.id)(store.getState())
         ?.questions.length
     ).toBeGreaterThan(0);
     expect(second.decision).toBeUndefined();

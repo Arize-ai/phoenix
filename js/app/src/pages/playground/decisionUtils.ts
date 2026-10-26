@@ -10,7 +10,7 @@ import type {
   DecisionInputDeclaration,
   DecisionQuestionDraft,
   DecisionQuestionType,
-  DecisionRequestDraft,
+  DecisionSpecDraft,
   DecisionScaleLevelDraft,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
@@ -27,7 +27,7 @@ import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/Play
  * model. Span replay accepts provider payloads and Phoenix run outputs.
  */
 
-export type DecisionDraft = DecisionRequestDraft;
+export type DecisionDraft = DecisionSpecDraft;
 
 /** Limits mirrored from the server's request validation. */
 export const MIN_CHOICE_OPTIONS = 2;
@@ -138,7 +138,7 @@ export function createDecisionQuestion({
 }
 
 /** Starter request: one Choice question over a short support ticket. */
-export function createDecisionDraft(): DecisionRequestDraft {
+export function createDecisionDraft(): DecisionSpecDraft {
   return {
     state:
       "I was charged twice for my order. Please refund the duplicate payment.",
@@ -265,7 +265,7 @@ export function parseStateInputNames(state: string): string[] {
     .filter(Boolean);
 }
 
-function getStateError(draft: DecisionRequestDraft): string | undefined {
+function getStateError(draft: DecisionSpecDraft): string | undefined {
   if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
   if (draft.stateEditorMode === "input") {
     const names = parseStateInputNames(draft.state);
@@ -299,7 +299,7 @@ function getStateError(draft: DecisionRequestDraft): string | undefined {
 }
 
 export function validateDecisionDraft(
-  draft: DecisionRequestDraft
+  draft: DecisionSpecDraft
 ): DecisionDraftErrors {
   const errors: DecisionDraftErrors = { byQuestionId: {} };
   const stateError = getStateError(draft);
@@ -329,7 +329,7 @@ export function hasDecisionErrors(errors: DecisionDraftErrors): boolean {
 
 /** The first problem, for the Run button and tests. */
 export function getDecisionValidationError(
-  draft: DecisionRequestDraft
+  draft: DecisionSpecDraft
 ): string | null {
   const errors = validateDecisionDraft(draft);
   if (errors.state) return errors.state;
@@ -513,7 +513,7 @@ export function buildSystemOneRequest({
   draft,
   templateFormat,
   variables,
-}: TemplateOptions & { draft: DecisionRequestDraft }): SystemOneRequest {
+}: TemplateOptions & { draft: DecisionSpecDraft }): SystemOneRequest {
   const error = getDecisionValidationError(draft);
   if (error) throw new Error(error);
   const formatText = createTextFormatter({ templateFormat, variables });
@@ -692,7 +692,7 @@ export function stateTemplateVariables(
  * inputs).
  */
 export function textStateInputNames(
-  draft: Pick<DecisionRequestDraft, "state" | "additionalInputNames">,
+  draft: Pick<DecisionSpecDraft, "state" | "additionalInputNames">,
   templateFormat: TemplateFormat | undefined
 ): string[] {
   const extracted = stateTemplateVariables(draft.state, templateFormat);
@@ -701,7 +701,7 @@ export function textStateInputNames(
 
 function withAdditionalInputNames(
   names: readonly string[],
-  draft: Pick<DecisionRequestDraft, "additionalInputNames">
+  draft: Pick<DecisionSpecDraft, "additionalInputNames">
 ): string[] {
   const seen = new Set(names);
   const result = [...names];
@@ -748,7 +748,7 @@ function toStateInput({
   templateFormat,
   variables,
 }: TemplateOptions & {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
 }): Omit<DecisionRunInput, "questions"> {
   if (draft.stateEditorMode === "input") {
     const name = draft.state.trim();
@@ -866,7 +866,7 @@ export function getDecisionDatasetProblem({
   templateFormat,
   purpose = "dataset",
 }: {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   templateFormat: TemplateFormat;
   purpose?: "dataset" | "save" | "test";
 }): string | null {
@@ -903,7 +903,7 @@ export function getDecisionDatasetBlockedReason({
   /** Each instance's task and its decision request, read from the store. */
   instances: ReadonlyArray<
     Pick<PlaygroundInstance, "task"> & {
-      decisionRequest: DecisionRequestDraft | null | undefined;
+      decisionSpec: DecisionSpecDraft | null | undefined;
     }
   >;
   templateFormat: TemplateFormat;
@@ -911,9 +911,9 @@ export function getDecisionDatasetBlockedReason({
   // Prompts and decisions may share a run; only a decision has a request the
   // examples must be able to fill.
   for (const [index, instance] of instances.entries()) {
-    if (!isDecisionInstance(instance) || !instance.decisionRequest) continue;
+    if (!isDecisionInstance(instance) || !instance.decisionSpec) continue;
     const problem = getDecisionDatasetProblem({
-      draft: instance.decisionRequest,
+      draft: instance.decisionSpec,
       templateFormat,
     });
     if (problem) {
@@ -935,7 +935,7 @@ export function buildDecisionTaskDefinition({
   templateFormat,
   purpose = "dataset",
 }: {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   templateFormat: TemplateFormat;
   purpose?: "dataset" | "save" | "test";
 }): DecisionTaskDefinition {
@@ -1011,7 +1011,7 @@ export function buildDecisionInput({
   draft,
   templateFormat,
   variables,
-}: TemplateOptions & { draft: DecisionRequestDraft }): DecisionRunInput {
+}: TemplateOptions & { draft: DecisionSpecDraft }): DecisionRunInput {
   const error = getDecisionValidationError(draft);
   if (error) throw new Error(error);
   return {
@@ -1177,14 +1177,14 @@ function describeImportIssue(issue: z.ZodIssue | undefined): string {
 }
 
 export type DecisionImportResult = {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   /** The `model` field of the imported body, if any. */
   model: string | null;
 };
 
 function toStateDraft(
   state: unknown
-): Pick<DecisionRequestDraft, "state" | "stateEditorMode"> {
+): Pick<DecisionSpecDraft, "state" | "stateEditorMode"> {
   if (typeof state === "string") return { state, stateEditorMode: "text" };
   return { state: JSON.stringify(state, null, 2), stateEditorMode: "json" };
 }
@@ -1194,7 +1194,7 @@ type SystemOneBody = z.infer<typeof systemOneSchema>;
 
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
-): DecisionRequestDraft {
+): DecisionSpecDraft {
   const questions = body.questions.map((question): DecisionQuestionDraft => {
     if (question.type === "choice") {
       return createDecisionQuestion({
@@ -1236,7 +1236,7 @@ function toDraftFromOpenAIDecisions(
   };
 }
 
-function toDraftFromSystemOne(body: SystemOneBody): DecisionRequestDraft {
+function toDraftFromSystemOne(body: SystemOneBody): DecisionSpecDraft {
   const questions = Object.entries(body.questions).map(
     ([name, question]): DecisionQuestionDraft => {
       const instructions = toText(question.instructions);
@@ -1451,7 +1451,7 @@ function chatStateContent({
   draft,
   templateFormat,
 }: {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   templateFormat: TemplateFormat;
 }): string {
   const variable = (name: string) =>
@@ -1479,20 +1479,20 @@ function chatStateContent({
  */
 export function getChatForDecisionToPrompt({
   instance,
-  decisionRequest,
+  decisionSpec,
   templateFormat,
 }: {
   instance: Pick<PlaygroundNormalizedInstance, "template">;
   /** The instance's decision request. */
-  decisionRequest: DecisionRequestDraft | null | undefined;
+  decisionSpec: DecisionSpecDraft | null | undefined;
   templateFormat: TemplateFormat;
 }): ReturnType<typeof buildChatFromDecisionDraft> | null {
   const hasMessages =
     instance.template.__type === "chat" &&
     instance.template.messageIds.length > 0;
-  if (hasMessages || !decisionRequest) return null;
+  if (hasMessages || !decisionSpec) return null;
   return buildChatFromDecisionDraft({
-    draft: decisionRequest,
+    draft: decisionSpec,
     templateFormat,
   });
 }
@@ -1508,7 +1508,7 @@ export function buildChatFromDecisionDraft({
   draft,
   templateFormat,
 }: {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   templateFormat: TemplateFormat;
 }): {
   messages: DecisionChatMessage[];
@@ -1547,7 +1547,7 @@ export function extractDecisionVariables({
   draft,
   templateFormat,
 }: {
-  draft: DecisionRequestDraft | null | undefined;
+  draft: DecisionSpecDraft | null | undefined;
   templateFormat: TemplateFormat;
 }): string[] {
   if (!draft) return [];
@@ -1806,7 +1806,7 @@ export function normalizeDecisionResult({
   draft,
 }: {
   result: unknown;
-  draft?: DecisionRequestDraft | null;
+  draft?: DecisionSpecDraft | null;
 }): NormalizedDecisionResult {
   const questionsByName = new Map(
     (draft?.questions ?? []).map(
@@ -1915,7 +1915,7 @@ function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
 
 /** The editable request from a span's input body, with a reason when it fails. */
 function readDecisionDraft(inputText: string | null): {
-  draft: DecisionRequestDraft;
+  draft: DecisionSpecDraft;
   error: string | null;
 } {
   if (inputText == null) {
@@ -2003,7 +2003,7 @@ export function buildDecisionInstanceFromSpanAttributes({
         invocationParameters: base.model.invocationParameters,
         baseUrl: null,
       },
-      decisionRequest: draft,
+      decisionSpec: draft,
       repetitions: {
         1: {
           output,

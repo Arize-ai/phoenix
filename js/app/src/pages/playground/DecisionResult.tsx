@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
-import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
+import type { DecisionSpecDraft } from "@phoenix/store/playground/types";
 
 import {
   type NormalizedDecisionAnswer,
@@ -313,7 +313,7 @@ export function DecisionResult({
   showUsage = true,
 }: {
   output: string;
-  request: DecisionRequestDraft | null;
+  request: DecisionSpecDraft | null;
   /** Leave out the model and usage line, where the surrounding view shows them. */
   showUsage?: boolean;
 }) {

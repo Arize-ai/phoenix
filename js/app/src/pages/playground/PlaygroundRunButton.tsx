@@ -18,9 +18,9 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { getPlaygroundInstancesWithDecisionRequests } from "@phoenix/store/playground/selectors";
+import { getPlaygroundInstancesWithDecisionSpecs } from "@phoenix/store/playground/selectors";
 import type {
-  DecisionRequestDraft,
+  DecisionSpecDraft,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 
@@ -43,7 +43,7 @@ function getInstanceLabel(index: number): string {
 /** The first reason a decision instance cannot run, or null when all can. */
 function getInvalidDecisionReason(
   instances: readonly (Pick<PlaygroundNormalizedInstance, "model" | "task"> & {
-    decisionRequest: DecisionRequestDraft | null | undefined;
+    decisionSpec: DecisionSpecDraft | null | undefined;
   })[]
 ): string | null {
   for (const [index, instance] of instances.entries()) {
@@ -52,8 +52,8 @@ function getInvalidDecisionReason(
     if (!instance.model.modelName?.trim()) {
       return `Instance ${label}: pick a decision model.`;
     }
-    const problem = instance.decisionRequest
-      ? getDecisionValidationError(instance.decisionRequest)
+    const problem = instance.decisionSpec
+      ? getDecisionValidationError(instance.decisionSpec)
       : "no decision request";
     if (problem) return `Instance ${label}: ${problem}`;
   }
@@ -76,13 +76,13 @@ export function PlaygroundRunButton() {
   // reason, since the error may sit in a collapsed card. Over a dataset, a
   // decision the examples can't fill is refused the same way.
   const blockedReason = usePlaygroundContext((state) => {
-    const instancesWithDecisionRequests =
-      getPlaygroundInstancesWithDecisionRequests(state);
+    const instancesWithDecisionSpecs =
+      getPlaygroundInstancesWithDecisionSpecs(state);
     return (
-      getInvalidDecisionReason(instancesWithDecisionRequests) ??
+      getInvalidDecisionReason(instancesWithDecisionSpecs) ??
       (state.datasetId != null
         ? getDecisionDatasetBlockedReason({
-            instances: instancesWithDecisionRequests,
+            instances: instancesWithDecisionSpecs,
             templateFormat: state.templateFormat,
           })
         : null)

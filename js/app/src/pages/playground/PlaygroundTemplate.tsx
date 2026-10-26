@@ -17,7 +17,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
-import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
+import { DecisionSpecEditor } from "@phoenix/pages/playground/DecisionSpecEditor";
 import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
@@ -177,7 +177,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       </Flex>
       <View paddingY="size-100">
         {isDecision ? (
-          <DecisionRequestEditor playgroundInstanceId={instanceId} />
+          <DecisionSpecEditor playgroundInstanceId={instanceId} />
         ) : instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />

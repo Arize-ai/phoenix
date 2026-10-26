@@ -27,15 +27,15 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   selectPlaygroundInstance,
-  selectPlaygroundInstanceDecisionRequest,
+  selectPlaygroundInstanceDecisionSpec,
 } from "@phoenix/store/playground/selectors";
 import type {
   DecisionQuestionDraft,
-  DecisionRequestDraft,
+  DecisionSpecDraft,
 } from "@phoenix/store/playground/types";
 
 const STATE_EDITOR_MODES: ReadonlyArray<
-  DecisionRequestDraft["stateEditorMode"]
+  DecisionSpecDraft["stateEditorMode"]
 > = ["text", "json", "input", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
@@ -78,7 +78,7 @@ const statePreviewCSS = css`
   overflow: hidden;
 `;
 
-function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
+function DecisionStatePreview({ request }: { request: DecisionSpecDraft }) {
   const variables = usePlaygroundContext(
     (state) => state.input.variablesValueCache
   );
@@ -117,24 +117,24 @@ function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
 }
 
 /**
- * One instance's decision request, laid out like a chat template: the state
+ * One instance's decision spec, laid out like a chat template: the state
  * is one card and each question is another, so a decision column reads the
  * same way as a prompt column beside it.
  */
-export function DecisionRequestEditor({
+export function DecisionSpecEditor({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
   const isRunning = usePlaygroundContext(
     (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
   );
-  const decisionRequestId = usePlaygroundContext(
-    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionRequestId
+  const decisionSpecId = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionSpecId
   );
-  const decisionRequest = usePlaygroundContext(
-    selectPlaygroundInstanceDecisionRequest(instanceId)
+  const decisionSpec = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionSpec(instanceId)
   );
-  const updateDecisionRequest = usePlaygroundContext(
-    (state) => state.updateDecisionRequest
+  const updateDecisionSpec = usePlaygroundContext(
+    (state) => state.updateDecisionSpec
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   // The state is the evidence the user supplies, so it takes the user
@@ -143,7 +143,7 @@ export function DecisionRequestEditor({
   // Deleting a question removes the focused element; focus moves here so
   // keyboard users are not dropped to the document body.
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
-  const request = decisionRequest ?? createDecisionDraft();
+  const request = decisionSpec ?? createDecisionDraft();
   // Fields the user has left. Empty required fields are reported only once
   // the user has been there, so a new question or option does not open in
   // an error state; see maskUntouchedErrors.
@@ -160,8 +160,8 @@ export function DecisionRequestEditor({
   });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
-  const update = (patch: Partial<DecisionRequestDraft>) =>
-    updateDecisionRequest({ instanceId, request: { ...request, ...patch } });
+  const update = (patch: Partial<DecisionSpecDraft>) =>
+    updateDecisionSpec({ instanceId, request: { ...request, ...patch } });
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -296,7 +296,7 @@ export function DecisionRequestEditor({
             <TemplateEditor
               // Loading replaces the draft and its id; typing must keep the
               // editor mounted.
-              key={`text-${instanceId}-${decisionRequestId}-${templateFormat}`}
+              key={`text-${instanceId}-${decisionSpecId}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}

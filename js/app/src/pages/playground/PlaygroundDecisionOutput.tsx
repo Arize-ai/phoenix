@@ -18,7 +18,7 @@ import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
 import {
   selectPlaygroundInstance,
-  selectPlaygroundInstanceDecisionRequest,
+  selectPlaygroundInstanceDecisionSpec,
 } from "@phoenix/store/playground/selectors";
 
 import { DecisionResult } from "./DecisionResult";
@@ -67,7 +67,7 @@ export function PlaygroundDecisionOutput({
   const request = usePlaygroundContext(
     (state) =>
       selectPlaygroundInstance(instanceId)(state)?.decisionRunRequest ??
-      selectPlaygroundInstanceDecisionRequest(instanceId)(state) ??
+      selectPlaygroundInstanceDecisionSpec(instanceId)(state) ??
       null
   );
   const [mode, setMode] = useState<DecisionDisplayMode>("pretty");

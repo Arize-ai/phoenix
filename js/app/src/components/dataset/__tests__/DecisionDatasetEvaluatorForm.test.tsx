@@ -69,8 +69,8 @@ vi.mock("@phoenix/components/evaluators/EvaluatorInputMapping", () => ({
     );
   },
 }));
-vi.mock("@phoenix/pages/playground/DecisionRequestEditor", () => ({
-  DecisionRequestEditor: () => {
+vi.mock("@phoenix/pages/playground/DecisionSpecEditor", () => ({
+  DecisionSpecEditor: () => {
     const store = usePlaygroundStore();
     return (
       <button
@@ -88,7 +88,7 @@ vi.mock("@phoenix/pages/playground/DecisionRequestEditor", () => ({
             },
             dirty: true,
           });
-          store.getState().updateDecisionRequest({
+          store.getState().updateDecisionSpec({
             instanceId: 1,
             request: {
               state: "answer",
@@ -222,7 +222,7 @@ describe("Decision dataset evaluator authoring", () => {
               versionId: decisionVersionId,
               tag: null,
             },
-            decisionRequest: {
+            decisionSpec: {
               state: "answer",
               stateEditorMode: "inputs",
               questions: [

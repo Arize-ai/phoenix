@@ -39,34 +39,34 @@ export const selectPlaygroundInstanceMessage =
   };
 
 /**
- * Curried selector to get the decision request for a given instance
+ * Curried selector to get the decision spec for a given instance
  * @param instanceId
- * @returns selector function that returns the decision request for the given instance, if it has one
+ * @returns selector function that returns the decision spec for the given instance, if it has one
  */
-export const selectPlaygroundInstanceDecisionRequest =
+export const selectPlaygroundInstanceDecisionSpec =
   (instanceId: number) => (state: PlaygroundState) => {
-    const decisionRequestId =
-      selectPlaygroundInstance(instanceId)(state)?.decisionRequestId;
-    if (decisionRequestId == null) {
+    const decisionSpecId =
+      selectPlaygroundInstance(instanceId)(state)?.decisionSpecId;
+    if (decisionSpecId == null) {
       return undefined;
     }
-    return state.allInstanceDecisionRequests[decisionRequestId];
+    return state.allInstanceDecisionSpecs[decisionSpecId];
   };
 
 /**
- * Every instance alongside its decision request, for helpers that read an
+ * Every instance alongside its decision spec, for helpers that read an
  * instance's request with the rest of the instance. It builds new objects on
  * each call, so derive a value from it inside a selector rather than
  * subscribing to it.
  */
-export const getPlaygroundInstancesWithDecisionRequests = (
-  state: Pick<PlaygroundState, "instances" | "allInstanceDecisionRequests">
+export const getPlaygroundInstancesWithDecisionSpecs = (
+  state: Pick<PlaygroundState, "instances" | "allInstanceDecisionSpecs">
 ) =>
   state.instances.map((instance) => ({
     ...instance,
-    decisionRequest:
-      instance.decisionRequestId != null
-        ? state.allInstanceDecisionRequests[instance.decisionRequestId]
+    decisionSpec:
+      instance.decisionSpecId != null
+        ? state.allInstanceDecisionSpecs[instance.decisionSpecId]
         : undefined,
   }));
 

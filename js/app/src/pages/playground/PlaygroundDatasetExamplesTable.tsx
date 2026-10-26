@@ -96,7 +96,7 @@ import {
 import {
   arePlaygroundInstancesEqualExceptProgress,
   selectPlaygroundInstance,
-  selectPlaygroundInstanceDecisionRequest,
+  selectPlaygroundInstanceDecisionSpec,
 } from "@phoenix/store/playground/selectors";
 import type {
   EditableTableDiff,
@@ -405,15 +405,15 @@ function ExampleDecisionResult({
   answers: unknown;
 }) {
   // Label the outputs from the request that ran, not the live draft.
-  const decisionRequest = usePlaygroundContext(
+  const decisionSpec = usePlaygroundContext(
     (state) =>
       selectPlaygroundInstance(instanceId)(state)?.decisionRunRequest ??
-      selectPlaygroundInstanceDecisionRequest(instanceId)(state)
+      selectPlaygroundInstanceDecisionSpec(instanceId)(state)
   );
   return (
     <DecisionResult
       output={JSON.stringify({ answers })}
-      request={decisionRequest ?? null}
+      request={decisionSpec ?? null}
       showUsage={false}
     />
   );

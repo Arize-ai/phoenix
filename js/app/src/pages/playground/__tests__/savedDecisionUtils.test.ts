@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
-import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
+import type { DecisionSpecDraft } from "@phoenix/store/playground/types";
 
 import {
   buildDecisionInput,
@@ -23,7 +23,7 @@ import {
 const mustache = TemplateFormats.Mustache;
 const fString = TemplateFormats.FString;
 
-function makeDraft(state: string): DecisionRequestDraft {
+function makeDraft(state: string): DecisionSpecDraft {
   return {
     state,
     stateEditorMode: "text",
@@ -59,9 +59,9 @@ function makeDraft(state: string): DecisionRequestDraft {
   };
 }
 
-function makeInstance(draft: DecisionRequestDraft | null) {
+function makeInstance(draft: DecisionSpecDraft | null) {
   return {
-    decisionRequest: draft,
+    decisionSpec: draft,
     model: {
       provider: "OLLAMA" as const,
       modelName: " tev1:0.8b-mxfp8 ",
@@ -103,7 +103,7 @@ function toSavedVersion(input: DecisionVersionInput): SavedDecisionVersion {
 }
 
 /** A draft without the ids the editor mints, to compare content. */
-function withoutIds(draft: DecisionRequestDraft) {
+function withoutIds(draft: DecisionSpecDraft) {
   return {
     ...draft,
     questions: draft.questions.map(({ id: _id, choices, levels, ...rest }) => ({

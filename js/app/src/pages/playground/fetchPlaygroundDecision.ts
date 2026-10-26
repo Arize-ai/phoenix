@@ -274,7 +274,7 @@ export function toDecisionInstance({
   templateFormat: TemplateFormat;
   base?: Pick<PlaygroundInstance, "model" | "llmModel">;
 }): Omit<PlaygroundInstance, "id"> {
-  const decisionRequest = savedDecisionVersionToDraft({
+  const decisionSpec = savedDecisionVersionToDraft({
     version: fetched.version,
     templateFormat,
   });
@@ -289,7 +289,7 @@ export function toDecisionInstance({
 
   return {
     ...instance,
-    decisionRequest,
+    decisionSpec,
     decision: { ...fetched.decision, tag: tagName },
     model: {
       ...instance.model,

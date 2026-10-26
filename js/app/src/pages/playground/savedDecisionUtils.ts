@@ -3,7 +3,7 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   DecisionInputDeclaration,
   DecisionQuestionDraft,
-  DecisionRequestDraft,
+  DecisionSpecDraft,
   PlaygroundInstance,
 } from "@phoenix/store/playground/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -39,13 +39,13 @@ export function toDecisionVersionInput({
 }: {
   /** The instance's model and its decision request, read from the store. */
   instance: Pick<PlaygroundInstance, "model"> & {
-    decisionRequest: DecisionRequestDraft | null | undefined;
+    decisionSpec: DecisionSpecDraft | null | undefined;
   };
   templateFormat: TemplateFormat;
   description?: string | null;
   purpose?: "dataset" | "save" | "test";
 }): DecisionVersionInput {
-  if (!instance.decisionRequest) {
+  if (!instance.decisionSpec) {
     throw new Error("The instance has no decision to save.");
   }
   const modelName = instance.model.modelName?.trim();
@@ -58,7 +58,7 @@ export function toDecisionVersionInput({
   }
   return {
     ...buildDecisionTaskDefinition({
-      draft: instance.decisionRequest,
+      draft: instance.decisionSpec,
       templateFormat,
       purpose,
     }),
@@ -119,7 +119,7 @@ export function savedDecisionVersionToDraft({
 }: {
   version: SavedDecisionVersion;
   templateFormat: TemplateFormat;
-}): DecisionRequestDraft {
+}): DecisionSpecDraft {
   const draftState = toDraftState({ state: version.state, templateFormat });
   const impliedNames = new Set(
     draftState.stateEditorMode === "input"
@@ -151,7 +151,7 @@ function toDraftState({
 }: {
   state: SavedDecisionVersion["state"];
   templateFormat: TemplateFormat;
-}): Pick<DecisionRequestDraft, "state" | "stateEditorMode"> {
+}): Pick<DecisionSpecDraft, "state" | "stateEditorMode"> {
   switch (state.kind) {
     case "input":
       return { state: state.input, stateEditorMode: "input" };

@@ -94,9 +94,9 @@ export function useDecisionRunner(instanceId: number) {
     const snapshot = denormalizePlaygroundInstance(
       normalizedSnapshot,
       state.allInstanceMessages,
-      state.allInstanceDecisionRequests
+      state.allInstanceDecisionSpecs
     );
-    const decision = snapshot.decisionRequest;
+    const decision = snapshot.decisionSpec;
     if (!decision) return undefined;
     // Resolve template variables and credentials once per run so every
     // repetition sends the same request.

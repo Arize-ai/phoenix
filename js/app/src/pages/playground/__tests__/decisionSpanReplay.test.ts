@@ -58,7 +58,7 @@ describe("decision span replay", () => {
     });
     expect(playgroundInstance.llmModel?.provider).toBe("OPENAI");
     const request = buildSystemOneRequest({
-      draft: playgroundInstance.decisionRequest!,
+      draft: playgroundInstance.decisionSpec!,
     });
     expect(request.state).toEqual({ complaint: "I was charged twice." });
     expect(Object.keys(request.questions)).toEqual(["department", "urgent"]);
@@ -96,14 +96,14 @@ describe("decision span replay", () => {
     expect(templateFormat).toBe(TemplateFormats.NONE);
     expect(playgroundInstance.model.provider).toBe("OPENAI");
     expect(playgroundInstance.model.modelName).toBe("gpt-6-luna");
-    expect(playgroundInstance.decisionRequest?.stateEditorMode).toBe("text");
-    expect(playgroundInstance.decisionRequest?.questions[0]).toMatchObject({
+    expect(playgroundInstance.decisionSpec?.stateEditorMode).toBe("text");
+    expect(playgroundInstance.decisionSpec?.questions[0]).toMatchObject({
       name: "urgent",
       type: "predicate",
     });
     expect(
       buildDecisionInput({
-        draft: playgroundInstance.decisionRequest!,
+        draft: playgroundInstance.decisionSpec!,
         templateFormat,
       }).inputValues
     ).toEqual({ state: '{"ticket": "{{raw}}"}' });
@@ -147,7 +147,7 @@ describe("decision span replay", () => {
     expect(parsingErrors.join(" ")).toMatch(/request/);
     expect(playgroundInstance.model.modelType).toBe("DECISION");
     expect(
-      playgroundInstance.decisionRequest?.questions.length
+      playgroundInstance.decisionSpec?.questions.length
     ).toBeGreaterThan(0);
   });
 });

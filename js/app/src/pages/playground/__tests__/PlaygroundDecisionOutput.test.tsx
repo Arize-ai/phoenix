@@ -64,14 +64,14 @@ describe("decision execution", () => {
     container.remove();
   });
 
-  function mountRunningInstance(decisionRequest = createDecisionDraft()) {
+  function mountRunningInstance(decisionSpec = createDecisionDraft()) {
     const store = createPlaygroundStore({ modelConfigByProvider: {} });
     const chatInstance = store.getState().instances[0];
     // A decision instance as the model menu creates one from a chat instance.
     const instance = {
       ...chatInstance,
       llmModel: chatInstance.model,
-      decisionRequestId: 0,
+      decisionSpecId: 0,
       model: {
         ...chatInstance.model,
         modelType: "DECISION" as const,
@@ -80,7 +80,7 @@ describe("decision execution", () => {
       },
     };
     store.setState({
-      allInstanceDecisionRequests: { 0: decisionRequest },
+      allInstanceDecisionSpecs: { 0: decisionSpec },
       instances: [
         {
           ...instance,
@@ -215,7 +215,7 @@ describe("decision execution", () => {
       store.setState({
         instances: store.getState().instances.map((instance) => ({
           ...instance,
-          decisionRequest: {
+          decisionSpec: {
             ...draft,
             questions: [
               {

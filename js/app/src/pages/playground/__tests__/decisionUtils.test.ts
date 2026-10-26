@@ -28,7 +28,7 @@ import {
   validateDecisionDraft,
 } from "../decisionUtils";
 
-describe("decision request draft", () => {
+describe("decision spec draft", () => {
   it("builds a valid Choice example", () => {
     const draft = createDecisionDraft();
     expect(getDecisionValidationError(draft)).toBeNull();
@@ -1138,15 +1138,15 @@ describe("decision tasks over a dataset", () => {
   it("lets decisions and prompts share a dataset run, checking only the decisions", () => {
     const decision = {
       task: { type: "decision" },
-      decisionRequest: { ...createDecisionDraft(), state: "{{state}}" },
+      decisionSpec: { ...createDecisionDraft(), state: "{{state}}" },
     } as never;
     const unfillable = {
       task: { type: "decision" },
-      decisionRequest: createDecisionDraft(),
+      decisionSpec: createDecisionDraft(),
     } as never;
     const prompt = {
       task: { type: "prompt" },
-      decisionRequest: null,
+      decisionSpec: null,
     } as never;
     expect(
       getDecisionDatasetBlockedReason({
@@ -1207,7 +1207,7 @@ describe("getChatForDecisionToPrompt", () => {
     const draft = createDecisionDraft();
     const chat = getChatForDecisionToPrompt({
       instance: { template: { __type: "chat", messageIds: [] } },
-      decisionRequest: draft,
+      decisionSpec: draft,
       templateFormat: TemplateFormats.Mustache,
     });
     expect(chat?.messages.map((message) => message.role)).toEqual([
@@ -1222,7 +1222,7 @@ describe("getChatForDecisionToPrompt", () => {
     expect(
       getChatForDecisionToPrompt({
         instance: { template: { __type: "chat", messageIds: [1, 2] } },
-        decisionRequest: createDecisionDraft(),
+        decisionSpec: createDecisionDraft(),
         templateFormat: TemplateFormats.Mustache,
       })
     ).toBeNull();

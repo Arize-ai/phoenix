@@ -24,7 +24,7 @@ import { createPlaygroundEvaluatorTask } from "./playgroundTask";
 import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE } from "./templateVariablesPath";
 import {
   type ChatMessage,
-  type DecisionRequestDraft,
+  type DecisionSpecDraft,
   type ExperimentScaffold,
   type GenAIOperationType,
   type InitialPlaygroundState,
@@ -49,7 +49,7 @@ let playgroundRunId = 0;
 // This value must be truthy in order for message re-ordering to work
 let playgroundMessageId = 1;
 let playgroundToolId = 0;
-let playgroundDecisionRequestId = 0;
+let playgroundDecisionSpecId = 0;
 
 /**
  * Generates a new playground instance ID
@@ -67,9 +67,9 @@ export const generateMessageId = () => playgroundMessageId++;
 export const generateToolId = () => playgroundToolId++;
 
 /**
- * Generates a new playground decision request ID
+ * Generates a new playground decision spec ID
  */
-export const generateDecisionRequestId = () => playgroundDecisionRequestId++;
+export const generateDecisionSpecId = () => playgroundDecisionSpecId++;
 
 /**
  * Generates a new playground run ID
@@ -158,77 +158,77 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
 };
 
 /**
- * Moves an instance's decision request out of the instance and under a new
- * decision request id, the way {@link normalizeChatTemplate} moves messages.
+ * Moves an instance's decision spec out of the instance and under a new
+ * decision spec id, the way {@link normalizeChatTemplate} moves messages.
  * An instance without the field keeps it absent, so merging the result over
  * another instance leaves that instance's request alone.
  */
-function normalizeDecisionRequest<
-  T extends Pick<PlaygroundInstance, "decisionRequest">,
+function normalizeDecisionSpec<
+  T extends Pick<PlaygroundInstance, "decisionSpec">,
 >(
   instance: T
 ): {
-  instance: Omit<T, "decisionRequest"> &
-    Pick<PlaygroundNormalizedInstance, "decisionRequestId">;
-  decisionRequests: Record<number, DecisionRequestDraft>;
+  instance: Omit<T, "decisionSpec"> &
+    Pick<PlaygroundNormalizedInstance, "decisionSpecId">;
+  decisionSpecs: Record<number, DecisionSpecDraft>;
 } {
-  if (!("decisionRequest" in instance)) {
-    return { instance, decisionRequests: {} };
+  if (!("decisionSpec" in instance)) {
+    return { instance, decisionSpecs: {} };
   }
-  const { decisionRequest, ...rest } = instance;
-  if (decisionRequest == null) {
+  const { decisionSpec, ...rest } = instance;
+  if (decisionSpec == null) {
     return {
-      instance: { ...rest, decisionRequestId: decisionRequest },
-      decisionRequests: {},
+      instance: { ...rest, decisionSpecId: decisionSpec },
+      decisionSpecs: {},
     };
   }
-  const decisionRequestId = generateDecisionRequestId();
+  const decisionSpecId = generateDecisionSpecId();
   return {
-    instance: { ...rest, decisionRequestId },
-    decisionRequests: { [decisionRequestId]: decisionRequest },
+    instance: { ...rest, decisionSpecId },
+    decisionSpecs: { [decisionSpecId]: decisionSpec },
   };
 }
 
 /**
  * An instance ready for the store, with the messages its template references
- * and its decision request.
+ * and its decision spec.
  */
 type NormalizedInstanceInsert = {
   instance: PlaygroundNormalizedInstance;
   messages: Record<number, ChatMessage>;
-  decisionRequests: Record<number, DecisionRequestDraft>;
+  decisionSpecs: Record<number, DecisionSpecDraft>;
 };
 
 /**
  * Normalizes a denormalized instance into the store's shape under the given
  * id, returning the messages to merge into `allInstanceMessages` and the
- * decision request to merge into `allInstanceDecisionRequests`.
+ * decision spec to merge into `allInstanceDecisionSpecs`.
  */
 function normalizeInstance(
   instance: Omit<PlaygroundInstance, "id">,
   id: number
 ): NormalizedInstanceInsert {
-  const { instance: withoutDecisionRequest, decisionRequests } =
-    normalizeDecisionRequest(instance);
+  const { instance: withoutDecisionSpec, decisionSpecs } =
+    normalizeDecisionSpec(instance);
 
-  if (withoutDecisionRequest.template.__type !== "chat") {
+  if (withoutDecisionSpec.template.__type !== "chat") {
     return {
       instance: {
-        ...withoutDecisionRequest,
-        template: withoutDecisionRequest.template,
+        ...withoutDecisionSpec,
+        template: withoutDecisionSpec.template,
         id,
       },
       messages: {},
-      decisionRequests,
+      decisionSpecs,
     };
   }
 
-  const normalized = normalizeChatTemplate(withoutDecisionRequest.template);
+  const normalized = normalizeChatTemplate(withoutDecisionSpec.template);
 
   return {
-    instance: { ...withoutDecisionRequest, template: normalized.template, id },
+    instance: { ...withoutDecisionSpec, template: normalized.template, id },
     messages: normalized.messages,
-    decisionRequests,
+    decisionSpecs,
   };
 }
 
@@ -343,7 +343,7 @@ export function createDecisionTaskInstance({
             invocationParameters: params.model.invocationParameters,
             baseUrl: null,
           },
-    decisionRequest: createDecisionDraft(),
+    decisionSpec: createDecisionDraft(),
     selectedRepetitionNumber: 1,
     task: { type: "decision" },
   };
@@ -358,7 +358,7 @@ export function createDecisionTaskInstance({
 function createInstanceFromSource(
   state: Pick<
     PlaygroundState,
-    "instances" | "allInstanceMessages" | "allInstanceDecisionRequests"
+    "instances" | "allInstanceMessages" | "allInstanceDecisionSpecs"
   >,
   source: PlaygroundInstanceSource
 ): NormalizedInstanceInsert | null {
@@ -397,7 +397,7 @@ function createInstanceFromSource(
     return {
       instance: { ...instance, model: chatModel ?? instance.model },
       messages: instanceMessages,
-      decisionRequests: {},
+      decisionSpecs: {},
     };
   }
 
@@ -421,7 +421,7 @@ function createInstanceFromSource(
         loadingSource: source,
       },
       messages: instanceMessages,
-      decisionRequests: {},
+      decisionSpecs: {},
     };
   }
 
@@ -464,10 +464,10 @@ function duplicateInstance(
   source: PlaygroundNormalizedInstance,
   {
     allInstanceMessages,
-    allInstanceDecisionRequests,
+    allInstanceDecisionSpecs,
   }: Pick<
     PlaygroundState,
-    "allInstanceMessages" | "allInstanceDecisionRequests"
+    "allInstanceMessages" | "allInstanceDecisionSpecs"
   >
 ): NormalizedInstanceInsert {
   let template = source.template;
@@ -492,16 +492,16 @@ function duplicateInstance(
     );
   }
 
-  let decisionRequestId = source.decisionRequestId;
-  let decisionRequests: Record<number, DecisionRequestDraft> = {};
-  const decisionRequest =
-    source.decisionRequestId != null
-      ? allInstanceDecisionRequests[source.decisionRequestId]
+  let decisionSpecId = source.decisionSpecId;
+  let decisionSpecs: Record<number, DecisionSpecDraft> = {};
+  const decisionSpec =
+    source.decisionSpecId != null
+      ? allInstanceDecisionSpecs[source.decisionSpecId]
       : undefined;
-  if (decisionRequest) {
-    decisionRequestId = generateDecisionRequestId();
-    decisionRequests = {
-      [decisionRequestId]: structuredClone(decisionRequest),
+  if (decisionSpec) {
+    decisionSpecId = generateDecisionSpecId();
+    decisionSpecs = {
+      [decisionSpecId]: structuredClone(decisionSpec),
     };
   }
 
@@ -509,14 +509,14 @@ function duplicateInstance(
     instance: {
       ...source,
       template,
-      decisionRequestId,
+      decisionSpecId,
       id: generateInstanceId(),
       activeRunId: null,
       experiment: null,
       repetitions: {},
     },
     messages,
-    decisionRequests,
+    decisionSpecs,
   };
 }
 
@@ -532,20 +532,20 @@ function duplicateInstance(
 export function getInitialInstances(initialProps: InitialPlaygroundState): {
   instances: Array<PlaygroundNormalizedInstance>;
   instanceMessages: Record<number, ChatMessage>;
-  instanceDecisionRequests: Record<number, DecisionRequestDraft>;
+  instanceDecisionSpecs: Record<number, DecisionSpecDraft>;
 } {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
     let initialInstancesMessageMap: Record<number, ChatMessage> = {};
-    let initialInstancesDecisionRequestMap: Record<
+    let initialInstancesDecisionSpecMap: Record<
       number,
-      DecisionRequestDraft
+      DecisionSpecDraft
     > = {};
     const normalizedInstances = initialProps.instances.map((denormalized) => {
-      const { instance, decisionRequests } =
-        normalizeDecisionRequest(denormalized);
-      initialInstancesDecisionRequestMap = {
-        ...initialInstancesDecisionRequestMap,
-        ...decisionRequests,
+      const { instance, decisionSpecs } =
+        normalizeDecisionSpec(denormalized);
+      initialInstancesDecisionSpecMap = {
+        ...initialInstancesDecisionSpecMap,
+        ...decisionSpecs,
       };
       if (instance.template.__type === "chat") {
         const normalizedTemplate = normalizeChatTemplate(instance.template);
@@ -563,7 +563,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     return {
       instances: normalizedInstances,
       instanceMessages: initialInstancesMessageMap,
-      instanceDecisionRequests: initialInstancesDecisionRequestMap,
+      instanceDecisionSpecs: initialInstancesDecisionSpecMap,
     };
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
@@ -587,7 +587,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     return {
       instances: [instance],
       instanceMessages,
-      instanceDecisionRequests: {},
+      instanceDecisionSpecs: {},
     };
   }
   // A saved per-provider config (e.g. last-used invocation params for the
@@ -619,12 +619,12 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   return {
     instances: [instance],
     instanceMessages,
-    instanceDecisionRequests: {},
+    instanceDecisionSpecs: {},
   };
 }
 
 export const createPlaygroundStore = (props: InitialPlaygroundState) => {
-  const { instances, instanceMessages, instanceDecisionRequests } =
+  const { instances, instanceMessages, instanceDecisionSpecs } =
     getInitialInstances(props);
   const playgroundStore: StateCreator<
     PlaygroundState,
@@ -650,7 +650,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
     externallyUpdatedToolRevisionById: {},
-    allInstanceDecisionRequests: instanceDecisionRequests,
+    allInstanceDecisionSpecs: instanceDecisionSpecs,
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -734,9 +734,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().allInstanceMessages,
             ...created.messages,
           },
-          allInstanceDecisionRequests: {
-            ...get().allInstanceDecisionRequests,
-            ...created.decisionRequests,
+          allInstanceDecisionSpecs: {
+            ...get().allInstanceDecisionSpecs,
+            ...created.decisionSpecs,
           },
           instances: [...get().instances, created.instance],
         },
@@ -760,9 +760,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().allInstanceMessages,
             ...created.messages,
           },
-          allInstanceDecisionRequests: {
-            ...get().allInstanceDecisionRequests,
-            ...created.decisionRequests,
+          allInstanceDecisionSpecs: {
+            ...get().allInstanceDecisionSpecs,
+            ...created.decisionSpecs,
           },
           instances: [
             ...instances.slice(0, sourceIndex + 1),
@@ -802,9 +802,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().allInstanceMessages,
             ...created.messages,
           },
-          allInstanceDecisionRequests: {
-            ...get().allInstanceDecisionRequests,
-            ...created.decisionRequests,
+          allInstanceDecisionSpecs: {
+            ...get().allInstanceDecisionSpecs,
+            ...created.decisionSpecs,
           },
           instances: instances.map((instance) =>
             instance.id === instanceId ? created.instance : instance
@@ -835,9 +835,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().allInstanceMessages,
             ...loaded.messages,
           },
-          allInstanceDecisionRequests: {
-            ...get().allInstanceDecisionRequests,
-            ...loaded.decisionRequests,
+          allInstanceDecisionSpecs: {
+            ...get().allInstanceDecisionSpecs,
+            ...loaded.decisionSpecs,
           },
           instances: instances.map((current) =>
             current.id === instanceId
@@ -853,44 +853,44 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "loadInstance" }
       );
     },
-    updateDecisionRequest: ({ instanceId, request }) => {
+    updateDecisionSpec: ({ instanceId, request }) => {
       const instance = get().instances.find(
         (instance) => instance.id === instanceId
       );
       if (!instance) {
         return;
       }
-      if (instance.decisionRequestId == null) {
+      if (instance.decisionSpecId == null) {
         // The instance's first request: the only edit that touches instances.
-        const decisionRequestId = generateDecisionRequestId();
+        const decisionSpecId = generateDecisionSpecId();
         set(
           {
-            allInstanceDecisionRequests: {
-              ...get().allInstanceDecisionRequests,
-              [decisionRequestId]: request,
+            allInstanceDecisionSpecs: {
+              ...get().allInstanceDecisionSpecs,
+              [decisionSpecId]: request,
             },
             dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
             instances: get().instances.map((instance) =>
               instance.id === instanceId
-                ? { ...instance, decisionRequestId }
+                ? { ...instance, decisionSpecId }
                 : instance
             ),
           },
           false,
-          { type: "updateDecisionRequest/add" }
+          { type: "updateDecisionSpec/add" }
         );
         return;
       }
       set(
         {
-          allInstanceDecisionRequests: {
-            ...get().allInstanceDecisionRequests,
-            [instance.decisionRequestId]: request,
+          allInstanceDecisionSpecs: {
+            ...get().allInstanceDecisionSpecs,
+            [instance.decisionSpecId]: request,
           },
           dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
         },
         false,
-        { type: "updateDecisionRequest" }
+        { type: "updateDecisionSpec" }
       );
     },
     syncInvocationParametersWithSpecs: ({
@@ -1295,7 +1295,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     runPlaygroundInstances: (instanceIds, options) => {
       const instances = get().instances;
-      const allInstanceDecisionRequests = get().allInstanceDecisionRequests;
+      const allInstanceDecisionSpecs = get().allInstanceDecisionSpecs;
       const repetitions = get().repetitions;
       set(
         {
@@ -1305,17 +1305,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               return instance;
             }
 
-            const decisionRequest =
-              instance.decisionRequestId != null
-                ? allInstanceDecisionRequests[instance.decisionRequestId]
-                : instance.decisionRequestId;
+            const decisionSpec =
+              instance.decisionSpecId != null
+                ? allInstanceDecisionSpecs[instance.decisionSpecId]
+                : instance.decisionSpecId;
 
             return {
               ...instance,
               activeRunId: generateRunId(),
-              decisionRunRequest: decisionRequest
-                ? structuredClone(decisionRequest)
-                : decisionRequest,
+              decisionRunRequest: decisionSpec
+                ? structuredClone(decisionSpec)
+                : decisionSpec,
               repetitions: Object.fromEntries(
                 Array.from({ length: repetitions }, (_, i) => [
                   i + 1,

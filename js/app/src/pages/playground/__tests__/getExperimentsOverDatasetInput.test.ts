@@ -271,7 +271,7 @@ describe("getExperimentsOverDatasetInput", () => {
 
     if (decisionId == null) throw new Error("Could not add a decision");
 
-    store.playgroundStore.getState().updateDecisionRequest({
+    store.playgroundStore.getState().updateDecisionSpec({
       instanceId: decisionId,
       request: { ...createDecisionDraft(), state: "{{ticket}}" },
     });

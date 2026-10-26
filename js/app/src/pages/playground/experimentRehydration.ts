@@ -429,7 +429,7 @@ export function decisionTaskConfigToPlaygroundProps({
   const instance: PlaygroundInstance = {
     ...defaults,
     id: generateInstanceId(),
-    decisionRequest: savedDecisionVersionToDraft({ version, templateFormat }),
+    decisionSpec: savedDecisionVersionToDraft({ version, templateFormat }),
     // Keep the link to the saved version the experiment ran, if it still exists.
     decision: savedVersion
       ? {

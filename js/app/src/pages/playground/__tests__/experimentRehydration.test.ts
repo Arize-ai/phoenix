@@ -52,7 +52,7 @@ it("restores a decision's frozen definition, connection, and dataset settings", 
       modelName: "jev-pinned",
       customProvider: taskConfig.customProvider,
     },
-    decisionRequest: {
+    decisionSpec: {
       stateEditorMode: "inputs",
       state: "ticket",
       questions: [
@@ -90,7 +90,7 @@ it("restores f-string text and a built-in provider's endpoint", () => {
   expect(result.playgroundProps.templateFormat).toBe("F_STRING");
   expect(result.playgroundProps.instances?.[0]).toMatchObject({
     model: { baseUrl: "http://localhost:11434/v1", customProvider: null },
-    decisionRequest: { stateEditorMode: "text", state: "Ticket: {ticket}" },
+    decisionSpec: { stateEditorMode: "text", state: "Ticket: {ticket}" },
   });
   expect(result.stateByDatasetId).toEqual({});
 });
@@ -132,7 +132,7 @@ it("fetches a fixed-question decision experiment", async () => {
   const result = await fetchExperimentPlaygroundProps("exp-fixed");
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
     task: { type: "decision" },
-    decisionRequest: {
+    decisionSpec: {
       stateEditorMode: "input",
       state: "ticket",
       questions: [
