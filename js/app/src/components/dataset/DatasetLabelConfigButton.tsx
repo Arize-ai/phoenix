@@ -11,11 +11,11 @@ import {
   Alert,
   Autocomplete,
   Button,
-  type ButtonProps,
   ColorSwatch,
   Dialog,
   DialogTrigger,
   Icon,
+  IconButton,
   Icons,
   Input,
   LinkButton,
@@ -47,24 +47,18 @@ import type { DatasetLabelConfigButtonSetLabelsMutation } from "./__generated__/
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
-  variant?: ButtonProps["variant"];
 };
 
 const REFRESH_ON = ["datasetLabels"] as const;
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId, variant = "default" } = props;
+  const { datasetId } = props;
 
   return (
     <DialogTrigger>
-      <Button
-        variant={variant}
-        size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
-        aria-label="Configure dataset labels"
-      >
-        Label
-      </Button>
+      <IconButton size="S" aria-label="Configure dataset labels">
+        <Icon svg={<Icons.PriceTags />} />
+      </IconButton>
       <Popover
         placement="bottom start"
         shouldCloseOnInteractOutside={() => true}
