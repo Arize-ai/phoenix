@@ -44,7 +44,23 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.pt-BR.md" />
 </p>
 
-O Arize Phoenix é a plataforma de observabilidade de IA open source da Arize, projetada para experimentação, avaliação e solução de problemas. Para fluxos de trabalho gerenciados em produção, a Arize também oferece o [Arize AX](https://arize.com/products/ax/). O Phoenix oferece:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+O Arize Phoenix é a plataforma de observabilidade de IA open source da Arize, projetada para experimentação, avaliação e solução de problemas. Para fluxos de trabalho gerenciados em produção, a Arize também oferece o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-br). O Phoenix oferece:
 
 - [**_Rastreamento_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Rastreie a execução da sua aplicação de LLM usando instrumentação baseada em OpenTelemetry.
 - [**_Avaliação_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Use LLMs para fazer benchmark do desempenho da sua aplicação com evals de resposta e de recuperação (retrieval).
@@ -64,7 +80,7 @@ O Phoenix é agnóstico em relação a fornecedor e linguagem, com suporte nativ
 O Phoenix roda praticamente em qualquer lugar, incluindo sua máquina local, uma implantação em contêiner ou na nuvem. Veja [Ambientes](https://arize.com/docs/phoenix/environments) para um passo a passo de cada opção ou vá direto para o [Guia de início rápido de rastreamento](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> O Phoenix é open source e auto-hospedado. Para uma plataforma gerenciada, a Arize oferece o [Arize AX](https://arize.com/products/ax/) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Veja a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> O Phoenix é open source e auto-hospedado. Para uma plataforma gerenciada, a Arize oferece o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-br) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Veja a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Sumário
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. Todos os direitos reservados.
 Partes deste código são protegidas por uma ou mais patentes dos EUA. Veja o [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Este software é licenciado sob os termos da Elastic License 2.0 (ELv2). Veja a [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

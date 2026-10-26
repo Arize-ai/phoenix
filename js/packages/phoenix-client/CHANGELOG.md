@@ -1,5 +1,14 @@
 # @arizeai/phoenix-client
 
+## 7.16.2
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+- Updated dependencies [188ce28]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-otel@2.3.0
+
 ## 7.16.1
 
 ### Patch Changes

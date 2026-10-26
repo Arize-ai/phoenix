@@ -44,7 +44,23 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.zh.md" />
 </p>
 
-Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/)。Phoenix 核心功能包括：
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)。Phoenix 核心功能包括：
 
 - [**_链路追踪 (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - 基于 OpenTelemetry 标准的插桩，追踪大语言模型（LLM）应用的运行时调用链。
 - [**_效果评估 (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 利用 LLM 自主能力，通过回答质量评估与检索效果评测建立基准测试。
@@ -64,7 +80,7 @@ Phoenix 与模型供应商和编程语言完全解耦，开箱即用地支持主
 Phoenix 可在几乎任何环境中运行，包括本地开发机、容器化环境或云端平台。详细操作请参阅[运行环境指南 (Environments)](https://arize.com/docs/phoenix/environments)，或直接查阅[链路追踪快速入门 (Tracing Quickstart)](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
 
 > [!NOTE]
-> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
+> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
 
 ## 目录
 
@@ -318,3 +334,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 ---
 
 > 💡 **文档维护说明**：本中文文档由社区志愿者（@JasonYeYuhe）翻译维护，最后同步更新于 2026年9月8日。如发现内容与官方英文原版存在差异或新特性滞后，欢迎提交 PR 共同完善！
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

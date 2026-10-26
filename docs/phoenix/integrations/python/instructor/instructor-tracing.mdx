@@ -37,7 +37,7 @@ client = instructor.from_openai(OpenAI())
 
 # Extract structured data from natural language
 user_info = client.chat.completions.create(
-    model="gpt-3.5-turbo",
+    model="gpt-5.6-terra",
     response_model=UserInfo,
     messages=[{"role": "user", "content": "John Doe is 30 years old."}],
 )

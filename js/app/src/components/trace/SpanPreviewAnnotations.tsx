@@ -4,12 +4,12 @@ import { useId } from "react";
 import { Text } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { AnnotationLabelConsensusText } from "@phoenix/components/annotation/AnnotationLabelConsensusText";
-import {
-  getAnnotationSummaryPositiveOptimization,
-  sortAnnotationSummariesForTriage,
-} from "@phoenix/components/annotation/annotationSummaryUtils";
+import { sortAnnotationSummariesForTriage } from "@phoenix/components/annotation/annotationSummaryUtils";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
+import {
+  type AnnotationOptimizationConfig,
+  getOptimizationValueFromConfig,
+} from "@phoenix/components/annotation/optimizationUtils";
 import type { AnnotationSummary } from "@phoenix/components/annotation/types";
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 
@@ -106,13 +106,13 @@ export function SpanPreviewAnnotations({
     annotationConfigsByName
   ).map((summary) => ({
     summary,
-    positiveOptimization: getAnnotationSummaryPositiveOptimization({
-      summary,
-      annotationConfig: annotationConfigsByName.get(summary.name),
+    optimizationValue: getOptimizationValueFromConfig({
+      config: annotationConfigsByName.get(summary.name),
+      score: summary.meanScore,
     }),
   }));
   const unfavorableCount = rows.filter(
-    (row) => row.positiveOptimization === false
+    (row) => (row.optimizationValue ?? 0) < 0
   ).length;
   return (
     // The card pads its sections, and a collapsed-border table ignores padding
@@ -149,7 +149,7 @@ export function SpanPreviewAnnotations({
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ summary, positiveOptimization }) => (
+          {rows.map(({ summary, optimizationValue }) => (
             <tr key={summary.name} className="span-preview-annotation">
               <th scope="row" className="span-preview-annotation__name">
                 <span className="span-preview-annotation__name-label">
@@ -178,7 +178,7 @@ export function SpanPreviewAnnotations({
               <td className="span-preview-annotation__score">
                 <MeanScore
                   value={summary.meanScore}
-                  positiveOptimization={positiveOptimization}
+                  optimizationValue={optimizationValue}
                   fallback={UNRECORDED}
                   size="S"
                   className="span-preview-annotation__value"

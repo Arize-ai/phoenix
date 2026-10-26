@@ -44,7 +44,23 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.hu.md" />
 </p>
 
-Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/) platformot is kínálja. A Phoenix a következőket nyújtja:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) platformot is kínálja. A Phoenix a következőket nyújtja:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Kövesse nyomon LLM-alkalmazása futását OpenTelemetry-alapú instrumentációval.
 - [**_Kiértékelés_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Használjon LLM-eket alkalmazása teljesítményének mérésére válasz- és visszakeresési evalokkal.
@@ -64,7 +80,7 @@ A Phoenix gyártó- és nyelvfüggetlen, és beépített támogatást nyújt a n
 A Phoenix gyakorlatilag bárhol futtatható, például a helyi gépén, konténeres telepítésben vagy a felhőben. Az egyes lehetőségek bemutatásáért lásd a [Környezetek](https://arize.com/docs/phoenix/environments) oldalt, vagy ugorjon egyenesen a [Tracing gyorsindítási útmutatóhoz](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Tartalomjegyzék
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. Minden jog fenntartva.
 A kód egyes részeit egy vagy több amerikai egyesült államokbeli szabadalom védi. Lásd az [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) fájlt.
 
 Ez a szoftver az Elastic License 2.0 (ELv2) feltételei szerint licencelt. Lásd a [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) fájlt.
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

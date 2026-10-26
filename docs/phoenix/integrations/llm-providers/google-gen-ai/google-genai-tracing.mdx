@@ -31,7 +31,7 @@ from google import genai
 
 def send_message_multi_turn() -> tuple[str, str]:
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    chat = client.chats.create(model="gemini-2.0-flash-001")
+    chat = client.chats.create(model="gemini-3.6-flash")
     response1 = chat.send_message("What is the capital of France?")
     response2 = chat.send_message("Why is the sky blue?")
 

@@ -570,7 +570,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: lts/*
+          node-version-file: .nvmrc
       - name: Compile MCP Skills
         run: make mcp-skills
       - name: Check for changes
@@ -822,7 +822,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
-          version: "0.12.19"
+          version: "0.13.5"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'

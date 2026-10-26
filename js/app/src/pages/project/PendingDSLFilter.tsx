@@ -1,8 +1,17 @@
+import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { Alert, Button, Loading, View } from "@phoenix/components";
+import { Alert, Button, View } from "@phoenix/components";
 import type { DSLFilterValidationFailureReason } from "@phoenix/components/filter";
+import { TableSkeleton } from "@phoenix/components/table";
+
+const pendingDSLFilterCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+`;
 
 export type PendingDSLFilterFieldProps<TValidArgs> = {
   onValidCondition: (args: TValidArgs) => void;
@@ -16,10 +25,13 @@ export type PendingDSLFilterFieldProps<TValidArgs> = {
  * condition settles.
  */
 export function PendingDSLFilter<TValidArgs>({
+  isSelectable,
   onValidCondition,
   onRejected,
   renderField,
 }: {
+  /** Whether the table the field stands in for has a selection column. */
+  isSelectable: boolean;
   onValidCondition: (args: TValidArgs) => void;
   /**
    * The field keeps the rejected text and its own error on screen, so the
@@ -34,7 +46,7 @@ export function PendingDSLFilter<TValidArgs>({
   const [hasTransportError, setHasTransportError] = useState(false);
   const [validationRetryKey, setValidationRetryKey] = useState(0);
   return (
-    <>
+    <div css={pendingDSLFilterCSS}>
       <View
         paddingTop="size-100"
         paddingBottom="size-100"
@@ -77,8 +89,8 @@ export function PendingDSLFilter<TValidArgs>({
           not be reached, so the table has not been loaded.
         </Alert>
       ) : (
-        <Loading />
+        <TableSkeleton isSelectable={isSelectable} rowCount="fill" />
       )}
-    </>
+    </div>
   );
 }
