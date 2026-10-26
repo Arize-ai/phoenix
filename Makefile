@@ -188,6 +188,7 @@ skills: ## Build every shipped copy of the public skills in skills/
 
 skills-check: ## Ensure the skill copies are current and npx offers only skills/
 	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/test_sync_skills.py
 	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
 	@echo -e "$(GREEN)✓ Done$(NC)"
 

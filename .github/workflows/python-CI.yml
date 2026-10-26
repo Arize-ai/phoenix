@@ -102,6 +102,7 @@ jobs:
               - "plugins/**"
               - ".cursor-plugin/**"
               - "scripts/sync_skills.py"
+              - "scripts/test_sync_skills.py"
             skill_graphql_examples:
               - "skills/**"
               - "skills-lock.json"

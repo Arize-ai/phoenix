@@ -231,7 +231,22 @@ def _mark_internal(skill_file: Path) -> Callable[[], None]:
         assert match
         lines = match.group(1).splitlines()
         if "metadata:" in lines:
-            lines.insert(lines.index("metadata:") + 1, "  internal: true")
+            metadata_index = lines.index("metadata:")
+            internal_field = None
+            for index in range(metadata_index + 1, len(lines)):
+                parsed = _KEY_VALUE.match(lines[index])
+                if not parsed:
+                    continue
+                if not parsed["indent"]:
+                    break
+                if parsed["key"] == "internal":
+                    internal_field = index, parsed["indent"]
+                    break
+            if internal_field is None:
+                lines.insert(metadata_index + 1, "  internal: true")
+            else:
+                internal_index, indent = internal_field
+                lines[internal_index] = f"{indent}internal: true"
         else:
             lines += ["metadata:", "  internal: true"]
         skill_file.write_text(
