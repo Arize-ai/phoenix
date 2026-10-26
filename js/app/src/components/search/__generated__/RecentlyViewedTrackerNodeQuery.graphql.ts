@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84865da17008b1ec9628d9f474aabc8c>>
+ * @generated SignedSource<<976710b1f330526ccbd8e3d895a35ca7>>
  * @lightSyntaxTransform
  */
 
@@ -52,16 +52,6 @@ v2 = [
 ],
 v3 = [
   {
-    "alias": "promptName",
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  },
-  (v1/*:: as any*/)
-],
-v4 = [
-  {
     "alias": null,
     "args": [
       {
@@ -109,14 +99,17 @@ v4 = [
       },
       {
         "kind": "InlineFragment",
-        "selections": (v3/*:: as any*/),
+        "selections": [
+          {
+            "alias": "promptName",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          (v1/*:: as any*/)
+        ],
         "type": "Prompt",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": (v3/*:: as any*/),
-        "type": "Decision",
         "abstractKey": null
       }
     ],
@@ -129,7 +122,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v4/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -138,19 +131,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v4/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "64720a5e8e278f66a6f1deb0b595151b",
+    "cacheID": "ba52f1cdbfb96c516dadf1e2710d1d90",
     "id": null,
     "metadata": {},
     "name": "RecentlyViewedTrackerNodeQuery",
     "operationKind": "query",
-    "text": "query RecentlyViewedTrackerNodeQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n      description\n    }\n    ... on Dataset {\n      name\n      description\n    }\n    ... on Experiment {\n      name\n      description\n    }\n    ... on Prompt {\n      promptName: name\n      description\n    }\n    ... on Decision {\n      promptName: name\n      description\n    }\n  }\n}\n"
+    "text": "query RecentlyViewedTrackerNodeQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n      description\n    }\n    ... on Dataset {\n      name\n      description\n    }\n    ... on Experiment {\n      name\n      description\n    }\n    ... on Prompt {\n      promptName: name\n      description\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "143a62e23a53b0426806c6bc85b76a45";
+(node as any).hash = "0467eab28982d171751e239c16de6ef6";
 
 export default node;

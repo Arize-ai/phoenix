@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<650b7e0d316ff5f6b299033e2d5a19d7>>
+ * @generated SignedSource<<81df621ac1f0ebe73c2ff32444ffea4c>>
  * @lightSyntaxTransform
  */
 
@@ -24,7 +24,7 @@ export type promptVersionLoaderQuery$data = {
     readonly tags?: ReadonlyArray<{
       readonly name: string;
     }>;
-    readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionDetailsPage__main" | "PromptChatMessagesCard__main" | "PromptCodeExportCard__main" | "PromptInvocationParameters__main" | "PromptModelConfigurationCard__main" | "PromptVersionDiffView__template" | "PromptVersionMetadataCard__main" | "PromptVersionTagsList_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "PromptCodeExportCard__main" | "PromptInvocationParameters__main" | "PromptModelConfigurationCard__main" | "PromptVersionDiffView__template" | "PromptVersionMetadataCard__main" | "PromptVersionTagsList_data">;
   };
 };
 export type promptVersionLoaderQuery = {
@@ -144,13 +144,6 @@ v15 = {
   "storageKey": null
 },
 v16 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "template",
-  "storageKey": null
-},
-v17 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -288,225 +281,18 @@ v17 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v16/*:: as any*/)
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "template",
+          "storageKey": null
+        }
       ],
       "type": "PromptStringTemplate",
       "abstractKey": null
     }
   ],
-  "storageKey": null
-},
-v18 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateFormat",
-  "storageKey": null
-},
-v19 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "metadata",
-  "storageKey": null
-},
-v20 = [
-  (v3/*:: as any*/),
-  (v6/*:: as any*/)
-],
-v21 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DecisionInputDefinition",
-  "kind": "LinkedField",
-  "name": "inputs",
-  "plural": true,
-  "selections": [
-    (v6/*:: as any*/),
-    (v4/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "jsonSchema",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v22 = {
-  "alias": null,
-  "args": null,
-  "concreteType": null,
-  "kind": "LinkedField",
-  "name": "state",
-  "plural": false,
-  "selections": [
-    (v2/*:: as any*/),
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "object",
-          "storageKey": null
-        }
-      ],
-      "type": "DecisionObjectState",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        (v16/*:: as any*/),
-        (v18/*:: as any*/)
-      ],
-      "type": "DecisionTextState",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "input",
-          "storageKey": null
-        }
-      ],
-      "type": "DecisionInputState",
-      "abstractKey": null
-    }
-  ],
-  "storageKey": null
-},
-v23 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "instructions",
-  "storageKey": null
-},
-v24 = {
-  "alias": null,
-  "args": null,
-  "concreteType": null,
-  "kind": "LinkedField",
-  "name": "questions",
-  "plural": true,
-  "selections": [
-    (v2/*:: as any*/),
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        (v6/*:: as any*/),
-        (v23/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DecisionPredicateCriteria",
-          "kind": "LinkedField",
-          "name": "criteria",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "true",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "false",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "type": "DecisionPredicateQuestion",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        (v6/*:: as any*/),
-        (v23/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DecisionChoiceOption",
-          "kind": "LinkedField",
-          "name": "choices",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "value",
-              "storageKey": null
-            },
-            (v4/*:: as any*/)
-          ],
-          "storageKey": null
-        }
-      ],
-      "type": "DecisionChoiceQuestion",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        (v6/*:: as any*/),
-        (v23/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DecisionScaleLevel",
-          "kind": "LinkedField",
-          "name": "levels",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "label",
-              "storageKey": null
-            },
-            (v4/*:: as any*/)
-          ],
-          "storageKey": null
-        }
-      ],
-      "type": "DecisionScaleQuestion",
-      "abstractKey": null
-    }
-  ],
-  "storageKey": null
-},
-v25 = {
-  "alias": "decisionModelProvider",
-  "args": null,
-  "kind": "ScalarField",
-  "name": "modelProvider",
-  "storageKey": null
-},
-v26 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "GenerativeModelCustomProvider",
-  "kind": "LinkedField",
-  "name": "customProvider",
-  "plural": false,
-  "selections": (v20/*:: as any*/),
   "storageKey": null
 };
 return {
@@ -588,18 +374,6 @@ return {
               }
             ],
             "type": "PromptVersion",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DecisionVersionDetailsPage__main"
-              }
-            ],
-            "type": "DecisionVersion",
             "abstractKey": null
           }
         ],
@@ -967,7 +741,7 @@ return {
                 "name": "modelProvider",
                 "storageKey": null
               },
-              (v17/*:: as any*/),
+              (v16/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -975,7 +749,13 @@ return {
                 "name": "templateType",
                 "storageKey": null
               },
-              (v18/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "templateFormat",
+                "storageKey": null
+              },
               (v5/*:: as any*/),
               {
                 "alias": null,
@@ -1023,7 +803,13 @@ return {
                 "name": "modelName",
                 "storageKey": null
               },
-              (v19/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "metadata",
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -1031,7 +817,10 @@ return {
                 "kind": "LinkedField",
                 "name": "tags",
                 "plural": true,
-                "selections": (v20/*:: as any*/),
+                "selections": [
+                  (v3/*:: as any*/),
+                  (v6/*:: as any*/)
+                ],
                 "storageKey": null
               },
               (v4/*:: as any*/),
@@ -1043,77 +832,13 @@ return {
                 "name": "previousVersion",
                 "plural": false,
                 "selections": [
-                  (v17/*:: as any*/),
+                  (v16/*:: as any*/),
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "type": "PromptVersion",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v19/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Decision",
-                "kind": "LinkedField",
-                "name": "decision",
-                "plural": false,
-                "selections": [
-                  (v3/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "DecisionVersionTag",
-                    "kind": "LinkedField",
-                    "name": "versionTags",
-                    "plural": true,
-                    "selections": (v20/*:: as any*/),
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DecisionVersionTag",
-                "kind": "LinkedField",
-                "name": "tags",
-                "plural": true,
-                "selections": (v20/*:: as any*/),
-                "storageKey": null
-              },
-              (v21/*:: as any*/),
-              (v22/*:: as any*/),
-              (v24/*:: as any*/),
-              (v5/*:: as any*/),
-              (v25/*:: as any*/),
-              (v26/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DecisionVersion",
-                "kind": "LinkedField",
-                "name": "previousVersion",
-                "plural": false,
-                "selections": [
-                  (v21/*:: as any*/),
-                  (v22/*:: as any*/),
-                  (v24/*:: as any*/),
-                  (v5/*:: as any*/),
-                  (v25/*:: as any*/),
-                  (v26/*:: as any*/),
-                  (v3/*:: as any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "DecisionVersion",
             "abstractKey": null
           }
         ],
@@ -1122,16 +847,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d94f1171d5962146d504ad6c1a4c7685",
+    "cacheID": "b4e53597bcd51b67ef9284e807431ad2",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: ID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionMetadataCard__main\n      ...PromptVersionTagsList_data\n      description\n      modelName\n      tags {\n        name\n        id\n      }\n      ...PromptVersionDiffView__template\n      previousVersion {\n        ...PromptVersionDiffView__template\n        id\n      }\n    }\n    ... on DecisionVersion {\n      ...DecisionVersionDetailsPage__main\n    }\n  }\n}\n\nfragment DecisionCodeExportCard_version on DecisionVersion {\n  id\n  inputs {\n    name\n  }\n}\n\nfragment DecisionDefinitionCard_version on DecisionVersion {\n  inputs {\n    name\n    description\n    jsonSchema\n  }\n  state {\n    __typename\n    ... on DecisionObjectState {\n      object\n    }\n    ... on DecisionTextState {\n      template\n      templateFormat\n    }\n    ... on DecisionInputState {\n      input\n    }\n  }\n  questions {\n    __typename\n    ... on DecisionPredicateQuestion {\n      name\n      instructions\n      criteria {\n        true\n        false\n      }\n    }\n    ... on DecisionChoiceQuestion {\n      name\n      instructions\n      choices {\n        value\n        description\n      }\n    }\n    ... on DecisionScaleQuestion {\n      name\n      instructions\n      levels {\n        label\n        description\n      }\n    }\n  }\n  modelName\n  decisionModelProvider: modelProvider\n  customProvider {\n    id\n    name\n  }\n}\n\nfragment DecisionModelConfigurationCard_version on DecisionVersion {\n  modelName\n  decisionModelProvider: modelProvider\n  customProvider {\n    name\n    id\n  }\n}\n\nfragment DecisionVersionDetailsPage__main on DecisionVersion {\n  id\n  metadata\n  decision {\n    id\n    versionTags {\n      id\n      name\n    }\n  }\n  ...DecisionVersionTagsList_data\n  ...DecisionDefinitionCard_version\n  ...DecisionModelConfigurationCard_version\n  ...DecisionCodeExportCard_version\n  previousVersion {\n    ...DecisionDefinitionCard_version\n    id\n  }\n}\n\nfragment DecisionVersionTagsList_data on DecisionVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n\nfragment PromptVersionMetadataCard__main on PromptVersion {\n  metadata\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: ID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionMetadataCard__main\n      ...PromptVersionTagsList_data\n      description\n      modelName\n      tags {\n        name\n        id\n      }\n      ...PromptVersionDiffView__template\n      previousVersion {\n        ...PromptVersionDiffView__template\n        id\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n\nfragment PromptVersionMetadataCard__main on PromptVersion {\n  metadata\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dee9938e85dc91d7d9ec66d8e475b415";
+(node as any).hash = "5ddd21d7c37040d84c452ae629d37df6";
 
 export default node;

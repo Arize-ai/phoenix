@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<081082a21b0488288b5e226a9ebff725>>
+ * @generated SignedSource<<e914f36482059f26b2f6ff441bdd72fa>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,7 @@ export type promptLoaderQuery$data = {
     readonly __typename: string;
     readonly id: string;
     readonly name?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"DecisionIndexPage__main" | "DecisionLayout__main" | "DecisionVersionsPageContent__main" | "PromptIndexPage__main" | "PromptLayout__main" | "PromptVersionsPageContent__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptIndexPage__main" | "PromptLayout__main" | "PromptVersionsPageContent__main">;
   };
 };
 export type promptLoaderQuery = {
@@ -128,38 +128,17 @@ v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "template",
+  "name": "createdAt",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "templateFormat",
-  "storageKey": null
-},
-v16 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "modelName",
-  "storageKey": null
-},
-v17 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "sequenceNumber",
   "storageKey": null
 },
-v18 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
-  "storageKey": null
-},
-v19 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -185,69 +164,27 @@ v19 = {
   ],
   "storageKey": null
 },
-v20 = [
+v17 = [
   (v3/*:: as any*/),
   (v4/*:: as any*/)
 ],
-v21 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptVersionTag",
   "kind": "LinkedField",
   "name": "tags",
   "plural": true,
-  "selections": (v20/*:: as any*/),
+  "selections": (v17/*:: as any*/),
   "storageKey": null
 },
-v22 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "metadata",
-  "storageKey": null
-},
-v23 = [
+v19 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 5
+    "value": 50
   }
-],
-v24 = [
-  (v4/*:: as any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "color",
-    "storageKey": null
-  },
-  (v3/*:: as any*/)
-],
-v25 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "versionCount",
-  "storageKey": null
-},
-v26 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "instructions",
-  "storageKey": null
-},
-v27 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DecisionVersionTag",
-  "kind": "LinkedField",
-  "name": "tags",
-  "plural": true,
-  "selections": (v20/*:: as any*/),
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -286,29 +223,6 @@ return {
               }
             ],
             "type": "Prompt",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v4/*:: as any*/),
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DecisionIndexPage__main"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DecisionVersionsPageContent__main"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DecisionLayout__main"
-              }
-            ],
-            "type": "Decision",
             "abstractKey": null
           }
         ],
@@ -839,7 +753,13 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v14/*:: as any*/)
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "template",
+                                    "storageKey": null
+                                  }
                                 ],
                                 "type": "PromptStringTemplate",
                                 "abstractKey": null
@@ -854,9 +774,21 @@ return {
                             "name": "templateType",
                             "storageKey": null
                           },
-                          (v15/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "templateFormat",
+                            "storageKey": null
+                          },
                           (v3/*:: as any*/),
-                          (v16/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "modelName",
+                            "storageKey": null
+                          },
                           {
                             "alias": null,
                             "args": null,
@@ -905,23 +837,6 @@ return {
                           }
                         ],
                         "storageKey": null
-                      },
-                      {
-                        "alias": "version",
-                        "args": null,
-                        "concreteType": "PromptVersion",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v11/*:: as any*/),
-                          (v17/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v19/*:: as any*/),
-                          (v21/*:: as any*/)
-                        ],
-                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -930,10 +845,22 @@ return {
                 "storageKey": null
               },
               (v11/*:: as any*/),
-              (v22/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "metadata",
+                "storageKey": null
+              },
               {
                 "alias": "latestVersions",
-                "args": (v23/*:: as any*/),
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "first",
+                    "value": 5
+                  }
+                ],
                 "concreteType": "PromptVersionConnection",
                 "kind": "LinkedField",
                 "name": "promptVersions",
@@ -957,10 +884,10 @@ return {
                         "selections": [
                           (v3/*:: as any*/),
                           (v11/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v17/*:: as any*/),
-                          (v19/*:: as any*/),
-                          (v21/*:: as any*/)
+                          (v14/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v18/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -977,10 +904,112 @@ return {
                 "kind": "LinkedField",
                 "name": "labels",
                 "plural": true,
-                "selections": (v24/*:: as any*/),
+                "selections": [
+                  (v4/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "color",
+                    "storageKey": null
+                  },
+                  (v3/*:: as any*/)
+                ],
                 "storageKey": null
               },
-              (v25/*:: as any*/),
+              {
+                "alias": "pagedVersions",
+                "args": (v19/*:: as any*/),
+                "concreteType": "PromptVersionConnection",
+                "kind": "LinkedField",
+                "name": "promptVersions",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersionEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "version",
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v3/*:: as any*/),
+                          (v11/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v14/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v18/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v2/*:: as any*/),
+                          (v3/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "endCursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "hasNextPage",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": "promptVersions(first:50)"
+              },
+              {
+                "alias": "pagedVersions",
+                "args": (v19/*:: as any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "PromptVersionsList__pagedVersions",
+                "kind": "LinkedHandle",
+                "name": "promptVersions"
+              },
               {
                 "alias": null,
                 "args": null,
@@ -988,327 +1017,18 @@ return {
                 "kind": "LinkedField",
                 "name": "sourcePrompt",
                 "plural": false,
-                "selections": (v20/*:: as any*/),
+                "selections": (v17/*:: as any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "versionCount",
                 "storageKey": null
               }
             ],
             "type": "Prompt",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v4/*:: as any*/),
-              {
-                "alias": "latestVersion",
-                "args": null,
-                "concreteType": "DecisionVersion",
-                "kind": "LinkedField",
-                "name": "version",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "DecisionInputDefinition",
-                    "kind": "LinkedField",
-                    "name": "inputs",
-                    "plural": true,
-                    "selections": [
-                      (v4/*:: as any*/),
-                      (v11/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "jsonSchema",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": null,
-                    "kind": "LinkedField",
-                    "name": "state",
-                    "plural": false,
-                    "selections": [
-                      (v2/*:: as any*/),
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "object",
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecisionObjectState",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v14/*:: as any*/),
-                          (v15/*:: as any*/)
-                        ],
-                        "type": "DecisionTextState",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "input",
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecisionInputState",
-                        "abstractKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": null,
-                    "kind": "LinkedField",
-                    "name": "questions",
-                    "plural": true,
-                    "selections": [
-                      (v2/*:: as any*/),
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v4/*:: as any*/),
-                          (v26/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "DecisionPredicateCriteria",
-                            "kind": "LinkedField",
-                            "name": "criteria",
-                            "plural": false,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "true",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "false",
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecisionPredicateQuestion",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v4/*:: as any*/),
-                          (v26/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "DecisionChoiceOption",
-                            "kind": "LinkedField",
-                            "name": "choices",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "value",
-                                "storageKey": null
-                              },
-                              (v11/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecisionChoiceQuestion",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v4/*:: as any*/),
-                          (v26/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "DecisionScaleLevel",
-                            "kind": "LinkedField",
-                            "name": "levels",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "label",
-                                "storageKey": null
-                              },
-                              (v11/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecisionScaleQuestion",
-                        "abstractKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  (v16/*:: as any*/),
-                  {
-                    "alias": "decisionModelProvider",
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "modelProvider",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "GenerativeModelCustomProvider",
-                    "kind": "LinkedField",
-                    "name": "customProvider",
-                    "plural": false,
-                    "selections": (v20/*:: as any*/),
-                    "storageKey": null
-                  },
-                  (v3/*:: as any*/)
-                ],
-                "storageKey": null
-              },
-              (v11/*:: as any*/),
-              (v22/*:: as any*/),
-              {
-                "alias": "latestVersions",
-                "args": (v23/*:: as any*/),
-                "concreteType": "DecisionVersionConnection",
-                "kind": "LinkedField",
-                "name": "versions",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "DecisionVersionEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": "version",
-                        "args": null,
-                        "concreteType": "DecisionVersion",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v17/*:: as any*/),
-                          (v11/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v19/*:: as any*/),
-                          (v27/*:: as any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "versions(first:5)"
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DecisionLabel",
-                "kind": "LinkedField",
-                "name": "labels",
-                "plural": true,
-                "selections": (v24/*:: as any*/),
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "first",
-                    "value": 100
-                  }
-                ],
-                "concreteType": "DecisionVersionConnection",
-                "kind": "LinkedField",
-                "name": "versions",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "DecisionVersionEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": "version",
-                        "args": null,
-                        "concreteType": "DecisionVersion",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v11/*:: as any*/),
-                          (v17/*:: as any*/),
-                          (v18/*:: as any*/),
-                          (v19/*:: as any*/),
-                          (v27/*:: as any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "versions(first:100)"
-              },
-              (v25/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Decision",
-                "kind": "LinkedField",
-                "name": "sourceDecision",
-                "plural": false,
-                "selections": (v20/*:: as any*/),
-                "storageKey": null
-              }
-            ],
-            "type": "Decision",
             "abstractKey": null
           }
         ],
@@ -1317,16 +1037,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c0f770b37450cb88e6b838af1f309f15",
+    "cacheID": "1c63e49442fd684f6300cdafe4acb511",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n    ... on Decision {\n      name\n      ...DecisionIndexPage__main\n      ...DecisionVersionsPageContent__main\n      ...DecisionLayout__main\n    }\n  }\n}\n\nfragment DecisionCodeExportCard_version on DecisionVersion {\n  id\n  inputs {\n    name\n  }\n}\n\nfragment DecisionDefinitionCard_version on DecisionVersion {\n  inputs {\n    name\n    description\n    jsonSchema\n  }\n  state {\n    __typename\n    ... on DecisionObjectState {\n      object\n    }\n    ... on DecisionTextState {\n      template\n      templateFormat\n    }\n    ... on DecisionInputState {\n      input\n    }\n  }\n  questions {\n    __typename\n    ... on DecisionPredicateQuestion {\n      name\n      instructions\n      criteria {\n        true\n        false\n      }\n    }\n    ... on DecisionChoiceQuestion {\n      name\n      instructions\n      choices {\n        value\n        description\n      }\n    }\n    ... on DecisionScaleQuestion {\n      name\n      instructions\n      levels {\n        label\n        description\n      }\n    }\n  }\n  modelName\n  decisionModelProvider: modelProvider\n  customProvider {\n    id\n    name\n  }\n}\n\nfragment DecisionIndexPage__aside on Decision {\n  id\n  description\n  metadata\n  ...DecisionLatestVersionsListFragment\n  ...EditDecisionButton_data\n  ...DecisionLabels\n}\n\nfragment DecisionIndexPage__main on Decision {\n  latestVersion: version {\n    ...DecisionDefinitionCard_version\n    ...DecisionModelConfigurationCard_version\n    ...DecisionCodeExportCard_version\n    id\n  }\n  ...DecisionIndexPage__aside\n}\n\nfragment DecisionLabels on Decision {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment DecisionLatestVersionsListFragment on Decision {\n  latestVersions: versions(first: 5) {\n    edges {\n      version: node {\n        id\n        sequenceNumber\n        ...DecisionVersionSummaryFragment\n      }\n    }\n  }\n}\n\nfragment DecisionLayout__main on Decision {\n  id\n  name\n  description\n  metadata\n  versionCount\n  sourceDecision {\n    id\n    name\n  }\n}\n\nfragment DecisionModelConfigurationCard_version on DecisionVersion {\n  modelName\n  decisionModelProvider: modelProvider\n  customProvider {\n    name\n    id\n  }\n}\n\nfragment DecisionVersionSummaryFragment on DecisionVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...DecisionVersionTagsList_data\n}\n\nfragment DecisionVersionTagsList_data on DecisionVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionsList__main on Decision {\n  versions(first: 100) {\n    edges {\n      version: node {\n        id\n        ...DecisionVersionSummaryFragment\n      }\n    }\n  }\n}\n\nfragment DecisionVersionsPageContent__main on Decision {\n  ...DecisionVersionsList__main\n}\n\nfragment EditDecisionButton_data on Decision {\n  id\n  description\n  metadata\n}\n\nfragment EditPromptButton_data on Prompt {\n  id\n  description\n  metadata\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  id\n  name\n  description\n  metadata\n  ...PromptLatestVersionsListFragment\n  ...EditPromptButton_data\n  ...PromptLabels\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        ...PromptInvocationParameters__main\n        ...PromptChatMessagesCard__main\n        ...PromptCodeExportCard__main\n        ...PromptModelConfigurationCard__main\n        id\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptLabels on Prompt {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment PromptLatestVersionsListFragment on Prompt {\n  latestVersions: promptVersions(first: 5) {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n        sequenceNumber\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  versionCount\n  sourcePrompt {\n    id\n    name\n  }\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment EditPromptButton_data on Prompt {\n  id\n  description\n  metadata\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  id\n  name\n  description\n  metadata\n  ...PromptLatestVersionsListFragment\n  ...EditPromptButton_data\n  ...PromptLabels\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        ...PromptInvocationParameters__main\n        ...PromptChatMessagesCard__main\n        ...PromptCodeExportCard__main\n        ...PromptModelConfigurationCard__main\n        id\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptLabels on Prompt {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment PromptLatestVersionsListFragment on Prompt {\n  latestVersions: promptVersions(first: 5) {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n        sequenceNumber\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  sourcePrompt {\n    id\n    name\n  }\n  versionCount\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  pagedVersions: promptVersions(first: 50) {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e86dd00bddccd15c8ec400a85a50826b";
+(node as any).hash = "c19209c9d3b9df985746493df3a97b49";
 
 export default node;

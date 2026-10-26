@@ -46,46 +46,38 @@ async function createDecision(page: Page, name: string): Promise<string> {
 }
 
 test.describe("Decision Management", () => {
-  test("lists a decision with prompts and opens it under /prompts", async ({
+  test("lists decisions on a tab of the prompts page and opens one", async ({
     page,
   }) => {
     const decisionName = `triage-${randomUUID()}`;
     const decisionId = await createDecision(page, decisionName);
 
     await page.goto("/prompts");
+    await page.waitForURL("**/prompts");
+    await page.getByRole("tab", { name: "Decisions" }).click();
+    await expect(page).toHaveURL(/\/prompts\/decisions$/);
+
     const row = page
-      .getByTestId("prompts-table")
+      .getByTestId("decisions-table")
       .getByRole("row")
       .filter({ has: page.getByRole("link", { name: decisionName }) });
     await expect(row).toBeVisible();
-    await expect(row.getByText("DECISION", { exact: true })).toBeVisible();
 
     await row.getByRole("link", { name: decisionName }).click();
-    await expect(page).toHaveURL(new RegExp(`/prompts/${decisionId}$`));
+    await expect(page).toHaveURL(
+      new RegExp(`/prompts/decisions/${decisionId}$`)
+    );
     await expect(
       page.getByRole("heading", { name: decisionName })
     ).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Decision" })).toBeVisible();
     await expect(page.getByText("Is the ticket urgent?").first()).toBeVisible();
 
     await page.getByRole("tab", { name: /versions/i }).click();
     await expect(page).toHaveURL(
-      new RegExp(`/prompts/${decisionId}/versions/`)
+      new RegExp(`/prompts/decisions/${decisionId}/versions$`)
     );
-    await expect(page.getByRole("heading", { name: "Version" })).toBeVisible();
-  });
-
-  test("redirects old decision URLs to /prompts", async ({ page }) => {
-    const decisionName = `triage-${randomUUID()}`;
-    const decisionId = await createDecision(page, decisionName);
-
-    await page.goto(`/decisions/${decisionId}`);
-    await expect(page).toHaveURL(new RegExp(`/prompts/${decisionId}$`));
     await expect(
-      page.getByRole("heading", { name: decisionName })
+      page.getByRole("heading", { name: "Version" }).first()
     ).toBeVisible();
-
-    await page.goto("/decisions");
-    await expect(page).toHaveURL(/\/prompts$/);
   });
 });

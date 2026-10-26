@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eeb941be5f6185228e8d7c0c2910cc68>>
+ * @generated SignedSource<<bf40b5c7339567d35530429efb8c71ad>>
  * @lightSyntaxTransform
  */
 
@@ -33,15 +33,6 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  }
-],
-v2 = [
-  {
     "alias": "prompt",
     "args": [
       {
@@ -71,14 +62,16 @@ v2 = [
       },
       {
         "kind": "InlineFragment",
-        "selections": (v1/*:: as any*/),
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          }
+        ],
         "type": "Prompt",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": (v1/*:: as any*/),
-        "type": "Decision",
         "abstractKey": null
       }
     ],
@@ -91,7 +84,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "promptLoader_PromptQuery",
-    "selections": (v2/*:: as any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -100,19 +93,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "promptLoader_PromptQuery",
-    "selections": (v2/*:: as any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "1a4b0155f63c9b1c3e9edc8cfb4c91e6",
+    "cacheID": "e2002360cae1a354ce5c0128989a0ecb",
     "id": null,
     "metadata": {},
     "name": "promptLoader_PromptQuery",
     "operationKind": "query",
-    "text": "query promptLoader_PromptQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n    }\n    ... on Decision {\n      name\n    }\n  }\n}\n"
+    "text": "query promptLoader_PromptQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c18d7e58cbe68af6f39b2a0f6ba545c2";
+(node as any).hash = "933d252110e9044883a0cde91038d763";
 
 export default node;

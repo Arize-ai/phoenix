@@ -9,13 +9,12 @@ import type {
 
 export const promptsLoaderGql = graphql`
   query promptsLoaderQuery {
-    ...PromptsTable_items
+    ...PromptsTable_prompts
   }
 `;
 
 /**
- * Loads in the necessary page data for the prompts page, which lists prompts
- * and decisions together
+ * Loads in the necessary page data for the prompts page
  */
 export function promptsLoader() {
   return loadQuery<promptsLoaderQuery, promptsLoaderQuery$variables>(

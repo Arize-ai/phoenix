@@ -32,9 +32,6 @@ export const promptVersionLoaderQuery = graphql`
           ...PromptVersionDiffView__template
         }
       }
-      ... on DecisionVersion {
-        ...DecisionVersionDetailsPage__main
-      }
     }
   }
 `;
@@ -43,7 +40,6 @@ export const promptVersionLoaderQuery = graphql`
  * Loads in the necessary page data for the prompt/:promptId/versions/:versionId page
  *
  * In other words, the data required to render a specific version of a prompt
- * or of a decision
  */
 export function promptVersionLoader(args: LoaderFunctionArgs) {
   const { versionId } = args.params;

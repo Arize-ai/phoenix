@@ -1,7 +1,9 @@
 import { graphql, useFragment } from "react-relay";
 
+import { Card, CopyToClipboardButton } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
+
 import type { PromptVersionMetadataCard__main$key } from "./__generated__/PromptVersionMetadataCard__main.graphql";
-import { VersionMetadataCard } from "./VersionMetadataCard";
 
 export function PromptVersionMetadataCard({
   promptVersion: promptVersionFragment,
@@ -16,10 +18,15 @@ export function PromptVersionMetadataCard({
     `,
     promptVersionFragment
   );
+  const metadataJSON = JSON.stringify(metadata, null, 2);
   return (
-    <VersionMetadataCard
-      metadata={metadata}
+    <Card
+      title="Metadata"
+      collapsible
       testId="prompt-version-metadata-card"
-    />
+      extra={<CopyToClipboardButton text={metadataJSON} />}
+    >
+      <JSONBlock value={metadataJSON} />
+    </Card>
   );
 }

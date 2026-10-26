@@ -49,13 +49,10 @@ import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterPro
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import type { PromptsTable_items$key } from "./__generated__/PromptsTable_items.graphql";
-import type { PromptsTableItemsQuery } from "./__generated__/PromptsTableItemsQuery.graphql";
-import { DecisionActionMenu } from "./DecisionActionMenu";
+import type { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
+import type { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
 import { PromptActionMenu } from "./PromptActionMenu";
-import { PromptKindToken } from "./PromptKindToken";
 import { PromptsEmpty } from "./PromptsEmpty";
-import { toPromptsTableRows } from "./promptsTableRows";
 
 const PAGE_SIZE = 100;
 const PROMPTS_POLL_INTERVAL_MS = 60_000;
@@ -86,13 +83,8 @@ const tokenListCSS = css`
 `;
 
 type PromptsTableProps = {
-  query: PromptsTable_items$key;
+  query: PromptsTable_prompts$key;
 };
-
-/**
- * The prompts page table. Lists saved prompts and decisions together, with a
- * badge naming each row's kind.
- */
 
 export function PromptsTable(props: PromptsTableProps) {
   const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
@@ -133,86 +125,51 @@ export function PromptsTable(props: PromptsTableProps) {
   );
 
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<PromptsTableItemsQuery, PromptsTable_items$key>(
+    usePaginationFragment<PromptsTablePromptsQuery, PromptsTable_prompts$key>(
       graphql`
-        fragment PromptsTable_items on Query
-        @refetchable(queryName: "PromptsTableItemsQuery")
+        fragment PromptsTable_prompts on Query
+        @refetchable(queryName: "PromptsTablePromptsQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
-          filter: { type: "PromptOrDecisionFilter", defaultValue: null }
+          filter: { type: "PromptFilter", defaultValue: null }
           labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          promptsAndDecisions(
+          prompts(
             first: $first
             after: $after
             filter: $filter
             labelIds: $labelIds
-          ) @connection(key: "PromptsTable_promptsAndDecisions") {
+          ) @connection(key: "PromptsTable_prompts") {
             edges {
-              item: node {
-                __typename
-                ... on Prompt {
-                  id
-                  name
-                  description
-                  createdBy {
-                    username
-                    profilePictureUrl
-                  }
-                  updatedBy {
-                    username
-                    profilePictureUrl
-                  }
-                  version {
-                    id
-                    createdAt
-                    modelName
-                    modelProvider
-                  }
-                  versionCount
-                  versionTags {
-                    id
-                    name
-                    promptVersionId
-                  }
-                  labels {
-                    id
-                    name
-                    color
-                  }
+              prompt: node {
+                id
+                name
+                description
+                createdBy {
+                  username
+                  profilePictureUrl
                 }
-                ... on Decision {
+                updatedBy {
+                  username
+                  profilePictureUrl
+                }
+                version {
+                  id
+                  createdAt
+                  modelName
+                  modelProvider
+                }
+                versionCount
+                versionTags {
                   id
                   name
-                  description
-                  createdBy {
-                    username
-                    profilePictureUrl
-                  }
-                  updatedBy {
-                    username
-                    profilePictureUrl
-                  }
-                  # Aliased: a decision may have no version, unlike a prompt
-                  latestVersion: version {
-                    id
-                    createdAt
-                    modelName
-                    modelProvider
-                  }
-                  updatedAt
-                  versionCount
-                  versionTags {
-                    id
-                    name
-                    decisionVersionId
-                  }
-                  labels {
-                    id
-                    name
-                    color
-                  }
+                  promptVersionId
+                }
+                labels {
+                  id
+                  name
+                  color
                 }
               }
             }
@@ -223,7 +180,7 @@ export function PromptsTable(props: PromptsTableProps) {
     );
 
   const refreshPrompts = useCallback(
-    (variables?: Partial<PromptsTableItemsQuery["variables"]>) => {
+    (variables?: Partial<PromptsTablePromptsQuery["variables"]>) => {
       startTransition(() => {
         refetch(
           {
@@ -245,17 +202,23 @@ export function PromptsTable(props: PromptsTableProps) {
   }, [refreshPrompts]);
 
   useInterval(() => {
-    const loadedItemCount = data.promptsAndDecisions.edges.length;
+    const loadedPromptCount = data.prompts.edges.length;
     refreshPrompts({
-      first: Math.max(PAGE_SIZE, loadedItemCount),
+      first: Math.max(PAGE_SIZE, loadedPromptCount),
     });
   }, PROMPTS_POLL_INTERVAL_MS);
 
   const tableData = useMemo(
     () =>
-      toPromptsTableRows(
-        data.promptsAndDecisions.edges.map((edge) => edge.item)
-      ),
+      data.prompts.edges.map((edge) => {
+        return {
+          lastUpdatedAt: edge.prompt.version.createdAt,
+          modelName: edge.prompt.version.modelName,
+          modelProvider: edge.prompt.version.modelProvider,
+          latestVersionId: edge.prompt.version.id,
+          ...edge.prompt,
+        };
+      }),
     [data]
   );
 
@@ -296,12 +259,6 @@ export function PromptsTable(props: PromptsTableProps) {
         },
       },
       {
-        header: "type",
-        accessorKey: "kind",
-        size: 120,
-        cell: ({ row }) => <PromptKindToken kind={row.original.kind} />,
-      },
-      {
         header: "labels",
         accessorKey: "labels",
         enableSorting: false,
@@ -314,7 +271,7 @@ export function PromptsTable(props: PromptsTableProps) {
                     <Token
                       color={label.color ?? undefined}
                       onPress={() => toggleLabelFilter(label.id)}
-                      aria-label={`Filter by label ${label.name}`}
+                      aria-label={`Filter prompts by label ${label.name}`}
                     >
                       <Truncate maxWidth={200} title={label.name}>
                         {label.name}
@@ -342,9 +299,7 @@ export function PromptsTable(props: PromptsTableProps) {
           }
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
-              {modelProvider ? (
-                <GenerativeProviderIcon provider={modelProvider} height={16} />
-              ) : null}
+              <GenerativeProviderIcon provider={modelProvider} height={16} />
               <Text minWidth={0}>
                 <Truncate>{modelName}</Truncate>
               </Text>
@@ -371,9 +326,6 @@ export function PromptsTable(props: PromptsTableProps) {
         accessorKey: "latestVersionId",
         enableSorting: false,
         cell: ({ row }) => {
-          if (!row.original.latestVersionId) {
-            return <Text color="text-700">—</Text>;
-          }
           return (
             <CellWithControlsWrap
               controls={
@@ -401,7 +353,7 @@ export function PromptsTable(props: PromptsTableProps) {
               {row.original.versionTags.map((tag) => (
                 <li key={tag.id}>
                   <Link
-                    to={`${basePath}/${row.original.id}/versions/${tag.versionId}`}
+                    to={`${basePath}/${row.original.id}/versions/${tag.promptVersionId}`}
                   >
                     <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
                   </Link>
@@ -437,12 +389,6 @@ export function PromptsTable(props: PromptsTableProps) {
         enableSorting: false,
         accessorKey: "id",
         cell: ({ row }) => {
-          const { kind, id, name } = row.original;
-          const onDeleted = () => {
-            refetch(queryArgs, { fetchPolicy: "network-only" });
-          };
-          const playgroundParam =
-            kind === "decision" ? "decisionId" : "promptId";
           return (
             <Flex
               direction="row"
@@ -455,20 +401,17 @@ export function PromptsTable(props: PromptsTableProps) {
                   leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   size="S"
                   aria-label="Open in playground"
-                  to={`/playground?${playgroundParam}=${encodeURIComponent(id)}`}
+                  to={`/playground?promptId=${encodeURIComponent(row.original.id)}`}
                 >
                   Playground
                 </LinkButton>
               </StopPropagation>
-              {kind === "decision" ? (
-                <DecisionActionMenu
-                  decisionId={id}
-                  decisionName={name}
-                  onDeleted={onDeleted}
-                />
-              ) : (
-                <PromptActionMenu promptId={id} onDeleted={onDeleted} />
-              )}
+              <PromptActionMenu
+                promptId={row.original.id}
+                onDeleted={() => {
+                  refetch(queryArgs, { fetchPolicy: "network-only" });
+                }}
+              />
             </Flex>
           );
         },
@@ -507,11 +450,11 @@ export function PromptsTable(props: PromptsTableProps) {
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
-    // Key rows by node ID rather than by index. Row cells host overlays
+    // Key rows by prompt ID rather than by index. Row cells host overlays
     // (the action menu and its label submenu) that are bound to
     // `row.original.id`; with index-based keys a refetch that re-orders the
-    // list hands the still-open overlay a different row's ID, so the next
-    // click writes to the wrong prompt or decision.
+    // list hands the still-open overlay a different prompt's ID, so the next
+    // click writes to the wrong prompt.
     getRowId: (row) => row.id,
   });
 

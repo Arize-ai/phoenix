@@ -580,14 +580,14 @@ and the later `#16680` tag hardening.
   - *Product experience (gains):* keeps `decision.versionTags`,
     `DecisionVersionSelector`, and the Playground's **Save decision** modal free
     of machine-generated `{name}-evaluator-{4-hex}` checkboxes, and keeps
-    `/prompts/:id/config` free of undeletable tags or stale names after an
+    `/decisions/:id/config` free of undeletable tags or stale names after an
     evaluator rename. Matches `DecisionCell` (`decision @ <versionId>`).
   - *Product experience (what it gives up):* saving a new version in the
     Playground does not offer a tag checkbox to repin the evaluator in the same
     modal (retargeting happens from the Evaluator editor via
-    `DecisionVersionSelector` or inline editing), and `/prompts/:id/versions`
+    `DecisionVersionSelector` or inline editing), and `/decisions/:id/versions`
     does not show a tag badge indicating which evaluator is pinned to a version
-    (if reverse visibility on `/prompts/:id` is desired, a read-only
+    (if reverse visibility on `/decisions/:id` is desired, a read-only
     `evaluators` field on `DecisionVersion` shows live evaluator names and links
     without minting fake release tags). Because a `DecisionVersion` only defines
     `questions` while `DecisionEvaluator` owns `scoring_policy` (thresholds,
@@ -599,8 +599,8 @@ and the later `#16680` tag hardening.
   - *Product experience:* preserves the original `LLMEvaluator` workflow from
     `llm-evaluators.mdx`—users can promote a Decision version to an evaluator by
     checking `{name}-evaluator-{4-hex}` in the Playground's **Save decision**
-    modal, see the tag badge on `/prompts/:id/versions`, and delete the tag on
-    `/prompts/:id/config` to fall back to the latest version (which also
+    modal, see the tag badge on `/decisions/:id/versions`, and delete the tag on
+    `/decisions/:id/config` to fall back to the latest version (which also
     raises whether `LLMEvaluator`'s #16680 hardening should be relaxed to match).
   - *Why `DecisionEvaluator` can support this cleanly without `LLMEvaluator`'s
     failure modes:*
@@ -633,7 +633,7 @@ and the later `#16680` tag hardening.
   - Combines the costs of both without the full benefits of either: injects
     machine-generated `{name}-evaluator-{4-hex}` tags into user tag lists and
     the Playground **Save decision** dialog, but forbids deleting them on
-    `/prompts/:id/config` (`409 Conflict`), fails Playground saves with `409`
+    `/decisions/:id/config` (`409 Conflict`), fails Playground saves with `409`
     if checked on a version whose inputs or questions break a binding, and adds
     1:1 table indirection, 3NF redundancy (`decision_id`), cross-module mutation
     guards, and outer-join locking workarounds—while `DecisionCell` and
@@ -766,13 +766,6 @@ The tag on `decision_version_tags` uses a composite foreign key so a tag can
 never point at another decision's version. `PromptVersionTag` doesn't do this
 today; it's cheap to add here. Labels group decisions in the library, and a
 clone records its source decision, so the UI can link back to it.
-
-The library is shared with prompts: `/prompts` lists both kinds in one table
-through the `promptsAndDecisions` connection (a `PromptOrDecision` union with
-the `prompts` connection's filter and `labelIds` arguments), and a decision's
-detail pages live at `/prompts/:id`. Old `/decisions` URLs redirect there.
-Storage, labels, and version tags stay separate per kind; `labelIds` may mix
-prompt and decision labels, and a kind with no selected labels is excluded.
 
 ### 10.1 Inputs and State
 

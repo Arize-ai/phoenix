@@ -31,7 +31,7 @@ export const DecisionCell = ({
   const { decisionId, id, decision } = decisionVersion;
   return (
     <Link
-      to={`/prompts/${decisionId}/versions/${id}`}
+      to={`/prompts/decisions/${decisionId}/versions/${id}`}
       css={css`
         text-decoration: none;
         ${wrapWidth != null &&

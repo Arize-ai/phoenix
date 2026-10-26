@@ -97,7 +97,7 @@ export function DecisionEvaluatorSummary({
     >
       <Flex direction="row" gap="size-100" alignItems="center" wrap>
         <Link
-          to={`/prompts/${decisionVersion.decisionId}/versions/${decisionVersion.id}`}
+          to={`/prompts/decisions/${decisionVersion.decisionId}/versions/${decisionVersion.id}`}
         >
           {decisionVersion.decision.name} ·{" "}
           <IdTruncate id={decisionVersion.id} />

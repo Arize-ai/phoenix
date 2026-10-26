@@ -28,11 +28,6 @@ const nodeQuery = graphql`
         promptName: name
         description
       }
-      # Decisions live under /prompts too, and are recorded as prompts
-      ... on Decision {
-        promptName: name
-        description
-      }
     }
   }
 `;
@@ -126,6 +121,11 @@ function matchEntityRoute(
         path: `/projects/${projectId}`,
       }),
     };
+  }
+  // Decisions are listed and viewed under /prompts/decisions; they are not
+  // tracked, and must not be mistaken for a prompt whose id is "decisions".
+  if (matchPath({ path: "/prompts/decisions", end: false }, pathname)) {
+    return null;
   }
   const promptMatch = matchPath(
     { path: "/prompts/:promptId", end: false },

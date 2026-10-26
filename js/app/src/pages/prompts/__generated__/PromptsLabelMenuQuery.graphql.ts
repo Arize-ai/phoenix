@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<45f4b1400d0602ca4636f5991d68a8ba>>
+ * @generated SignedSource<<eb969630237914c775e5aff9356b26f4>>
  * @lightSyntaxTransform
  */
 
@@ -10,15 +10,6 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type PromptsLabelMenuQuery$variables = Record<PropertyKey, never>;
 export type PromptsLabelMenuQuery$data = {
-  readonly decisionLabels: {
-    readonly edges: ReadonlyArray<{
-      readonly label: {
-        readonly color: string | null;
-        readonly id: string;
-        readonly name: string;
-      };
-    }>;
-  };
   readonly promptLabels: {
     readonly edges: ReadonlyArray<{
       readonly label: {
@@ -37,38 +28,14 @@ export type PromptsLabelMenuQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
-  }
-],
-v1 = [
-  {
     "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "color",
-    "storageKey": null
-  }
-],
-v2 = [
-  {
-    "alias": null,
-    "args": (v0/*:: as any*/),
+    "args": [
+      {
+        "kind": "Literal",
+        "name": "first",
+        "value": 100
+      }
+    ],
     "concreteType": "PromptLabelConnection",
     "kind": "LinkedField",
     "name": "promptLabels",
@@ -89,7 +56,29 @@ v2 = [
             "kind": "LinkedField",
             "name": "node",
             "plural": false,
-            "selections": (v1/*:: as any*/),
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "color",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -97,38 +86,6 @@ v2 = [
       }
     ],
     "storageKey": "promptLabels(first:100)"
-  },
-  {
-    "alias": null,
-    "args": (v0/*:: as any*/),
-    "concreteType": "DecisionLabelConnection",
-    "kind": "LinkedField",
-    "name": "decisionLabels",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "DecisionLabelEdge",
-        "kind": "LinkedField",
-        "name": "edges",
-        "plural": true,
-        "selections": [
-          {
-            "alias": "label",
-            "args": null,
-            "concreteType": "DecisionLabel",
-            "kind": "LinkedField",
-            "name": "node",
-            "plural": false,
-            "selections": (v1/*:: as any*/),
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": "decisionLabels(first:100)"
   }
 ];
 return {
@@ -137,7 +94,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptsLabelMenuQuery",
-    "selections": (v2/*:: as any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -146,19 +103,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PromptsLabelMenuQuery",
-    "selections": (v2/*:: as any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "1c1c1ffc05c7ac9f9e557295360a4db1",
+    "cacheID": "b1eec4579aec591910252fa2619f47f4",
     "id": null,
     "metadata": {},
     "name": "PromptsLabelMenuQuery",
     "operationKind": "query",
-    "text": "query PromptsLabelMenuQuery {\n  promptLabels(first: 100) {\n    edges {\n      label: node {\n        id\n        name\n        color\n      }\n    }\n  }\n  decisionLabels(first: 100) {\n    edges {\n      label: node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query PromptsLabelMenuQuery {\n  promptLabels(first: 100) {\n    edges {\n      label: node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a96f822a0925c9db52957c789f98ade1";
+(node as any).hash = "8874d1dc96531174072149aea94605a1";
 
 export default node;

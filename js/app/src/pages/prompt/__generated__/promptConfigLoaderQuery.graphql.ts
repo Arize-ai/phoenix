@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0cc3f98573a718683926625697d21c8d>>
+ * @generated SignedSource<<5520febd5fa91b60e5c295dcf6567049>>
  * @lightSyntaxTransform
  */
 
@@ -14,15 +14,7 @@ export type promptConfigLoaderQuery$variables = {
 };
 export type promptConfigLoaderQuery$data = {
   readonly prompt: {
-    readonly __typename: "Decision";
-    readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionTagsConfigCard_data">;
-  } | {
-    readonly __typename: "Prompt";
     readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfigCard_data">;
-  } | {
-    // This will never be '%other', but we need some
-    // value in case none of the concrete values match.
-    readonly __typename: "%other";
   };
 };
 export type promptConfigLoaderQuery = {
@@ -49,28 +41,7 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "id",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "description",
   "storageKey": null
 };
 return {
@@ -88,7 +59,6 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -99,18 +69,6 @@ return {
               }
             ],
             "type": "Prompt",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DecisionVersionTagsConfigCard_data"
-              }
-            ],
-            "type": "Decision",
             "abstractKey": null
           }
         ],
@@ -134,8 +92,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          },
           (v2/*:: as any*/),
-          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -147,9 +111,21 @@ return {
                 "name": "versionTags",
                 "plural": true,
                 "selections": [
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/),
+                  (v2/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "description",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -163,34 +139,6 @@ return {
             ],
             "type": "Prompt",
             "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DecisionVersionTag",
-                "kind": "LinkedField",
-                "name": "versionTags",
-                "plural": true,
-                "selections": [
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "decisionVersionId",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "Decision",
-            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -198,16 +146,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3ce8da5f8344e9ef6f61451ac9775d8",
+    "cacheID": "bb3d56ec191577418a8de0eaf53b6bde",
     "id": null,
     "metadata": {},
     "name": "promptConfigLoaderQuery",
     "operationKind": "query",
-    "text": "query promptConfigLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    ... on Decision {\n      ...DecisionVersionTagsConfigCard_data\n    }\n    id\n  }\n}\n\nfragment DecisionVersionTagsConfigCard_data on Decision {\n  id\n  versionTags {\n    id\n    name\n    description\n    decisionVersionId\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
+    "text": "query promptConfigLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1d8f66a3859dfeee0e985bfbcf19dd20";
+(node as any).hash = "14c6b4bb4ca5f20cce70677746b16459";
 
 export default node;

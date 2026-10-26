@@ -30,7 +30,7 @@ export function DeletePromptDialog({
       mutation DeletePromptDialogMutation($promptId: ID!) {
         deletePrompt(input: { promptId: $promptId }) {
           query {
-            ...PromptsTable_items
+            ...PromptsTable_prompts
           }
         }
       }

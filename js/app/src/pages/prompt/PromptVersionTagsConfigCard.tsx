@@ -1,10 +1,17 @@
-import { useCallback, useMemo } from "react";
+import { flexRender, useTable } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+
+import { Card, Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { TextCell } from "@phoenix/components/table";
+import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 import type { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 import { DeletePromptVersionTagButton } from "./DeletePromptVersionTagButton";
-import type { VersionTagsConfigRow } from "./VersionTagsConfigTable";
-import { VersionTagsConfigTable } from "./VersionTagsConfigTable";
 
 export function PromptVersionTagsConfigCard({
   prompt,
@@ -25,31 +32,136 @@ export function PromptVersionTagsConfigCard({
     `,
     prompt
   );
-  const tags = useMemo(
-    () =>
-      data.versionTags.map((tag) => ({
-        id: tag.id,
-        name: tag.name,
-        description: tag.description,
-        versionId: tag.promptVersionId,
-      })),
-    [data.versionTags]
+
+  const tableData = useMemo(() => {
+    return data.versionTags.map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      description: tag.description,
+      promptId: data.id,
+      promptVersionId: tag.promptVersionId,
+    }));
+  }, [data]);
+
+  const columns = useMemo(
+    (): ColumnDef<(typeof tableData)[number]>[] => [
+      {
+        header: "Name",
+        accessorKey: "name",
+      },
+      {
+        header: "Description",
+        accessorKey: "description",
+        cell: TextCell,
+      },
+      {
+        header: "Version",
+        accessorKey: "promptVersionId",
+        cell: ({ row }) => {
+          const { promptId, promptVersionId } = row.original;
+          return (
+            <Link to={`/prompts/${promptId}/versions/${promptVersionId}`}>
+              <Truncate maxWidth="100%">
+                {row.original.promptVersionId}
+              </Truncate>
+            </Link>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "",
+        size: 5,
+        accessorKey: "id",
+        cell: ({ row }) => {
+          return (
+            <Flex
+              direction="row"
+              gap="size-100"
+              justifyContent="end"
+              width="100%"
+            >
+              <DeletePromptVersionTagButton
+                promptVersionTagId={row.original.id}
+                promptId={row.original.promptId}
+                // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
+                key={row.original.id}
+              />
+            </Flex>
+          );
+        },
+      },
+    ],
+    []
   );
-  const promptId = data.id;
-  const renderDeleteButton = useCallback(
-    (tag: VersionTagsConfigRow) => (
-      <DeletePromptVersionTagButton
-        promptVersionTagId={tag.id}
-        promptId={promptId}
-      />
-    ),
-    [promptId]
-  );
+
+  const table = useTable({
+    features: appTableFeatures,
+    columns,
+    data: tableData,
+  });
+
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
   return (
-    <VersionTagsConfigTable
-      ownerId={promptId}
-      tags={tags}
-      renderDeleteButton={renderDeleteButton}
-    />
+    <Card title="Tags">
+      <table css={tableCSS}>
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th colSpan={header.colSpan} key={header.id}>
+                  {header.isPlaceholder ? null : (
+                    <div
+                      {...{
+                        className: header.column.getCanSort() ? "sort" : "",
+                        onClick: header.column.getToggleSortingHandler(),
+                        style: {
+                          left: header.getStart(),
+                          width: header.getSize(),
+                        },
+                      }}
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            header.column.getIsSorted() === "asc" ? (
+                              <Icons.CaretUpFilled />
+                            ) : (
+                              <Icons.CaretDownFilled />
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+
+        {isEmpty ? (
+          <TableEmpty message="No Tags" />
+        ) : (
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
+      </table>
+    </Card>
   );
 }

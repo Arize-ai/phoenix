@@ -22,6 +22,12 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
+import {
+  decisionLoader,
+  type DecisionLoaderData,
+} from "@phoenix/pages/decisions/decisionLoader";
+import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
+import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
@@ -41,6 +47,7 @@ import {
   PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
   ProjectEvaluatorTracePage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
+import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { SettingsDecisionsPage } from "@phoenix/pages/settings/decisions/SettingsDecisionsPage";
 import { settingsDecisionsPageLoader } from "@phoenix/pages/settings/decisions/settingsDecisionsPageLoader";
@@ -165,7 +172,6 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
-import { decisionsRedirectLoader } from "./pages/redirects/decisionsRedirectLoader";
 import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
 import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
@@ -1058,7 +1064,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Prompts",
               description:
-                "Browse the prompt registry: saved prompts and decisions, their versions, labels, and tags.",
+                "Browse the prompt registry: saved prompts and saved decisions, each on its own tab, with their versions, labels, and tags.",
             },
             navigation: {
               section: "Pages",
@@ -1068,54 +1074,132 @@ export const appRouteObjects = createRoutesFromElements(
             },
           }}
         >
+          {/* The library tabs. Detail pages below are full pages, not tabs,
+              mirroring the project evaluators routes. */}
+          <Route element={<PromptsLayout />}>
+            <Route
+              index
+              element={<PromptsPage />}
+              loader={promptsLoader}
+              handle={{
+                agentRoute: {
+                  label: "Prompts",
+                  description:
+                    "Browse the prompt registry, saved prompts, and prompt versions.",
+                },
+              }}
+            />
+            <Route
+              path="decisions"
+              element={<DecisionsPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decisions",
+                  description:
+                    "Browse, search, and label saved decisions, their models, versions, and tags.",
+                },
+              }}
+            />
+          </Route>
           <Route
-            index
-            element={<PromptsPage />}
-            loader={promptsLoader}
+            path="decisions"
             handle={{
+              crumb: () => "Decisions",
               agentRoute: {
-                label: "Prompts",
+                label: "Decisions",
                 description:
-                  "Browse the prompt registry: saved prompts and decisions, their versions, labels, and tags.",
+                  "Saved decisions: typed functions, versioned and tagged, that apps fetch by tag.",
               },
             }}
-          />
+          >
+            <Route
+              path=":decisionId"
+              loader={decisionLoader}
+              shouldRevalidate={() => true}
+              handle={{
+                crumb: (data: DecisionLoaderData) =>
+                  data?.decision?.__typename === "Decision"
+                    ? data.decision.name
+                    : "Decision unknown",
+                copy: (data: DecisionLoaderData) =>
+                  data?.decision?.__typename === "Decision"
+                    ? [
+                        {
+                          name: "Decision Name",
+                          value: data.decision.name,
+                          iconKey: "Text" as const,
+                        },
+                        {
+                          name: "Decision ID",
+                          value: data.decision.id,
+                          iconKey: "ID" as const,
+                        },
+                      ]
+                    : [],
+                agentRoute: {
+                  label: "Decision Details",
+                  description:
+                    "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
+                },
+              }}
+            >
+              <Route index element={<DecisionPage />} />
+              <Route
+                path="versions"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Versions",
+                    description:
+                      "Browse decision versions and compare their definitions, questions, and model configuration.",
+                  },
+                }}
+              />
+              <Route
+                path="config"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Configuration",
+                    description:
+                      "Manage saved decision version tags and settings.",
+                  },
+                }}
+              />
+              <Route
+                path="versions/:versionId"
+                element={<DecisionPage />}
+                handle={{ crumb: () => "Version" }}
+              />
+            </Route>
+          </Route>
           <Route
             path=":promptId"
             loader={promptLoader}
             shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
-                const node = data?.prompt;
-                if (
-                  node?.__typename === "Prompt" ||
-                  node?.__typename === "Decision"
-                ) {
-                  return node.name;
+                if (data?.prompt?.__typename === "Prompt") {
+                  return data?.prompt?.name;
                 }
                 return "prompt unknown";
               },
               agentRoute: {
                 label: "Prompt Details",
                 description:
-                  "View a saved prompt or decision: its latest version, description, labels, metadata, and version history.",
+                  "View prompt details for a saved prompt, prompt versions, and prompt history.",
               },
               copy: (data: PromptLoaderData) => {
-                const node = data?.prompt;
-                if (
-                  node?.__typename === "Prompt" ||
-                  node?.__typename === "Decision"
-                ) {
-                  const kind = node.__typename;
+                if (data?.prompt?.__typename === "Prompt") {
                   return [
                     {
-                      name: `${kind} Name`,
-                      value: node.name,
+                      name: "Prompt Name",
+                      value: data.prompt.name,
                       iconKey: "Text" as const,
                     },
                     {
-                      name: `${kind} ID`,
-                      value: node.id,
+                      name: "Prompt ID",
+                      value: data.prompt.id,
                       iconKey: "ID" as const,
                     },
                   ];
@@ -1134,7 +1218,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Prompt Versions",
                     description:
-                      "Browse the versions of a saved prompt or decision and their history.",
+                      "Browse prompt versions, prompt history, and saved prompt revisions.",
                   },
                 }}
               >
@@ -1146,7 +1230,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Prompt Version Details",
                       description:
-                        "Inspect a specific prompt or decision version, including its definition, a diff against the previous version, its model configuration, and version metadata.",
+                        "Inspect a specific prompt version, revision, and prompt history entry, including its model configuration and version metadata.",
                     },
                   }}
                 />
@@ -1159,7 +1243,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Prompt Configuration",
                     description:
-                      "Manage the version tags of a saved prompt or decision.",
+                      "Configure a saved prompt, prompt settings, labels, and prompt metadata.",
                   },
                 }}
               />
@@ -1453,12 +1537,6 @@ export const appRouteObjects = createRoutesFromElements(
         <Route
           path="/redirects/prompts/:promptId/tags/:tagName"
           loader={promptTagRedirectLoader}
-          errorElement={<ErrorElement />}
-        />
-        {/* Decisions are listed and viewed under /prompts */}
-        <Route
-          path="/decisions/*"
-          loader={decisionsRedirectLoader}
           errorElement={<ErrorElement />}
         />
         <Route
