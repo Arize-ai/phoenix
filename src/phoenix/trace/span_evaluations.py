@@ -33,13 +33,15 @@ class NeedsNamedIndex(ABC):
         return {alias: choices[0] for choices in cls.index_names.keys() for alias in choices[1:]}
 
     @classmethod
-    def unalias(cls, name: str) -> str:
-        return cls.aliases().get(name, name)
+    def unalias(cls, name: Any) -> str:
+        name_str = str(name)
+        return cls.aliases().get(name_str, name_str)
 
     @classmethod
-    def is_valid_index_names(cls, names: Sequence[str]) -> bool:
+    def is_valid_index_names(cls, names: Sequence[Any]) -> bool:
         return (
             len(names) == len(cls.index_names)
+            and all(isinstance(name, str) for name in names)
             and tuple(sorted(names)) in cls.all_valid_index_name_sorted_combos
         )
 
@@ -151,7 +153,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
 
         # Drop the unnecessary columns.
         result_column_names = dataframe.columns.intersection(self.result_column_names.keys())  # type: ignore
-        return dataframe.loc[:, result_column_names]  # type: ignore
+        return dataframe.loc[:, result_column_names]
 
     def __init_subclass__(
         cls,
