@@ -900,8 +900,11 @@ export function getDecisionDatasetBlockedReason({
   instances,
   templateFormat,
 }: {
+  /** Each instance's task and its decision request, read from the store. */
   instances: ReadonlyArray<
-    Pick<PlaygroundInstance, "task" | "decisionRequest">
+    Pick<PlaygroundInstance, "task"> & {
+      decisionRequest: DecisionRequestDraft | null | undefined;
+    }
   >;
   templateFormat: TemplateFormat;
 }): string | null {
@@ -1476,17 +1479,20 @@ function chatStateContent({
  */
 export function getChatForDecisionToPrompt({
   instance,
+  decisionRequest,
   templateFormat,
 }: {
-  instance: Pick<PlaygroundNormalizedInstance, "template" | "decisionRequest">;
+  instance: Pick<PlaygroundNormalizedInstance, "template">;
+  /** The instance's decision request. */
+  decisionRequest: DecisionRequestDraft | null | undefined;
   templateFormat: TemplateFormat;
 }): ReturnType<typeof buildChatFromDecisionDraft> | null {
   const hasMessages =
     instance.template.__type === "chat" &&
     instance.template.messageIds.length > 0;
-  if (hasMessages || !instance.decisionRequest) return null;
+  if (hasMessages || !decisionRequest) return null;
   return buildChatFromDecisionDraft({
-    draft: instance.decisionRequest,
+    draft: decisionRequest,
     templateFormat,
   });
 }

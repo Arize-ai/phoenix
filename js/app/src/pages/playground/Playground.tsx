@@ -139,6 +139,7 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
+import { getPlaygroundInstancesWithDecisionRequests } from "@phoenix/store/playground/selectors";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { getDecisionDatasetBlockedReason } from "./decisionUtils";
@@ -335,7 +336,7 @@ function PlaygroundContent() {
   // Over a dataset, why the page's decision instances can't run, if they can't.
   const decisionDatasetBlockedReason = usePlaygroundContext((state) =>
     getDecisionDatasetBlockedReason({
-      instances: state.instances,
+      instances: getPlaygroundInstancesWithDecisionRequests(state),
       templateFormat: state.templateFormat,
     })
   );
@@ -829,7 +830,7 @@ function PlaygroundContent() {
   }, [isRunning, hasUnsavedExampleChanges]);
 
   const hasDecisionInputState = usePlaygroundContext((state) =>
-    state.instances.some(
+    getPlaygroundInstancesWithDecisionRequests(state).some(
       (instance) =>
         isDecisionInstance(instance) &&
         (instance.decisionRequest?.stateEditorMode === "input" ||

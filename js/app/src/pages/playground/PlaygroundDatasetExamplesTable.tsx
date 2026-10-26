@@ -93,7 +93,11 @@ import {
   getTemplateVariablesPath,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { arePlaygroundInstancesEqualExceptProgressAndDecisionDraft } from "@phoenix/store/playground/selectors";
+import {
+  arePlaygroundInstancesEqualExceptProgress,
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceDecisionRequest,
+} from "@phoenix/store/playground/selectors";
 import type {
   EditableTableDiff,
   EditableTableStore,
@@ -401,10 +405,11 @@ function ExampleDecisionResult({
   answers: unknown;
 }) {
   // Label the outputs from the request that ran, not the live draft.
-  const decisionRequest = usePlaygroundContext((state) => {
-    const instance = state.instances.find((item) => item.id === instanceId);
-    return instance?.decisionRunRequest ?? instance?.decisionRequest;
-  });
+  const decisionRequest = usePlaygroundContext(
+    (state) =>
+      selectPlaygroundInstance(instanceId)(state)?.decisionRunRequest ??
+      selectPlaygroundInstanceDecisionRequest(instanceId)(state)
+  );
   return (
     <DecisionResult
       output={JSON.stringify({ answers })}
@@ -867,13 +872,11 @@ export function PlaygroundDatasetExamplesTable({
   const environment = useRelayEnvironment();
   // Everything below hangs off the instances' shape: which tasks there are,
   // which are running, which experiment each produced. A run streams one
-  // store write per result into the progress counters, and typing in a
-  // decision replaces its draft on every keystroke, so both are ignored here
-  // or each would rebuild the columns and re-render every cell. A run reads
-  // the draft from the store when it starts.
+  // store write per result into the progress counters, so those are ignored
+  // here or every result would rebuild the columns and re-render every cell.
   const instances = usePlaygroundContext(
     (state) => state.instances,
-    arePlaygroundInstancesEqualExceptProgressAndDecisionDraft
+    arePlaygroundInstancesEqualExceptProgress
   );
   const columnLabels = getExampleColumnLabels(getPlaygroundMode(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {

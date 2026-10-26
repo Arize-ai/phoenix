@@ -71,7 +71,7 @@ describe("decision execution", () => {
     const instance = {
       ...chatInstance,
       llmModel: chatInstance.model,
-      decisionRequest,
+      decisionRequestId: 0,
       model: {
         ...chatInstance.model,
         modelType: "DECISION" as const,
@@ -80,6 +80,7 @@ describe("decision execution", () => {
       },
     };
     store.setState({
+      allInstanceDecisionRequests: { 0: decisionRequest },
       instances: [
         {
           ...instance,

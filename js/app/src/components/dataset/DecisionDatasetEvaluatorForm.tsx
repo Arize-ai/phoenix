@@ -54,6 +54,7 @@ import {
   createDecisionTaskInstance,
   type DecisionRequestDraft,
 } from "@phoenix/store/playground";
+import { selectPlaygroundInstanceDecisionRequest } from "@phoenix/store/playground/selectors";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 import type { DecisionDatasetEvaluatorForm_createMutation } from "./__generated__/DecisionDatasetEvaluatorForm_createMutation.graphql";
@@ -121,6 +122,9 @@ function DecisionDatasetEvaluatorFormContent({
   const store = useEvaluatorStoreInstance();
   const playground = usePlaygroundStore();
   const instance = usePlaygroundContext((state) => state.instances[0]);
+  const decisionRequest = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionRequest(instance.id)
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const notifySuccess = useNotifySuccess();
   const credentials = useCredentialsContext((state) => state);
@@ -182,7 +186,10 @@ function DecisionDatasetEvaluatorFormContent({
         setLoadedVersion(
           JSON.stringify(
             toDecisionVersionInput({
-              instance: loaded.instance,
+              instance: {
+                model: loaded.instance.model,
+                decisionRequest: loaded.instance.decisionRequest,
+              },
               templateFormat: loaded.templateFormat,
             })
           )
@@ -201,7 +208,7 @@ function DecisionDatasetEvaluatorFormContent({
   }, [playground, selectedDecisionId, selectedVersionId, selectedTagName]);
 
   const draftQuestions: DecisionQuestionDefinition[] = (
-    instance.decisionRequest?.questions ?? []
+    decisionRequest?.questions ?? []
   ).map((question) =>
     question.type === "choice"
       ? {
@@ -219,12 +226,16 @@ function DecisionDatasetEvaluatorFormContent({
   );
   const questions = draftQuestions;
   const variables = extractDecisionVariables({
-    draft: instance.decisionRequest!,
+    draft: decisionRequest!,
     templateFormat,
   });
   const policy = normalizePolicy(questions, policyDraft);
   const readVersion = (purpose: "save" | "test") =>
-    toDecisionVersionInput({ instance, templateFormat, purpose });
+    toDecisionVersionInput({
+      instance: { model: instance.model, decisionRequest },
+      templateFormat,
+      purpose,
+    });
   let version: ReturnType<typeof toDecisionVersionInput> | null = null;
   let draftError: string | null = null;
   try {

@@ -197,12 +197,17 @@ function getDecisionTaskInput({
   evaluatorMappings: PlaygroundEvaluatorMappings;
   instance: PlaygroundNormalizedInstance;
 }): DecisionTaskInput {
-  const { templateFormat, stateByDatasetId } = playgroundStore.getState();
-  if (!instance.decisionRequest) {
+  const { templateFormat, stateByDatasetId, allInstanceDecisionRequests } =
+    playgroundStore.getState();
+  const decisionRequest =
+    instance.decisionRequestId != null
+      ? allInstanceDecisionRequests[instance.decisionRequestId]
+      : undefined;
+  if (!decisionRequest) {
     throw new Error("The decision instance has no request.");
   }
   const definition = buildDecisionTaskDefinition({
-    draft: instance.decisionRequest,
+    draft: decisionRequest,
     templateFormat,
   });
   const providerCredentials = credentials[instance.model.provider] ?? {};

@@ -47,6 +47,9 @@ export function InstanceVariablesProvider({
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
+  const allInstanceDecisionRequests = usePlaygroundContext(
+    (state) => state.allInstanceDecisionRequests
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
   const variablesMap = useMemo(() => {
@@ -55,7 +58,8 @@ export function InstanceVariablesProvider({
     for (const instance of instances) {
       const enrichedInstance = denormalizePlaygroundInstance(
         instance,
-        allInstanceMessages
+        allInstanceMessages,
+        allInstanceDecisionRequests
       );
 
       result[instance.id] = extractVariablesFromInstance({
@@ -65,7 +69,12 @@ export function InstanceVariablesProvider({
     }
 
     return result;
-  }, [instances, allInstanceMessages, templateFormat]);
+  }, [
+    instances,
+    allInstanceMessages,
+    allInstanceDecisionRequests,
+    templateFormat,
+  ]);
   // Typing in a template or a decision recomputes the map on every keystroke,
   // but rarely changes a variable; keep the last map while its contents are
   // the same so the cells reading it do not re-render.

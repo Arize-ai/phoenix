@@ -37,7 +37,10 @@ export function toDecisionVersionInput({
   description,
   purpose = "save",
 }: {
-  instance: Pick<PlaygroundInstance, "model" | "decisionRequest">;
+  /** The instance's model and its decision request, read from the store. */
+  instance: Pick<PlaygroundInstance, "model"> & {
+    decisionRequest: DecisionRequestDraft | null | undefined;
+  };
   templateFormat: TemplateFormat;
   description?: string | null;
   purpose?: "dataset" | "save" | "test";

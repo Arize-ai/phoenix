@@ -16,6 +16,10 @@ import { JSONBlock } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
+import {
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceDecisionRequest,
+} from "@phoenix/store/playground/selectors";
 
 import { DecisionResult } from "./DecisionResult";
 import { RunMetadataFooter } from "./RunMetadataFooter";
@@ -59,6 +63,13 @@ export function PlaygroundDecisionOutput({
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((item) => item.id === instanceId)
   );
+  // Label the output from the request that ran, not the live draft.
+  const request = usePlaygroundContext(
+    (state) =>
+      selectPlaygroundInstance(instanceId)(state)?.decisionRunRequest ??
+      selectPlaygroundInstanceDecisionRequest(instanceId)(state) ??
+      null
+  );
   const [mode, setMode] = useState<DecisionDisplayMode>("pretty");
   // The response is the model's turn, so it takes the AI message tint.
   const answersStyles = useChatMessageStyles("ai");
@@ -66,9 +77,6 @@ export function PlaygroundDecisionOutput({
   const output = typeof selected?.output === "string" ? selected.output : null;
   const raw = output == null ? "" : prettyPrint(output);
   if (!instance) return null;
-  // Label the output from the request that ran, not the live draft.
-  const request =
-    instance.decisionRunRequest ?? instance.decisionRequest ?? null;
   const runId = instance.activeRunId;
   const totalRepetitions = Object.keys(instance.repetitions).length;
   const skeletonLines = Math.max(1, request?.questions.length ?? 0);

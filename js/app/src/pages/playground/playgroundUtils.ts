@@ -44,6 +44,7 @@ import type {
   CanonicalToolChoice,
   CanonicalToolDefinition,
   ChatMessage,
+  DecisionRequestDraft,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -1576,19 +1577,25 @@ const getBaseChatCompletionInput = ({
 };
 
 /**
- * Denormalize a playground instance with the actual messages
+ * Denormalize a playground instance with the actual messages and decision request
  *
  * A playground instance differs from a playground normalized instance in that it contains the actual messages
- * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ * and decision request and not just their ids. This function will replace the ids with the actual values.
  */
 export const denormalizePlaygroundInstance = (
-  instance: PlaygroundNormalizedInstance,
-  allInstanceMessages: Record<number, ChatMessage>
+  { decisionRequestId, ...instance }: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>,
+  allInstanceDecisionRequests: Record<number, DecisionRequestDraft>
 ): PlaygroundInstance => {
+  const decisionRequest =
+    decisionRequestId != null
+      ? allInstanceDecisionRequests[decisionRequestId]
+      : decisionRequestId;
   if (instance.template.__type === "chat") {
     const { messageIds: _, ...rest } = instance.template;
     return {
       ...instance,
+      decisionRequest,
       template: {
         ...rest,
         messages: instance.template.messageIds.map(
@@ -1597,8 +1604,11 @@ export const denormalizePlaygroundInstance = (
       },
     } satisfies PlaygroundInstance;
   }
-  // it cannot be a normalized instance if it is not a chat template
-  return instance as PlaygroundInstance;
+  return {
+    ...instance,
+    decisionRequest,
+    template: instance.template,
+  } satisfies PlaygroundInstance;
 };
 
 /**
@@ -2222,6 +2232,7 @@ export const getChatCompletionInput = ({
     templateFormat,
     input,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionRequests,
     repetitions,
     streaming,
   } = playgroundStore.getState();
@@ -2236,7 +2247,11 @@ export const getChatCompletionInput = ({
 
   // Compute template variables for mustache / f-string substitution
   const playgroundInstances = instances.map((i) =>
-    denormalizePlaygroundInstance(i, instanceMessages)
+    denormalizePlaygroundInstance(
+      i,
+      instanceMessages,
+      allInstanceDecisionRequests
+    )
   );
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
@@ -2247,7 +2262,8 @@ export const getChatCompletionInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionRequests
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2329,6 +2345,7 @@ export const getPromptTaskInput = ({
     instances,
     templateFormat,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionRequests,
     stateByDatasetId,
     streaming,
   } = playgroundStore.getState();
@@ -2344,7 +2361,8 @@ export const getPromptTaskInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionRequests
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");

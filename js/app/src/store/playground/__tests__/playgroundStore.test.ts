@@ -8,12 +8,14 @@ import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAd
 
 import {
   _resetInstanceId,
+  createDecisionTaskInstance,
   createNormalizedPlaygroundInstance,
   createPlaygroundStore,
   DEFAULT_MAX_CONCURRENCY,
   getInitialInstances,
 } from "../playgroundStore";
 import { getPlaygroundMode } from "../playgroundTask";
+import { selectPlaygroundInstanceDecisionRequest } from "../selectors";
 import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
@@ -56,7 +58,6 @@ describe("decision instances in the store", () => {
       patch: {
         llmModel: chatInstance.model,
         task: { type: "decision" },
-        decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,
           modelType: "DECISION",
@@ -64,6 +65,10 @@ describe("decision instances in the store", () => {
           modelName: "jev-latest",
         },
       },
+    });
+    store.getState().updateDecisionRequest({
+      instanceId,
+      request: createDecisionDraft(),
     });
     store.getState().updateModel({
       instanceId,
@@ -78,6 +83,126 @@ describe("decision instances in the store", () => {
       modelName: "fixture-slow",
       baseUrl: "http://127.0.0.1:16138/v1",
     });
+  });
+});
+
+describe("normalized decision requests", () => {
+  function createDecisionStore() {
+    const draft = createDecisionDraft();
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      instances: [
+        { ...createDecisionTaskInstance(), id: 1, decisionRequest: draft },
+      ],
+    });
+    return { store, draft };
+  }
+
+  it("keeps the request out of the instance, under its own id", () => {
+    const { store, draft } = createDecisionStore();
+    const [instance] = store.getState().instances;
+
+    expect(instance).not.toHaveProperty("decisionRequest");
+    expect(instance.decisionRequestId).not.toBeNull();
+    expect(
+      store.getState().allInstanceDecisionRequests[instance.decisionRequestId!]
+    ).toEqual(draft);
+  });
+
+  // Typing in a decision must not replace state.instances, or everything
+  // subscribed to the instances (the dataset table's columns, say) re-renders
+  // per keystroke. Only the request's entry and the dirty flag change.
+  it("edits a request without replacing the instances", () => {
+    const { store, draft } = createDecisionStore();
+    const before = store.getState();
+    const otherRequests = { ...before.allInstanceDecisionRequests };
+
+    store.getState().updateDecisionRequest({
+      instanceId: 1,
+      request: { ...draft, state: "Typed {{ticket}}" },
+    });
+    const after = store.getState();
+
+    expect(after.instances).toBe(before.instances);
+    expect(after.instances[0]).toBe(before.instances[0]);
+    expect(selectPlaygroundInstanceDecisionRequest(1)(after)?.state).toBe(
+      "Typed {{ticket}}"
+    );
+    expect(Object.keys(after.allInstanceDecisionRequests)).toEqual(
+      Object.keys(otherRequests)
+    );
+    expect(after.dirtyInstances[1]).toBe(true);
+  });
+
+  it("gives an instance without a request its first one", () => {
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const [chat] = store.getState().instances;
+    expect(chat.decisionRequestId).toBeUndefined();
+
+    const draft = createDecisionDraft();
+    store.getState().updateDecisionRequest({
+      instanceId: chat.id,
+      request: draft,
+    });
+
+    expect(
+      selectPlaygroundInstanceDecisionRequest(chat.id)(store.getState())
+    ).toBe(draft);
+  });
+
+  it("duplicates a request under a fresh id, so the copies edit apart", () => {
+    const { store, draft } = createDecisionStore();
+    const copyId = store.getState().duplicateInstance(1);
+    if (copyId == null) throw new Error("expected a copy");
+    const [source, copy] = store.getState().instances;
+
+    expect(copy.decisionRequestId).not.toBe(source.decisionRequestId);
+    expect(
+      selectPlaygroundInstanceDecisionRequest(copyId)(store.getState())
+    ).toEqual(draft);
+
+    store.getState().updateDecisionRequest({
+      instanceId: copyId,
+      request: { ...draft, state: "Only the copy" },
+    });
+    expect(
+      selectPlaygroundInstanceDecisionRequest(1)(store.getState())?.state
+    ).toBe(draft.state);
+  });
+
+  it("snapshots the request a run sends, so later edits do not relabel it", () => {
+    const { store, draft } = createDecisionStore();
+    store.getState().runPlaygroundInstances();
+    store.getState().updateDecisionRequest({
+      instanceId: 1,
+      request: { ...draft, state: "Edited after the run" },
+    });
+
+    expect(store.getState().instances[0].decisionRunRequest).toEqual(draft);
+  });
+
+  it("lands a loaded request under a new id and clears the dirty flag", () => {
+    const { store, draft } = createDecisionStore();
+    store.getState().updateDecisionRequest({
+      instanceId: 1,
+      request: { ...draft, state: "Unsaved" },
+    });
+    const previousId = store.getState().instances[0].decisionRequestId;
+    const loaded = { ...draft, state: "Saved {{ticket}}" };
+
+    store.getState().loadInstance({
+      instanceId: 1,
+      instance: { ...createDecisionTaskInstance(), decisionRequest: loaded },
+    });
+
+    // A new id remounts the uncontrolled state editor, as new message ids do.
+    expect(store.getState().instances[0].decisionRequestId).not.toBe(
+      previousId
+    );
+    expect(selectPlaygroundInstanceDecisionRequest(1)(store.getState())).toBe(
+      loaded
+    );
+    expect(store.getState().dirtyInstances[1]).toBe(false);
   });
 });
 
@@ -1447,7 +1572,10 @@ describe("addInstance", () => {
 
     expect(first.task).toEqual({ type: "prompt" });
     expect(second.task).toEqual({ type: "decision" });
-    expect(second.decisionRequest?.questions.length).toBeGreaterThan(0);
+    expect(
+      selectPlaygroundInstanceDecisionRequest(second.id)(store.getState())
+        ?.questions.length
+    ).toBeGreaterThan(0);
     expect(second.decision).toBeUndefined();
     expect(second.loadingSource).toBeUndefined();
     // A decision model still has to be picked; the chat model is kept.

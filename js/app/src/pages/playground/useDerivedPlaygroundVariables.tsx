@@ -28,12 +28,19 @@ export const useDerivedPlaygroundVariables = ({
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
+  const allInstanceDecisionRequests = usePlaygroundContext(
+    (state) => state.allInstanceDecisionRequests
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const enrichedInstances = useMemo(() => {
     return instances.map((instance) =>
-      denormalizePlaygroundInstance(instance, allInstanceMessages)
+      denormalizePlaygroundInstance(
+        instance,
+        allInstanceMessages,
+        allInstanceDecisionRequests
+      )
     );
-  }, [instances, allInstanceMessages]);
+  }, [instances, allInstanceMessages, allInstanceDecisionRequests]);
   const { variableKeys, variablesMap } = useMemo(() => {
     return getVariablesMapFromInstances({
       instances: enrichedInstances,

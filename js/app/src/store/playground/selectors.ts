@@ -39,6 +39,38 @@ export const selectPlaygroundInstanceMessage =
   };
 
 /**
+ * Curried selector to get the decision request for a given instance
+ * @param instanceId
+ * @returns selector function that returns the decision request for the given instance, if it has one
+ */
+export const selectPlaygroundInstanceDecisionRequest =
+  (instanceId: number) => (state: PlaygroundState) => {
+    const decisionRequestId =
+      selectPlaygroundInstance(instanceId)(state)?.decisionRequestId;
+    if (decisionRequestId == null) {
+      return undefined;
+    }
+    return state.allInstanceDecisionRequests[decisionRequestId];
+  };
+
+/**
+ * Every instance alongside its decision request, for helpers that read an
+ * instance's request with the rest of the instance. It builds new objects on
+ * each call, so derive a value from it inside a selector rather than
+ * subscribing to it.
+ */
+export const getPlaygroundInstancesWithDecisionRequests = (
+  state: Pick<PlaygroundState, "instances" | "allInstanceDecisionRequests">
+) =>
+  state.instances.map((instance) => ({
+    ...instance,
+    decisionRequest:
+      instance.decisionRequestId != null
+        ? state.allInstanceDecisionRequests[instance.decisionRequestId]
+        : undefined,
+  }));
+
+/**
  * Equality for `state.instances` that ignores each instance's
  * `experimentRunProgress`. Every streamed run event bumps a counter there and
  * replaces the array, so a subscriber that only reads the instances' shape —
@@ -52,40 +84,6 @@ export function arePlaygroundInstancesEqualExceptProgress(
   left: ReadonlyArray<PlaygroundNormalizedInstance>,
   right: ReadonlyArray<PlaygroundNormalizedInstance>
 ): boolean {
-  return areInstancesEqualExcept(left, right, PROGRESS_KEYS);
-}
-
-/**
- * Like {@link arePlaygroundInstancesEqualExceptProgress}, and also ignores
- * each instance's `decisionRequest`. Every keystroke in a decision's state or
- * questions replaces that draft, and with it the array, so a subscriber that
- * builds per-task UI without reading what the decision says (the dataset
- * table's columns, say) would otherwise rebuild on every keystroke. Read the
- * draft through its own selector, or from the store when a run starts.
- */
-export function arePlaygroundInstancesEqualExceptProgressAndDecisionDraft(
-  left: ReadonlyArray<PlaygroundNormalizedInstance>,
-  right: ReadonlyArray<PlaygroundNormalizedInstance>
-): boolean {
-  return areInstancesEqualExcept(left, right, PROGRESS_AND_DECISION_DRAFT_KEYS);
-}
-
-type InstanceKey = keyof PlaygroundNormalizedInstance;
-
-const PROGRESS_KEYS: ReadonlySet<InstanceKey> = new Set([
-  "experimentRunProgress",
-]);
-
-const PROGRESS_AND_DECISION_DRAFT_KEYS: ReadonlySet<InstanceKey> = new Set([
-  "experimentRunProgress",
-  "decisionRequest",
-]);
-
-function areInstancesEqualExcept(
-  left: ReadonlyArray<PlaygroundNormalizedInstance>,
-  right: ReadonlyArray<PlaygroundNormalizedInstance>,
-  ignoredKeys: ReadonlySet<InstanceKey>
-): boolean {
   if (left === right) {
     return true;
   }
@@ -95,25 +93,22 @@ function areInstancesEqualExcept(
   }
 
   return left.every((instance, index) =>
-    isInstanceEqualExcept(instance, right[index], ignoredKeys)
+    isInstanceEqualExceptProgress(instance, right[index])
   );
 }
 
-function isInstanceEqualExcept(
+function isInstanceEqualExceptProgress(
   left: PlaygroundNormalizedInstance,
-  right: PlaygroundNormalizedInstance,
-  ignoredKeys: ReadonlySet<InstanceKey>
+  right: PlaygroundNormalizedInstance
 ): boolean {
   if (left === right) {
     return true;
   }
 
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  keys.delete("experimentRunProgress");
 
   for (const key of keys) {
-    if (ignoredKeys.has(key as InstanceKey)) {
-      continue;
-    }
     if (
       left[key as keyof PlaygroundNormalizedInstance] !==
       right[key as keyof PlaygroundNormalizedInstance]

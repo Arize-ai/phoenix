@@ -158,12 +158,20 @@ export function EvaluatorPromptPreview() {
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
+  const allInstanceDecisionRequests = usePlaygroundContext(
+    (state) => state.allInstanceDecisionRequests
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
   // Denormalize the instance to get the full template with messages
   const denormalizedInstance = useMemo(
-    () => denormalizePlaygroundInstance(instance, allInstanceMessages),
-    [instance, allInstanceMessages]
+    () =>
+      denormalizePlaygroundInstance(
+        instance,
+        allInstanceMessages,
+        allInstanceDecisionRequests
+      ),
+    [instance, allInstanceMessages, allInstanceDecisionRequests]
   );
 
   invariant(

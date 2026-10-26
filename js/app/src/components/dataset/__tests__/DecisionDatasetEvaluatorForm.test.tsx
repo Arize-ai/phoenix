@@ -85,19 +85,22 @@ vi.mock("@phoenix/pages/playground/DecisionRequestEditor", () => ({
                 provider: "TYPESAFE",
                 modelType: "DECISION",
               },
-              decisionRequest: {
-                state: "answer",
-                stateEditorMode: "inputs",
-                questions: [
-                  createDecisionQuestion({
-                    type: "predicate",
-                    name: "relevant",
-                    instructions: "Evaluate this revised question",
-                  }),
-                ],
-              },
             },
             dirty: true,
+          });
+          store.getState().updateDecisionRequest({
+            instanceId: 1,
+            request: {
+              state: "answer",
+              stateEditorMode: "inputs",
+              questions: [
+                createDecisionQuestion({
+                  type: "predicate",
+                  name: "relevant",
+                  instructions: "Evaluate this revised question",
+                }),
+              ],
+            },
           });
         }}
       >

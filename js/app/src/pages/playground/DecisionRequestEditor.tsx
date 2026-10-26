@@ -25,6 +25,10 @@ import {
 } from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceDecisionRequest,
+} from "@phoenix/store/playground/selectors";
 import type {
   DecisionQuestionDraft,
   DecisionRequestDraft,
@@ -120,24 +124,26 @@ function DecisionStatePreview({ request }: { request: DecisionRequestDraft }) {
 export function DecisionRequestEditor({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((item) => item.id === instanceId)
+  const isRunning = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
+  );
+  const decisionRequestId = usePlaygroundContext(
+    (state) => selectPlaygroundInstance(instanceId)(state)?.decisionRequestId
+  );
+  const decisionRequest = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionRequest(instanceId)
   );
   const updateDecisionRequest = usePlaygroundContext(
     (state) => state.updateDecisionRequest
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const editorRevision = usePlaygroundContext(
-    (state) => state.externallyUpdatedDecisionRevisionById[instanceId] ?? 0
-  );
   // The state is the evidence the user supplies, so it takes the user
   // message tint, as a chat template's user message would.
   const stateStyles = useChatMessageStyles("user");
-  const isRunning = instance?.activeRunId != null;
   // Deleting a question removes the focused element; focus moves here so
   // keyboard users are not dropped to the document body.
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
-  const request = instance?.decisionRequest ?? createDecisionDraft();
+  const request = decisionRequest ?? createDecisionDraft();
   // Fields the user has left. Empty required fields are reported only once
   // the user has been there, so a new question or option does not open in
   // an error state; see maskUntouchedErrors.
@@ -288,8 +294,9 @@ export function DecisionRequestEditor({
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor
-              // Loading replaces the draft; typing must keep the editor mounted.
-              key={`text-${instanceId}-${editorRevision}-${templateFormat}`}
+              // Loading replaces the draft and its id; typing must keep the
+              // editor mounted.
+              key={`text-${instanceId}-${decisionRequestId}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
               defaultValue={request.state}

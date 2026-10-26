@@ -8,6 +8,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
+import { selectPlaygroundInstanceDecisionRequest } from "@phoenix/store/playground/selectors";
 
 import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
@@ -44,7 +45,6 @@ describe("PlaygroundRunButton with decision instances", () => {
       patch: {
         llmModel: chatInstance.model,
         task: { type: "decision" },
-        decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,
           modelType: "DECISION",
@@ -52,6 +52,10 @@ describe("PlaygroundRunButton with decision instances", () => {
           modelName: "jev-latest",
         },
       },
+    });
+    store.getState().updateDecisionRequest({
+      instanceId: chatInstance.id,
+      request: createDecisionDraft(),
     });
     const runPlaygroundInstances = vi.fn();
     store.setState({ runPlaygroundInstances });
@@ -95,7 +99,9 @@ describe("PlaygroundRunButton with decision instances", () => {
   it("explains which instance blocks the run when its request is invalid", async () => {
     const { store, runPlaygroundInstances } = mount(null);
     const instance = store.getState().instances[0];
-    const request = instance.decisionRequest!;
+    const request = selectPlaygroundInstanceDecisionRequest(instance.id)(
+      store.getState()
+    )!;
     act(() =>
       store.getState().updateDecisionRequest({
         instanceId: instance.id,
@@ -130,7 +136,12 @@ describe("PlaygroundRunButton with decision instances", () => {
     act(() =>
       store.getState().updateDecisionRequest({
         instanceId: instance.id,
-        request: { ...instance.decisionRequest!, state: "{{ticket}}" },
+        request: {
+          ...selectPlaygroundInstanceDecisionRequest(instance.id)(
+            store.getState()
+          )!,
+          state: "{{ticket}}",
+        },
       })
     );
     const button = runButton();

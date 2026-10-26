@@ -16,6 +16,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { generateMessageId } from "@phoenix/store";
+import { selectPlaygroundInstanceDecisionRequest } from "@phoenix/store/playground/selectors";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { buildChatFromDecisionDraft } from "./decisionUtils";
@@ -55,11 +56,14 @@ export function DuplicateAsChatButton({
       addMessage,
     } = store.getState();
     const source = instances.find((candidate) => candidate.id === instanceId);
-    if (!source?.decisionRequest) return;
+    const decisionRequest = selectPlaygroundInstanceDecisionRequest(instanceId)(
+      store.getState()
+    );
+    if (!source || !decisionRequest) return;
     const copyId = duplicateInstance(instanceId);
     if (copyId == null) return;
     const { messages, responseFormat } = buildChatFromDecisionDraft({
-      draft: source.decisionRequest,
+      draft: decisionRequest,
       templateFormat,
     });
     const provider = defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
@@ -74,7 +78,7 @@ export function DuplicateAsChatButton({
       patch: {
         task: { type: "prompt" },
         decision: null,
-        decisionRequest: null,
+        decisionRequestId: null,
         model: { ...chatModel, modelType: "LLM", responseFormat },
         template: { __type: "chat", messageIds: [] },
       },

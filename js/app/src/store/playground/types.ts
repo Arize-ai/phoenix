@@ -689,12 +689,18 @@ export type PlaygroundNormalizedChatTemplate = Omit<
 
 /**
  * A playground instance, with normalized chat completion template messages
+ * and a normalized decision request
  */
 export type PlaygroundNormalizedInstance = Omit<
   PlaygroundInstance,
-  "template"
+  "template" | "decisionRequest"
 > & {
   template: PlaygroundTextCompletionTemplate | PlaygroundNormalizedChatTemplate;
+  /**
+   * The id of the instance's decision request in `allInstanceDecisionRequests`,
+   * if it has one. Like a message id, it is unique across all instances.
+   */
+  decisionRequestId?: number | null;
 };
 
 export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
@@ -720,8 +726,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   externallyUpdatedToolRevisionById: Record<number, number>;
 
-  /** Bumped when a decision is loaded in place, never during normal typing. */
-  externallyUpdatedDecisionRevisionById: Partial<Record<number, number>>;
+  /**
+   * A map of decision request id to decision request
+   *
+   * decision request ids must be globally unique across all instances
+   */
+  allInstanceDecisionRequests: Record<number, DecisionRequestDraft>;
 
   /**
    * A map of instance id to whether the instance is dirty
@@ -923,6 +933,8 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   setVariableValue: (key: string, value: string) => void;
   /**
    * Replace one instance's decision request and mark the instance dirty.
+   * Only the request's entry in `allInstanceDecisionRequests` changes, so
+   * typing in a decision leaves `instances` as it is.
    */
   updateDecisionRequest: (params: {
     instanceId: number;

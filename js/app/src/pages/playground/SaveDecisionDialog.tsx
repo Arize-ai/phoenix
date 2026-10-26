@@ -29,6 +29,7 @@ import {
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import { getPlaygroundInstancesWithDecisionRequests } from "@phoenix/store/playground/selectors";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
@@ -208,7 +209,9 @@ function SaveDecisionForm({
     (values: SaveDecisionFormValues) => {
       onError(null);
       const state = store.getState();
-      const instance = state.instances.find((item) => item.id === instanceId);
+      const instance = getPlaygroundInstancesWithDecisionRequests(state).find(
+        (item) => item.id === instanceId
+      );
       if (!instance) return;
       // Like prompts, a new decision's description describes the decision;
       // a new version's describes what changed in it.

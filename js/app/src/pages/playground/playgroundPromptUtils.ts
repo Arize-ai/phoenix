@@ -59,7 +59,8 @@ export const getInstancePromptParamsFromStore = (
   }
   const enrichedInstance = denormalizePlaygroundInstance(
     instance,
-    allInstanceMessages
+    allInstanceMessages,
+    state.allInstanceDecisionRequests
   );
   const promptInput = instanceToPromptVersion({
     instance: enrichedInstance,

@@ -8,6 +8,7 @@ import {
   createDecisionTaskInstance,
   createPlaygroundStore,
 } from "@phoenix/store/playground/playgroundStore";
+import { selectPlaygroundInstanceDecisionRequest } from "@phoenix/store/playground/selectors";
 
 import { DecisionRequestEditor } from "../DecisionRequestEditor";
 import { createDecisionDraft } from "../decisionUtils";
@@ -129,9 +130,11 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
     );
     expect(objectButton).not.toBeNull();
     await act(async () => objectButton?.click());
-    expect(store.getState().instances[0].decisionRequest?.stateEditorMode).toBe(
-      "inputs"
-    );
+    expect(
+      selectPlaygroundInstanceDecisionRequest(store.getState().instances[0].id)(
+        store.getState()
+      )?.stateEditorMode
+    ).toBe("inputs");
     expect(preview()).toBe(JSON.stringify({ state: '{"ticket":"Refund"}' }));
     expect(container.textContent).toContain(
       "Build an object keyed by these comma-separated names."
