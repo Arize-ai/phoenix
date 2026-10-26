@@ -49,8 +49,6 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
-import { SettingsDecisionsPage } from "@phoenix/pages/settings/decisions/SettingsDecisionsPage";
-import { settingsDecisionsPageLoader } from "@phoenix/pages/settings/decisions/settingsDecisionsPageLoader";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -1461,19 +1459,6 @@ export const appRouteObjects = createRoutesFromElements(
             />
           </Route>
           <Route
-            path="decisions"
-            element={<SettingsDecisionsPage />}
-            loader={settingsDecisionsPageLoader}
-            handle={{
-              crumb: () => "Decisions",
-              agentRoute: {
-                label: "Decision Settings",
-                description:
-                  "Configure saved decision labels and labeling options.",
-              },
-            }}
-          />
-          <Route
             path="prompts"
             element={<SettingsPromptsPage />}
             loader={settingsPromptsPageLoader}
@@ -1482,7 +1467,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Prompt Settings",
                 description:
-                  "Configure prompt labels, prompt settings, and saved prompt labeling options.",
+                  "Configure prompt labels, saved decision labels, and labeling options for prompts and decisions.",
               },
             }}
           />

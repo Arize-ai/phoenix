@@ -417,7 +417,7 @@ function DecisionDetails({
               <Card title="Decision settings">
                 <View padding="size-200">
                   <Flex justifyContent="space-between" gap="size-100">
-                    <LinkButton to="/settings/decisions">
+                    <LinkButton to="/settings/prompts">
                       Manage decision labels
                     </LinkButton>
                     <CanModify>

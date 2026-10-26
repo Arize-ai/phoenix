@@ -307,7 +307,7 @@ function DecisionLabelList({
             </Menu>
           </Autocomplete>
           <MenuFooter>
-            <LinkButton variant="quiet" size="S" to="/settings/decisions">
+            <LinkButton variant="quiet" size="S" to="/settings/prompts">
               Edit Labels
             </LinkButton>
           </MenuFooter>
