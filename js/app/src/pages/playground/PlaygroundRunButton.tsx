@@ -72,7 +72,7 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-  // An invalid decision request is refused with its first problem as the
+  // An invalid decision spec is refused with its first problem as the
   // reason, since the error may sit in a collapsed card. Over a dataset, a
   // decision the examples can't fill is refused the same way.
   const blockedReason = usePlaygroundContext((state) => {

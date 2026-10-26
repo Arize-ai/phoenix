@@ -900,7 +900,7 @@ export function getDecisionDatasetBlockedReason({
   instances,
   templateFormat,
 }: {
-  /** Each instance's task and its decision request, read from the store. */
+  /** Each instance's task and its decision spec, read from the store. */
   instances: ReadonlyArray<
     Pick<PlaygroundInstance, "task"> & {
       decisionSpec: DecisionSpecDraft | null | undefined;
@@ -1483,7 +1483,7 @@ export function getChatForDecisionToPrompt({
   templateFormat,
 }: {
   instance: Pick<PlaygroundNormalizedInstance, "template">;
-  /** The instance's decision request. */
+  /** The instance's decision spec. */
   decisionSpec: DecisionSpecDraft | null | undefined;
   templateFormat: TemplateFormat;
 }): ReturnType<typeof buildChatFromDecisionDraft> | null {

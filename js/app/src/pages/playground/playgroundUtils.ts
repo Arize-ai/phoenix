@@ -1580,7 +1580,7 @@ const getBaseChatCompletionInput = ({
  * Denormalize a playground instance with the actual messages and decision spec
  *
  * A playground instance differs from a playground normalized instance in that it contains the actual messages
- * and decision spec and not just their ids. This function will replace the ids with the actual values.
+ * and decision specs and not just their ids. This function will replace the ids with the actual values.
  */
 export const denormalizePlaygroundInstance = (
   { decisionSpecId, ...instance }: PlaygroundNormalizedInstance,

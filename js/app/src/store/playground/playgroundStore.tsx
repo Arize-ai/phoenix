@@ -67,7 +67,7 @@ export const generateMessageId = () => playgroundMessageId++;
 export const generateToolId = () => playgroundToolId++;
 
 /**
- * Generates a new playground decision spec ID
+ * Generates a new playground decision spec id
  */
 export const generateDecisionSpecId = () => playgroundDecisionSpecId++;
 

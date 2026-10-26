@@ -481,7 +481,7 @@ export interface PlaygroundInstance {
    */
   decisionSpec?: DecisionSpecDraft | null;
   /**
-   * The decision spec the latest run sent. Its output is read against
+   * The decision spec the latest run used. Its output is read against
    * this, not the draft, so editing the draft never relabels an old result.
    */
   decisionRunRequest?: DecisionSpecDraft | null;

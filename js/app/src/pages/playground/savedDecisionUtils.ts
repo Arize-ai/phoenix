@@ -37,7 +37,7 @@ export function toDecisionVersionInput({
   description,
   purpose = "save",
 }: {
-  /** The instance's model and its decision request, read from the store. */
+  /** The instance's model and its decision spec, read from the store. */
   instance: Pick<PlaygroundInstance, "model"> & {
     decisionSpec: DecisionSpecDraft | null | undefined;
   };

@@ -88,7 +88,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     );
   }
 
-  it("runs a valid decision request when no dataset is loaded", () => {
+  it("runs a valid decision spec when no dataset is loaded", () => {
     const { runPlaygroundInstances } = mount(null);
     const button = runButton();
     expect(button?.disabled).toBe(false);

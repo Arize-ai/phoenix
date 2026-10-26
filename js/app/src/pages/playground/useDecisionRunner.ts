@@ -69,7 +69,7 @@ const FALLBACK_ERROR_MESSAGE =
   "Could not execute the decision request. Check the connection and provider configuration.";
 
 /**
- * Runs an instance's decision request against its model whenever
+ * Runs an instance's decision spec against its model whenever
  * that instance gets a new active run. Repetitions are sequential and
  * non-streaming. Disposed or stale runs never overwrite a newer run.
  */
