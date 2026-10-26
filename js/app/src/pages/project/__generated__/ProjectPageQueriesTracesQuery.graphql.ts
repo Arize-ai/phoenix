@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12af4f791e068fc6e7c390afc5726f6f>>
+ * @generated SignedSource<<a9922767ac1ea758fe16f809584fa32b>>
  * @lightSyntaxTransform
  */
 
@@ -20,8 +20,6 @@ export type ProjectPageQueriesTracesQuery$variables = {
 };
 export type ProjectPageQueriesTracesQuery$data = {
   readonly project: {
-    readonly hasTraces?: boolean;
-    readonly name?: string;
     readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
   };
 };
@@ -56,84 +54,77 @@ v1 = [
   }
 ],
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "hasTraces",
-  "storageKey": null
-},
-v4 = {
   "kind": "Variable",
   "name": "traceFilterCondition",
   "variableName": "traceFilterCondition"
 },
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v6 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = {
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v6 = {
   "kind": "Literal",
   "name": "first",
   "value": 100
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v13 = [
-  (v5/*:: as any*/),
+v12 = [
+  (v3/*:: as any*/),
   {
     "kind": "InlineFragment",
     "selections": [
-      (v2/*:: as any*/),
+      (v5/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -144,7 +135,7 @@ v13 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v8/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -153,8 +144,8 @@ v13 = [
             "name": "values",
             "plural": true,
             "selections": [
-              (v9/*:: as any*/),
-              (v10/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -165,9 +156,9 @@ v13 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v8/*:: as any*/),
-          (v11/*:: as any*/),
-          (v12/*:: as any*/)
+          (v7/*:: as any*/),
+          (v10/*:: as any*/),
+          (v11/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -175,7 +166,7 @@ v13 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v8/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -183,8 +174,8 @@ v13 = [
             "name": "threshold",
             "storageKey": null
           },
-          (v11/*:: as any*/),
-          (v12/*:: as any*/)
+          (v10/*:: as any*/),
+          (v11/*:: as any*/)
         ],
         "type": "FreeformAnnotationConfig",
         "abstractKey": null
@@ -196,13 +187,13 @@ v13 = [
   {
     "kind": "InlineFragment",
     "selections": [
-      (v6/*:: as any*/)
+      (v4/*:: as any*/)
     ],
     "type": "Node",
     "abstractKey": "__isNode"
   }
 ],
-v14 = [
+v13 = [
   {
     "kind": "Literal",
     "name": "filterCondition",
@@ -226,51 +217,51 @@ v14 = [
     "name": "timeRange",
     "variableName": "timeRange"
   },
-  (v4/*:: as any*/)
+  (v2/*:: as any*/)
 ],
-v15 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanKind",
   "storageKey": null
 },
-v16 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "statusMessage",
   "storageKey": null
 },
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "endTime",
   "storageKey": null
 },
-v19 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v20 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v21 = [
+v20 = [
   {
     "alias": "value",
     "args": null,
@@ -279,41 +270,41 @@ v21 = [
     "storageKey": null
   }
 ],
-v22 = {
+v21 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v21/*:: as any*/),
+  "selections": (v20/*:: as any*/),
   "storageKey": null
 },
-v23 = {
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v21/*:: as any*/),
+  "selections": (v20/*:: as any*/),
   "storageKey": null
 },
-v24 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanId",
   "storageKey": null
 },
-v25 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "traceId",
   "storageKey": null
 },
-v26 = [
+v25 = [
   {
     "kind": "Literal",
     "name": "filter",
@@ -326,25 +317,25 @@ v26 = [
     }
   }
 ],
-v27 = {
+v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v28 = {
+v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v29 = [
-  (v6/*:: as any*/),
-  (v2/*:: as any*/),
+v28 = [
+  (v4/*:: as any*/),
+  (v5/*:: as any*/),
+  (v8/*:: as any*/),
   (v9/*:: as any*/),
-  (v10/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -352,8 +343,8 @@ v29 = [
     "name": "explanation",
     "storageKey": null
   },
+  (v26/*:: as any*/),
   (v27/*:: as any*/),
-  (v28/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -383,12 +374,12 @@ v29 = [
         "name": "profilePictureUrl",
         "storageKey": null
       },
-      (v6/*:: as any*/)
+      (v4/*:: as any*/)
     ],
     "storageKey": null
   }
 ],
-v30 = {
+v29 = {
   "alias": null,
   "args": null,
   "concreteType": "LabelFraction",
@@ -403,18 +394,18 @@ v30 = {
       "name": "fraction",
       "storageKey": null
     },
-    (v9/*:: as any*/)
+    (v8/*:: as any*/)
   ],
   "storageKey": null
 },
-v31 = {
+v30 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v32 = {
+v31 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -422,40 +413,40 @@ v32 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v6/*:: as any*/),
-    (v2/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v8/*:: as any*/),
     (v9/*:: as any*/),
-    (v10/*:: as any*/),
-    (v27/*:: as any*/),
-    (v28/*:: as any*/)
+    (v26/*:: as any*/),
+    (v27/*:: as any*/)
   ],
   "storageKey": null
 },
-v33 = {
+v32 = {
   "alias": "summarySpanAnnotations",
-  "args": (v26/*:: as any*/),
+  "args": (v25/*:: as any*/),
   "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
   "name": "spanAnnotations",
   "plural": true,
-  "selections": (v29/*:: as any*/),
+  "selections": (v28/*:: as any*/),
   "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
 },
-v34 = {
+v33 = {
   "alias": "summarySpanAnnotationSummaries",
-  "args": (v26/*:: as any*/),
+  "args": (v25/*:: as any*/),
   "concreteType": "AnnotationSummary",
   "kind": "LinkedField",
   "name": "spanAnnotationSummaries",
   "plural": true,
   "selections": [
+    (v29/*:: as any*/),
     (v30/*:: as any*/),
-    (v31/*:: as any*/),
-    (v2/*:: as any*/)
+    (v5/*:: as any*/)
   ],
   "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
 },
-v35 = {
+v34 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -510,17 +501,8 @@ return {
         "plural": false,
         "selections": [
           {
-            "kind": "InlineFragment",
-            "selections": [
-              (v2/*:: as any*/),
-              (v3/*:: as any*/)
-            ],
-            "type": "Project",
-            "abstractKey": null
-          },
-          {
             "args": [
-              (v4/*:: as any*/)
+              (v2/*:: as any*/)
             ],
             "kind": "FragmentSpread",
             "name": "TracesTable_spans"
@@ -546,13 +528,12 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/),
-          (v6/*:: as any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v2/*:: as any*/),
-              (v3/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": [
@@ -567,7 +548,7 @@ return {
                     "kind": "ObjectValue",
                     "name": "filter"
                   },
-                  (v7/*:: as any*/)
+                  (v6/*:: as any*/)
                 ],
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
@@ -590,7 +571,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -599,7 +580,7 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v5/*:: as any*/),
+                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -607,14 +588,14 @@ return {
                                 "kind": "LinkedField",
                                 "name": "outputConfigs",
                                 "plural": true,
-                                "selections": (v13/*:: as any*/),
+                                "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v6/*:: as any*/)
+                              (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v6/*:: as any*/)
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -627,7 +608,7 @@ return {
               {
                 "alias": "configsByName",
                 "args": [
-                  (v7/*:: as any*/)
+                  (v6/*:: as any*/)
                 ],
                 "concreteType": "AnnotationConfigConnection",
                 "kind": "LinkedField",
@@ -649,7 +630,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v13/*:: as any*/),
+                        "selections": (v12/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -674,7 +655,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v14/*:: as any*/),
+                "args": (v13/*:: as any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -696,9 +677,9 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v6/*:: as any*/),
-                          (v15/*:: as any*/),
-                          (v2/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v14/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -713,10 +694,10 @@ return {
                             "name": "statusCode",
                             "storageKey": null
                           },
+                          (v15/*:: as any*/),
                           (v16/*:: as any*/),
                           (v17/*:: as any*/),
                           (v18/*:: as any*/),
-                          (v19/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -724,10 +705,10 @@ return {
                             "name": "cumulativeTokenCountTotal",
                             "storageKey": null
                           },
-                          (v20/*:: as any*/),
+                          (v19/*:: as any*/),
+                          (v21/*:: as any*/),
                           (v22/*:: as any*/),
                           (v23/*:: as any*/),
-                          (v24/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -736,8 +717,8 @@ return {
                             "name": "trace",
                             "plural": false,
                             "selections": [
-                              (v6/*:: as any*/),
-                              (v25/*:: as any*/),
+                              (v4/*:: as any*/),
+                              (v24/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -783,17 +764,17 @@ return {
                               },
                               {
                                 "alias": "summaryTraceAnnotations",
-                                "args": (v26/*:: as any*/),
+                                "args": (v25/*:: as any*/),
                                 "concreteType": "TraceAnnotation",
                                 "kind": "LinkedField",
                                 "name": "traceAnnotations",
                                 "plural": true,
-                                "selections": (v29/*:: as any*/),
+                                "selections": (v28/*:: as any*/),
                                 "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               },
                               {
                                 "alias": "summaryTraceAnnotationSummaries",
-                                "args": (v26/*:: as any*/),
+                                "args": (v25/*:: as any*/),
                                 "concreteType": "AnnotationSummary",
                                 "kind": "LinkedField",
                                 "name": "traceAnnotationSummaries",
@@ -820,19 +801,19 @@ return {
                                     "name": "labelCount",
                                     "storageKey": null
                                   },
+                                  (v29/*:: as any*/),
                                   (v30/*:: as any*/),
-                                  (v31/*:: as any*/),
-                                  (v2/*:: as any*/)
+                                  (v5/*:: as any*/)
                                 ],
                                 "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               }
                             ],
                             "storageKey": null
                           },
+                          (v31/*:: as any*/),
                           (v32/*:: as any*/),
                           (v33/*:: as any*/),
                           (v34/*:: as any*/),
-                          (v35/*:: as any*/),
                           {
                             "alias": null,
                             "args": [
@@ -863,9 +844,9 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v6/*:: as any*/),
-                                      (v15/*:: as any*/),
-                                      (v2/*:: as any*/),
+                                      (v4/*:: as any*/),
+                                      (v14/*:: as any*/),
+                                      (v5/*:: as any*/),
                                       {
                                         "alias": "statusCode",
                                         "args": null,
@@ -873,11 +854,11 @@ return {
                                         "name": "propagatedStatusCode",
                                         "storageKey": null
                                       },
+                                      (v15/*:: as any*/),
                                       (v16/*:: as any*/),
                                       (v17/*:: as any*/),
                                       (v18/*:: as any*/),
                                       (v19/*:: as any*/),
-                                      (v20/*:: as any*/),
                                       {
                                         "alias": "cumulativeTokenCountTotal",
                                         "args": null,
@@ -885,9 +866,9 @@ return {
                                         "name": "tokenCountTotal",
                                         "storageKey": null
                                       },
+                                      (v21/*:: as any*/),
                                       (v22/*:: as any*/),
                                       (v23/*:: as any*/),
-                                      (v24/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -896,15 +877,15 @@ return {
                                         "name": "trace",
                                         "plural": false,
                                         "selections": [
-                                          (v6/*:: as any*/),
-                                          (v25/*:: as any*/)
+                                          (v4/*:: as any*/),
+                                          (v24/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       },
+                                      (v31/*:: as any*/),
                                       (v32/*:: as any*/),
                                       (v33/*:: as any*/),
-                                      (v34/*:: as any*/),
-                                      (v35/*:: as any*/)
+                                      (v34/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -932,8 +913,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*:: as any*/),
-                          (v6/*:: as any*/)
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -970,7 +951,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v14/*:: as any*/),
+                "args": (v13/*:: as any*/),
                 "filters": [
                   "sort",
                   "filterCondition",
@@ -992,16 +973,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5766498b29fc462cdc9fe0e9f09b1659",
+    "cacheID": "c9e6073835443cfc322cf770f91cd48c",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesTracesQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesTracesQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $traceFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      hasTraces\n    }\n    ...TracesTable_spans_yhDO7\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_yhDO7 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, filterCondition: \"parent_span is None\", traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query ProjectPageQueriesTracesQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $traceFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...TracesTable_spans_yhDO7\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_yhDO7 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, filterCondition: \"parent_span is None\", traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d795e13fb7ad7dae3dd8a22631521b0";
+(node as any).hash = "05a3d0289fab892faf4f8427fa6bfb31";
 
 export default node;
