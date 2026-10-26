@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24fb3fce6f1b855ffd6e8aec8b78bcdb>>
+ * @generated SignedSource<<fcd450fdf149d626bf729c7bb98fce0a>>
  * @lightSyntaxTransform
  */
 
@@ -20,7 +20,7 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project" | "ProjectTimeRangeControls_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectOnboardingOverlay_project" | "ProjectStats_project" | "ProjectTimeRangeControls_data">;
   };
 };
 export type ProjectPageQuery = {
@@ -100,6 +100,11 @@ return {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "ProjectTimeRangeControls_data"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "ProjectOnboardingOverlay_project"
               }
             ],
             "type": "Project",
@@ -240,6 +245,20 @@ return {
                 "kind": "ScalarField",
                 "name": "streamingLastUpdatedAt",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasTraces",
+                "storageKey": null
               }
             ],
             "type": "Project",
@@ -251,16 +270,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2b4e678296b85fa2ab3e24133a855fda",
+    "cacheID": "8c120fc2688edf1b280ee7077ca209dd",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectStats_project\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectStats_project\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e61220aa5dc24687c7773f4e69775e2f";
+(node as any).hash = "58bca3a56a6b8fc64f8152c3aa7f8395";
 
 export default node;
