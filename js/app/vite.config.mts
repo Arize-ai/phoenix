@@ -82,7 +82,7 @@ export default defineConfig(() => {
           // the ESM build while the app loads the CJS one, and the resulting
           // second copy of @codemirror/state breaks every instanceof check.
           // The pattern matches resolved file paths, so it cannot be anchored.
-          inline: ["codemirror-json-schema", /@codemirror\//],
+          inline: ["codemirror-json-schema", /@codemirror\//, /@uiw\//],
         },
       },
     },

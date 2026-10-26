@@ -28,7 +28,7 @@ import {
   validateDecisionDraft,
 } from "../decisionUtils";
 
-describe("decision request draft", () => {
+describe("decision prompt draft", () => {
   it("builds a valid Choice example", () => {
     const draft = createDecisionDraft();
     expect(getDecisionValidationError(draft)).toBeNull();
@@ -1138,15 +1138,15 @@ describe("decision tasks over a dataset", () => {
   it("lets decisions and prompts share a dataset run, checking only the decisions", () => {
     const decision = {
       task: { type: "decision" },
-      decisionRequest: { ...createDecisionDraft(), state: "{{state}}" },
+      decisionPrompt: { ...createDecisionDraft(), state: "{{state}}" },
     } as never;
     const unfillable = {
       task: { type: "decision" },
-      decisionRequest: createDecisionDraft(),
+      decisionPrompt: createDecisionDraft(),
     } as never;
     const prompt = {
       task: { type: "prompt" },
-      decisionRequest: null,
+      decisionPrompt: null,
     } as never;
     expect(
       getDecisionDatasetBlockedReason({
@@ -1206,10 +1206,8 @@ describe("getChatForDecisionToPrompt", () => {
   it("asks an LLM the same questions when the decision has no messages", () => {
     const draft = createDecisionDraft();
     const chat = getChatForDecisionToPrompt({
-      instance: {
-        template: { __type: "chat", messageIds: [] },
-        decisionRequest: draft,
-      },
+      instance: { template: { __type: "chat", messageIds: [] } },
+      decisionPrompt: draft,
       templateFormat: TemplateFormats.Mustache,
     });
     expect(chat?.messages.map((message) => message.role)).toEqual([
@@ -1223,10 +1221,8 @@ describe("getChatForDecisionToPrompt", () => {
   it("keeps the messages a decision instance already had", () => {
     expect(
       getChatForDecisionToPrompt({
-        instance: {
-          template: { __type: "chat", messageIds: [1, 2] },
-          decisionRequest: createDecisionDraft(),
-        },
+        instance: { template: { __type: "chat", messageIds: [1, 2] } },
+        decisionPrompt: createDecisionDraft(),
         templateFormat: TemplateFormats.Mustache,
       })
     ).toBeNull();

@@ -8,6 +8,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
@@ -44,7 +45,6 @@ describe("PlaygroundRunButton with decision instances", () => {
       patch: {
         llmModel: chatInstance.model,
         task: { type: "decision" },
-        decisionRequest: createDecisionDraft(),
         model: {
           ...chatInstance.model,
           modelType: "DECISION",
@@ -52,6 +52,10 @@ describe("PlaygroundRunButton with decision instances", () => {
           modelName: "jev-latest",
         },
       },
+    });
+    store.getState().updateDecisionPrompt({
+      instanceId: chatInstance.id,
+      request: createDecisionDraft(),
     });
     const runPlaygroundInstances = vi.fn();
     store.setState({ runPlaygroundInstances });
@@ -84,7 +88,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     );
   }
 
-  it("runs a valid decision request when no dataset is loaded", () => {
+  it("runs a valid decision prompt when no dataset is loaded", () => {
     const { runPlaygroundInstances } = mount(null);
     const button = runButton();
     expect(button?.disabled).toBe(false);
@@ -95,9 +99,11 @@ describe("PlaygroundRunButton with decision instances", () => {
   it("explains which instance blocks the run when its request is invalid", async () => {
     const { store, runPlaygroundInstances } = mount(null);
     const instance = store.getState().instances[0];
-    const request = instance.decisionRequest!;
+    const request = selectPlaygroundInstanceDecisionPrompt(instance.id)(
+      store.getState()
+    )!;
     act(() =>
-      store.getState().updateDecisionRequest({
+      store.getState().updateDecisionPrompt({
         instanceId: instance.id,
         request: {
           ...request,
@@ -128,9 +134,14 @@ describe("PlaygroundRunButton with decision instances", () => {
     const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
     const instance = store.getState().instances[0];
     act(() =>
-      store.getState().updateDecisionRequest({
+      store.getState().updateDecisionPrompt({
         instanceId: instance.id,
-        request: { ...instance.decisionRequest!, state: "{{ticket}}" },
+        request: {
+          ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
+            store.getState()
+          )!,
+          state: "{{ticket}}",
+        },
       })
     );
     const button = runButton();
