@@ -78,6 +78,15 @@ export const disclosureCSS = css`
     &[disabled] {
       cursor: default;
       opacity: 0.6;
+      // it cannot toggle, so it shows no arrow, but keeps the arrow's space
+      // so its title stays aligned with its siblings'
+      > svg,
+      > i {
+        visibility: hidden;
+      }
+    }
+    .disclosure__empty-label {
+      flex: none;
     }
 
     // style trigger icon
@@ -97,7 +106,16 @@ export const disclosureCSS = css`
       > i {
         rotate: 0deg;
       }
+      // "None" ends the row like a value, rather than preceding the title
+      .disclosure__empty-label {
+        order: -1;
+      }
     }
+  }
+
+  // an empty section is complete as it is, not unavailable
+  &[data-empty] [slot="trigger"][disabled] {
+    opacity: 1;
   }
 
   &[data-size="L"] .react-aria-Button[slot="trigger"] {
