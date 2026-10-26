@@ -217,6 +217,11 @@ async def create_project_llm_evaluator(
                 output_configs=output_configs,
                 user_id=user_id,
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt_version,
+                ),
             )
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
@@ -225,11 +230,6 @@ async def create_project_llm_evaluator(
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, prompt.id)
-            evaluator.prompt_version_tag = models.PromptVersionTag(
-                name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
-                prompt_id=prompt.id,
-                prompt_version_id=prompt_version.id,
-            )
             project_evaluator = models.ProjectEvaluator(
                 project_id=project_id,
                 evaluator_id=evaluator.id,
@@ -325,7 +325,6 @@ async def update_project_llm_evaluator(
                 prompt_source=input.prompt_source,
                 output_configs=output_configs,
                 description=input.description,
-                name=name,
                 user_id=user_id,
                 shared_evaluator_changed=shared_evaluator_changed,
             )

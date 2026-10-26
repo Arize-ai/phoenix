@@ -1,6 +1,8 @@
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any, Literal, NamedTuple, Optional
+from unittest.mock import ANY
 
 import pytest
 from alembic.config import Config
@@ -69,6 +71,8 @@ class _Seed(NamedTuple):
     llm_evaluator: int
     stale_llm_evaluator: int
     tag: int
+    prompt: int
+    newest_prompt_version: int
 
 
 class _Binding(NamedTuple):
@@ -102,22 +106,27 @@ def _seed(conn: Connection) -> _Seed:
     prompt = _insert(
         conn, "INSERT INTO prompts (name, metadata) VALUES ('correctness', :m)", m=_json({})
     )
-    prompt_version = _insert(
-        conn,
-        "INSERT INTO prompt_versions (prompt_id, template_type, template_format, template, "
-        "invocation_parameters, model_provider, model_name, metadata) "
-        "VALUES (:p, 'CHAT', 'MUSTACHE', :t, :i, 'OPENAI', 'gpt-4o-mini', :m)",
-        p=prompt,
-        t=_json({"type": "chat", "messages": []}),
-        i=_json({"type": "openai", "openai": {}}),
-        m=_json({}),
-    )
+
+    def prompt_version() -> int:
+        return _insert(
+            conn,
+            "INSERT INTO prompt_versions (prompt_id, template_type, template_format, template, "
+            "invocation_parameters, model_provider, model_name, metadata) "
+            "VALUES (:p, 'CHAT', 'MUSTACHE', :t, :i, 'OPENAI', 'gpt-4o-mini', :m)",
+            p=prompt,
+            t=_json({"type": "chat", "messages": []}),
+            i=_json({"type": "openai", "openai": {}}),
+            m=_json({}),
+        )
+
+    tagged_prompt_version = prompt_version()
+    newest_prompt_version = prompt_version()
     tag = _insert(
         conn,
         "INSERT INTO prompt_version_tags (name, prompt_id, prompt_version_id) "
         "VALUES ('correctness-evaluator-0a1b', :p, :v)",
         p=prompt,
-        v=prompt_version,
+        v=tagged_prompt_version,
     )
 
     def evaluator(name: str, kind: str, description: Optional[str]) -> int:
@@ -143,7 +152,8 @@ def _seed(conn: Connection) -> _Seed:
         return evaluator_id
 
     llm = llm_evaluator("correctness", "shared description", _LLM_CONFIGS)
-    # The evaluator runs through the tag; the other one follows the prompt's latest version.
+    # The evaluator runs through the tag; the other one lost its tag and runs the prompt's
+    # newest version.
     conn.execute(
         text("UPDATE llm_evaluators SET prompt_version_tag_id = :tag WHERE id = :id"),
         {"tag": tag, "id": llm},
@@ -206,6 +216,8 @@ def _seed(conn: Connection) -> _Seed:
         llm_evaluator=llm,
         stale_llm_evaluator=stale_llm,
         tag=tag,
+        prompt=prompt,
+        newest_prompt_version=newest_prompt_version,
     )
 
     # Rows that cascade from dataset_evaluators, which a SQLite table rebuild must preserve.
@@ -346,9 +358,17 @@ def _llm_evaluators_table(
     )
 
 
-def _without_tag_fk(table: _LLMEvaluatorsTable) -> _LLMEvaluatorsTable:
+def _comparable(table: _LLMEvaluatorsTable) -> _LLMEvaluatorsTable:
+    """The table without what the upgrade changes: the tag column's nullability, its
+    foreign key, and the tag ids it fills in."""
     return table._replace(
-        foreign_keys={name: fk for name, fk in table.foreign_keys.items() if name != _TAG_FK}
+        schema_info={
+            **table.schema_info,
+            "nullable_column_names": table.schema_info["nullable_column_names"]
+            - {"prompt_version_tag_id"},
+        },
+        foreign_keys={name: fk for name, fk in table.foreign_keys.items() if name != _TAG_FK},
+        rows=[(*row[:3], *row[4:]) for row in table.rows],
     )
 
 
@@ -402,7 +422,7 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
 
     await _up(_engine, _alembic_config, _UP, _schema)
 
-    def _verify_upgraded(conn: Connection) -> None:
+    def _verify_upgraded(conn: Connection) -> _LLMEvaluatorsTable:
         schema_after = _schema_info(conn, _db_backend, _schema)
         assert schema_after["column_names"] == schema_before["column_names"]
         assert schema_after["index_names"] == schema_before["index_names"]
@@ -432,19 +452,37 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
         ):
             assert after[binding_id] == before[binding_id]
         assert _child_row_counts(conn) == (1, 1)
-        # The tag foreign key refuses deletes; the rest of llm_evaluators, its rows included,
-        # survives the SQLite rebuild.
+        # The evaluator without a tag gets one on the version it was running.
+        backfilled_tag = conn.execute(
+            text(
+                "SELECT prompt_version_tags.name, prompt_version_tags.prompt_id, "
+                "prompt_version_tags.prompt_version_id FROM llm_evaluators "
+                "JOIN prompt_version_tags "
+                "ON prompt_version_tags.id = llm_evaluators.prompt_version_tag_id "
+                "WHERE llm_evaluators.id = :id"
+            ),
+            {"id": seed.stale_llm_evaluator},
+        ).one()
+        assert re.fullmatch(r"hallucination-evaluator-[0-9a-f]{8}", backfilled_tag[0])
+        assert tuple(backfilled_tag[1:]) == (seed.prompt, seed.newest_prompt_version)
+        # The tag column is required and refuses deletes; the rest of llm_evaluators, its
+        # other rows included, survives the SQLite rebuild.
         llm_evaluators_after = _llm_evaluators_table(conn, _db_backend, _schema)
         assert llm_evaluators_after.foreign_keys[_TAG_FK] == (
             ("prompt_version_tag_id",),
             "prompt_version_tags",
             "RESTRICT",
         )
-        assert _without_tag_fk(llm_evaluators_after) == _without_tag_fk(llm_evaluators_before)
+        assert llm_evaluators_after.schema_info["nullable_column_names"] == (
+            llm_evaluators_before.schema_info["nullable_column_names"] - {"prompt_version_tag_id"}
+        )
+        assert [row[3] for row in llm_evaluators_after.rows] == [seed.tag, ANY]
+        assert _comparable(llm_evaluators_after) == _comparable(llm_evaluators_before)
         if _db_backend == "sqlite":
             assert conn.execute(text("PRAGMA foreign_key_check")).all() == []
+        return llm_evaluators_after
 
-    await _run_async(_engine, _verify_upgraded)
+    llm_evaluators_upgraded = await _run_async(_engine, _verify_upgraded)
 
     def _tag_delete_is_refused(conn: Connection) -> None:
         _enforce_foreign_keys(conn, _db_backend)
@@ -474,7 +512,10 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
 
     def _verify_downgraded(conn: Connection) -> None:
         assert _schema_info(conn, _db_backend, _schema) == schema_before
-        assert _llm_evaluators_table(conn, _db_backend, _schema) == llm_evaluators_before
+        # The schema is restored and the generated tag is kept.
+        assert _llm_evaluators_table(conn, _db_backend, _schema) == llm_evaluators_before._replace(
+            rows=llm_evaluators_upgraded.rows
+        )
         after = _bindings(conn, _db_backend)
         # Overrides written after the upgrade survive the downgrade.
         assert after[seed.llm].output_configs == _NEW_OVERRIDE

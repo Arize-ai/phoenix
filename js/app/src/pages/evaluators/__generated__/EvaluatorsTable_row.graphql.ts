@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7e19012e6479de27a608e36286dbb5e9>>
+ * @generated SignedSource<<8279c7f6e1d0d648c5304d57d27c2660>>
  * @lightSyntaxTransform
  */
 
@@ -72,7 +72,7 @@ export type EvaluatorsTable_row$data = {
   };
   readonly promptVersionTag?: {
     readonly name: string;
-  } | null;
+  };
   readonly updatedAt: string;
   readonly user?: {
     readonly profilePictureUrl: string | null;

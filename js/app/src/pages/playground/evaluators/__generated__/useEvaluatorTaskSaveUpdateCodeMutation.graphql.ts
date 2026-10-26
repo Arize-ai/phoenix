@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5cfc26e2a5bf24fd04eaaa28a334cbb9>>
+ * @generated SignedSource<<150aaee1c63d81f174b06999e46a767d>>
  * @lightSyntaxTransform
  */
 
@@ -119,7 +119,7 @@ export type useEvaluatorTaskSaveUpdateCodeMutation$data = {
         };
         readonly promptVersionTag?: {
           readonly name: string;
-        } | null;
+        };
         readonly sandboxConfig?: {
           readonly id: string;
         } | null;

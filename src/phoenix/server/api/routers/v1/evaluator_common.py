@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from contextlib import contextmanager
-from typing import Annotated, Iterator, Literal, Optional, Sequence, Union
+from typing import Annotated, Iterator, Literal, Sequence, Union
 
 from pydantic import ConfigDict, Field, ValidationError
 from starlette.requests import Request
@@ -108,10 +108,6 @@ class PromptVersionSelector(V1RoutesBaseModel):
     )
 
 
-class LatestPromptVersionSelector(V1RoutesBaseModel):
-    type: Literal["latest"]
-
-
 class LLMEvaluatorPromptInput(V1RoutesBaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -120,17 +116,35 @@ class LLMEvaluatorPromptInput(V1RoutesBaseModel):
 
 class LLMEvaluatorPrompt(V1RoutesBaseModel):
     prompt_id: str = Field(description="GlobalID of the prompt whose version the evaluator runs.")
-    selector: Annotated[
-        Union[PromptVersionSelector, LatestPromptVersionSelector], Field(discriminator="type")
-    ] = Field(
+    selector: PromptVersionSelector = Field(description="The version the evaluator is pinned to.")
+    resolved_prompt_version_id: str = Field(
+        description="GlobalID of the version the evaluator runs now."
+    )
+
+
+class DecisionVersionSelector(V1RoutesBaseModel):
+    type: Literal["version"]
+    decision_version_id: str = Field(
         description=(
-            "How the version is chosen. version: pinned to one version. latest: the prompt's "
-            "newest version, for evaluators whose pin was removed; writes accept version only. "
-            "Treat an unrecognized type as not pinned."
+            "GlobalID of the decision version the evaluator runs. An update must name a "
+            "version of the evaluator's own decision."
         )
     )
-    resolved_prompt_version_id: Optional[str] = Field(
-        description="GlobalID of the version the evaluator runs now; null if the prompt has none."
+
+
+class DecisionEvaluatorDecisionInput(V1RoutesBaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selector: DecisionVersionSelector = Field(description="Which decision version to run.")
+
+
+class DecisionEvaluatorDecision(V1RoutesBaseModel):
+    decision_id: str = Field(
+        description="GlobalID of the decision whose version the evaluator runs."
+    )
+    selector: DecisionVersionSelector = Field(description="The version the evaluator is pinned to.")
+    resolved_decision_version_id: str = Field(
+        description="GlobalID of the version the evaluator runs now."
     )
 
 

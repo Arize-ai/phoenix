@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1feef333ee0086f2fa9b8a24b28cb957>>
+ * @generated SignedSource<<f5eb9a1b9274fa3da8819c648c3b5dca>>
  * @lightSyntaxTransform
  */
 
@@ -314,7 +314,7 @@ export type useEvaluatorTaskSaveUpdateLLMMutation$data = {
         };
         readonly promptVersionTag?: {
           readonly name: string;
-        } | null;
+        };
         readonly sandboxConfig?: {
           readonly id: string;
         } | null;

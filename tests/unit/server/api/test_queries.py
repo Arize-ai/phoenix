@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from secrets import token_hex
 from typing import Any, Optional
 
 import pytest
@@ -2899,6 +2900,11 @@ async def evaluators_for_querying(
             description="An LLM evaluator",
             metadata_={},
             prompt_id=prompt.id,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier(f"tag-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            ),
             output_configs=[
                 CategoricalOutputConfig(
                     type="CATEGORICAL",

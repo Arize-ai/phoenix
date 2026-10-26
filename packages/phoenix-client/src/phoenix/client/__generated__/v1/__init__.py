@@ -284,6 +284,11 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
+class DecisionVersionSelector(TypedDict):
+    type: Literal["version"]
+    decision_version_id: str
+
+
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
 
@@ -400,10 +405,6 @@ class LDAPUser(LDAPUserData):
     id: str
     created_at: str
     updated_at: str
-
-
-class LatestPromptVersionSelector(TypedDict):
-    type: Literal["latest"]
 
 
 class ListAgentSessionsResponseBody(TypedDict):
@@ -1726,6 +1727,16 @@ class DatasetExample(TypedDict):
     source: NotRequired[DatasetExampleSource]
 
 
+class DecisionEvaluatorDecision(TypedDict):
+    decision_id: str
+    selector: DecisionVersionSelector
+    resolved_decision_version_id: str
+
+
+class DecisionEvaluatorDecisionInput(TypedDict):
+    selector: DecisionVersionSelector
+
+
 class DecisionScoringPolicy(TypedDict):
     questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
 
@@ -1864,8 +1875,8 @@ class IncompleteExperimentRun(TypedDict):
 
 class LLMEvaluatorPrompt(TypedDict):
     prompt_id: str
-    selector: Union[PromptVersionSelector, LatestPromptVersionSelector]
-    resolved_prompt_version_id: Optional[str]
+    selector: PromptVersionSelector
+    resolved_prompt_version_id: str
 
 
 class LLMEvaluatorPromptInput(TypedDict):
@@ -1926,7 +1937,7 @@ class PatchDatasetEvaluatorRequest(TypedDict):
 class PatchDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: NotRequired[str]
-    decision_version_id: NotRequired[str]
+    decision: NotRequired[DecisionEvaluatorDecisionInput]
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
 
@@ -2354,7 +2365,7 @@ class CreateDatasetEvaluatorRequest(TypedDict):
 class CreateDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecisionInput
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
 
@@ -2405,8 +2416,7 @@ class DecisionEvaluatorDefinition(TypedDict):
     id: str
     name: str
     description: Optional[str]
-    decision_id: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecision
     scoring_policy: DecisionScoringPolicy
     output_configs: Sequence[
         Union[

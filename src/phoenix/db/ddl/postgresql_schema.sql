@@ -1961,7 +1961,7 @@ CREATE TABLE public.llm_evaluators (
     id BIGINT NOT NULL,
     kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
     prompt_id BIGINT NOT NULL,
-    prompt_version_tag_id BIGINT,
+    prompt_version_tag_id BIGINT NOT NULL,
     output_configs JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),

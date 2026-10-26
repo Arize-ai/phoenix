@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e5ef48afedc570f6fa680aa7cf9516a7>>
+ * @generated SignedSource<<05a8fc89e8d527b0193e2427e98db074>>
  * @lightSyntaxTransform
  */
 
@@ -28,7 +28,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluatorQuery$data = {
         };
         readonly promptVersionTag?: {
           readonly name: string;
-        } | null;
+        };
       };
       readonly " $fragmentSpreads": FragmentRefs<"EditLLMDatasetEvaluatorSlideover_evaluator">;
     };

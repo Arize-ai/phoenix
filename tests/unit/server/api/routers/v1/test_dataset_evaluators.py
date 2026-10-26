@@ -4,7 +4,6 @@ from secrets import token_hex
 from typing import Any
 
 import httpx
-import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -193,19 +192,11 @@ async def test_llm_binding_defaults_to_inherited_settings(
         )
 
 
-@pytest.mark.parametrize("tagged", [True, False])
-async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
-    tagged: bool,
+async def test_patch_llm_binding_overrides(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     correctness_llm_evaluator: models.LLMEvaluator,
 ) -> None:
-    if not tagged:
-        async with db() as session:
-            evaluator = await session.get(models.LLMEvaluator, correctness_llm_evaluator.id)
-            assert evaluator is not None
-            evaluator.prompt_version_tag_id = None
-
     async with db() as session:
         dataset = models.Dataset(name=f"llm-patch-{token_hex(4)}", metadata_={})
         session.add(dataset)

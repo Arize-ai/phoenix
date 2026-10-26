@@ -115,11 +115,13 @@ export function LLMProjectEvaluatorDetails({
         interactiveTitle
         collapseButtonLabel="Toggle prompt template"
         titleExtra={
-          evaluator.prompt?.id && evaluator.prompt.name ? (
+          evaluator.prompt?.id &&
+          evaluator.prompt.name &&
+          evaluator.promptVersionTag ? (
             <PromptLink
               promptId={evaluator.prompt.id}
               promptName={evaluator.prompt.name}
-              promptVersionTag={evaluator.promptVersionTag?.name}
+              promptVersionTag={evaluator.promptVersionTag.name}
               nameMaxWidth="24rem"
             />
           ) : undefined

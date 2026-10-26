@@ -117,19 +117,16 @@ async def _seed_binding(
         description="correctness",
         output_configs=[_output_config()],
         prompt=prompt,
+        prompt_version_tag=models.PromptVersionTag(
+            name=Identifier(f"delete-lock-tag-{suffix}"),
+            prompt=prompt,
+            prompt_version=version,
+        ),
     )
 
     async with db() as session:
         session.add(evaluator)
         await session.flush()
-        tag = models.PromptVersionTag(
-            name=Identifier(f"delete-lock-tag-{suffix}"),
-            prompt_id=prompt.id,
-            prompt_version_id=version.id,
-        )
-        session.add(tag)
-        await session.flush()
-        evaluator.prompt_version_tag = tag
 
         if binding_kind == "dataset":
             dataset_binding = models.DatasetEvaluators(

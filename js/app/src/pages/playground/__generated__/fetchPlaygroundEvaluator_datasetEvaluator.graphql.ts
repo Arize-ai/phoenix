@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<796745419846eeaa8fe263d623c113d9>>
+ * @generated SignedSource<<2b02ea0bf2b3be0136a95581cea32df8>>
  * @lightSyntaxTransform
  */
 
@@ -65,7 +65,7 @@ export type fetchPlaygroundEvaluator_datasetEvaluator$data = {
     };
     readonly promptVersionTag?: {
       readonly name: string;
-    } | null;
+    };
     readonly sandboxConfig?: {
       readonly id: string;
     } | null;

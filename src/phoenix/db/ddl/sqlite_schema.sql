@@ -1855,7 +1855,7 @@ CREATE TABLE llm_evaluators (
     id INTEGER NOT NULL,
     kind VARCHAR DEFAULT 'LLM' NOT NULL,
     prompt_id INTEGER NOT NULL,
-    prompt_version_tag_id INTEGER,
+    prompt_version_tag_id INTEGER NOT NULL,
     output_configs JSONB NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),

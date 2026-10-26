@@ -137,11 +137,13 @@ export function LLMDatasetEvaluatorDetails({
       <Flex direction="column" gap="size-100">
         <Heading level={2}>Prompt</Heading>
         <Flex justifyContent="space-between" alignItems="center">
-          {evaluator.prompt?.id && evaluator.prompt.name ? (
+          {evaluator.prompt?.id &&
+          evaluator.prompt.name &&
+          evaluator.promptVersionTag ? (
             <PromptLink
               promptId={evaluator.prompt.id}
               promptName={evaluator.prompt.name}
-              promptVersionTag={evaluator.promptVersionTag?.name}
+              promptVersionTag={evaluator.promptVersionTag.name}
             />
           ) : (
             <div />

@@ -3921,7 +3921,7 @@ type LLMEvaluator implements Evaluator & Node {
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   prompt: Prompt!
-  promptVersionTag: PromptVersionTag
+  promptVersionTag: PromptVersionTag!
   inputSchema: JSON!
   user: User
   promptVersion: PromptVersion!

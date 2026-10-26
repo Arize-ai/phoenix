@@ -4,18 +4,45 @@ import sqlalchemy
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.api.dataloaders.evaluator_by_id import EvaluatorByIdDataLoader
 from phoenix.server.types import DbSessionFactory
 
 
 async def test_evaluator_by_id_batches_lookups(db: DbSessionFactory) -> None:
     async with db() as session:
-        prompt = models.Prompt(name=Identifier(token_hex(4)))
+        prompt_version = models.PromptVersion(
+            template_type=PromptTemplateType.STRING,
+            template_format=PromptTemplateFormat.F_STRING,
+            template=PromptStringTemplate(type="string", template="{input}"),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4",
+            metadata_={},
+        )
+        prompt = models.Prompt(name=Identifier(token_hex(4)), prompt_versions=[prompt_version])
         session.add(prompt)
         await session.flush()
 
         evaluators = [
-            models.LLMEvaluator(name=Identifier(token_hex(4)), prompt_id=prompt.id)
+            models.LLMEvaluator(
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=Identifier(token_hex(4)),
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                ),
+            )
             for _ in range(5)
         ]
         session.add_all(evaluators)

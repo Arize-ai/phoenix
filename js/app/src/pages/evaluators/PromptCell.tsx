@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 
 import { Flex, Link, Text, Token } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -18,7 +17,7 @@ export const PromptCell = ({
    */
   wrapWidth?: number;
 }) => {
-  if (!prompt) {
+  if (!prompt || !promptVersionTag) {
     return null;
   }
   return (
@@ -40,7 +39,7 @@ export const PromptLink = ({
 }: {
   promptId: string;
   promptName: string;
-  promptVersionTag?: string;
+  promptVersionTag: string;
   /**
    * When set, constrains the component to a max-width (in pixels) and allows
    * the content to wrap onto two lines if needed. When undefined, the component
@@ -54,29 +53,9 @@ export const PromptLink = ({
    */
   nameMaxWidth?: string;
 }) => {
-  let to: string;
-  let specifier: ReactNode;
-  // if tag exists, that means the evaluator is pinned to a specific version of the prompt
-  // otherwise, we assume the latest version is pinned
-  if (promptVersionTag) {
-    specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
-      </Token>
-    );
-    to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
-  } else {
-    specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        latest
-      </Token>
-    );
-    to = `/prompts/${promptId}`;
-  }
-
   return (
     <Link
-      to={to}
+      to={`/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`}
       css={css`
         text-decoration: none;
         ${wrapWidth != null &&
@@ -97,7 +76,9 @@ export const PromptLink = ({
           <Text color="text-300">
             {wrapWidth != null ? "@\u00A0" : "\u00A0@\u00A0"}
           </Text>
-          {specifier}
+          <Token size="S" color="var(--global-color-gray-700)">
+            <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
+          </Token>
         </Flex>
       </Flex>
     </Link>

@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -29,10 +29,12 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
     EVALUATOR_KIND_BY_TYPE,
+    DecisionEvaluatorDecision,
+    DecisionEvaluatorDecisionInput,
+    DecisionVersionSelector,
     EvaluatorOutputConfig,
     EvaluatorRequest,
     EvaluatorType,
-    LatestPromptVersionSelector,
     LLMEvaluatorPrompt,
     LLMEvaluatorPromptInput,
     PromptVersionSelector,
@@ -137,7 +139,7 @@ class PatchCodeEvaluatorRequest(EvaluatorRequest):
 class CreateDecisionEvaluatorRequest(EvaluatorRequest):
     type: Literal["decision"]
     name: Identifier
-    decision_version_id: str
+    decision: DecisionEvaluatorDecisionInput = Field(description="The decision version to run.")
     description: Optional[str] = None
     scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
 
@@ -147,7 +149,10 @@ class PatchDecisionEvaluatorRequest(EvaluatorRequest):
 
     type: Literal["decision"]
     name: Identifier = Field(default=UNDEFINED)
-    decision_version_id: str = Field(default=UNDEFINED)
+    decision: DecisionEvaluatorDecisionInput = Field(
+        default=UNDEFINED,
+        description="Move the evaluator to another version of its decision. Omit to keep it.",
+    )
     description: Optional[str] = Field(default=UNDEFINED)
     scoring_policy: DecisionScoringPolicy = Field(default=UNDEFINED)
 
@@ -232,8 +237,7 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
     id: str
     name: Identifier
     description: Optional[str]
-    decision_id: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecision
     scoring_policy: DecisionScoringPolicy
     output_configs: list[EvaluatorOutputConfig]
 
@@ -241,13 +245,17 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
 def _decision_evaluator_definition(
     evaluator_id: str, row: models.DecisionEvaluator
 ) -> DecisionEvaluatorDefinition:
+    version_id = encode_global_id("DecisionVersion", row.selected_version.id)
     return DecisionEvaluatorDefinition(
         type="decision",
         id=evaluator_id,
         name=row.name,
         description=row.description,
-        decision_id=encode_global_id("Decision", row.selected_version.decision_id),
-        decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
+        decision=DecisionEvaluatorDecision(
+            decision_id=encode_global_id("Decision", row.selected_version.decision_id),
+            selector=DecisionVersionSelector(type="version", decision_version_id=version_id),
+            resolved_decision_version_id=version_id,
+        ),
         scoring_policy=row.scoring_policy,
         output_configs=output_configs_from_db(row.output_configs),
     )
@@ -332,16 +340,11 @@ def _builtin_evaluator_definition(
 def _llm_evaluator_definition(
     evaluator_id: str,
     llm: models.LLMEvaluator,
-    prompt_version_id: Optional[int],
+    prompt_version_id: int,
 ) -> LLMEvaluatorDefinition:
-    """Build an LLM definition from its row and the id of the version it runs (the one its
-    tag pins, or, without a tag, its prompt's newest), shared by the single-item read and the
-    batched list so the two can't drift."""
-    version_id = (
-        encode_global_id("PromptVersion", prompt_version_id)
-        if (prompt_version_id is not None)
-        else None
-    )
+    """Build an LLM definition from its row and the id of the version its tag pins, shared by
+    the single-item read and the batched list so the two can't drift."""
+    version_id = encode_global_id("PromptVersion", prompt_version_id)
     return LLMEvaluatorDefinition(
         type="llm",
         id=evaluator_id,
@@ -349,9 +352,7 @@ def _llm_evaluator_definition(
         description=llm.description,
         prompt=LLMEvaluatorPrompt(
             prompt_id=encode_global_id("Prompt", llm.prompt_id),
-            selector=PromptVersionSelector(type="version", prompt_version_id=version_id)
-            if llm.prompt_version_tag_id is not None and version_id is not None
-            else LatestPromptVersionSelector(type="latest"),
+            selector=PromptVersionSelector(type="version", prompt_version_id=version_id),
             resolved_prompt_version_id=version_id,
         ),
         output_configs=[
@@ -391,20 +392,20 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
     if llm is None:
         raise NotFound(f"Evaluator not found: {evaluator_id}")
     prompt_version = await resolve_evaluator_prompt_version(session, llm)
-    return _llm_evaluator_definition(
-        evaluator_id, llm, prompt_version.id if prompt_version else None
-    )
+    if prompt_version is None:
+        raise NotFound(f"Prompt version not found for evaluator {evaluator_id}")
+    return _llm_evaluator_definition(evaluator_id, llm, prompt_version.id)
 
 
 async def _evaluator_definitions_page(
     session: AsyncSession, rows: list[tuple[int, models.EvaluatorKind]]
 ) -> list[EvaluatorDefinition]:
     """Build a page of definitions in a fixed number of queries, independent of page size:
-    the LLM rows and their prompt versions (tagged and, separately, untagged) each batched
-    in one statement, the code rows and their latest versions likewise, and the built-in
-    rows in one statement of their own (the rest of a built-in definition comes from the
-    in-memory registry, not the database). `rows` is (id, kind) as listed by
-    `get_evaluators`, in the page's own order, which the result preserves."""
+    the LLM rows and their tagged prompt versions each batched in one statement, the code
+    rows and their latest versions likewise, and the built-in rows in one statement of their
+    own (the rest of a built-in definition comes from the in-memory registry, not the
+    database). `rows` is (id, kind) as listed by `get_evaluators`, in the page's own order,
+    which the result preserves."""
     llm_ids = [row_id for row_id, kind in rows if kind == "LLM"]
     code_ids = [row_id for row_id, kind in rows if kind == "CODE"]
     builtin_ids = [row_id for row_id, kind in rows if kind == "BUILTIN"]
@@ -420,11 +421,7 @@ async def _evaluator_definitions_page(
             ).all()
         }
 
-    tag_ids = {
-        llm.prompt_version_tag_id
-        for llm in llm_by_id.values()
-        if llm.prompt_version_tag_id is not None
-    }
+    tag_ids = {llm.prompt_version_tag_id for llm in llm_by_id.values()}
     tagged_prompt_version_ids: dict[int, int] = {}
     if tag_ids:
         tagged_prompt_version_ids = dict(
@@ -436,23 +433,6 @@ async def _evaluator_definitions_page(
                         models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
                     )
                     .where(models.PromptVersionTag.id.in_(tag_ids))
-                )
-            )
-            .tuples()
-            .all()
-        )
-
-    untagged_prompt_ids = {
-        llm.prompt_id for llm in llm_by_id.values() if llm.prompt_version_tag_id is None
-    }
-    latest_prompt_version_ids: dict[int, int] = {}
-    if untagged_prompt_ids:
-        latest_prompt_version_ids = dict(
-            (
-                await session.execute(
-                    select(models.PromptVersion.prompt_id, func.max(models.PromptVersion.id))
-                    .where(models.PromptVersion.prompt_id.in_(untagged_prompt_ids))
-                    .group_by(models.PromptVersion.prompt_id)
                 )
             )
             .tuples()
@@ -522,11 +502,9 @@ async def _evaluator_definitions_page(
             llm = llm_by_id.get(row_id)
             if llm is None:
                 raise NotFound(f"Evaluator not found: {evaluator_id}")
-            prompt_version_id = (
-                tagged_prompt_version_ids.get(llm.prompt_version_tag_id)
-                if llm.prompt_version_tag_id is not None
-                else latest_prompt_version_ids.get(llm.prompt_id)
-            )
+            prompt_version_id = tagged_prompt_version_ids.get(llm.prompt_version_tag_id)
+            if prompt_version_id is None:
+                raise NotFound(f"Prompt version not found for evaluator {evaluator_id}")
             definitions.append(_llm_evaluator_definition(evaluator_id, llm, prompt_version_id))
     return definitions
 
@@ -612,7 +590,7 @@ async def create_evaluator(
                 evaluator_service_context(request),
                 decision_service.CreateDecisionEvaluatorInput(
                     name=body.name,
-                    decision_version_id=parse_global_id(body.decision_version_id),
+                    decision_version_id=parse_global_id(body.decision.selector.decision_version_id),
                     description=body.description,
                     scoring_policy=body.scoring_policy,
                 ),
@@ -706,8 +684,11 @@ async def patch_evaluator(
         ):
             values["output_configs"] = output_configs_to_db(body.output_configs)
         if isinstance(body, PatchDecisionEvaluatorRequest):
-            if "decision_version_id" in fields:
-                values["decision_version_id"] = parse_global_id(body.decision_version_id)
+            if "decision" in fields:
+                del values["decision"]
+                values["decision_version_id"] = parse_global_id(
+                    body.decision.selector.decision_version_id
+                )
             await decision_service.patch_decision_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),

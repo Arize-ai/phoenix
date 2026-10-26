@@ -433,6 +433,11 @@ async def _seed_llm_criteria(
                 )
             ],
             prompt=prompt,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier(f"tag-{token_hex(4)}"),
+                prompt=prompt,
+                prompt_version=prompt.prompt_versions[0],
+            ),
         )
         session.add(evaluator)
         await session.flush()

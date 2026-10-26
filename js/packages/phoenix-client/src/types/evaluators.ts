@@ -56,9 +56,8 @@ export type EvaluatorCreate = LLMEvaluatorCreate | CodeEvaluatorCreate;
 
 /**
  * Which prompt version an LLM evaluator runs, as read back from the server.
- * `selector.type` is `version` when the evaluator is pinned, or `latest` for an
- * evaluator whose pin was removed; `resolved_prompt_version_id` is the version
- * it runs now.
+ * `selector` names the pinned version; `resolved_prompt_version_id` is the
+ * version it runs now.
  */
 export type LLMEvaluatorPrompt = components["schemas"]["LLMEvaluatorPrompt"];
 

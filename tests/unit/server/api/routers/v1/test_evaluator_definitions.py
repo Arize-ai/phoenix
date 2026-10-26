@@ -103,10 +103,7 @@ def test_evaluator_definition_schema() -> None:
     }
 
     selector = schemas["LLMEvaluatorPrompt"]["properties"]["selector"]
-    assert {option["$ref"] for option in selector["oneOf"]} == {
-        "#/components/schemas/PromptVersionSelector",
-        "#/components/schemas/LatestPromptVersionSelector",
-    }
+    assert selector["$ref"] == "#/components/schemas/PromptVersionSelector"
     for name in ("PatchLLMEvaluatorRequest", "CreateLLMEvaluatorRequest"):
         prompt = schemas[name]["properties"]["prompt"]
         assert prompt["$ref"] == "#/components/schemas/LLMEvaluatorPromptInput", name
@@ -348,55 +345,8 @@ async def test_writes_require_an_output_config(
     assert kept.json()["data"]["source_code"] == "def evaluate(output): ..."
 
 
-async def test_untagged_llm_definition_follows_its_prompts_latest_version(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-    correctness_llm_evaluator: models.LLMEvaluator,
-) -> None:
-    """An evaluator without a pin reads as latest, stays unpinned across edits that leave its
-    prompt alone, and is pinned once a version is selected."""
-    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(correctness_llm_evaluator.id))}"
-    async with db() as session:
-        latest_id = await session.scalar(
-            select(models.PromptVersion.id)
-            .where(models.PromptVersion.prompt_id == correctness_llm_evaluator.prompt_id)
-            .order_by(models.PromptVersion.id.desc())
-            .limit(1)
-        )
-    latest = str(GlobalID("PromptVersion", str(latest_id)))
-
-    response = await httpx_client.get(route)
-    assert response.status_code == 200, response.text
-    assert response.json()["data"]["prompt"]["selector"] == {"type": "latest"}
-    assert response.json()["data"]["prompt"]["resolved_prompt_version_id"] == latest
-
-    renamed = f"renamed-{token_hex(4)}"
-    response = await httpx_client.patch(route, json={"type": "llm", "name": renamed})
-    assert response.status_code == 200, response.text
-    assert response.json()["data"]["name"] == renamed
-    assert response.json()["data"]["prompt"]["selector"] == {"type": "latest"}
-    async with db() as session:
-        row = await session.get(models.LLMEvaluator, correctness_llm_evaluator.id)
-        assert row is not None and row.prompt_version_tag_id is None
-
-    response = await httpx_client.patch(
-        route,
-        json={
-            "type": "llm",
-            "prompt": {"selector": {"type": "version", "prompt_version_id": latest}},
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["data"]["prompt"]["selector"] == {
-        "type": "version",
-        "prompt_version_id": latest,
-    }
-
-
-async def _add_llm_evaluator(
-    session: AsyncSession, name: str, *, tagged: bool
-) -> models.LLMEvaluator:
-    """A minimal LLM evaluator with a real prompt version, tagged (pinned) or not."""
+async def _add_llm_evaluator(session: AsyncSession, name: str) -> models.LLMEvaluator:
+    """A minimal LLM evaluator with a real prompt version, pinned by its tag."""
     version = models.PromptVersion(
         template_type=PromptTemplateType.CHAT,
         template_format=PromptTemplateFormat.MUSTACHE,
@@ -409,6 +359,9 @@ async def _add_llm_evaluator(
         model_provider=ModelProvider.OPENAI,
         model_name="gpt-4",
         metadata_={},
+    )
+    prompt = models.Prompt(
+        name=IdentifierModel.model_validate(f"{name}-prompt"), prompt_versions=[version]
     )
     evaluator = models.LLMEvaluator(
         name=IdentifierModel.model_validate(name),
@@ -424,19 +377,15 @@ async def _add_llm_evaluator(
                 ],
             )
         ],
-        prompt=models.Prompt(
-            name=IdentifierModel.model_validate(f"{name}-prompt"), prompt_versions=[version]
+        prompt=prompt,
+        prompt_version_tag=models.PromptVersionTag(
+            name=IdentifierModel.model_validate(f"{name}-tag"),
+            prompt=prompt,
+            prompt_version=version,
         ),
     )
     session.add(evaluator)
     await session.flush()
-    if tagged:
-        evaluator.prompt_version_tag = models.PromptVersionTag(
-            name=IdentifierModel.model_validate(f"{name}-tag"),
-            prompt_id=evaluator.prompt_id,
-            prompt_version_id=version.id,
-        )
-        await session.flush()
     return evaluator
 
 
@@ -472,15 +421,12 @@ async def _get_builtin_evaluator(
 async def _add_mixed_page(
     session: AsyncSession, count: int, sandbox_config: models.SandboxConfig
 ) -> None:
-    """`count` evaluators cycling through untagged LLM, tagged LLM, and code, on top of the
-    built-ins the app seeds at startup: together, every kind `get_evaluators` can return."""
+    """`count` evaluators alternating between LLM and code, on top of the built-ins the app
+    seeds at startup."""
     for i in range(count):
         stem = f"mixed-{token_hex(4)}-{i}"
-        kind = i % 3
-        if kind == 0:
-            await _add_llm_evaluator(session, stem, tagged=False)
-        elif kind == 1:
-            await _add_llm_evaluator(session, stem, tagged=True)
+        if i % 2 == 0:
+            await _add_llm_evaluator(session, stem)
         else:
             _add_code_evaluator(session, stem, sandbox_config)
     await session.flush()
@@ -526,19 +472,16 @@ async def test_list_mixed_page_matches_individual_reads(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> None:
-    """Every kind the batched list assembles (untagged LLM, tagged LLM, code with a version,
-    and built-in) reads back exactly like the single-item route it shares its conversion
-    with."""
+    """Every kind the batched list assembles (LLM, code with a version, and built-in) reads
+    back exactly like the single-item route it shares its conversion with."""
     async with db() as session:
-        untagged = await _add_llm_evaluator(session, f"untagged-{token_hex(4)}", tagged=False)
-        tagged = await _add_llm_evaluator(session, f"tagged-{token_hex(4)}", tagged=True)
+        llm = await _add_llm_evaluator(session, f"llm-{token_hex(4)}")
         code = _add_code_evaluator(session, f"code-{token_hex(4)}", sandbox_config)
         builtin = await _get_builtin_evaluator(session)
         await session.flush()
 
     ids = [
-        str(GlobalID("LLMEvaluator", str(untagged.id))),
-        str(GlobalID("LLMEvaluator", str(tagged.id))),
+        str(GlobalID("LLMEvaluator", str(llm.id))),
         str(GlobalID("CodeEvaluator", str(code.id))),
         str(GlobalID("BuiltInEvaluator", str(builtin.id))),
     ]
@@ -558,8 +501,8 @@ async def test_patch_llm_rename_to_taken_name_is_already_exists(
     """Renaming an LLM evaluator to a name another evaluator already holds is the same
     already_exists conflict a create would give, not a generic one."""
     async with db() as session:
-        holder = await _add_llm_evaluator(session, f"holder-{token_hex(4)}", tagged=False)
-        renamer = await _add_llm_evaluator(session, f"renamer-{token_hex(4)}", tagged=False)
+        holder = await _add_llm_evaluator(session, f"holder-{token_hex(4)}")
+        renamer = await _add_llm_evaluator(session, f"renamer-{token_hex(4)}")
 
     route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(renamer.id))}"
     response = await httpx_client.patch(route, json={"type": "llm", "name": str(holder.name)})
@@ -596,7 +539,7 @@ async def test_delete_still_bound_llm_evaluator_reports_binding_counts(
     """Deleting an evaluator a dataset binding still references is refused with
     still_bound and the binding counts, not a bare conflict."""
     async with db() as session:
-        evaluator = await _add_llm_evaluator(session, f"bound-{token_hex(4)}", tagged=False)
+        evaluator = await _add_llm_evaluator(session, f"bound-{token_hex(4)}")
         dataset = models.Dataset(name=f"bound-{token_hex(4)}", description=None, metadata_={})
         session.add(dataset)
         await session.flush()

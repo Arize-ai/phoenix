@@ -12,7 +12,7 @@ import hashlib
 import json
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -68,31 +68,21 @@ async def resolve_project_evaluators_bulk(
     project_evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
 ) -> list[Optional[ResolvedProjectEvaluator]]:
     """Resolve project evaluator fingerprint inputs in bulk, pinning mutable pointers to
-    immutable version identities: the tagged (or latest) PromptVersion id for LLM
-    evaluators, the latest CodeEvaluatorVersion id for CODE,
-    (key, synced_at, implementation_version) for BUILTIN, and for DECISION the tagged
-    DecisionVersion id with the judge's scoring policy, which scores its answers. A
-    custom provider adds (provider id, updated_at) for LLM and DECISION. Each unresolved
-    row produces None.
+    immutable version identities: the tagged PromptVersion id for LLM evaluators, the
+    latest CodeEvaluatorVersion id for CODE, (key, synced_at, implementation_version) for
+    BUILTIN, and for DECISION the tagged DecisionVersion id with the judge's scoring policy,
+    which scores its answers. A custom provider adds (provider id, updated_at) for LLM and
+    DECISION. Each unresolved row produces None.
     """
-    tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
-    latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
+    prompt_version_tag_ids: set[int] = set()
     code_evaluators: dict[int, models.CodeEvaluator] = {}
     for _, evaluator in project_evaluator_pairs:
         if isinstance(evaluator, models.LLMEvaluator):
-            if evaluator.prompt_version_tag_id is not None:
-                tagged_llm_evaluators[evaluator.id] = evaluator
-            else:
-                latest_llm_evaluators[evaluator.id] = evaluator
+            prompt_version_tag_ids.add(evaluator.prompt_version_tag_id)
         elif isinstance(evaluator, models.CodeEvaluator):
             code_evaluators[evaluator.id] = evaluator
 
     tagged_prompt_version_ids: dict[int, int] = {}
-    prompt_version_tag_ids = {
-        evaluator.prompt_version_tag_id
-        for evaluator in tagged_llm_evaluators.values()
-        if evaluator.prompt_version_tag_id is not None
-    }
     if prompt_version_tag_ids:
         tagged_prompt_version_ids = dict(
             (
@@ -107,31 +97,11 @@ async def resolve_project_evaluators_bulk(
             .all()
         )
 
-    latest_prompt_version_ids: dict[int, int] = {}
-    prompt_ids = {evaluator.prompt_id for evaluator in latest_llm_evaluators.values()}
-    if prompt_ids:
-        latest_prompt_version_ids = dict(
-            (
-                await session.execute(
-                    select(
-                        models.PromptVersion.prompt_id,
-                        func.max(models.PromptVersion.id),
-                    )
-                    .where(models.PromptVersion.prompt_id.in_(prompt_ids))
-                    .group_by(models.PromptVersion.prompt_id)
-                )
-            )
-            .tuples()
-            .all()
-        )
-
     # A prompt version's custom provider is a mutable pointer: editing the provider's
     # connection config changes what answers the evaluation without changing the prompt
     # version. Resolve it to (provider id, updated_at) so the fingerprint moves with it.
     custom_provider_refs: dict[int, tuple[int, str]] = {}
-    prompt_version_ids = set(tagged_prompt_version_ids.values()) | set(
-        latest_prompt_version_ids.values()
-    )
+    prompt_version_ids = set(tagged_prompt_version_ids.values())
     if prompt_version_ids:
         custom_provider_refs = {
             prompt_version_id: (custom_provider_id, updated_at.isoformat())
@@ -213,10 +183,7 @@ async def resolve_project_evaluators_bulk(
     for project_evaluator, evaluator in project_evaluator_pairs:
         version_ref: Any
         if isinstance(evaluator, models.LLMEvaluator):
-            if evaluator.prompt_version_tag_id is not None:
-                version_ref = tagged_prompt_version_ids.get(evaluator.prompt_version_tag_id)
-            else:
-                version_ref = latest_prompt_version_ids.get(evaluator.prompt_id)
+            version_ref = tagged_prompt_version_ids.get(evaluator.prompt_version_tag_id)
             if (custom_provider_ref := custom_provider_refs.get(version_ref)) is not None:
                 version_ref = [version_ref, *custom_provider_ref]
         elif isinstance(evaluator, models.CodeEvaluator):

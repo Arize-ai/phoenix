@@ -83,23 +83,12 @@ async def pin_prompt_version(
 async def resolve_evaluator_prompt_version(
     session: AsyncSession, evaluator: models.LLMEvaluator
 ) -> Optional[models.PromptVersion]:
-    """The version an evaluator runs: the one its tag pins, or, for an evaluator without a
-    tag, its prompt's newest version."""
-    version: Optional[models.PromptVersion]
-    if evaluator.prompt_version_tag_id is not None:
-        version = await session.scalar(
-            select(models.PromptVersion)
-            .join(
-                models.PromptVersionTag,
-                models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-            )
-            .where(models.PromptVersionTag.id == evaluator.prompt_version_tag_id)
+    """The version an evaluator runs: the one its tag pins."""
+    return await session.scalar(
+        select(models.PromptVersion)
+        .join(
+            models.PromptVersionTag,
+            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
         )
-    else:
-        version = await session.scalar(
-            select(models.PromptVersion)
-            .where(models.PromptVersion.prompt_id == evaluator.prompt_id)
-            .order_by(models.PromptVersion.id.desc())
-            .limit(1)
-        )
-    return version
+        .where(models.PromptVersionTag.id == evaluator.prompt_version_tag_id)
+    )

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d1e6b3d64294d865782a69741d2025bc>>
+ * @generated SignedSource<<45dd95104261151c79508b7ce744bf90>>
  * @lightSyntaxTransform
  */
 
@@ -88,7 +88,7 @@ export type EditProjectEvaluatorSlideoverQuery$data = {
       };
       readonly promptVersionTag?: {
         readonly name: string;
-      } | null;
+      };
       readonly sandboxConfig?: {
         readonly id: string;
       } | null;

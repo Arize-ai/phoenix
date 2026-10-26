@@ -400,6 +400,11 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
                 )
             ],
             prompt=prompt,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier(f"tag-{token_hex(4)}"),
+                prompt=prompt,
+                prompt_version=prompt.prompt_versions[0],
+            ),
         )
         session.add(evaluator)
         await session.flush()

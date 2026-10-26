@@ -783,23 +783,11 @@ async def _get_llm_evaluators(
     result: list[LLMEvaluator] = []
     for llm_evaluator_orm in llm_evaluator_orms:
         prompt_id = llm_evaluator_orm.prompt_id
-        prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
-        if prompt_version_tag_id is not None:
-            # Get the tagged version
-            prompt_version_query = (
-                select(models.PromptVersion)
-                .join(models.PromptVersionTag)
-                .where(models.PromptVersionTag.id == prompt_version_tag_id)
-            )
-        else:
-            # Get the latest version
-            prompt_version_query = (
-                select(models.PromptVersion)
-                .where(models.PromptVersion.prompt_id == prompt_id)
-                .order_by(models.PromptVersion.id.desc())
-                .limit(1)
-            )
-        prompt_version = await session.scalar(prompt_version_query)
+        prompt_version = await session.scalar(
+            select(models.PromptVersion)
+            .join(models.PromptVersionTag)
+            .where(models.PromptVersionTag.id == llm_evaluator_orm.prompt_version_tag_id)
+        )
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for LLM evaluator id {llm_evaluator_orm.id}")
 

@@ -169,21 +169,20 @@ async def pinned(db: DbSessionFactory) -> AsyncIterator[_Fixture]:
             _prompt_version("Rate {{output}}", labels=("good", "bad")),
         ],
     )
+    evaluator_name = f"tag-move-evaluator-{token_hex(4)}"
     evaluator = models.LLMEvaluator(
-        name=Identifier.model_validate(f"tag-move-evaluator-{token_hex(4)}"),
+        name=Identifier.model_validate(evaluator_name),
         description="correctness",
         kind="LLM",
         output_configs=[_output_config(_EVALUATOR_LABELS)],
         prompt=prompt,
+        prompt_version_tag=models.PromptVersionTag(
+            name=Identifier.model_validate(f"{evaluator_name}-evaluator-{token_hex(4)}"),
+            prompt=prompt,
+            prompt_version=prompt.prompt_versions[0],
+        ),
     )
     async with db() as session:
-        session.add(evaluator)
-        await session.flush()
-        evaluator.prompt_version_tag = models.PromptVersionTag(
-            name=Identifier.model_validate(f"{evaluator.name.root}-evaluator-{token_hex(4)}"),
-            prompt_id=prompt.id,
-            prompt_version_id=prompt.prompt_versions[0].id,
-        )
         session.add(evaluator)
         await session.flush()
         await session.refresh(evaluator, attribute_names=["updated_at"])

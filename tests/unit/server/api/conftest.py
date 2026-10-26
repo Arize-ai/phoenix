@@ -983,6 +983,11 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                 )
             ],
             prompt=prompt,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier("correctness-evaluator-tag"),
+                prompt=prompt,
+                prompt_version=prompt.prompt_versions[0],
+            ),
         )
         session.add(llm_evaluator)
         await session.flush()

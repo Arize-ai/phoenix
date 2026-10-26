@@ -235,6 +235,11 @@ async def create_dataset_llm_evaluator(
                 output_configs=output_configs,
                 user_id=user_id,
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt_version,
+                ),
                 dataset_evaluators=[dataset_evaluator_record],
             )
 
@@ -247,13 +252,6 @@ async def create_dataset_llm_evaluator(
             await session.flush()
 
             await ensure_evaluator_prompt_label(session, prompt.id)
-            tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
-            prompt_tag = models.PromptVersionTag(
-                name=tag_name,
-                prompt_id=prompt.id,
-                prompt_version_id=prompt_version.id,
-            )
-            llm_evaluator.prompt_version_tag = prompt_tag
             # Updates to Evaluator do not trigger LLMEvaluator.updated_at.
             llm_evaluator.updated_at = datetime.now(timezone.utc)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
@@ -333,7 +331,7 @@ async def update_dataset_llm_evaluator(
                 models.LLMEvaluator,
                 models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
             )
-            .outerjoin(
+            .join(
                 models.PromptVersionTag,
                 models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id,
             )
@@ -423,18 +421,13 @@ async def update_dataset_llm_evaluator(
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict(f"An evaluator named '{evaluator_name}' already exists for this dataset")
 
-        if llm_evaluator.prompt_version_tag_id is not None:
-            if prompt_version_tag is None:
-                raise NotFound(
-                    f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id} not found"
-                )
-            if (
-                prompt_version_tag.prompt_version_id != prompt_version.id
-                or prompt_version_tag.prompt_id != target_prompt_id
-            ):
-                prompt_version_tag.prompt_version_id = prompt_version.id
-                prompt_version_tag.prompt_id = target_prompt_id
-                shared_evaluator_changed = True
+        if (
+            prompt_version_tag.prompt_version_id != prompt_version.id
+            or prompt_version_tag.prompt_id != target_prompt_id
+        ):
+            prompt_version_tag.prompt_version_id = prompt_version.id
+            prompt_version_tag.prompt_id = target_prompt_id
+            shared_evaluator_changed = True
 
         if shared_evaluator_changed:
             llm_evaluator.updated_at = datetime.now(timezone.utc)

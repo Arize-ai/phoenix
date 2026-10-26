@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0786dd9a1ffc017be47e6c1b2640740e>>
+ * @generated SignedSource<<c6018edcd7293c73b73317874aa4de6e>>
  * @lightSyntaxTransform
  */
 
@@ -51,7 +51,7 @@ export type ProjectEvaluatorsTable_row$data = {
     };
     readonly promptVersionTag?: {
       readonly name: string;
-    } | null;
+    };
     readonly sandboxConfig?: {
       readonly id: string;
       readonly name: string;

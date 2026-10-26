@@ -3126,6 +3126,11 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 )
             ],
             prompt=prompt,
+            prompt_version_tag=models.PromptVersionTag(
+                name=IdentifierModel(f"tag-{token_hex(4)}"),
+                prompt=prompt,
+                prompt_version=prompt.prompt_versions[0],
+            ),
             dataset_evaluators=[
                 models.DatasetEvaluators(
                     dataset_id=empty_dataset.id,
@@ -3396,6 +3401,11 @@ async def llm_evaluator(
             )
         ],
         prompt=prompt,
+        prompt_version_tag=models.PromptVersionTag(
+            name=IdentifierModel.model_validate(f"{evaluator_name.root}-evaluator-{token_hex(4)}"),
+            prompt=prompt,
+            prompt_version=prompt.prompt_versions[0],
+        ),
         dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
@@ -3411,16 +3421,6 @@ async def llm_evaluator(
         ],
     )
     async with db() as session:
-        session.add(evaluator)
-        await session.flush()
-        prompt_version = prompt.prompt_versions[0]
-        tag_name = IdentifierModel.model_validate(f"{evaluator_name.root}-evaluator-{token_hex(4)}")
-        prompt_tag = models.PromptVersionTag(
-            name=tag_name,
-            prompt_id=prompt.id,
-            prompt_version_id=prompt_version.id,
-        )
-        evaluator.prompt_version_tag = prompt_tag
         session.add(evaluator)
 
     yield evaluator
@@ -3640,6 +3640,11 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel(f"tag-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt.prompt_versions[0],
+                ),
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
@@ -3731,10 +3736,33 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
             )
+            dedicated_prompt_version = models.PromptVersion(
+                template_type="CHAT",
+                template_format="MUSTACHE",
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        PromptMessage(
+                            role="user",
+                            content=[TextContentPart(type="text", text="Test: {{input}}")],
+                        )
+                    ],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                tools=None,
+                response_format=None,
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
             dedicated_prompt = models.Prompt(
                 name=IdentifierModel.model_validate(f"cascade-prompt-{token_hex(4)}"),
                 description="Prompt owned by the dedicated LLM evaluator",
                 metadata_={},
+                prompt_versions=[dedicated_prompt_version],
             )
             dedicated_llm = models.LLMEvaluator(
                 name=IdentifierModel.model_validate(f"cascade-llm-{token_hex(4)}"),
@@ -3752,6 +3780,11 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=dedicated_prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel(f"tag-{token_hex(4)}"),
+                    prompt=dedicated_prompt,
+                    prompt_version=dedicated_prompt_version,
+                ),
             )
             shared_code = models.CodeEvaluator(
                 name=IdentifierModel.model_validate(f"cascade-shared-{token_hex(4)}"),
@@ -3914,6 +3947,11 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel(f"tag-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt.prompt_versions[0],
+                ),
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
@@ -4075,6 +4113,11 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel(f"tag-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt.prompt_versions[0],
+                ),
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
@@ -4187,6 +4230,11 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel(f"tag-{token_hex(4)}"),
+                    prompt=prompt,
+                    prompt_version=prompt.prompt_versions[0],
+                ),
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
@@ -4315,6 +4363,13 @@ class TestDeleteDatasetEvaluators:
                     )
                 ],
                 prompt=prompt,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel.model_validate(
+                        f"{evaluator_name.root}-evaluator-{token_hex(4)}"
+                    ),
+                    prompt=prompt,
+                    prompt_version=prompt.prompt_versions[0],
+                ),
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
@@ -4330,14 +4385,6 @@ class TestDeleteDatasetEvaluators:
                 ],
             )
             session.add(llm_evaluator)
-            await session.flush()
-            llm_evaluator.prompt_version_tag = models.PromptVersionTag(
-                name=IdentifierModel.model_validate(
-                    f"{evaluator_name.root}-evaluator-{token_hex(4)}"
-                ),
-                prompt_id=prompt.id,
-                prompt_version_id=prompt.prompt_versions[0].id,
-            )
             await session.flush()
             prompt_id = prompt.id
             tag_id = llm_evaluator.prompt_version_tag_id

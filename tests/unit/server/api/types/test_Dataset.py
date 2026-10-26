@@ -1508,6 +1508,11 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
                 )
             ],
             prompt_id=prompt.id,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier(f"tag-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            ),
         )
         evaluator_2 = models.LLMEvaluator(
             name=Identifier("evaluator-2"),
@@ -1525,6 +1530,11 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
                 )
             ],
             prompt_id=prompt.id,
+            prompt_version_tag=models.PromptVersionTag(
+                name=Identifier(f"tag-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            ),
         )
         session.add_all([evaluator_1, evaluator_2])
         await session.flush()

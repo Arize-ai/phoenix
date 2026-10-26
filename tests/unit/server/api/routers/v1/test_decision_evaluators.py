@@ -23,14 +23,21 @@ async def test_decision_evaluator_and_binding_lifecycle(
         json={
             "type": "decision",
             "name": "native-judge",
-            "decision_version_id": decision["version"]["id"],
+            "decision": {
+                "selector": {"type": "version", "decision_version_id": decision["version"]["id"]}
+            },
         },
     )
     assert response.status_code == 201, response.text
     evaluator = response.json()["data"]
     evaluator_id = evaluator["id"]
     assert evaluator["type"] == "decision"
-    assert evaluator["decision_version_id"] == decision["version"]["id"]
+    assert evaluator["decision"]["selector"] == {
+        "type": "version",
+        "decision_version_id": decision["version"]["id"],
+    }
+    assert evaluator["decision"]["resolved_decision_version_id"] == decision["version"]["id"]
+    assert evaluator["decision"]["decision_id"] == decision["id"]
     assert [config["name"] for config in evaluator["output_configs"]] == ["urgent", "team"]
     response = await httpx_client.get("v1/evaluators", params={"type": "decision"})
     assert response.status_code == 200
@@ -81,7 +88,9 @@ async def test_unbound_judge_can_be_deleted(
     body = {
         "type": "decision",
         "name": "native-judge",
-        "decision_version_id": decision["version"]["id"],
+        "decision": {
+            "selector": {"type": "version", "decision_version_id": decision["version"]["id"]}
+        },
     }
     response = await httpx_client.post("v1/evaluators", json=body)
     assert response.status_code == 201, response.text
@@ -107,7 +116,9 @@ async def test_default_scoring_policy_keeps_discriminators_in_responses(
         json={
             "type": "decision",
             "name": "native-judge",
-            "decision_version_id": decision["version"]["id"],
+            "decision": {
+                "selector": {"type": "version", "decision_version_id": decision["version"]["id"]}
+            },
         },
     )
     assert response.status_code == 201, response.text
@@ -133,7 +144,9 @@ async def test_binding_output_configs_must_match_the_derived_outputs(
         json={
             "type": "decision",
             "name": "native-judge",
-            "decision_version_id": decision["version"]["id"],
+            "decision": {
+                "selector": {"type": "version", "decision_version_id": decision["version"]["id"]}
+            },
         },
     )
     assert response.status_code == 201, response.text

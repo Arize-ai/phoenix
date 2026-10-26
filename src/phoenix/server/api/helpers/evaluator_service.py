@@ -317,6 +317,11 @@ async def create_llm_evaluator(
                 output_configs=output_configs,
                 user_id=context.user_id,
                 prompt_id=version.prompt_id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=IdentifierModel.model_validate(f"{name.root}-evaluator-{token_hex(4)}"),
+                    prompt_id=version.prompt_id,
+                    prompt_version_id=version.id,
+                ),
             )
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(version, evaluator)
@@ -325,12 +330,6 @@ async def create_llm_evaluator(
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, version.prompt_id)
-            evaluator.prompt_version_tag = models.PromptVersionTag(
-                name=IdentifierModel.model_validate(f"{name.root}-evaluator-{token_hex(4)}"),
-                prompt_id=version.prompt_id,
-                prompt_version_id=version.id,
-            )
-            await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await _name_taken(context, input.name) from error
     return evaluator
@@ -552,18 +551,15 @@ async def update_llm_definition(
     prompt_source: Optional[UpdatePromptSource],
     output_configs: list[CategoricalOutputConfig],
     description: Optional[str],
-    name: Identifier,
     user_id: int | None,
     shared_evaluator_changed: bool = False,
 ) -> models.PromptVersion:
     """Apply a definition edit and return the prompt version the evaluator now runs.
-    Without a prompt source the evaluator keeps running what it runs: its pinned version,
-    or, for an evaluator without a pin, its prompt's newest version, which stays unpinned."""
-    base: Optional[models.PromptVersion] = None
-    keeps_following_latest = prompt_source is None and evaluator.prompt_version_tag_id is None
+    Without a prompt source the evaluator keeps running its pinned version."""
+    base: Optional[models.PromptVersion]
     if isinstance(prompt_source, FromPromptVersion):
         base = await get_prompt_version(session, prompt_source.prompt_version_id)
-    elif evaluator.prompt_version_tag_id is not None or keeps_following_latest:
+    else:
         base = await resolve_evaluator_prompt_version(session, evaluator)
 
     target_prompt_id = base.prompt_id if base is not None else evaluator.prompt_id
@@ -593,26 +589,16 @@ async def update_llm_definition(
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
     except ValueError as error:
         raise BadRequest(str(error))
-    if evaluator.prompt_version_tag_id is None and not keeps_following_latest:
-        evaluator.prompt_version_tag = models.PromptVersionTag(
-            name=IdentifierModel.model_validate(f"{name}-evaluator-{token_hex(4)}"),
-            prompt_id=target_prompt_id,
-            prompt_version_id=final_prompt_version_id,
-        )
+    prompt_version_tag = await session.get(models.PromptVersionTag, evaluator.prompt_version_tag_id)
+    if prompt_version_tag is None:
+        raise NotFound("Prompt version tag was not found")
+    if (
+        prompt_version_tag.prompt_id != target_prompt_id
+        or prompt_version_tag.prompt_version_id != final_prompt_version_id
+    ):
+        prompt_version_tag.prompt_id = target_prompt_id
+        prompt_version_tag.prompt_version_id = final_prompt_version_id
         shared_evaluator_changed = True
-    elif evaluator.prompt_version_tag_id is not None:
-        prompt_version_tag = await session.get(
-            models.PromptVersionTag, evaluator.prompt_version_tag_id
-        )
-        if prompt_version_tag is None:
-            raise NotFound("Prompt version tag was not found")
-        if (
-            prompt_version_tag.prompt_id != target_prompt_id
-            or prompt_version_tag.prompt_version_id != final_prompt_version_id
-        ):
-            prompt_version_tag.prompt_id = target_prompt_id
-            prompt_version_tag.prompt_version_id = final_prompt_version_id
-            shared_evaluator_changed = True
 
     if shared_evaluator_changed:
         evaluator.user_id = user_id
@@ -665,7 +651,6 @@ async def patch_llm_evaluator(
                 prompt_source=patch.prompt_source,
                 output_configs=output_configs,
                 description=patch.description,
-                name=row.name,
                 user_id=context.user_id,
                 shared_evaluator_changed=True,
             )

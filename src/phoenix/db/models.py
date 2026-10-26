@@ -3530,8 +3530,9 @@ class LLMEvaluator(Evaluator):
         nullable=False,
         index=True,
     )
-    prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
+    prompt_version_tag_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_version_tags.id", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
@@ -3542,7 +3543,7 @@ class LLMEvaluator(Evaluator):
     )
 
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="llm_evaluators")
-    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship(
+    prompt_version_tag: Mapped["PromptVersionTag"] = relationship(
         "PromptVersionTag", back_populates="llm_evaluators"
     )
     __mapper_args__ = {

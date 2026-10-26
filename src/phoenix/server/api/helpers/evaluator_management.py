@@ -310,7 +310,7 @@ async def release_evaluator_prompt_label(session: AsyncSession, prompt_id: int) 
 async def release_llm_evaluator_prompt(
     session: AsyncSession,
     *,
-    prompt_version_tag_id: Optional[int],
+    prompt_version_tag_id: int,
     prompt_id: int,
 ) -> None:
     """Delete the tag a removed LLM evaluator owned and drop its prompt's "evaluator" label.
@@ -320,15 +320,14 @@ async def release_llm_evaluator_prompt(
     are no-ops when the prompt was deleted too (a prompt's delete cascades to its tags, and
     there is no prompt left to un-label), so the caller doesn't need to track that separately.
     """
-    if prompt_version_tag_id is not None:
-        await session.execute(
-            delete(models.PromptVersionTag).where(
-                models.PromptVersionTag.id == prompt_version_tag_id,
-                ~select(models.LLMEvaluator.id)
-                .where(models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id)
-                .exists(),
-            )
+    await session.execute(
+        delete(models.PromptVersionTag).where(
+            models.PromptVersionTag.id == prompt_version_tag_id,
+            ~select(models.LLMEvaluator.id)
+            .where(models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id)
+            .exists(),
         )
+    )
     if await session.get(models.Prompt, prompt_id) is not None:
         await release_evaluator_prompt_label(session, prompt_id)
 
@@ -418,7 +417,7 @@ async def garbage_collect_evaluators(
     delete_associated_prompt: bool,
 ) -> None:
     deleted_ids: set[int] = set()
-    llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
+    llm_evaluator_prompts: dict[int, tuple[int, int]] = {}
     if evaluator_ids:
         # Read the LLM evaluators' tag and prompt before deleting: once a row is gone there is
         # nothing left to join it against. RETURNING then reports only the evaluators this

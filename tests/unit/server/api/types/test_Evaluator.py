@@ -58,8 +58,8 @@ class TestEvaluatorFields:
 
     @pytest.fixture
     async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
-        """Create test data: prompt with 2 versions, 1 tag pointing to v1, 2 evaluators,
-        and dataset evaluator assignments for the untagged evaluator."""
+        """Create test data: prompt with 2 versions, a tag on each, an evaluator per tag,
+        and dataset evaluator assignments for the evaluator on v2."""
         async with db() as session:
             prompt = models.Prompt(name=Identifier(token_hex(4)))
             session.add(prompt)
@@ -67,7 +67,7 @@ class TestEvaluatorFields:
 
             v1, v2 = (
                 _create_prompt_version(prompt.id, "V1: {tagged_input}", "gpt-4"),
-                _create_prompt_version(prompt.id, "V2: {latest_input}", "gpt-3.5-turbo"),
+                _create_prompt_version(prompt.id, "V2: {bound_input}", "gpt-3.5-turbo"),
             )
             session.add_all([v1, v2])
             await session.flush()
@@ -75,12 +75,16 @@ class TestEvaluatorFields:
             tag = models.PromptVersionTag(
                 name=Identifier(token_hex(4)), prompt_id=prompt.id, prompt_version_id=v1.id
             )
-            session.add(tag)
+            bound_tag = models.PromptVersionTag(
+                name=Identifier(token_hex(4)), prompt_id=prompt.id, prompt_version_id=v2.id
+            )
+            session.add_all([tag, bound_tag])
             await session.flush()
 
-            untagged = models.LLMEvaluator(
+            bound = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
+                prompt_version_tag_id=bound_tag.id,
                 metadata_={"key": "value", "count": 42},
             )
             tagged = models.LLMEvaluator(
@@ -89,10 +93,10 @@ class TestEvaluatorFields:
                 prompt_version_tag_id=tag.id,
                 metadata_=None,
             )
-            session.add_all([untagged, tagged])
+            session.add_all([bound, tagged])
             await session.flush()
 
-            # Dataset evaluator assignments for the untagged evaluator
+            # Dataset evaluator assignments for the bound evaluator
             dataset_a = models.Dataset(name=f"dataset-a-{token_hex(4)}", metadata_={})
             dataset_b = models.Dataset(name=f"dataset-b-{token_hex(4)}", metadata_={})
             session.add_all([dataset_a, dataset_b])
@@ -100,14 +104,14 @@ class TestEvaluatorFields:
 
             de_1 = models.DatasetEvaluators(
                 dataset_id=dataset_a.id,
-                evaluator_id=untagged.id,
+                evaluator_id=bound.id,
                 name=Identifier("de_one"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name=f"{dataset_a.name}/de_one"),
             )
             de_2 = models.DatasetEvaluators(
                 dataset_id=dataset_b.id,
-                evaluator_id=untagged.id,
+                evaluator_id=bound.id,
                 name=Identifier("de_two"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name=f"{dataset_b.name}/de_two"),
@@ -115,7 +119,7 @@ class TestEvaluatorFields:
             session.add_all([de_1, de_2])
             await session.flush()
 
-            # Project evaluator associations for the untagged evaluator
+            # Project evaluator associations for the bound evaluator
             project_a = models.Project(name=f"project-a-{token_hex(4)}")
             project_b = models.Project(name=f"project-b-{token_hex(4)}")
             session.add_all([project_a, project_b])
@@ -124,7 +128,7 @@ class TestEvaluatorFields:
             criteria_1 = models.ProjectEvaluator(
                 trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project_a.id,
-                evaluator_id=untagged.id,
+                evaluator_id=bound.id,
                 name=Identifier("criteria_one"),
                 filter_condition="",
                 sampling_rate=1.0,
@@ -133,7 +137,7 @@ class TestEvaluatorFields:
             criteria_2 = models.ProjectEvaluator(
                 trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project_b.id,
-                evaluator_id=untagged.id,
+                evaluator_id=bound.id,
                 name=Identifier("criteria_two"),
                 filter_condition="",
                 sampling_rate=1.0,
@@ -147,7 +151,7 @@ class TestEvaluatorFields:
             "v1": v1.id,
             "v2": v2.id,
             "tag": tag.id,
-            "untagged": untagged.id,
+            "bound": bound.id,
             "tagged": tagged.id,
             "de_1": de_1.id,
             "de_2": de_2.id,
@@ -160,7 +164,7 @@ class TestEvaluatorFields:
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         """Test LLMEvaluator interface fields, relationships, and version resolution logic."""
-        # Test untagged evaluator: interface fields, promptVersion returns latest, and metadata is non-null
+        # Test bound evaluator: interface fields, promptVersion returns its tagged v2, and metadata is non-null
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -168,7 +172,7 @@ class TestEvaluatorFields:
                     ... on LLMEvaluator { prompt { id } promptVersion { id } }
                 }
             }""",
-            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["bound"])))},
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
@@ -203,7 +207,7 @@ class TestEvaluatorFields:
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         for evaluator_key, input_name in (
-            ("untagged", "latest_input"),
+            ("bound", "bound_input"),
             ("tagged", "tagged_input"),
         ):
             response = await gql_client.execute(
@@ -227,7 +231,7 @@ class TestEvaluatorFields:
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         """Test Evaluator.datasetEvaluators returns associated assignments or empty list."""
-        # Untagged evaluator has two dataset evaluator assignments
+        # Bound evaluator has two dataset evaluator assignments
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -236,7 +240,7 @@ class TestEvaluatorFields:
                     }
                 }
             }""",
-            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["bound"])))},
         )
         assert not resp.errors and resp.data
         dataset_evaluators = resp.data["node"]["datasetEvaluators"]
@@ -266,7 +270,7 @@ class TestEvaluatorFields:
     async def test_projects_field(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        # Untagged evaluator is attached to two projects as a project evaluator
+        # Bound evaluator is attached to two projects as a project evaluator
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -277,7 +281,7 @@ class TestEvaluatorFields:
                     }
                 }
             }""",
-            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["bound"])))},
         )
         assert not resp.errors and resp.data
         projects = [edge["node"] for edge in resp.data["node"]["projects"]["edges"]]
@@ -391,6 +395,11 @@ class TestDatasetEvaluatorDescriptionFallback:
             llm_evaluator = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=Identifier(f"tag-{token_hex(4)}"),
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                ),
                 description="Base evaluator description",
                 output_configs=[
                     CategoricalOutputConfig(
@@ -438,6 +447,11 @@ class TestDatasetEvaluatorDescriptionFallback:
             llm_evaluator_no_desc = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=Identifier(f"tag-{token_hex(4)}"),
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                ),
                 description=None,
                 output_configs=[
                     CategoricalOutputConfig(
@@ -1325,6 +1339,11 @@ class TestLLMEvaluatorOutputConfigs:
             llm_evaluator = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=Identifier(f"tag-{token_hex(4)}"),
+                    prompt_id=prompt.id,
+                    prompt_version_id=v1.id,
+                ),
                 description="Multi-output LLM evaluator",
                 output_configs=[
                     CategoricalOutputConfig(
@@ -1443,6 +1462,11 @@ class TestDatasetEvaluatorFields:
             llm_evaluator = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
+                prompt_version_tag=models.PromptVersionTag(
+                    name=Identifier(f"tag-{token_hex(4)}"),
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                ),
             )
             session.add(llm_evaluator)
             await session.flush()

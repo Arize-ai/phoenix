@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48a0254e98d5d98d753238975ee27641>>
+ * @generated SignedSource<<c5cd76d258fbf38a6c12114fae7e3866>>
  * @lightSyntaxTransform
  */
 
@@ -41,7 +41,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     };
     readonly promptVersionTag?: {
       readonly name: string;
-    } | null;
+    };
   };
   readonly id: string;
   readonly inputMapping: {
