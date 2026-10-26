@@ -7,6 +7,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Loading,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -151,7 +152,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           {/* The task menu picks prompts and decisions alike; the prompt-only
               menu has nothing to offer a decision. */}
           {disablePromptMenu ? null : props.taskMenu ? (
-            <TaskMenu instanceId={instanceId} />
+            // A new prompt task fetches its prompt options; without a boundary
+            // here that hides the whole playground until they arrive.
+            <Suspense fallback={<Loading size="S" />}>
+              <TaskMenu instanceId={instanceId} />
+            </Suspense>
           ) : !isDecision ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
