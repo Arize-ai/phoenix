@@ -1,7 +1,6 @@
 -r ci.txt
 -r type-check.txt
 Faker>=30.1.0
-arize>=8.1.0
 asgi-lifespan
 asyncpg
 google-genai>=1.0.0
@@ -12,7 +11,7 @@ nest-asyncio # for executor testing
 numpy
 scikit-learn # reference implementation for retrieval metric tests
 pandas-stubs==2.0.3.230814
-pandas>=1.0
+pandas>=1.0,<3
 protobuf
 psycopg[binary,pool]
 pyarrow-stubs

@@ -3049,7 +3049,16 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+if TYPE_CHECKING:
+
+    class _HttpxClientBase(wrapt.ObjectProxy[httpx2.AsyncClient], httpx2.AsyncClient):  # type: ignore[misc]
+        pass
+
+else:
+    _HttpxClientBase = wrapt.ObjectProxy
+
+
+class _HttpxClient(_HttpxClientBase):
     """Records the outgoing request URL on the span without altering the request."""
 
     def __init__(
@@ -3063,8 +3072,7 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
     async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
-        response = await self.__wrapped__.send(request, **kwargs)
-        return cast("httpx2.Response", response)
+        return await self.__wrapped__.send(request, **kwargs)
 
 
 CustomProviderId: TypeAlias = int
