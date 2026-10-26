@@ -294,7 +294,7 @@ class TestProjectSession:
     async def test_session_evaluation_context(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         context = await self._node("sessionEvaluationContext", project_session, httpx_client)
@@ -366,7 +366,7 @@ class TestProjectSession:
     async def test_session_evaluation_context_is_null_without_eligible_root_turns(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         async with db() as session:
             project = await _add_project(session)

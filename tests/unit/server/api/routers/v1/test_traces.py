@@ -349,7 +349,7 @@ async def test_delete_trace_by_trace_id(
 
 
 async def test_delete_trace_preserves_the_sessions_evaluations(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:

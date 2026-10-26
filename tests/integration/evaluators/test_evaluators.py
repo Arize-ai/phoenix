@@ -3,7 +3,7 @@
 from secrets import token_hex
 from typing import Any
 
-import httpx
+import httpx2
 
 from .._helpers import _AppInfo, _gql, _httpx_client
 from ._helpers import (
@@ -16,7 +16,7 @@ from ._helpers import (
 
 
 def _bind(
-    client: httpx.Client, project: dict[str, Any], evaluator_id: str, **changes: Any
+    client: httpx2.Client, project: dict[str, Any], evaluator_id: str, **changes: Any
 ) -> dict[str, Any]:
     body = {
         "name": f"binding-{token_hex(8)}",
@@ -33,7 +33,7 @@ def _bind(
 
 
 def test_code_lifecycle_and_shared_definition(
-    client: httpx.Client, project: dict[str, Any], sandbox_id: str, _app: _AppInfo
+    client: httpx2.Client, project: dict[str, Any], sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     evaluator = f"v1/evaluators/{definition['id']}"
@@ -92,7 +92,7 @@ def test_code_lifecycle_and_shared_definition(
 
 
 def test_pagination_and_bulk_delete(
-    client: httpx.Client, project: dict[str, Any], sandbox_id: str
+    client: httpx2.Client, project: dict[str, Any], sandbox_id: str
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     bindings = [_bind(client, project, definition["id"]) for _ in range(3)]
@@ -124,7 +124,7 @@ def test_pagination_and_bulk_delete(
 
 
 def test_binding_validation_and_conflicts(
-    client: httpx.Client, project: dict[str, Any], sandbox_id: str, _app: _AppInfo
+    client: httpx2.Client, project: dict[str, Any], sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     first = _bind(client, project, definition["id"])
@@ -183,7 +183,7 @@ def test_binding_validation_and_conflicts(
 
 
 def test_llm_binding_and_definition_edits(
-    client: httpx.Client, project: dict[str, Any], _app: _AppInfo
+    client: httpx2.Client, project: dict[str, Any], _app: _AppInfo
 ) -> None:
     definition = _llm_definition(client)
     evaluator = f"v1/evaluators/{definition['id']}"
@@ -233,7 +233,7 @@ def test_llm_binding_and_definition_edits(
 
 
 def test_session_evaluation_delay_bounds(
-    client: httpx.Client, project: dict[str, Any], _app: _AppInfo
+    client: httpx2.Client, project: dict[str, Any], _app: _AppInfo
 ) -> None:
     definition = _llm_definition(client)
     collection = f"v1/projects/{project['id']}/evaluators"

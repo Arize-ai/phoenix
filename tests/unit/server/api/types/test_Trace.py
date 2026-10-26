@@ -91,7 +91,7 @@ class TestTrace:
     async def test_evaluation_context(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         traces = _data.traces
         field = "evaluationContext"

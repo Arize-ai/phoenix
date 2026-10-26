@@ -283,7 +283,7 @@ class TestCreateChatCompletion:
 
     async def test_decision_only_provider_is_rejected_before_credentials(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """A provider with decision models only cannot serve chat completions. The
         refusal is an OpenAI-shaped 400, not an unhandled error, and it does not
