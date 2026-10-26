@@ -29,6 +29,7 @@ export const promptVersionLoaderQuery = graphql`
         }
         ...PromptVersionDiffView__template
         previousVersion {
+          id
           ...PromptVersionDiffView__template
         }
       }

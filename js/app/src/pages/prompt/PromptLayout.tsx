@@ -1,11 +1,10 @@
 import { css } from "@emotion/react";
 import { useFragment, usePreloadedQuery } from "react-relay";
-import { Outlet, useLocation, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import {
   Button,
-  Counter,
   DialogTrigger,
   Flex,
   Icon,
@@ -25,6 +24,7 @@ import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
+import { PromptLabelConfigButton } from "./PromptLabelConfigButton";
 import { promptLoaderQuery } from "./promptLoader";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
@@ -65,12 +65,8 @@ export function PromptLayout() {
 
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  let selectedTab = "prompt";
-  if (pathname.includes("versions")) {
-    selectedTab = "versions";
-  } else if (pathname.includes("config")) {
-    selectedTab = "config";
-  }
+  const { versionId } = useParams();
+  const selectedTab = pathname.endsWith("/config") ? "config" : "prompt";
 
   const data = useFragment<PromptLayout__main$key>(
     graphql`
@@ -79,11 +75,16 @@ export function PromptLayout() {
         name
         description
         metadata
+        labels {
+          id
+          name
+          color
+        }
         sourcePrompt {
           id
           name
         }
-        promptVersions {
+        latestVersion: promptVersions(first: 1) {
           edges {
             node {
               id
@@ -95,13 +96,24 @@ export function PromptLayout() {
     preloadedData.prompt
   );
 
+  const viewedVersionId = versionId ?? data.latestVersion.edges[0]?.node.id;
+  const playgroundParams = new URLSearchParams({ promptId: data.id });
+  if (viewedVersionId) {
+    playgroundParams.set("promptVersionId", viewedVersionId);
+  }
+  const playgroundPath = `/playground?${playgroundParams}`;
+
   return (
     <main css={mainCSS}>
       <PageHeader
         title={data.name}
-        subTitle={
+        labels={data.labels}
+        labelAction={<PromptLabelConfigButton promptId={data.id} />}
+        subTitle={data.description}
+        captionVisual={<Icon svg={<Icons.GitBranch />} />}
+        caption={
           data.sourcePrompt && (
-            <Text color="text-700">
+            <Text size="S" color="text-700">
               cloned from{" "}
               <Link to={`/prompts/${data.sourcePrompt.id}`}>
                 {data.sourcePrompt.name}
@@ -132,9 +144,9 @@ export function PromptLayout() {
             <LinkButton
               variant="primary"
               leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              to={`/playground?promptId=${encodeURIComponent(data.id)}`}
+              to={playgroundPath}
               size="M"
-              aria-label="Open this Prompt in Playground"
+              aria-label="Open this Prompt version in Playground"
             >
               Playground
             </LinkButton>
@@ -144,28 +156,18 @@ export function PromptLayout() {
       <Tabs
         selectedKey={selectedTab}
         onSelectionChange={(key) => {
-          let url: string;
-          if (key === "versions") {
-            url = `/prompts/${data.id}/versions`;
-          } else if (key === "config") {
-            url = `/prompts/${data.id}/config`;
-          } else {
-            url = `/prompts/${data.id}`;
-          }
-          navigate(url);
+          navigate(
+            key === "config"
+              ? `/prompts/${data.id}/config`
+              : `/prompts/${data.id}`
+          );
         }}
       >
         <TabList>
           <Tab id="prompt">Prompt</Tab>
-          <Tab id="versions">
-            Versions <Counter>{data.promptVersions.edges.length}</Counter>
-          </Tab>
           <Tab id="config">Config</Tab>
         </TabList>
         <LazyTabPanel id="prompt">
-          <Outlet />
-        </LazyTabPanel>
-        <LazyTabPanel id="versions">
           <Outlet />
         </LazyTabPanel>
         <LazyTabPanel id="config">

@@ -11,19 +11,14 @@ import {
   Store,
 } from "relay-runtime";
 
-import type { PromptLatestVersionsListFragment$key } from "@phoenix/pages/prompt/__generated__/PromptLatestVersionsListFragment.graphql";
 import promptLoaderQuery from "@phoenix/pages/prompt/__generated__/promptLoaderQuery.graphql";
 import type { PromptVersionsList__main$key } from "@phoenix/pages/prompt/__generated__/PromptVersionsList__main.graphql";
 
 import type { PromptVersionFixture } from "../constants/promptVersionFixtures";
 
-/** The page size `PromptLatestVersionsList` requests */
-const LATEST_VERSIONS_PAGE_SIZE = 5;
-
 const PROMPT_ID = btoa("Prompt:1");
 
-export type PromptVersionsRef = PromptLatestVersionsListFragment$key &
-  PromptVersionsList__main$key;
+export type PromptVersionsRef = PromptVersionsList__main$key;
 
 function writeConnection(
   store: RecordSourceProxy,
@@ -90,16 +85,6 @@ function createEnvironment(versions: PromptVersionFixture[]) {
     const prompt = store.create(PROMPT_ID, "Prompt");
     prompt.setValue(PROMPT_ID, "id");
     prompt.setLinkedRecord(
-      writeConnection(
-        store,
-        "latestVersions",
-        versions.slice(0, LATEST_VERSIONS_PAGE_SIZE),
-        versions.length > LATEST_VERSIONS_PAGE_SIZE
-      ),
-      "promptVersions",
-      { first: LATEST_VERSIONS_PAGE_SIZE }
-    );
-    prompt.setLinkedRecord(
       writeConnection(store, "promptVersions", versions, false),
       "promptVersions"
     );
@@ -125,7 +110,6 @@ export function PromptVersionsEnvironment({
       ({
         __id: PROMPT_ID,
         __fragments: {
-          PromptLatestVersionsListFragment: {},
           PromptVersionsList__main: {},
         },
         __fragmentOwner: createOperationDescriptor(

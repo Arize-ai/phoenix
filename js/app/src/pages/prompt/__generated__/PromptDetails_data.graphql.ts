@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<19c97b9cd6fb0ac64c09c0974b608487>>
+ * @generated SignedSource<<662eab42fdeaa3ee906481a141aa434b>>
  * @lightSyntaxTransform
  */
 
@@ -9,22 +9,22 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EditPromptButton_data$data = {
+export type PromptDetails_data$data = {
   readonly description: string | null;
   readonly id: string;
   readonly metadata: any;
-  readonly " $fragmentType": "EditPromptButton_data";
+  readonly " $fragmentType": "PromptDetails_data";
 };
-export type EditPromptButton_data$key = {
-  readonly " $data"?: EditPromptButton_data$data;
-  readonly " $fragmentSpreads": FragmentRefs<"EditPromptButton_data">;
+export type PromptDetails_data$key = {
+  readonly " $data"?: PromptDetails_data$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptDetails_data">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "EditPromptButton_data",
+  "name": "PromptDetails_data",
   "selections": [
     {
       "alias": null,
@@ -52,6 +52,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "f1d8e195768db742eb9070b7ad56ce0f";
+(node as any).hash = "503f498b53ec97ed80b1999c0c0fb637";
 
 export default node;

@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { formatRelative } from "date-fns/formatRelative";
 import { useFragment } from "react-relay";
+import { Link as RouterLink } from "react-router";
 import { graphql } from "relay-runtime";
 
 import {
@@ -38,35 +39,30 @@ const promptVersionSummaryFragment = graphql`
   }
 `;
 
-type PromptVersionSummaryProps = {
+type PromptVersionTimelineItemProps = {
   promptVersion: PromptVersionSummaryFragment$key;
+  /**
+   * The version's page
+   */
+  to: string;
+  isCurrent?: boolean;
 };
 
-export function PromptVersionSummary(props: PromptVersionSummaryProps) {
-  const version = useFragment<PromptVersionSummaryFragment$key>(
-    promptVersionSummaryFragment,
-    props.promptVersion
-  );
-
-  return (
-    <Flex direction="column" gap="size-50">
-      <PromptVersionSummaryHeader version={version} />
-      <PromptVersionSummaryDetails version={version} />
-    </Flex>
-  );
-}
-
 /**
- * A prompt version as an item of a `Timeline`
+ * A prompt version as an item of a `Timeline`, linking to the version's page
  */
-export function PromptVersionTimelineItem(props: PromptVersionSummaryProps) {
+export function PromptVersionTimelineItem({
+  promptVersion,
+  to,
+  isCurrent,
+}: PromptVersionTimelineItemProps) {
   const version = useFragment<PromptVersionSummaryFragment$key>(
     promptVersionSummaryFragment,
-    props.promptVersion
+    promptVersion
   );
 
   return (
-    <TimelineItem>
+    <TimelineItem to={to} isCurrent={isCurrent}>
       <TimelineHeader>
         <PromptVersionSummaryHeader version={version} />
       </TimelineHeader>
@@ -77,83 +73,158 @@ export function PromptVersionTimelineItem(props: PromptVersionSummaryProps) {
   );
 }
 
+/**
+ * A prompt version's summary outside of a `Timeline`, such as in a menu item
+ */
+export function PromptVersionSummary({
+  promptVersion,
+  to,
+  showTags = true,
+}: {
+  promptVersion: PromptVersionSummaryFragment$key;
+  /**
+   * The version's page, which its number and ID then link to
+   */
+  to?: string;
+  /**
+   * Whether to list the version's tags, which a surface already organized by
+   * tag would repeat
+   * @default true
+   */
+  showTags?: boolean;
+}) {
+  const version = useFragment<PromptVersionSummaryFragment$key>(
+    promptVersionSummaryFragment,
+    promptVersion
+  );
+  return (
+    <Flex direction="column" gap="size-50" minWidth={0}>
+      <PromptVersionSummaryHeader version={version} to={to} />
+      <PromptVersionSummaryDetails version={version} showTags={showTags} />
+    </Flex>
+  );
+}
+
 type PromptVersionSummaryPartProps = {
   version: PromptVersionSummaryFragment$data;
 };
 
+type PromptVersionSummaryHeaderProps = PromptVersionSummaryPartProps & {
+  to?: string;
+};
+
+type PromptVersionSummaryDetailsProps = PromptVersionSummaryPartProps & {
+  showTags?: boolean;
+};
+
 const headerCSS = css`
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--global-dimension-size-50) var(--global-dimension-size-100);
-  .prompt-version-summary__heading {
+  align-items: baseline;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+  white-space: nowrap;
+  .prompt-version-summary__id {
+    flex: 1 1 0;
+    min-width: 0;
+    color: var(--global-text-color-500);
+  }
+  .prompt-version-summary__link {
     display: flex;
+    align-items: baseline;
     gap: var(--global-dimension-size-100);
-    white-space: nowrap;
+    flex: 1 1 0;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--global-rounding-small);
+    &:hover .prompt-version-summary__id {
+      color: var(--global-text-color-900);
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
   }
 `;
 
 /**
- * The version number, when it was created and its tags, each of which wraps
- * onto a further line when it does not fit
+ * The version number, its ID, its author and when it was created on one line.
+ * The ID takes the remaining space and is the first to truncate.
  */
 function PromptVersionSummaryHeader({
   version,
-}: PromptVersionSummaryPartProps) {
+  to,
+}: PromptVersionSummaryHeaderProps) {
   const { nowEpochMs } = useCurrentTime();
   return (
     <div css={headerCSS}>
-      <span className="prompt-version-summary__heading">
-        <Text fontFamily="mono">{`v${version.sequenceNumber}`}</Text>
-        <Text color="text-700">
-          {formatRelative(version.createdAt, nowEpochMs)}
-        </Text>
-      </span>
-      {version.tags.map((tag) => (
-        <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
-      ))}
+      {to ? (
+        <RouterLink to={to} className="prompt-version-summary__link">
+          <PromptVersionSummaryIdentity version={version} />
+        </RouterLink>
+      ) : (
+        <PromptVersionSummaryIdentity version={version} />
+      )}
+      {version.user && (
+        <Flex direction="row" gap="size-50" alignItems="center" flex="none">
+          <UserPicture
+            size={14}
+            name={version.user.username}
+            profilePictureUrl={version.user.profilePictureUrl}
+          />
+          <Text size="XS">{version.user.username}</Text>
+        </Flex>
+      )}
+      <Text color="text-700" size="XS">
+        {formatRelative(version.createdAt, nowEpochMs)}
+      </Text>
     </div>
   );
 }
 
-const idLineCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
-  .prompt-version-summary__id {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-`;
-
 /**
- * The version's ID and author, then its description when it has one
+ * The version number and ID. The ID's color sits on its truncating wrapper so
+ * the ellipsis matches the text.
  */
-function PromptVersionSummaryDetails({
+function PromptVersionSummaryIdentity({
   version,
 }: PromptVersionSummaryPartProps) {
   return (
+    <>
+      <Text fontFamily="mono" size="XS">
+        {`v${version.sequenceNumber}`}
+      </Text>
+      <span className="prompt-version-summary__id">
+        <Truncate maxWidth="100%" title={version.id}>
+          <Text color="inherit" size="XS">
+            {version.id}
+          </Text>
+        </Truncate>
+      </span>
+    </>
+  );
+}
+
+const tagsCSS = css`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--global-dimension-size-50);
+  padding-bottom: var(--global-dimension-size-50);
+`;
+
+/**
+ * The version's description and then its tags, each on its own line when present
+ */
+function PromptVersionSummaryDetails({
+  version,
+  showTags = true,
+}: PromptVersionSummaryDetailsProps) {
+  const tags = showTags ? version.tags : [];
+  if (!version.description && tags.length === 0) {
+    return null;
+  }
+  return (
     <Flex direction="column" gap="size-50">
-      <div css={idLineCSS}>
-        <span className="prompt-version-summary__id">
-          <Truncate maxWidth="100%" title={version.id}>
-            <Text color="text-500" size="XS">
-              {version.id}
-            </Text>
-          </Truncate>
-        </span>
-        {version.user && (
-          <Flex direction="row" gap="size-50" alignItems="center" flex="none">
-            <UserPicture
-              size={14}
-              name={version.user.username}
-              profilePictureUrl={version.user.profilePictureUrl}
-            />
-            <Text size="XS">{version.user.username}</Text>
-          </Flex>
-        )}
-      </div>
       {version.description ? (
         <div data-testid="prompt-version-item-description">
           <Truncate maxWidth="100%" title={version.description}>
@@ -161,6 +232,13 @@ function PromptVersionSummaryDetails({
               {version.description}
             </Text>
           </Truncate>
+        </div>
+      ) : null}
+      {tags.length > 0 ? (
+        <div css={tagsCSS}>
+          {tags.map((tag) => (
+            <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
+          ))}
         </div>
       ) : null}
     </Flex>

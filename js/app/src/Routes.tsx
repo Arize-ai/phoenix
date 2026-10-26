@@ -129,12 +129,14 @@ import { layoutLoader } from "./pages/layoutLoader";
 import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
+import {
+  latestPromptVersionLoader,
+  promptVersionsRedirectLoader,
+} from "./pages/prompt/latestPromptVersionLoader";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
-import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
-import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
 import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
@@ -879,21 +881,25 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           >
             <Route element={<PromptLayout />}>
-              <Route index element={<PromptIndexPage />} />
-              <Route
-                path="versions"
-                loader={promptVersionsLoader}
-                element={<PromptVersionsPage />}
-                handle={{
-                  agentRoute: {
-                    label: "Prompt Versions",
-                    description:
-                      "Browse prompt versions, prompt history, and saved prompt revisions.",
-                  },
-                }}
-              >
+              <Route element={<PromptVersionsPage />}>
                 <Route
-                  path=":versionId"
+                  index
+                  loader={latestPromptVersionLoader}
+                  element={<PromptVersionDetailsPage />}
+                />
+                <Route
+                  path="versions"
+                  loader={promptVersionsRedirectLoader}
+                  handle={{
+                    agentRoute: {
+                      label: "Prompt Versions",
+                      description:
+                        "Browse prompt versions, prompt history, and saved prompt revisions.",
+                    },
+                  }}
+                />
+                <Route
+                  path="versions/:versionId"
                   loader={promptVersionLoader}
                   element={<PromptVersionDetailsPage />}
                   handle={{

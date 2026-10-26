@@ -14,6 +14,7 @@ import {
   Dialog,
   DialogTrigger,
   Icon,
+  IconButton,
   Icons,
   Input,
   LinkButton,
@@ -49,12 +50,9 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
   const { promptId } = props;
   return (
     <DialogTrigger>
-      <Button
-        variant="quiet"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Settings />} />}
-        aria-label="Edit prompt labels"
-      />
+      <IconButton size="S" aria-label="Edit prompt labels">
+        <Icon svg={<Icons.PriceTags />} />
+      </IconButton>
       <Popover
         placement="bottom start"
         shouldCloseOnInteractOutside={() => true}

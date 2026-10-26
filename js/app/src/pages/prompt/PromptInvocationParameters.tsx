@@ -1,7 +1,16 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, List, ListItem, Text, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  List,
+  ListItem,
+  Text,
+  View,
+} from "@phoenix/components";
 import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
@@ -87,38 +96,41 @@ export function PromptInvocationParameters({
 
   if (!hasToolChoice && !hasParameters) {
     return (
-      <View padding="size-200">
-        <Flex justifyContent="center" alignItems="center">
-          <Text color="text-300">No parameters saved for this prompt</Text>
-        </Flex>
-      </View>
+      <Disclosure id="invocation-parameters" isEmpty>
+        <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
+      </Disclosure>
     );
   }
 
   return (
-    <List size="S">
-      {hasToolChoice && (
-        <ListItem>
-          <View paddingStart="size-100" paddingEnd="size-100">
-            <Flex direction="row" justifyContent="space-between">
-              <Text size="XS" color="text-700">
-                tool_choice
-              </Text>
-              <Text size="XS">
-                {formatToolChoiceLabel(
-                  toolChoice.type,
-                  toolChoice.functionName ?? undefined
-                )}
-              </Text>
-            </Flex>
-          </View>
-        </ListItem>
-      )}
-      {parameters.map(({ key, value }, i) => (
-        <ListItem key={`${key}-${i}`}>
-          <PromptInvocationParameterItem keyName={key} value={value} />
-        </ListItem>
-      ))}
-    </List>
+    <Disclosure id="invocation-parameters">
+      <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
+      <DisclosurePanel>
+        <List size="S">
+          {hasToolChoice && (
+            <ListItem>
+              <View paddingStart="size-100" paddingEnd="size-100">
+                <Flex direction="row" justifyContent="space-between">
+                  <Text size="XS" color="text-700">
+                    tool_choice
+                  </Text>
+                  <Text size="XS">
+                    {formatToolChoiceLabel(
+                      toolChoice.type,
+                      toolChoice.functionName ?? undefined
+                    )}
+                  </Text>
+                </Flex>
+              </View>
+            </ListItem>
+          )}
+          {parameters.map(({ key, value }, i) => (
+            <ListItem key={`${key}-${i}`}>
+              <PromptInvocationParameterItem keyName={key} value={value} />
+            </ListItem>
+          ))}
+        </List>
+      </DisclosurePanel>
+    </Disclosure>
   );
 }
