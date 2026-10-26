@@ -453,7 +453,7 @@ dependencies = [
     { name = "graphql-core" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
-    { name = "httpx", extra = ["http2"] },
+    { name = "httpx2", extra = ["http2"] },
     { name = "jinja2" },
     { name = "jmespath" },
     { name = "joserfc" },
@@ -571,7 +571,6 @@ dev = [
     { name = "grpc-interceptor", extra = ["testing"] },
     { name = "grpcio" },
     { name = "grpcio-tools" },
-    { name = "httpx" },
     { name = "httpx2" },
     { name = "jinja2" },
     { name = "jsonpath-ng" },
@@ -593,7 +592,6 @@ dev = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-instrumentation-grpc" },
-    { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
     { name = "opentelemetry-proto" },
     { name = "opentelemetry-sdk" },
@@ -618,7 +616,6 @@ dev = [
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
-    { name = "respx" },
     { name = "ruff" },
     { name = "scikit-learn" },
     { name = "strawberry-graphql", extra = ["cli", "opentelemetry"] },
@@ -684,7 +681,7 @@ requires-dist = [
     { name = "graphql-core", specifier = ">=3.3,<3.4" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
-    { name = "httpx", extras = ["http2"] },
+    { name = "httpx2", extras = ["http2"] },
     { name = "jinja2" },
     { name = "jmespath" },
     { name = "joserfc" },
@@ -767,7 +764,6 @@ dev = [
     { name = "grpc-interceptor", extras = ["testing"] },
     { name = "grpcio" },
     { name = "grpcio-tools", specifier = ">=1.78.0" },
-    { name = "httpx" },
     { name = "httpx2" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng" },
@@ -788,7 +784,6 @@ dev = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-instrumentation-grpc" },
-    { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
     { name = "opentelemetry-proto", specifier = ">=1.12.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.35.0" },
@@ -813,7 +808,6 @@ dev = [
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
-    { name = "respx", specifier = ">=0.22.0" },
     { name = "ruff", specifier = ">=0.15.2" },
     { name = "scikit-learn" },
     { name = "strawberry-graphql", extras = ["opentelemetry", "cli"], specifier = "==0.336.2" },
@@ -2957,6 +2951,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/3d/2e4bc4fd1ef9770871669adb348d612a6e4786b303a23f9935b81c48dd60/httpx2-2.16.0-py3-none-any.whl", hash = "sha256:fd2c5d7909e8d86fe92d53020c310ca0e4e431b838c207c5754b9bbf0308d49a", size = 97880, upload-time = "2026-10-21T07:09:44.01Z" },
 ]
 
+[package.optional-dependencies]
+http2 = [
+    { name = "h2" },
+]
+
 [[package]]
 name = "httpx2-jsfetch"
 version = "1.0"
@@ -4889,22 +4888,6 @@ wheels = [
 ]
 
 [[package]]
-name = "opentelemetry-instrumentation-httpx"
-version = "0.66b0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-instrumentation" },
-    { name = "opentelemetry-semantic-conventions" },
-    { name = "opentelemetry-util-http" },
-    { name = "wrapt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/34/12fb760868737e2d97df926d94b1a0a4ea62b8811cbc9126ec260dd479c0/opentelemetry_instrumentation_httpx-0.66b0.tar.gz", hash = "sha256:c89297975f54d67692d3c29e9e33a1bdac47710031cc3ed0d83a0c9765336981", size = 26636, upload-time = "2026-09-25T12:36:02.246Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/06/f6ce78d4466d47c47cebef409dde77f571ee4726e1f7103d29dfa52434ef/opentelemetry_instrumentation_httpx-0.66b0-py3-none-any.whl", hash = "sha256:2735d1868749ca04ce47a3802b0b809e3a00c05a65140e05bac5700e74410539", size = 17723, upload-time = "2026-09-25T12:35:14.727Z" },
-]
-
-[[package]]
 name = "opentelemetry-instrumentation-sqlalchemy"
 version = "0.66b0"
 source = { registry = "https://pypi.org/simple" }
@@ -6648,18 +6631,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9f/47/f216a33221db8eff328987661cf18371afee89c62a62b434b963d6b509c9/responses-0.26.3.tar.gz", hash = "sha256:b0c11ca8131b8b227b8d5108e6ed39772222bd5aab030ed430e8f99057c4c409", size = 86335, upload-time = "2026-08-26T19:17:24.373Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/86/ca7958de70cb0752350575e98229368a3a2f746a2942034b3364e17312bb/responses-0.26.3-py3-none-any.whl", hash = "sha256:74474f799334ac4f37d93b6437ecc3bb1bb5c77a8d31780a338643be2dce0af8", size = 36289, upload-time = "2026-08-26T19:17:23.176Z" },
-]
-
-[[package]]
-name = "respx"
-version = "0.23.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "httpx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/43/98/4e55c9c486404ec12373708d015ebce157966965a5ebe7f28ff2c784d41b/respx-0.23.1.tar.gz", hash = "sha256:242dcc6ce6b5b9bf621f5870c82a63997e8e82bc7c947f9ffe272b8f3dd5a780", size = 29243, upload-time = "2026-04-08T14:37:16.008Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1d/4a/221da6ca167db45693d8d26c7dc79ccfc978a440251bf6721c9aaf251ac0/respx-0.23.1-py2.py3-none-any.whl", hash = "sha256:b18004b029935384bccfa6d7d9d74b4ec9af73a081cc28600fffc0447f4b8c1a", size = 25557, upload-time = "2026-04-08T14:37:14.613Z" },
 ]
 
 [[package]]

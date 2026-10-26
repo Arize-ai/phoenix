@@ -6,7 +6,7 @@ import asyncio
 import json
 from typing import Any, cast
 
-import httpx
+import httpx2
 import pytest
 
 from tests.integration._helpers import _AppInfo, _parse_apollo_multipart_response
@@ -159,7 +159,7 @@ query GetExperiment($id: ID!) {
 
 
 async def _run_subscription_with_evaluators(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     *,
     custom_provider_id: str,
     dataset_id: str,
@@ -328,7 +328,7 @@ async def _run_subscription_with_evaluators(
 
 
 async def _run_subscription_without_evaluators(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     *,
     custom_provider_id: str,
     model_name: str,
@@ -430,7 +430,7 @@ async def _run_subscription_without_evaluators(
 
 
 async def _wait_for_job_status(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     job_id: str,
     expected_status: str = "COMPLETED",
     timeout: float = 30.0,
@@ -451,7 +451,7 @@ async def _wait_for_job_status(
 
 
 async def _get_experiment(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     experiment_id: str,
 ) -> dict[str, Any] | None:
     """Query experiment by ID."""
@@ -490,7 +490,7 @@ class TestChatCompletionOverDataset:
         Google GenAI, Bedrock).
         """
         # Long timeout so stream() read doesn't hit default 5s during slow CI
-        async with httpx.AsyncClient(base_url=_app.base_url, timeout=120.0) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url, timeout=120.0) as client:
             # Run subscription with all evaluators
             experiment_id, subscription_results = await _run_subscription_with_evaluators(
                 client,
@@ -656,7 +656,7 @@ class TestChatCompletionOverDataset:
         provider_id = getattr(_custom_providers, provider_key)
 
         # Long timeout so stream() read doesn't hit default 5s during slow CI
-        async with httpx.AsyncClient(base_url=_app.base_url, timeout=60.0) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url, timeout=60.0) as client:
             # Run subscription without evaluators
             experiment_id, subscription_results = await _run_subscription_without_evaluators(
                 client,
