@@ -42,7 +42,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Run Helm chart tests
         run: make test-helm
