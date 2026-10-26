@@ -1074,8 +1074,6 @@ export const appRouteObjects = createRoutesFromElements(
             },
           }}
         >
-          {/* The library tabs. Detail pages below are full pages, not tabs,
-              mirroring the project evaluators routes. */}
           <Route element={<PromptsLayout />}>
             <Route
               index
