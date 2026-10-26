@@ -40,7 +40,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
+import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
 import {
   createDecisionQuestion,
   extractDecisionVariables,
@@ -52,8 +52,9 @@ import { toDecisionVersionInput } from "@phoenix/pages/playground/savedDecisionU
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 import {
   createDecisionTaskInstance,
-  type DecisionRequestDraft,
+  type DecisionPromptDraft,
 } from "@phoenix/store/playground";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 import type { DecisionDatasetEvaluatorForm_createMutation } from "./__generated__/DecisionDatasetEvaluatorForm_createMutation.graphql";
@@ -75,7 +76,7 @@ type Props = {
   onSaved?: (id: string) => void;
 };
 
-function createDatasetDecisionDraft(): DecisionRequestDraft {
+function createDatasetDecisionDraft(): DecisionPromptDraft {
   return {
     state: "{{output}}",
     stateEditorMode: "text",
@@ -94,7 +95,7 @@ export function DecisionDatasetEvaluatorForm(props: Props) {
     {
       ...createDecisionTaskInstance(),
       id: 1,
-      decisionRequest: createDatasetDecisionDraft(),
+      decisionPrompt: createDatasetDecisionDraft(),
     },
   ]);
   return (
@@ -121,6 +122,9 @@ function DecisionDatasetEvaluatorFormContent({
   const store = useEvaluatorStoreInstance();
   const playground = usePlaygroundStore();
   const instance = usePlaygroundContext((state) => state.instances[0]);
+  const decisionPrompt = usePlaygroundContext(
+    selectPlaygroundInstanceDecisionPrompt(instance.id)
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const notifySuccess = useNotifySuccess();
   const credentials = useCredentialsContext((state) => state);
@@ -182,7 +186,10 @@ function DecisionDatasetEvaluatorFormContent({
         setLoadedVersion(
           JSON.stringify(
             toDecisionVersionInput({
-              instance: loaded.instance,
+              instance: {
+                model: loaded.instance.model,
+                decisionPrompt: loaded.instance.decisionPrompt,
+              },
               templateFormat: loaded.templateFormat,
             })
           )
@@ -201,7 +208,7 @@ function DecisionDatasetEvaluatorFormContent({
   }, [playground, selectedDecisionId, selectedVersionId, selectedTagName]);
 
   const draftQuestions: DecisionQuestionDefinition[] = (
-    instance.decisionRequest?.questions ?? []
+    decisionPrompt?.questions ?? []
   ).map((question) =>
     question.type === "choice"
       ? {
@@ -219,12 +226,16 @@ function DecisionDatasetEvaluatorFormContent({
   );
   const questions = draftQuestions;
   const variables = extractDecisionVariables({
-    draft: instance.decisionRequest!,
+    draft: decisionPrompt!,
     templateFormat,
   });
   const policy = normalizePolicy(questions, policyDraft);
   const readVersion = (purpose: "save" | "test") =>
-    toDecisionVersionInput({ instance, templateFormat, purpose });
+    toDecisionVersionInput({
+      instance: { model: instance.model, decisionPrompt },
+      templateFormat,
+      purpose,
+    });
   let version: ReturnType<typeof toDecisionVersionInput> | null = null;
   let draftError: string | null = null;
   try {
@@ -522,7 +533,7 @@ function DecisionDatasetEvaluatorFormContent({
               </Flex>
             }
           />
-          <DecisionRequestEditor playgroundInstanceId={1} />
+          <DecisionPromptEditor playgroundInstanceId={1} />
           <EvaluatorSectionHeader
             title="Scoring"
             description="Turn each answer into the score this dataset records."

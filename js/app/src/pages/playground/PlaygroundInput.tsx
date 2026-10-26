@@ -52,7 +52,7 @@ export function PlaygroundInput() {
           <Text color="text-700">
             {isDecision ? (
               <>
-                Add variables to your prompts or decision requests using{" "}
+                Add variables to your prompts or decision prompts using{" "}
                 <Text color="text-900">{templateSyntax}</Text> to fill them in
                 here.
               </>

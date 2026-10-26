@@ -8,8 +8,9 @@ import {
   createDecisionTaskInstance,
   createPlaygroundStore,
 } from "@phoenix/store/playground/playgroundStore";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
-import { DecisionRequestEditor } from "../DecisionRequestEditor";
+import { DecisionPromptEditor } from "../DecisionPromptEditor";
 import { createDecisionDraft } from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
@@ -29,7 +30,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionRequest: draft },
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
     ],
   });
   const container = document.createElement("div");
@@ -47,7 +48,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
           }}
         >
           <PlaygroundContext.Provider value={store}>
-            <DecisionRequestEditor playgroundInstanceId={1} />
+            <DecisionPromptEditor playgroundInstanceId={1} />
           </PlaygroundContext.Provider>
         </ThemeContext.Provider>
       )
@@ -57,7 +58,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
     );
     expect(editor?.value).toBe("First {{ticket}}");
     await act(async () =>
-      store.getState().updateDecisionRequest({
+      store.getState().updateDecisionPrompt({
         instanceId: 1,
         request: { ...draft, state: "Typed {{ticket}}" },
       })
@@ -70,7 +71,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
         instanceId: 1,
         instance: {
           ...createDecisionTaskInstance(),
-          decisionRequest: { ...draft, state: "Second {{ticket}}" },
+          decisionPrompt: { ...draft, state: "Second {{ticket}}" },
         },
       })
     );
@@ -94,7 +95,7 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionRequest: draft },
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
     ],
     input: { variablesValueCache: { state: '{"ticket":"Refund"}' } },
   });
@@ -113,7 +114,7 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
           }}
         >
           <PlaygroundContext.Provider value={store}>
-            <DecisionRequestEditor playgroundInstanceId={1} />
+            <DecisionPromptEditor playgroundInstanceId={1} />
           </PlaygroundContext.Provider>
         </ThemeContext.Provider>
       )
@@ -129,9 +130,11 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
     );
     expect(objectButton).not.toBeNull();
     await act(async () => objectButton?.click());
-    expect(store.getState().instances[0].decisionRequest?.stateEditorMode).toBe(
-      "inputs"
-    );
+    expect(
+      selectPlaygroundInstanceDecisionPrompt(store.getState().instances[0].id)(
+        store.getState()
+      )?.stateEditorMode
+    ).toBe("inputs");
     expect(preview()).toBe(JSON.stringify({ state: '{"ticket":"Refund"}' }));
     expect(container.textContent).toContain(
       "Build an object keyed by these comma-separated names."
