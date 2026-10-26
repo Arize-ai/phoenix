@@ -39,14 +39,22 @@ const VERSIONS: Event[] = [
 function EventTimeline({
   events,
   isTruncated,
+  isLinked,
+  currentIndex,
 }: {
   events: Event[];
   isTruncated?: boolean;
+  isLinked?: boolean;
+  currentIndex?: number;
 }) {
   return (
     <Timeline isTruncated={isTruncated}>
-      {events.map((event) => (
-        <TimelineItem key={event.title}>
+      {events.map((event, index) => (
+        <TimelineItem
+          key={event.title}
+          to={isLinked ? `#${index}` : undefined}
+          isCurrent={index === currentIndex}
+        >
           <TimelineHeader>
             <Text>{event.title}</Text>
           </TimelineHeader>
@@ -111,6 +119,39 @@ export const TruncationAndContent: StoryFn = () => (
 );
 TruncationAndContent.tags = ["!dev"];
 TruncationAndContent.parameters = { themeLayout: "column" };
+
+const LINKS: {
+  label: string;
+  isLinked: boolean;
+  currentIndex?: number;
+}[] = [
+  { label: "Not linked", isLinked: false },
+  { label: "Linked", isLinked: true },
+  { label: "Linked, one current", isLinked: true, currentIndex: 1 },
+];
+
+/**
+ * Give each item a `to` when its event has a page of its own. The whole item
+ * is then one link with a hover state, and `isCurrent` marks the item whose
+ * page is shown beside the timeline.
+ */
+export const Links: StoryFn = () => (
+  <OptionGrid
+    rows={[{ label: "Several items" }]}
+    columns={LINKS}
+    cellWidth="240px"
+    alignRows="start"
+    renderCell={(_row, link) => (
+      <EventTimeline
+        events={VERSIONS}
+        isLinked={link?.isLinked}
+        currentIndex={link?.currentIndex}
+      />
+    )}
+  />
+);
+Links.tags = ["!dev"];
+Links.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {

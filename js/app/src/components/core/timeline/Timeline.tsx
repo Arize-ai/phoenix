@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
+import type { LinkProps } from "react-router";
+import { Link } from "react-router";
 
 export type TimelineProps = PropsWithChildren<{
   /**
@@ -11,11 +13,13 @@ export type TimelineProps = PropsWithChildren<{
 }>;
 
 const timelineCSS = css`
-  --timeline-indicator-size: var(--global-dimension-size-150);
+  --timeline-indicator-size: var(--global-dimension-size-125);
   --timeline-indicator-color: var(--global-color-gray-500);
   --timeline-separator-width: var(--global-dimension-size-25);
   --timeline-separator-color: var(--global-color-gray-300);
-  --timeline-item-spacing: var(--global-dimension-size-200);
+  --timeline-item-padding-block: var(--global-dimension-size-100);
+  --timeline-item-padding-inline: var(--global-dimension-size-100);
+  --timeline-item-gap: var(--global-dimension-size-50);
   --timeline-header-line-height: var(--global-line-height-s);
   --timeline-indicator-offset: calc(
     (var(--timeline-header-line-height) - var(--timeline-indicator-size)) / 2
@@ -23,15 +27,38 @@ const timelineCSS = css`
 
   display: flex;
   flex-direction: column;
+  gap: var(--timeline-item-gap);
   margin: 0;
   padding: 0;
   list-style: none;
 
   .timeline__item {
+    position: relative;
     display: grid;
     grid-template-columns: var(--timeline-indicator-size) minmax(0, 1fr);
-    grid-template-rows: auto auto var(--timeline-item-spacing);
     column-gap: var(--global-dimension-size-150);
+    padding: var(--timeline-item-padding-block)
+      var(--timeline-item-padding-inline);
+    border-radius: var(--global-rounding-small);
+  }
+
+  a.timeline__item {
+    color: inherit;
+    text-decoration: none;
+    &:hover {
+      background-color: var(--global-list-item-hover-background-color);
+    }
+    &[aria-current="page"] {
+      background-color: var(--global-list-item-selected-background-color);
+    }
+    &:hover .timeline__separator,
+    &[aria-current="page"] .timeline__separator {
+      display: none;
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
+    }
   }
 
   .timeline__indicator {
@@ -46,13 +73,21 @@ const timelineCSS = css`
     border-radius: var(--global-rounding-full);
   }
 
+  /* Runs from below the indicator across the gap and into the next item's
+   top padding, so it meets the next indicator across item boundaries */
   .timeline__separator {
-    grid-column: 1;
-    grid-row: 1 / 4;
-    margin-top: calc(
-      var(--timeline-header-line-height) + var(--timeline-indicator-offset)
+    position: absolute;
+    top: calc(
+      var(--timeline-item-padding-block) + var(--timeline-header-line-height) +
+        var(--timeline-indicator-offset)
     );
-    justify-self: center;
+    bottom: calc(
+      -1 * (var(--timeline-item-padding-block) + var(--timeline-item-gap))
+    );
+    left: calc(
+      var(--timeline-item-padding-inline) +
+        (var(--timeline-indicator-size) - var(--timeline-separator-width)) / 2
+    );
     width: var(--timeline-separator-width);
     border-radius: var(--global-rounding-full);
     background: var(--timeline-separator-color);
@@ -68,14 +103,11 @@ const timelineCSS = css`
     min-width: 0;
   }
 
-  &:not([data-truncated="true"]) .timeline__item:last-child {
-    grid-template-rows: auto auto;
-    .timeline__separator {
-      display: none;
-    }
+  &:not([data-truncated="true"]) > li:last-child .timeline__separator {
+    display: none;
   }
 
-  &[data-truncated="true"] .timeline__item:last-child .timeline__separator {
+  &[data-truncated="true"] > li:last-child .timeline__separator {
     background: linear-gradient(
       to bottom,
       var(--timeline-separator-color),
@@ -97,18 +129,48 @@ export function Timeline({ isTruncated = false, children }: TimelineProps) {
   );
 }
 
+export type TimelineItemProps = PropsWithChildren<{
+  /**
+   * Where the item leads. The whole item becomes one link with a hover state.
+   */
+  to?: LinkProps["to"];
+  /**
+   * Whether the item is the page currently shown. Only applies with `to`.
+   * @default false
+   */
+  isCurrent?: boolean;
+}>;
+
 /**
  * One event in a `Timeline`. Put its leading line in a `TimelineHeader` and
  * any details below in a `TimelineContent`. The indicator centers on the
  * header's first line, which is sized for text at the small line height, so
  * a header that wraps keeps its indicator beside the line it starts on.
  */
-export function TimelineItem({ children }: PropsWithChildren) {
-  return (
-    <li className="timeline__item">
+export function TimelineItem({
+  to,
+  isCurrent = false,
+  children,
+}: TimelineItemProps) {
+  const parts = (
+    <>
       <span className="timeline__indicator" aria-hidden />
       <span className="timeline__separator" aria-hidden />
       {children}
+    </>
+  );
+  if (to === undefined) {
+    return <li className="timeline__item">{parts}</li>;
+  }
+  return (
+    <li>
+      <Link
+        to={to}
+        className="timeline__item"
+        aria-current={isCurrent ? "page" : undefined}
+      >
+        {parts}
+      </Link>
     </li>
   );
 }
