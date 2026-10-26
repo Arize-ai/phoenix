@@ -55,7 +55,7 @@ export const selectPlaygroundInstanceDecisionPrompt =
 
 /**
  * Every instance alongside its decision prompt, for helpers that read an
- * instance's request with the rest of the instance. It builds new objects on
+ * instance's decision prompt with the rest of the instance. It builds new objects on
  * each call, so derive a value from it inside a selector rather than
  * subscribing to it.
  */

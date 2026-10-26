@@ -98,7 +98,7 @@ describe("normalized decision prompts", () => {
     return { store, draft };
   }
 
-  it("keeps the request out of the instance, under its own id", () => {
+  it("keeps the decision prompt out of the instance, under its own id", () => {
     const { store, draft } = createDecisionStore();
     const [instance] = store.getState().instances;
 
@@ -111,8 +111,8 @@ describe("normalized decision prompts", () => {
 
   // Typing in a decision must not replace state.instances, or everything
   // subscribed to the instances (the dataset table's columns, say) re-renders
-  // per keystroke. Only the request's entry and the dirty flag change.
-  it("edits a request without replacing the instances", () => {
+  // per keystroke. Only the prompt's entry and the dirty flag change.
+  it("edits a decision prompt without replacing the instances", () => {
     const { store, draft } = createDecisionStore();
     const before = store.getState();
     const otherRequests = { ...before.allInstanceDecisionPrompts };
@@ -134,7 +134,7 @@ describe("normalized decision prompts", () => {
     expect(after.dirtyInstances[1]).toBe(true);
   });
 
-  it("gives an instance without a request its first one", () => {
+  it("gives an instance without a decision prompt its first one", () => {
     const store = createPlaygroundStore({ modelConfigByProvider: {} });
     const [chat] = store.getState().instances;
     expect(chat.decisionPromptId).toBeUndefined();
@@ -150,7 +150,7 @@ describe("normalized decision prompts", () => {
     ).toBe(draft);
   });
 
-  it("duplicates a request under a fresh id, so the copies edit apart", () => {
+  it("duplicates a decision prompt under a fresh id, so the copies edit apart", () => {
     const { store, draft } = createDecisionStore();
     const copyId = store.getState().duplicateInstance(1);
     if (copyId == null) throw new Error("expected a copy");
@@ -170,7 +170,7 @@ describe("normalized decision prompts", () => {
     ).toBe(draft.state);
   });
 
-  it("snapshots the request a run sends, so later edits do not relabel it", () => {
+  it("snapshots the decision prompt a run sends, so later edits do not relabel it", () => {
     const { store, draft } = createDecisionStore();
     store.getState().runPlaygroundInstances();
     store.getState().updateDecisionPrompt({
@@ -181,7 +181,7 @@ describe("normalized decision prompts", () => {
     expect(store.getState().instances[0].decisionRunRequest).toEqual(draft);
   });
 
-  it("lands a loaded request under a new id and clears the dirty flag", () => {
+  it("lands a loaded decision prompt under a new id and clears the dirty flag", () => {
     const { store, draft } = createDecisionStore();
     store.getState().updateDecisionPrompt({
       instanceId: 1,
@@ -196,9 +196,7 @@ describe("normalized decision prompts", () => {
     });
 
     // A new id remounts the uncontrolled state editor, as new message ids do.
-    expect(store.getState().instances[0].decisionPromptId).not.toBe(
-      previousId
-    );
+    expect(store.getState().instances[0].decisionPromptId).not.toBe(previousId);
     expect(selectPlaygroundInstanceDecisionPrompt(1)(store.getState())).toBe(
       loaded
     );

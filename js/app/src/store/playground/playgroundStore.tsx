@@ -161,7 +161,7 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
  * Moves an instance's decision prompt out of the instance and under a new
  * decision prompt id, the way {@link normalizeChatTemplate} moves messages.
  * An instance without the field keeps it absent, so merging the result over
- * another instance leaves that instance's request alone.
+ * another instance leaves that instance's decision prompt alone.
  */
 function normalizeDecisionPrompt<
   T extends Pick<PlaygroundInstance, "decisionPrompt">,
@@ -313,7 +313,7 @@ export function createEvaluatorTaskInstance({
 }
 
 /**
- * A fresh decision instance: the default request, and a decision model the
+ * A fresh decision instance: the default decision prompt, and a decision model the
  * user still has to pick unless the page already holds one. The chat model it
  * replaces is kept, so the model picker can switch back.
  */
@@ -458,17 +458,14 @@ function createInstanceFromSource(
 
 /**
  * Today's Compare: a copy of the instance with fresh message and decision
- * request ids and no run state.
+ * prompt ids and no run state.
  */
 function duplicateInstance(
   source: PlaygroundNormalizedInstance,
   {
     allInstanceMessages,
     allInstanceDecisionPrompts,
-  }: Pick<
-    PlaygroundState,
-    "allInstanceMessages" | "allInstanceDecisionPrompts"
-  >
+  }: Pick<PlaygroundState, "allInstanceMessages" | "allInstanceDecisionPrompts">
 ): NormalizedInstanceInsert {
   let template = source.template;
   let messages: Record<number, ChatMessage> = {};
@@ -536,10 +533,8 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
 } {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
     let initialInstancesMessageMap: Record<number, ChatMessage> = {};
-    let initialInstancesDecisionPromptMap: Record<
-      number,
-      DecisionPromptDraft
-    > = {};
+    let initialInstancesDecisionPromptMap: Record<number, DecisionPromptDraft> =
+      {};
     const normalizedInstances = initialProps.instances.map((denormalized) => {
       const { instance, decisionPrompts } =
         normalizeDecisionPrompt(denormalized);
@@ -861,7 +856,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return;
       }
       if (instance.decisionPromptId == null) {
-        // The instance's first request: the only edit that touches instances.
+        // The instance's first decision prompt: the only edit that touches instances.
         const decisionPromptId = generateDecisionPromptId();
         set(
           {

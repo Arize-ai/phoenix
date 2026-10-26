@@ -88,7 +88,7 @@ export function PlaygroundModelMenu({
           experiment: null,
         },
       });
-      // Keep a request the instance already had; start one otherwise.
+      // Keep a decision prompt the instance already had; start one otherwise.
       if (instance.decisionPromptId == null) {
         store.getState().updateDecisionPrompt({
           instanceId: playgroundInstanceId,

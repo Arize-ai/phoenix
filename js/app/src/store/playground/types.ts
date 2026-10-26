@@ -933,7 +933,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   setVariableValue: (key: string, value: string) => void;
   /**
    * Replace one instance's decision prompt and mark the instance dirty.
-   * Only the request's entry in `allInstanceDecisionPrompts` changes, so
+   * Only the prompt's entry in `allInstanceDecisionPrompts` changes, so
    * typing in a decision leaves `instances` as it is.
    */
   updateDecisionPrompt: (params: {

@@ -144,10 +144,10 @@ describe("decision span replay", () => {
     expect(parsingErrors).toHaveLength(3);
     expect(parsingErrors.join(" ")).toMatch(/provider/);
     expect(parsingErrors.join(" ")).toMatch(/model/);
-    expect(parsingErrors.join(" ")).toMatch(/request/);
+    expect(parsingErrors.join(" ")).toMatch(/decision prompt/);
     expect(playgroundInstance.model.modelType).toBe("DECISION");
-    expect(
-      playgroundInstance.decisionPrompt?.questions.length
-    ).toBeGreaterThan(0);
+    expect(playgroundInstance.decisionPrompt?.questions.length).toBeGreaterThan(
+      0
+    );
   });
 });
