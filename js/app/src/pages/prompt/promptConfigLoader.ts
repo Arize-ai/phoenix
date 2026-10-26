@@ -8,8 +8,12 @@ import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__gen
 export const promptConfigLoaderQuery = graphql`
   query promptConfigLoaderQuery($id: ID!) {
     prompt: node(id: $id) {
+      __typename
       ... on Prompt {
         ...PromptVersionTagsConfigCard_data
+      }
+      ... on Decision {
+        ...DecisionVersionTagsConfigCard_data
       }
     }
   }

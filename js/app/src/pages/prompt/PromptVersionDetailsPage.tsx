@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import { DecisionVersionDetailsPage } from "@phoenix/pages/decision/DecisionVersionDetailsPage";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { PromptVersionLoaderData } from "@phoenix/pages/prompt/promptVersionLoader";
 import { promptVersionLoaderQuery } from "@phoenix/pages/prompt/promptVersionLoader";
@@ -28,6 +29,7 @@ import type {
   promptVersionLoaderQuery$data,
 } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
+import { PromptNotFound } from "./PromptNotFound";
 import { PromptVersionDiffView } from "./PromptVersionDiffView";
 import { PromptVersionMetadataCard } from "./PromptVersionMetadataCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
@@ -38,7 +40,15 @@ export function PromptVersionDetailsPage() {
     query: promptVersionLoaderQuery,
     queryRef: loaderData.queryRef,
   });
-  return <PromptVersionDetailsPageContent promptVersion={data.promptVersion} />;
+  const node = data.promptVersion;
+  switch (node.__typename) {
+    case "PromptVersion":
+      return <PromptVersionDetailsPageContent promptVersion={node} />;
+    case "DecisionVersion":
+      return <DecisionVersionDetailsPage decisionVersion={node} />;
+    default:
+      return <PromptNotFound />;
+  }
 }
 
 function PromptVersionDetailsPageContent({

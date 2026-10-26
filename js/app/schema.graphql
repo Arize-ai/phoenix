@@ -5494,6 +5494,37 @@ input PromptOpenAIInvocationParametersInput {
   extraBody: JSON = null
 }
 
+"""A saved, versioned task definition: either a Prompt or a Decision."""
+union PromptOrDecision = Prompt | Decision
+
+"""A connection to a list of items."""
+type PromptOrDecisionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptOrDecisionEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptOrDecisionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptOrDecision!
+}
+
+"""The filter key and value for combined prompt and decision connections"""
+input PromptOrDecisionFilter {
+  col: PromptOrDecisionFilterColumn!
+  value: String!
+}
+
+enum PromptOrDecisionFilterColumn {
+  name
+}
+
 type PromptResponseFormatJSONSchema {
   jsonSchema: PromptResponseFormatJSONSchemaDefinition!
 }
@@ -5733,6 +5764,11 @@ type Query {
   decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter, labelIds: [ID!]): DecisionConnection!
   decisionLabels(first: Int = 100, after: String): DecisionLabelConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
+
+  """
+  Saved prompts and decisions together, newest first. Label ids may name prompt labels, decision labels, or both. When any are given, a prompt matches when it carries one of the given prompt labels and a decision matches when it carries one of the given decision labels, so a kind with no labels among them is excluded.
+  """
+  promptsAndDecisions(first: Int = 50, last: Int, after: String, before: String, filter: PromptOrDecisionFilter, labelIds: [ID!]): PromptOrDecisionConnection!
 
   """
   Search top-level resources (projects, datasets, experiments, and prompts) by name or description.

@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "react-relay";
 
 import { Card } from "@phoenix/components";
-import { NewDecisionLabelButton } from "@phoenix/pages/decisions/NewDecisionLabelButton";
+import { NewDecisionLabelButton } from "@phoenix/pages/decision/NewDecisionLabelButton";
 import { DecisionLabelsTable } from "@phoenix/pages/settings/decisions/DecisionLabelsTable";
 
 import type { DecisionLabelsSettingsCardFragment$key } from "./__generated__/DecisionLabelsSettingsCardFragment.graphql";

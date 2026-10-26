@@ -11,7 +11,8 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 
 /**
- * Loads in the necessary page data for the prompt/:promptId pages
+ * Loads in the necessary page data for the prompt/:promptId pages. The id may
+ * name a prompt or a decision; both are fetched by the same queries.
  *
  * Child routes of prompt/:promptId will have access to this loader's data
  * via usePromptIdLoader. They can add fragments to this loader's query to
@@ -46,6 +47,9 @@ export async function promptLoader(args: LoaderFunctionArgs) {
           ... on Prompt {
             name
           }
+          ... on Decision {
+            name
+          }
         }
       }
     `,
@@ -59,14 +63,15 @@ export async function promptLoader(args: LoaderFunctionArgs) {
       queryRef.dispose();
       throw isServerUnreachableError(error) ? error : notFoundError;
     });
-  if (data?.prompt?.__typename !== "Prompt") {
+  const prompt = data?.prompt;
+  if (prompt?.__typename !== "Prompt" && prompt?.__typename !== "Decision") {
     queryRef.dispose();
     throw notFoundError;
   }
 
   return {
     queryRef,
-    prompt: data?.prompt,
+    prompt,
   };
 }
 
@@ -83,6 +88,12 @@ export const promptLoaderQuery = graphql`
         ...PromptIndexPage__main
         ...PromptVersionsPageContent__main
         ...PromptLayout__main
+      }
+      ... on Decision {
+        name
+        ...DecisionIndexPage__main
+        ...DecisionVersionsPageContent__main
+        ...DecisionLayout__main
       }
     }
   }

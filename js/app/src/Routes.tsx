@@ -22,12 +22,6 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
-import {
-  decisionLoader,
-  type DecisionLoaderData,
-} from "@phoenix/pages/decisions/decisionLoader";
-import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
-import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
@@ -171,6 +165,7 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { decisionsRedirectLoader } from "./pages/redirects/decisionsRedirectLoader";
 import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
 import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
@@ -1057,97 +1052,18 @@ export const appRouteObjects = createRoutesFromElements(
           />
         </Route>
         <Route
-          path="/decisions"
-          handle={{
-            crumb: () => "Decisions",
-            agentRoute: {
-              label: "Decisions",
-              description:
-                "Browse, search, and label saved decisions, their models, versions, and tags.",
-            },
-            navigation: {
-              section: "Pages",
-              label: "Decisions",
-              description: "Manage and version decisions",
-              icon: "GitBranch",
-            },
-          }}
-        >
-          <Route index element={<DecisionsPage />} />
-          <Route
-            path=":decisionId"
-            loader={decisionLoader}
-            shouldRevalidate={() => true}
-            handle={{
-              crumb: (data: DecisionLoaderData) =>
-                data?.decision?.__typename === "Decision"
-                  ? data.decision.name
-                  : "Decision unknown",
-              copy: (data: DecisionLoaderData) =>
-                data?.decision?.__typename === "Decision"
-                  ? [
-                      {
-                        name: "Decision Name",
-                        value: data.decision.name,
-                        iconKey: "Text" as const,
-                      },
-                      {
-                        name: "Decision ID",
-                        value: data.decision.id,
-                        iconKey: "ID" as const,
-                      },
-                    ]
-                  : [],
-              agentRoute: {
-                label: "Decision Details",
-                description:
-                  "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
-              },
-            }}
-          >
-            <Route index element={<DecisionPage />} />
-            <Route
-              path="versions"
-              element={<DecisionPage />}
-              handle={{
-                agentRoute: {
-                  label: "Decision Versions",
-                  description:
-                    "Browse decision versions and compare their definitions, questions, and model configuration.",
-                },
-              }}
-            />
-            <Route
-              path="config"
-              element={<DecisionPage />}
-              handle={{
-                agentRoute: {
-                  label: "Decision Configuration",
-                  description:
-                    "Manage saved decision version tags and settings.",
-                },
-              }}
-            />
-            <Route
-              path="versions/:versionId"
-              element={<DecisionPage />}
-              handle={{ crumb: () => "Version" }}
-            />
-          </Route>
-        </Route>
-        <Route
           path="/prompts"
           handle={{
             crumb: () => "Prompts",
             agentRoute: {
               label: "Prompts",
               description:
-                "Browse the prompt registry, saved prompts, and prompt versions.",
+                "Browse the prompt registry: saved prompts and decisions, their versions, labels, and tags.",
             },
             navigation: {
               section: "Pages",
               label: "Prompts",
-              description: "Manage and version prompts",
+              description: "Manage and version prompts and decisions",
               icon: "MessageSquare",
             },
           }}
@@ -1160,7 +1076,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Prompts",
                 description:
-                  "Browse the prompt registry, saved prompts, and prompt versions.",
+                  "Browse the prompt registry: saved prompts and decisions, their versions, labels, and tags.",
               },
             }}
           />
@@ -1170,27 +1086,36 @@ export const appRouteObjects = createRoutesFromElements(
             shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
-                if (data?.prompt?.__typename === "Prompt") {
-                  return data?.prompt?.name;
+                const node = data?.prompt;
+                if (
+                  node?.__typename === "Prompt" ||
+                  node?.__typename === "Decision"
+                ) {
+                  return node.name;
                 }
                 return "prompt unknown";
               },
               agentRoute: {
                 label: "Prompt Details",
                 description:
-                  "View prompt details for a saved prompt, prompt versions, and prompt history.",
+                  "View a saved prompt or decision: its latest version, description, labels, metadata, and version history.",
               },
               copy: (data: PromptLoaderData) => {
-                if (data?.prompt?.__typename === "Prompt") {
+                const node = data?.prompt;
+                if (
+                  node?.__typename === "Prompt" ||
+                  node?.__typename === "Decision"
+                ) {
+                  const kind = node.__typename;
                   return [
                     {
-                      name: "Prompt Name",
-                      value: data.prompt.name,
+                      name: `${kind} Name`,
+                      value: node.name,
                       iconKey: "Text" as const,
                     },
                     {
-                      name: "Prompt ID",
-                      value: data.prompt.id,
+                      name: `${kind} ID`,
+                      value: node.id,
                       iconKey: "ID" as const,
                     },
                   ];
@@ -1209,7 +1134,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Prompt Versions",
                     description:
-                      "Browse prompt versions, prompt history, and saved prompt revisions.",
+                      "Browse the versions of a saved prompt or decision and their history.",
                   },
                 }}
               >
@@ -1221,7 +1146,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Prompt Version Details",
                       description:
-                        "Inspect a specific prompt version, revision, and prompt history entry, including its model configuration and version metadata.",
+                        "Inspect a specific prompt or decision version, including its definition, a diff against the previous version, its model configuration, and version metadata.",
                     },
                   }}
                 />
@@ -1234,7 +1159,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Prompt Configuration",
                     description:
-                      "Configure a saved prompt, prompt settings, labels, and prompt metadata.",
+                      "Manage the version tags of a saved prompt or decision.",
                   },
                 }}
               />
@@ -1528,6 +1453,12 @@ export const appRouteObjects = createRoutesFromElements(
         <Route
           path="/redirects/prompts/:promptId/tags/:tagName"
           loader={promptTagRedirectLoader}
+          errorElement={<ErrorElement />}
+        />
+        {/* Decisions are listed and viewed under /prompts */}
+        <Route
+          path="/decisions/*"
+          loader={decisionsRedirectLoader}
           errorElement={<ErrorElement />}
         />
         <Route

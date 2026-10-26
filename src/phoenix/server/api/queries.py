@@ -8,7 +8,19 @@ from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    String,
+    and_,
+    case,
+    cast,
+    exists,
+    func,
+    or_,
+    select,
+    text,
+)
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
@@ -75,6 +87,7 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInp
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
+from phoenix.server.api.input_types.PromptOrDecisionFilter import PromptOrDecisionFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
@@ -145,6 +158,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
+from phoenix.server.api.types.PromptOrDecision import PromptOrDecision
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
@@ -1274,27 +1288,19 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Decision).order_by(
-            models.Decision.created_at.desc(), models.Decision.id.desc()
-        )
-        if filter:
-            # Cast the Identifier column to String for ilike, as prompts do
-            stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{filter.value}%"))
+        decision_label_ids: Optional[list[int]] = None
         if label_ids:
             try:
-                ids = [
+                decision_label_ids = [
                     from_global_id_with_expected_type(label_id, "DecisionLabel")
                     for label_id in label_ids
                 ]
             except ValueError as error:
                 raise BadRequest(str(error)) from error
-            stmt = stmt.where(
-                models.Decision.id.in_(
-                    select(models.DecisionDecisionLabel.decision_id).where(
-                        models.DecisionDecisionLabel.decision_label_id.in_(ids)
-                    )
-                )
-            )
+        stmt = _decisions_stmt(
+            name_filter=filter.value if filter else None,
+            label_ids=decision_label_ids,
+        )
         async with info.context.db.read() as session:
             decisions = (await session.scalars(stmt)).all()
         return connection_from_list(
@@ -1339,26 +1345,19 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Prompt).order_by(
-            models.Prompt.created_at.desc(),
-            models.Prompt.id.desc(),
-        )
-        if filter:
-            column = getattr(models.Prompt, filter.col.value)
-            # Cast Identifier columns to String for ilike operations
-            if filter.col.value == "name":
-                column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
-        if labelIds:
-            stmt = stmt.join(models.PromptPromptLabel).where(
-                models.PromptPromptLabel.prompt_label_id.in_(
+        stmt = _prompts_stmt(
+            name_filter=filter.value if filter else None,
+            label_ids=(
+                [
                     from_global_id_with_expected_type(
                         global_id=label_id, expected_type_name="PromptLabel"
                     )
                     for label_id in labelIds
-                )
-            )
-            stmt = stmt.distinct()
+                ]
+                if labelIds
+                else None
+            ),
+        )
         async with info.context.db.read() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [
@@ -1368,6 +1367,86 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Saved prompts and decisions together, newest first. Label ids may name prompt "
+            "labels, decision labels, or both. When any are given, a prompt matches when it "
+            "carries one of the given prompt labels and a decision matches when it carries one "
+            "of the given decision labels, so a kind with no labels among them is excluded."
+        )
+    )
+    async def prompts_and_decisions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        filter: Optional[PromptOrDecisionFilter] = UNSET,
+        label_ids: Optional[list[GlobalID]] = UNSET,
+    ) -> Connection[PromptOrDecision]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        prompt_label_ids: Optional[list[int]] = None
+        decision_label_ids: Optional[list[int]] = None
+        if label_ids:
+            prompt_label_ids, decision_label_ids = [], []
+            for label_id in label_ids:
+                if label_id.type_name == PromptLabel.__name__:
+                    target = prompt_label_ids
+                elif label_id.type_name == DecisionLabel.__name__:
+                    target = decision_label_ids
+                else:
+                    raise BadRequest(
+                        "Label ids must correspond to nodes of type PromptLabel or "
+                        f"DecisionLabel, but one corresponds to type: {label_id.type_name}"
+                    )
+                try:
+                    target.append(int(label_id.node_id))
+                except ValueError as error:
+                    raise BadRequest(f"Invalid label id: {label_id}") from error
+        name_filter = filter.value if filter else None
+        async with info.context.db.read() as session:
+            orm_prompts = (
+                (
+                    await session.scalars(
+                        _prompts_stmt(name_filter=name_filter, label_ids=prompt_label_ids)
+                    )
+                ).all()
+                if prompt_label_ids != []
+                else []
+            )
+            orm_decisions = (
+                (
+                    await session.scalars(
+                        _decisions_stmt(name_filter=name_filter, label_ids=decision_label_ids)
+                    )
+                ).all()
+                if decision_label_ids != []
+                else []
+            )
+        # Interleave both kinds by creation time, newest first. The id and type
+        # name break ties so that offsets stay stable across pages.
+        keyed: list[tuple[datetime, int, str, PromptOrDecision]] = [
+            (prompt.created_at, prompt.id, Prompt.__name__, Prompt(id=prompt.id, db_record=prompt))
+            for prompt in orm_prompts
+        ]
+        keyed.extend(
+            (
+                decision.created_at,
+                decision.id,
+                Decision.__name__,
+                Decision(id=decision.id, db_record=decision),
+            )
+            for decision in orm_decisions
+        )
+        keyed.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+        return connection_from_list(data=[item[3] for item in keyed], args=args)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
@@ -2164,6 +2243,60 @@ class Query:
         async with info.context.db.read() as session:
             rows = (await session.scalars(stmt)).all()
         return [SandboxProvider(id=row.backend_type, db_record=row) for row in rows]
+
+
+def _prompts_stmt(
+    *,
+    name_filter: Optional[str],
+    label_ids: Optional[list[int]],
+) -> Select[models.Prompt]:
+    """
+    Saved prompts, newest first, optionally narrowed to names containing
+    `name_filter` (case-insensitive) and to prompts carrying any of `label_ids`.
+    """
+    stmt = select(models.Prompt).order_by(
+        models.Prompt.created_at.desc(),
+        models.Prompt.id.desc(),
+    )
+    if name_filter:
+        # Cast the Identifier column to String for ilike
+        stmt = stmt.where(cast(models.Prompt.name, String).ilike(f"%{name_filter}%"))
+    if label_ids:
+        stmt = stmt.where(
+            models.Prompt.id.in_(
+                select(models.PromptPromptLabel.prompt_id).where(
+                    models.PromptPromptLabel.prompt_label_id.in_(label_ids)
+                )
+            )
+        )
+    return stmt
+
+
+def _decisions_stmt(
+    *,
+    name_filter: Optional[str],
+    label_ids: Optional[list[int]],
+) -> Select[models.Decision]:
+    """
+    Saved decisions, newest first, optionally narrowed to names containing
+    `name_filter` (case-insensitive) and to decisions carrying any of `label_ids`.
+    """
+    stmt = select(models.Decision).order_by(
+        models.Decision.created_at.desc(),
+        models.Decision.id.desc(),
+    )
+    if name_filter:
+        # Cast the Identifier column to String for ilike
+        stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{name_filter}%"))
+    if label_ids:
+        stmt = stmt.where(
+            models.Decision.id.in_(
+                select(models.DecisionDecisionLabel.decision_id).where(
+                    models.DecisionDecisionLabel.decision_label_id.in_(label_ids)
+                )
+            )
+        )
+    return stmt
 
 
 def _consolidate_sqlite_db_table_stats(

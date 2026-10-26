@@ -28,6 +28,11 @@ const nodeQuery = graphql`
         promptName: name
         description
       }
+      # Decisions live under /prompts too, and are recorded as prompts
+      ... on Decision {
+        promptName: name
+        description
+      }
     }
   }
 `;

@@ -14,6 +14,7 @@ import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
 
 const PROMPT_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
+  { id: "kind", label: "type" },
   { id: "labels", label: "labels" },
   { id: "description", label: "description" },
   { id: "modelName", label: "model" },
@@ -61,10 +62,10 @@ export const PromptsFilterBar = () => {
         gap="size-100"
       >
         <DebouncedSearch
-          aria-label="Search prompts by name"
+          aria-label="Search prompts and decisions by name"
           onChange={setFilter}
           defaultValue={filter}
-          placeholder="Search prompts by name"
+          placeholder="Search prompts and decisions by name"
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <ColumnSelector
@@ -78,6 +79,13 @@ export const PromptsFilterBar = () => {
             onSelectionChange={setSelectedPromptLabelIds}
           />
           <CanModify>
+            <LinkButton
+              size="M"
+              leadingVisual={<Icon svg={<Icons.GitBranch />} />}
+              to="/playground?newDecision=true"
+            >
+              New Decision
+            </LinkButton>
             <LinkButton
               size="M"
               leadingVisual={<Icon svg={<Icons.MessageSquare />} />}

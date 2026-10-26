@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e33dbfd63bd87bc97a0b61bcdbd201f>>
+ * @generated SignedSource<<6dc01880d25571bf58ce17c68fc79e75>>
  * @lightSyntaxTransform
  */
 
@@ -66,6 +66,13 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "versionCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "Prompt",
       "kind": "LinkedField",
       "name": "sourcePrompt",
@@ -75,13 +82,6 @@ return {
         (v1/*:: as any*/)
       ],
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "versionCount",
-      "storageKey": null
     }
   ],
   "type": "Prompt",
@@ -89,6 +89,6 @@ return {
 };
 })();
 
-(node as any).hash = "c6fc27d4f5202b24b3f1c42cdf893f25";
+(node as any).hash = "6b04dff140b2a04091164cda7e293018";
 
 export default node;

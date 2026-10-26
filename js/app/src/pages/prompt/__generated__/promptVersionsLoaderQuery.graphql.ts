@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78f21802be0f7498872e8120f2e40f25>>
+ * @generated SignedSource<<98be2667eceb330c146bac4feb3e36d0>>
  * @lightSyntaxTransform
  */
 
@@ -13,13 +13,23 @@ export type promptVersionsLoaderQuery$variables = {
 };
 export type promptVersionsLoaderQuery$data = {
   readonly prompt: {
-    readonly promptVersions?: {
+    readonly __typename: "Decision";
+    readonly latestVersion: {
+      readonly id: string;
+    } | null;
+  } | {
+    readonly __typename: "Prompt";
+    readonly promptVersions: {
       readonly edges: ReadonlyArray<{
         readonly promptVersion: {
           readonly id: string;
         };
       }>;
     };
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   };
 };
 export type promptVersionsLoaderQuery = {
@@ -46,10 +56,20 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
 },
 v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = [
+  (v3/*:: as any*/)
+],
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -81,9 +101,7 @@ v3 = {
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
-              "selections": [
-                (v2/*:: as any*/)
-              ],
+              "selections": (v4/*:: as any*/),
               "storageKey": null
             }
           ],
@@ -94,6 +112,23 @@ v3 = {
     }
   ],
   "type": "Prompt",
+  "abstractKey": null
+},
+v6 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": "latestVersion",
+      "args": null,
+      "concreteType": "DecisionVersion",
+      "kind": "LinkedField",
+      "name": "version",
+      "plural": false,
+      "selections": (v4/*:: as any*/),
+      "storageKey": null
+    }
+  ],
+  "type": "Decision",
   "abstractKey": null
 };
 return {
@@ -111,7 +146,9 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*:: as any*/)
+          (v2/*:: as any*/),
+          (v5/*:: as any*/),
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -133,31 +170,26 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
-          (v3/*:: as any*/),
-          (v2/*:: as any*/)
+          (v2/*:: as any*/),
+          (v5/*:: as any*/),
+          (v6/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "72451f81ebdef0195b7338c67ae5f327",
+    "cacheID": "5410147c3a07da8c6d7076eacb4a5b51",
     "id": null,
     "metadata": {},
     "name": "promptVersionsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionsLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query promptVersionsLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    ... on Decision {\n      latestVersion: version {\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "82115f75fbd5968bbe774fb7e006718f";
+(node as any).hash = "b44fe1735526a31596d2e72ce7ad8bd4";
 
 export default node;

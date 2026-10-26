@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo } from "react";
+import { MenuSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -15,6 +16,7 @@ import {
   MenuFooter,
   MenuHeader,
   MenuItem,
+  MenuSectionTitle,
   MenuTrigger,
   Popover,
   SearchField,
@@ -31,8 +33,12 @@ type PromptsLabelMenuProps = {
 };
 
 /**
- * The PromptsLabelMenu is a menu that allows the user to filter prompts by
- * labels. It is intentionally kept in sync with the datasets label filter
+ * The PromptsLabelMenu is a menu that allows the user to filter prompts and
+ * decisions by labels. Prompt labels and decision labels are listed in
+ * separate sections. A prompt matches when it carries one of the selected
+ * prompt labels and a decision when it carries one of the selected decision
+ * labels, so selecting labels of only one kind hides the other kind. It is
+ * intentionally kept in sync with the datasets label filter
  * ({@link DatasetLabelFilterButton}) so the two list pages behave identically.
  */
 export const PromptsLabelMenu = ({
@@ -75,7 +81,8 @@ export const PromptsLabelMenu = ({
 };
 
 /**
- * The LabelMenuFilterContent displays a multi-select menu of labels for filtering prompts.
+ * The LabelMenuFilterContent displays a multi-select menu of prompt and
+ * decision labels for filtering the prompts table.
  */
 const LabelMenuFilterContent = ({
   selectedLabelIds,
@@ -97,6 +104,15 @@ const LabelMenuFilterContent = ({
             }
           }
         }
+        decisionLabels(first: 100) {
+          edges {
+            label: node {
+              id
+              name
+              color
+            }
+          }
+        }
       }
     `,
     {},
@@ -104,13 +120,20 @@ const LabelMenuFilterContent = ({
     { fetchPolicy: "store-and-network" }
   );
 
-  const labels = useMemo(() => {
-    return data.promptLabels.edges.map((edge) => edge.label);
-  }, [data]);
+  const promptLabels = useMemo(
+    () => data.promptLabels.edges.map((edge) => edge.label),
+    [data]
+  );
+  const decisionLabels = useMemo(
+    () => data.decisionLabels.edges.map((edge) => edge.label),
+    [data]
+  );
 
   const handleSelectionChange = (selection: Selection) => {
     if (selection === "all") {
-      onSelectionChange(labels.map((l) => l.id));
+      onSelectionChange(
+        [...promptLabels, ...decisionLabels].map((label) => label.id)
+      );
       return;
     }
     onSelectionChange([...selection] as string[]);
@@ -131,7 +154,6 @@ const LabelMenuFilterContent = ({
         </MenuHeader>
         <Menu
           aria-label="labels"
-          items={labels}
           selectionMode="multiple"
           renderEmptyState={() => (
             <CompactEmptyState
@@ -142,21 +164,22 @@ const LabelMenuFilterContent = ({
           selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
         >
-          {({ id, name, color }) => (
-            <MenuItem
-              id={id}
-              textValue={name}
-              leadingContent={
-                <ColorSwatch
-                  color={color ?? undefined}
-                  size="M"
-                  shape="circle"
-                />
-              }
-            >
-              {name}
-            </MenuItem>
-          )}
+          {promptLabels.length > 0 ? (
+            <MenuSection>
+              <MenuSectionTitle title="Prompt labels" />
+              {promptLabels.map((label) => (
+                <LabelMenuItem key={label.id} {...label} />
+              ))}
+            </MenuSection>
+          ) : null}
+          {decisionLabels.length > 0 ? (
+            <MenuSection>
+              <MenuSectionTitle title="Decision labels" />
+              {decisionLabels.map((label) => (
+                <LabelMenuItem key={label.id} {...label} />
+              ))}
+            </MenuSection>
+          ) : null}
         </Menu>
       </Autocomplete>
       <MenuFooter>
@@ -172,3 +195,25 @@ const LabelMenuFilterContent = ({
     </>
   );
 };
+
+function LabelMenuItem({
+  id,
+  name,
+  color,
+}: {
+  id: string;
+  name: string;
+  color: string | null;
+}) {
+  return (
+    <MenuItem
+      id={id}
+      textValue={name}
+      leadingContent={
+        <ColorSwatch color={color ?? undefined} size="M" shape="circle" />
+      }
+    >
+      {name}
+    </MenuItem>
+  );
+}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6632e290966eebddb6eb4a487958cfc9>>
+ * @generated SignedSource<<43ef6867c9542fd6b6a36f277b618bd9>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type promptsLoaderQuery$variables = Record<PropertyKey, never>;
 export type promptsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_items">;
 };
 export type promptsLoaderQuery = {
   response: promptsLoaderQuery$data;
@@ -30,17 +30,31 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v3 = [
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -55,8 +69,78 @@ v3 = [
     "name": "profilePictureUrl",
     "storageKey": null
   },
-  (v1/*:: as any*/)
-];
+  (v2/*:: as any*/)
+],
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "createdBy",
+  "plural": false,
+  "selections": (v5/*:: as any*/),
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "updatedBy",
+  "plural": false,
+  "selections": (v5/*:: as any*/),
+  "storageKey": null
+},
+v8 = [
+  (v2/*:: as any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "createdAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "modelName",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "modelProvider",
+    "storageKey": null
+  }
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "versionCount",
+  "storageKey": null
+},
+v10 = [
+  (v2/*:: as any*/),
+  (v3/*:: as any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "color",
+    "storageKey": null
+  }
+],
+v11 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v2/*:: as any*/)
+  ],
+  "type": "Node",
+  "abstractKey": "__isNode"
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -67,7 +151,7 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "PromptsTable_prompts"
+        "name": "PromptsTable_items"
       }
     ],
     "type": "Query",
@@ -82,136 +166,142 @@ return {
       {
         "alias": null,
         "args": (v0/*:: as any*/),
-        "concreteType": "PromptConnection",
+        "concreteType": "PromptOrDecisionConnection",
         "kind": "LinkedField",
-        "name": "prompts",
+        "name": "promptsAndDecisions",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "PromptEdge",
+            "concreteType": "PromptOrDecisionEdge",
             "kind": "LinkedField",
             "name": "edges",
             "plural": true,
             "selections": [
               {
-                "alias": "prompt",
+                "alias": "item",
                 "args": null,
-                "concreteType": "Prompt",
+                "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
                   (v1/*:: as any*/),
-                  (v2/*:: as any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "description",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "User",
-                    "kind": "LinkedField",
-                    "name": "createdBy",
-                    "plural": false,
-                    "selections": (v3/*:: as any*/),
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "User",
-                    "kind": "LinkedField",
-                    "name": "updatedBy",
-                    "plural": false,
-                    "selections": (v3/*:: as any*/),
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PromptVersion",
-                    "kind": "LinkedField",
-                    "name": "version",
-                    "plural": false,
+                    "kind": "InlineFragment",
                     "selections": [
-                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "createdAt",
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "version",
+                        "plural": false,
+                        "selections": (v8/*:: as any*/),
+                        "storageKey": null
+                      },
+                      (v9/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "versionTags",
+                        "plural": true,
+                        "selections": [
+                          (v2/*:: as any*/),
+                          (v3/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "promptVersionId",
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptLabel",
+                        "kind": "LinkedField",
+                        "name": "labels",
+                        "plural": true,
+                        "selections": (v10/*:: as any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "Prompt",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
+                      {
+                        "alias": "latestVersion",
+                        "args": null,
+                        "concreteType": "DecisionVersion",
+                        "kind": "LinkedField",
+                        "name": "version",
+                        "plural": false,
+                        "selections": (v8/*:: as any*/),
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "modelName",
+                        "name": "updatedAt",
+                        "storageKey": null
+                      },
+                      (v9/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DecisionVersionTag",
+                        "kind": "LinkedField",
+                        "name": "versionTags",
+                        "plural": true,
+                        "selections": [
+                          (v2/*:: as any*/),
+                          (v3/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "decisionVersionId",
+                            "storageKey": null
+                          }
+                        ],
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "modelProvider",
+                        "concreteType": "DecisionLabel",
+                        "kind": "LinkedField",
+                        "name": "labels",
+                        "plural": true,
+                        "selections": (v10/*:: as any*/),
                         "storageKey": null
                       }
                     ],
-                    "storageKey": null
+                    "type": "Decision",
+                    "abstractKey": null
                   },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "versionCount",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PromptVersionTag",
-                    "kind": "LinkedField",
-                    "name": "versionTags",
-                    "plural": true,
-                    "selections": [
-                      (v1/*:: as any*/),
-                      (v2/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "promptVersionId",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PromptLabel",
-                    "kind": "LinkedField",
-                    "name": "labels",
-                    "plural": true,
-                    "selections": [
-                      (v1/*:: as any*/),
-                      (v2/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "color",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -225,19 +315,13 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Prompt",
+                "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  (v1/*:: as any*/)
+                  (v1/*:: as any*/),
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -270,7 +354,7 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "prompts(first:100)"
+        "storageKey": "promptsAndDecisions(first:100)"
       },
       {
         "alias": null,
@@ -280,23 +364,23 @@ return {
           "labelIds"
         ],
         "handle": "connection",
-        "key": "PromptsTable_prompts",
+        "key": "PromptsTable_promptsAndDecisions",
         "kind": "LinkedHandle",
-        "name": "prompts"
+        "name": "promptsAndDecisions"
       }
     ]
   },
   "params": {
-    "cacheID": "6a940525c3e245a0239c02ae00d55eda",
+    "cacheID": "6fed6f17e6200ea2848fce80b25116a5",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_items\n}\n\nfragment PromptsTable_items on Query {\n  promptsAndDecisions(first: 100) {\n    edges {\n      item: node {\n        __typename\n        ... on Prompt {\n          id\n          name\n          description\n          createdBy {\n            username\n            profilePictureUrl\n            id\n          }\n          updatedBy {\n            username\n            profilePictureUrl\n            id\n          }\n          version {\n            id\n            createdAt\n            modelName\n            modelProvider\n          }\n          versionCount\n          versionTags {\n            id\n            name\n            promptVersionId\n          }\n          labels {\n            id\n            name\n            color\n          }\n        }\n        ... on Decision {\n          id\n          name\n          description\n          createdBy {\n            username\n            profilePictureUrl\n            id\n          }\n          updatedBy {\n            username\n            profilePictureUrl\n            id\n          }\n          latestVersion: version {\n            id\n            createdAt\n            modelName\n            modelProvider\n          }\n          updatedAt\n          versionCount\n          versionTags {\n            id\n            name\n            decisionVersionId\n          }\n          labels {\n            id\n            name\n            color\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ed4295f193bd2a6d2402a82966d45a7f";
+(node as any).hash = "060b23998a47b0361d298c52896554e1";
 
 export default node;

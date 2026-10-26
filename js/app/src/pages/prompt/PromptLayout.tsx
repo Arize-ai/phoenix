@@ -1,77 +1,38 @@
-import { css } from "@emotion/react";
 import { useFragment, usePreloadedQuery } from "react-relay";
-import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 
-import {
-  Button,
-  Counter,
-  DialogTrigger,
-  Flex,
-  Icon,
-  Icons,
-  LazyTabPanel,
-  Link,
-  LinkButton,
-  ViewportModal,
-  ViewportModalOverlay,
-  PageHeader,
-  Tab,
-  TabList,
-  Tabs,
-  Text,
-} from "@phoenix/components";
+import { DecisionLayout } from "@phoenix/pages/decision/DecisionLayout";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
+import { PromptLayoutShell } from "./PromptLayoutShell";
 import { promptLoaderQuery } from "./promptLoader";
+import { PromptNotFound } from "./PromptNotFound";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
-const mainCSS = css`
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  .tabs {
-    flex: 1 1 auto;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    div[role="tablist"] {
-      flex: none;
-    }
-    .tabs__pane-container {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      div[role="tabpanel"]:not([hidden]) {
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-    }
-  }
-`;
-
+/**
+ * The layout for /prompts/:promptId. The id may name a prompt or a decision;
+ * both share the same header and tabs.
+ */
 export function PromptLayout() {
   const loaderData = usePromptIdLoader();
   const preloadedData = usePreloadedQuery<promptLoaderQueryType>(
     promptLoaderQuery,
     loaderData.queryRef
   );
-
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  let selectedTab = "prompt";
-  if (pathname.includes("versions")) {
-    selectedTab = "versions";
-  } else if (pathname.includes("config")) {
-    selectedTab = "config";
+  const node = preloadedData.prompt;
+  switch (node.__typename) {
+    case "Prompt":
+      return <PromptLayoutContent prompt={node} />;
+    case "Decision":
+      return <DecisionLayout decision={node} />;
+    default:
+      return <PromptNotFound />;
   }
+}
 
+function PromptLayoutContent({ prompt }: { prompt: PromptLayout__main$key }) {
   const data = useFragment<PromptLayout__main$key>(
     graphql`
       fragment PromptLayout__main on Prompt {
@@ -79,93 +40,33 @@ export function PromptLayout() {
         name
         description
         metadata
+        versionCount
         sourcePrompt {
           id
           name
         }
-        versionCount
       }
     `,
-    preloadedData.prompt
+    prompt
   );
 
   return (
-    <main css={mainCSS}>
-      <PageHeader
-        title={data.name}
-        subTitle={
-          data.sourcePrompt && (
-            <Text color="text-700">
-              cloned from{" "}
-              <Link to={`/prompts/${data.sourcePrompt.id}`}>
-                {data.sourcePrompt.name}
-              </Link>
-            </Text>
-          )
-        }
-        extra={
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <DialogTrigger>
-              <Button
-                size="M"
-                leadingVisual={<Icon svg={<Icons.GitBranch />} />}
-              >
-                Clone
-              </Button>
-              <ViewportModalOverlay>
-                <ViewportModal size="M">
-                  <ClonePromptDialog
-                    promptId={data.id}
-                    promptName={data.name}
-                    promptDescription={data.description ?? undefined}
-                    promptMetadata={data.metadata ?? undefined}
-                  />
-                </ViewportModal>
-              </ViewportModalOverlay>
-            </DialogTrigger>
-            <LinkButton
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              to={`/playground?promptId=${encodeURIComponent(data.id)}`}
-              size="M"
-              aria-label="Open this Prompt in Playground"
-            >
-              Playground
-            </LinkButton>
-          </Flex>
-        }
-      />
-      <Tabs
-        selectedKey={selectedTab}
-        onSelectionChange={(key) => {
-          let url: string;
-          if (key === "versions") {
-            url = `/prompts/${data.id}/versions`;
-          } else if (key === "config") {
-            url = `/prompts/${data.id}/config`;
-          } else {
-            url = `/prompts/${data.id}`;
-          }
-          navigate(url);
-        }}
-      >
-        <TabList>
-          <Tab id="prompt">Prompt</Tab>
-          <Tab id="versions">
-            Versions <Counter>{data.versionCount}</Counter>
-          </Tab>
-          <Tab id="config">Config</Tab>
-        </TabList>
-        <LazyTabPanel id="prompt">
-          <Outlet />
-        </LazyTabPanel>
-        <LazyTabPanel id="versions">
-          <Outlet />
-        </LazyTabPanel>
-        <LazyTabPanel id="config">
-          <Outlet />
-        </LazyTabPanel>
-      </Tabs>
-    </main>
+    <PromptLayoutShell
+      id={data.id}
+      name={data.name}
+      kindLabel="Prompt"
+      source={data.sourcePrompt}
+      cloneDialog={
+        <ClonePromptDialog
+          promptId={data.id}
+          promptName={data.name}
+          promptDescription={data.description ?? undefined}
+          promptMetadata={data.metadata ?? undefined}
+        />
+      }
+      playgroundTo={`/playground?promptId=${encodeURIComponent(data.id)}`}
+      playgroundAriaLabel="Open this Prompt in Playground"
+      versionCount={data.versionCount}
+    />
   );
 }
