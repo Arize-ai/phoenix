@@ -10,8 +10,8 @@ litellm>=1.83.14,!=1.107.0; python_version < '3.14'
 nest-asyncio # for executor testing
 numpy
 scikit-learn # reference implementation for retrieval metric tests
-pandas-stubs==2.0.3.230814
-pandas>=1.0,<3
+pandas-stubs
+pandas>=1.0
 protobuf
 psycopg[binary,pool]
 pyarrow-stubs

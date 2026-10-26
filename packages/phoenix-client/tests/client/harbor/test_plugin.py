@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -169,7 +169,7 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> FakeClient:
     )
 
     @contextlib.asynccontextmanager
-    async def _open_client(self: PhoenixJobPlugin) -> AsyncIterator[Any]:
+    async def _open_client(self: PhoenixJobPlugin) -> AsyncGenerator[Any, None]:
         del self
         yield client
 

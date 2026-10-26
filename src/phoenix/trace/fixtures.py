@@ -655,8 +655,8 @@ def _get_precursor_result(
 ) -> tuple[Optional[float], Optional[str], Optional[str]]:
     return (
         cast(Optional[float], row.get("score")),
-        cast(Optional[str], row.get("label")),
-        cast(Optional[str], row.get("explanation")),
+        row.get("label"),
+        row.get("explanation"),
     )
 
 

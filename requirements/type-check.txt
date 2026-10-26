@@ -10,8 +10,8 @@ opentelemetry-instrumentation-sqlalchemy==0.66b0
 opentelemetry-proto==1.45.0
 opentelemetry-sdk==1.45.0
 opentelemetry-semantic-conventions==0.66b0
-pandas-stubs==2.0.3.230814
-pandas>=1.0,<3
+pandas-stubs
+pandas>=1.0
 prometheus_client
 psycopg[binary,pool]
 py-grpc-prometheus

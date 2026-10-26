@@ -3141,9 +3141,9 @@ class TestProject:
         offset_tz = timezone(timedelta(minutes=utc_offset_minutes))
         t = df.loc[:, "timestamp"].dt.tz_convert(offset_tz)
         if field == "minute":
-            t = t.dt.floor("T")
+            t = t.dt.floor("min")
         elif field == "hour":
-            t = t.dt.floor("H")
+            t = t.dt.floor("h")
         elif field == "day":
             t = t.dt.floor("D")
         elif field == "week":
