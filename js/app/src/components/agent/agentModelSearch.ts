@@ -740,12 +740,13 @@ export function inferProviderFromModelName(
 
 /**
  * The query as a custom model name, with the providers to offer it to.
- * Returns null when there's nothing to offer: the query is empty, contains
- * whitespace (no model id does, so it's a search), names a provider
- * (`openai` lists OpenAI's models), or there are no providers.
+ * Offered for every search, so a custom model is always one step away;
+ * returns null only when the query is empty, contains whitespace (no model
+ * id does, so it's a search), or there are no providers.
  *
- * A name that matches a listed id is still offered: the same id can be sent
- * to another provider (a gateway, an Azure deployment of the same name).
+ * A name that matches a listed id or a provider is still offered: the same
+ * id can be sent to another provider (a gateway, an Azure deployment of the
+ * same name).
  *
  * The provider guessed from the name comes first if it's installed, whatever
  * its credentials, since a no-key pick goes to the credential form. The rest
@@ -764,21 +765,6 @@ export function getAgentModelCustomModelOption({
 }): AgentModelCustomModelOption | null {
   const modelName = query.trim();
   if (!modelName || /\s/.test(modelName) || providers.length === 0) {
-    return null;
-  }
-  const isProviderSearch = providers.some((option) =>
-    isCompleteProviderMatch(
-      matchProviderTerm({
-        target: {
-          providerName: option.name,
-          provider: option.provider,
-          customProvider: option.customProvider,
-        },
-        term: modelName,
-      })
-    )
-  );
-  if (isProviderSearch) {
     return null;
   }
   const guessedProviderKey = inferProviderFromModelName(modelName);

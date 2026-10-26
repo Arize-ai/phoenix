@@ -568,10 +568,10 @@ describe("getAgentModelCustomModelOption", () => {
     expect(getOption("claude-opus-9", [])).toBeNull();
   });
 
-  it("offers nothing for a provider name, but does for a partial one", () => {
-    expect(getOption("openai")).toBeNull();
-    expect(getOption("bedrock")).toBeNull();
-    expect(getOption("Acme")).toBeNull();
+  it("offers a provider name, alias or partial one", () => {
+    expect(getOption("openai")).toMatchObject({ modelName: "openai" });
+    expect(getOption("bedrock")).toMatchObject({ modelName: "bedrock" });
+    expect(getOption("Acme")).toMatchObject({ modelName: "Acme" });
     expect(getOption("anth")).toMatchObject({ modelName: "anth" });
   });
 

@@ -69,9 +69,10 @@ export function AgentModelProviderIcon({
 }
 
 /**
- * A row's credential state: nothing when ready, "May work" for providers
- * with an ambient credential chain (AWS, Azure), "Add key" when a key is
- * missing, and "Unavailable" when the row's custom provider was deleted.
+ * A row's credential state: "Add key" when a key is missing, "Unavailable"
+ * when the row's custom provider was deleted, and nothing otherwise. Providers
+ * with an ambient credential chain (AWS, Azure) show nothing: whether that
+ * chain works can't be told until a send.
  */
 export function AgentModelCredentialHint({
   credentialState,
@@ -84,13 +85,6 @@ export function AgentModelCredentialHint({
     return (
       <Badge size="S" variant="danger">
         Unavailable
-      </Badge>
-    );
-  }
-  if (credentialState === "may-work") {
-    return (
-      <Badge size="S" variant="info">
-        May work
       </Badge>
     );
   }

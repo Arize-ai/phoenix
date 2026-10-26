@@ -361,7 +361,6 @@ describe("AgentModelPicker", () => {
     const user = await openAndType("anthropic.claude-opus-4-6");
 
     const bedrockRow = findItem("anthropic.claude-opus-4-6-v1:0");
-    expect(bedrockRow.textContent).toContain("May work");
     await act(() => user.click(bedrockRow));
 
     expect(onChange).toHaveBeenCalledWith({
@@ -459,7 +458,6 @@ describe("AgentModelPicker", () => {
     const google = findSubmenuItem("Google");
     expect(google.textContent).toContain("Guessed from the name");
     expect(google.textContent).toContain("Add key");
-    expect(findSubmenuItem("AWS Bedrock").textContent).toContain("May work");
     expect(findSubmenuItem("Azure OpenAI").textContent).toContain(
       "As a deployment name"
     );
