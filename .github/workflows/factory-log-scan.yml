@@ -12,13 +12,9 @@ on:
         description: Hours to scan, ending now
         default: "24"
       dispatch:
-        description: Add the factory label to the issues the session files, up to the per-run cap
+        description: Add the factory label to filed issues to trigger the factory process
         type: boolean
         default: true
-      dry_run:
-        description: Count the window's errors without starting a session
-        type: boolean
-        default: false
 
 concurrency:
   group: factory-log-scan
@@ -66,7 +62,6 @@ jobs:
           # Set the FACTORY_LOG_SCAN_DISPATCH repository variable to 'false' to pause dispatch
           # from the schedule; a manual run follows its own input.
           DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_LOG_SCAN_DISPATCH != 'false' || inputs.dispatch == true }}
-          DRY_RUN: ${{ inputs.dry_run == true }}
         run: |
           if [ -z "$FACTORY_GRAFANA_URL" ]; then
             echo "FACTORY_GRAFANA_URL is not set; see Log scan in factory/README.md."
@@ -74,5 +69,4 @@ jobs:
           fi
           ARGS=(--repo "$GH_REPO" --hours "$HOURS")
           [ "$DISPATCH" = "true" ] || ARGS+=(--no-dispatch)
-          [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
           python factory/log_scan.py "${ARGS[@]}"

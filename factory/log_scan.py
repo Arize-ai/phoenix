@@ -208,7 +208,6 @@ def main() -> None:
         default=3,
         help="Most issues to label `factory` per run; each starts a bug-lane session",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Count the errors and stop")
     args = parser.parse_args()
 
     grafana = GrafanaClient(
@@ -230,9 +229,7 @@ def main() -> None:
     summary = [
         f"## Railway triage\n\n{line_count} error lines in the last {args.hours:g} hours\n\n"
     ]
-    if line_count == 0 or args.dry_run:
-        if line_count:
-            print("dry run: would start a railway-triage session")
+    if line_count == 0:
         write_step_summary(summary)
         return
 
