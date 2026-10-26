@@ -93,13 +93,11 @@ The workflow:
 2. **Iterate** — Edit the prompt in the playground, test it against sample data, and compare versions.
 3. **Promote** — When satisfied, save the prompt and advance the tag. The evaluator now uses the new version.
 
-When you click **Save Prompt** in the playground, a modal shows checkboxes for available tags. To advance the evaluator's tag to the new version, **check the tag that starts with the evaluator's name** (e.g. `correctness-evaluator-932646b7`). If you leave it unchecked, the new version is saved but the evaluator continues using the previously tagged version.
+When you click **Save Prompt** in the playground, a modal shows checkboxes for available tags. To advance the evaluator's tag to the new version, **check the tag that starts with the evaluator's name** (e.g. `correctness-evaluator-932646b7`). If you leave it unchecked, the new version is saved but the evaluator continues using the previously tagged version. Phoenix refuses to move the evaluator's tag to a version whose output labels don't match the evaluator; edit the evaluator, or create a new evaluator from that version.
 
 <Frame caption="The Save Prompt modal. Check the evaluator's tag to advance it to the new version.">
   ![Save Prompt modal with tag checkboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/evaluator-save-prompt-modal-tags.png)
 </Frame>
-
-If the evaluator has no tag (or the tag is removed), Phoenix falls back to the latest prompt version.
 
 <Tip>
 Because evaluator prompts are standard Phoenix prompts, you can test them in the prompt playground before committing changes. Run the prompt against your dataset to preview labels and scores, then save when the results meet your bar.

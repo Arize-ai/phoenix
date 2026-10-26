@@ -81,9 +81,7 @@ const evaluator = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
 if (evaluator.type === "code") {
   console.log(evaluator.current_version_id, evaluator.source_code);
 } else if (evaluator.type === "llm") {
-  // `selector.type` is `version` when pinned, or `latest` for an evaluator
-  // that follows the prompt's newest version
-  console.log(evaluator.prompt.selector, evaluator.prompt.resolved_prompt_version_id);
+  console.log(evaluator.prompt.selector.prompt_version_id);
 }
 ```
 
