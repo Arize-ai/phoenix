@@ -5,6 +5,7 @@ import {
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusVisible } from "react-aria";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import {
@@ -54,6 +55,7 @@ import {
   SELECTED_TRACE_ID_PARAM,
   SESSION_VIEW_PARAM,
 } from "@phoenix/constants/searchParams";
+import { QueryRetentionProvider } from "@phoenix/contexts/QueryRetentionContext";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type {
@@ -66,6 +68,9 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import type { SessionTurnPreviewTurn } from "./SessionTurnPreviewCard";
+import type { SessionTurnPreviewTarget } from "./SessionTurnPreviewTooltip";
+import { SessionTurnPreviewTooltip } from "./SessionTurnPreviewTooltip";
 import { TraceActionToolbar } from "./TraceActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -425,6 +430,34 @@ export type SessionTurnRow = {
 
 type IndexedSessionTurnRow = SessionTurnRow & { index: number };
 
+/** The turn row a preview anchors to, hovered or focused. */
+type TurnPreviewAnchor = { traceId: string; element: Element };
+
+const NO_PREVIEW_ANCHORS = { hover: null, focus: null };
+
+/** The turn's position in the session, as the list labels it: "01". */
+function getTurnIndexLabel(index: number) {
+  return String(index + 1).padStart(2, "0");
+}
+
+function getPreviewTurn(row: IndexedSessionTurnRow): SessionTurnPreviewTurn {
+  const { rootSpan } = row;
+  return {
+    traceId: row.traceId,
+    traceNodeId: rootSpan.trace.id,
+    indexLabel: getTurnIndexLabel(row.index),
+    name: rootSpan.name,
+    statusCode: rootSpan.statusCode,
+    startTime: rootSpan.startTime,
+    endTime: rootSpan.endTime,
+    latencyMs: rootSpan.latencyMs,
+    tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
+    costTotal: rootSpan.trace.costSummary?.total?.cost ?? null,
+    traceAnnotationSummaries: rootSpan.trace.summaryTraceAnnotationSummaries,
+    rootSpanAnnotationSummaries: rootSpan.summarySpanAnnotationSummaries,
+  };
+}
+
 function RootSpanPreviewLine({
   role,
   value,
@@ -488,104 +521,161 @@ export function SessionTurnList({
   selectedTraceId,
   onTurnClick,
   onTurnDoubleClick,
-}: {
+  annotationConfigsByName,
+}: AnnotationConfigsProps & {
   rows: ReadonlyArray<SessionTurnRow>;
   selectedTraceId: string | null;
   onTurnClick: (traceId: string) => void;
   onTurnDoubleClick: (turn: { traceId: string; spanNodeId: string }) => void;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
+  const { isFocusVisible } = useFocusVisible();
+  const [anchors, setAnchors] = useState<{
+    hover: TurnPreviewAnchor | null;
+    focus: TurnPreviewAnchor | null;
+  }>(NO_PREVIEW_ANCHORS);
   const indexedRows: IndexedSessionTurnRow[] = rows.map((row, index) => ({
     ...row,
     index,
   }));
+  // Decided at render: the list caches its items' handlers, and focus events
+  // fire before useFocusVisible's update, so they can't read it reliably.
+  // Visible focus wins over hover, which a row scrolling under a still pointer
+  // starts as arrowing moves past the fold.
+  const isFocusPreview = isFocusVisible && anchors.focus != null;
+  const anchor = isFocusPreview ? anchors.focus : anchors.hover;
+  // Built from the current rows, so an open preview follows refetched data
+  const previewRow =
+    anchor && indexedRows.find((row) => row.traceId === anchor.traceId);
+  const previewTarget: SessionTurnPreviewTarget | null =
+    anchor && previewRow
+      ? { element: anchor.element, turn: getPreviewTurn(previewRow) }
+      : null;
   return (
-    <ListBox
-      aria-label="Session turns"
-      items={indexedRows}
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={selectedTraceId ? [selectedTraceId] : []}
-      onSelectionChange={(selection) => {
-        if (selection === "all") return;
-        const key = selection.keys().next().value;
-        if (typeof key === "string") {
-          onTurnClick(key);
-        }
-      }}
-      css={turnListCSS}
-    >
-      {(row) => {
-        const paddedIndex = String(row.index + 1).padStart(2, "0");
-        const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
-        return (
-          <ListBoxItem
-            id={row.traceId}
-            textValue={turnLabel}
-            onDoubleClick={() =>
-              onTurnDoubleClick({
-                traceId: row.traceId,
-                spanNodeId: row.rootSpan.id,
-              })
-            }
-          >
-            <Flex direction="column" gap="size-50">
-              <Flex
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                gap="size-100"
-              >
+    // Keeps each previewed turn's usage, so revisiting a turn shows it at once
+    <QueryRetentionProvider>
+      <ListBox
+        aria-label="Session turns"
+        items={indexedRows}
+        selectionMode="single"
+        disallowEmptySelection
+        selectedKeys={selectedTraceId ? [selectedTraceId] : []}
+        onSelectionChange={(selection) => {
+          if (selection === "all") return;
+          const key = selection.keys().next().value;
+          if (typeof key === "string") {
+            onTurnClick(key);
+          }
+        }}
+        css={turnListCSS}
+      >
+        {(row) => {
+          const paddedIndex = getTurnIndexLabel(row.index);
+          const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
+          const clearAnchor = (source: "hover" | "focus") =>
+            setAnchors((current) =>
+              current[source]?.traceId === row.traceId
+                ? { ...current, [source]: null }
+                : current
+            );
+          return (
+            <ListBoxItem
+              id={row.traceId}
+              textValue={turnLabel}
+              onDoubleClick={() =>
+                onTurnDoubleClick({
+                  traceId: row.traceId,
+                  spanNodeId: row.rootSpan.id,
+                })
+              }
+              onHoverStart={(event) =>
+                setAnchors((current) => ({
+                  ...current,
+                  hover: { traceId: row.traceId, element: event.target },
+                }))
+              }
+              onHoverEnd={() => clearAnchor("hover")}
+              // A click closes the hovered preview, as in the trace tree
+              onFocus={(event) =>
+                setAnchors({
+                  hover: null,
+                  focus: { traceId: row.traceId, element: event.currentTarget },
+                })
+              }
+              onBlur={() => clearAnchor("focus")}
+              // Focus from a pointer isn't a keyboard preview, or a later
+              // key that makes focus visible would open one on this row
+              onPressEnd={(event) => {
+                if (event.pointerType !== "keyboard") {
+                  clearAnchor("focus");
+                }
+              }}
+            >
+              <Flex direction="column" gap="size-50">
                 <Flex
                   direction="row"
                   alignItems="center"
-                  gap="size-75"
-                  flex={1}
-                  minWidth={0}
+                  justifyContent="space-between"
+                  gap="size-100"
                 >
-                  <Text fontFamily="mono" color="text-500">
-                    {paddedIndex}
-                  </Text>
-                  <Truncate maxWidth="100%" title={row.rootSpan.name}>
-                    <Text weight="heavy" size="S">
-                      {row.rootSpan.name}
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-75"
+                    flex={1}
+                    minWidth={0}
+                  >
+                    <Text fontFamily="mono" color="text-500">
+                      {paddedIndex}
                     </Text>
-                  </Truncate>
+                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                      <Text weight="heavy" size="S">
+                        {row.rootSpan.name}
+                      </Text>
+                    </Truncate>
+                  </Flex>
+                  <Flex flexShrink={0}>
+                    <Text color="text-700" size="XS">
+                      {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+                    </Text>
+                  </Flex>
                 </Flex>
-                <Flex flexShrink={0}>
-                  <Text color="text-700" size="XS">
-                    {fullTimeFormatter(new Date(row.rootSpan.startTime))}
-                  </Text>
+                <Flex direction="column" gap="size-50" minWidth={0}>
+                  <RootSpanPreviewLine
+                    role="INPUT"
+                    value={row.rootSpan.input?.truncatedValue}
+                  />
+                  <RootSpanPreviewLine
+                    role="OUTPUT"
+                    value={row.rootSpan.output?.truncatedValue}
+                  />
+                </Flex>
+                <Flex direction="row" gap="size-100" alignItems="center" wrap>
+                  <TokenCount size="S">
+                    {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+                  </TokenCount>
+                  {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                    <TokenCosts size="S">
+                      {row.rootSpan.trace.costSummary.total.cost}
+                    </TokenCosts>
+                  ) : null}
+                  {row.rootSpan.latencyMs != null ? (
+                    <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
+                  ) : null}
                 </Flex>
               </Flex>
-              <Flex direction="column" gap="size-50" minWidth={0}>
-                <RootSpanPreviewLine
-                  role="INPUT"
-                  value={row.rootSpan.input?.truncatedValue}
-                />
-                <RootSpanPreviewLine
-                  role="OUTPUT"
-                  value={row.rootSpan.output?.truncatedValue}
-                />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="center" wrap>
-                <TokenCount size="S">
-                  {row.rootSpan.cumulativeTokenCountTotal ?? 0}
-                </TokenCount>
-                {row.rootSpan.trace.costSummary?.total?.cost != null ? (
-                  <TokenCosts size="S">
-                    {row.rootSpan.trace.costSummary.total.cost}
-                  </TokenCosts>
-                ) : null}
-                {row.rootSpan.latencyMs != null ? (
-                  <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
-                ) : null}
-              </Flex>
-            </Flex>
-          </ListBoxItem>
-        );
-      }}
-    </ListBox>
+            </ListBoxItem>
+          );
+        }}
+      </ListBox>
+      <SessionTurnPreviewTooltip
+        target={previewTarget}
+        annotationConfigsByName={annotationConfigsByName}
+        // Focus stays on the row as the list scrolls to it; hover doesn't
+        shouldReopenOnClose={isFocusPreview}
+        onDismiss={() => setAnchors(NO_PREVIEW_ANCHORS)}
+      />
+    </QueryRetentionProvider>
   );
 }
 
@@ -660,6 +750,17 @@ export function SessionDetailsTraceList({
                       cost
                     }
                   }
+                  summaryTraceAnnotationSummaries: traceAnnotationSummaries(
+                    filter: { exclude: { names: ["note"] } }
+                  ) {
+                    name
+                    count
+                    meanScore
+                    labelFractions {
+                      fraction
+                      label
+                    }
+                  }
                 }
                 id
                 name
@@ -681,7 +782,19 @@ export function SessionDetailsTraceList({
                 latencyMs
                 startTime
                 endTime
+                statusCode
                 spanId
+                summarySpanAnnotationSummaries: spanAnnotationSummaries(
+                  filter: { exclude: { names: ["note"] } }
+                ) {
+                  name
+                  count
+                  meanScore
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                }
                 ...AnnotationSummaryGroup
               }
             }
@@ -801,6 +914,7 @@ export function SessionDetailsTraceList({
         selectedTraceId={selectedTraceId}
         onTurnClick={handleTurnClick}
         onTurnDoubleClick={handleTurnDoubleClick}
+        annotationConfigsByName={annotationConfigsByName}
       />
     </div>
   );
