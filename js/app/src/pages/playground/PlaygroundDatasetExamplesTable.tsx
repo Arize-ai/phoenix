@@ -93,8 +93,11 @@ import {
   getTemplateVariablesPath,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
-import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
+import {
+  arePlaygroundInstancesEqualExceptProgress,
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceDecisionPrompt,
+} from "@phoenix/store/playground/selectors";
 import type {
   EditableTableDiff,
   EditableTableStore,
@@ -389,9 +392,36 @@ function EmptyExampleOutput({
   );
 }
 
+/**
+ * A decision run's answers, in the order and with the labels of the decision
+ * the column runs. Only cells with answers subscribe to the draft, so typing
+ * in the decision does not re-render the column's empty cells.
+ */
+function ExampleDecisionResult({
+  instanceId,
+  answers,
+}: {
+  instanceId: number;
+  answers: unknown;
+}) {
+  // Label the outputs from the request that ran, not the live draft.
+  const decisionPrompt = usePlaygroundContext(
+    (state) =>
+      selectPlaygroundInstance(instanceId)(state)?.decisionRunRequest ??
+      selectPlaygroundInstanceDecisionPrompt(instanceId)(state)
+  );
+  return (
+    <DecisionResult
+      output={JSON.stringify({ answers })}
+      request={decisionPrompt ?? null}
+      showUsage={false}
+    />
+  );
+}
+
 function ExampleOutputContent({
+  instanceId,
   exampleData,
-  decisionRequest,
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
@@ -402,9 +432,8 @@ function ExampleOutputContent({
   isExpanded,
   onExpandedChange,
 }: {
+  instanceId: number;
   exampleData: ExampleRunData;
-  /** The decision the column runs, for its answers' order and labels. */
-  decisionRequest?: DecisionRequestDraft | null;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
@@ -529,11 +558,10 @@ function ExampleOutputContent({
               <DynamicContent value={content} mode="streaming" key="content" />
             ) : null}
             {decisionAnswers != null ? (
-              <DecisionResult
+              <ExampleDecisionResult
                 key="decision"
-                output={JSON.stringify({ answers: decisionAnswers })}
-                request={decisionRequest ?? null}
-                showUsage={false}
+                instanceId={instanceId}
+                answers={decisionAnswers}
               />
             ) : null}
             {toolCalls != null && Object.keys(toolCalls).length > 0
@@ -622,11 +650,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
-  // Label the outputs from the request that ran, not the live draft.
-  const decisionRequest = usePlaygroundContext((state) => {
-    const instance = state.instances.find((item) => item.id === instanceId);
-    return instance?.decisionRunRequest ?? instance?.decisionRequest;
-  });
   const onViewDetails = useCallback(
     () => onViewExperimentRunDetailsPress(exampleIndex),
     [onViewExperimentRunDetailsPress, exampleIndex]
@@ -643,8 +666,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     />
   ) : (
     <ExampleOutputContent
+      instanceId={instanceId}
       exampleData={exampleData}
-      decisionRequest={decisionRequest}
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}

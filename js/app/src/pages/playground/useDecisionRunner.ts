@@ -69,7 +69,7 @@ const FALLBACK_ERROR_MESSAGE =
   "Could not execute the decision request. Check the connection and provider configuration.";
 
 /**
- * Runs an instance's decision request against its model whenever
+ * Runs an instance's decision prompt against its model whenever
  * that instance gets a new active run. Repetitions are sequential and
  * non-streaming. Disposed or stale runs never overwrite a newer run.
  */
@@ -87,15 +87,21 @@ export function useDecisionRunner(instanceId: number) {
   useEffect(() => {
     if (runId == null) return undefined;
     const state = store.getState();
-    const snapshot = state.instances.find((item) => item.id === instanceId);
-    const decision = snapshot?.decisionRequest;
-    if (!snapshot || !decision) return undefined;
+    const normalizedSnapshot = state.instances.find(
+      (item) => item.id === instanceId
+    );
+    if (!normalizedSnapshot) return undefined;
+    const snapshot = denormalizePlaygroundInstance(
+      normalizedSnapshot,
+      state.allInstanceMessages,
+      state.allInstanceDecisionPrompts
+    );
+    const decision = snapshot.decisionPrompt;
+    if (!decision) return undefined;
     // Resolve template variables and credentials once per run so every
     // repetition sends the same request.
     const { variablesMap } = getVariablesMapFromInstances({
-      instances: [
-        denormalizePlaygroundInstance(snapshot, state.allInstanceMessages),
-      ],
+      instances: [snapshot],
       templateFormat: state.templateFormat,
       input: state.input,
     });

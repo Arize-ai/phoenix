@@ -39,6 +39,38 @@ export const selectPlaygroundInstanceMessage =
   };
 
 /**
+ * Curried selector to get the decision prompt for a given instance
+ * @param instanceId
+ * @returns selector function that returns the decision prompt for the given instance, if it has one
+ */
+export const selectPlaygroundInstanceDecisionPrompt =
+  (instanceId: number) => (state: PlaygroundState) => {
+    const decisionPromptId =
+      selectPlaygroundInstance(instanceId)(state)?.decisionPromptId;
+    if (decisionPromptId == null) {
+      return undefined;
+    }
+    return state.allInstanceDecisionPrompts[decisionPromptId];
+  };
+
+/**
+ * Every instance alongside its decision prompt, for helpers that read an
+ * instance's decision prompt with the rest of the instance. It builds new objects on
+ * each call, so derive a value from it inside a selector rather than
+ * subscribing to it.
+ */
+export const getPlaygroundInstancesWithDecisionPrompts = (
+  state: Pick<PlaygroundState, "instances" | "allInstanceDecisionPrompts">
+) =>
+  state.instances.map((instance) => ({
+    ...instance,
+    decisionPrompt:
+      instance.decisionPromptId != null
+        ? state.allInstanceDecisionPrompts[instance.decisionPromptId]
+        : undefined,
+  }));
+
+/**
  * Equality for `state.instances` that ignores each instance's
  * `experimentRunProgress`. Every streamed run event bumps a counter there and
  * replaces the array, so a subscriber that only reads the instances' shape —

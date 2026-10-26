@@ -91,7 +91,7 @@ function SpanPlaygroundBanners({
               Back to Trace
             </Button>
           }
-        >{`Replay and iterate on your ${isDecision ? "decision request" : "LLM call"} from your ${span.project.name} project`}</Alert>
+        >{`Replay and iterate on your ${isDecision ? "decision prompt" : "LLM call"} from your ${span.project.name} project`}</Alert>
       )}
       {showParsingErrorsBanner && hasParsingErrors && (
         <Alert
