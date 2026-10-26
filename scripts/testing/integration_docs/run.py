@@ -101,8 +101,7 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             setup_source = setup.get("source")
             if setup_source not in {"referenced_components", "section_code"}:
                 raise HarnessError(
-                    f"Integration {integration_id} has unsupported setup source "
-                    f"{setup_source!r}"
+                    f"Integration {integration_id} has unsupported setup source {setup_source!r}"
                 )
             if language != "python" and setup_source != "section_code":
                 raise HarnessError(
@@ -219,8 +218,7 @@ def component_setup(spec: IntegrationSpec, document_text: str, project: str) -> 
         if project_name_prop:
             if project_name_prop not in props:
                 raise HarnessError(
-                    f"Setup component is missing configured project name prop "
-                    f"{project_name_prop!r}"
+                    f"Setup component is missing configured project name prop {project_name_prop!r}"
                 )
             props[project_name_prop] = project
         for block in EMBEDDED_CODE.finditer(component_text):
@@ -268,9 +266,7 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         setup = code_fence(
             section_body(text, spec.setup_section), spec.language, f"## {spec.setup_section}"
         )
-    run = code_fence(
-        section_body(text, spec.run_section), spec.language, f"## {spec.run_section}"
-    )
+    run = code_fence(section_body(text, spec.run_section), spec.language, f"## {spec.run_section}")
 
     if spec.language == "python":
         sections = [setup, run]
@@ -599,7 +595,9 @@ def main() -> int:
                 documents = json.loads(args.docs_file.read_text())
             except (OSError, json.JSONDecodeError) as exc:
                 raise HarnessError(f"Could not read docs file {args.docs_file}: {exc}") from exc
-            if not isinstance(documents, list) or not all(isinstance(doc, str) for doc in documents):
+            if not isinstance(documents, list) or not all(
+                isinstance(doc, str) for doc in documents
+            ):
                 raise HarnessError("Docs file must contain a JSON array of document paths")
             selected: list[IntegrationSpec] = []
             for document in documents:
@@ -617,7 +615,9 @@ def main() -> int:
                 raise HarnessError("Shard must be formatted as INDEX/TOTAL") from exc
             if shard_total < 1 or shard_index < 1 or shard_index > shard_total:
                 raise HarnessError("Shard index must be between 1 and the positive shard total")
-            specs = [spec for index, spec in enumerate(specs) if index % shard_total == shard_index - 1]
+            specs = [
+                spec for index, spec in enumerate(specs) if index % shard_total == shard_index - 1
+            ]
         start = datetime.now(timezone.utc)
         records = [run_one(spec, args.endpoint) for spec in specs]
         summary = summarize(records, start)

@@ -31,7 +31,9 @@ def install_ollama() -> None:
     if shutil.which("ollama"):
         return
     if not sys.platform.startswith("linux"):
-        raise RuntimeError("Ollama is required but is not installed; install it from https://ollama.com/download")
+        raise RuntimeError(
+            "Ollama is required but is not installed; install it from https://ollama.com/download"
+        )
     print("Installing Ollama with the official Linux installer")
     with urllib.request.urlopen("https://ollama.com/install.sh", timeout=30) as response:
         installer = response.read().decode("utf-8")
@@ -66,12 +68,12 @@ def ensure_ollama(model: str) -> None:
         result = subprocess.run(
             ["ollama", "list"], capture_output=True, text=True, check=True, env=env, timeout=30
         )
-        installed_models = {line.split()[0] for line in result.stdout.splitlines()[1:] if line.split()}
+        installed_models = {
+            fields[0] for line in result.stdout.splitlines()[1:] if (fields := line.split())
+        }
         if model not in installed_models:
             print(f"Pulling Ollama model {model}")
-            subprocess.run(
-                ["ollama", "pull", model], check=True, env=env, timeout=1800
-            )
+            subprocess.run(["ollama", "pull", model], check=True, env=env, timeout=1800)
         else:
             print(f"Ollama model {model} is already available")
         print(f"Ollama is ready with model {model}")
@@ -118,7 +120,14 @@ def main() -> int:
                 raise ValueError(f"Unsupported or incomplete service declaration: {service!r}")
             ensure_ollama(str(service["model"]))
         return 0
-    except (OSError, json.JSONDecodeError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as exc:
+    except (
+        OSError,
+        json.JSONDecodeError,
+        ValueError,
+        KeyError,
+        RuntimeError,
+        subprocess.SubprocessError,
+    ) as exc:
         print(f"integration-docs services: {exc}", file=sys.stderr)
         return 1
 

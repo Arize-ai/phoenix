@@ -11,7 +11,9 @@ from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reports", type=Path, required=True, help="Directory containing shard artifacts")
+    parser.add_argument(
+        "--reports", type=Path, required=True, help="Directory containing shard artifacts"
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("ci-results/integration-docs"))
     parser.add_argument("--run-mode", choices=("all", "changed", "none"), required=True)
     parser.add_argument("--reason", required=True)
@@ -28,7 +30,12 @@ def main() -> int:
                 print(f"Ignoring unreadable shard report {report_path}: {exc}")
 
     statuses = {item.get("status") for item in integrations}
-    status = "fail" if "fail" in statuses or args.shard_result == "failure" else "skipped" if statuses == {"skipped"} else "pass"
+    if "fail" in statuses or args.shard_result == "failure":
+        status = "fail"
+    elif statuses == {"skipped"}:
+        status = "skipped"
+    else:
+        status = "pass"
     if args.run_mode == "none":
         status = "no-op"
     summary = {
@@ -38,7 +45,10 @@ def main() -> int:
         "status": status,
         "reason": args.reason,
         "run_mode": args.run_mode,
-        "counts": {name: sum(item.get("status") == name for item in integrations) for name in ("pass", "fail", "skipped")},
+        "counts": {
+            name: sum(item.get("status") == name for item in integrations)
+            for name in ("pass", "fail", "skipped")
+        },
         "integrations": integrations,
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -61,7 +71,11 @@ def main() -> int:
             if model:
                 result += f"; model `{model}`"
         result = str(result).replace("|", "\\|").replace("\n", " ")
-        lines.append(f"| `{record.get('id', '?')}` | `{record.get('document', '?')}` | {record.get('language', '?')} | **{record.get('status', '?')}** | {result} |")
+        row = (
+            f"| `{record.get('id', '?')}` | `{record.get('document', '?')}` | "
+            f"{record.get('language', '?')} | **{record.get('status', '?')}** | {result} |"
+        )
+        lines.append(row)
     (args.output_dir / "integration-docs.md").write_text("\n".join(lines) + "\n")
     print((args.output_dir / "integration-docs.md").read_text())
     # The shard job already determines the workflow result. Return success here

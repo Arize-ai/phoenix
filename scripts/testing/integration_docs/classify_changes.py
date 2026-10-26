@@ -117,7 +117,11 @@ def classify() -> tuple[str, list[str], str]:
             unknown = sorted(set(selected) - set(docs))
             if unknown:
                 raise ValueError(f"Requested docs are not enabled in integrations.json: {unknown}")
-            return "changed", [doc for doc in docs if doc in selected], "manual dispatch selected docs"
+            return (
+                "changed",
+                [doc for doc in docs if doc in selected],
+                "manual dispatch selected docs",
+            )
         return "all", docs, f"event={event} runs all enabled integration docs"
     if event != "pull_request":
         return "all", docs, f"unknown event {event!r}; running all enabled docs"
