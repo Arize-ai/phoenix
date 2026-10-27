@@ -8,6 +8,7 @@ follows, which `git push` uses. Whatever holds the token acts as the app's bot a
 
 import json
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
@@ -23,6 +24,7 @@ GH_TOKEN_SECRET_NAME = "GH_TOKEN"
 TOKEN_PERMISSIONS = {"contents": "write", "issues": "write", "pull_requests": "write"}
 # Re-mint once a token has less than this left, so no session holds one that expires mid-call.
 REFRESH_MARGIN = timedelta(minutes=20)
+MAX_REQUEST_ATTEMPTS = 3
 
 
 def request_github(*, method: str, path: str, bearer: str, body: Optional[dict] = None) -> Any:
@@ -36,8 +38,21 @@ def request_github(*, method: str, path: str, bearer: str, body: Optional[dict] 
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)
+    # A token is minted every ~40 minutes of a multi-hour watch; one GitHub blip shouldn't end it.
+    for attempt in range(MAX_REQUEST_ATTEMPTS):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code < 500 or attempt == MAX_REQUEST_ATTEMPTS - 1:
+                # GitHub's message names the cause, such as permissions the app was never granted.
+                detail = error.read().decode(errors="replace")
+                message = f"GitHub {method} {path} returned {error.code}: {detail}"
+                raise RuntimeError(message) from error
+        except urllib.error.URLError:
+            if attempt == MAX_REQUEST_ATTEMPTS - 1:
+                raise
+        time.sleep(5 * 2**attempt)
 
 
 class GitHubAppToken:
@@ -70,18 +85,22 @@ class GitHubAppToken:
         """Return a token with REFRESH_MARGIN left, minting and distributing a new one if needed."""
         if self.token is not None and datetime.now(timezone.utc) < self.expires_at - REFRESH_MARGIN:
             return self.token
-        self.token, self.expires_at = self.mint()
-        self.write_vault_credentials(token=self.token)
+        token, expires_at = self.mint()
+        self.write_vault_credentials(token=token)
         for session_id, resource_id in list(self.repo_resource_ids.items()):
             try:
                 self.client.beta.sessions.resources.update(
-                    resource_id, session_id=session_id, authorization_token=self.token
+                    resource_id, session_id=session_id, authorization_token=token
                 )
             except anthropic.APIStatusError as error:
-                # A terminated session has no use for a token; stop rotating it.
                 print(f"::warning::Could not rotate the repo token of {session_id}: {error}")
-                del self.repo_resource_ids[session_id]
-        return self.token
+                # A terminated session has no use for a token; stop rotating it. Keep a session
+                # that hit a rate limit or server error, so the next token still reaches it.
+                if error.status_code < 500 and error.status_code != 429:
+                    del self.repo_resource_ids[session_id]
+        # Cache the token only once it is distributed, so a failure above re-mints next call.
+        self.token, self.expires_at = token, expires_at
+        return token
 
     def mint(self) -> tuple[str, datetime]:
         """Mint an installation token limited to this repo and TOKEN_PERMISSIONS."""

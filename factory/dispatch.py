@@ -76,11 +76,11 @@ def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = 
     return completed_process.stdout
 
 
-def comment_on_issue(*, issue_number: int, body: str, token: str) -> None:
+def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> None:
     run_gh("issue", "comment", str(issue_number), "--body-file", "-", token=token, input_text=body)
 
 
-def remove_factory_label(*, issue_number: int, token: str) -> None:
+def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
     """Remove the trigger label so a maintainer can re-add it to run the issue again."""
     run_gh("issue", "edit", str(issue_number), "--remove-label", FACTORY_LABEL, token=token)
 
@@ -690,8 +690,9 @@ def run_watch(*, args: argparse.Namespace) -> None:
         "see the workflow run."
     )
     client = anthropic.Anthropic()
-    app_token = create_app_token(client=client, repo=args.repo)
+    app_token: Optional[GitHubAppToken] = None
     try:
+        app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
         report = watch_session(
             client=client,
@@ -702,8 +703,15 @@ def run_watch(*, args: argparse.Namespace) -> None:
             watch_minutes=args.watch_minutes,
         )
     finally:
-        comment_on_issue(issue_number=args.issue, body=report, token=app_token.refresh())
-        remove_factory_label(issue_number=args.issue, token=app_token.refresh())
+        # The workflow's failure report skips a failed watch step, so when the app's
+        # credentials are what failed, report with GITHUB_TOKEN instead.
+        report_token: Optional[str] = None
+        try:
+            report_token = app_token.refresh() if app_token is not None else None
+        except Exception as error:
+            print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
+        comment_on_issue(issue_number=args.issue, body=report, token=report_token)
+        remove_factory_label(issue_number=args.issue, token=report_token)
 
 
 def main() -> None:
