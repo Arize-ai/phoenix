@@ -14,8 +14,7 @@ def _iter_field_errors(errors: Any) -> Iterator[tuple[str, str]]:
     """Yield renderable field errors, ignoring malformed optional error details."""
     if not isinstance(errors, list):
         return
-    field_errors: list[Any] = errors
-    for candidate in field_errors:
+    for candidate in cast(list[object], errors):
         if not isinstance(candidate, dict):
             continue
         error = cast(dict[str, Any], candidate)
