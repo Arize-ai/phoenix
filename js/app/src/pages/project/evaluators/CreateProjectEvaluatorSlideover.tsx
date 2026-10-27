@@ -11,6 +11,7 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -31,6 +32,10 @@ import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pa
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
+import {
+  AttachProjectDecisionEvaluatorDialogContent,
+  CreateProjectDecisionEvaluatorDialogContent,
+} from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
 import {
   ProjectEvaluatorInputMappingDock,
   ProjectLlmEvaluatorFormSections,
@@ -99,6 +104,8 @@ type SeededCodeEvaluatorInitialState = {
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
+  | { kind: "newDecision" }
+  | { kind: "attachDecision"; evaluator: DecisionEvaluatorData }
   | {
       kind: "copyLlm";
       initialState: CopiedLlmEvaluatorInitialState;
@@ -132,6 +139,12 @@ function getProjectEvaluatorCreationTitle(
   }
   if (creationMode.kind === "newCode") {
     return "Create new code evaluator";
+  }
+  if (creationMode.kind === "newDecision") {
+    return "Create new decision evaluator";
+  }
+  if (creationMode.kind === "attachDecision") {
+    return `Attach decision evaluator “${creationMode.evaluator.name}”`;
   }
   if (creationMode.kind === "copyLlm") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
@@ -229,6 +242,28 @@ const CreateProjectEvaluatorDialog = ({
 
   // oxlint-disable-next-line complexity
   const initialState = (() => {
+    if (
+      creationMode.kind === "newDecision" ||
+      creationMode.kind === "attachDecision"
+    ) {
+      return {
+        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        evaluator: {
+          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          globalName:
+            creationMode.kind === "attachDecision"
+              ? creationMode.evaluator.name
+              : "",
+          description: "",
+          inputMapping: { pathMapping: {}, literalMapping: {} },
+          kind: "DECISION",
+        },
+        outputConfigs: [],
+        evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+          toEvaluatorRecordKind(scope.targetType)
+        ),
+      } satisfies EvaluatorStoreProps;
+    }
     if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
       const copiedState =
         creationMode.kind === "copyCode" ? creationMode.initialState : null;
@@ -313,7 +348,27 @@ const CreateProjectEvaluatorDialog = ({
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {creationMode.kind === "newCode" || creationMode.kind === "copyCode" ? (
+      {creationMode.kind === "newDecision" ? (
+        <CreateProjectDecisionEvaluatorDialogContent
+          title={title}
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={setScope}
+          onSuccess={finishCreation}
+          registerDirtyCheck={registerDirtyCheck}
+        />
+      ) : creationMode.kind === "attachDecision" ? (
+        <AttachProjectDecisionEvaluatorDialogContent
+          title={title}
+          projectId={projectId}
+          evaluator={creationMode.evaluator}
+          scope={scope}
+          onScopeChange={setScope}
+          onSuccess={finishCreation}
+          registerDirtyCheck={registerDirtyCheck}
+        />
+      ) : creationMode.kind === "newCode" ||
+        creationMode.kind === "copyCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
           title={title}
           projectId={projectId}

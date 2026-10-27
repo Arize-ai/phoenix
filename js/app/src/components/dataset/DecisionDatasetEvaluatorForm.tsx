@@ -8,6 +8,7 @@ import {
   commitAsync,
   getMutationErrorMessage,
   type DecisionEvaluatorData,
+  pickDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useDecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
@@ -21,7 +22,6 @@ import {
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
@@ -167,24 +167,11 @@ function DecisionDatasetEvaluatorFormContent({
       purpose
     ),
   });
-  const getInputMapping = () => {
-    const mapping = normalizeInputMapping(
-      store.getState().evaluator.inputMapping
+  const getInputMapping = () =>
+    pickDeclaredInputMapping(
+      store.getState().evaluator.inputMapping,
+      variables
     );
-    const declared = new Set(variables);
-    return {
-      pathMapping: Object.fromEntries(
-        Object.entries(mapping.pathMapping).filter(([name]) =>
-          declared.has(name)
-        )
-      ),
-      literalMapping: Object.fromEntries(
-        Object.entries(mapping.literalMapping).filter(([name]) =>
-          declared.has(name)
-        )
-      ),
-    };
-  };
   const onTest = () => {
     setPreviewError(null);
     setPreviewResults([]);

@@ -44,7 +44,7 @@ type ProjectEvaluatorScopeProps = {
  * The "Evaluator Scope" section every project evaluator form renders under
  * the name and description: target, sampling, and the record filter.
  */
-const ProjectEvaluatorScopeSection = ({
+export const ProjectEvaluatorScopeSection = ({
   projectId,
   scope,
   onScopeChange,
@@ -111,7 +111,7 @@ export const ProjectEvaluatorInputMappingDock = ({
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
-  evaluatorKind: "prompt" | "code";
+  evaluatorKind: "prompt" | "code" | "decision";
 }) => {
   const variables = useEvaluatorInputVariables();
   const unboundVariables = useUnboundRequiredVariables({
@@ -170,7 +170,9 @@ export const ProjectEvaluatorInputMappingDock = ({
                     description={
                       evaluatorKind === "prompt"
                         ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
-                        : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+                        : evaluatorKind === "decision"
+                          ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
+                          : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
                     }
                   />
                 }

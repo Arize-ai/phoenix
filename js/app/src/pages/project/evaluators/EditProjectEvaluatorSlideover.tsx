@@ -12,6 +12,7 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   buildOutputConfigsInput,
@@ -29,6 +30,7 @@ import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
+import { EditProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
 import {
   ProjectEvaluatorInputMappingDock,
   ProjectLlmEvaluatorFormSections,
@@ -68,7 +70,12 @@ type ProjectEvaluatorNode = Extract<
 
 /** The slideover heading: the flow, and the evaluator it edits. */
 function getEditProjectEvaluatorTitle(evaluator: ProjectEvaluatorNode): string {
-  const kind = evaluator.evaluator.kind === "LLM" ? "LLM" : "code";
+  const kind =
+    evaluator.evaluator.kind === "LLM"
+      ? "LLM"
+      : evaluator.evaluator.kind === "DECISION"
+        ? "decision"
+        : "code";
   return `Edit ${kind} evaluator “${evaluator.name}”`;
 }
 
@@ -92,6 +99,12 @@ export function EditProjectEvaluatorSlideover({
       {(close, registerDirtyCheck) =>
         evaluator.evaluator.kind === "LLM" ? (
           <EditLlmProjectEvaluator
+            evaluator={evaluator}
+            onClose={close}
+            registerDirtyCheck={registerDirtyCheck}
+          />
+        ) : evaluator.evaluator.kind === "DECISION" ? (
+          <EditDecisionProjectEvaluator
             evaluator={evaluator}
             onClose={close}
             registerDirtyCheck={registerDirtyCheck}
@@ -132,10 +145,14 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
               id
             }
             evaluator {
+              __typename
               id
               kind
               name
               description
+              ... on DecisionEvaluator {
+                ...decisionEvaluatorFragment_evaluator @relay(mask: false)
+              }
               ... on LLMEvaluator {
                 outputConfigs {
                   __typename
@@ -281,6 +298,53 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
     samplingRate: evaluator.samplingRate,
     evaluationDelaySeconds: evaluator.evaluationDelaySeconds,
   };
+}
+
+function EditDecisionProjectEvaluator({
+  evaluator,
+  onClose,
+  registerDirtyCheck,
+}: {
+  evaluator: ProjectEvaluatorNode;
+  onClose: () => void;
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
+}) {
+  const decisionEvaluator = readDecisionEvaluatorData(evaluator.evaluator);
+  invariant(decisionEvaluator, "a decision evaluator is required");
+  const [scope, setScope] = useState(() => getScope(evaluator));
+  const [initialState] = useState(
+    () =>
+      ({
+        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        evaluator: {
+          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          id: evaluator.evaluator.id,
+          globalName: evaluator.name,
+          description: evaluator.evaluator.description ?? "",
+          kind: "DECISION" as const,
+          inputMapping: evaluator.inputMapping as EvaluatorInputMapping,
+        },
+        outputConfigs: [],
+        evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+          toEvaluatorRecordKind(evaluator.evaluationTarget)
+        ),
+      }) satisfies EvaluatorStoreProps
+  );
+  return (
+    <EvaluatorStoreProvider initialState={initialState}>
+      <EditProjectDecisionEvaluatorDialogContent
+        title={getEditProjectEvaluatorTitle(evaluator)}
+        projectId={evaluator.project.id}
+        projectEvaluatorId={evaluator.id}
+        evaluator={decisionEvaluator}
+        scope={scope}
+        onScopeChange={setScope}
+        onSuccess={onClose}
+        onClose={onClose}
+        registerDirtyCheck={registerDirtyCheck}
+      />
+    </EvaluatorStoreProvider>
+  );
 }
 
 function EditLlmProjectEvaluator({

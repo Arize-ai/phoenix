@@ -154,6 +154,9 @@ export const projectEvaluatorDetailsQueryNode = graphql`
       __typename
       ...projectEvaluatorOptions_llmEvaluatorDetails
       ...projectEvaluatorOptions_codeEvaluatorDetails
+      ... on DecisionEvaluator {
+        ...decisionEvaluatorFragment_evaluator @relay(mask: false)
+      }
     }
   }
 `;

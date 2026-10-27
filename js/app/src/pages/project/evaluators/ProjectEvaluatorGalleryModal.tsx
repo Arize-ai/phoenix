@@ -619,7 +619,7 @@ function EvaluatorGallery({
               navigate(
                 getCustomEvaluatorKind(item.evaluator) === "LLM"
                   ? creationPaths.copyLlm(item.evaluator.id)
-                  : creationPaths.attachCode(item.evaluator.id)
+                  : creationPaths.attach(item.evaluator.id)
               );
               return;
             }
@@ -768,7 +768,7 @@ function EvaluatorGallery({
               <CustomEvaluatorDetails
                 evaluator={selectedItem.evaluator}
                 onAttachCodeEvaluator={() =>
-                  navigate(creationPaths.attachCode(selectedItem.evaluator.id))
+                  navigate(creationPaths.attach(selectedItem.evaluator.id))
                 }
                 onDuplicateEvaluator={() =>
                   navigate(

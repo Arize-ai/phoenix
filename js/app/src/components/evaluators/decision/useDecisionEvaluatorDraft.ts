@@ -176,6 +176,7 @@ export function useDecisionEvaluatorDraft({
     selection,
     selectedTagName,
     loadedVersionId,
+    hasDecisionChanges,
     isLoading,
     isVersionReady,
     loadError,
