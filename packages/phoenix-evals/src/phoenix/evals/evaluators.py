@@ -1372,7 +1372,7 @@ def _process_results_and_add_to_dataframe(
     """
     # Pre-compute column locations for efficiency
     execution_details_cols = {
-        evaluator.name: result_df.columns.get_loc(f"{evaluator.name}_execution_details")
+        evaluator.name: cast(int, result_df.columns.get_loc(f"{evaluator.name}_execution_details"))
         for evaluator in evaluators
     }
 
@@ -1384,7 +1384,7 @@ def _process_results_and_add_to_dataframe(
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
         #  use iat to avoid Series alignment on dict
-        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore[assignment]
 
         # Process scores
         if results is None:
@@ -1402,7 +1402,7 @@ def _process_results_and_add_to_dataframe(
     for score_col, score_dict in score_dicts.items():
         # Convert dictionary to list using positional indices
         score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
-        result_df[score_col] = score_list
+        result_df[score_col] = score_list  # type: ignore[assignment]
 
 
 @_deprecate_positional_args("evaluate_dataframe")

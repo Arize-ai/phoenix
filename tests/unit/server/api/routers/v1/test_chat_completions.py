@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any, AsyncIterator, Union
 
-import httpx
 import httpx2
 import pytest
 from openai import AsyncOpenAI
@@ -140,7 +139,7 @@ class TestCreateChatCompletion:
 
     async def test_resolves_builtin_model_selection_and_messages(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         body = _request_body(
@@ -174,7 +173,7 @@ class TestCreateChatCompletion:
 
     async def test_model_name_keeps_colons(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         response = await httpx_client.post(
@@ -189,7 +188,7 @@ class TestCreateChatCompletion:
     @pytest.mark.parametrize("prefix", ["custom", "Custom"])
     async def test_custom_provider_model_selection(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
         prefix: str,
     ) -> None:
@@ -206,7 +205,7 @@ class TestCreateChatCompletion:
 
     async def test_streaming_emits_openai_chunks(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         response = await httpx_client.post("v1/chat/completions", json=_request_body(stream=True))
@@ -230,7 +229,7 @@ class TestCreateChatCompletion:
 
     async def test_streaming_with_include_usage_emits_final_usage_chunk(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         response = await httpx_client.post(
@@ -248,7 +247,7 @@ class TestCreateChatCompletion:
 
     async def test_stream_options_without_stream_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         response = await httpx_client.post(
@@ -270,7 +269,7 @@ class TestCreateChatCompletion:
     )
     async def test_unknown_model_returns_openai_error(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
         model: str,
     ) -> None:
@@ -284,7 +283,7 @@ class TestCreateChatCompletion:
 
     async def test_tools_are_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         response = await httpx_client.post(
@@ -300,7 +299,7 @@ class TestCreateChatCompletion:
     @pytest.mark.parametrize("stream", [False, True])
     async def test_provider_connection_failure_returns_openai_502(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
         stream: bool,
     ) -> None:
@@ -325,7 +324,7 @@ class TestCreateChatCompletion:
 
     async def test_malformed_custom_provider_id_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.post(
             "v1/chat/completions",
@@ -338,7 +337,7 @@ class TestCreateChatCompletion:
 
     async def test_validation_failure_returns_openai_error_shape(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         build_model_spy: _BuildModelSpy,
     ) -> None:
         body = _request_body(
@@ -353,7 +352,7 @@ class TestCreateChatCompletion:
 
     async def test_custom_provider_not_found_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         provider_id = str(GlobalID("GenerativeModelCustomProvider", "999999"))
         response = await httpx_client.post(
@@ -365,7 +364,7 @@ class TestCreateChatCompletion:
 
     async def test_missing_builtin_credentials_returns_openai_error(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)

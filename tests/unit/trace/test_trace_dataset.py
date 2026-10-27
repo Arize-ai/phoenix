@@ -14,7 +14,6 @@ from faker import Faker
 from pandas.testing import assert_frame_equal
 from pyarrow import parquet
 
-from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import (
     Span,
@@ -25,7 +24,12 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
-from phoenix.trace.trace_dataset import REQUIRED_COLUMNS, TraceDataset, _parse_schema_metadata
+from phoenix.trace.trace_dataset import (
+    REQUIRED_COLUMNS,
+    TraceDataset,
+    _parse_schema_metadata,
+    normalize_dataframe,
+)
 
 
 def test_trace_dataset_accepts_empty_dataframe() -> None:
@@ -173,10 +177,7 @@ def test_trace_dataset_construction_from_spans() -> None:
             },
         ]
     )
-    for column_name in ("start_time", "end_time"):
-        expected_dataframe[column_name] = normalize_timestamps(
-            expected_dataframe[column_name],
-        )
+    expected_dataframe = normalize_dataframe(expected_dataframe)
     dataset = TraceDataset.from_spans(spans)
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
 

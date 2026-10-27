@@ -298,6 +298,8 @@ class _InvocationParametersConversion:
                     ans["thinking"] = adaptive_param
                 elif TYPE_CHECKING:
                     assert_never(thinking["type"])
+            if "extra_body" in anthropic_params:
+                sampling.update(anthropic_params["extra_body"])
         elif obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]

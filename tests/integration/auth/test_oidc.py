@@ -14,7 +14,7 @@ from secrets import token_hex
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
-import httpx
+import httpx2
 import pytest
 
 from phoenix.auth import sanitize_email
@@ -839,7 +839,7 @@ class TestMockOIDCServer:
         from base64 import urlsafe_b64encode
         from hashlib import sha256
 
-        client = httpx.Client(verify=False)
+        client = httpx2.Client(verify=False)
 
         # Start auth request with code_challenge
         code_verifier = "test_verifier_1234567890_abcdefghijklmnopqrstuvwxyz"
@@ -893,7 +893,7 @@ class TestMockOIDCServer:
         for standard OAuth flow. This ensures our mock can simulate both PKCE and
         non-PKCE IDPs appropriately.
         """
-        client = httpx.Client(verify=False)
+        client = httpx2.Client(verify=False)
 
         # Get authorization code from server (standard flow, no code_challenge)
         auth_response = client.get(
