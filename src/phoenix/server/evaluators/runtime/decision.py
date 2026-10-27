@@ -18,8 +18,8 @@ from phoenix.db.types.decision_evaluators import (
     DecisionScoringPolicy,
     PredicateScoring,
     ScaleScoring,
+    adapt_scoring_policy,
     derive_decision_output_configs,
-    resolve_scoring_policy,
 )
 from phoenix.db.types.decisions import (
     ChoiceOption,
@@ -137,9 +137,7 @@ def project_decision_response(
     annotation_names: Optional[Sequence[str]] = None,
     scoring_policy: Optional[DecisionScoringPolicy] = None,
 ) -> list[EvaluationResult]:
-    policy = scoring_policy or resolve_scoring_policy(
-        definition.questions, definition.scoring_policy
-    )
+    policy = scoring_policy or adapt_scoring_policy(definition.questions, definition.scoring_policy)
     names = annotation_names or result_annotation_names(
         name, derive_decision_output_configs(definition.questions, policy)
     )
@@ -204,9 +202,7 @@ class DecisionEvaluator(BaseEvaluator):
         *,
         max_request_bytes: Optional[int] = None,
     ):
-        self._scoring_policy = resolve_scoring_policy(
-            definition.questions, definition.scoring_policy
-        )
+        self._scoring_policy = adapt_scoring_policy(definition.questions, definition.scoring_policy)
         self._output_configs = tuple(
             derive_decision_output_configs(definition.questions, self._scoring_policy)
         )
