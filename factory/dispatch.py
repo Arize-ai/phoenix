@@ -622,7 +622,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     requester_login = (
         issue["author"]["login"] if args.requested_by == WORKFLOW_LOGIN else args.requested_by
     )
-    factory_login = os.environ.get("FACTORY_LOGIN", "")
+    factory_login = os.environ.get("FACTORY_GITHUB_LOGIN", "")
     admission_problem = find_admission_problem(
         issue=issue,
         open_pr_urls=list_open_pr_urls(issue=issue),
@@ -656,8 +656,8 @@ def run_start(*, args: argparse.Namespace) -> None:
 
     if not factory_login:
         raise SystemExit(
-            "Set the FACTORY_LOGIN repository variable, not a secret, to the factory app's bot "
-            "login, such as arize-phoenix-factory[bot]."
+            "Set the FACTORY_GITHUB_LOGIN repository variable, not a secret, to the factory "
+            "app's bot login, such as arize-phoenix-factory[bot]."
         )
     session_id = start_session(
         client=client,

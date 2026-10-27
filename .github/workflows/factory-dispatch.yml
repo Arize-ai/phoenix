@@ -76,7 +76,7 @@ jobs:
           # the GitHub vault's credentials current. The private key never enters the session.
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
-          FACTORY_LOGIN: ${{ vars.FACTORY_LOGIN }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           LANE: ${{ inputs.lane }}
           REQUESTED_BY: ${{ github.event.sender.login }}
         run: |

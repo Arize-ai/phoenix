@@ -17,7 +17,7 @@ jobs:
     # agent chooses the branch.
     if: >-
       startsWith(github.head_ref, 'factory/') ||
-      (vars.FACTORY_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_LOGIN)
+      (vars.FACTORY_GITHUB_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_GITHUB_LOGIN)
     runs-on: ubuntu-latest
     steps:
       - name: Reject changes to protected paths
