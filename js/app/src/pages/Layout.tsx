@@ -376,20 +376,10 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
               trailingVisual={
                 counts?.promptCount != null ? (
-                  <Counter variant="quiet" count={counts.promptCount} />
-                ) : undefined
-              }
-              isExpanded={isExpanded}
-            />
-          </li>
-          <li key="decisions">
-            <NavLink
-              to="/decisions"
-              text="Decisions"
-              leadingVisual={<Icon svg={<Icons.GitBranch />} />}
-              trailingVisual={
-                counts?.decisionCount != null ? (
-                  <Counter variant="quiet">{counts.decisionCount}</Counter>
+                  <Counter
+                    variant="quiet"
+                    count={counts.promptCount + (counts.decisionCount ?? 0)}
+                  />
                 ) : undefined
               }
               isExpanded={isExpanded}

@@ -6,6 +6,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 export const settingsPromptsPageLoaderGql = graphql`
   query settingsPromptsPageLoaderQuery {
     ...PromptLabelsSettingsCardFragment
+    ...DecisionLabelsSettingsCardFragment
   }
 `;
 
