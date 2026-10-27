@@ -47,9 +47,8 @@ import {
   PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
   ProjectEvaluatorTracePage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
+import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
-import { SettingsDecisionsPage } from "@phoenix/pages/settings/decisions/SettingsDecisionsPage";
-import { settingsDecisionsPageLoader } from "@phoenix/pages/settings/decisions/settingsDecisionsPageLoader";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -1057,113 +1056,119 @@ export const appRouteObjects = createRoutesFromElements(
           />
         </Route>
         <Route
-          path="/decisions"
-          handle={{
-            crumb: () => "Decisions",
-            agentRoute: {
-              label: "Decisions",
-              description:
-                "Browse, search, and label saved decisions, their models, versions, and tags.",
-            },
-            navigation: {
-              section: "Pages",
-              label: "Decisions",
-              description: "Manage and version decisions",
-              icon: "GitBranch",
-            },
-          }}
-        >
-          <Route index element={<DecisionsPage />} />
-          <Route
-            path=":decisionId"
-            loader={decisionLoader}
-            shouldRevalidate={() => true}
-            handle={{
-              crumb: (data: DecisionLoaderData) =>
-                data?.decision?.__typename === "Decision"
-                  ? data.decision.name
-                  : "Decision unknown",
-              copy: (data: DecisionLoaderData) =>
-                data?.decision?.__typename === "Decision"
-                  ? [
-                      {
-                        name: "Decision Name",
-                        value: data.decision.name,
-                        iconKey: "Text" as const,
-                      },
-                      {
-                        name: "Decision ID",
-                        value: data.decision.id,
-                        iconKey: "ID" as const,
-                      },
-                    ]
-                  : [],
-              agentRoute: {
-                label: "Decision Details",
-                description:
-                  "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
-              },
-            }}
-          >
-            <Route index element={<DecisionPage />} />
-            <Route
-              path="versions"
-              element={<DecisionPage />}
-              handle={{
-                agentRoute: {
-                  label: "Decision Versions",
-                  description:
-                    "Browse decision versions and compare their definitions, questions, and model configuration.",
-                },
-              }}
-            />
-            <Route
-              path="config"
-              element={<DecisionPage />}
-              handle={{
-                agentRoute: {
-                  label: "Decision Configuration",
-                  description:
-                    "Manage saved decision version tags and settings.",
-                },
-              }}
-            />
-            <Route
-              path="versions/:versionId"
-              element={<DecisionPage />}
-              handle={{ crumb: () => "Version" }}
-            />
-          </Route>
-        </Route>
-        <Route
           path="/prompts"
           handle={{
             crumb: () => "Prompts",
             agentRoute: {
               label: "Prompts",
               description:
-                "Browse the prompt registry, saved prompts, and prompt versions.",
+                "Browse the prompt registry: saved prompts and saved decisions, each on its own tab, with their versions, labels, and tags.",
             },
             navigation: {
               section: "Pages",
               label: "Prompts",
-              description: "Manage and version prompts",
+              description: "Manage and version prompts and decisions",
               icon: "MessageSquare",
             },
           }}
         >
+          <Route element={<PromptsLayout />}>
+            <Route
+              index
+              element={<PromptsPage />}
+              loader={promptsLoader}
+              handle={{
+                agentRoute: {
+                  label: "Prompts",
+                  description:
+                    "Browse the prompt registry, saved prompts, and prompt versions.",
+                },
+              }}
+            />
+            <Route
+              path="decisions"
+              element={<DecisionsPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decisions",
+                  description:
+                    "Browse, search, and label saved decisions, their models, versions, and tags.",
+                },
+              }}
+            />
+          </Route>
           <Route
-            index
-            element={<PromptsPage />}
-            loader={promptsLoader}
+            path="decisions"
             handle={{
+              crumb: () => "Decisions",
               agentRoute: {
-                label: "Prompts",
+                label: "Decisions",
                 description:
-                  "Browse the prompt registry, saved prompts, and prompt versions.",
+                  "Saved decisions: typed functions, versioned and tagged, that apps fetch by tag.",
               },
             }}
-          />
+          >
+            <Route
+              path=":decisionId"
+              loader={decisionLoader}
+              shouldRevalidate={() => true}
+              handle={{
+                crumb: (data: DecisionLoaderData) =>
+                  data?.decision?.__typename === "Decision"
+                    ? data.decision.name
+                    : "Decision unknown",
+                copy: (data: DecisionLoaderData) =>
+                  data?.decision?.__typename === "Decision"
+                    ? [
+                        {
+                          name: "Decision Name",
+                          value: data.decision.name,
+                          iconKey: "Text" as const,
+                        },
+                        {
+                          name: "Decision ID",
+                          value: data.decision.id,
+                          iconKey: "ID" as const,
+                        },
+                      ]
+                    : [],
+                agentRoute: {
+                  label: "Decision Details",
+                  description:
+                    "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
+                },
+              }}
+            >
+              <Route index element={<DecisionPage />} />
+              <Route
+                path="versions"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Versions",
+                    description:
+                      "Browse decision versions and compare their definitions, questions, and model configuration.",
+                  },
+                }}
+              />
+              <Route
+                path="config"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Configuration",
+                    description:
+                      "Manage saved decision version tags and settings.",
+                  },
+                }}
+              />
+              <Route
+                path="versions/:versionId"
+                element={<DecisionPage />}
+                handle={{ crumb: () => "Version" }}
+              />
+            </Route>
+          </Route>
           <Route
             path=":promptId"
             loader={promptLoader}
@@ -1454,19 +1459,6 @@ export const appRouteObjects = createRoutesFromElements(
             />
           </Route>
           <Route
-            path="decisions"
-            element={<SettingsDecisionsPage />}
-            loader={settingsDecisionsPageLoader}
-            handle={{
-              crumb: () => "Decisions",
-              agentRoute: {
-                label: "Decision Settings",
-                description:
-                  "Configure saved decision labels and labeling options.",
-              },
-            }}
-          />
-          <Route
             path="prompts"
             element={<SettingsPromptsPage />}
             loader={settingsPromptsPageLoader}
@@ -1475,7 +1467,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Prompt Settings",
                 description:
-                  "Configure prompt labels, prompt settings, and saved prompt labeling options.",
+                  "Configure prompt labels, saved decision labels, and labeling options for prompts and decisions.",
               },
             }}
           />
