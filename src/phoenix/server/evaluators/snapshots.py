@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
-from phoenix.db.types.decision_evaluators import resolve_scoring_policy
+from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.evaluator_definition import (
     DecisionEvaluatorSnapshot,
     EvaluatorDefinition,
@@ -40,7 +40,7 @@ def capture_decision_evaluator_definition(
     version = evaluator.selected_version
     if version is None:
         raise ValueError("The evaluator's pinned decision version was not found")
-    policy = resolve_scoring_policy(version.questions, evaluator.scoring_policy)
+    policy = adapt_scoring_policy(version.questions, evaluator.scoring_policy)
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
         name=name if name is not None else evaluator.name.root,
