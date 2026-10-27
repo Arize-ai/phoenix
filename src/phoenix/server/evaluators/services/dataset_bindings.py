@@ -33,7 +33,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
-    reject_incompatible_dataset_overrides,
     require_output_configs,
 )
 from phoenix.server.evaluators.services.management import (
@@ -51,14 +50,11 @@ from phoenix.server.evaluators.services.prompt_source import (
     FromPromptVersion,
     get_prompt_version,
     pin_prompt_version,
-    resolve_evaluator_prompt_version,
 )
 from phoenix.server.evaluators.validation import (
     LLMEvaluatorOutputConfigs,
     require_categorical_output_configs,
-    validate_consistent_llm_evaluator_and_prompt_version,
     validate_decision_input_mapping,
-    validate_evaluator_prompt_and_configs,
 )
 
 
@@ -189,11 +185,8 @@ async def create_dataset_llm_evaluator(
             # settings here to preserve the dataset UI's established behavior.
             binding_description = input.binding_description
             binding_configs: Optional[list[OutputConfigType]] = input.binding_output_configs
-            validate_llm_binding_overrides(
-                prompt_version,
-                binding_configs if binding_configs is not None else list(output_configs),
-                binding_description if binding_description is not None else evaluator_description,
-            )
+            if binding_configs is not None:
+                validate_llm_binding_overrides(binding_configs)
             dataset_evaluator_record = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 name=validated_name,
@@ -216,11 +209,6 @@ async def create_dataset_llm_evaluator(
                 prompt=prompt,
                 dataset_evaluators=[dataset_evaluator_record],
             )
-
-            try:
-                validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
-            except ValueError as error:
-                raise BadRequest(str(error))
 
             session.add(llm_evaluator)
             await session.flush()
@@ -301,8 +289,8 @@ async def update_dataset_llm_evaluator(
         raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
     async with context.db() as session:
-        # Tag moves and evaluator edits lock the evaluator row first, so each validates
-        # against the other's committed state.
+        # Edits lock the evaluator row first, so a concurrent delete of its binding or
+        # definition waits for the edit instead of removing rows the edit is writing.
         evaluator_id = await session.scalar(
             select(models.DatasetEvaluators.evaluator_id).where(
                 models.DatasetEvaluators.id == dataset_evaluator_rowid
@@ -399,11 +387,6 @@ async def update_dataset_llm_evaluator(
             shared_evaluator_changed = True
 
         try:
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
-        except ValueError as error:
-            raise BadRequest(str(error))
-
-        try:
             dataset_evaluator = await write_dataset_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
@@ -426,8 +409,6 @@ async def update_dataset_llm_evaluator(
         if shared_evaluator_changed:
             llm_evaluator.updated_at = datetime.now(timezone.utc)
             llm_evaluator.user_id = user_id
-
-        await reject_incompatible_dataset_overrides(session, llm_evaluator, prompt_version)
 
     return dataset_evaluator
 
@@ -947,8 +928,7 @@ async def create_dataset_llm_binding(
 ) -> models.DatasetEvaluators:
     """Bind an existing LLM evaluator to a dataset and create the binding's trace project.
 
-    The evaluator row is locked so a concurrent definition delete or edit sees the binding;
-    overrides are validated against the version the evaluator runs.
+    The evaluator row is locked so a concurrent definition delete sees the binding.
     """
     dataset_rowid = _decode_id(input.dataset_id, "Dataset", "dataset")
     evaluator_rowid = _decode_id(input.evaluator_id, "LLMEvaluator", "evaluator")
@@ -958,6 +938,7 @@ async def create_dataset_llm_binding(
         raise BadRequest(f"Invalid evaluator name: {error}")
     if input.output_configs is not None:
         require_output_configs(input.output_configs)
+        validate_llm_binding_overrides(input.output_configs)
     try:
         async with context.db() as session:
             evaluator = await session.get(
@@ -970,16 +951,6 @@ async def create_dataset_llm_binding(
             )
             if dataset_name is None:
                 raise NotFound(f"Dataset not found: {input.dataset_id}")
-            version = await resolve_evaluator_prompt_version(session, evaluator)
-            if version is None:
-                raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
-            validate_llm_binding_overrides(
-                version,
-                input.output_configs
-                if input.output_configs is not None
-                else list(evaluator.output_configs),
-                input.description if input.description is not None else evaluator.description,
-            )
             binding = models.DatasetEvaluators(
                 dataset_id=dataset_rowid,
                 evaluator_id=evaluator_rowid,
@@ -1060,21 +1031,11 @@ async def detach_dataset_evaluators(
             await delete_projects_and_evaluator_trace_projects(session, trace_project_ids)
 
 
-def validate_llm_binding_overrides(
-    prompt: models.PromptVersion,
-    output_configs: list[OutputConfigType],
-    description: Optional[str],
-) -> None:
-    """Require LLM binding overrides to agree with the prompt's output schema."""
+def validate_llm_binding_overrides(output_configs: list[OutputConfigType]) -> None:
+    """Require an LLM binding's output overrides to be uniquely named categorical configs."""
     try:
-        configs = LLMEvaluatorOutputConfigs.model_validate({"configs": output_configs}).configs
-        validate_evaluator_prompt_and_configs(
-            prompt_tools=prompt.tools,
-            prompt_response_format=prompt.response_format,
-            evaluator_output_configs=configs,
-            evaluator_description=description,
-        )
-    except (ValueError, ValidationError) as error:
+        LLMEvaluatorOutputConfigs.model_validate({"configs": output_configs})
+    except ValidationError as error:
         raise BadRequest(str(error)) from error
 
 
@@ -1110,32 +1071,12 @@ async def patch_dataset_evaluator(
                 values["description"] = patch.description
             if patch.output_configs is not UNSET:
                 values["output_configs"] = patch.output_configs
-            if patch.output_configs is not UNSET or patch.description is not UNSET:
-                # Tag moves and evaluator edits lock the evaluator row first, so each validates
-                # against the other's committed state. The binding is reread under the lock
-                # because an evaluator edit may have rewritten the overrides this patch keeps.
-                llm = await session.get(models.LLMEvaluator, row.evaluator_id, with_for_update=True)
-                if llm is not None:
-                    await session.refresh(row)
-                    prompt = await resolve_evaluator_prompt_version(session, llm)
-                    if prompt is None:
-                        raise NotFound("The evaluator's pinned prompt version was not found")
-                    output_configs = values.get("output_configs", row.output_configs)
-                    description = values.get("description", row.description)
-                    try:
-                        validate_llm_binding_overrides(
-                            prompt,
-                            output_configs
-                            if output_configs is not None
-                            else list(llm.output_configs),
-                            description if description is not None else llm.description,
-                        )
-                    except BadRequest as error:
-                        raise Conflict(
-                            str(error),
-                            reason="incompatible_override",
-                            dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
-                        ) from error
+            if (
+                patch.output_configs is not UNSET
+                and patch.output_configs is not None
+                and await session.get(models.LLMEvaluator, row.evaluator_id) is not None
+            ):
+                validate_llm_binding_overrides(patch.output_configs)
             if (
                 decision := await session.get(
                     models.DecisionEvaluator, row.evaluator_id, with_for_update=True

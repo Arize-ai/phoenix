@@ -42,10 +42,7 @@ from phoenix.server.evaluators.services.prompt_source import (
 )
 from phoenix.server.evaluators.validation import (
     LLMEvaluatorOutputConfigs,
-    format_incompatible_dataset_overrides,
-    incompatible_dataset_overrides,
     require_categorical_output_configs,
-    validate_consistent_llm_evaluator_and_prompt_version,
 )
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
@@ -307,10 +304,6 @@ async def create_llm_evaluator(
                 user_id=context.user_id,
                 prompt_id=version.prompt_id,
             )
-            try:
-                validate_consistent_llm_evaluator_and_prompt_version(version, evaluator)
-            except ValueError as error:
-                raise BadRequest(str(error))
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, version.prompt_id)
@@ -542,10 +535,10 @@ async def update_llm_definition(
     name: Identifier,
     user_id: int | None,
     shared_evaluator_changed: bool = False,
-) -> models.PromptVersion:
-    """Apply a definition edit and return the prompt version the evaluator now runs.
-    Without a prompt source the evaluator keeps running what it runs: its pinned version,
-    or, for an evaluator without a pin, its prompt's newest version, which stays unpinned."""
+) -> None:
+    """Apply a definition edit. Without a prompt source the evaluator keeps running what it
+    runs: its pinned version, or, for an evaluator without a pin, its prompt's newest version,
+    which stays unpinned."""
     base: Optional[models.PromptVersion] = None
     keeps_following_latest = prompt_source is None and evaluator.prompt_version_tag_id is None
     if isinstance(prompt_source, FromPromptVersion):
@@ -576,10 +569,6 @@ async def update_llm_definition(
         shared_evaluator_changed = True
         await ensure_evaluator_prompt_label(session, target_prompt_id)
         await release_evaluator_prompt_label(session, previous_prompt_id)
-    try:
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
-    except ValueError as error:
-        raise BadRequest(str(error))
     if evaluator.prompt_version_tag_id is None and not keeps_following_latest:
         evaluator.prompt_version_tag = models.PromptVersionTag(
             name=Identifier.model_validate(f"{name}-evaluator-{token_hex(4)}"),
@@ -604,7 +593,6 @@ async def update_llm_definition(
     if shared_evaluator_changed:
         evaluator.user_id = user_id
         evaluator.updated_at = datetime.now(timezone.utc)
-    return prompt_version
 
 
 @dataclass(kw_only=True)
@@ -627,8 +615,8 @@ async def patch_llm_evaluator(
         raise BadRequest(str(error)) from error
     try:
         async with context.db() as session:
-            # Tag moves and evaluator edits lock the evaluator row first, so each validates
-            # against the other's committed state.
+            # Edits lock the evaluator row first, so a concurrent delete of its binding or
+            # definition waits for the edit instead of removing rows the edit is writing.
             row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
             if row is None:
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
@@ -646,7 +634,7 @@ async def patch_llm_evaluator(
                 raise BadRequest(str(error)) from error
             if patch.prompt_source is not None and patch.prompt_source.content is not None:
                 patch.prompt_source.content.user_id = context.user_id
-            prompt_version = await update_llm_definition(
+            await update_llm_definition(
                 session,
                 row,
                 prompt_source=patch.prompt_source,
@@ -656,7 +644,6 @@ async def patch_llm_evaluator(
                 user_id=context.user_id,
                 shared_evaluator_changed=True,
             )
-            await reject_incompatible_dataset_overrides(session, row, prompt_version)
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:
@@ -665,18 +652,3 @@ async def patch_llm_evaluator(
             "Could not update the evaluator because of a conflicting resource"
         ) from error
     return row
-
-
-async def reject_incompatible_dataset_overrides(
-    session: AsyncSession,
-    evaluator: models.LLMEvaluator,
-    prompt_version: models.PromptVersion,
-) -> None:
-    """Every dataset binding override must stay valid against the prompt the evaluator runs."""
-    if incompatible := await incompatible_dataset_overrides(session, evaluator, prompt_version):
-        raise Conflict(
-            "Dataset evaluator bindings override outputs that the updated prompt no longer "
-            f"supports: {format_incompatible_dataset_overrides(incompatible)}",
-            reason="incompatible_override",
-            dataset_evaluator_ids=[override.dataset_evaluator_id for override in incompatible],
-        )
