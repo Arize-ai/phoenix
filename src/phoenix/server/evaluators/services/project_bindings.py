@@ -26,7 +26,6 @@ from phoenix.server.api.helpers.prompts.validation import validate_custom_provid
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
-    reject_incompatible_dataset_overrides,
     require_output_configs,
     update_llm_definition,
 )
@@ -59,7 +58,6 @@ from phoenix.server.evaluators.validation import (
     PROJECT_EVALUATOR_CONTEXT_KEYS,
     LLMEvaluatorOutputConfigs,
     require_categorical_output_configs,
-    validate_consistent_llm_evaluator_and_prompt_version,
     validate_decision_input_mapping,
 )
 from phoenix.server.online_eval.db_coordinator import (
@@ -229,10 +227,6 @@ async def create_project_llm_evaluator(
                 user_id=user_id,
                 prompt=prompt,
             )
-            try:
-                validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
-            except ValueError as error:
-                raise BadRequest(str(error))
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, prompt.id)
@@ -297,8 +291,8 @@ async def update_project_llm_evaluator(
 
     try:
         async with context.db() as session:
-            # Tag moves and evaluator edits lock the evaluator row first, so each validates
-            # against the other's committed state.
+            # Edits lock the evaluator row first, so a concurrent delete of its binding or
+            # definition waits for the edit instead of removing rows the edit is writing.
             evaluator_id = await session.scalar(
                 select(models.ProjectEvaluator.evaluator_id).where(
                     models.ProjectEvaluator.id == project_evaluator_id
@@ -330,7 +324,7 @@ async def update_project_llm_evaluator(
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
 
-            prompt_version = await update_llm_definition(
+            await update_llm_definition(
                 session,
                 evaluator,
                 prompt_source=input.prompt_source,
@@ -340,7 +334,6 @@ async def update_project_llm_evaluator(
                 user_id=user_id,
                 shared_evaluator_changed=shared_evaluator_changed,
             )
-            await reject_incompatible_dataset_overrides(session, evaluator, prompt_version)
 
             binding_values = ProjectEvaluatorWriteValues(
                 name=name,
