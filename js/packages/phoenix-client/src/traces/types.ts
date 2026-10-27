@@ -14,7 +14,7 @@ export interface TraceAnnotation extends Annotation {
   traceId: string;
   /**
    * The kind of annotator used for the annotation
-   * Can be "HUMAN", "LLM", or "CODE"
+   * Can be "HUMAN", "LLM", "CODE", or "DECISION"
    * @default "HUMAN"
    */
   annotatorKind?: TraceAnnotationData["annotator_kind"];

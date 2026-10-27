@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b689a6827e4a6cc58df9591e1a895fe>>
+ * @generated SignedSource<<764b222ce14bdbb92fe3e4c0cd1054dd>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "CODE" | "DECISION" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableFragment$data = {
   readonly experimentRuns: {

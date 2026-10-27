@@ -557,7 +557,10 @@ export function createSpanAnnotateCommand(): Command {
     .option("--label <label>", "Annotation label")
     .option("--score <number>", "Annotation score")
     .option("--explanation <text>", "Annotation explanation")
-    .option("--annotator-kind <kind>", "Annotation kind: HUMAN, LLM, or CODE")
+    .option(
+      "--annotator-kind <kind>",
+      "Annotation kind: HUMAN, LLM, CODE, or DECISION"
+    )
     .option(
       "--identifier <string>",
       "Optional caller-supplied annotation identifier. Repeated calls with the same identifier overwrite the existing annotation. Default: empty string (server-side default)."

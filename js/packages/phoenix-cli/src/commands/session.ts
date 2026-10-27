@@ -710,7 +710,7 @@ export function createSessionAnnotateCommand(): Command {
     .option("--explanation <text>", "Annotation explanation")
     .option(
       "--annotator-kind <kind>",
-      "Annotator kind: HUMAN, LLM, or CODE",
+      "Annotator kind: HUMAN, LLM, CODE, or DECISION",
       "HUMAN"
     )
     .option(

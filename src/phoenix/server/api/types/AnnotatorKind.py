@@ -8,6 +8,7 @@ class ExperimentRunAnnotatorKind(Enum):
     LLM = "LLM"
     HUMAN = "HUMAN"
     CODE = "CODE"
+    DECISION = "DECISION"
 
 
 @strawberry.enum
@@ -15,3 +16,4 @@ class AnnotatorKind(Enum):
     LLM = "LLM"
     HUMAN = "HUMAN"
     CODE = "CODE"
+    DECISION = "DECISION"

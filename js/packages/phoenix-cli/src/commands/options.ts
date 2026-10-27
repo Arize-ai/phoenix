@@ -170,7 +170,7 @@ export interface AnnotateOptions extends CommonOptions {
   explanation?: string;
   /**
    * `--annotator-kind <kind>`: Who produced the annotation — `HUMAN`, `LLM`,
-   * or `CODE`. Defaults to `HUMAN`.
+   * `CODE`, or `DECISION`. Defaults to `HUMAN`.
    *
    * @example "LLM"
    */
@@ -237,7 +237,7 @@ export interface AnnotationsDeleteOptions
   name?: string;
   /**
    * `--annotator-kind <kind>`: Delete only annotations produced by this kind
-   * of annotator — `HUMAN`, `LLM`, or `CODE`.
+   * of annotator — `HUMAN`, `LLM`, `CODE`, or `DECISION`.
    *
    * @example "LLM"
    */

@@ -66,7 +66,7 @@ async function spanAnnotationsDeleteHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  let annotatorKind: "HUMAN" | "LLM" | "CODE" | undefined;
+  let annotatorKind: "HUMAN" | "LLM" | "CODE" | "DECISION" | undefined;
   try {
     annotatorKind = normalizeAnnotatorKind(options.annotatorKind);
   } catch (error) {
@@ -141,14 +141,19 @@ async function spanAnnotationsDeleteHandler(
 
 function normalizeAnnotatorKind(
   raw: string | undefined
-): "HUMAN" | "LLM" | "CODE" | undefined {
+): "HUMAN" | "LLM" | "CODE" | "DECISION" | undefined {
   if (raw === undefined) return undefined;
   const value = raw.toUpperCase();
-  if (value === "HUMAN" || value === "LLM" || value === "CODE") {
+  if (
+    value === "HUMAN" ||
+    value === "LLM" ||
+    value === "CODE" ||
+    value === "DECISION"
+  ) {
     return value;
   }
   throw new Error(
-    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE.`
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE, DECISION.`
   );
 }
 
@@ -183,7 +188,7 @@ export function createSpanAnnotationsDeleteCommand(): Command {
     )
     .option(
       "--annotator-kind <kind>",
-      "Narrowing filter — annotator kind (HUMAN, LLM, or CODE)"
+      "Narrowing filter — annotator kind (HUMAN, LLM, CODE, or DECISION)"
     )
     .option(
       "--start-time <iso>",

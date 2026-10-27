@@ -22,7 +22,7 @@ export interface LogDocumentAnnotationsParams extends ClientFn {
 /**
  * Log multiple document annotations in a single request.
  *
- * Each annotation can be of type "LLM", "CODE", or "HUMAN" and can include a label, score, explanation, and metadata.
+ * Each annotation can be of type "LLM", "CODE", "HUMAN", or "DECISION" and can include a label, score, explanation, and metadata.
  * At least one of label, score, or explanation must be provided for each annotation.
  *
  * @param params - The parameters to log document annotations
