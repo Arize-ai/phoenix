@@ -284,6 +284,11 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
+class DecisionVersionSelector(TypedDict):
+    type: Literal["version"]
+    decision_version_id: str
+
+
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
 
@@ -400,6 +405,10 @@ class LDAPUser(LDAPUserData):
     id: str
     created_at: str
     updated_at: str
+
+
+class LatestDecisionVersionSelector(TypedDict):
+    type: Literal["latest"]
 
 
 class LatestPromptVersionSelector(TypedDict):
@@ -1726,6 +1735,16 @@ class DatasetExample(TypedDict):
     source: NotRequired[DatasetExampleSource]
 
 
+class DecisionEvaluatorDecision(TypedDict):
+    decision_id: str
+    selector: Union[DecisionVersionSelector, LatestDecisionVersionSelector]
+    resolved_decision_version_id: str
+
+
+class DecisionEvaluatorDecisionInput(TypedDict):
+    selector: DecisionVersionSelector
+
+
 class DecisionScoringPolicy(TypedDict):
     questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
 
@@ -1926,7 +1945,7 @@ class PatchDatasetEvaluatorRequest(TypedDict):
 class PatchDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: NotRequired[str]
-    decision_version_id: NotRequired[str]
+    decision: NotRequired[DecisionEvaluatorDecisionInput]
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
 
@@ -2218,7 +2237,6 @@ class ProblemDetail(TypedDict):
     existing_id: NotRequired[str]
     current_version_id: NotRequired[str]
     binding_counts: NotRequired[BindingCounts]
-    dataset_evaluator_ids: NotRequired[Sequence[str]]
 
 
 class TranscriptPersistedChunk(TypedDict):
@@ -2354,7 +2372,7 @@ class CreateDatasetEvaluatorRequest(TypedDict):
 class CreateDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecisionInput
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
 
@@ -2405,8 +2423,7 @@ class DecisionEvaluatorDefinition(TypedDict):
     id: str
     name: str
     description: Optional[str]
-    decision_id: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecision
     scoring_policy: DecisionScoringPolicy
     output_configs: Sequence[
         Union[

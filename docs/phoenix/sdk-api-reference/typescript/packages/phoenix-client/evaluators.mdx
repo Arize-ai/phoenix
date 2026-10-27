@@ -50,7 +50,6 @@ try {
 `problem.reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today, and what to do for each:
 
 - `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
-- `incompatible_override` (an edit would leave a dataset binding's override outputs unsupported by the prompt it now runs): fix or clear the listed overrides.
 - `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
 - `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
 
@@ -59,7 +58,6 @@ The recovery fields on `problem`, present only for the `reason` (or, for `existi
 - `existing_id` (`already_exists`): the GlobalID of the resource holding the name.
 - `current_version_id` (`version_mismatch`): the GlobalID of the version actually current, or `null` when the evaluator has none yet.
 - `binding_counts` (`still_bound`): `{ project: number, dataset: number }`, how many of each kind still refuse the delete.
-- `dataset_evaluator_ids` (`incompatible_override`): GlobalIDs of the dataset bindings whose overrides no longer fit.
 
 `problem.detail` is a human-readable explanation, not meant to be parsed; branch on `code` and `reason`, never on the text of `detail`.
 

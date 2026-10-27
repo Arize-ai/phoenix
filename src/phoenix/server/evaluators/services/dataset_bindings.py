@@ -1078,14 +1078,10 @@ async def patch_dataset_evaluator(
             ):
                 validate_llm_binding_overrides(patch.output_configs)
             if (
-                decision := await session.get(
-                    models.DecisionEvaluator, row.evaluator_id, with_for_update=True
-                )
+                decision := await session.get(models.DecisionEvaluator, row.evaluator_id)
             ) is not None:
-                await session.refresh(row)
-                validate_decision_input_mapping(
-                    decision.selected_version, patch.input_mapping or row.input_mapping
-                )
+                if patch.input_mapping is not UNSET:
+                    validate_decision_input_mapping(decision.selected_version, patch.input_mapping)
                 if "output_configs" in values:
                     if values["output_configs"] != decision.output_configs:
                         raise BadRequest(

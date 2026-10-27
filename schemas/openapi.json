@@ -14281,9 +14281,9 @@
           "name": {
             "$ref": "#/components/schemas/Identifier"
           },
-          "decision_version_id": {
-            "type": "string",
-            "title": "Decision Version Id"
+          "decision": {
+            "$ref": "#/components/schemas/DecisionEvaluatorDecisionInput",
+            "description": "The decision version to run."
           },
           "description": {
             "anyOf": [
@@ -14305,7 +14305,7 @@
         "required": [
           "type",
           "name",
-          "decision_version_id"
+          "decision"
         ],
         "title": "CreateDecisionEvaluatorRequest"
       },
@@ -15586,6 +15586,60 @@
         ],
         "title": "DatasetWithExampleCount"
       },
+      "DecisionEvaluatorDecision": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id",
+            "description": "GlobalID of the decision whose version the evaluator runs."
+          },
+          "selector": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DecisionVersionSelector"
+              },
+              {
+                "$ref": "#/components/schemas/LatestDecisionVersionSelector"
+              }
+            ],
+            "title": "Selector",
+            "description": "How the version is chosen. version: pinned to one version. latest: the decision's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "latest": "#/components/schemas/LatestDecisionVersionSelector",
+                "version": "#/components/schemas/DecisionVersionSelector"
+              }
+            }
+          },
+          "resolved_decision_version_id": {
+            "type": "string",
+            "title": "Resolved Decision Version Id",
+            "description": "GlobalID of the version the evaluator runs now."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_id",
+          "selector",
+          "resolved_decision_version_id"
+        ],
+        "title": "DecisionEvaluatorDecision"
+      },
+      "DecisionEvaluatorDecisionInput": {
+        "properties": {
+          "selector": {
+            "$ref": "#/components/schemas/DecisionVersionSelector",
+            "description": "Which decision version to run."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selector"
+        ],
+        "title": "DecisionEvaluatorDecisionInput"
+      },
       "DecisionEvaluatorDefinition": {
         "properties": {
           "type": {
@@ -15611,13 +15665,8 @@
             ],
             "title": "Description"
           },
-          "decision_id": {
-            "type": "string",
-            "title": "Decision Id"
-          },
-          "decision_version_id": {
-            "type": "string",
-            "title": "Decision Version Id"
+          "decision": {
+            "$ref": "#/components/schemas/DecisionEvaluatorDecision"
           },
           "scoring_policy": {
             "$ref": "#/components/schemas/DecisionScoringPolicy"
@@ -15654,8 +15703,7 @@
           "id",
           "name",
           "description",
-          "decision_id",
-          "decision_version_id",
+          "decision",
           "scoring_policy",
           "output_configs"
         ],
@@ -15693,6 +15741,26 @@
         "type": "object",
         "title": "DecisionScoringPolicy",
         "description": "Question thresholds, choice scores, scale labels, and comparison direction."
+      },
+      "DecisionVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "version",
+            "title": "Type"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id",
+            "description": "GlobalID of the decision version the evaluator runs. An update must name a version of the evaluator's own decision."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "decision_version_id"
+        ],
+        "title": "DecisionVersionSelector"
       },
       "DeleteAnnotationConfigResponseBody": {
         "properties": {
@@ -17648,6 +17716,20 @@
           "TYPESCRIPT"
         ]
       },
+      "LatestDecisionVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "latest",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "LatestDecisionVersionSelector"
+      },
       "LatestPromptVersionSelector": {
         "properties": {
           "type": {
@@ -19255,9 +19337,9 @@
           "name": {
             "$ref": "#/components/schemas/Identifier"
           },
-          "decision_version_id": {
-            "type": "string",
-            "title": "Decision Version Id"
+          "decision": {
+            "$ref": "#/components/schemas/DecisionEvaluatorDecisionInput",
+            "description": "Move the evaluator to another version of its decision. Omit to keep it."
           },
           "description": {
             "anyOf": [
@@ -27121,22 +27203,6 @@
             ],
             "default": null,
             "description": "For still_bound: how many project and dataset bindings still refuse the delete."
-          },
-          "dataset_evaluator_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.",
-            "title": "Dataset Evaluator Ids"
           }
         },
         "required": [

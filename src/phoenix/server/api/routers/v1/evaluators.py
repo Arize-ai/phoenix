@@ -14,16 +14,20 @@ from phoenix.db.helpers import (
     latest_code_evaluator_versions_by_evaluator_id,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, adapt_scoring_policy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
     EVALUATOR_KIND_BY_TYPE,
+    DecisionEvaluatorDecision,
+    DecisionEvaluatorDecisionInput,
+    DecisionVersionSelector,
     EvaluatorOutputConfig,
     EvaluatorRequest,
     EvaluatorType,
+    LatestDecisionVersionSelector,
     LatestPromptVersionSelector,
     LLMEvaluatorPrompt,
     LLMEvaluatorPromptInput,
@@ -134,7 +138,7 @@ class PatchCodeEvaluatorRequest(EvaluatorRequest):
 class CreateDecisionEvaluatorRequest(EvaluatorRequest):
     type: Literal["decision"]
     name: Identifier
-    decision_version_id: str
+    decision: DecisionEvaluatorDecisionInput = Field(description="The decision version to run.")
     description: Optional[str] = None
     scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
 
@@ -144,7 +148,10 @@ class PatchDecisionEvaluatorRequest(EvaluatorRequest):
 
     type: Literal["decision"]
     name: Identifier = Field(default=UNDEFINED)
-    decision_version_id: str = Field(default=UNDEFINED)
+    decision: DecisionEvaluatorDecisionInput = Field(
+        default=UNDEFINED,
+        description="Move the evaluator to another version of its decision. Omit to keep it.",
+    )
     description: Optional[str] = Field(default=UNDEFINED)
     scoring_policy: DecisionScoringPolicy = Field(default=UNDEFINED)
 
@@ -229,8 +236,7 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
     id: str
     name: Identifier
     description: Optional[str]
-    decision_id: str
-    decision_version_id: str
+    decision: DecisionEvaluatorDecision
     scoring_policy: DecisionScoringPolicy
     output_configs: list[EvaluatorOutputConfig]
 
@@ -238,14 +244,21 @@ class DecisionEvaluatorDefinition(V1RoutesBaseModel):
 def _decision_evaluator_definition(
     evaluator_id: str, row: models.DecisionEvaluator
 ) -> DecisionEvaluatorDefinition:
+    version = row.selected_version
+    version_id = encode_global_id("DecisionVersion", version.id)
     return DecisionEvaluatorDefinition(
         type="decision",
         id=evaluator_id,
         name=row.name,
         description=row.description,
-        decision_id=encode_global_id("Decision", row.selected_version.decision_id),
-        decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
-        scoring_policy=row.scoring_policy,
+        decision=DecisionEvaluatorDecision(
+            decision_id=encode_global_id("Decision", row.decision_id),
+            selector=DecisionVersionSelector(type="version", decision_version_id=version_id)
+            if row.decision_version_tag_id is not None
+            else LatestDecisionVersionSelector(type="latest"),
+            resolved_decision_version_id=version_id,
+        ),
+        scoring_policy=adapt_scoring_policy(version.questions, row.scoring_policy),
         output_configs=output_configs_from_db(row.output_configs),
     )
 
@@ -609,7 +622,7 @@ async def create_evaluator(
                 evaluator_service_context(request),
                 decisions.CreateDecisionEvaluatorInput(
                     name=body.name,
-                    decision_version_id=parse_global_id(body.decision_version_id),
+                    decision_version_id=parse_global_id(body.decision.selector.decision_version_id),
                     description=body.description,
                     scoring_policy=body.scoring_policy,
                 ),
@@ -702,8 +715,11 @@ async def patch_evaluator(
         ):
             values["output_configs"] = output_configs_to_db(body.output_configs)
         if isinstance(body, PatchDecisionEvaluatorRequest):
-            if "decision_version_id" in fields:
-                values["decision_version_id"] = parse_global_id(body.decision_version_id)
+            if "decision" in fields:
+                del values["decision"]
+                values["decision_version_id"] = parse_global_id(
+                    body.decision.selector.decision_version_id
+                )
             await decisions.patch_decision_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),

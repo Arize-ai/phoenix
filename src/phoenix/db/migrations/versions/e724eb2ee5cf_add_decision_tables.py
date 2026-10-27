@@ -64,7 +64,8 @@ def upgrade() -> None:
     They mirror prompts, prompt versions, and prompt version tags. A tag's foreign key to
     its version is composite, (decision_id, decision_version_id), so a tag can never point
     at another decision's version. Decision experiment tasks record the version they were
-    copied from.
+    copied from. A decision evaluator runs the version a tag of its own points at, or, once
+    that tag is deleted, its decision's newest version.
     """
     op.create_table(
         "decisions",
@@ -243,10 +244,17 @@ def upgrade() -> None:
             ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
         ),
         sa.Column(
-            "decision_version_id",
+            "decision_id",
             _Integer,
-            sa.ForeignKey("decision_versions.id", ondelete="RESTRICT"),
+            sa.ForeignKey("decisions.id", ondelete="RESTRICT"),
             nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "decision_version_tag_id",
+            _Integer,
+            sa.ForeignKey("decision_version_tags.id", ondelete="SET NULL"),
+            nullable=True,
             index=True,
         ),
         sa.Column("scoring_policy", JSON_, nullable=False),
