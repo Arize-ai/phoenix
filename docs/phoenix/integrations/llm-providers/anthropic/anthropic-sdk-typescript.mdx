@@ -23,7 +23,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
 
 // Initialize Phoenix tracing
-const tracerProvider = register({
+export const provider = register({
   projectName: process.env.PHOENIX_PROJECT_NAME ?? "anthropic-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
@@ -46,7 +46,7 @@ From `@anthropic-ai/sdk` 0.134.0, the Anthropic SDK also records its own traces.
 Import the `instrumentation.ts` file first, then use Anthropic as usual.
 
 ```typescript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // set ANTHROPIC_API_KEY in environment, or pass it in arguments
@@ -65,7 +65,10 @@ async function main() {
   console.log(message.content);
 }
 
-main();
+await main();
+
+// Flush any pending spans before the process exits.
+await provider.forceFlush();
 ```
 
 ## Observe
