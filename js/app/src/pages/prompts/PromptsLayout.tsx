@@ -40,10 +40,6 @@ function isTabName(name: unknown): name is TabName {
   return typeof name === "string" && (TABS as readonly string[]).includes(name);
 }
 
-/**
- * The prompts library: a tab for saved prompts and a tab for saved decisions.
- * Each tab is its own route, rendered through the outlet.
- */
 export function PromptsLayout() {
   const navigate = useNavigate();
   const isDecisionsTab = useMatch("/prompts/decisions") != null;

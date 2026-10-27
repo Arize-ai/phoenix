@@ -2,10 +2,6 @@ import { randomUUID } from "crypto";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-/**
- * Creates a saved decision through the GraphQL API. Saving a decision does
- * not call a model, so no provider credentials are needed.
- */
 async function createDecision(page: Page, name: string): Promise<string> {
   const response = await page.request.post("/graphql", {
     data: {

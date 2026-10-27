@@ -9,10 +9,6 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
   return postData?.includes(operationName) ?? false;
 }
 
-/**
- * The settings card with the given title. The prompts tab stacks the prompt
- * and decision label cards, each with its own "New Label" button.
- */
 function settingsCard(page: Page, title: string) {
   return page
     .locator(".card")
@@ -70,8 +66,6 @@ test.describe("Settings Labels Tables", () => {
     await page
       .getByLabel("Description")
       .fill("Decision label for compiler e2e coverage");
-    // A non-default swatch: the picker reports colors as rgba() unless the
-    // form converts them, and decision label colors must be #rrggbb.
     await page
       .getByRole("dialog")
       .getByRole("img", { name: "vibrant orange" })

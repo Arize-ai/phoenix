@@ -16,8 +16,6 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
 async function createPromptLabel(page: Page, labelName: string) {
   await page.goto("/settings/prompts");
   await page.waitForURL("**/settings/prompts");
-  // The prompts tab also holds the decision labels card and its own
-  // "New Label" button, so scope to the prompt labels card.
   await page
     .locator(".card")
     .filter({ has: page.getByRole("heading", { name: "Prompt Labels" }) })
