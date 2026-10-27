@@ -275,7 +275,7 @@ artifacts = [
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
-  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+  "src/phoenix/server/evaluators/substitutions/server.yaml",
 ]
 
 [tool.hatch.build]
@@ -300,7 +300,7 @@ artifacts = [
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
-  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+  "src/phoenix/server/evaluators/substitutions/server.yaml",
 ]
 
 [tool.pytest.ini_options]

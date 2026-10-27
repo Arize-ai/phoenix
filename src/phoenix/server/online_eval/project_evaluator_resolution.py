@@ -18,7 +18,7 @@ from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator
 from phoenix.server.online_eval.session_policy import session_policy_fingerprint
 

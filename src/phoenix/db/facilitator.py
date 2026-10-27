@@ -675,6 +675,6 @@ async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:
 
     Safe to call multiple times (idempotent).
     """
-    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+    from phoenix.server.evaluators.services.builtin_sync import sync_builtin_evaluators
 
     await sync_builtin_evaluators(db)

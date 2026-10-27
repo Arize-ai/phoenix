@@ -7,10 +7,11 @@ come from ``template_variables_path``. The task's questions are fixed across exa
 
 from typing import Any
 
+from phoenix.db import models
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
-from phoenix.server.api.helpers.decision_versions import render_state
 from phoenix.server.api.helpers.message_helpers import build_template_variables
+from phoenix.server.decisions.rendering import render_state
 
 
 def build_example_request(
@@ -52,15 +53,15 @@ def _reason(error: Exception) -> str:
     return str(error.args[0]) if error.args else str(error)
 
 
-def decision_run_output(response: DecisionResponse) -> dict[str, Any]:
+def decision_run_output(response: DecisionResponse) -> models.ExperimentRunOutput:
     """An experiment run's output: the answers by question name, with no decision rule
     applied, so evaluators apply their own (a predicate's threshold, say).
 
     The model that answered and the usage stay on the DECISION span, so the output has
     the shape of a dataset's reference answers.
     """
-    return {
-        "task_output": {
+    return models.ExperimentRunOutput(
+        task_output={
             name: answer.model_dump(mode="json") for name, answer in response.answers.items()
         }
-    }
+    )

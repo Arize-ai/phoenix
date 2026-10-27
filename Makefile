@@ -421,7 +421,7 @@ codegen-prompts: ## Generate prompts code from YAML files
 	@$(UV) run ruff format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
 	@$(UV) run ruff check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
 	@$(UV) run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
-	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
+	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/evaluators/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 sync-models: ## Sync model cost manifest from remote sources

@@ -3,7 +3,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Mapping, Optional, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -203,7 +203,7 @@ class TestChatCompletionSubscription:
         db: DbSessionFactory,
     ) -> None:
         class Client:
-            async def chat_completion_create(self, **_: Any) -> Any:
+            async def chat_completion_create(self, **_: Any) -> AsyncIterator[None]:
                 raise AssertionError("validation should fail before the LLM client is called")
                 yield
 
@@ -3189,7 +3189,9 @@ class TestExperimentsOverDatasetSubscription:
         }
         variables = self._input([self._evaluator_task(sandbox_config_id, source=source)])
 
-        with patch("phoenix.server.api.evaluators.build_sandbox_backend", return_value=backend):
+        with patch(
+            "phoenix.server.evaluators.resolution.build_sandbox_backend", return_value=backend
+        ):
             payloads = await self._collect(gql_client, variables)
 
         experiment_payload = payloads[0]

@@ -25,9 +25,9 @@ from phoenix.server.api.helpers.decision_clients import (
     PredicateAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import capture_decision_evaluator_definition
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.evaluators.resolution import build_decision_evaluator
+from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
 from phoenix.server.types import DbSessionFactory
 
 _DATASET_NAME = "px-datagen-typed-decisions"
