@@ -3182,12 +3182,10 @@ class PromptVersionTag(HasId):
         "PromptVersion", back_populates="prompt_version_tags"
     )
 
-    # Deleting a tag an evaluator runs through is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt_version_tag",
         uselist=True,
-        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -3569,7 +3567,7 @@ class LLMEvaluator(Evaluator):
         index=True,
     )
     prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("prompt_version_tags.id", ondelete="RESTRICT"),
+        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
         index=True,
     )
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(

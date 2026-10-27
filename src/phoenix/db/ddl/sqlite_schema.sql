@@ -1853,13 +1853,14 @@ CREATE INDEX ix_prompt_version_tags_user_id ON prompt_version_tags (user_id);
 -- ---------------------
 CREATE TABLE llm_evaluators (
     id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'LLM' NOT NULL,
+    kind VARCHAR DEFAULT 'LLM' NOT NULL
+        CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`"
+        CHECK (kind = 'LLM'),
     prompt_id INTEGER NOT NULL,
     prompt_version_tag_id INTEGER,
     output_configs JSONB NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
-    CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`" CHECK (kind = 'LLM'),
     CONSTRAINT fk_llm_evaluators_kind_evaluators
         FOREIGN KEY (kind, id)
         REFERENCES evaluators (kind, id)
@@ -1871,7 +1872,7 @@ CREATE TABLE llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY (prompt_version_tag_id)
         REFERENCES prompt_version_tags (id)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_llm_evaluators_prompt_id ON llm_evaluators (prompt_id);

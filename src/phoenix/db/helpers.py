@@ -1468,21 +1468,3 @@ def is_foreign_key_violation(error: BaseException) -> bool:
     if sqlstate == _POSTGRES_FOREIGN_KEY_SQLSTATE:
         return True
     return str(candidate) == _SQLITE_FOREIGN_KEY_MESSAGE
-
-
-async def llm_evaluators_pinned_by_prompt_version_tag(
-    session: AsyncSession, prompt_version_tag_id: int, *, for_update: bool = False
-) -> Sequence[models.LLMEvaluator]:
-    """Return the LLM evaluators that record the prompt version they run through this tag.
-
-    With for_update, the rows are locked in id order until the transaction ends and reloaded,
-    so the caller sees whatever a transaction it waited on committed.
-    """
-    stmt = (
-        select(models.LLMEvaluator)
-        .where(models.LLMEvaluator.prompt_version_tag_id == prompt_version_tag_id)
-        .order_by(models.LLMEvaluator.id)
-    )
-    if for_update:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
-    return (await session.scalars(stmt)).all()

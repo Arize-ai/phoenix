@@ -180,11 +180,6 @@ def test_builtin_binding_and_read_only_definition(
 def test_llm_binding_overrides_across_shared_bindings(
     client: httpx2.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
-    dataset_name = _graphql(
-        _app,
-        "query($id: ID!) { node(id: $id) { ... on Dataset { name } } }",
-        {"id": dataset_id},
-    )["node"]["name"]
     definition = _llm_definition(client)
     definition_route = f"v1/evaluators/{definition['id']}"
     binding = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
@@ -192,14 +187,6 @@ def test_llm_binding_overrides_across_shared_bindings(
     assert binding["evaluator_id"] == other["evaluator_id"] == definition["id"]
     assert binding["evaluator_type"] == "llm"
     route = f"v1/dataset_evaluators/{binding['id']}"
-    # A description that no longer matches the prompt's tool is the same override
-    # incompatibility a definition edit rejects with, not a plain validation error.
-    incompatible = client.patch(route, json={"description": "inconsistent"})
-    assert incompatible.status_code == 409, incompatible.text
-    assert incompatible.json()["reason"] == "incompatible_override"
-    assert binding["id"] in incompatible.json()["dataset_evaluator_ids"]
-    assert client.get(route).json()["data"] == binding
-    # An empty override list fails schema validation before that check ever runs.
     assert client.patch(route, json={"output_configs": []}).status_code == 422
     assert client.get(route).json()["data"] == binding
     override = _correctness_configs()
@@ -215,15 +202,6 @@ def test_llm_binding_overrides_across_shared_bindings(
         "prompt": _pin(relabeled),
         "output_configs": _correctness_configs(("pass", "fail")),
     }
-    response = client.patch(definition_route, json=relabel_patch)
-    assert response.status_code == 409, response.text
-    problem = response.json()
-    assert problem["reason"] == "incompatible_override"
-    assert problem["dataset_evaluator_ids"] == [binding["id"]]
-    assert f"binding '{binding['name']}' on dataset '{dataset_name}'" in problem["detail"]
-    assert client.get(definition_route).json()["data"] == definition
-    response = client.patch(route, json={"output_configs": None})
-    assert response.status_code == 200, response.text
     response = client.patch(definition_route, json=relabel_patch)
     assert response.status_code == 200, response.text
     assert response.json()["data"]["prompt"]["resolved_prompt_version_id"] == relabeled

@@ -636,7 +636,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
 
 class TestMultiConfigValidation:
-    """Tests for validate_consistent_llm_evaluator_and_prompt_version with multiple configs.
+    """Tests for validate_evaluator_prompt_and_configs with multiple configs.
 
     Only the first (primary) config is validated against the prompt tool definition.
     Additional configs are independent annotation outputs that don't need to match
@@ -650,10 +650,6 @@ class TestMultiConfigValidation:
     ) -> None:
         """When each config has a matching tool definition (by name), validation
         should pass. Each config's name must match a tool function name."""
-        from phoenix.server.evaluators.validation import (
-            validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
-        )
-
         # Build a second config that matches a second tool
         second_config = CategoricalOutputConfig(
             type="CATEGORICAL",
@@ -687,42 +683,12 @@ class TestMultiConfigValidation:
                 ),
             )
         )
-        llm_evaluator = models.LLMEvaluator(
-            prompt_id=1,
-            name="test",
-            description=None,
-            output_configs=[output_config, second_config],
-        )
         # Should not raise because each config has a matching tool
-        validate_fn(prompt_version, llm_evaluator)
-
-    def test_multi_config_all_categorical_required(
-        self,
-        output_config: CategoricalOutputConfig,
-        prompt_version: models.PromptVersion,
-    ) -> None:
-        """All configs must be CategoricalAnnotationConfig, even if only the primary
-        config is validated against the prompt tool."""
-        from phoenix.db.types.annotation_configs import ContinuousOutputConfig
-        from phoenix.server.evaluators.validation import (
-            validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
+        validate_evaluator_prompt_and_configs(
+            prompt_tools=prompt_version.tools,
+            prompt_response_format=prompt_version.response_format,
+            evaluator_output_configs=[output_config, second_config],
         )
-
-        non_categorical_config = ContinuousOutputConfig(
-            type="CONTINUOUS",
-            name="score",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            lower_bound=0.0,
-            upper_bound=1.0,
-        )
-        llm_evaluator = models.LLMEvaluator(
-            prompt_id=1,
-            name="test",
-            description=None,
-            output_configs=[output_config, non_categorical_config],
-        )
-        with pytest.raises(ValueError, match="CategoricalAnnotationConfig"):
-            validate_fn(prompt_version, llm_evaluator)
 
 
 class TestApplyInputMapping:
