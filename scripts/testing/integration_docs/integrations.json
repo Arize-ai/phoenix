@@ -8,7 +8,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run OpenAI",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -22,8 +24,12 @@
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -33,7 +39,9 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run OpenAI",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "section_code",
         "language": "javascript"
@@ -44,8 +52,12 @@
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -55,7 +67,9 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run OpenAI",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "section_code",
         "language": "go"
@@ -66,8 +80,12 @@
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -76,7 +94,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Anthropic",
-      "required_env": ["ANTHROPIC_API_KEY"],
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -84,12 +104,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -99,14 +125,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Anthropic",
-      "required_env": ["ANTHROPIC_API_KEY"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -116,14 +153,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Anthropic",
-      "required_env": ["ANTHROPIC_API_KEY"],
-      "setup": {"source": "section_code", "language": "go"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -139,14 +187,27 @@
         "language": "python",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
-      "output": {"require_non_empty": true},
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"],
-        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
         "timeout_seconds": 240
       }
     },
@@ -158,15 +219,31 @@
       "setup_section": "Setup",
       "run_section": "Run Ollama",
       "required_env": [],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
-      "output": {"require_non_empty": true},
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"],
-        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
         "timeout_seconds": 240
       }
     },
@@ -178,16 +255,131 @@
       "setup_section": "Setup",
       "run_section": "Run Ollama",
       "required_env": [],
-      "setup": {"source": "section_code", "language": "go"},
-      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
-      "output": {"require_non_empty": true},
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"],
-        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
         "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "amazon-bedrock-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "strands-agents-python-lint",
+      "document": "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Strands Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cohere-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Cohere",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "together-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/together/together-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Together AI",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openrouter-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenRouter",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "orcarouter-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OrcaRouter",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
       }
     }
   ]
