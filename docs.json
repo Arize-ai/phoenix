@@ -1162,6 +1162,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version",

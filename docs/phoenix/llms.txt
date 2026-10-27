@@ -656,6 +656,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Create A New Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt): POST /v1/prompts — create a prompt or push a new prompt version
 - [Delete A Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt): DELETE /v1/prompts/{prompt_identifier} — delete a prompt and all of its versions
 - [List Prompt Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions): GET /v1/prompts/{prompt_identifier}/versions — paginate versions of a prompt
+- [Create Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version): POST /v1/prompts/{prompt_identifier}/versions — add a version, with optional tags, to an existing prompt
 - [Get Prompt Version By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id): GET /v1/prompt_versions/{prompt_version_id} — fetch a specific prompt version
 - [Get Prompt Version By Tag](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag): GET /v1/prompts/{prompt_identifier}/tags/{tag_name} — resolve a tag to a prompt version
 - [Get Latest Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version): GET /v1/prompts/{prompt_identifier}/latest — fetch the most recent prompt version
