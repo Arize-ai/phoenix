@@ -1,0 +1,94 @@
+---
+title: "vLLM Tracing"
+description: "Trace vLLM inference in Phoenix with vLLM's built-in OpenTelemetry export and OpenInference auto-instrumentation for the OpenAI Python SDK."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[vLLM](https://docs.vllm.ai/) is an inference and serving engine for large language models. You can observe vLLM with Phoenix in two complementary ways:
+
+* Export vLLM server spans over OTLP with `--otlp-traces-endpoint`.
+* Trace your application calls to vLLM's OpenAI-compatible server with [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai).
+
+<Note>
+Use both paths when possible. vLLM's server-side OTLP spans show inference-server timing and request metadata. OpenInference OpenAI instrumentation captures the client-side prompt, response, token, model, and latency metadata for calls made through the OpenAI-compatible API.
+</Note>
+
+## Option 1: Export vLLM server spans over OTLP
+
+vLLM defaults to OTLP/gRPC. Phoenix accepts OTLP/HTTP at `<PHOENIX_COLLECTOR_ENDPOINT>/v1/traces`, so set the exporter protocol before starting vLLM. This example sends spans to a local Phoenix at `http://localhost:6006`:
+
+```bash
+export OTEL_SERVICE_NAME="vllm-server"
+export OTEL_RESOURCE_ATTRIBUTES="openinference.project.name=vllm-server"
+export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+
+vllm serve <model-name-or-path> \
+  --otlp-traces-endpoint "http://localhost:6006/v1/traces"
+```
+
+If your Phoenix instance has authentication enabled (for example, Phoenix Cloud), point `--otlp-traces-endpoint` at your instance's `/v1/traces` URL and pass your API key as a header:
+
+```bash
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="authorization=Bearer <your-phoenix-api-key>"
+```
+
+<Warning>
+Current vLLM releases bundle the core OpenTelemetry packages needed for server-side tracing. If you use an older or custom vLLM image and it errors on startup after you add `--otlp-traces-endpoint`, install matching OpenTelemetry exporter dependencies in the same environment or container image.
+</Warning>
+
+## Option 2: Trace OpenAI-compatible client calls
+
+### Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+### Setup
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+### Run vLLM
+
+vLLM's OpenAI-compatible server does not require an API key unless you start it with `--api-key`. The OpenAI client still requires a non-empty value, so the example uses `EMPTY`.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="EMPTY",
+)
+
+response = client.chat.completions.create(
+    model="<model-name-served-by-vllm>",
+    messages=[
+        {
+            "role": "user",
+            "content": "Name two signals that help debug inference latency.",
+        }
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Open Phoenix and select the **`my-llm-app`** project for client-side spans. Each call appears as a `ChatCompletion` LLM span with the prompt, response, model, token usage, and latency. If you also enabled vLLM server OTLP export, select the **`vllm-server`** project to see server-side inference and request-processing spans.
+
+## Common Issues
+
+* **No client-side LLM spans**: Make sure `register(..., auto_instrument=True)` runs before your OpenAI client sends requests
+* **No vLLM server spans**: Confirm `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf` is set and `--otlp-traces-endpoint` points to your Phoenix collector's `/v1/traces` path
+* **Server spans appear in the default project**: Confirm `OTEL_RESOURCE_ATTRIBUTES` includes `openinference.project.name=vllm-server`
+* **Server spans lack prompt or response text**: Use the OpenInference OpenAI client path as well. vLLM's server export does not include the same application-level input and output detail
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="vLLM OpenTelemetry Example" href="https://docs.vllm.ai/en/latest/examples/observability/opentelemetry/" icon="book" horizontal description="vLLM server tracing docs"/>
+  <Card title="vLLM OpenAI-Compatible Server" href="https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/" icon="book" horizontal description="vLLM serving docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>
