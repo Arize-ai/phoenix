@@ -70,7 +70,13 @@ test.describe("Settings Labels Tables", () => {
     await page
       .getByLabel("Description")
       .fill("Decision label for compiler e2e coverage");
-    await Promise.all([
+    // A non-default swatch: the picker reports colors as rgba() unless the
+    // form converts them, and decision label colors must be #rrggbb.
+    await page
+      .getByRole("dialog")
+      .getByRole("img", { name: "vibrant orange" })
+      .click();
+    const [response] = await Promise.all([
       page.waitForResponse((resp) =>
         isGraphQLMutationResponse(
           resp,
@@ -79,6 +85,12 @@ test.describe("Settings Labels Tables", () => {
       ),
       page.getByRole("button", { name: "Create Label" }).click(),
     ]);
+    const body = await response.json();
+    expect(body.errors).toBeUndefined();
+    const created = body.data.createDecisionLabel.decisionLabels.find(
+      (label: { name: string }) => label.name === labelName
+    );
+    expect(created.color).toBe("#ffa037");
 
     await expect(page.getByRole("dialog")).not.toBeVisible();
     const row = card.getByRole("row").filter({
