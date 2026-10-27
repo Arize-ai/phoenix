@@ -2856,7 +2856,7 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
     if column_name in df.columns:
         # Flatten the nested dictionary column and prefix each resulting column with
         # the original column name (e.g., "result.label").
-        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[arg-type]
+        nested_df = pd.json_normalize(df[column_name]).rename(  # pyright: ignore[reportArgumentType]
             columns=lambda col: f"{column_name}.{col}"  # pyright: ignore[reportUnknownLambdaType]
         )
         df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)  # pyright: ignore[reportUnknownMemberType]
@@ -2995,7 +2995,7 @@ def _extract_invalid_span_from_log_spans_error(
     if not isinstance(loc_raw, list):
         return None
 
-    loc: list[Any] = loc_raw
+    loc = cast(Sequence[Any], loc_raw)
     if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
         return None
 

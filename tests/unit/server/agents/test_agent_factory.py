@@ -19,7 +19,6 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
-from opentelemetry.trace import NoOpTracerProvider
 from pydantic import SecretStr
 from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
@@ -43,6 +42,7 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
     ProjectUIContext,
 )
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
+from phoenix.server.agents.agent_factory import build_agent_tracer
 from phoenix.server.agents.capabilities import (
     GitHubMCPCapability,
     build_anthropic_prompt_cache_capability,
@@ -278,7 +278,7 @@ def wrapped_anthropic_model(
     always returns an ``OpenInferenceModelWrapper``."""
     return OpenInferenceModelWrapper(
         anthropic_model,
-        tracer=NoOpTracerProvider().get_tracer("test"),
+        tracer=build_agent_tracer(None),
     )
 
 
@@ -299,9 +299,7 @@ class TestPromptCacheCapabilityMounting:
         assert build_anthropic_prompt_cache_capability(TestModel()) is None
 
     def test_builder_returns_none_for_wrapped_non_anthropic_model(self) -> None:
-        wrapped = OpenInferenceModelWrapper(
-            TestModel(), tracer=NoOpTracerProvider().get_tracer("test")
-        )
+        wrapped = OpenInferenceModelWrapper(TestModel(), tracer=build_agent_tracer(None))
         assert build_anthropic_prompt_cache_capability(wrapped) is None
 
     async def test_wrapped_model_emits_cache_breakpoint_end_to_end(

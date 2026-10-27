@@ -5,7 +5,7 @@ from collections import defaultdict
 from functools import partial
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 
 import phoenix.server.api.routers.client_errors as client_errors_module
@@ -30,7 +30,7 @@ def _error_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
 class TestReportClientError:
     async def test_report_is_logged_at_error_level_with_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.ERROR, logger="phoenix.client_errors"):
@@ -47,7 +47,7 @@ class TestReportClientError:
         for key, value in REPORT["attributes"].items():
             assert getattr(record, f"error.attributes.{key}") == value
 
-    async def test_message_alone_is_enough(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_message_alone_is_enough(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.post("client_errors", json={"message": "boom"})
         assert response.status_code == 204, response.text
 
@@ -67,7 +67,7 @@ class TestReportClientError:
     )
     async def test_invalid_report_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         caplog: pytest.LogCaptureFixture,
         body: dict[str, Any],
     ) -> None:
@@ -78,7 +78,7 @@ class TestReportClientError:
 
     async def test_reports_over_the_limit_are_rejected_with_429(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         rate_limiter = client_errors_module.rate_limiter
