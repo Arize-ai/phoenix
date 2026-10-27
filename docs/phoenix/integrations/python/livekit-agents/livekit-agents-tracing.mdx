@@ -53,6 +53,10 @@ def configure_livekit_tracing(
 
 Configure tracing before the agent session starts, then flush spans when the job shuts down:
 
+<Note>
+This example shows how to add Phoenix tracing to an existing LiveKit Agents app. Configure `AgentSession` with the STT, LLM, and TTS plugins your app uses, and launch the worker as described in the [LiveKit quickstart](https://docs.livekit.io/agents/start/voice-ai/).
+</Note>
+
 ```python agent.py
 from instrumentation import configure_livekit_tracing
 
@@ -81,7 +85,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(agent=Assistant(), room=ctx.room)
 ```
 
-Pass your speech-to-text, LLM, and text-to-speech plugins to `AgentSession` as usual, and start the worker with the [LiveKit Agents CLI](https://docs.livekit.io/agents/start/voice-ai/). Setting `session.id` in the metadata groups each room's spans into a Phoenix [session](/docs/phoenix/tracing/llm-traces/sessions).
+Setting `session.id` in the metadata groups each room's spans into a Phoenix [session](/docs/phoenix/tracing/llm-traces/sessions).
 
 ## Observe
 
