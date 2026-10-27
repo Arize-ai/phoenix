@@ -96,8 +96,7 @@ def main() -> int:
             detail = record.get("reason") or record.get("error") or "No result details recorded"
             detail = str(detail).replace("|", "\\|").replace("\n", " ")
             lines.append(
-                f"- {icon} **{record.get('id', '?')}** ({record.get('language', '?')}): "
-                f"{detail}"
+                f"- {icon} **{record.get('id', '?')}** ({record.get('language', '?')}): {detail}"
             )
     (args.output_dir / "integration-docs.md").write_text("\n".join(lines) + "\n")
     print((args.output_dir / "integration-docs.md").read_text())
