@@ -8,6 +8,13 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+STATUS_ICON = {
+    "pass": "✅",
+    "fail": "❌",
+    "skipped": "⏭",
+    "no-op": "⏭",
+}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -38,6 +45,10 @@ def main() -> int:
         status = "pass"
     if args.run_mode == "none":
         status = "no-op"
+    counts = {
+        name: sum(item.get("status") == name for item in integrations)
+        for name in ("pass", "fail", "skipped")
+    }
     summary = {
         "schema_version": 1,
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -45,10 +56,7 @@ def main() -> int:
         "status": status,
         "reason": args.reason,
         "run_mode": args.run_mode,
-        "counts": {
-            name: sum(item.get("status") == name for item in integrations)
-            for name in ("pass", "fail", "skipped")
-        },
+        "counts": counts,
         "integrations": integrations,
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -56,13 +64,16 @@ def main() -> int:
     lines = [
         "# Integration documentation checks",
         "",
-        f"Overall status: **{status}**",
+        f"Overall status: **{STATUS_ICON.get(status, '❔')} {status}** "
+        f"({counts['pass']} passed, {counts['fail']} failed, {counts['skipped']} skipped)",
         f"Classification: {args.reason}",
         "",
         "| Integration | Document | Language | Status | Result |",
         "|---|---|---|---|---|",
     ]
     for record in integrations:
+        record_status = record.get("status", "?")
+        icon = STATUS_ICON.get(record_status, "❔")
         span = record.get("span", {})
         result = record.get("reason") or record.get("error") or "—"
         if span:
@@ -73,9 +84,21 @@ def main() -> int:
         result = str(result).replace("|", "\\|").replace("\n", " ")
         row = (
             f"| `{record.get('id', '?')}` | `{record.get('document', '?')}` | "
-            f"{record.get('language', '?')} | **{record.get('status', '?')}** | {result} |"
+            f"{record.get('language', '?')} | {icon} **{record_status}** | {result} |"
         )
         lines.append(row)
+    noteworthy = [record for record in integrations if record.get("status") != "pass"]
+    if noteworthy:
+        lines.extend(["", "## Failures and skips", ""])
+        for record in noteworthy:
+            record_status = record.get("status", "?")
+            icon = STATUS_ICON.get(record_status, "❔")
+            detail = record.get("reason") or record.get("error") or "No result details recorded"
+            detail = str(detail).replace("|", "\\|").replace("\n", " ")
+            lines.append(
+                f"- {icon} **{record.get('id', '?')}** ({record.get('language', '?')}): "
+                f"{detail}"
+            )
     (args.output_dir / "integration-docs.md").write_text("\n".join(lines) + "\n")
     print((args.output_dir / "integration-docs.md").read_text())
     # The shard job already determines the workflow result. Return success here
