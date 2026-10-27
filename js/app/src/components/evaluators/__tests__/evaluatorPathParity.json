@@ -201,22 +201,17 @@
       "context": "probe",
       "path": "metadata.obj[*]",
       "outcome": "value",
-      "value": {
-        "k": 1,
-        "j": 2
-      }
+      "value": [1, 2]
     },
     {
       "context": "probe",
       "path": "metadata.s[*]",
-      "outcome": "value",
-      "value": "str"
+      "outcome": "unresolved"
     },
     {
       "context": "probe",
       "path": "metadata.s[0]",
-      "outcome": "value",
-      "value": "s"
+      "outcome": "unresolved"
     },
     {
       "context": "probe",
@@ -320,8 +315,7 @@
     {
       "context": "edges",
       "path": "metadata.num[*]",
-      "outcome": "value",
-      "value": 5
+      "outcome": "unresolved"
     },
     {
       "context": "edges",
@@ -336,8 +330,7 @@
     {
       "context": "edges",
       "path": "metadata.emoji[1]",
-      "outcome": "value",
-      "value": "😀"
+      "outcome": "unresolved"
     },
     {
       "context": "edges",
@@ -388,14 +381,19 @@
     {
       "context": "edges",
       "path": "metadata.s[0,-9]",
-      "outcome": "value",
-      "value": "s"
+      "outcome": "unresolved"
     },
     {
       "context": "probe",
       "path": "metadata.*[0]",
       "outcome": "value",
-      "value": [{ "input": "t1" }, { "x": 1 }, "s", { "b": 1 }]
+      "value": [{ "input": "t1" }, { "x": 1 }, { "b": 1 }]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.*[0]",
+      "outcome": "value",
+      "value": [{ "role": "user" }, [1, 2], { "b": 1 }]
     },
     {
       "context": "edges",
@@ -745,7 +743,15 @@
     {
       "context": "edges",
       "path": "metadata.messages.*",
-      "outcome": "unresolved"
+      "outcome": "value",
+      "value": [
+        {
+          "role": "user"
+        },
+        {
+          "role": "assistant"
+        }
+      ]
     },
     {
       "context": "edges",
@@ -755,8 +761,7 @@
     {
       "context": "edges",
       "path": "[*].$[0].metadata.s",
-      "outcome": "value",
-      "value": "str"
+      "outcome": "unresolved"
     }
   ]
 }
