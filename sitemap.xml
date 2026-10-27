@@ -1857,6 +1857,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version</loc>
+    <lastmod>2026-10-27T17:18:32+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
