@@ -1,4 +1,4 @@
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * What one step of a path selects. `$` is the whole source wherever it sits,
@@ -279,9 +279,9 @@ export type EvaluatorPathMatches =
   | { status: "unmatched"; step: EvaluatorPathStep };
 
 /**
- * Walks `steps` over `source` the way jsonpath_ng 1.10 does for the server's
+ * Walks `steps` over `source` the way jsonpath_ng 1.13 does for the server's
  * `apply_input_mapping`: each step maps over every match so far, and a step
- * that matches nothing or raises fails the whole path.
+ * that matches nothing fails the whole path.
  */
 export function findEvaluatorPathMatches({
   source,
@@ -290,54 +290,42 @@ export function findEvaluatorPathMatches({
   source: unknown;
   steps: readonly EvaluatorPathStep[];
 }): EvaluatorPathMatches {
-  let matches: PathMatch[] = [{ value: source, root: source, isRoot: true }];
+  let matches: unknown[] = [source];
   for (const step of steps) {
-    const next: PathMatch[] = [];
-    for (const match of matches) {
-      const found = applyStep({ step, match });
-      if (found === null) {
-        return { status: "unmatched", step };
-      }
-      next.push(...found);
+    const next: unknown[] = [];
+    for (const value of matches) {
+      next.push(...applyStep({ step, value, root: source }));
     }
     if (next.length === 0) {
       return { status: "unmatched", step };
     }
     matches = next;
   }
-  return { status: "matched", matches: matches.map(({ value }) => value) };
+  return { status: "matched", matches };
 }
 
-/**
- * A value a path has reached, and the value `$` reads from it: the source,
- * unless a slice wrapped the source in a list, which jsonpath_ng does to
- * anything that is not one.
- */
-type PathMatch = { value: unknown; root: unknown; isRoot: boolean };
-
-/** What one step finds from one match, or null where the server raises. */
+/** What one step finds from one match. */
 function applyStep({
   step,
-  match,
+  value,
+  root,
 }: {
   step: EvaluatorPathStep;
-  match: PathMatch;
-}): PathMatch[] | null {
-  if (step.kind === "root") {
-    return [{ value: match.root, root: match.root, isRoot: true }];
+  value: unknown;
+  root: unknown;
+}): unknown[] {
+  switch (step.kind) {
+    case "root":
+      return [root];
+    case "fields":
+      return applyFields({ keys: step.keys, value });
+    case "index":
+      return applyIndices({ indices: step.indices, value });
+    case "slice":
+      return applySlice({ slice: step, value });
+    default:
+      return assertUnreachable(step);
   }
-  const { value } = match;
-  const found =
-    step.kind === "fields"
-      ? applyFields({ keys: step.keys, value })
-      : step.kind === "index"
-        ? applyIndices({ indices: step.indices, value })
-        : applySlice({ slice: step, value });
-  const root =
-    step.kind === "slice" && match.isRoot && !Array.isArray(value)
-      ? [value]
-      : match.root;
-  return found?.map((item) => ({ value: item, root, isRoot: false })) ?? null;
 }
 
 function applyFields({
@@ -347,7 +335,10 @@ function applyFields({
   keys: readonly string[];
   value: unknown;
 }): unknown[] {
-  if (!isStringKeyedObject(value) || Array.isArray(value)) {
+  if (Array.isArray(value)) {
+    return keys.includes("*") ? value : [];
+  }
+  if (!isStringKeyedObject(value)) {
     return [];
   }
   // Own keys only: JSONPath never reaches `toString` and the like.
@@ -362,25 +353,16 @@ function applyIndices({
 }: {
   indices: readonly number[];
   value: unknown;
-}): unknown[] | null {
-  if (isPythonFalsy(value)) {
+}): unknown[] {
+  if (!Array.isArray(value)) {
     return [];
-  }
-  const items = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? Array.from(value)
-      : null;
-  if (items === null) {
-    // An object has no positions, so an index matches nothing on one.
-    return isStringKeyedObject(value) ? [] : null;
   }
   const matches: unknown[] = [];
   for (const index of indices) {
-    if (index >= items.length || index < -items.length) {
+    if (index >= value.length || index < -value.length) {
       continue;
     }
-    matches.push(items.at(index));
+    matches.push(value.at(index));
   }
   return matches;
 }
@@ -391,13 +373,18 @@ function applySlice({
 }: {
   slice: { start: number | null; end: number | null; step: number | null };
   value: unknown;
-}): unknown[] | null {
-  if (value == null) {
+}): unknown[] {
+  const isWildcard =
+    slice.start === null && slice.end === null && slice.step === null;
+  if (isWildcard && isStringKeyedObject(value) && !Array.isArray(value)) {
+    return Object.keys(value).map((key) => value[key]);
+  }
+  if (!Array.isArray(value)) {
     return [];
   }
-  const items = Array.isArray(value) ? value : [value];
-  const indices = getSliceIndices({ length: items.length, ...slice });
-  return indices === null ? null : indices.map((index) => items[index]);
+  return getSliceIndices({ length: value.length, ...slice }).map(
+    (index) => value[index]
+  );
 }
 
 /** Python's `range(length)[start:end:step]`. */
@@ -411,10 +398,10 @@ function getSliceIndices({
   start: number | null;
   end: number | null;
   step: number | null;
-}): number[] | null {
+}): number[] {
   const stride = step ?? 1;
   if (stride === 0) {
-    return null;
+    return [];
   }
   const isForward = stride > 0;
   const lower = isForward ? 0 : -1;
@@ -436,14 +423,4 @@ function getSliceIndices({
     indices.push(index);
   }
   return indices;
-}
-
-function isPythonFalsy(value: unknown): boolean {
-  if (value == null || value === false || value === 0 || value === "") {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-  return isStringKeyedObject(value) && Object.keys(value).length === 0;
 }
