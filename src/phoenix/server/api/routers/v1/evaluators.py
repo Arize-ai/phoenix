@@ -17,15 +17,7 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers import decision_evaluator_service as decision_service
-from phoenix.server.api.helpers import evaluator_service as service
-from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
-from phoenix.server.api.helpers.evaluator_prompt_source import (
-    FromPromptVersion,
-    resolve_evaluator_prompt_version,
-)
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
     EVALUATOR_KIND_BY_TYPE,
@@ -52,9 +44,14 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
 )
 from phoenix.server.authorization import is_not_locked
-
-_EVALUATOR_KIND_BY_TYPE = EVALUATOR_KIND_BY_TYPE
-_TYPENAME_BY_KIND = EVALUATOR_TYPENAME_BY_KIND
+from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
+from phoenix.server.evaluators.services import decisions, definitions
+from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_KIND
+from phoenix.server.evaluators.services.prompt_source import (
+    FromPromptVersion,
+    resolve_evaluator_prompt_version,
+)
+from phoenix.server.evaluators.snapshots import get_decision_evaluator
 
 
 def _decode_evaluator_cursor(cursor: str) -> int:
@@ -65,7 +62,7 @@ def _decode_evaluator_cursor(cursor: str) -> int:
     cursor and next_cursor is typed like the row it points at.
     """
     global_id = parse_global_id(cursor)
-    if global_id.type_name not in _TYPENAME_BY_KIND.values():
+    if global_id.type_name not in EVALUATOR_TYPENAME_BY_KIND.values():
         raise BadRequest(f"Invalid evaluator cursor: {cursor}")
     return decode_global_id(cursor, global_id.type_name)
 
@@ -382,7 +379,7 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
         row, version = pair
         return _code_evaluator_definition(evaluator_id, row, version)
     if global_id.type_name == "DecisionEvaluator":
-        decision_row = await decision_service.get_decision_evaluator(
+        decision_row = await get_decision_evaluator(
             session, decode_global_id(evaluator_id, "DecisionEvaluator")
         )
         return _decision_evaluator_definition(evaluator_id, decision_row)
@@ -500,7 +497,7 @@ async def _evaluator_definitions_page(
 
     definitions: list[EvaluatorDefinition] = []
     for row_id, kind in rows:
-        evaluator_id = encode_global_id(_TYPENAME_BY_KIND[kind], row_id)
+        evaluator_id = encode_global_id(EVALUATOR_TYPENAME_BY_KIND[kind], row_id)
         if kind == "DECISION":
             decision_row = decision_by_id.get(row_id)
             if decision_row is None:
@@ -558,7 +555,7 @@ async def get_evaluators(
     pass `next_cursor` back as is.
     """
     with evaluator_api_errors():
-        kinds = [_EVALUATOR_KIND_BY_TYPE[type]] if type else list(_EVALUATOR_KIND_BY_TYPE.values())
+        kinds = [EVALUATOR_KIND_BY_TYPE[type]] if type else list(EVALUATOR_KIND_BY_TYPE.values())
         async with request.app.state.db.read() as session:
             stmt = (
                 select(models.Evaluator.id, models.Evaluator.kind)
@@ -573,7 +570,7 @@ async def get_evaluators(
                 stmt = stmt.where(models.Evaluator.id <= _decode_evaluator_cursor(cursor))
             rows = (await session.execute(stmt.limit(limit + 1))).all()
             next_cursor = (
-                encode_global_id(_TYPENAME_BY_KIND[rows[-1][1]], rows[-1][0])
+                encode_global_id(EVALUATOR_TYPENAME_BY_KIND[rows[-1][1]], rows[-1][0])
                 if len(rows) > limit
                 else None
             )
@@ -608,9 +605,9 @@ async def create_evaluator(
     """
     with evaluator_api_errors():
         if isinstance(body, CreateDecisionEvaluatorRequest):
-            decision_row = await decision_service.create_decision_evaluator(
+            decision_row = await decisions.create_decision_evaluator(
                 evaluator_service_context(request),
-                decision_service.CreateDecisionEvaluatorInput(
+                decisions.CreateDecisionEvaluatorInput(
                     name=body.name,
                     decision_version_id=parse_global_id(body.decision_version_id),
                     description=body.description,
@@ -623,9 +620,9 @@ async def create_evaluator(
                 )
             )
         if isinstance(body, CreateLLMEvaluatorRequest):
-            llm = await service.create_llm_evaluator(
+            llm = await definitions.create_llm_evaluator(
                 evaluator_service_context(request),
-                service.CreateLLMEvaluatorInput(
+                definitions.CreateLLMEvaluatorInput(
                     name=body.name,
                     description=body.description,
                     prompt_version_id=parse_global_id(body.prompt.selector.prompt_version_id),
@@ -635,9 +632,9 @@ async def create_evaluator(
             return EvaluatorDefinitionResponseBody(
                 data=await _written_definition(request, encode_global_id("LLMEvaluator", llm.id))
             )
-        row = await service.create_code_evaluator(
+        row = await definitions.create_code_evaluator(
             evaluator_service_context(request),
-            service.CreateCodeEvaluatorInput(
+            definitions.CreateCodeEvaluatorInput(
                 name=body.name,
                 description=body.description,
                 source_code=body.source_code,
@@ -708,17 +705,17 @@ async def patch_evaluator(
         if isinstance(body, PatchDecisionEvaluatorRequest):
             if "decision_version_id" in fields:
                 values["decision_version_id"] = parse_global_id(body.decision_version_id)
-            await decision_service.patch_decision_evaluator(
+            await decisions.patch_decision_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),
-                decision_service.DecisionEvaluatorPatch(**values),
+                decisions.DecisionEvaluatorPatch(**values),
             )
         elif isinstance(body, PatchCodeEvaluatorRequest):
             if "sandbox_config_id" in fields and body.sandbox_config_id is not None:
                 values["sandbox_config_id"] = parse_global_id(body.sandbox_config_id)
-            await service.patch_code_evaluator(
+            await definitions.patch_code_evaluator(
                 evaluator_service_context(request),
-                service.PatchCodeEvaluatorInput(id=parse_global_id(evaluator_id), **values),
+                definitions.PatchCodeEvaluatorInput(id=parse_global_id(evaluator_id), **values),
             )
         else:
             if "prompt" in fields:
@@ -726,10 +723,10 @@ async def patch_evaluator(
                 values["prompt_source"] = FromPromptVersion(
                     prompt_version_id=parse_global_id(body.prompt.selector.prompt_version_id)
                 )
-            await service.patch_llm_evaluator(
+            await definitions.patch_llm_evaluator(
                 evaluator_service_context(request),
                 parse_global_id(evaluator_id),
-                service.LLMEvaluatorPatch(**values),
+                definitions.LLMEvaluatorPatch(**values),
             )
         return EvaluatorDefinitionResponseBody(
             data=await _written_definition(request, evaluator_id)
@@ -753,11 +750,11 @@ async def delete_evaluator(request: Request, evaluator_id: str) -> Response:
         global_id = parse_global_id(evaluator_id)
         context = evaluator_service_context(request)
         if global_id.type_name == "DecisionEvaluator":
-            await decision_service.delete_decision_evaluator(context, global_id)
+            await decisions.delete_decision_evaluator(context, global_id)
         elif global_id.type_name == "CodeEvaluator":
-            await service.delete_code_evaluator(context, global_id)
+            await definitions.delete_code_evaluator(context, global_id)
         elif global_id.type_name == "LLMEvaluator":
-            await service.delete_llm_evaluator(context, global_id)
+            await definitions.delete_llm_evaluator(context, global_id)
         else:
             raise BadRequest("Built-in evaluators cannot be deleted")
     return Response(status_code=204)
@@ -856,9 +853,9 @@ async def create_code_evaluator_version(
             configuration["input_mapping"] = body.input_mapping
         if "output_configs" in fields:
             configuration["output_configs"] = output_configs_to_db(body.output_configs)
-        _, version, was_created = await service.create_code_evaluator_version(
+        _, version, was_created = await definitions.create_code_evaluator_version(
             evaluator_service_context(request),
-            service.CreateCodeEvaluatorVersionInput(
+            definitions.CreateCodeEvaluatorVersionInput(
                 code_evaluator_id=parse_global_id(evaluator_id),
                 source_code=body.source_code,
                 expected_current_version_id=parse_global_id(body.expected_current_version_id)

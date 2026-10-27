@@ -29,14 +29,14 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.api.exceptions import Conflict
-from phoenix.server.api.helpers.evaluator_service import (
+from phoenix.server.api.routers.v1.evaluators import router
+from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
+from phoenix.server.app import _db
+from phoenix.server.evaluators.services.definitions import (
     CreateCodeEvaluatorVersionInput,
     EvaluatorServiceContext,
     create_code_evaluator_version,
 )
-from phoenix.server.api.routers.v1.evaluators import router
-from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
-from phoenix.server.app import _db
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 

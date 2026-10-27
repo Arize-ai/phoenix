@@ -86,6 +86,7 @@ from phoenix.db.types.decisions import (
     DecisionTaskConfig,
 )
 from phoenix.db.types.evaluator_definition import (
+    DecisionEvaluatorSnapshot,
     EvaluatorDefinition,
     EvaluatorDefinitionRootModel,
 )
@@ -825,6 +826,25 @@ class _EvaluatorDefinition(TypeDecorator[EvaluatorDefinition]):
         return EvaluatorDefinitionRootModel.model_validate(value).root
 
 
+class _DecisionEvaluatorSnapshots(TypeDecorator[list[DecisionEvaluatorSnapshot]]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[DecisionEvaluatorSnapshot]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        return [snapshot.model_dump(mode="json") for snapshot in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[DecisionEvaluatorSnapshot]]:
+        if value is None:
+            return None
+        return [DecisionEvaluatorSnapshot.model_validate(snapshot) for snapshot in value]
+
+
 class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
     cache_ok = True
     impl = JSON_
@@ -1082,14 +1102,14 @@ class Span(HasId):
         return cls.attributes[INPUT_VALUE]
 
     @hybrid_property
-    def input_value_first_101_chars(self) -> Any:
+    def input_value_first_101_chars(self) -> str | None:
         if (v := get_attribute_value(self.attributes, INPUT_VALUE)) is None:
             return None
         return str(v)[:101]
 
     @input_value_first_101_chars.inplace.expression
     @classmethod
-    def _input_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+    def _input_value_first_101_chars_expression(cls) -> ColumnElement[str | None]:
         return case(
             (
                 cls.attributes[INPUT_VALUE] != sql.null(),
@@ -1116,14 +1136,14 @@ class Span(HasId):
         return cls.attributes[OUTPUT_VALUE]
 
     @hybrid_property
-    def output_value_first_101_chars(self) -> Any:
+    def output_value_first_101_chars(self) -> str | None:
         if (v := get_attribute_value(self.attributes, OUTPUT_VALUE)) is None:
             return None
         return str(v)[:101]
 
     @output_value_first_101_chars.inplace.expression
     @classmethod
-    def _output_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+    def _output_value_first_101_chars_expression(cls) -> ColumnElement[str | None]:
         return case(
             (
                 cls.attributes[OUTPUT_VALUE] != sql.null(),
@@ -1238,7 +1258,7 @@ class LatencyMs(expression.FunctionElement[float]):
 
 
 @compiles(LatencyMs)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
@@ -1248,7 +1268,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(LatencyMs, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     # time_sub (sqlean's time extension) returns exact integer nanoseconds,
@@ -1266,7 +1286,7 @@ class NumDocuments(expression.FunctionElement[int]):
 
 
 @compiles(NumDocuments)
-def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     attributes, span_kind = list(element.clauses)
     retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
@@ -1327,7 +1347,7 @@ class SafeJsonBoolean(expression.FunctionElement[bool]):
 
 
 @compiles(SafeJsonFloat)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     scalar = f"json_extract({value}, '$')"
     return (
@@ -1338,7 +1358,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonFloat, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     # `strict` matters: in lax mode a jsonpath auto-unwraps arrays, so
     # `$.double()` applied to `[1, 2]` returns 1 and the row matches a
@@ -1349,7 +1369,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonBoolean)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     scalar = f"lower(json_extract({value}, '$'))"
     # SQLite's JSON functions return booleans as integers (JSON_QUOTE of an
@@ -1363,7 +1383,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonBoolean, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     # The jsonpath `.boolean()` method requires PostgreSQL 17; this CASE works
     # on every supported version.
@@ -1383,21 +1403,21 @@ class TextContains(expression.FunctionElement[str]):
 
 
 @compiles(TextContains)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(string.contains(substring), **kw)
 
 
 @compiles(TextContains, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.strpos(string, substring) > 0, **kw)
 
 
 @compiles(TextContains, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.text_contains(string, substring) > 0, **kw)
@@ -1411,14 +1431,14 @@ class CaseInsensitiveContains(expression.FunctionElement[bool]):
 
 
 @compiles(CaseInsensitiveContains)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     string, substring = list(element.clauses)
     result = compiler.process(func.lower(string).contains(func.lower(substring)), **kw)
     return result
 
 
 @compiles(CaseInsensitiveContains, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     string, substring = list(element.clauses)
     escaped = func.replace(
         func.replace(func.replace(substring, "\\", "\\\\"), "%", "\\%"), "_", "\\_"
@@ -1429,7 +1449,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(CaseInsensitiveContains, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
     # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
@@ -2090,8 +2110,8 @@ class ExperimentJob(HasId):
         nullable=False,
     )
 
-    decision_evaluator_snapshots: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSON_, nullable=False, default=list, server_default="[]"
+    decision_evaluator_snapshots: Mapped[list[DecisionEvaluatorSnapshot]] = mapped_column(
+        _DecisionEvaluatorSnapshots, nullable=False, default=list, server_default="[]"
     )
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",

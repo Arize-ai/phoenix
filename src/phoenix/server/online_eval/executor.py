@@ -47,24 +47,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.prompts import PromptChatTemplate
-from phoenix.server.api.evaluators import (
-    BaseEvaluator,
-    CodeEvaluatorRunner,
-    EvaluationResult,
-    LLMEvaluator,
-    get_builtin_evaluator_by_key,
-)
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
-from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import (
-    capture_decision_evaluator_definition,
-    parse_decision_annotation,
-)
-from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import (
     TRACE_ANNOTATIONS_METADATA_KEY,
     without_own_annotations,
@@ -76,6 +63,17 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
     TraceAnnotationInsertEvent,
 )
+from phoenix.server.evaluators.resolution import build_decision_evaluator
+from phoenix.server.evaluators.runtime.base import (
+    BaseEvaluator,
+    EvaluationResult,
+    result_annotation_names,
+)
+from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
+from phoenix.server.evaluators.runtime.decision import parse_decision_annotation
+from phoenix.server.evaluators.runtime.llm import LLMEvaluator
+from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
 from phoenix.server.online_eval import session_policy
 from phoenix.server.online_eval.bound_variables import (
     TRACE_ROOT_IO_NAMES,

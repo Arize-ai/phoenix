@@ -5,7 +5,6 @@ import pytest
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.dataset_evaluator_service import validate_llm_binding_overrides
 from phoenix.server.api.routers.v1.annotation_config_models import (
     CategoricalAnnotationConfigData,
     CategoricalAnnotationValue,
@@ -13,6 +12,9 @@ from phoenix.server.api.routers.v1.annotation_config_models import (
     FreeformAnnotationConfigData,
 )
 from phoenix.server.api.routers.v1.evaluator_common import output_configs_to_db
+from phoenix.server.evaluators.services.dataset_bindings import (
+    validate_llm_binding_overrides,
+)
 
 
 def test_inverted_continuous_bounds_are_a_client_error() -> None:

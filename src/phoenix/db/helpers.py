@@ -28,6 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
+from sqlalchemy.sql.selectable import CTE, Subquery
 from typing_extensions import assert_never
 
 from phoenix.config import (
@@ -207,12 +208,7 @@ async def get_fallback_project_names_for_experiments(
             ).where(models.ExperimentJob.id.in_(set(experiment_ids)))
         )
     ).all()
-    project_ids = {
-        snapshot["project_id"]
-        for _, snapshots in rows
-        for snapshot in snapshots or []
-        if isinstance(snapshot.get("project_id"), int)
-    }
+    project_ids = {snapshot.project_id for _, snapshots in rows for snapshot in snapshots or []}
     if not project_ids:
         return []
     descriptions = {f"%on dataset: experiment {experiment_id}" for experiment_id, _ in rows}
@@ -760,7 +756,7 @@ def truncate_name(name: str, max_len: int = 63) -> str:
 def get_successful_run_counts_subquery(
     experiment_id: int,
     repetitions: int,
-) -> Any:
+) -> Subquery:
     """
     Build a subquery that counts successful runs per dataset example for an experiment.
 
@@ -822,9 +818,9 @@ def get_successful_run_counts_subquery(
 
 def generate_expected_repetitions_cte(
     dialect: SupportedSQLDialect,
-    run_counts_subquery: Any,
+    run_counts_subquery: Subquery,
     repetitions: int,
-) -> Any:
+) -> CTE:
     """
     Generate a CTE that produces all expected repetition numbers for partially complete examples.
 
@@ -894,7 +890,7 @@ def generate_expected_repetitions_cte(
 
 def get_incomplete_repetitions_query(
     dialect: SupportedSQLDialect,
-    expected_runs_cte: Any,
+    expected_runs_cte: CTE,
     experiment_id: int,
 ) -> Select[Any, Any, Any]:
     """
@@ -1451,6 +1447,27 @@ def pg_total_table_size_stmt() -> TextClause:
     return text(
         f"SELECT coalesce(sum(pg_total_relation_size(c.oid)), 0)\n{_PG_TABLES_IN_PHOENIX_SCHEMA}"
     ).bindparams(nspname=get_env_database_schema())
+
+
+# PostgreSQL foreign_key_violation. SQLite has no SQLSTATE; its driver message is fixed
+# and, unlike SQLAlchemy's str(IntegrityError), does not include the bound parameters.
+_POSTGRES_FOREIGN_KEY_SQLSTATE = "23503"
+_SQLITE_FOREIGN_KEY_MESSAGE = "FOREIGN KEY constraint failed"
+
+
+def is_foreign_key_violation(error: BaseException) -> bool:
+    """Whether an integrity error is a foreign-key failure, not a unique collision.
+
+    SQLAlchemy appends the statement parameters to ``str(error)``, so a name or
+    description containing "foreign" must not be what decides 404 versus 409.
+    """
+    candidate = getattr(error, "orig", None)
+    if candidate is None:
+        candidate = error
+    sqlstate = getattr(candidate, "sqlstate", None) or getattr(candidate, "pgcode", None)
+    if sqlstate == _POSTGRES_FOREIGN_KEY_SQLSTATE:
+        return True
+    return str(candidate) == _SQLITE_FOREIGN_KEY_MESSAGE
 
 
 async def llm_evaluators_pinned_by_prompt_version_tag(

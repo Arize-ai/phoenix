@@ -18,20 +18,7 @@ from phoenix.db.types.evaluator_definition import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import (
-    BaseEvaluator,
-    build_evaluator_from_definition,
-)
-from phoenix.server.api.evaluators import (
-    EvaluationResult as EvaluationResultDict,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
-from phoenix.server.api.helpers.decision_evaluators import (
-    capture_decision_evaluator_definition,
-    parse_decision_annotation,
-)
-from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
@@ -40,6 +27,19 @@ from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
 )
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.evaluators.resolution import build_evaluator_from_definition
+from phoenix.server.evaluators.runtime.base import (
+    BaseEvaluator,
+    result_annotation_names,
+)
+from phoenix.server.evaluators.runtime.base import (
+    EvaluationResult as EvaluationResultDict,
+)
+from phoenix.server.evaluators.runtime.decision import parse_decision_annotation
+from phoenix.server.evaluators.snapshots import (
+    capture_decision_evaluator_definition,
+    get_decision_evaluator,
+)
 from phoenix.server.monty_runtime import (
     MontyBusy,
     MontyDeadlineExceeded,

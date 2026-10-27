@@ -15,8 +15,12 @@ from pydantic import ConfigDict, Field, RootModel
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.db_helper_types import DBBaseModel
-from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy,
+    derive_decision_output_configs,
+)
 from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, DecisionState
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
@@ -129,6 +133,30 @@ class StoredDecisionEvaluatorDefinition(_FrozenDBModel):
     type: Literal["decision_evaluator"]
     decision_evaluator_id: int
     source: EvaluatorSource | None = None
+
+
+class DecisionEvaluatorSnapshot(_FrozenDBModel):
+    """Frozen dataset decision evaluator binding stored on an ExperimentJob."""
+
+    definition: InlineDecisionEvaluatorDefinition
+    input_mapping: InputMapping
+    project_id: int
+
+    @property
+    def dataset_evaluator_id(self) -> int:
+        assert self.definition.source is not None
+        assert self.definition.source.dataset_evaluator_id is not None
+        return self.definition.source.dataset_evaluator_id
+
+    @property
+    def name(self) -> str:
+        return self.definition.name
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return derive_decision_output_configs(
+            self.definition.questions, self.definition.scoring_policy
+        )
 
 
 EvaluatorDefinition = Annotated[

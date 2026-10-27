@@ -5,6 +5,7 @@ import threading
 from asyncio import AbstractEventLoop
 from copy import copy
 from dataclasses import fields
+from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
@@ -42,8 +43,9 @@ from pydantic import SecretStr, TypeAdapter
 from pydantic_ai import RunContext
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy import URL, StaticPool
+from sqlalchemy import URL, StaticPool, select
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.engine import Dialect
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from starlette.types import ASGIApp
 from strawberry.extensions import SchemaExtension
@@ -61,6 +63,27 @@ from phoenix.db.engines import (
 )
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.insertion.helpers import DataManipulation
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+    OutputConfigType,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptToolChoiceOneOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
 from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
@@ -72,6 +95,8 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.redaction import Redactor
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
@@ -308,7 +333,7 @@ _GraphQLExtensions = Iterable[Union[type[SchemaExtension], Callable[[], SchemaEx
 _MEMOIZED_GRAPHQL_SCHEMAS: dict[tuple[Any, ...], strawberry.Schema] = {}
 
 
-def _graphql_extension_key(extension: Any) -> Any:
+def _graphql_extension_key(extension: Any) -> object:
     # Extension classes identify themselves. The app passes its other
     # extensions as lambdas built fresh per app; two such lambdas are
     # equivalent when they share code, defaults, and captured values.
@@ -381,7 +406,7 @@ _FIELD_INFO_ATTRIBUTES = (
 )
 
 
-def _by_value_or_repr(value: Any) -> Any:
+def _by_value_or_repr(value: Any) -> str | tuple[type, object]:
     # Hashable values key by type and equality, which for classes and
     # callables is identity, so same-named types and same-named factories
     # stay apart and 0, 0.0, and False do not collide. Unhashable values
@@ -752,7 +777,7 @@ def dialect(request: SubRequest) -> str:
 
 
 @pytest.fixture
-def sqlalchemy_dialect(dialect: str) -> Any:
+def sqlalchemy_dialect(dialect: str) -> Dialect:
     if dialect == "sqlite":
         return sqlite.dialect()
     elif dialect == "postgresql":
@@ -957,7 +982,7 @@ async def synced_builtin_evaluators(db: DbSessionFactory) -> None:
     Tests that directly create DatasetEvaluators referencing builtin evaluators
     should use this fixture to ensure the builtin evaluators exist in the database.
     """
-    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+    from phoenix.server.evaluators.services.builtin_sync import sync_builtin_evaluators
 
     await sync_builtin_evaluators(db)
 
@@ -1150,3 +1175,386 @@ def rand_trace_id() -> Iterator[str]:
 @pytest.fixture
 def custom_vcr(request: FixtureRequest) -> CustomVCR:
     return CustomVCR(request)
+
+
+@pytest.fixture
+async def empty_dataset(db: DbSessionFactory) -> None:
+    """
+    A dataset with three versions, where two examples are added, patched, then deleted
+    """
+    async with db() as session:
+        dataset = models.Dataset(
+            id=1,
+            name="empty dataset",
+            description="emptied after two revisions",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        dataset_version_1 = models.DatasetVersion(
+            id=1,
+            dataset_id=1,
+            description="data gets added",
+            metadata_={"info": "gotta get some test data somewhere"},
+        )
+        session.add(dataset_version_1)
+        await session.flush()
+
+        example_1 = models.DatasetExample(
+            id=1,
+            dataset_id=1,
+        )
+        session.add(example_1)
+        await session.flush()
+
+        example_2 = models.DatasetExample(
+            id=2,
+            dataset_id=1,
+        )
+        session.add(example_2)
+        await session.flush()
+
+        example_1_revision_1 = models.DatasetExampleRevision(
+            id=1,
+            dataset_example_id=1,
+            dataset_version_id=1,
+            input={"in": "foo"},
+            output={"out": "bar"},
+            metadata_={"info": "first revision"},
+            revision_kind="CREATE",
+        )
+        session.add(example_1_revision_1)
+        await session.flush()
+
+        example_2_revision_1 = models.DatasetExampleRevision(
+            id=2,
+            dataset_example_id=2,
+            dataset_version_id=1,
+            input={"in": "foofoo"},
+            output={"out": "barbar"},
+            metadata_={"info": "first revision"},
+            revision_kind="CREATE",
+        )
+        session.add(example_2_revision_1)
+        await session.flush()
+
+        dataset_version_2 = models.DatasetVersion(
+            id=2,
+            dataset_id=1,
+            description="data gets patched",
+            metadata_={"info": "all caps patch"},
+        )
+        session.add(dataset_version_2)
+        await session.flush()
+
+        example_1_revision_2 = models.DatasetExampleRevision(
+            id=3,
+            dataset_example_id=1,
+            dataset_version_id=2,
+            input={"in": "FOO"},
+            output={"out": "BAR"},
+            metadata_={"info": "all caps revision"},
+            revision_kind="PATCH",
+        )
+        session.add(example_1_revision_2)
+        await session.flush()
+
+        example_2_revision_2 = models.DatasetExampleRevision(
+            id=4,
+            dataset_example_id=2,
+            dataset_version_id=2,
+            input={"in": "FOOFOO"},
+            output={"out": "BARBAR"},
+            metadata_={"info": "all caps revision"},
+            revision_kind="PATCH",
+        )
+        session.add(example_2_revision_2)
+        await session.flush()
+
+        dataset_version_3 = models.DatasetVersion(
+            id=3,
+            dataset_id=1,
+            description="data gets deleted",
+            metadata_={"info": "all gone"},
+        )
+        session.add(dataset_version_3)
+        await session.flush()
+
+        example_1_revision_3 = models.DatasetExampleRevision(
+            id=5,
+            dataset_example_id=1,
+            dataset_version_id=3,
+            input={},
+            output={},
+            metadata_={"info": "all caps revision"},
+            revision_kind="DELETE",
+        )
+        session.add(example_1_revision_3)
+        await session.flush()
+
+        example_2_revision_3 = models.DatasetExampleRevision(
+            id=6,
+            dataset_example_id=2,
+            dataset_version_id=3,
+            input={},
+            output={},
+            metadata_={"info": "all caps revision"},
+            revision_kind="DELETE",
+        )
+        session.add(example_2_revision_3)
+        await session.flush()
+
+
+@pytest.fixture
+async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator:
+    """
+    An LLM evaluator that assesses correctness.
+    """
+    async with db() as session:
+        evaluator_name = Identifier("correctness-evaluator")
+        prompt = models.Prompt(
+            name=Identifier("correctness-prompt"),
+            description="Prompt for correctness evaluation",
+            prompt_versions=[
+                models.PromptVersion(
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template=PromptChatTemplate(
+                        type="chat",
+                        messages=[
+                            PromptMessage(
+                                role="system",
+                                content="You are an evaluator that assesses the correctness of outputs.",
+                            ),
+                            PromptMessage(
+                                role="user",
+                                content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                            ),
+                        ],
+                    ),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    tools=PromptTools(
+                        type="tools",
+                        tools=[
+                            PromptToolFunction(
+                                type="function",
+                                function=PromptToolFunctionDefinition(
+                                    name="correctness",
+                                    description="evaluates the correctness of the output",
+                                    parameters={
+                                        "type": "object",
+                                        "properties": {
+                                            "label": {
+                                                "type": "string",
+                                                "enum": ["correct", "incorrect"],
+                                                "description": "correctness",
+                                            },
+                                        },
+                                        "required": ["label"],
+                                    },
+                                ),
+                            )
+                        ],
+                        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                    ),
+                    response_format=None,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    metadata_={},
+                )
+            ],
+        )
+        llm_evaluator = models.LLMEvaluator(
+            name=evaluator_name,
+            description="evaluates the correctness of the output",
+            kind="LLM",
+            output_configs=[
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness evaluation",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                )
+            ],
+            prompt=prompt,
+        )
+        session.add(llm_evaluator)
+        await session.flush()
+        return llm_evaluator
+
+
+@pytest.fixture
+async def assign_correctness_llm_evaluator_to_dataset(
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+    """
+    Factory fixture to assign the correctness LLM evaluator to a dataset.
+    Reuses the correctness_llm_evaluator fixture.
+    """
+
+    async def _assign_correctness_llm_evaluator_to_dataset(
+        dataset_id: int,
+    ) -> models.DatasetEvaluators:
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset_id,
+            evaluator_id=correctness_llm_evaluator.id,
+            name=correctness_llm_evaluator.name,
+            input_mapping=InputMapping(
+                literal_mapping={},
+                path_mapping={"input": "$.input", "output": "$.output"},
+            ),
+            output_configs=None,
+            project=models.Project(
+                name="correctness-evaluator-project",
+                description="Project for llm evaluator",
+            ),
+        )
+        async with db() as session:
+            session.add(dataset_evaluator)
+        return dataset_evaluator
+
+    return _assign_correctness_llm_evaluator_to_dataset
+
+
+@pytest.fixture
+async def assign_exact_match_builtin_evaluator_to_dataset(
+    db: DbSessionFactory,
+    synced_builtin_evaluators: None,
+) -> Callable[..., Awaitable[models.DatasetEvaluators]]:
+    async def _assign_exact_match_builtin_evaluator_to_dataset(
+        dataset_id: int,
+        *,
+        name: Optional[Identifier] = None,
+        input_mapping: Optional[InputMapping] = None,
+        output_configs: Optional[list[OutputConfigType]] = None,
+    ) -> models.DatasetEvaluators:
+        async with db() as session:
+            # Look up the builtin evaluator ID by key from the database
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None, "ExactMatch builtin evaluator not found in database"
+
+            resolved_name = name if name is not None else Identifier(root="exact-match")
+            resolved_mapping = (
+                input_mapping
+                if input_mapping is not None
+                else InputMapping(
+                    literal_mapping={"expected": "France"},
+                    path_mapping={"actual": "$.output.messages[0].content"},
+                )
+            )
+            resolved_output_configs = output_configs
+            if resolved_output_configs is None:
+                resolved_output_configs = [
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="exact-match",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="true", score=1.0),
+                            CategoricalAnnotationValue(label="false", score=0.0),
+                        ],
+                    ),
+                ]
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                evaluator_id=exact_match_id,
+                name=resolved_name,
+                input_mapping=resolved_mapping,
+                output_configs=resolved_output_configs,
+                project=models.Project(
+                    name="exact-match-evaluator-project",
+                    description="Project for builtin evaluator",
+                ),
+            )
+            session.add(dataset_evaluator)
+        return dataset_evaluator
+
+    return _assign_exact_match_builtin_evaluator_to_dataset
+
+
+@pytest.fixture
+async def single_example_dataset(db: DbSessionFactory) -> models.Dataset:
+    """
+    A dataset with a single example.
+    """
+    async with db() as session:
+        dataset = models.Dataset(name="single-example-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+
+        example = models.DatasetExample(
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+        )
+        session.add(example)
+        await session.flush()
+
+        revision = models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"city": "Paris"},
+            output={"country": "France"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(revision)
+        await session.flush()
+
+    return dataset
+
+
+@pytest.fixture
+async def seed_languages(db: DbSessionFactory) -> None:
+    async with db() as session:
+        await sync_languages(session)
+
+
+@pytest.fixture
+async def seed_sandbox_providers(
+    db: DbSessionFactory,
+    seed_languages: None,
+) -> None:
+    async with db() as session:
+        await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
+
+
+@pytest.fixture
+async def sandbox_config(
+    db: DbSessionFactory,
+    seed_sandbox_providers: None,
+) -> models.SandboxConfig:
+    async with db() as session:
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+        )
+        assert provider is not None, (
+            "WASM sandbox provider not found; ensure seed_sandbox_providers ran"
+        )
+        config = models.SandboxConfig(
+            backend_type=provider.backend_type,
+            language="PYTHON",
+            name=Identifier("test-sandbox-config"),
+            description="Fixture sandbox config for tests",
+            config={},
+            timeout=30,
+        )
+        session.add(config)
+        await session.flush()
+        return config

@@ -11,6 +11,7 @@ import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
+from sqlalchemy.sql.selectable import NamedFromClause
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -41,16 +42,7 @@ from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspac
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import (
-    apply_input_mapping,
-    cast_template_variable_types,
-    infer_input_schema_from_template,
-    validate_template_variables,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.classification_evaluator_configs import (
-    get_classification_evaluator_configs,
-)
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
     allowed_decision_providers,
@@ -64,7 +56,6 @@ from phoenix.server.api.helpers.playground_clients import (
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.DecisionFilter import DecisionFilter
@@ -184,8 +175,17 @@ from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.evaluators.catalog import (
+    get_classification_evaluator_configs,
+)
+from phoenix.server.evaluators.input_mapping import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    validate_template_variables,
+)
+from phoenix.server.evaluators.schemas import infer_input_schema_from_template
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
-from phoenix.utilities.template_formatters import TemplateFormatterError
+from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
 
 logger = logging.getLogger(__name__)
 
@@ -906,7 +906,7 @@ class Query:
             .alias("run_metrics")
         )
 
-        def best_run_per_example(*, compare: bool, alias: str) -> Any:
+        def best_run_per_example(*, compare: bool, alias: str) -> NamedFromClause:
             experiment_filter = (
                 run_metrics.c.experiment_id.in_(compare_experiment_rowids)
                 if compare

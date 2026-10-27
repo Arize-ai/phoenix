@@ -11,7 +11,7 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, case, desc, distinct, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, desc, distinct, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
@@ -39,17 +39,6 @@ from phoenix.server.api.annotation_metrics import build_entity_weighted_annotati
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
-from phoenix.server.api.helpers.evaluator_comparison import (
-    ComparisonAccumulator,
-    make_side_binning,
-)
-from phoenix.server.api.helpers.evaluator_results import (
-    EVALUATOR_RESULT_LEVELS,
-    evaluator_annotation_rows,
-    latest_evaluator_annotations,
-    primary_result_annotation,
-)
-from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
@@ -96,6 +85,17 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.evaluators.results.annotations import (
+    EVALUATOR_RESULT_LEVELS,
+    evaluator_annotation_rows,
+    latest_evaluator_annotations,
+    primary_result_annotation,
+)
+from phoenix.server.evaluators.results.comparison import (
+    ComparisonAccumulator,
+    make_side_binning,
+)
+from phoenix.server.evaluators.runtime.base import result_annotation_names
 from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
@@ -316,7 +316,7 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]
     )
 
 
-def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> ColumnElement[bool]:
     """Match only the spans an evaluator execution stamped with its own identity.
 
     The id is rebuilt from its row id so a differently encoded but equivalent
@@ -326,8 +326,10 @@ def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
         rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
     except ValueError:
         raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
-    return models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string() == str(
-        GlobalID(ProjectEvaluator.__name__, str(rowid))
+    return cast(
+        ColumnElement[bool],
+        models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string()
+        == str(GlobalID(ProjectEvaluator.__name__, str(rowid))),
     )
 
 

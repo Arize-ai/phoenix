@@ -13,6 +13,7 @@ from opentelemetry.trace import format_trace_id
 from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
+from typing_extensions import Never
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
@@ -42,7 +43,6 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import (
     ProjectEvaluatorRunCountsDataLoader,
 )
-from phoenix.server.api.evaluators import SandboxPayloadTooLargeError
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -54,6 +54,7 @@ from phoenix.server.dml_event import (
     TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.evaluators.runtime.code import SandboxPayloadTooLargeError
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval import session_policy as session_policy_module
@@ -77,6 +78,7 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
+    ResolvedProjectEvaluator,
     annotation_identifier,
     config_fingerprint,
 )
@@ -1619,8 +1621,10 @@ async def test_consumer_publishes_queue_health_gauges(
         gauge.labels.assert_called_once_with(evaluation_target="SPAN")
         gauge.labels.return_value.set.assert_called_once()
 
-    def published(name: str) -> Any:
-        return gauges[name].labels.return_value.set.call_args.args[0]
+    def published(name: str) -> float:
+        value = gauges[name].labels.return_value.set.call_args.args[0]
+        assert isinstance(value, (int, float))
+        return value
 
     assert published("ONLINE_EVAL_PENDING_WORK_UNITS") == 1
 
@@ -1642,7 +1646,9 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
     _patch_playground_client(monkeypatch, client)
     call_sizes: list[int] = []
 
-    async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
+    async def _counting_resolver(
+        *args: Any, **kwargs: Any
+    ) -> list[ResolvedProjectEvaluator | None]:
         call_sizes.append(len(args[1]))
         return await resolve_project_evaluators_bulk(*args, **kwargs)
 
@@ -1686,7 +1692,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         *,
         project_id: int,
         target_vocabularies: Mapping[int, Mapping[str, Any]],
-    ) -> Any:
+    ) -> tuple[dict[str, Any], dict[str, Any] | None] | HydrationFailure:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
         return await original(
@@ -1724,7 +1730,7 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
         for span in spans
     ]
 
-    async def _fail_shared_query(session: Any, rows: Any) -> Any:
+    async def _fail_shared_query(session: Any, rows: Any) -> None:
         await session.execute(text("SELECT 1 / 0"))
 
     monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _fail_shared_query)
@@ -1749,7 +1755,7 @@ async def test_batch_hydration_error_outside_the_database_fails_the_unit(
     evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
 
-    async def _fail_outside_the_database(session: Any, rows: Any) -> Any:
+    async def _fail_outside_the_database(session: Any, rows: Any) -> Never:
         raise ValueError("unreadable configuration")
 
     monkeypatch.setattr(
