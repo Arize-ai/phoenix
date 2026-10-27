@@ -10,45 +10,51 @@ import type { decisionAnnotation_annotation$data } from "./__generated__/decisio
 export const decisionAnnotationFragment = graphql`
   fragment decisionAnnotation_annotation on ExperimentRunAnnotation {
     decision {
-      status
-      question {
-        name
-        type
-        choices {
-          value
-          description
-        }
-        levels {
-          label
-          description
-        }
+      ...decisionAnnotation_decision @relay(mask: false)
+    }
+  }
+`;
+
+export const decisionAnnotationDecisionFragment = graphql`
+  fragment decisionAnnotation_decision on DecisionAnnotation {
+    status
+    question {
+      name
+      type
+      choices {
+        value
+        description
       }
-      answer {
-        __typename
-        ... on PredicateAnswer {
+      levels {
+        label
+        description
+      }
+    }
+    answer {
+      __typename
+      ... on PredicateAnswer {
+        probability
+      }
+      ... on ChoiceAnswer {
+        choice
+        confidence
+        choiceProbabilities: probabilities {
+          value
           probability
         }
-        ... on ChoiceAnswer {
-          choice
-          confidence
-          choiceProbabilities: probabilities {
-            value
-            probability
-          }
-        }
-        ... on ScaleAnswer {
-          expectedLevel
-          confidence
-          levelProbabilities: probabilities {
-            level
-            probability
-          }
+      }
+      ... on ScaleAnswer {
+        expectedLevel
+        confidence
+        levelProbabilities: probabilities {
+          level
+          probability
         }
       }
-      requestedModel
-      resolvedModel
-      modelProvider
     }
+    requestedModel
+    resolvedModel
+    modelProvider
   }
 `;
 
