@@ -37,6 +37,10 @@ OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=open-webui
 `OTEL_RESOURCE_ATTRIBUTES` sets the Phoenix project through the `openinference.project.name` resource attribute. Without it, Open WebUI traces land in the `default` project.
 
 <Note>
+Open WebUI may attach `client.user.email` to authenticated spans. This setup sends those spans to Phoenix. If you don't want email addresses stored, remove this attribute before export with an OpenTelemetry Collector.
+</Note>
+
+<Note>
 With `OTEL_OTLP_SPAN_EXPORTER=http`, Open WebUI uses `OTEL_EXPORTER_OTLP_ENDPOINT` as-is, so include the `/v1/traces` path. Open WebUI defaults to OTLP over gRPC; a self-hosted Phoenix also accepts gRPC on port `4317`, but HTTP works for both self-hosted Phoenix and Phoenix Cloud.
 </Note>
 
