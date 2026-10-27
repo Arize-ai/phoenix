@@ -25,14 +25,17 @@ afterEach(() => {
   container.remove();
 });
 
-async function renderOutput(error: string | null) {
+async function renderOutput(
+  error: string | null,
+  output: object = { message: "normal output retained" }
+) {
   await act(async () => {
     root.render(
       <ThemeProvider themeMode="light" disableBodyTheme>
         <ExperimentRunOutput
           id="run-1"
           error={error}
-          output={{ message: "normal output retained" }}
+          output={output}
           annotations={{ edges: [] }}
           costSummary={{ total: { cost: null, tokens: null } }}
           latencyMs={0}
@@ -150,5 +153,12 @@ describe("ExperimentRunOutput", () => {
     await renderOutput(error);
     expect(container.querySelector('[aria-label="Error"]')).toBeNull();
     expect(container.textContent).toContain("normal output retained");
+  });
+
+  it("uses the same JSON styling for normal output", async () => {
+    const output = { message: "normal output retained", count: 2 };
+    await renderOutput(null, output);
+    expect(container.querySelector('[aria-label="Error"]')).toBeNull();
+    expect(jsonText()).toBe(JSON.stringify(output, null, 2));
   });
 });

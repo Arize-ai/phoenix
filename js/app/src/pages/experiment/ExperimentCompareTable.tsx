@@ -30,7 +30,7 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import { JSONBlock } from "@phoenix/components/code/JSONBlock";
+import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
@@ -66,6 +66,7 @@ import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -987,12 +988,8 @@ export function ExperimentRunOutput(
 
 function RunError({ error, height }: { error: string; height: number }) {
   const { text, textType } = usePrettyText(error);
-  // Only accept whitespace-only formatting. Parsing can round numbers or drop
-  // duplicate keys; keep quoted strings intact when comparing non-whitespace.
-  const jsonTokens = /"(?:\\.|[^"\\])*"|[^\s]/g;
   const preserveOriginalJSON =
-    textType === "json" &&
-    error.match(jsonTokens)?.join("") !== text.match(jsonTokens)?.join("");
+    textType === "json" && !isWhitespaceOnlyReformat(error, text);
 
   return (
     <Flex direction="column" height="100%">
@@ -1007,20 +1004,14 @@ function RunError({ error, height }: { error: string; height: number }) {
               css={css`
                 flex-shrink: 0;
                 /* Match the top padding of CodeMirror's first line. */
-                margin-top: ${textType === "json" ? "4px" : "0"};
+                margin-top: ${textType === "json"
+                  ? "var(--global-dimension-size-50)"
+                  : "0"};
               `}
             />
             <View flex="1" minWidth={0}>
               {textType === "json" ? (
-                <JSONBlock
-                  value={preserveOriginalJSON ? error : text}
-                  css={css`
-                    .cm-editor {
-                      background: transparent !important;
-                    }
-                  `}
-                  basicSetup={{ lineNumbers: false, foldGutter: false }}
-                />
+                <PlainJSONBlock value={preserveOriginalJSON ? error : text} />
               ) : (
                 <PrettyText>{error}</PrettyText>
               )}
