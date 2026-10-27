@@ -3109,8 +3109,8 @@ export interface components {
              */
             type: "decision";
             name: components["schemas"]["Identifier"];
-            /** Decision Version Id */
-            decision_version_id: string;
+            /** @description The decision version to run. */
+            decision: components["schemas"]["DecisionEvaluatorDecisionInput"];
             /** Description */
             description?: string | null;
             scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
@@ -3653,6 +3653,29 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
+        /** DecisionEvaluatorDecision */
+        DecisionEvaluatorDecision: {
+            /**
+             * Decision Id
+             * @description GlobalID of the decision whose version the evaluator runs.
+             */
+            decision_id: string;
+            /**
+             * Selector
+             * @description How the version is chosen. version: pinned to one version. latest: the decision's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.
+             */
+            selector: components["schemas"]["DecisionVersionSelector"] | components["schemas"]["LatestDecisionVersionSelector"];
+            /**
+             * Resolved Decision Version Id
+             * @description GlobalID of the version the evaluator runs now.
+             */
+            resolved_decision_version_id: string;
+        };
+        /** DecisionEvaluatorDecisionInput */
+        DecisionEvaluatorDecisionInput: {
+            /** @description Which decision version to run. */
+            selector: components["schemas"]["DecisionVersionSelector"];
+        };
         /** DecisionEvaluatorDefinition */
         DecisionEvaluatorDefinition: {
             /**
@@ -3665,10 +3688,7 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /** Description */
             description: string | null;
-            /** Decision Id */
-            decision_id: string;
-            /** Decision Version Id */
-            decision_version_id: string;
+            decision: components["schemas"]["DecisionEvaluatorDecision"];
             scoring_policy: components["schemas"]["DecisionScoringPolicy"];
             /** Output Configs */
             output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
@@ -3682,6 +3702,19 @@ export interface components {
             questions?: {
                 [key: string]: components["schemas"]["PredicateScoring"] | components["schemas"]["ChoiceScoring"] | components["schemas"]["ScaleScoring"];
             };
+        };
+        /** DecisionVersionSelector */
+        DecisionVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "version";
+            /**
+             * Decision Version Id
+             * @description GlobalID of the decision version the evaluator runs. An update must name a version of the evaluator's own decision.
+             */
+            decision_version_id: string;
         };
         /** DeleteAnnotationConfigResponseBody */
         DeleteAnnotationConfigResponseBody: {
@@ -4409,6 +4442,14 @@ export interface components {
         };
         /** @enum {string} */
         LanguageName: "PYTHON" | "TYPESCRIPT";
+        /** LatestDecisionVersionSelector */
+        LatestDecisionVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latest";
+        };
         /** LatestPromptVersionSelector */
         LatestPromptVersionSelector: {
             /**
@@ -5027,8 +5068,8 @@ export interface components {
              */
             type: "decision";
             name?: components["schemas"]["Identifier"];
-            /** Decision Version Id */
-            decision_version_id?: string;
+            /** @description Move the evaluator to another version of its decision. Omit to keep it. */
+            decision?: components["schemas"]["DecisionEvaluatorDecisionInput"];
             /** Description */
             description?: string | null;
             scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
@@ -8336,12 +8377,6 @@ export interface components {
              * @default null
              */
             binding_counts?: components["schemas"]["BindingCounts"] | null;
-            /**
-             * Dataset Evaluator Ids
-             * @description For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.
-             * @default null
-             */
-            dataset_evaluator_ids?: string[] | null;
         };
         /** ProblemFieldError */
         ProblemFieldError: {

@@ -122,13 +122,6 @@ class ProblemDetail(V1RoutesBaseModel):
             "For still_bound: how many project and dataset bindings still refuse the delete."
         ),
     )
-    dataset_evaluator_ids: Optional[list[str]] = Field(
-        default=None,
-        description=(
-            "For incompatible_override: GlobalIDs of the dataset bindings whose output "
-            "overrides no longer fit the evaluator's prompt."
-        ),
-    )
 
 
 class ProblemException(Exception):
@@ -145,7 +138,6 @@ class ProblemException(Exception):
         existing_id: Optional[str] = None,
         current_version_id: Optional[str] = None,
         binding_counts: Optional[BindingCounts] = None,
-        dataset_evaluator_ids: Optional[list[str]] = None,
         headers: Optional[dict[str, str]] = None,
     ) -> None:
         super().__init__(detail)
@@ -160,7 +152,6 @@ class ProblemException(Exception):
             existing_id=existing_id,
             current_version_id=current_version_id,
             binding_counts=binding_counts,
-            dataset_evaluator_ids=dataset_evaluator_ids,
         )
         self.headers = headers
 

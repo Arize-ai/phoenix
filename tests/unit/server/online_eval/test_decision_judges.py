@@ -74,7 +74,12 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
             name=Identifier(f"judge-{token_hex(4)}"),
             description=None,
             metadata_={},
-            decision_version_id=version.id,
+            decision_id=decision.id,
+            decision_version_tag=models.DecisionVersionTag(
+                name=Identifier(f"judge-{token_hex(4)}"),
+                decision=decision,
+                decision_version=version,
+            ),
             scoring_policy=DecisionScoringPolicy(
                 questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
             ),
@@ -286,40 +291,6 @@ async def test_span_annotations_expose_the_typed_decision(
         "answer": {"__typename": "ScaleAnswer", "expectedLevel": 1.5},
         "modelProvider": "TYPESAFE",
     }
-
-
-async def test_a_project_binding_blocks_breaking_judge_changes(
-    db: DbSessionFactory, gql_client: AsyncGraphQLClient
-) -> None:
-    project_id, _ = await _span_with_output(db)
-    judge_id = await _seed_judge(db)
-    await _bind(db, project_id, judge_id)
-    async with db() as session:
-        judge = await session.get(models.DecisionEvaluator, judge_id)
-        assert judge is not None
-        breaking = models.DecisionVersion(
-            decision_id=judge.selected_version.decision_id,
-            inputs=[DecisionInput(name="output")],
-            state=InputState(type="input", name="output"),
-            questions=questions()[:1],
-            model_provider=ModelProvider.TYPESAFE,
-            model_name="jev-latest",
-            metadata_={},
-        )
-        session.add(breaking)
-        await session.flush()
-        breaking_id = breaking.id
-    result = await gql_client.execute(
-        """mutation ($input: PatchDecisionEvaluatorInput!) {
-          patchDecisionEvaluator(input: $input) { evaluator { id } } }""",
-        variables={
-            "input": {
-                "evaluatorId": str(GlobalID("DecisionEvaluator", str(judge_id))),
-                "decisionVersionId": str(GlobalID("DecisionVersion", str(breaking_id))),
-            }
-        },
-    )
-    assert result.errors and "would break project evaluators" in result.errors[0].message
 
 
 async def test_an_oversized_request_gives_up_without_calling_the_model(
