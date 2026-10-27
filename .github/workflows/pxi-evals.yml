@@ -40,7 +40,7 @@ jobs:
     # They are recognized by author as well as branch, since the agent chooses the branch.
     if: >-
       !startsWith(github.head_ref, 'factory/') &&
-      (vars.FACTORY_GITHUB_LOGIN == '' || github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN)
+      (vars.FACTORY_LOGIN == '' || github.event.pull_request.user.login != vars.FACTORY_LOGIN)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

@@ -9,8 +9,7 @@ factory-dispatch.yml runs the bug lane on each.
 
 Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token
 with the Viewer role), FACTORY_GRAFANA_LOGQL (the selector for server errors), optionally
-FACTORY_GRAFANA_LOKI_UID, and for the session ANTHROPIC_API_KEY, FACTORY_APP_CLIENT_ID and
-FACTORY_APP_PRIVATE_KEY.
+FACTORY_GRAFANA_LOKI_UID, and for the session ANTHROPIC_API_KEY and FACTORY_GITHUB_TOKEN.
 """
 
 import argparse
@@ -29,7 +28,6 @@ from dispatch import (
     FACTORY_DIR,
     FACTORY_LABEL,
     LOCK_FILE_PATH,
-    create_app_token,
     format_cost,
     format_session_link,
     read_lock_id,
@@ -238,13 +236,13 @@ def main() -> None:
         write_step_summary(summary)
         return
 
+    github_token = os.environ["FACTORY_GITHUB_TOKEN"]
     client = anthropic.Anthropic()
-    app_token = create_app_token(client=client, repo=args.repo)
     session_start = datetime.now(timezone.utc)
     session_id = start_triage_session(
         client=client,
         repo=args.repo,
-        github_token=app_token.refresh(),
+        github_token=github_token,
         datasource_uid=datasource_uid,
         logql=logql,
         window_start=window_start,
@@ -254,11 +252,9 @@ def main() -> None:
     )
     print(f"session_id={session_id}")
     summary.append(f"Session {format_session_link(session_id=session_id)}\n\n")
-    app_token.follow_session(session_id=session_id)
 
     session, idle_event = wait_for_session(
         client=client,
-        app_token=app_token,
         session_id=session_id,
         previous_idle_event_id=None,
         deadline=time.monotonic() + args.watch_minutes * 60,
@@ -274,10 +270,8 @@ def main() -> None:
     print(f"stop_reason={stop_reason} outcome={outcome_result} cost={cost}")
     summary.append(f"Ended with `{stop_reason}`, rubric `{outcome_result}`, cost {cost}\n\n")
 
-    # The session files and comments as the factory app; find what it touched by time.
-    touched_issues = list_source_issues(
-        repo=args.repo, token=app_token.refresh(), since=session_start
-    )
+    # The session files and comments as the machine account; find what it touched by time.
+    touched_issues = list_source_issues(repo=args.repo, token=github_token, since=session_start)
     dispatched = 0
     for issue in sorted(touched_issues, key=lambda issue: issue["createdAt"]):
         is_new = parse_timestamp(issue["createdAt"]) >= session_start
@@ -292,7 +286,7 @@ def main() -> None:
                 args.repo,
                 "--add-label",
                 FACTORY_LABEL,
-                token=app_token.refresh(),
+                token=github_token,
             )
         verb = "filed" if is_new else "updated"
         suffix = ", labeled factory" if dispatch else ""

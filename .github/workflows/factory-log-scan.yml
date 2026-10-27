@@ -1,7 +1,7 @@
 name: Factory Log Scan
 
 # Daily: if Phoenix logged server errors in the last day, run the railway-triage agent, which
-# files or updates issues for them. Labels them as the factory's GitHub App, since a label
+# files or updates issues for them. Labels with the machine-account token, since a label
 # applied by GITHUB_TOKEN would not start factory-dispatch.yml.
 on:
   schedule:
@@ -39,8 +39,7 @@ jobs:
       FACTORY_GRAFANA_LOGQL: ${{ vars.FACTORY_GRAFANA_LOGQL }}
       FACTORY_GRAFANA_LOKI_UID: ${{ vars.FACTORY_GRAFANA_LOKI_UID }}
       FACTORY_GRAFANA_TOKEN: ${{ secrets.FACTORY_GRAFANA_TOKEN }}
-      FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
-      FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+      FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -51,8 +50,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install the Anthropic SDK and PyJWT
-        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
+      - name: Install the Anthropic SDK
+        run: pip install --quiet "anthropic==1.12.1"
 
       # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
