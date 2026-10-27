@@ -25,7 +25,7 @@ dependencies = [
   "numpy",
   "pandas>=1.0",
   "jinja2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.13.0",
   "jsonschema",
   "pystache",
   "PyYAML",
@@ -108,7 +108,7 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.13.0",
   "ldap3",
   "litellm>=1.83.14,!=1.107.0; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
