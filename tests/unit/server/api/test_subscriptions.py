@@ -3074,11 +3074,11 @@ class TestExperimentsOverDatasetSubscription:
                 evaluators.append(evaluator)
         return {
             "evaluator": GlobalID("DecisionEvaluator", str(evaluators[0].id)),
-            "version": GlobalID("DecisionVersion", str(evaluators[0].decision_version_id)),
+            "version": GlobalID("DecisionVersion", str(evaluators[0].selected_version.id)),
             "binding": GlobalID("DatasetEvaluator", str(binding_ids[0])),
             "deleted_binding": GlobalID("DatasetEvaluator", "999"),
             "other_evaluator": GlobalID("DecisionEvaluator", str(evaluators[1].id)),
-            "other_version": GlobalID("DecisionVersion", str(evaluators[1].decision_version_id)),
+            "other_version": GlobalID("DecisionVersion", str(evaluators[1].selected_version.id)),
             "other_binding": GlobalID("DatasetEvaluator", str(binding_ids[1])),
             "code_evaluator": GlobalID("CodeEvaluator", "1"),
             "prompt_version": GlobalID("PromptVersion", "1"),

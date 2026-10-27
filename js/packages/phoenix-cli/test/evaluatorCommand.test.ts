@@ -720,7 +720,7 @@ describe("evaluator update", () => {
       http.patch("/v1/evaluators/{evaluator_id}", ({ response }) =>
         response.untyped(
           HttpResponse.text(
-            "Dataset evaluator bindings override outputs that the updated prompt no longer supports: RGF0YXNldEV2YWx1YXRvcjox",
+            "Could not update the evaluator because of a conflicting resource",
             { status: 409 }
           )
         )
@@ -745,7 +745,7 @@ describe("evaluator update", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining("RGF0YXNldEV2YWx1YXRvcjox")
+      expect.stringContaining("conflicting resource")
     );
   });
 });
