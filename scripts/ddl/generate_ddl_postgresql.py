@@ -358,11 +358,16 @@ class PostgreSQLDDLExtractor:
                      -- pg_constraint by name alone matches same-named constraints on
                      -- other tables and cross-contaminates their definitions, so the
                      -- join must also pin the constrained table's oid.
-                     LEFT JOIN pg_constraint pgc
-                               ON pgc.conname = tc.constraint_name
-                                   AND pgc.conrelid = to_regclass(
-                                       quote_ident(tc.table_schema) || '.' || quote_ident(tc.table_name)
-                                   )
+                     -- Restrict contype to PRIMARY KEY ('p'), UNIQUE ('u'), and
+                     -- CHECK ('c'): information_schema.table_constraints also reports
+                     -- column NOT NULL constraints as CHECK, and PostgreSQL 18+ stores
+                     -- them in pg_constraint with contype = 'n'.
+                     JOIN pg_constraint pgc
+                          ON pgc.conname = tc.constraint_name
+                              AND pgc.conrelid = to_regclass(
+                                  quote_ident(tc.table_schema) || '.' || quote_ident(tc.table_name)
+                              )
+                              AND pgc.contype IN ('p', 'u', 'c')
             WHERE tc.table_schema = %s
               AND tc.table_name = %s
               AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'CHECK')
