@@ -13,6 +13,8 @@ do not trigger a full integration run.
 | Enabled | Ollama Python | `docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx` | Native Ollama client; CI pulls `llama3.2:1b` locally. |
 | Enabled | Ollama Node.js | `docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
 | Enabled | Ollama Go | `docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
+| Enabled | LangChain Python | `docs/phoenix/integrations/python/langchain/langchain-tracing.mdx` | OpenAI-backed Python framework; checks output and an LLM span. |
+| Enabled | OpenAI Agents SDK TypeScript | `docs/phoenix/integrations/typescript/openai-agents.mdx` | Checks output and an LLM span; flushes before the short-lived script exits. |
 
 | Lint-only | Amazon Bedrock Python | `docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx` | Installs dependencies and syntax-checks; CI credentials cannot reliably access Bedrock. |
 | Lint-only | Strands Agents Python | `docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx` | Installs dependencies and syntax-checks; uses Bedrock credentials unavailable to CI. |
@@ -27,3 +29,5 @@ Add integrations one at a time after the runner supports their language and
 example shape, credentials are declared, and the verifier checks the behavior
 the page promises. Do not add an integration here as a substitute for enabling
 it in `integrations.json`.
+| Enabled | LangChain Python | `docs/phoenix/integrations/python/langchain/langchain-tracing.mdx` | OpenAI-backed Python framework; checks output and an LLM span. |
+| Enabled | OpenAI Agents SDK TypeScript | `docs/phoenix/integrations/typescript/openai-agents.mdx` | Checks output and an LLM span; flushes before the short-lived script exits. |

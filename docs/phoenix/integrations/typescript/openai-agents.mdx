@@ -51,7 +51,7 @@ The Agents SDK exposes a first-class [tracing API](https://openai.github.io/open
 ## Usage
 
 ```typescript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import { Agent, run } from "@openai/agents";
 
 const agent = new Agent({
@@ -61,10 +61,12 @@ const agent = new Agent({
 
 const result = await run(agent, "Explain the theory of relativity in simple terms.");
 console.log(result.finalOutput);
+await provider.forceFlush();
 ```
 
 <Note>
-Spans are exported in batches. In short-lived scripts, call `await provider.forceFlush()` before the process exits so all spans are delivered to Phoenix.
+Spans are exported in batches. The Usage example calls `await provider.forceFlush()` before
+exiting so all spans are delivered to Phoenix.
 </Note>
 
 ## Observe

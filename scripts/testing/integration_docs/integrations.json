@@ -403,6 +403,45 @@
         "required_attributes": ["llm.model_name"],
         "non_empty_attributes": ["llm.model_name"]
       }
+    },
+    {
+      "id": "langchain-python",
+      "document": "docs/phoenix/integrations/python/langchain/langchain-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run LangChain",
+      "required_env": ["OPENAI_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "openai-agents-typescript",
+      "document": "docs/phoenix/integrations/typescript/openai-agents.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {"source": "section_code", "language": "javascript"},
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
     }
   ]
 }
