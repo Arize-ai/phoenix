@@ -63,6 +63,13 @@ declared model. Ollama checks do not require a provider API key.
    and a verifier that checks the page's promised behavior.
 3. Add the page to `INTEGRATION_CHECKS.md` and document any routing needs in
    `scripts/skip_config.json`.
+
+The skip configuration supports AX-style `always_skip`, `lint_only`, and
+`skip_if_missing_env` routes. A lint-only document is extracted, its documented
+dependencies are installed, and its Python, JavaScript, or Go example is
+syntax-checked/compiled without contacting the model provider. Conditional
+documents run normally when their configured environment variables are set;
+otherwise the report records the configured skip reason.
 4. Run the document locally against Phoenix and inspect both the generated
    report and the spans in its unique project before enabling it in CI.
 
