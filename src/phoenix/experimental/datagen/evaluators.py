@@ -89,17 +89,24 @@ def seed_dataset_decision_evaluators(
                 json={
                     "type": "decision",
                     "name": _EVALUATOR_NAME,
-                    "decision_version_id": version_id,
+                    "decision": {
+                        "selector": {"type": "version", "decision_version_id": version_id}
+                    },
                 },
             )
             response.raise_for_status()
             evaluator = response.json()["data"]
         elif evaluator["type"] != "decision":
             raise DatasetError(f"{_EVALUATOR_NAME}: an evaluator of another type already exists")
-        elif evaluator["decision_version_id"] != version_id:
+        elif evaluator["decision"]["resolved_decision_version_id"] != version_id:
             response = http.patch(
                 f"v1/evaluators/{quote(evaluator['id'], safe='')}",
-                json={"type": "decision", "decision_version_id": version_id},
+                json={
+                    "type": "decision",
+                    "decision": {
+                        "selector": {"type": "version", "decision_version_id": version_id}
+                    },
+                },
             )
             response.raise_for_status()
         evaluator_id = evaluator["id"]

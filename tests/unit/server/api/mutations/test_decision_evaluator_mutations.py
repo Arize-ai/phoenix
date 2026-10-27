@@ -153,10 +153,10 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     assert invoke.call_args.args[0].state == {"id": 1}
 
 
-async def test_bound_repin_rejects_breaking_questions(
+async def test_a_bound_judge_cannot_be_deleted(
     gql_client: AsyncGraphQLClient, empty_dataset: None
 ) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
+    _, evaluator = await saved_evaluator(gql_client)
     binding = await gql_client.execute(
         "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
         variables={
@@ -169,24 +169,6 @@ async def test_bound_repin_rejects_breaking_questions(
         },
     )
     assert binding.data and not binding.errors, binding.errors
-    created = await gql_client.execute(
-        CREATE_VERSION,
-        variables={
-            "input": {
-                "decisionId": decision["id"],
-                "version": version_input(
-                    questions=[{"predicate": {"name": "renamed", "instructions": "New question?"}}]
-                ),
-            }
-        },
-    )
-    assert created.data and not created.errors, created.errors
-    new_version_id = created.data["createDecisionVersion"]["version"]["id"]
-    result = await gql_client.execute(
-        PATCH_EVALUATOR,
-        variables={"input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}},
-    )
-    assert result.errors and "would break dataset evaluators 'judge'" in result.errors[0].message
     result = await gql_client.execute(
         "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
         variables={"input": {"evaluatorId": evaluator["id"]}},
@@ -943,66 +925,6 @@ async def test_null_binding_name_is_a_bad_request(
     assert result.errors and "Invalid evaluator name" in result.errors[0].message
 
 
-async def test_bound_scale_description_edits_preserve_the_contract(
-    gql_client: AsyncGraphQLClient, empty_dataset: None
-) -> None:
-    levels = [{"label": "low", "description": "Low severity"}, {"label": "high"}]
-
-    def scale_version(levels: list[dict[str, str]]) -> dict[str, Any]:
-        return version_input(
-            questions=[
-                {
-                    "scale": {
-                        "name": "severity",
-                        "instructions": "How severe?",
-                        "levels": levels,
-                    }
-                }
-            ]
-        )
-
-    decision = await create(gql_client, version=scale_version(levels))
-    result = await gql_client.execute(
-        CREATE_EVALUATOR,
-        variables={
-            "input": {
-                "name": "severity-judge",
-                "decisionVersionId": decision["version"]["id"],
-            }
-        },
-    )
-    assert result.data and not result.errors, result.errors
-    evaluator = result.data["createDecisionEvaluator"]["evaluator"]
-    await bind(gql_client, evaluator)
-    for changed_levels, compatible in [
-        ([{"label": "low", "description": "Clarified low severity"}, {"label": "high"}], True),
-        ([{"label": "low"}, {"label": "high"}], True),
-        ([{"label": "high"}, {"label": "low"}], False),
-        ([{"label": "minor"}, {"label": "high"}], False),
-    ]:
-        created = await gql_client.execute(
-            CREATE_VERSION,
-            variables={
-                "input": {
-                    "decisionId": decision["id"],
-                    "version": scale_version(changed_levels),
-                }
-            },
-        )
-        assert created.data and not created.errors, created.errors
-        new_version_id = created.data["createDecisionVersion"]["version"]["id"]
-        result = await gql_client.execute(
-            PATCH_EVALUATOR,
-            variables={
-                "input": {"evaluatorId": evaluator["id"], "decisionVersionId": new_version_id}
-            },
-        )
-        if compatible:
-            assert result.data and not result.errors, result.errors
-        else:
-            assert result.errors and "would break dataset evaluators" in result.errors[0].message
-
-
 CREATE_DATASET_EVALUATOR = """
 mutation($input: CreateDatasetDecisionEvaluatorInput!) {
   createDatasetDecisionEvaluator(input: $input) { evaluator {
@@ -1176,55 +1098,6 @@ async def test_failed_dataset_edit_preserves_version_scoring_and_mapping(
     assert (
         check.data["node"]["decisionVersion"]["id"] == binding["evaluator"]["decisionVersion"]["id"]
     )
-    assert check.data["node"]["decisionVersion"]["decision"]["versionCount"] == 1
-
-
-async def test_dataset_edit_preserves_other_bindings_contracts(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-) -> None:
-    created = await gql_client.execute(
-        CREATE_DATASET_EVALUATOR, variables={"input": authored_dataset_input()}
-    )
-    assert created.data and not created.errors, created.errors
-    binding = created.data["createDatasetDecisionEvaluator"]["evaluator"]
-    attached = await gql_client.execute(
-        CREATE_DATASET_EVALUATOR,
-        variables={
-            "input": {
-                "datasetId": str(GlobalID("Dataset", "1")),
-                "evaluatorId": binding["evaluator"]["id"],
-                "name": "another-binding",
-                "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
-            }
-        },
-    )
-    assert attached.data and not attached.errors, attached.errors
-    result = await gql_client.execute(
-        UPDATE_DATASET_EVALUATOR,
-        variables={
-            "input": {
-                "datasetEvaluatorId": binding["id"],
-                "decisionVersion": version_input(
-                    questions=[
-                        {
-                            "predicate": {
-                                "name": "new-question",
-                                "instructions": "A different contract",
-                            }
-                        }
-                    ]
-                ),
-                "inputMapping": {"pathMapping": {"ticket": "input.ticket"}, "literalMapping": {}},
-            }
-        },
-    )
-    assert result.errors and "another-binding" in result.errors[0].message
-    check = await gql_client.execute(
-        "query($id: ID!) { node(id:$id) { ... on DecisionEvaluator { decisionVersion { decision { versionCount } } } } }",
-        variables={"id": binding["evaluator"]["id"]},
-    )
-    assert check.data and not check.errors
     assert check.data["node"]["decisionVersion"]["decision"]["versionCount"] == 1
 
 

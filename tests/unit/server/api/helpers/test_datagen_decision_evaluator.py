@@ -170,7 +170,10 @@ async def test_seed_reuses_judge_and_binding_and_repairs_drift(
     drifted_id = created.json()["data"]["createDecisionVersion"]["version"]["id"]
     moved = await httpx_client.patch(
         f"/v1/evaluators/{evaluator_gid}",
-        json={"type": "decision", "decision_version_id": drifted_id},
+        json={
+            "type": "decision",
+            "decision": {"selector": {"type": "version", "decision_version_id": drifted_id}},
+        },
     )
     assert moved.status_code == 200
     async with db() as session:
@@ -252,10 +255,14 @@ async def test_seed_refuses_an_accuracy_binding_to_another_evaluator(
     dataset = await _name_dataset(db)
     first = await anyio.to_thread.run_sync(_seeder(httpx_client, dataset, []))
     judge = await httpx_client.get("/v1/evaluators", params={"name": f"{_DATASET_NAME}-accuracy"})
-    version_id = judge.json()["data"][0]["decision_version_id"]
+    version_id = judge.json()["data"][0]["decision"]["resolved_decision_version_id"]
     created = await httpx_client.post(
         "/v1/evaluators",
-        json={"type": "decision", "name": "another-judge", "decision_version_id": version_id},
+        json={
+            "type": "decision",
+            "name": "another-judge",
+            "decision": {"selector": {"type": "version", "decision_version_id": version_id}},
+        },
     )
     assert created.status_code == 201
     other_id = int(GlobalID.from_id(created.json()["data"]["id"]).node_id)
