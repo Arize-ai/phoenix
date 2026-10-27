@@ -7,15 +7,12 @@ import invariant from "tiny-invariant";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Counter,
-  Flex,
   LazyTabPanel,
   Loading,
-  PageHeader,
   Tab,
   TabList,
   Tabs,
 } from "@phoenix/components";
-import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { TableSkeleton } from "@phoenix/components/table";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
@@ -27,8 +24,7 @@ import type {
   DatasetPageQuery,
   DatasetPageQuery$data,
 } from "./__generated__/DatasetPageQuery.graphql";
-import { DatasetDownloadMenu } from "./DatasetDownloadMenu";
-import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
+import { DatasetPageHeader } from "./DatasetPageHeader";
 
 export const DatasetPageQueryNode = graphql`
   query DatasetPageQuery($id: ID!) {
@@ -38,6 +34,7 @@ export const DatasetPageQueryNode = graphql`
         id
         name
         description
+        metadata
         exampleCount
         experimentCount
         evaluatorCount
@@ -194,18 +191,7 @@ function DatasetPageContent({
   const initialIndex = getTabIndexFromPathname(location.pathname);
   return (
     <main css={mainCSS}>
-      <PageHeader
-        title={dataset.name}
-        labels={dataset.labels}
-        labelAction={<DatasetLabelConfigButton datasetId={dataset.id} />}
-        subTitle={dataset.description}
-        extra={
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <DatasetDownloadMenu datasetId={dataset.id} />
-            <RunDatasetExperimentButton variant="primary" size="M" />
-          </Flex>
-        }
-      />
+      <DatasetPageHeader dataset={dataset} />
       <Tabs
         selectedKey={TABS_LIST[initialIndex]}
         onSelectionChange={(key) => {

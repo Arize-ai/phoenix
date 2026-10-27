@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<607ca5ce150f84fc4d2f8e8e4cba17f7>>
+ * @generated SignedSource<<f3b01af5091e22db197115bf23bd6900>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type DatasetPageQuery$data = {
         };
       }>;
     };
+    readonly metadata?: any;
     readonly name?: string;
   };
 };
@@ -81,6 +82,13 @@ v5 = {
   "selections": [
     (v3/*:: as any*/),
     (v4/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "metadata",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -235,16 +243,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7fa4b76736160e1a373b300ef04afc67",
+    "cacheID": "1d29c6f0df11332ad4d5741d59885c6e",
     "id": null,
     "metadata": {},
     "name": "DatasetPageQuery",
     "operationKind": "query",
-    "text": "query DatasetPageQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      evaluatorCount\n      labels {\n        id\n        name\n        color\n      }\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetPageQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      metadata\n      exampleCount\n      experimentCount\n      evaluatorCount\n      labels {\n        id\n        name\n        color\n      }\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83ed0abad452ea0c4e1b7fd606fa0d4e";
+(node as any).hash = "f40c259721acd49b046fff3c62e942e5";
 
 export default node;
