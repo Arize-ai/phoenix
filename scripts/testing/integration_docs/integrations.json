@@ -71,6 +71,62 @@
       }
     },
     {
+      "id": "anthropic-python",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "anthropic-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "setup": {"source": "section_code", "language": "javascript"},
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "anthropic-go",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "setup": {"source": "section_code", "language": "go"},
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
       "id": "ollama-python",
       "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx",
       "language": "python",

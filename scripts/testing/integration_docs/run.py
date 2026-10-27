@@ -154,8 +154,10 @@ def section_body(document_text: str, heading: str) -> str:
 
 
 def code_fence(section: str, language: str, context: str) -> str:
+    aliases = {"javascript": {"javascript", "js", "typescript", "ts"}}
+    accepted_languages = aliases.get(language, {language})
     for block in FENCE.finditer(section):
-        if block.group("language").lower() == language:
+        if block.group("language").lower() in accepted_languages:
             return block.group("body").strip()
     raise HarnessError(f"No {language} code block found in {context}")
 

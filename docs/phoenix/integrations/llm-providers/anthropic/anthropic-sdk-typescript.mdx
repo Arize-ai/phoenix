@@ -24,7 +24,7 @@ import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation
 
 // Initialize Phoenix tracing
 const tracerProvider = register({
-  projectName: "anthropic-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "anthropic-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,

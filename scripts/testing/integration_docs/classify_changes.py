@@ -20,7 +20,8 @@ SKIP_CONFIG = ".agents/skills/test-integration/scripts/skip_config.json"
 SHARD_LIMIT = 12
 SHARED_DOC_SCOPES = {
     "docs/snippets/register-tracer-python.mdx": {
-        "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx"
+        "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx",
+        "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing.mdx",
     }
 }
 FULL_RUN_FILES = {
