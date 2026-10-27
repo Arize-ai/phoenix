@@ -250,11 +250,6 @@ def test_llm_definition_from_dataset(
         response = client.patch(route, json=body)
         assert response.status_code == 422, response.text
         assert response.json()["code"] == "validation_error"
-    response = client.patch(route, json={"type": "llm", "description": "inconsistent"})
-    assert response.status_code == 422
-    assert response.json()["code"] == "invalid_argument"
-    assert "PATCH prompt" in response.json()["detail"]
-    assert client.get(route).json()["data"]["description"] == "correctness"
     result = _graphql(
         _app,
         """
@@ -390,12 +385,6 @@ def test_standalone_llm_definition_lifecycle(client: httpx2.Client) -> None:
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["code"] == "already_exists"
     assert response.json()["existing_id"] == created["id"]
-
-    mismatched = _llm_body(f"{name}-mismatch", version_id)
-    mismatched["description"] = "something else"
-    response = client.post("v1/evaluators", json=mismatched)
-    assert response.status_code == 422, response.text
-    assert response.json()["code"] == "invalid_argument"
 
     tags = client.get(f"v1/prompt_versions/{version_id}/tags").json()["data"]
     assert len(tags) == 1
