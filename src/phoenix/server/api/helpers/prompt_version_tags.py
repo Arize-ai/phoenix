@@ -11,7 +11,7 @@ from phoenix.db import models
 from phoenix.db.helpers import llm_evaluators_pinned_by_prompt_version_tag
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict, NotFound
-from phoenix.server.api.helpers.evaluators import (
+from phoenix.server.evaluators.validation import (
     format_incompatible_dataset_overrides,
     incompatible_dataset_overrides,
     validate_consistent_llm_evaluator_and_prompt_version,

@@ -209,14 +209,14 @@ class DecisionVersionInput:
         """
         from phoenix.db import models
         from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
-        from phoenix.server.api.helpers.decision_versions import (
-            validate_inputs,
-            validate_questions,
-        )
         from phoenix.server.api.types.GenerativeModelCustomProvider import (
             GenerativeModelCustomProvider,
         )
         from phoenix.server.api.types.node import from_global_id_with_expected_type
+        from phoenix.server.decisions.validation import (
+            validate_inputs,
+            validate_questions,
+        )
 
         if self.model_provider not in DECISION_CLIENTS:
             raise BadRequest(f"{self.model_provider.value} does not offer decision models.")

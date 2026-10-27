@@ -24,17 +24,17 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.api.routers.agents import (
     _emit_turn_root_span,
     _persist_db_traces,
     _resolve_turn_trace_ids,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.evaluators.runtime.builtin import ContainsEvaluator
 from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.derivation import config_fingerprint
+from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator, config_fingerprint
 from phoenix.server.online_eval.leases import MATERIALIZER_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.project_evaluator_resolution import (
@@ -546,7 +546,9 @@ async def test_active_criteria_are_bulk_resolved_once(
 
     call_sizes: list[int] = []
 
-    async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
+    async def _counting_resolver(
+        *args: Any, **kwargs: Any
+    ) -> list[ResolvedProjectEvaluator | None]:
         call_sizes.append(len(args[1]))
         return await resolve_project_evaluators_bulk(*args, **kwargs)
 
@@ -1215,7 +1217,7 @@ async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
     producer = OnlineEvalProducer(db)
     load_active = producer._load_active_project_evaluators
 
-    async def _load_then_rival_advances() -> Any:
+    async def _load_then_rival_advances() -> list[producer_module._ActiveProjectEvaluator]:
         active = await load_active()
         async with db() as session:
             await session.execute(
@@ -1244,7 +1246,9 @@ async def test_stale_clamp_leaves_a_cursor_another_producer_moved(
     producer = OnlineEvalProducer(db)
     clamp_cursor = producer._clamp_cursor
 
-    async def _rival_moves_then_clamp(cursor: models.EvalSpanCursor) -> Any:
+    async def _rival_moves_then_clamp(
+        cursor: models.EvalSpanCursor,
+    ) -> models.EvalSpanCursor | None:
         async with db() as session:
             await session.execute(
                 update(models.EvalSpanCursor).values(produced_through_id=rival_position)

@@ -13,7 +13,6 @@ from phoenix.db.types.decision_evaluators import (
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.helpers import decision_evaluator_service as service
 from phoenix.server.api.input_types.DecisionScoringPolicyInput import (
     DecisionScoringPolicyInput,
 )
@@ -25,6 +24,7 @@ from phoenix.server.api.mutations.evaluator_mutations import (
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Evaluator import DatasetEvaluator, DecisionEvaluator
+from phoenix.server.evaluators.services import decisions
 
 
 def _scoring_policy(
@@ -102,9 +102,9 @@ class DecisionEvaluatorMutationMixin:
     async def create_decision_evaluator(
         self, info: Info[Context, None], input: CreateDecisionEvaluatorInput
     ) -> DecisionEvaluatorMutationPayload:
-        evaluator = await service.create_decision_evaluator(
+        evaluator = await decisions.create_decision_evaluator(
             _evaluator_service_context(info.context),
-            service.CreateDecisionEvaluatorInput(
+            decisions.CreateDecisionEvaluatorInput(
                 name=input.name,
                 decision_version_id=input.decision_version_id,
                 description=input.description,
@@ -119,10 +119,10 @@ class DecisionEvaluatorMutationMixin:
     async def patch_decision_evaluator(
         self, info: Info[Context, None], input: PatchDecisionEvaluatorInput
     ) -> DecisionEvaluatorMutationPayload:
-        evaluator = await service.patch_decision_evaluator(
+        evaluator = await decisions.patch_decision_evaluator(
             _evaluator_service_context(info.context),
             input.evaluator_id,
-            service.DecisionEvaluatorPatch(
+            decisions.DecisionEvaluatorPatch(
                 name=input.name,
                 description=input.description,
                 decision_version_id=input.decision_version_id,
@@ -137,7 +137,7 @@ class DecisionEvaluatorMutationMixin:
     async def delete_decision_evaluator(
         self, info: Info[Context, None], input: DeleteDecisionEvaluatorInput
     ) -> DeleteDecisionEvaluatorPayload:
-        await service.delete_decision_evaluator(
+        await decisions.delete_decision_evaluator(
             _evaluator_service_context(info.context), input.evaluator_id
         )
         return DeleteDecisionEvaluatorPayload(query=Query())
@@ -146,7 +146,7 @@ class DecisionEvaluatorMutationMixin:
     async def create_dataset_decision_evaluator(
         self, info: Info[Context, None], input: CreateDatasetDecisionEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        binding = await service.create_dataset_decision_evaluator(
+        binding = await decisions.create_dataset_decision_evaluator(
             _evaluator_service_context(info.context),
             dataset_id=input.dataset_id,
             evaluator_id=input.evaluator_id,
@@ -169,7 +169,7 @@ class DecisionEvaluatorMutationMixin:
     async def update_dataset_decision_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetDecisionEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        binding = await service.update_dataset_decision_evaluator(
+        binding = await decisions.update_dataset_decision_evaluator(
             _evaluator_service_context(info.context),
             dataset_evaluator_id=input.dataset_evaluator_id,
             name=input.name,

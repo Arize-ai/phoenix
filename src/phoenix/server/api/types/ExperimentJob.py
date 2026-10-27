@@ -206,23 +206,19 @@ class ExperimentJob(Node):
     async def decision_evaluator_snapshots(
         self, info: Info[Context, None]
     ) -> list[DecisionEvaluatorSnapshot]:
-        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-            DecisionEvaluatorSnapshot as StoredDecisionEvaluatorSnapshot,
-        )
-        from phoenix.server.api.helpers.evaluators import result_annotation_names
         from phoenix.server.api.types.EvaluatorTaskDefinition import (
             InlineDecisionEvaluatorDefinition,
         )
+        from phoenix.server.evaluators.runtime.base import result_annotation_names
 
         if self.db_record:
-            values = self.db_record.decision_evaluator_snapshots
+            snapshots = self.db_record.decision_evaluator_snapshots
         else:
-            values = await info.context.data_loaders.experiment_job_fields.load(
+            snapshots = await info.context.data_loaders.experiment_job_fields.load(
                 (self.id, models.ExperimentJob.decision_evaluator_snapshots),
             )
-        result = []
-        for value in values or []:
-            snapshot = StoredDecisionEvaluatorSnapshot.model_validate(value)
+        result: list[DecisionEvaluatorSnapshot] = []
+        for snapshot in snapshots or []:
             result.append(
                 DecisionEvaluatorSnapshot(
                     name=snapshot.name,

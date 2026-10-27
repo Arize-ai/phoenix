@@ -6,7 +6,7 @@ from phoenix.db.types.decisions import (
     DecisionQuestion,
     DecisionState,
 )
-from phoenix.server.api.helpers.decision_versions import validate_questions
+from phoenix.server.decisions.validation import validate_questions
 
 _QUESTIONS_ADAPTER: TypeAdapter[list[DecisionQuestion]] = TypeAdapter(list[DecisionQuestion])
 _INPUTS_ADAPTER: TypeAdapter[list[DecisionInput]] = TypeAdapter(list[DecisionInput])
