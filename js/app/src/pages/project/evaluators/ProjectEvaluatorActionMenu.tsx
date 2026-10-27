@@ -36,7 +36,10 @@ export function ProjectEvaluatorActionMenu({
   onEdit: (projectEvaluatorId: string) => void;
 }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
+  const canEdit =
+    evaluatorKind === "LLM" ||
+    evaluatorKind === "CODE" ||
+    evaluatorKind === "DECISION";
   return (
     <StopPropagation>
       <MenuTrigger>
