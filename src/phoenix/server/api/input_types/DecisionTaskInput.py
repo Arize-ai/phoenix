@@ -7,7 +7,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.decision_versions import validate_inputs, validate_questions
 from phoenix.server.api.input_types.DecisionConnectionInput import DecisionConnectionInput
 from phoenix.server.api.input_types.DecisionVersionInput import (
     DecisionInputDefinitionInput,
@@ -15,6 +14,7 @@ from phoenix.server.api.input_types.DecisionVersionInput import (
     DecisionStateInput,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+from phoenix.server.decisions.validation import validate_inputs, validate_questions
 
 
 @strawberry.input(

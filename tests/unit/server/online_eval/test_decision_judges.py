@@ -28,8 +28,8 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluator
 from phoenix.server.types import DbSessionFactory
+from tests.unit.db.types.test_decision_evaluators import questions
 from tests.unit.graphql import AsyncGraphQLClient
-from tests.unit.server.api.helpers.test_decision_evaluator_policy import questions
 
 from ..._helpers import _add_project, _add_span, _add_trace
 from .test_consumer import _annotations, _cycle_to_completion, _get_unit

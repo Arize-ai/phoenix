@@ -50,18 +50,18 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
-from phoenix.server.api.helpers.dataset_evaluator_service import (
+from phoenix.server.api.helpers.prompt_version_tags import validate_prompt_version_tag_move
+from phoenix.server.evaluators.services.dataset_bindings import (
     DeleteDatasetEvaluatorsInput,
     delete_dataset_evaluators,
 )
-from phoenix.server.api.helpers.evaluator_service import (
+from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
     delete_llm_evaluator,
 )
-from phoenix.server.api.helpers.evaluators import (
+from phoenix.server.evaluators.validation import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
-from phoenix.server.api.helpers.prompt_version_tags import validate_prompt_version_tag_move
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
