@@ -34,7 +34,7 @@ from beeai_framework.tools.tool import AnyTool
 from beeai_framework.tools.weather.openmeteo import OpenMeteoTool
 
 llm = ChatModel.from_name(
-    "ollama:granite3.1-dense:8b",
+    "openai:gpt-4o-mini",
     ChatModelParameters(temperature=0),
 )
 

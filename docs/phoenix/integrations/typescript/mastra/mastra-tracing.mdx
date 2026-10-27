@@ -10,7 +10,7 @@ Mastra is an agentic framework that simplifies building complex AI applications 
 ## Install
 
 ```bash
-npm install @mastra/arize @mastra/observability
+npm install @mastra/arize @mastra/observability @mastra/core ai @ai-sdk/openai zod
 ```
 
 ## Configure Environment
@@ -77,6 +77,7 @@ export const mastra = new Mastra({
 From here you can use Mastra as normal. Create agents with tools and run them:
 
 ```typescript
+import "./instrumentation.js";
 import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core";
@@ -128,6 +129,9 @@ const mastra = new Mastra({
     },
   }),
 });
+
+const result = await weatherAgent.generate("What is the weather in Paris?");
+console.log(result.text);
 ```
 
 ## Running Your Application

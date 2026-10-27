@@ -14,7 +14,8 @@ Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai
 ## Install
 
 ```bash
-pip install openinference-instrumentation-haystack haystack-ai
+pip install openinference-instrumentation-haystack \
+  openinference-instrumentation-openai haystack-ai openai
 ```
 
 ## Setup
@@ -57,6 +58,8 @@ pipeline.connect("prompt_builder", "llm")
 
 # Define the question
 question = "What is the location of the Hanging Gardens of Babylon?"
+result = pipeline.run({"prompt_builder": {"question": question}})
+print(result["llm"]["replies"][0])
 ```
 
 ## Observe

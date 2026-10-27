@@ -7,7 +7,8 @@ import RegisterTracerPython from "../../../../snippets/register-tracer-python.md
 ## Install
 
 ```bash
-pip install openinference-instrumentation-instructor instructor
+pip install openinference-instrumentation-instructor \
+  openinference-instrumentation-openai instructor
 ```
 
 Be sure you also install the OpenInference library for the underlying model you're using along with Instructor. For example, if you're using OpenAI calls directly, you would also add: `openinference-instrumentation-openai`

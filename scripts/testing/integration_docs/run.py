@@ -44,7 +44,7 @@ EMBEDDED_CODE = re.compile(
     re.MULTILINE,
 )
 PIP_COMMAND = re.compile(r"(?:^|\s)(?:python\s+-m\s+)?pip3?\s+install\b(?P<args>.*)$")
-NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+install\b(?P<args>.*)$")
+NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+(?:install|i)\b(?P<args>.*)$")
 GO_GET_COMMAND = re.compile(r"(?:^|\s)go\s+get\b(?P<args>.*)$")
 GO_IMPORT_BLOCK = re.compile(r"(?m)^import\s*\((.*?)^\)", re.DOTALL)
 GO_IMPORT_PATH = re.compile(r'^(?:[A-Za-z_]\w*\s+)?"(?P<path>[^"]+)"$')
@@ -67,6 +67,7 @@ class IntegrationSpec:
     setup: dict[str, str]
     output: dict[str, Any]
     verification: dict[str, Any]
+    additional_sections: tuple[dict[str, str], ...]
 
 
 def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
@@ -134,6 +135,10 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     setup={str(key): str(value) for key, value in setup.items()},
                     output=dict(raw.get("output", {})),
                     verification=dict(verification),
+                    additional_sections=tuple(
+                        {str(key): str(value) for key, value in section.items()}
+                        for section in raw.get("additional_sections", [])
+                    ),
                 )
             )
             seen_ids.add(integration_id)
@@ -170,6 +175,7 @@ def section_body(document_text: str, heading: str) -> str:
 
 def code_fence(section: str, language: str, context: str) -> str:
     aliases = {"javascript": {"javascript", "js", "typescript", "ts"}}
+    aliases["python"] = {"python", "py"}
     accepted_languages = aliases.get(language, {language})
     for block in FENCE.finditer(section):
         if block.group("language").lower() in accepted_languages:
@@ -232,12 +238,12 @@ def component_setup(spec: IntegrationSpec, document_text: str, project: str) -> 
             for item in JSX_ATTRIBUTE.finditer(component.group("props"))
         }
         project_name_prop = spec.setup.get("project_name_prop")
-        if project_name_prop:
-            if project_name_prop not in props:
-                raise HarnessError(
-                    f"Setup component is missing configured project name prop {project_name_prop!r}"
-                )
+        if project_name_prop and project_name_prop in props:
             props[project_name_prop] = project
+        elif project_name_prop and "${" + project_name_prop + "}" in component_text:
+            raise HarnessError(
+                f"Setup component is missing configured project name prop {project_name_prop!r}"
+            )
         for block in EMBEDDED_CODE.finditer(component_text):
             if block.group("language").lower() != spec.setup.get("language", "python").lower():
                 continue
@@ -290,10 +296,20 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         flush_code = spec.setup.get("flush_code", "").strip()
         if flush_code:
             sections.append(flush_code)
-        return packages, {"example.py": "\n\n".join(sections)}
-    if spec.language == "javascript":
-        return packages, {"instrumentation.js": setup, "example.js": run}
-    return packages, {"main.go": combine_go_files(setup, run)}
+        program = {"example.py": "\n\n".join(sections)}
+    elif spec.language == "javascript":
+        program = {"instrumentation.js": setup, "example.js": run}
+    else:
+        program = {"main.go": combine_go_files(setup, run)}
+    for extra in spec.additional_sections:
+        section = section_body(text, extra["section"])
+        filename = extra["filename"]
+        if Path(filename).name != filename:
+            raise HarnessError(f"Additional example filename must be a basename: {filename!r}")
+        program[filename] = code_fence(
+            section, extra.get("language", spec.language), extra["section"]
+        )
+    return packages, program
 
 
 def request_json(url: str, api_key: str | None) -> dict[str, Any]:
@@ -403,8 +419,9 @@ def run_example(
                 check=True,
                 cwd=temp,
             )
+            for filename, source in program.items():
+                (temp / filename).write_text(source)
             sample = temp / "example.py"
-            sample.write_text(program[sample.name])
             command = (
                 [str(python_executable(venv)), "-m", "py_compile", str(sample)]
                 if lint_only

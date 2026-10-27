@@ -129,7 +129,7 @@ and tool executions, nesting them correctly through group chat orchestration.
 `autogen`). It does not instrument AG2 1.x — use the AG2 1.x section above for that.
 </Note>
 
-### Install
+## Install AG2 Classic
 
 ```bash
 pip install openinference-instrumentation-ag2 openinference-instrumentation-openai "ag2[openai]<1.0" arize-phoenix-otel arize-phoenix
@@ -140,7 +140,7 @@ with the instrumentor for that provider — `openinference-instrumentation-opena
 below — so the LLM spans appear nested under the agent spans. If your agents call a different
 provider, install and register that provider's OpenInference instrumentor instead.
 
-### Setup
+## Setup AG2 Classic
 
 Use the `register` function to connect your application to Phoenix. Because AG2 Classic relies on
 a separate model instrumentor for LLM visibility, keep `auto_instrument=True` so both the AG2 and
@@ -148,7 +148,7 @@ model instrumentors are activated from your installed dependencies.
 
 <RegisterTracerPython projectName="ag2-tracing" />
 
-### Run AG2 Classic
+## Run AG2 Classic
 
 From here you can use AG2 Classic as normal, and Phoenix will trace each agent chat, reply, and
 tool call. The example below runs a single agent with the quickstart `run()` API:
@@ -169,6 +169,7 @@ agent = ConversableAgent(
 
 response = agent.run(message="What is the capital of France?", max_turns=1, user_input=False)
 response.process()
+print("AG2 Classic conversation complete")
 ```
 
 ### What gets traced

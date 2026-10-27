@@ -12,7 +12,8 @@ The `@arizeai/openinference-instrumentation-mcp` instrumentor enables context pr
 ## Install
 
 ```bash
-npm install @arizeai/openinference-instrumentation-mcp @arizeai/phoenix-otel
+npm install @arizeai/openinference-instrumentation-mcp @arizeai/phoenix-otel \
+  @modelcontextprotocol/sdk @opentelemetry/api
 ```
 
 ## Setup
@@ -26,7 +27,7 @@ import { register } from "@arizeai/phoenix-otel";
 import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
 
 // Initialize Phoenix tracing
-const tracerProvider = register({
+export const tracerProvider = register({
   projectName: "mcp-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
@@ -42,10 +43,10 @@ instrumentation.enable();
 console.log("MCP instrumentation registered");
 ```
 
-## MCP Client Example
+## Run MCP Client
 
 ```typescript expandable
-import "./instrumentation.js";
+import { tracerProvider } from "./instrumentation.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -74,13 +75,15 @@ async function main() {
   await client.close();
 }
 
-main();
+await main();
+await tracerProvider.forceFlush();
 ```
 
-## MCP Server Example
+## MCP Server
 
 ```typescript expandable
-import "./instrumentation.js";
+import { trace } from "@opentelemetry/api";
+import { tracerProvider } from "./instrumentation.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -97,12 +100,17 @@ const server = new Server({
 server.setRequestHandler("tools/call", async (request) => {
   if (request.params.name === "get_weather") {
     const location = request.params.arguments?.location;
-    return {
-      content: [{
-        type: "text",
-        text: `Weather in ${location}: Sunny, 72°F`,
-      }],
-    };
+    return trace.getTracer("mcp-server").startActiveSpan("get_weather", (span) => {
+      span.setAttribute("openinference.span.kind", "TOOL");
+      span.setAttribute("tool.name", "get_weather");
+      span.end();
+      return {
+        content: [{
+          type: "text",
+          text: `Weather in ${location}: Sunny, 72°F`,
+        }],
+      };
+    });
   }
   throw new Error(`Unknown tool: ${request.params.name}`);
 });
@@ -127,6 +135,7 @@ server.setRequestHandler("tools/list", async () => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  await tracerProvider.forceFlush();
 }
 
 main();

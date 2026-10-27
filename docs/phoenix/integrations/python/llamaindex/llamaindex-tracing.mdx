@@ -16,7 +16,9 @@ For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrument
 ## Install
 
 ```bash
-pip install openinference-instrumentation-llama_index llama-index>=0.11.0
+pip install openinference-instrumentation-llama_index \
+  openinference-instrumentation-openai 'llama-index>=0.11.0' \
+  llama-index-llms-openai
 ```
 
 ## Setup
@@ -39,7 +41,7 @@ You can now use LlamaIndex as normal, and tracing will be automatically captured
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 import os
 
-os.environ["OPENAI_API_KEY"] = "YOUR OPENAI API KEY"
+os.environ.setdefault("OPENAI_API_KEY", "YOUR OPENAI API KEY")
 
 documents = SimpleDirectoryReader("data").load_data()
 index = VectorStoreIndex.from_documents(documents)

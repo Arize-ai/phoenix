@@ -48,7 +48,7 @@ import { BeeAIInstrumentation } from "@arizeai/openinference-instrumentation-bee
 
 const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
 
-const provider = new NodeTracerProvider({
+export const provider = new NodeTracerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: "beeai-project",
     [SEMRESATTRS_PROJECT_NAME]: "beeai-project",
@@ -92,7 +92,7 @@ import { OpenAIChatModel } from "beeai-framework/adapters/openai/backend/chat";
 const llm = new OpenAIChatModel(
   "gpt-4o",
   {},
-  { apiKey: 'your-openai-api-key' }
+  { apiKey: process.env.OPENAI_API_KEY }
 );
 
 const agent = new ToolCallingAgent({
@@ -109,7 +109,8 @@ async function main() {
   console.log(`Agent 🤖 : `, response.result.text);
 }
 
-main();
+await main();
+await provider.forceFlush();
 ```
 
 ## Observe

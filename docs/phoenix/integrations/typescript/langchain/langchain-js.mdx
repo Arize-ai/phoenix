@@ -10,7 +10,7 @@ This module provides automatic instrumentation for LangChain.js, more specifical
 
 ```bash
 npm install --save @arizeai/openinference-instrumentation-langchain \
-  @arizeai/phoenix-otel
+  @arizeai/phoenix-otel langchain @langchain/anthropic @langchain/core zod
 ```
 
 ## Setup
@@ -22,7 +22,7 @@ import { register } from "@arizeai/phoenix-otel";
 import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
 import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
 
-const provider = register({
+export const provider = register({
   projectName: "langchain-app",
 });
 
@@ -34,10 +34,12 @@ lcInstrumentation.manuallyInstrument(CallbackManagerModule);
 
 Once instrumentation is setup, your agent will automatically export traces to Phoenix.
 
+## Run LangChain.js
+
 ```typescript
 import * as z from "zod";
-// npm install @langchain/anthropic to call the model
 import { createAgent, tool } from "langchain";
+import { provider } from "./instrumentation.js";
 
 const getWeather = tool(
   ({ city }) => `It's always sunny in ${city}!`,
@@ -60,6 +62,7 @@ console.log(
     messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
   })
 );
+await provider.forceFlush();
 ```
 
 <Frame>
