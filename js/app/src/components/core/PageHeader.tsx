@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { useRef } from "react";
 
 import { Heading, Text } from "./content";
 import { Token } from "./token";
@@ -19,12 +20,13 @@ export type PageHeaderProps = {
   title: ReactNode;
   /**
    * Labels applied to the page's subject, shown on their own row beneath the
-   * caption.
+   * subtitle.
    */
   labels?: readonly PageHeaderLabel[];
   /**
    * A control for editing the labels, shown before them. When it is set and
-   * there are no labels, the row reads "No labels".
+   * there are no labels, the row reads "No labels", and pressing that text
+   * presses the control.
    */
   labelAction?: ReactNode;
   /**
@@ -32,15 +34,11 @@ export type PageHeaderProps = {
    */
   subTitle?: ReactNode;
   /**
-   * A secondary line between the title and the subtitle, such as where the
-   * subject was cloned from.
+   * A secondary line directly beneath the title, such as where the subject
+   * was cloned from. It shares the title's cell, so the page-level actions in
+   * `extra` stay beside the title and the caption.
    */
   caption?: ReactNode;
-  /**
-   * An icon leading the caption. It sits in a column as wide as an `S`
-   * `IconButton`, so it lines up with one used as the `labelAction`.
-   */
-  captionVisual?: ReactNode;
   /**
    * The extra content of the page header.
    */
@@ -51,11 +49,19 @@ const pageHeaderContentCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: var(--global-dimension-size-100);
+  row-gap: var(--global-dimension-size-100);
   align-items: center;
   .page-header__title {
     grid-column: 1;
     grid-row: 1;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+  }
+  .page-header__caption {
+    /* The level 1 heading's 36px line box leaves 6px of leading below its
+    glyphs; pull the caption up into it so the two read as one unit. */
+    margin-block-start: calc(-1 * var(--global-dimension-size-25));
   }
   .page-header__extra {
     grid-column: 2;
@@ -72,20 +78,8 @@ const pageHeaderContentCSS = css`
       display: none;
     }
   }
-  .page-header__caption {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--global-dimension-size-50);
-    min-width: 0;
-  }
-  .page-header__caption-visual {
-    flex: none;
-    display: flex;
-    justify-content: center;
-    width: var(--global-button-height-s);
-    font-size: var(--global-font-size-xs);
-    color: var(--global-text-color-700);
+  .page-header__subtitle {
+    max-inline-size: var(--global-line-length-max);
   }
   .page-header__labels {
     display: flex;
@@ -94,6 +88,9 @@ const pageHeaderContentCSS = css`
     align-items: center;
     gap: var(--global-dimension-size-100);
     min-width: 0;
+  }
+  .page-header__labels-empty {
+    cursor: pointer;
   }
   .page-header__label-action {
     display: flex;
@@ -150,43 +147,55 @@ export function PageHeader({
   labelAction,
   subTitle,
   caption,
-  captionVisual,
   extra,
 }: PageHeaderProps) {
   const hasLabels = labels != null && labels.length > 0;
+  const labelActionRef = useRef<HTMLSpanElement>(null);
   return (
     <View padding="size-200" flex="none" data-testid="page-header">
       <div css={pageHeaderContentCSS} data-testid="page-header-content">
         <div className="page-header__title">
           <Title>{title}</Title>
+          {caption && (
+            <div className="page-header__caption">
+              <SecondaryText>{caption}</SecondaryText>
+            </div>
+          )}
         </div>
         {extra && <div className="page-header__extra">{extra}</div>}
         <div className="page-header__details">
-          {caption && captionVisual ? (
-            <div className="page-header__caption">
-              <span className="page-header__caption-visual">
-                {captionVisual}
-              </span>
-              <SecondaryText>{caption}</SecondaryText>
+          {subTitle && (
+            <div className="page-header__subtitle">
+              <SecondaryText>{subTitle}</SecondaryText>
             </div>
-          ) : (
-            <SecondaryText>{caption}</SecondaryText>
           )}
           {(labelAction || hasLabels) && (
             <div className="page-header__labels">
               {labelAction && (
-                <span className="page-header__label-action">{labelAction}</span>
+                <span
+                  className="page-header__label-action"
+                  ref={labelActionRef}
+                >
+                  {labelAction}
+                </span>
               )}
               {hasLabels ? (
                 <Labels labels={labels} />
               ) : (
-                <Text size="S" color="text-500">
-                  No labels
-                </Text>
+                // React Aria treats element.click() as a virtual press
+                <span
+                  className="page-header__labels-empty"
+                  onClick={() =>
+                    labelActionRef.current?.querySelector("button")?.click()
+                  }
+                >
+                  <Text size="S" color="text-500">
+                    No labels
+                  </Text>
+                </span>
               )}
             </div>
           )}
-          <SecondaryText>{subTitle}</SecondaryText>
         </div>
       </div>
     </View>

@@ -19,12 +19,12 @@ import {
 import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
- * The header at the top of a page. The title and the page-level actions in
- * `extra` share the first row, centered on each other. Beneath them, across
- * the full width, come an optional caption led by `captionVisual`, the labels
- * row and the subject's description. The labels row starts with the label editing control in
- * `labelAction`; when that control is set and there are no labels, the row
- * reads "No labels". Labels wrap beneath the control.
+ * The header at the top of a page. The title, with an optional caption
+ * directly beneath it, and the page-level actions in `extra` share the first
+ * row, centered on each other. Beneath them, across the full width, come the
+ * subject's description and the labels row. The labels row starts with the
+ * label editing control in `labelAction`; when that control is set and there
+ * are no labels, the row reads "No labels". Labels wrap beneath the control.
  *
  * A string `title` renders as the page's level 1 heading, and a string
  * `subTitle` or `caption` as secondary text. Any other node renders as given,
@@ -85,12 +85,10 @@ const LABEL_ACTION = (
 );
 
 const CLONED_FROM = (
-  <Text size="S" color="text-700">
+  <Text size="XS" color="text-700">
     cloned from <Link to="/prompts/1">support-agent-v1</Link>
   </Text>
 );
-
-const CLONED_FROM_VISUAL = <Icon svg={<Icons.GitBranch />} />;
 
 const SLOTS: { label: string; props: PageHeaderProps }[] = [
   { label: "Bare", props: { title: "support-agent" } },
@@ -121,7 +119,6 @@ const SLOTS: { label: string; props: PageHeaderProps }[] = [
       title: "support-agent",
       subTitle: DESCRIPTION,
       caption: CLONED_FROM,
-      captionVisual: CLONED_FROM_VISUAL,
     },
   },
   {
@@ -132,7 +129,6 @@ const SLOTS: { label: string; props: PageHeaderProps }[] = [
       labelAction: LABEL_ACTION,
       subTitle: DESCRIPTION,
       caption: CLONED_FROM,
-      captionVisual: CLONED_FROM_VISUAL,
       extra: PROMPT_ACTIONS,
     },
   },
@@ -204,7 +200,6 @@ export const LabelContentLength: StoryFn = () => (
           labels={row.labels}
           labelAction={LABEL_ACTION}
           caption={CLONED_FROM}
-          captionVisual={CLONED_FROM_VISUAL}
           subTitle={DESCRIPTION}
           extra={PROMPT_ACTIONS}
         />
