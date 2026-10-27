@@ -105,7 +105,7 @@ export const CloneDecisionDialog = ({
             action: {
               text: "View Decision",
               onClick: () => {
-                navigate(`/decisions/${data.cloneDecision.id}`);
+                navigate(`/prompts/decisions/${data.cloneDecision.id}`);
               },
             },
           });
