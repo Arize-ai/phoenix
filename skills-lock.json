@@ -17,7 +17,7 @@
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "15d9ce292d8b90b097463c8c3232fdc61f93474add776235245326de532fef2e"
+      "computedHash": "e54bf50370987f13ca2803b3be829f36350b68a79dc36ffd3b27350bc6d2fde1"
     },
     "harbor-exec": {
       "source": "harbor-framework/harbor",

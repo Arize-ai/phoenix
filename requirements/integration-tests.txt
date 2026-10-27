@@ -5,7 +5,7 @@ asyncpg
 beautifulsoup4
 faker
 google-genai
-httpx
+httpx2
 hypothesis-jsonschema
 openinference-semantic-conventions
 opentelemetry-sdk>=1.45.0

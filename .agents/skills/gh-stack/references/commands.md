@@ -51,21 +51,25 @@ selects a non-default trunk.
 
 ## push
 
-Pushes every active (non-merged, non-queued) branch in one multi-ref push with per-branch
+Pushes every active (non-merged, non-queued) branch in one atomic multi-ref push with per-branch
 `--force-with-lease`.
 
-**Not atomic.** Some branches may update while another is rejected. A rejection means that branch
-moved on the remote; fix that branch and rerun — rerunning is safe and skips what already landed.
+All branch updates succeed or fail together. `push`, `submit`, `sync`, and `link` accept
+`--no-atomic` to allow partial updates. Any non-empty `GH_STACK_NO_ATOMIC` (for example, `1`)
+opts out by default; `--no-atomic=false` overrides the environment. Failed atomic pushes never
+automatically retry non-atomically.
 
 `push` never creates or updates pull requests. Use `submit` for that.
 
 ## submit
 
-Pushes each active branch, then creates a PR for every branch that lacks one, basing it on the
+Pushes all active branches together, then creates a PR for every branch that lacks one, basing it on the
 first non-merged ancestor, then links them into a Stack on GitHub.
 
-- **Not atomic.** Branches are pushed sequentially with per-branch `--force-with-lease`. If a later
-  push is rejected, earlier pushes and PR updates stand. Fix the rejection and rerun the same command.
+- **Atomic pushes by default.** One multi-ref push with per-branch `--force-with-lease` precedes
+  the bottom-to-top PR creation/update loop, even when opting out of atomicity. A failed push
+  stops before that loop. PR and stack API operations are not atomic; later API failures do not
+  undo the push.
 - **A fully merged stack cannot be extended.** When every PR in the current stack is already merged,
   `submit` forks the remaining unmerged branches into a **new** stack rooted at the trunk and creates
   it on GitHub, leaving the merged stack untouched.
@@ -88,7 +92,7 @@ branches managed by another tool. Worktrees alone do not require `link`: local t
   exists.** In that case the remaining arguments are appended to the top of that stack and you do
   not re-list its current PRs: `gh stack link 7 feature-c`. Arguments already in the stack are
   skipped; arguments belonging to a different stack are rejected.
-- Branch arguments are pushed automatically (non-force, atomic). Missing PRs are created with
+- Branch arguments are pushed automatically (non-force, atomic by default). Missing PRs are created with
   auto-generated titles and correctly chained bases; existing PRs with a wrong base are corrected.
 - Stack membership is **additive only** — `link` never removes a PR from a stack.
 
@@ -104,7 +108,7 @@ The routine command. Steps, in order:
    from its remote, or a branch no longer contains its expected parent. Merged PRs are handled
    automatically. On conflict, **all branches are restored** to their pre-rebase state and the
    command exits **3**.
-5. **Push** all active branches, atomically.
+5. **Push** all active branches, atomically by default.
 6. **Refresh PR state** from GitHub.
 7. **Sync the stack object** — link open PRs into a stack, additively. Only when two or more PRs
    exist. `sync` never opens PRs; that is `submit`.

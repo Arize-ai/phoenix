@@ -320,19 +320,31 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__credential-form,
   .chat__operation-error,
   .chat__session-notice {
     margin-bottom: var(--global-dimension-size-100);
   }
 
   /* Elicitation-style surfaces (consent gate, rewind confirmation, question
-     carousel) can be taller than the panel; let the input region shrink and
-     scroll internally instead of clipping at the panel edge. */
-  .chat__input:has([data-input-mode="elicitation"]) {
+     carousel) and the credential form can be taller than the panel; let the
+     input region shrink and scroll internally instead of clipping at the
+     panel edge. */
+  .chat__input:has([data-input-mode="elicitation"]),
+  .chat__input:has(.chat__credential-form) {
     flex-shrink: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Cap the credential form so the conversation keeps some room, and let it
+     give up height first so the composer and its model picker stay reachable. */
+  .chat__credential-form {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 40vh;
+    overflow-y: auto;
   }
 
   .chat__loading {
@@ -613,12 +625,22 @@ export function ChatView({
   const conversationUsage = getConversationUsage({ messages });
   const promptHistory = getPromptHistory(messages);
   const chatClassName = showsEmptyState ? "chat--empty" : "";
-  const { missingCredentialsProvider, refreshCredentialStatus } =
+  const { missingCredentials, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
+  const credentialForm =
+    hasAcknowledgedConsent && missingCredentials ? (
+      <AgentModelCredentialForm
+        missingCredentials={missingCredentials}
+        modelName={modelMenuValue.modelName}
+        onCredentialsUpdated={refreshCredentialStatus}
+      />
+    ) : null;
   const isWaitingForAssistant =
     status === "submitted" || status === "streaming";
+  // A "may-work" provider (AWS, Azure) can still authenticate on the server
+  // through its ambient credential chain, so only "no-key" blocks sending
   const isSendDisabledForMissingCredentials =
-    !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+    !isWaitingForAssistant && missingCredentials?.credentialState === "no-key";
   const isSubmitDisabled =
     isSendDisabledForMissingCredentials || isCompacting || isBusyElsewhere;
   const showThinkingIndicator = shouldShowThinkingIndicator({
@@ -829,13 +851,7 @@ export function ChatView({
                     quickActions={quickActions}
                     onQuickAction={handleQuickAction}
                   >
-                    {hasAcknowledgedConsent && missingCredentialsProvider ? (
-                      <AgentModelCredentialForm
-                        modelName={modelMenuValue.modelName}
-                        onCredentialsUpdated={refreshCredentialStatus}
-                        provider={missingCredentialsProvider}
-                      />
-                    ) : undefined}
+                    {credentialForm}
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
@@ -963,6 +979,11 @@ export function ChatView({
                 unsent message is still in the input below.
               </Alert>
             </div>
+          ) : null}
+          {/* The empty state shows the credential form in place of the hero;
+              once a conversation has started, show it above the input. */}
+          {!showsEmptyState && credentialForm ? (
+            <div className="chat__credential-form">{credentialForm}</div>
           ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">
