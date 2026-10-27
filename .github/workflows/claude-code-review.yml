@@ -67,7 +67,7 @@ jobs:
           anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
           anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
           anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
-          allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot], arize-phoenix-factory[bot]'
+          allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           # show_full_output exposes the full Claude SDK message stream in the step
