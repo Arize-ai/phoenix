@@ -15,9 +15,6 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers import dataset_evaluator_service as service
-from phoenix.server.api.helpers import decision_evaluator_service as decision_service
-from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.routers.v1.evaluator_common import (
     EVALUATOR_TYPE_BY_KIND,
     EvaluatorOutputConfig,
@@ -39,6 +36,8 @@ from phoenix.server.api.routers.v1.utils import (
     get_dataset_by_identifier,
 )
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.evaluators.services import dataset_bindings, decisions
+from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_KIND
 
 
 class CreateDatasetEvaluatorRequest(EvaluatorRequest):
@@ -199,9 +198,9 @@ async def create_dataset_evaluator(
         evaluator_id = parse_global_id(body.evaluator_id)
         row: models.DatasetEvaluators
         if evaluator_id.type_name == "DecisionEvaluator":
-            row = await decision_service.create_dataset_decision_binding(
+            row = await decisions.create_dataset_decision_binding(
                 context,
-                decision_service.CreateDatasetDecisionBindingInput(
+                decisions.CreateDatasetDecisionBindingInput(
                     dataset_id=dataset_id,
                     evaluator_id=evaluator_id,
                     name=body.name,
@@ -211,9 +210,9 @@ async def create_dataset_evaluator(
                 ),
             )
         elif evaluator_id.type_name == "LLMEvaluator":
-            row = await service.create_dataset_llm_binding(
+            row = await dataset_bindings.create_dataset_llm_binding(
                 context,
-                service.CreateDatasetLLMBindingInput(
+                dataset_bindings.CreateDatasetLLMBindingInput(
                     dataset_id=dataset_id,
                     evaluator_id=evaluator_id,
                     name=body.name,
@@ -223,9 +222,9 @@ async def create_dataset_evaluator(
                 ),
             )
         elif evaluator_id.type_name == "CodeEvaluator":
-            row = await service.create_dataset_code_evaluator(
+            row = await dataset_bindings.create_dataset_code_evaluator(
                 context,
-                service.CreateDatasetCodeEvaluatorInput(
+                dataset_bindings.CreateDatasetCodeEvaluatorInput(
                     dataset_id=dataset_id,
                     name=body.name,
                     evaluator_id=evaluator_id,
@@ -235,9 +234,9 @@ async def create_dataset_evaluator(
                 ),
             )
         elif evaluator_id.type_name == "BuiltInEvaluator":
-            row = await service.create_dataset_builtin_evaluator(
+            row = await dataset_bindings.create_dataset_builtin_evaluator(
                 context,
-                service.CreateDatasetBuiltinEvaluatorInput(
+                dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
                     dataset_id=dataset_id,
                     name=body.name,
                     evaluator_id=evaluator_id,
@@ -335,10 +334,10 @@ async def patch_dataset_evaluator(
         values = {name: getattr(body, name) for name in body.model_fields_set}
         if "output_configs" in values and body.output_configs is not None:
             values["output_configs"] = output_configs_to_db(body.output_configs)
-        await service.patch_dataset_evaluator(
+        await dataset_bindings.patch_dataset_evaluator(
             evaluator_service_context(request),
             parse_global_id(dataset_evaluator_id),
-            service.DatasetEvaluatorPatch(**values),
+            dataset_bindings.DatasetEvaluatorPatch(**values),
         )
         return DatasetEvaluatorResponseBody(
             data=await _written_dataset_evaluator(request, dataset_evaluator_id)
@@ -362,7 +361,7 @@ async def delete_dataset_evaluator(request: Request, dataset_evaluator_id: str) 
     DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
-        await service.detach_dataset_evaluators(
+        await dataset_bindings.detach_dataset_evaluators(
             evaluator_service_context(request), [parse_global_id(dataset_evaluator_id)]
         )
         return Response(status_code=204)
@@ -395,7 +394,7 @@ async def delete_dataset_evaluators(
     with evaluator_api_errors():
         async with request.app.state.db() as session:
             dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        await service.detach_dataset_evaluators(
+        await dataset_bindings.detach_dataset_evaluators(
             evaluator_service_context(request),
             [parse_global_id(value) for value in dataset_evaluator_id],
             dataset_id=GlobalID("Dataset", str(dataset.id)),

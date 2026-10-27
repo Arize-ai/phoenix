@@ -7,7 +7,7 @@ import anyio
 import pytest
 
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
 from phoenix.server.sandbox.cancellation import run_cancel_once
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult

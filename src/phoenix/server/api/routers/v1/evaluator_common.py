@@ -18,7 +18,6 @@ from phoenix.db.types.annotation_configs import (
     as_output_configs,
 )
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.routers.v1.annotation_config_models import (
     CategoricalAnnotationConfigData,
     ContinuousAnnotationConfigData,
@@ -28,6 +27,7 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import ProblemException, problem_responses
 from phoenix.server.api.routers.v1.utils import Responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.evaluators.services import definitions
 
 EvaluatorType = Literal["llm", "code", "builtin", "decision"]
 
@@ -162,9 +162,9 @@ def evaluator_api_errors() -> Iterator[None]:
         raise ProblemException(422, "invalid_argument", str(error)) from error
 
 
-def evaluator_service_context(request: Request) -> service.EvaluatorServiceContext:
+def evaluator_service_context(request: Request) -> definitions.EvaluatorServiceContext:
     """Build evaluator service dependencies from the current request."""
-    return service.EvaluatorServiceContext(
+    return definitions.EvaluatorServiceContext(
         db=request.app.state.db,
         sandbox_runtime=request.app.state.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,

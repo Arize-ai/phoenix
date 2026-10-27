@@ -16,17 +16,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers import (
-    dataset_evaluator_service,
-    evaluator_service,
-    project_evaluator_service,
-)
-from phoenix.server.api.helpers.evaluator_prompt_source import (
-    CreatePromptSource,
-    EditCurrentPrompt,
-    FromPromptVersion,
-    NewPrompt,
-)
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
 )
@@ -47,12 +36,23 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SandboxConfig import (
     Language,
 )
+from phoenix.server.evaluators.services import (
+    dataset_bindings,
+    definitions,
+    project_bindings,
+)
+from phoenix.server.evaluators.services.prompt_source import (
+    CreatePromptSource,
+    EditCurrentPrompt,
+    FromPromptVersion,
+    NewPrompt,
+)
 
 
-def _evaluator_service_context(context: Context) -> evaluator_service.EvaluatorServiceContext:
+def _evaluator_service_context(context: Context) -> definitions.EvaluatorServiceContext:
     request = context.request
     assert isinstance(request, Request)
-    return evaluator_service.EvaluatorServiceContext(
+    return definitions.EvaluatorServiceContext(
         db=context.db,
         sandbox_runtime=context.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
@@ -441,7 +441,7 @@ class EvaluatorMutationMixin:
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = project_evaluator_service.CreateProjectLLMEvaluatorInput(
+        command = project_bindings.CreateProjectLLMEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
             prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
@@ -459,7 +459,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.create_project_llm_evaluator(context, command)
+        result = await project_bindings.create_project_llm_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -472,7 +472,7 @@ class EvaluatorMutationMixin:
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
         content = _prompt_version_from_input(input.prompt_version)
-        command = project_evaluator_service.UpdateProjectLLMEvaluatorInput(
+        command = project_bindings.UpdateProjectLLMEvaluatorInput(
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             prompt_source=(
@@ -494,7 +494,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.update_project_llm_evaluator(context, command)
+        result = await project_bindings.update_project_llm_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -510,7 +510,7 @@ class EvaluatorMutationMixin:
     async def add_project_code_evaluator(
         self, info: Info[Context, None], input: AddProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = project_evaluator_service.AddProjectCodeEvaluatorInput(
+        command = project_bindings.AddProjectCodeEvaluatorInput(
             project_id=input.project_id,
             evaluator_id=input.evaluator_id,
             name=input.name,
@@ -524,7 +524,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.add_project_code_evaluator(context, command)
+        result = await project_bindings.add_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -536,7 +536,7 @@ class EvaluatorMutationMixin:
     async def create_project_code_evaluator(
         self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = project_evaluator_service.CreateProjectCodeEvaluatorInput(
+        command = project_bindings.CreateProjectCodeEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
             source_code=input.source_code,
@@ -560,7 +560,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.create_project_code_evaluator(context, command)
+        result = await project_bindings.create_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -576,7 +576,7 @@ class EvaluatorMutationMixin:
     async def update_project_code_evaluator(
         self, info: Info[Context, None], input: UpdateProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = project_evaluator_service.UpdateProjectCodeEvaluatorInput(
+        command = project_bindings.UpdateProjectCodeEvaluatorInput(
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             sampling_rate=input.sampling_rate,
@@ -599,7 +599,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.update_project_code_evaluator(context, command)
+        result = await project_bindings.update_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -617,12 +617,12 @@ class EvaluatorMutationMixin:
     async def set_project_evaluator_enabled(
         self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = project_evaluator_service.SetProjectEvaluatorEnabledInput(
+        command = project_bindings.SetProjectEvaluatorEnabledInput(
             project_evaluator_id=input.project_evaluator_id,
             enabled=input.enabled,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.set_project_evaluator_enabled(context, command)
+        result = await project_bindings.set_project_evaluator_enabled(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -641,7 +641,7 @@ class EvaluatorMutationMixin:
         (
             dropped_count,
             project_evaluator,
-        ) = await project_evaluator_service.clear_project_evaluator_queued_evaluations(
+        ) = await project_bindings.clear_project_evaluator_queued_evaluations(
             _evaluator_service_context(info.context), input.project_evaluator_id
         )
         return ClearProjectEvaluatorQueuedEvaluationsPayload(
@@ -661,7 +661,7 @@ class EvaluatorMutationMixin:
     async def clear_queued_evaluations(
         self, info: Info[Context, None], input: ClearQueuedEvaluationsInput
     ) -> ClearQueuedEvaluationsPayload:
-        dropped_count, project = await project_evaluator_service.clear_queued_evaluations(
+        dropped_count, project = await project_bindings.clear_queued_evaluations(
             _evaluator_service_context(info.context), input.project_id
         )
         return ClearQueuedEvaluationsPayload(
@@ -680,7 +680,7 @@ class EvaluatorMutationMixin:
     async def clear_all_queued_evaluations(
         self, info: Info[Context, None]
     ) -> ClearAllQueuedEvaluationsPayload:
-        dropped_count = await project_evaluator_service.clear_all_queued_evaluations(
+        dropped_count = await project_bindings.clear_all_queued_evaluations(
             _evaluator_service_context(info.context)
         )
         return ClearAllQueuedEvaluationsPayload(dropped_count=dropped_count)
@@ -689,12 +689,12 @@ class EvaluatorMutationMixin:
     async def delete_project_evaluators(
         self, info: Info[Context, None], input: DeleteProjectEvaluatorsInput
     ) -> DeleteProjectEvaluatorsPayload:
-        command = project_evaluator_service.DeleteProjectEvaluatorsInput(
+        command = project_bindings.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
             delete_associated_prompt=input.delete_associated_prompt,
         )
         context = _evaluator_service_context(info.context)
-        result = await project_evaluator_service.delete_project_evaluators(context, command)
+        result = await project_bindings.delete_project_evaluators(context, command)
         return DeleteProjectEvaluatorsPayload(project_evaluator_ids=result, query=Query())
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -706,7 +706,7 @@ class EvaluatorMutationMixin:
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs
         )
-        command = dataset_evaluator_service.CreateDatasetLLMEvaluatorInput(
+        command = dataset_bindings.CreateDatasetLLMEvaluatorInput(
             dataset_id=input.dataset_id,
             name=input.name,
             description=input.description,
@@ -718,7 +718,7 @@ class EvaluatorMutationMixin:
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
         )
-        result = await dataset_evaluator_service.create_dataset_llm_evaluator(
+        result = await dataset_bindings.create_dataset_llm_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -734,7 +734,7 @@ class EvaluatorMutationMixin:
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs
         )
-        command = dataset_evaluator_service.UpdateDatasetLLMEvaluatorInput(
+        command = dataset_bindings.UpdateDatasetLLMEvaluatorInput(
             dataset_evaluator_id=input.dataset_evaluator_id,
             dataset_id=input.dataset_id,
             name=input.name,
@@ -747,7 +747,7 @@ class EvaluatorMutationMixin:
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
         )
-        result = await dataset_evaluator_service.update_dataset_llm_evaluator(
+        result = await dataset_bindings.update_dataset_llm_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -758,11 +758,11 @@ class EvaluatorMutationMixin:
     async def delete_dataset_evaluators(
         self, info: Info[Context, None], input: DeleteDatasetEvaluatorsInput
     ) -> DeleteDatasetEvaluatorsPayload:
-        command = dataset_evaluator_service.DeleteDatasetEvaluatorsInput(
+        command = dataset_bindings.DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=input.dataset_evaluator_ids,
             delete_associated_prompt=input.delete_associated_prompt,
         )
-        result = await dataset_evaluator_service.delete_dataset_evaluators(
+        result = await dataset_bindings.delete_dataset_evaluators(
             _evaluator_service_context(info.context), command
         )
         return DeleteDatasetEvaluatorsPayload(dataset_evaluator_ids=result, query=Query())
@@ -771,7 +771,7 @@ class EvaluatorMutationMixin:
     async def create_dataset_builtin_evaluator(
         self, info: Info[Context, None], input: CreateDatasetBuiltinEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        command = dataset_evaluator_service.CreateDatasetBuiltinEvaluatorInput(
+        command = dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
             dataset_id=input.dataset_id,
             evaluator_id=input.evaluator_id,
             name=input.name,
@@ -783,7 +783,7 @@ class EvaluatorMutationMixin:
             else input.output_configs,
             description=input.description,
         )
-        result = await dataset_evaluator_service.create_dataset_builtin_evaluator(
+        result = await dataset_bindings.create_dataset_builtin_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -794,7 +794,7 @@ class EvaluatorMutationMixin:
     async def update_dataset_builtin_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetBuiltinEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        command = dataset_evaluator_service.UpdateDatasetBuiltinEvaluatorInput(
+        command = dataset_bindings.UpdateDatasetBuiltinEvaluatorInput(
             dataset_evaluator_id=input.dataset_evaluator_id,
             name=input.name,
             input_mapping=input.input_mapping.to_orm()
@@ -805,7 +805,7 @@ class EvaluatorMutationMixin:
             else input.output_configs,
             description=input.description,
         )
-        result = await dataset_evaluator_service.update_dataset_builtin_evaluator(
+        result = await dataset_bindings.update_dataset_builtin_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -818,11 +818,11 @@ class EvaluatorMutationMixin:
     ) -> DatasetEvaluatorMutationPayload:
         source_evaluator_id = input.source.evaluator_id
         source_definition = input.source.definition
-        command = dataset_evaluator_service.CreateDatasetCodeEvaluatorInput(
+        command = dataset_bindings.CreateDatasetCodeEvaluatorInput(
             dataset_id=input.dataset_id,
             name=input.name,
             evaluator_id=source_evaluator_id if isinstance(source_evaluator_id, GlobalID) else None,
-            definition=dataset_evaluator_service.CodeEvaluatorDefinition(
+            definition=dataset_bindings.CodeEvaluatorDefinition(
                 source_code=source_definition.source_code,
                 language=source_definition.language.to_orm(),
                 sandbox_config_id=source_definition.sandbox_config_id,
@@ -837,7 +837,7 @@ class EvaluatorMutationMixin:
             else input.output_configs,
             description=input.description,
         )
-        result = await dataset_evaluator_service.create_dataset_code_evaluator(
+        result = await dataset_bindings.create_dataset_code_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -848,7 +848,7 @@ class EvaluatorMutationMixin:
     async def update_dataset_code_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetCodeEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
-        command = dataset_evaluator_service.UpdateDatasetCodeEvaluatorInput(
+        command = dataset_bindings.UpdateDatasetCodeEvaluatorInput(
             dataset_evaluator_id=input.dataset_evaluator_id,
             name=input.name,
             input_mapping=input.input_mapping.to_orm()
@@ -859,7 +859,7 @@ class EvaluatorMutationMixin:
             else input.output_configs,
             description=input.description,
         )
-        result = await dataset_evaluator_service.update_dataset_code_evaluator(
+        result = await dataset_bindings.update_dataset_code_evaluator(
             _evaluator_service_context(info.context), command
         )
         return DatasetEvaluatorMutationPayload(
@@ -879,7 +879,7 @@ class EvaluatorMutationMixin:
         )
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
-        command = evaluator_service.CreateCodeEvaluatorInput(
+        command = definitions.CreateCodeEvaluatorInput(
             name=input.name,
             source_code=input.source_code,
             language=input.language.to_orm(),
@@ -889,7 +889,7 @@ class EvaluatorMutationMixin:
             description=input.description,
         )
         context = _evaluator_service_context(info.context)
-        row = await evaluator_service.create_code_evaluator(context, command)
+        row = await definitions.create_code_evaluator(context, command)
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
             query=Query(),
@@ -901,7 +901,7 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: PatchCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
-        command = evaluator_service.PatchCodeEvaluatorInput(
+        command = definitions.PatchCodeEvaluatorInput(
             id=input.id,
             name=input.name,
             description=input.description,
@@ -914,7 +914,7 @@ class EvaluatorMutationMixin:
             else input.output_configs,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.patch_code_evaluator(context, command)
+        result = await definitions.patch_code_evaluator(context, command)
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -931,12 +931,12 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: CreateCodeEvaluatorVersionInput,
     ) -> CreateCodeEvaluatorVersionPayload:
-        command = evaluator_service.CreateCodeEvaluatorVersionInput(
+        command = definitions.CreateCodeEvaluatorVersionInput(
             code_evaluator_id=input.code_evaluator_id,
             source_code=input.source_code,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.create_code_evaluator_version(context, command)
+        result = await definitions.create_code_evaluator_version(context, command)
         evaluator, _, was_created = result
         return CreateCodeEvaluatorVersionPayload(
             evaluator=CodeEvaluator(id=evaluator.id, db_record=evaluator),
