@@ -5731,6 +5731,74 @@ async def test_trace_count_returns_expected_count(
     assert response.data["project"]["traceCount"] == 1
 
 
+async def test_trace_count_by_status_time_series_is_scoped_to_project_and_time_range(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    day1 = datetime(2024, 1, 2, 12, tzinfo=timezone.utc)
+    day2 = datetime(2024, 1, 3, 12, tzinfo=timezone.utc)
+    outside = datetime(2024, 1, 10, 12, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        other = await _add_project(session)
+        # in range, error root span
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+        # in range, ok root span
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1)
+        # in range, two root spans (one error): must be counted once
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=2)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+        # in range, trace without spans counts as non-error
+        await _add_trace(session, project, start_time=day2)
+        # in range, error only in a child span's trace-level root is ok
+        t = await _add_trace(session, project, start_time=day2)
+        root = await _add_span(session, t, start_time=day2)
+        await _add_span(session, parent_span=root, start_time=day2, cumulative_error_count=1)
+        # out of range, error
+        t = await _add_trace(session, project, start_time=outside)
+        await _add_span(session, t, start_time=outside, cumulative_error_count=1)
+        # other project, in range, error
+        t = await _add_trace(session, other, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+
+    query = """
+      query ($projectId: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+              data { timestamp totalCount errorCount okCount }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": str(GlobalID("Project", str(project.id))),
+            "timeRange": {
+                "start": datetime(2024, 1, 2, tzinfo=timezone.utc).isoformat(),
+                "end": datetime(2024, 1, 4, tzinfo=timezone.utc).isoformat(),
+            },
+            "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    points = response.data["project"]["traceCountByStatusTimeSeries"]["data"]
+    counts = {
+        datetime.fromisoformat(p["timestamp"]): (p["totalCount"], p["errorCount"], p["okCount"])
+        for p in points
+    }
+    assert counts == {
+        datetime(2024, 1, 2, tzinfo=timezone.utc): (3, 2, 1),
+        datetime(2024, 1, 3, tzinfo=timezone.utc): (2, 0, 2),
+    }
+
+
 async def test_session_count_returns_expected_count(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
