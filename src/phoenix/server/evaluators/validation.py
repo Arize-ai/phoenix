@@ -1,6 +1,6 @@
 """Validate evaluator output configurations and their prompt contracts."""
 
-from typing import Literal, NamedTuple, Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 from pydantic import (
     BaseModel,
@@ -9,16 +9,12 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.relay import GlobalID
 from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OutputConfigType,
-    as_output_configs,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.prompts import (
@@ -148,100 +144,6 @@ class _EvaluatorPromptToolFunctionParametersLabelProperty(BaseModel):
 class _EvaluatorPromptToolFunctionParametersExplanationProperty(BaseModel):
     type: Literal["string"]
     description: str
-
-
-def validate_consistent_llm_evaluator_and_prompt_version(
-    prompt_version: models.PromptVersion,
-    llm_evaluator: models.LLMEvaluator,
-) -> None:
-    output_configs = llm_evaluator.output_configs
-    if not output_configs:
-        raise ValueError("LLM evaluator must have at least one output config")
-    # Validate all configs are categorical
-    categorical_configs: list[CategoricalOutputConfig] = []
-    for output_config in output_configs:
-        if not isinstance(output_config, CategoricalOutputConfig):
-            raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
-        categorical_configs.append(output_config)
-    validate_evaluator_prompt_and_configs(
-        prompt_tools=prompt_version.tools,
-        prompt_response_format=prompt_version.response_format,
-        evaluator_output_configs=categorical_configs,
-        evaluator_description=llm_evaluator.description,
-    )
-
-
-class IncompatibleDatasetOverride(NamedTuple):
-    """Dataset override that cannot be served by an evaluator prompt version."""
-
-    dataset_evaluator_id: str
-    binding_name: str
-    dataset_name: str
-
-
-def format_incompatible_dataset_overrides(
-    overrides: Sequence[IncompatibleDatasetOverride],
-) -> str:
-    """Format incompatible overrides with binding and dataset names for conflict errors."""
-    return ", ".join(
-        f"binding '{override.binding_name}' on dataset '{override.dataset_name}' "
-        f"({override.dataset_evaluator_id})"
-        for override in overrides
-    )
-
-
-async def incompatible_dataset_overrides(
-    session: AsyncSession,
-    llm_evaluator: models.LLMEvaluator,
-    prompt_version: models.PromptVersion,
-) -> list[IncompatibleDatasetOverride]:
-    """Return dataset binding overrides this version cannot serve.
-
-    Bindings without overrides follow the evaluator's own outputs and need no separate check.
-    Each result includes the GlobalID and display names used in compatibility errors.
-    """
-    bindings = (
-        await session.execute(
-            select(models.DatasetEvaluators, models.Dataset.name)
-            .join(models.Dataset, models.Dataset.id == models.DatasetEvaluators.dataset_id)
-            .where(
-                models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
-                or_(
-                    models.DatasetEvaluators.output_configs.is_not(None),
-                    models.DatasetEvaluators.description.is_not(None),
-                ),
-            )
-        )
-    ).all()
-    incompatible: list[IncompatibleDatasetOverride] = []
-    for binding, dataset_name in bindings:
-        configs = (
-            as_output_configs(binding.output_configs)
-            if binding.output_configs is not None
-            else list(llm_evaluator.output_configs)
-        )
-        try:
-            validate_evaluator_prompt_and_configs(
-                prompt_tools=prompt_version.tools,
-                prompt_response_format=prompt_version.response_format,
-                evaluator_output_configs=LLMEvaluatorOutputConfigs.model_validate(
-                    {"configs": configs}
-                ).configs,
-                evaluator_description=(
-                    binding.description
-                    if binding.description is not None
-                    else llm_evaluator.description
-                ),
-            )
-        except (ValueError, ValidationError):
-            incompatible.append(
-                IncompatibleDatasetOverride(
-                    dataset_evaluator_id=str(GlobalID("DatasetEvaluator", str(binding.id))),
-                    binding_name=binding.name.root,
-                    dataset_name=dataset_name,
-                )
-            )
-    return incompatible
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):

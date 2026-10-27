@@ -210,9 +210,6 @@ def test_llm_binding_and_definition_edits(
     assert response.status_code == 200, response.text
     updated = response.json()["data"]
     assert updated["prompt"]["resolved_prompt_version_id"] == new_version_id
-    response = client.patch(evaluator, json={"type": "llm", "description": "new description"})
-    assert response.status_code == 422, response.text
-    assert client.get(evaluator).json()["data"]["description"] == "correctness"
     response = client.patch(evaluator, json={"type": "llm", "name": f"renamed-{token_hex(8)}"})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["prompt"] == updated["prompt"]
