@@ -308,8 +308,8 @@ async def release_llm_evaluator_prompt(
 ) -> None:
     """Delete the tag a removed LLM evaluator owned and drop its prompt's "evaluator" label.
 
-    Call this once the evaluator row itself is gone: the tag's ON DELETE RESTRICT FK from
-    llm_evaluators only allows deleting the tag in that order. Both this and the label removal
+    Call this once the evaluator row itself is gone: the tag is kept while any evaluator still
+    runs through it. Both this and the label removal
     are no-ops when the prompt was deleted too (a prompt's delete cascades to its tags, and
     there is no prompt left to un-label), so the caller doesn't need to track that separately.
     """

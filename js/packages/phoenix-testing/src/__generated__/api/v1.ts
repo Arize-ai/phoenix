@@ -590,8 +590,7 @@ export interface paths {
          * @description Edit a definition; the change applies to every binding that references it.
          *
          *     Omitted fields keep their values. Code is appended through the versions endpoint and
-         *     prompt content through the prompts API; this route only moves pointers to them. An LLM
-         *     change that would invalidate a dataset binding's overrides is refused with 409.
+         *     prompt content through the prompts API; this route only moves pointers to them.
          */
         patch: operations["patchEvaluator"];
         trace?: never;
@@ -1353,7 +1352,7 @@ export interface paths {
         put?: never;
         /**
          * Add tag to prompt version
-         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt. A tag through which an LLM evaluator records its prompt version can only move to a version that evaluator can run.
+         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
          */
         post: operations["createPromptVersionTag"];
         delete?: never;
@@ -1374,7 +1373,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a tag from a prompt version
-         * @description Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version. A tag through which an LLM evaluator records its prompt version cannot be deleted.
+         * @description Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.
          */
         delete: operations["deletePromptVersionTag"];
         options?: never;
@@ -13234,15 +13233,6 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -13502,15 +13492,6 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -13554,15 +13535,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Conflict */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

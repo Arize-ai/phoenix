@@ -690,8 +690,7 @@ async def patch_evaluator(
     """Edit a definition; the change applies to every binding that references it.
 
     Omitted fields keep their values. Code is appended through the versions endpoint and
-    prompt content through the prompts API; this route only moves pointers to them. An LLM
-    change that would invalidate a dataset binding's overrides is refused with 409.
+    prompt content through the prompts API; this route only moves pointers to them.
     """
     with evaluator_api_errors():
         fields = body.model_fields_set - {"type"}

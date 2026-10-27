@@ -22,9 +22,7 @@ from phoenix.server.api.helpers.prompts.validation import validate_custom_provid
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
 )
-from phoenix.server.api.mutations.prompt_version_tag_mutations import (
-    CreatePromptVersionTagInput,
-)
+from phoenix.server.api.mutations.prompt_version_tag_mutations import CreatePromptVersionTagInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
