@@ -1,4 +1,5 @@
-"""Saved decision evaluators and dataset bindings, each evaluator with a version tag it owns."""
+"""Saved decision evaluators and their dataset and project bindings, each evaluator with a
+version tag it owns."""
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,6 +34,18 @@ from phoenix.server.evaluators.services.definitions import (
 from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
+    validate_project_evaluator_project,
+    validate_project_evaluator_target_update,
+)
+from phoenix.server.evaluators.services.project_bindings import (
+    ProjectBindingSettings,
+    ProjectEvaluatorPatch,
+    add_project_evaluator,
+    apply_project_evaluator_patch,
+    bind_project_evaluator,
+    check_project_binding,
+    project_binding_name_taken,
+    validate_decision_project_mapping,
 )
 from phoenix.server.evaluators.snapshots import get_decision_evaluator
 from phoenix.server.evaluators.validation import validate_decision_input_mapping
@@ -296,6 +309,126 @@ async def create_dataset_decision_binding(
     return binding
 
 
+def _check_decision_source(
+    *,
+    evaluator_id: Optional[GlobalID],
+    decision_id: Optional[GlobalID],
+    evaluator_name: Optional[Identifier],
+    decision_version_id: Optional[GlobalID],
+    decision_version: Optional[models.DecisionVersion],
+    scoring_policy: Optional[DecisionScoringPolicy],
+) -> None:
+    """A binding runs an existing evaluator, or a new one over a saved or draft version."""
+    if evaluator_id is not None:
+        if any(
+            value is not None
+            for value in (
+                decision_id,
+                evaluator_name,
+                decision_version_id,
+                decision_version,
+                scoring_policy,
+            )
+        ):
+            raise BadRequest("An existing evaluator cannot be combined with a new definition")
+        return
+    if evaluator_name is None or (decision_version_id is None) == (decision_version is None):
+        raise BadRequest(
+            "Provide an evaluator name and exactly one saved version or draft Decision"
+        )
+    if decision_id is not None and decision_version is None:
+        raise BadRequest("decisionId requires a draft Decision version")
+
+
+async def _new_decision_evaluator_from_source(
+    session: AsyncSession,
+    *,
+    user_id: Optional[int],
+    evaluator_name: Optional[Identifier],
+    description: Optional[str],
+    decision_id: Optional[GlobalID],
+    decision_version_id: Optional[GlobalID],
+    decision_version: Optional[models.DecisionVersion],
+    scoring_policy: Optional[DecisionScoringPolicy],
+) -> models.DecisionEvaluator:
+    """Create a judge over a saved version, or over a draft saved as a new Decision or as a
+    new version of one."""
+    assert evaluator_name is not None
+    evaluator_name = await generate_unique_evaluator_name(
+        session,
+        evaluator_name,
+        claim_decision=decision_version is not None and decision_id is None,
+    )
+    if decision_version is not None:
+        await validate_decision_custom_provider(session, decision_version)
+        if decision_id is None:
+            decision = models.Decision(
+                name=evaluator_name,
+                description=description,
+                metadata_={},
+                user_id=user_id,
+                decision_versions=[decision_version],
+            )
+            session.add(decision)
+        else:
+            existing_decision = await session.get(models.Decision, _id(decision_id, "Decision"))
+            if existing_decision is None:
+                raise NotFound("Decision not found")
+            decision_version.decision_id = existing_decision.id
+            session.add(decision_version)
+        await session.flush()
+        version = decision_version
+    else:
+        assert decision_version_id is not None
+        version = await _version(session, decision_version_id)
+    evaluator = _new_decision_evaluator(
+        name=evaluator_name,
+        description=description,
+        user_id=user_id,
+        version=version,
+        scoring_policy=scoring_policy,
+    )
+    session.add(evaluator)
+    await session.flush()
+    return evaluator
+
+
+def _refuse_null_decision_edits(
+    *,
+    name: Optional[Identifier],
+    input_mapping: Optional[InputMapping],
+    decision_version_id: Optional[GlobalID],
+    decision_version: Optional[models.DecisionVersion],
+    scoring_policy: Optional[DecisionScoringPolicy],
+) -> None:
+    if decision_version is not None and decision_version_id is not UNSET:
+        raise BadRequest("Provide either a saved version or a draft Decision, not both")
+    if name is None:
+        raise BadRequest("Invalid evaluator name: name cannot be null")
+    if input_mapping is None or scoring_policy is None or decision_version_id is None:
+        raise BadRequest("Name, input mapping, scoring policy, and version cannot be null")
+
+
+async def _edited_version(
+    session: AsyncSession,
+    evaluator: models.DecisionEvaluator,
+    decision_version_id: Optional[GlobalID],
+    decision_version: Optional[models.DecisionVersion],
+) -> Optional[models.DecisionVersion]:
+    """The version an edit picks, saving a draft to the evaluator's decision; None keeps
+    the one it runs."""
+    if decision_version is not None:
+        await validate_decision_custom_provider(session, decision_version)
+        decision_version.decision_id = evaluator.decision_id
+        session.add(decision_version)
+        await session.flush()
+        return decision_version
+    if decision_version_id is not UNSET:
+        assert decision_version_id is not None
+        return await _version(session, decision_version_id)
+    return None
+
+
 async def create_dataset_decision_evaluator(
     context: EvaluatorServiceContext,
     *,
@@ -311,18 +444,15 @@ async def create_dataset_decision_evaluator(
     scoring_policy: Optional[DecisionScoringPolicy] = None,
 ) -> models.DatasetEvaluators:
     """Create a dataset binding and optionally its Decision and evaluator, atomically."""
+    _check_decision_source(
+        evaluator_id=evaluator_id,
+        decision_id=decision_id,
+        evaluator_name=evaluator_name,
+        decision_version_id=decision_version_id,
+        decision_version=decision_version,
+        scoring_policy=scoring_policy,
+    )
     if evaluator_id is not None:
-        if any(
-            value is not None
-            for value in (
-                decision_id,
-                evaluator_name,
-                decision_version_id,
-                decision_version,
-                scoring_policy,
-            )
-        ):
-            raise BadRequest("An existing evaluator cannot be combined with a new definition")
         return await create_dataset_decision_binding(
             context,
             CreateDatasetDecisionBindingInput(
@@ -333,53 +463,19 @@ async def create_dataset_decision_evaluator(
                 description=description,
             ),
         )
-    if evaluator_name is None or (decision_version_id is None) == (decision_version is None):
-        raise BadRequest(
-            "Provide an evaluator name and exactly one saved version or draft Decision"
-        )
-    if decision_id is not None and decision_version is None:
-        raise BadRequest("decisionId requires a draft Decision version")
     dataset_rowid = _id(dataset_id, "Dataset")
     try:
         async with context.db() as session:
-            evaluator_name = await generate_unique_evaluator_name(
+            evaluator = await _new_decision_evaluator_from_source(
                 session,
-                evaluator_name,
-                claim_decision=decision_version is not None and decision_id is None,
-            )
-            if decision_version is not None:
-                await validate_decision_custom_provider(session, decision_version)
-                if decision_id is None:
-                    decision = models.Decision(
-                        name=evaluator_name,
-                        description=description,
-                        metadata_={},
-                        user_id=context.user_id,
-                        decision_versions=[decision_version],
-                    )
-                    session.add(decision)
-                else:
-                    existing_decision = await session.get(
-                        models.Decision, _id(decision_id, "Decision")
-                    )
-                    if existing_decision is None:
-                        raise NotFound("Decision not found")
-                    decision_version.decision_id = existing_decision.id
-                    session.add(decision_version)
-                await session.flush()
-                version = decision_version
-            else:
-                assert decision_version_id is not None
-                version = await _version(session, decision_version_id)
-            evaluator = _new_decision_evaluator(
-                name=evaluator_name,
-                description=description,
                 user_id=context.user_id,
-                version=version,
+                evaluator_name=evaluator_name,
+                description=description,
+                decision_id=decision_id,
+                decision_version_id=decision_version_id,
+                decision_version=decision_version,
                 scoring_policy=scoring_policy,
             )
-            session.add(evaluator)
-            await session.flush()
             binding = await _bind_decision_to_dataset(
                 session,
                 dataset_id=dataset_rowid,
@@ -410,12 +506,14 @@ async def update_dataset_decision_evaluator(
     scoring_policy: Optional[DecisionScoringPolicy] = UNSET,
 ) -> models.DatasetEvaluators:
     """Save a Decision version, shared scoring, and this dataset's mapping together."""
-    if decision_version is not None and decision_version_id is not UNSET:
-        raise BadRequest("Provide either a saved version or a draft Decision, not both")
-    if name is None:
-        raise BadRequest("Invalid evaluator name: name cannot be null")
-    if input_mapping is None or scoring_policy is None or decision_version_id is None:
-        raise BadRequest("Name, input mapping, scoring policy, and version cannot be null")
+    _refuse_null_decision_edits(
+        name=name,
+        input_mapping=input_mapping,
+        decision_version_id=decision_version_id,
+        decision_version=decision_version,
+        scoring_policy=scoring_policy,
+    )
+    assert name is not None and input_mapping is not None
     try:
         async with context.db() as session:
             binding = await session.get(
@@ -429,15 +527,9 @@ async def update_dataset_decision_evaluator(
             if evaluator is None:
                 raise BadRequest("The dataset evaluator is not a decision evaluator")
             await session.refresh(binding)
-            version: Optional[models.DecisionVersion] = None
-            if decision_version is not None:
-                await validate_decision_custom_provider(session, decision_version)
-                decision_version.decision_id = evaluator.decision_id
-                session.add(decision_version)
-                await session.flush()
-                version = decision_version
-            elif decision_version_id is not UNSET:
-                version = await _version(session, decision_version_id)
+            version = await _edited_version(
+                session, evaluator, decision_version_id, decision_version
+            )
             selected = await _apply_decision_version_and_policy(
                 session, evaluator, version, scoring_policy, user_id=context.user_id
             )
@@ -455,6 +547,131 @@ async def update_dataset_decision_evaluator(
             await session.flush()
     except (IntegrityError, SQLiteIntegrityError) as error:
         raise Conflict("An evaluator with this name already exists in the dataset") from error
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    return binding
+
+
+@dataclass(kw_only=True)
+class CreateProjectDecisionEvaluatorInput(ProjectBindingSettings):
+    description: Optional[str] = None
+    evaluator_id: Optional[GlobalID] = None
+    decision_id: Optional[GlobalID] = None
+    evaluator_name: Optional[Identifier] = None
+    decision_version_id: Optional[GlobalID] = None
+    decision_version: Optional[models.DecisionVersion] = None
+    scoring_policy: Optional[DecisionScoringPolicy] = None
+
+
+async def create_project_decision_evaluator(
+    context: EvaluatorServiceContext, input: CreateProjectDecisionEvaluatorInput
+) -> models.ProjectEvaluator:
+    """Create a project binding and optionally its Decision and evaluator, atomically."""
+    _check_decision_source(
+        evaluator_id=input.evaluator_id,
+        decision_id=input.decision_id,
+        evaluator_name=input.evaluator_name,
+        decision_version_id=input.decision_version_id,
+        decision_version=input.decision_version,
+        scoring_policy=input.scoring_policy,
+    )
+    if input.evaluator_id is not None:
+        _id(input.evaluator_id, "DecisionEvaluator")
+        return await add_project_evaluator(context, input.evaluator_id, input)
+    project_id = check_project_binding(input)
+    try:
+        async with context.db() as session:
+            project = await validate_project_evaluator_project(
+                session, project_id, input.project_id
+            )
+            evaluator = await _new_decision_evaluator_from_source(
+                session,
+                user_id=context.user_id,
+                evaluator_name=input.evaluator_name,
+                description=input.description,
+                decision_id=input.decision_id,
+                decision_version_id=input.decision_version_id,
+                decision_version=input.decision_version,
+                scoring_policy=input.scoring_policy,
+            )
+            binding = await bind_project_evaluator(session, project, evaluator, input)
+    except (IntegrityError, SQLiteIntegrityError) as error:
+        raise await project_binding_name_taken(context, project_id, input.name) from error
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    return binding
+
+
+@dataclass(kw_only=True)
+class UpdateProjectDecisionEvaluatorInput:
+    project_evaluator_id: GlobalID
+    sampling_rate: float
+    evaluation_target: models.EvaluationTarget
+    filter_condition: str
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    input_mapping: Optional[InputMapping] = UNSET
+    decision_version_id: Optional[GlobalID] = UNSET
+    decision_version: Optional[models.DecisionVersion] = None
+    scoring_policy: Optional[DecisionScoringPolicy] = UNSET
+    enabled: Optional[bool] = UNSET
+    evaluation_delay_seconds: Optional[int] = UNSET
+
+
+async def update_project_decision_evaluator(
+    context: EvaluatorServiceContext, input: UpdateProjectDecisionEvaluatorInput
+) -> models.ProjectEvaluator:
+    """Save a Decision version, shared scoring, and this project's binding together."""
+    _refuse_null_decision_edits(
+        name=input.name,
+        input_mapping=input.input_mapping,
+        decision_version_id=input.decision_version_id,
+        decision_version=input.decision_version,
+        scoring_policy=input.scoring_policy,
+    )
+    if input.enabled is None:
+        raise BadRequest("enabled cannot be set to null")
+    try:
+        async with context.db() as session:
+            binding = await session.get(
+                models.ProjectEvaluator, _id(input.project_evaluator_id, "ProjectEvaluator")
+            )
+            if binding is None:
+                raise NotFound("Project evaluator not found")
+            evaluator = await session.get(
+                models.DecisionEvaluator, binding.evaluator_id, with_for_update=True
+            )
+            if evaluator is None:
+                raise BadRequest("The project evaluator is not a decision evaluator")
+            await session.refresh(binding)
+            project_id = binding.project_id
+            validate_project_evaluator_target_update(binding, input.evaluation_target)
+            version = await _edited_version(
+                session, evaluator, input.decision_version_id, input.decision_version
+            )
+            selected = await _apply_decision_version_and_policy(
+                session, evaluator, version, input.scoring_policy, user_id=context.user_id
+            )
+            if input.description is not UNSET:
+                evaluator.description = input.description
+            if version is not None and input.input_mapping is UNSET:
+                validate_decision_project_mapping(selected, binding.input_mapping)
+            binding = await apply_project_evaluator_patch(
+                session,
+                binding,
+                ProjectEvaluatorPatch(
+                    name=input.name,
+                    sampling_rate=input.sampling_rate,
+                    filter_condition=input.filter_condition,
+                    enabled=input.enabled,
+                    input_mapping=input.input_mapping,
+                    evaluation_delay_seconds=input.evaluation_delay_seconds,
+                ),
+            )
+    except (IntegrityError, SQLiteIntegrityError) as error:
+        if input.name is not UNSET and input.name is not None:
+            raise await project_binding_name_taken(context, project_id, input.name) from error
+        raise Conflict("The project evaluator could not be updated") from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
     return binding
