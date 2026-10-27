@@ -239,6 +239,38 @@ const { datasetId } = await createDataset({
 // You can now use datasetId to run experiments or add more examples
 ```
 
+### Managing Splits
+
+Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to create, edit, and delete splits (for example train and test subsets) on an existing dataset and to add or remove examples. These helpers require Phoenix server >= 19.20.0.
+
+```ts
+import {
+  createDatasetSplit,
+  deleteDatasetSplit,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = { datasetName: "questions" };
+
+const testSplit = await createDatasetSplit({
+  dataset,
+  name: "test",
+  exampleIds: ["example-1"], // example ids or nodeIds from getDatasetExamples
+});
+
+await updateDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+  addExampleIds: ["example-2"],
+  removeExampleIds: ["example-1"],
+});
+
+// Removes the split and its memberships, not the examples
+await deleteDatasetSplit({ dataset, splitId: testSplit.id });
+```
+
+See the [datasets reference](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets#manage-splits-on-an-existing-dataset) for all parameters and server version notes.
+
 ## Experiments
 
 The `@arizeai/phoenix-client` package provides an experiments API for running and evaluating tasks on datasets. This is useful for benchmarking models, evaluating outputs, and tracking experiment results in Phoenix.

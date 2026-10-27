@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Lock
-from typing import Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import wrapt
 from openinference.semconv.resource import ResourceAttributes
@@ -28,6 +28,7 @@ from opentelemetry.sdk.trace.export import (
 )
 from opentelemetry.sdk.util.instrumentation import InstrumentationScope
 from opentelemetry.trace import (
+    Span,
     SpanContext,
     Status,
     TraceFlags,
@@ -37,6 +38,10 @@ from opentelemetry.trace import (
 from opentelemetry.trace import (
     SpanKind as OtelSpanKind,
 )
+from opentelemetry.trace import (
+    Tracer as OtelTracer,
+)
+from opentelemetry.util._decorator import _agnosticcontextmanager
 
 from phoenix.config import (
     get_env_phoenix_agents_collector_api_key,
@@ -113,7 +118,19 @@ def _build_remote_http_span_exporter(endpoint: str) -> SpanExporter:
     )
 
 
-class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
+if TYPE_CHECKING:
+
+    class _TracerBase(wrapt.ObjectProxy[OtelTracer], OtelTracer):
+        def start_span(self, *args: Any, **kwargs: Any) -> Span: ...
+
+        @_agnosticcontextmanager
+        def start_as_current_span(self, *args: Any, **kwargs: Any) -> Iterator[Span]: ...
+
+else:
+    _TracerBase = wrapt.ObjectProxy
+
+
+class Tracer(_TracerBase):
     """
     An in-memory tracer that captures spans and builds database models.
 

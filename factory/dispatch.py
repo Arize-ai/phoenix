@@ -24,7 +24,7 @@ FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
 ENVIRONMENT_LOCK_KEY = "./environments/phoenix-dev.yaml"
 VAULT_LOCK_KEY = "./vaults/github.yaml"
-REPO_MOUNT_PATH = "/workspace/phoenix"
+GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 FACTORY_LABEL = "factory"
 
 LANE_AGENT_LOCK_KEYS = {
@@ -45,6 +45,8 @@ LANE_OUTCOMES = {
 }
 # Repository permissions that may start the factory; GitHub reports `maintain` as `write`.
 STARTING_PERMISSIONS = {"admin", "write"}
+# The sender of a run that a workflow here dispatched with its GITHUB_TOKEN.
+WORKFLOW_LOGIN = "github-actions[bot]"
 # Labels triage applies when an issue is not ready to build.
 NOT_READY_LABELS = {
     "needs information": "it is labeled `needs information`",
@@ -177,6 +179,25 @@ def read_lock_id(*, lock: dict[str, Any], lock_key: str) -> str:
         ) from None
 
 
+def read_vault_ids(*, lock: dict[str, Any]) -> list[str]:
+    return [
+        read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY),
+        read_lock_id(lock=lock, lock_key=GRAFANA_VAULT_LOCK_KEY),
+    ]
+
+
+def format_session_link(*, session_id: str) -> str:
+    """Link the session in the Claude Console, or show its ID if the workspace is unknown."""
+    try:
+        workspace_id = json.loads(LOCK_FILE_PATH.read_text())["origin"]["workspace_id"]
+    except (OSError, ValueError, KeyError):
+        return f"`{session_id}`"
+    return (
+        f"[`{session_id}`](https://platform.claude.com/workspaces/{workspace_id}"
+        f"/sessions/{session_id})"
+    )
+
+
 def start_session(
     *,
     client: anthropic.Anthropic,
@@ -205,7 +226,7 @@ def start_session(
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
-        vault_ids=[read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY)],
+        vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
         metadata={"repo": repo, "issue": str(issue_number), "lane": lane},
         budget={
@@ -217,7 +238,6 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "mount_path": REPO_MOUNT_PATH,
                 "checkout": {"type": "branch", "name": "main"},
             }
         ],
@@ -429,8 +449,8 @@ def watch_session(
     )
     if session is None:
         return (
-            f"🏭 The factory's **{lane}** session `{session_id}` is still running after "
-            f"{watch_minutes} minutes. Check it in the Claude Console."
+            f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+            f"is still running after {watch_minutes} minutes."
         )
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
@@ -537,7 +557,8 @@ def watch_session(
                 break
 
     report_lines = [
-        f"🏭 The factory's **{lane}** session `{session_id}` {status_line}.",
+        f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+        f"{status_line}.",
         "",
         f"Outcome: **{run_outcome}** · rubric: `{outcome_result}` · "
         f"stop reason: `{stop_reason}` · "
@@ -568,16 +589,21 @@ def run_start(*, args: argparse.Namespace) -> None:
             "view",
             str(args.issue),
             "--json",
-            "number,state,labels,assignees,closedByPullRequestsReferences",
+            "number,state,author,labels,assignees,closedByPullRequestsReferences",
         )
     )
     label_names = [label["name"] for label in issue["labels"]]
     lane = args.lane or select_lane(label_names=label_names)
+    # factory-candidates.yml dispatches triage candidates as the workflow, so those runs
+    # answer to the issue's author: only an issue someone with write access wrote starts.
+    requester_login = (
+        issue["author"]["login"] if args.requested_by == WORKFLOW_LOGIN else args.requested_by
+    )
     admission_problem = find_admission_problem(
         issue=issue,
         open_pr_urls=list_open_pr_urls(issue=issue),
-        requester_login=args.requested_by,
-        requester_permission=read_repo_permission(login=args.requested_by),
+        requester_login=requester_login,
+        requester_permission=read_repo_permission(login=requester_login),
     )
     if admission_problem is None and lane is None:
         admission_problem = (
@@ -614,7 +640,8 @@ def run_start(*, args: argparse.Namespace) -> None:
     comment_on_issue(
         issue_number=args.issue,
         body=(
-            f"🏭 The factory started the **{lane}** lane for this issue (session `{session_id}`). "
+            f"🏭 The factory started the **{lane}** lane for this issue "
+            f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
     )
@@ -623,7 +650,10 @@ def run_start(*, args: argparse.Namespace) -> None:
 
 def run_watch(*, args: argparse.Namespace) -> None:
     # Report on the issue even when watching fails; the error still fails the job.
-    report = f"🏭 The factory lost track of session `{args.session_id}`; see the workflow run."
+    report = (
+        f"🏭 The factory lost track of session {format_session_link(session_id=args.session_id)}; "
+        "see the workflow run."
+    )
     try:
         report = watch_session(
             client=anthropic.Anthropic(),

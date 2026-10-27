@@ -22,7 +22,7 @@ import bs4
 import jwt
 import pytest
 import smtpdfix
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from strawberry.relay import GlobalID

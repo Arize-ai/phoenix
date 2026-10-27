@@ -51,7 +51,9 @@ os.environ["OPENAI_API_KEY"] = "your-api-key"
 
 async def main():
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4",
+        model="gpt-5.6-sol",
+        # AutoGen's built-in model table stops at GPT-5, so describe newer models yourself.
+        model_info={"vision": True, "function_calling": True, "json_output": True, "structured_output": True, "family": "unknown"},
     )
 
     # Create two agents: a primary and a critic
