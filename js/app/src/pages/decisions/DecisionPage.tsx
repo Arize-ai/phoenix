@@ -166,7 +166,7 @@ function DecisionDetails({
         <Alert variant="danger">
           Decision not found. It may have been deleted.
         </Alert>
-        <Link to="/decisions">Back to decisions</Link>
+        <Link to="/prompts/decisions">Back to decisions</Link>
       </View>
     );
   const version = decision.version;
@@ -196,7 +196,7 @@ function DecisionDetails({
           decision.sourceDecision ? (
             <Text color="text-700">
               cloned from{" "}
-              <Link to={`/decisions/${decision.sourceDecision.id}`}>
+              <Link to={`/prompts/decisions/${decision.sourceDecision.id}`}>
                 {decision.sourceDecision.name}
               </Link>
             </Text>
@@ -235,7 +235,7 @@ function DecisionDetails({
         selectedKey={selectedTab}
         onSelectionChange={(key) =>
           navigate(
-            `/decisions/${decision.id}${key === "decision" ? "" : `/${key}`}`
+            `/prompts/decisions/${decision.id}${key === "decision" ? "" : `/${key}`}`
           )
         }
       >
@@ -385,7 +385,7 @@ function DecisionDetails({
                         </td>
                         <td>
                           <Link
-                            to={`/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
+                            to={`/prompts/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
                           >
                             {versionNumberById.has(tag.decisionVersionId)
                               ? `Version ${versionNumberById.get(tag.decisionVersionId)}`
@@ -417,14 +417,14 @@ function DecisionDetails({
               <Card title="Decision settings">
                 <View padding="size-200">
                   <Flex justifyContent="space-between" gap="size-100">
-                    <LinkButton to="/settings/decisions">
+                    <LinkButton to="/settings/prompts">
                       Manage decision labels
                     </LinkButton>
                     <CanModify>
                       <DeleteDecisionButton
                         decisionId={decision.id}
                         name={decision.name}
-                        onDeleted={() => navigate("/decisions")}
+                        onDeleted={() => navigate("/prompts/decisions")}
                       />
                     </CanModify>
                   </Flex>
@@ -504,7 +504,7 @@ function DecisionVersions({
           <Flex direction="column" gap="size-100">
             <Flex justifyContent="space-between" gap="size-100">
               <Link
-                to={`/decisions/${decisionId}/versions/${version.id}`}
+                to={`/prompts/decisions/${decisionId}/versions/${version.id}`}
                 aria-current={
                   version.id === selectedVersionId && !isOverview
                     ? "page"
@@ -535,7 +535,7 @@ function DecisionVersions({
       ))}
       {isOverview ? (
         <View padding="size-200">
-          <Link to={`/decisions/${decisionId}/versions`}>
+          <Link to={`/prompts/decisions/${decisionId}/versions`}>
             View all versions
           </Link>
         </View>
