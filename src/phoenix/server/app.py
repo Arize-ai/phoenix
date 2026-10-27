@@ -124,6 +124,7 @@ from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_a
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.evaluator_sweeper import EvaluatorSweeper
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -653,6 +654,7 @@ def _lifespan(
     trace_data_sweeper: Optional[TraceDataSweeper],
     agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
+    evaluator_sweeper: EvaluatorSweeper,
     generative_model_store: GenerativeModelStore,
     system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
@@ -707,6 +709,7 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
+            await stack.enter_async_context(evaluator_sweeper)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
@@ -806,6 +809,7 @@ def create_graphql_router(
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
+    evaluator_sweeper: Optional[EvaluatorSweeper] = None,
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
@@ -825,6 +829,9 @@ def create_graphql_router(
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
         span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
+        experiment_runner (ExperimentRunner): The experiment runner daemon.
+        evaluator_sweeper (Optional[EvaluatorSweeper], optional): The evaluator sweeper daemon.
+            Defaults to None.
         event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
@@ -844,6 +851,7 @@ def create_graphql_router(
             settings=system_settings,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
+            evaluator_sweeper=evaluator_sweeper,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             encrypt=encrypt,
@@ -1036,6 +1044,7 @@ def create_app(
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
+    evaluator_sweeper = EvaluatorSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
@@ -1100,6 +1109,7 @@ def create_app(
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
+        evaluator_sweeper=evaluator_sweeper,
         sandbox_session_manager=sandbox_session_manager,
         sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
@@ -1129,6 +1139,7 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
+            evaluator_sweeper=evaluator_sweeper,
             generative_model_store=generative_model_store,
             system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
@@ -1368,6 +1379,7 @@ def create_app(
     app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
+    app.state.evaluator_sweeper = evaluator_sweeper
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
     app.state.graphql_schema = graphql_schema

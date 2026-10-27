@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "fix/background-evaluator-deletion",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "fix/background-evaluator-deletion": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "fix/background-evaluator-deletion",
+    "origin"
+  ]
+}

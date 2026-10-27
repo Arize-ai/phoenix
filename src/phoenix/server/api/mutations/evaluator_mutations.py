@@ -1,3 +1,4 @@
+from asyncio import create_task
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional, cast
@@ -61,6 +62,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.daemons.evaluator_sweeper import cleanup_evaluator_projects
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.types import DbSessionFactory
@@ -949,10 +951,14 @@ class EvaluatorMutationMixin:
                     )
                 )
 
-            if project_ids:
-                await session.execute(
-                    delete(models.Project).where(models.Project.id.in_(project_ids))
-                )
+        # Offload the heavy cascade (traces, spans, annotations) to the background
+        # daemon using chunked queries (LIMIT 500) to avoid long-running locks on
+        # active trace databases, allowing the delete mutation to return immediately.
+        if project_ids:
+            if info.context.evaluator_sweeper is not None:
+                info.context.evaluator_sweeper.enqueue_project_cleanup(*project_ids)
+            else:
+                create_task(cleanup_evaluator_projects(info.context.db, project_ids))
 
         return DeleteDatasetEvaluatorsPayload(
             dataset_evaluator_ids=deleted_gids,
