@@ -12,7 +12,6 @@ from typing_extensions import assert_never
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
-from phoenix.db.types.decision_evaluators import resolve_scoring_policy
 from phoenix.db.types.evaluator_definition import (
     BuiltInEvaluatorDefinition,
     EvaluatorDefinition,
@@ -70,7 +69,6 @@ async def build_decision_evaluator(
     try:
         validate_inputs(definition.inputs, definition.state)
         validate_questions(definition.questions)
-        resolve_scoring_policy(definition.questions, definition.scoring_policy)
     except ValueError as error:
         raise BadRequest(str(error)) from error
     client = await resolve_decision_client(
