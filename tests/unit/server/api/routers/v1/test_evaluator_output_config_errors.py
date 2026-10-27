@@ -1,8 +1,5 @@
-from typing import cast
-
 import pytest
 
-from phoenix.db import models
 from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.routers.v1.annotation_config_models import (
@@ -61,4 +58,4 @@ def test_non_categorical_llm_binding_override_is_a_client_error() -> None:
         optimization_direction=OptimizationDirection.MAXIMIZE,
     )
     with pytest.raises(BadRequest, match="CategoricalOutputConfig"):
-        validate_llm_binding_overrides(cast(models.PromptVersion, object()), [config], None)
+        validate_llm_binding_overrides([config])
