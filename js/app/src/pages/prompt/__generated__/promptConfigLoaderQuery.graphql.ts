@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9c981937bbfbb0d372db5b4ea13afd1>>
+ * @generated SignedSource<<249170ef574f02bfb52459b1f2d6fb42>>
  * @lightSyntaxTransform
  */
 
@@ -48,14 +48,14 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "name",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "description",
   "storageKey": null
 };
 return {
@@ -122,7 +122,6 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -139,8 +138,8 @@ return {
                 "plural": true,
                 "selections": [
                   (v2/*:: as any*/),
-                  (v4/*:: as any*/),
                   (v3/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -150,7 +149,7 @@ return {
                     "plural": false,
                     "selections": [
                       (v2/*:: as any*/),
-                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -200,7 +199,7 @@ return {
                         "plural": true,
                         "selections": [
                           (v2/*:: as any*/),
-                          (v4/*:: as any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -220,12 +219,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "040fafccedf1ec20c92418723d0b3c63",
+    "cacheID": "0ffd01bfa613fae078c7868fa5148165",
     "id": null,
     "metadata": {},
     "name": "promptConfigLoaderQuery",
     "operationKind": "query",
-    "text": "query promptConfigLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptDetails_data\n      ...PromptVersionTagsConfig_data\n    }\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  description\n  metadata\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
+    "text": "query promptConfigLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptDetails_data\n      ...PromptVersionTagsConfig_data\n    }\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  metadata\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
   }
 };
 })();

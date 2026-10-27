@@ -3,29 +3,12 @@ import { useFragment, usePreloadedQuery } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
-import {
-  Button,
-  DialogTrigger,
-  Flex,
-  Icon,
-  Icons,
-  LazyTabPanel,
-  Link,
-  LinkButton,
-  ViewportModal,
-  ViewportModalOverlay,
-  PageHeader,
-  Tab,
-  TabList,
-  Tabs,
-  Text,
-} from "@phoenix/components";
-import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
+import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
 
 import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
-import { PromptLabelConfigButton } from "./PromptLabelConfigButton";
 import { promptLoaderQuery } from "./promptLoader";
+import { PromptPageHeader } from "./PromptPageHeader";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 const mainCSS = css`
@@ -105,54 +88,7 @@ export function PromptLayout() {
 
   return (
     <main css={mainCSS}>
-      <PageHeader
-        title={data.name}
-        labels={data.labels}
-        labelAction={<PromptLabelConfigButton promptId={data.id} />}
-        subTitle={data.description}
-        captionVisual={<Icon svg={<Icons.GitBranch />} />}
-        caption={
-          data.sourcePrompt && (
-            <Text size="S" color="text-700">
-              cloned from{" "}
-              <Link to={`/prompts/${data.sourcePrompt.id}`}>
-                {data.sourcePrompt.name}
-              </Link>
-            </Text>
-          )
-        }
-        extra={
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <DialogTrigger>
-              <Button
-                size="M"
-                leadingVisual={<Icon svg={<Icons.GitBranch />} />}
-              >
-                Clone
-              </Button>
-              <ViewportModalOverlay>
-                <ViewportModal size="M">
-                  <ClonePromptDialog
-                    promptId={data.id}
-                    promptName={data.name}
-                    promptDescription={data.description ?? undefined}
-                    promptMetadata={data.metadata ?? undefined}
-                  />
-                </ViewportModal>
-              </ViewportModalOverlay>
-            </DialogTrigger>
-            <LinkButton
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              to={playgroundPath}
-              size="M"
-              aria-label="Open this Prompt version in Playground"
-            >
-              Playground
-            </LinkButton>
-          </Flex>
-        }
-      />
+      <PromptPageHeader prompt={data} playgroundPath={playgroundPath} />
       <Tabs
         selectedKey={selectedTab}
         onSelectionChange={(key) => {

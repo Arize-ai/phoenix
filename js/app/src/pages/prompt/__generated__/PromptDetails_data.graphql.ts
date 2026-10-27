@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<662eab42fdeaa3ee906481a141aa434b>>
+ * @generated SignedSource<<f38f68140839029c20c47e9ff48eace4>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptDetails_data$data = {
-  readonly description: string | null;
   readonly id: string;
   readonly metadata: any;
   readonly " $fragmentType": "PromptDetails_data";
@@ -37,13 +36,6 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
       "name": "metadata",
       "storageKey": null
     }
@@ -52,6 +44,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "503f498b53ec97ed80b1999c0c0fb637";
+(node as any).hash = "872aaed3e4f8cab0be38859dc9766b97";
 
 export default node;

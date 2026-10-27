@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5cfa1504b2fcc6db2759a804d6257f42>>
+ * @generated SignedSource<<bc210c0b4317d6ba9cbf19193ea9a46e>>
  * @lightSyntaxTransform
  */
 
@@ -107,17 +107,17 @@ return {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "description",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
             "name": "metadata",
             "storageKey": null
           },
           (v3/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
           {
             "alias": null,
             "args": null,
@@ -197,12 +197,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a63f654a417809e783e3f8c1f9192037",
+    "cacheID": "c1b6b769d07015d06b9900651e44a6bb",
     "id": null,
     "metadata": {},
     "name": "PromptDetailsPatchPromptMutation",
     "operationKind": "mutation",
-    "text": "mutation PromptDetailsPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptDetails_data\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  description\n  metadata\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation PromptDetailsPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptDetails_data\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  metadata\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

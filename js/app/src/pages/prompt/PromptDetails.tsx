@@ -3,15 +3,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useFragment, useMutation } from "react-relay";
 
-import {
-  Alert,
-  Button,
-  Flex,
-  Form,
-  Label,
-  TextArea,
-  TextField,
-} from "@phoenix/components";
+import { Alert, Button, Flex, Form, Label } from "@phoenix/components";
 import {
   CodeEditorFieldWrapper,
   JSONBlock,
@@ -36,20 +28,18 @@ const detailSectionCSS = css(
 );
 
 type PromptDetailsFormParams = {
-  description: string;
   metadata: string;
 };
 
 /**
  * The prompt's own metadata, which applies to every version of the prompt.
- * Editing also covers the description, which the page header displays.
+ * The description is edited from the page header.
  */
 export function PromptDetails({ prompt }: { prompt: PromptDetails_data$key }) {
   const data = useFragment<PromptDetails_data$key>(
     graphql`
       fragment PromptDetails_data on Prompt {
         id
-        description
         metadata
       }
     `,
@@ -57,7 +47,6 @@ export function PromptDetails({ prompt }: { prompt: PromptDetails_data$key }) {
   );
   const [isEditing, setIsEditing] = useState(false);
   const savedValues: PromptDetailsFormParams = {
-    description: data.description ?? "",
     metadata: data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}",
   };
   if (isEditing) {
@@ -77,7 +66,7 @@ export function PromptDetails({ prompt }: { prompt: PromptDetails_data$key }) {
       </section>
       <Flex direction="row" justifyContent="end">
         <Button size="S" onPress={() => setIsEditing(true)}>
-          Edit details
+          Edit metadata
         </Button>
       </Flex>
     </Flex>
@@ -85,8 +74,8 @@ export function PromptDetails({ prompt }: { prompt: PromptDetails_data$key }) {
 }
 
 /**
- * Edits the description and metadata in place. While the draft differs from
- * the saved values, leaving the page asks for confirmation.
+ * Edits the metadata in place. While the draft differs from the saved value,
+ * leaving the page asks for confirmation.
  */
 function PromptDetailsEditor({
   promptId,
@@ -114,7 +103,7 @@ function PromptDetailsEditor({
     formState: { isDirty },
   } = useForm<PromptDetailsFormParams>({ defaultValues: savedValues });
   const blocker = useUnsavedChangesBlocker({ hasUnsavedChanges: isDirty });
-  const onSubmit = ({ description, metadata }: PromptDetailsFormParams) => {
+  const onSubmit = ({ metadata }: PromptDetailsFormParams) => {
     if (!isDirty) {
       onDone();
       return;
@@ -124,7 +113,6 @@ function PromptDetailsEditor({
       variables: {
         input: {
           promptId,
-          description,
           metadata: metadata.trim() ? JSON.parse(metadata) : null,
         },
       },
@@ -147,16 +135,6 @@ function PromptDetailsEditor({
     <Form onSubmit={handleSubmit(onSubmit)}>
       <Flex direction="column" gap="size-200">
         {error && <Alert variant="danger">{error}</Alert>}
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => (
-            <TextField value={field.value} onChange={field.onChange} autoFocus>
-              <Label>Description</Label>
-              <TextArea placeholder="Enter a description for the prompt" />
-            </TextField>
-          )}
-        />
         <Controller
           name="metadata"
           control={control}
@@ -195,7 +173,7 @@ function PromptDetailsEditor({
       </Flex>
       <ConfirmNavigationDialog
         blocker={blocker}
-        message="You have unsaved prompt details. Leaving this page will discard them."
+        message="You have unsaved prompt metadata. Leaving this page will discard it."
       />
     </Form>
   );
