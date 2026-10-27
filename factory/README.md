@@ -105,7 +105,7 @@ Each part does one job, so it can be changed and tested on its own:
 ### Trust boundaries
 
 - **Untrusted input.** Issue text, issue comments, CI logs, review comments, fetched web pages, and log lines, spans and metrics from Grafana can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
-- **The sandbox.** It holds the factory token for the whole session, so code there can push any branch. The token belongs to a non-admin machine account that a ruleset limits to `factory/**` branches. Factory Guard recognizes factory PRs by their `factory/` branch; it will also match by author once the factory has its own machine account. PXI evals don't run with secrets on PRs authored by `FACTORY_LOGIN`.
+- **The sandbox.** Code there can use the factory app's token for the whole session, so it can push any branch the token reaches. The token is an installation token of the `arize-phoenix-factory` GitHub App, limited to this repo with Contents, Issues and Pull requests write, and a ruleset limits the app to `factory/**` branches. The app's private key stays in GitHub Actions. Factory Guard recognizes factory PRs by their `factory/` branch or by the app as their author, and PXI evals don't run with secrets on PRs authored by `FACTORY_GITHUB_LOGIN`.
 - **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or by writing one that triage nominates, and only a human merges.
 
 A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. To run an issue again, re-add the `factory` label.
@@ -126,11 +126,12 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt
 environments/    the sandbox (uv, tox, pnpm, limited networking)
-vaults/          the vault containers (GitHub, Grafana); their credentials are added by hand
+vaults/          the vault containers (GitHub, Grafana); the Grafana credential is added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
+github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 log_scan.py      counts the day's server errors in Grafana and, if any, runs the railway-triage session
 ```
 
@@ -140,10 +141,10 @@ log_scan.py      counts the day's server errors in Grafana and, if any, runs the
 
 1. Create a dedicated Claude workspace for the factory, install `ant` (>= 1.40.0), and authenticate against it. Any API key in that workspace can start sessions that use the vault's GitHub credential, so keep the shared `ANTHROPIC_API_KEY` in a different workspace.
 2. Create the repo secret `FACTORY_ANTHROPIC_API_KEY` with a key from that workspace, then run `Factory Sync` from `main` with **Run workflow**. Its first apply creates every resource and the `factory-state` branch.
-3. Create a machine GitHub account, owned through a team email, and add it to the `Arize-ai` org as a member with Write on this repo, not admin, so branch protection applies to it. It has to be a member: fine-grained tokens can't write to an org's repos for outside collaborators. Give it a fine-grained PAT with `Arize-ai` as the resource owner, only this repo, Contents, Issues and Pull requests read/write, and no Workflows access; an org owner approves it. Code in the sandbox can use this token for the whole session.
-4. Add the PAT to the vault (its ID is in `claude-lock.json` on `factory-state`, under `./vaults/github.yaml`) as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/`, using `ant beta:vaults:credentials create`. Add the same PAT again as an `environment_variable` credential named `GH_TOKEN`, with `allowed_hosts: [api.github.com]` and header injection only, so `gh` in the sandbox can call GitHub; the sandbox sees only a placeholder. The machine account then authors factory PRs, so any maintainer can approve them.
-5. Create the repo secret `FACTORY_GITHUB_TOKEN` with the PAT. Create the repo variable `FACTORY_LOGIN` with the machine account's login: CI uses it to recognize factory PRs, and the factory commits as that account's noreply address. Add the login to the `allowlist` in `cla.yml`.
-6. Add a ruleset that keeps the machine account on `factory/**` branches: target all branches except `factory/**`, restrict creations, updates and deletions, and give bypass to the maintainers' teams and every app that pushes branches here (Dependabot, the Claude app, the release-please token's owner, and GitHub Actions, which pushes `factory-state`). Watch its rule insights after enabling it for anything it blocks by mistake.
+3. Install the `arize-phoenix-factory` GitHub App on the `Arize-ai` org for this repo only. It needs the repository permissions Contents, Issues and Pull requests read/write, plus the mandatory Metadata read, and nothing else: no Workflows, Actions or Administration. Generate a private key for it.
+4. Create the repo variable `FACTORY_APP_CLIENT_ID` with the app's Client ID and the repo secret `FACTORY_APP_PRIVATE_KEY` with the private key. For each session, `dispatch.py` and `log_scan.py` mint an installation token limited to this repo and those three permissions, mount it as the session's repo token, and write it to the GitHub vault as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/` and a header-only `GH_TOKEN` environment-variable credential for `api.github.com`, creating them on first use. Tokens last an hour, so they re-mint one while they follow a session. The sandbox sees only placeholders. The app then authors factory PRs, so any maintainer can approve them.
+5. Create the repo variable `FACTORY_GITHUB_LOGIN` with the app's bot login, `arize-phoenix-factory[bot]`. CI uses it to recognize factory PRs, `dispatch.py` accepts it as a requester, and the factory commits as its noreply address. The login is in the `allowlist` in `cla.yml` and in `allowed_bots` in `claude-code-review.yml`.
+6. Add a ruleset that keeps the app on `factory/**` branches: target all branches except `factory/**`, restrict creations, updates and deletions, and give bypass to the maintainers' teams and every other app that pushes branches here (Dependabot, the Claude app, the release-please token's owner, and GitHub Actions, which pushes `factory-state`), but not the factory app. Watch its rule insights after enabling it for anything it blocks by mistake.
 7. Create the `factory` and `factory-candidate` labels, and make `Factory Guard` a required check on `main`.
 8. Try it on one small issue with **Run workflow** on `Factory Dispatch`.
 
@@ -188,7 +189,7 @@ flowchart LR
 
 The agent does the work a regex can't. It reads the window's lines through mcp-grafana and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs and a re-query LogQL in the body. It searches the open issues, not only those it filed, so a bug a human already reported gets a comment with new evidence, and the `railway-dev` label, instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. Each session has a spend cap of $10 at list price.
 
-The session files and comments as the machine account through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created with `FACTORY_GITHUB_TOKEN`, oldest first, up to three per run (`--max-dispatch`), since each label starts a bug-lane session at once with its own budget; the rest wait for a maintainer, and the step summary says how many. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and the machine account has the write access `dispatch.py` requires of a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` to `false` to pause it for the schedule, or untick `dispatch` on a manual run.
+The session files and comments as the factory app through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created as the app, oldest first, up to three per run (`--max-dispatch`), since each label starts a bug-lane session at once with its own budget; the rest wait for a maintainer, and the step summary says how many. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and `dispatch.py` accepts the app, `FACTORY_GITHUB_LOGIN`, as a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` to `false` to pause it for the schedule, or untick `dispatch` on a manual run.
 
 ### Log scan bootstrap
 
@@ -200,7 +201,7 @@ Grafana access must be bootstrapped first.
 
 ## Switching workspaces
 
-Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the `factory-state` branch, then run `Factory Sync` from `main` with **Run workflow**; it recreates every resource in the new workspace. Then repeat step 4 for the new GitHub vault and Grafana access step 3 for the new Grafana vault.
+Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the `factory-state` branch, then run `Factory Sync` from `main` with **Run workflow**; it recreates every resource in the new workspace. The first session creates the new GitHub vault's credentials; repeat Grafana access step 3 for the new Grafana vault.
 
 ## Changing an agent
 
