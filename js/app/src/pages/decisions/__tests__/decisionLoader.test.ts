@@ -18,11 +18,11 @@ const notFoundResponse = (decisionId: string) => ({
 });
 
 function load(decisionId: string) {
-  const url = new URL(`http://localhost/decisions/${decisionId}`);
+  const url = new URL(`http://localhost/prompts/decisions/${decisionId}`);
   return decisionLoader({
     request: new Request(url),
     url,
-    pattern: "/decisions/:decisionId",
+    pattern: "/prompts/decisions/:decisionId",
     params: { decisionId },
     context: new RouterContextProvider(),
   });

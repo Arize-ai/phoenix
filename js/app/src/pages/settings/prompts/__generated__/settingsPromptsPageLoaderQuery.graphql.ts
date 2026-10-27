@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09b650a7677aa76dc8eb2bcda09608ec>>
+ * @generated SignedSource<<a54006ca4fa2a4ae673ba5ed6bfb6dec>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type settingsPromptsPageLoaderQuery$variables = Record<PropertyKey, never>;
 export type settingsPromptsPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptLabelsSettingsCardFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"DecisionLabelsSettingsCardFragment" | "PromptLabelsSettingsCardFragment">;
 };
 export type settingsPromptsPageLoaderQuery = {
   response: settingsPromptsPageLoaderQuery$data;
@@ -25,7 +25,83 @@ var v0 = [
     "name": "first",
     "value": 100
   }
-];
+],
+v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "id",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "name",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "description",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "color",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "usageCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "__typename",
+    "storageKey": null
+  }
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cursor",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PageInfo",
+  "kind": "LinkedField",
+  "name": "pageInfo",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "endCursor",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hasNextPage",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -37,6 +113,11 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "PromptLabelsSettingsCardFragment"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "DecisionLabelsSettingsCardFragment"
       }
     ],
     "type": "Query",
@@ -71,87 +152,14 @@ return {
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "description",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "color",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "usageCount",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  }
-                ],
+                "selections": (v1/*:: as any*/),
                 "storageKey": null
               },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "cursor",
-                "storageKey": null
-              }
+              (v2/*:: as any*/)
             ],
             "storageKey": null
           },
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "PageInfo",
-            "kind": "LinkedField",
-            "name": "pageInfo",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "endCursor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "hasNextPage",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
+          (v3/*:: as any*/)
         ],
         "storageKey": "promptLabels(first:100)"
       },
@@ -163,20 +171,63 @@ return {
         "key": "PromptLabelsTable__promptLabels",
         "kind": "LinkedHandle",
         "name": "promptLabels"
+      },
+      {
+        "alias": null,
+        "args": (v0/*:: as any*/),
+        "concreteType": "DecisionLabelConnection",
+        "kind": "LinkedField",
+        "name": "decisionLabels",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DecisionLabelEdge",
+            "kind": "LinkedField",
+            "name": "edges",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "DecisionLabel",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": (v1/*:: as any*/),
+                "storageKey": null
+              },
+              (v2/*:: as any*/)
+            ],
+            "storageKey": null
+          },
+          (v3/*:: as any*/)
+        ],
+        "storageKey": "decisionLabels(first:100)"
+      },
+      {
+        "alias": null,
+        "args": (v0/*:: as any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "DecisionLabelsTable__decisionLabels",
+        "kind": "LinkedHandle",
+        "name": "decisionLabels"
       }
     ]
   },
   "params": {
-    "cacheID": "e450d1e4086deef5d9ee322e015d4fa3",
+    "cacheID": "4de44cd9e273770de087ea9761d8ee44",
     "id": null,
     "metadata": {},
     "name": "settingsPromptsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsPromptsPageLoaderQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        usageCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsPromptsPageLoaderQuery {\n  ...PromptLabelsSettingsCardFragment\n  ...DecisionLabelsSettingsCardFragment\n}\n\nfragment DecisionLabelsSettingsCardFragment on Query {\n  ...DecisionLabelsTableFragment\n}\n\nfragment DecisionLabelsTableFragment on Query {\n  decisionLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        usageCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        usageCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "44dc2c69c64dbe1d68af886497083b2b";
+(node as any).hash = "9e5250e0ba0809e9de5f6f209fa97dff";
 
 export default node;
