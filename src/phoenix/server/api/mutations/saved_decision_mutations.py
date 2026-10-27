@@ -272,11 +272,7 @@ class SavedDecisionMutationMixin:
             evaluator_names = (
                 await session.scalars(
                     select(models.DecisionEvaluator.name)
-                    .join(
-                        models.DecisionVersion,
-                        models.DecisionEvaluator.decision_version_id == models.DecisionVersion.id,
-                    )
-                    .where(models.DecisionVersion.decision_id == row_id)
+                    .where(models.DecisionEvaluator.decision_id == row_id)
                     .order_by(models.DecisionEvaluator.name)
                 )
             ).all()

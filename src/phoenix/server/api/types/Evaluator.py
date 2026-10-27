@@ -22,6 +22,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
@@ -798,9 +799,9 @@ class DecisionEvaluator(Evaluator, Node):
     @strawberry.field
     async def scoring_policy(self, info: Info[Context, None]) -> DecisionScoringPolicy:
         record = await self._record(info)
+        questions = record.selected_version.questions
         return DecisionScoringPolicy.from_orm(
-            record.scoring_policy,
-            record.selected_version.questions,
+            adapt_scoring_policy(questions, record.scoring_policy), questions
         )
 
     @strawberry.field

@@ -24,10 +24,9 @@ class PhoenixAPIError(httpx.HTTPStatusError):
     ``response.status_code``), a ``detail`` message not meant to be parsed, an optional
     ``reason`` for a finer condition under ``code`` (handle one you don't recognize by
     ``code``), per-field ``errors`` for a ``validation_error``, and recovery fields such as
-    ``existing_id`` (``already_exists``), ``current_version_id`` (``version_mismatch``),
-    ``binding_counts`` (``still_bound``), and ``dataset_evaluator_ids``
-    (``incompatible_override``). ``problem`` is ``None`` for a response that isn't problem
-    JSON shaped like this (a 401's plain-text challenge, an unhandled 500, a proxy's own
+    ``existing_id`` (``already_exists``), ``current_version_id`` (``version_mismatch``), and
+    ``binding_counts`` (``still_bound``). ``problem`` is ``None`` for a response that isn't
+    problem JSON shaped like this (a 401's plain-text challenge, an unhandled 500, a proxy's own
     error page); the response body is still on ``response``.
     """
 

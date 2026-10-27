@@ -43,6 +43,7 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     WriteOnlyMapped,
+    foreign,
     mapped_column,
     relationship,
 )
@@ -3312,6 +3313,11 @@ class DecisionVersionTag(HasId):
         back_populates="decision_version_tags",
         overlaps="decision,decision_version_tags",
     )
+    decision_evaluators: Mapped[list["DecisionEvaluator"]] = relationship(
+        "DecisionEvaluator",
+        back_populates="decision_version_tag",
+        uselist=True,
+    )
 
     __table_args__ = (
         UniqueConstraint("name", "decision_id"),
@@ -3521,8 +3527,14 @@ class DecisionEvaluator(Evaluator):
         server_default="DECISION",
         nullable=False,
     )
-    decision_version_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_versions.id", ondelete="RESTRICT"), index=True
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    decision_version_tag_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decision_version_tags.id", ondelete="SET NULL"),
+        index=True,
     )
     scoring_policy: Mapped[DecisionScoringPolicy] = mapped_column(
         _DecisionScoringPolicy, nullable=False
@@ -3530,19 +3542,36 @@ class DecisionEvaluator(Evaluator):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    decision_version_tag: Mapped[Optional["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag", back_populates="decision_evaluators"
+    )
     selected_version: Mapped["DecisionVersion"] = relationship(
         "DecisionVersion",
+        secondary=lambda: _DECISION_EVALUATOR_SELECTED_VERSIONS,
+        primaryjoin=lambda: (
+            DecisionEvaluator.id
+            == foreign(_DECISION_EVALUATOR_SELECTED_VERSIONS.c.decision_evaluator_id)
+        ),
+        secondaryjoin=lambda: (
+            DecisionVersion.id
+            == foreign(_DECISION_EVALUATOR_SELECTED_VERSIONS.c.decision_version_id)
+        ),
+        viewonly=True,
+        uselist=False,
         innerjoin=True,
         lazy="joined",
     )
 
     @property
     def output_configs(self) -> list[OutputConfigType]:
-        from phoenix.db.types.decision_evaluators import derive_decision_output_configs
+        from phoenix.db.types.decision_evaluators import (
+            adapt_scoring_policy,
+            derive_decision_output_configs,
+        )
 
+        questions = self.selected_version.questions
         return derive_decision_output_configs(
-            self.selected_version.questions,
-            self.scoring_policy,
+            questions, adapt_scoring_policy(questions, self.scoring_policy)
         )
 
     __mapper_args__ = {"polymorphic_identity": "DECISION"}
@@ -3551,6 +3580,30 @@ class DecisionEvaluator(Evaluator):
             ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
         ),
     )
+
+
+def _decision_evaluator_selected_versions() -> sa.Subquery:
+    """The version each decision evaluator runs: its tag's, or its decision's newest."""
+    evaluators = DecisionEvaluator.__table__
+    tags = DecisionVersionTag.__table__
+    versions = DecisionVersion.__table__
+    tagged = (
+        select(tags.c.decision_version_id)
+        .where(tags.c.id == evaluators.c.decision_version_tag_id)
+        .scalar_subquery()
+    )
+    newest = (
+        select(func.max(versions.c.id))
+        .where(versions.c.decision_id == evaluators.c.decision_id)
+        .scalar_subquery()
+    )
+    return select(
+        evaluators.c.id.label("decision_evaluator_id"),
+        func.coalesce(tagged, newest).label("decision_version_id"),
+    ).subquery("decision_evaluator_selected_versions")
+
+
+_DECISION_EVALUATOR_SELECTED_VERSIONS: sa.Subquery = _decision_evaluator_selected_versions()
 
 
 class LLMEvaluator(Evaluator):

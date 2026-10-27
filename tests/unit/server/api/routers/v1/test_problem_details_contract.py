@@ -10,8 +10,7 @@ be testing the same rendering code repeatedly instead of testing more of the con
 Not covered here: `forbidden` (403) needs a viewer-role-restricted client, which no unit
 fixture in this suite provides; `concurrent_change` needs two overlapping requests racing
 on the same row, already exercised for `version_mismatch`'s sibling case in
-`test_evaluator_definitions.py`; `incompatible_override` on a *binding* PATCH is exercised
-in `test_dataset_evaluators.py` and on a *definition* PATCH in `test_evaluator_definitions.py`.
+`test_evaluator_definitions.py`.
 """
 
 from secrets import token_hex

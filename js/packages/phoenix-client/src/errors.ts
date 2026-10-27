@@ -8,10 +8,9 @@
  * The remaining fields are the recovery data a caller needs for a given `reason`:
  * `existing_id` (`already_exists`) names the resource that holds a taken name,
  * `current_version_id` (`version_mismatch`) is the version actually current — null when
- * there is none yet — `binding_counts` (`still_bound`) counts what still refuses a delete,
- * and `dataset_evaluator_ids` (`incompatible_override`) names the bindings whose overrides
- * no longer fit. The index signature lets a future member (an unreleased reason's own
- * field, say) pass through unread rather than being stripped.
+ * there is none yet — and `binding_counts` (`still_bound`) counts what still refuses a
+ * delete. The index signature lets a future member (an unreleased reason's own field, say)
+ * pass through unread rather than being stripped.
  */
 export interface ProblemDetail {
   type: string;
@@ -24,7 +23,6 @@ export interface ProblemDetail {
   existing_id?: string;
   current_version_id?: string | null;
   binding_counts?: { project: number; dataset: number };
-  dataset_evaluator_ids?: string[];
   [extension: string]: unknown;
 }
 

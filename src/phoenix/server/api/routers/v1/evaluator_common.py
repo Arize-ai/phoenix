@@ -134,6 +134,44 @@ class LLMEvaluatorPrompt(V1RoutesBaseModel):
     )
 
 
+class DecisionVersionSelector(V1RoutesBaseModel):
+    type: Literal["version"]
+    decision_version_id: str = Field(
+        description=(
+            "GlobalID of the decision version the evaluator runs. An update must name a "
+            "version of the evaluator's own decision."
+        )
+    )
+
+
+class LatestDecisionVersionSelector(V1RoutesBaseModel):
+    type: Literal["latest"]
+
+
+class DecisionEvaluatorDecisionInput(V1RoutesBaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selector: DecisionVersionSelector = Field(description="Which decision version to run.")
+
+
+class DecisionEvaluatorDecision(V1RoutesBaseModel):
+    decision_id: str = Field(
+        description="GlobalID of the decision whose version the evaluator runs."
+    )
+    selector: Annotated[
+        Union[DecisionVersionSelector, LatestDecisionVersionSelector], Field(discriminator="type")
+    ] = Field(
+        description=(
+            "How the version is chosen. version: pinned to one version. latest: the decision's "
+            "newest version, for evaluators whose pin was removed; writes accept version only. "
+            "Treat an unrecognized type as not pinned."
+        )
+    )
+    resolved_decision_version_id: str = Field(
+        description="GlobalID of the version the evaluator runs now."
+    )
+
+
 class EvaluatorRequest(V1RoutesBaseModel):
     model_config = ConfigDict(extra="forbid")
 

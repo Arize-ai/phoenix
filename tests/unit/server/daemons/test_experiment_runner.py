@@ -2214,14 +2214,18 @@ async def _saved_decision_evaluator_task(
 ) -> int:
     """Save a decision evaluator and freeze it as the experiment's task, returning its id."""
     async with db() as session:
+        version = _triage_version(
+            questions, decision=models.Decision(name=Identifier("triage"), metadata_={})
+        )
+        session.add(version)
+        await session.flush()
         evaluator = models.DecisionEvaluator(
             name=Identifier("triage"),
             description=None,
             metadata_={},
             kind="DECISION",
-            selected_version=_triage_version(
-                questions, decision=models.Decision(name=Identifier("triage"), metadata_={})
-            ),
+            decision_id=version.decision_id,
+            selected_version=version,
             scoring_policy=resolve_scoring_policy(
                 questions, scoring_policy or DecisionScoringPolicy()
             ),
@@ -2391,9 +2395,7 @@ class TestDecisionEvaluatorTaskWorkItem:
         async with db() as session:
             saved = await session.get(models.DecisionEvaluator, evaluator_id)
             assert saved is not None
-            saved.selected_version = _triage_version(
-                edited_questions, decision_id=saved.selected_version.decision_id
-            )
+            session.add(_triage_version(edited_questions, decision_id=saved.decision_id))
             saved.scoring_policy = resolve_scoring_policy(edited_questions, DecisionScoringPolicy())
         invoke = AsyncMock(side_effect=_triage_answers)
         monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
