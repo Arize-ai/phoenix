@@ -10,7 +10,7 @@ from deepdiff.diff import DeepDiff
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.dialects import sqlite as sqlite_dialect
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import RelationshipDirection, selectinload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -1137,7 +1137,7 @@ class TestEvaluatorPolymorphism:
 
         # ===== RESTRICT: Cannot delete prompt in use by evaluators =====
         # Attempt to delete prompt that is being used by eval_1
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=r"(?i)foreign key"):
             async with db() as session:
                 prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
                 assert prompt_to_delete is not None
@@ -1852,3 +1852,36 @@ class TestJSONBReflection:
             column = models.Base.metadata.tables[table_name].columns[column_name]
             actual = column.type.compile(dialect)
             assert actual == expected, f"{table_name}.{column_name} -> {actual}"
+
+
+# Relationships where the ORM deliberately does not follow the FK rule.
+# users.user_role_id is ON DELETE CASCADE; following it would delete every user in a deleted role.
+_ORM_DELETE_EXCEPTIONS = {("UserRole", "users")}
+
+
+def test_orm_delete_behavior_agrees_with_foreign_keys() -> None:
+    """`session.delete(parent)` must do what the FK's ON DELETE rule says.
+
+    A one-to-many relationship left at SQLAlchemy's defaults loads its children and nulls
+    their foreign keys before deleting the parent, so the database's CASCADE or RESTRICT
+    never runs. A relationship either matches the FK (delete cascade for CASCADE, nulling
+    for SET NULL) or sets passive_deletes="all" and leaves the children to the database.
+    """
+    mismatches = []
+    for mapper in models.Base.registry.mappers:
+        for rel in mapper.relationships:
+            if rel.parent is not mapper or rel.direction is not RelationshipDirection.ONETOMANY:
+                continue  # inherited properties are checked on the mapper that defines them
+            if (mapper.class_.__name__, rel.key) in _ORM_DELETE_EXCEPTIONS:
+                continue
+            if rel.passive_deletes == "all":
+                continue
+            orm = "CASCADE" if rel.cascade.delete else "SET NULL"
+            for col in rel.remote_side:
+                for fk in col.foreign_keys:
+                    if fk.column.table not in mapper.tables:
+                        continue  # an FK to some other table, not this relationship's parent
+                    db = (fk.ondelete or "NO ACTION").upper()
+                    if db != orm:
+                        mismatches.append(f"{mapper.class_.__name__}.{rel.key}: FK {db}, ORM {orm}")
+    assert not mismatches, "\n".join(sorted(mismatches))
