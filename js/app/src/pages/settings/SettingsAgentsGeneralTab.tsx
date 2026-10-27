@@ -1,7 +1,7 @@
 import { Alert, Flex, Text } from "@phoenix/components";
 import { SystemSettingsWarning } from "@phoenix/components/agent";
 import { isAgentCuratedModelSelection } from "@phoenix/components/agent/agentCuratedModels";
-import { AgentModelMenu } from "@phoenix/components/agent/AgentModelMenu";
+import { AgentModelPicker } from "@phoenix/components/agent/AgentModelPicker";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -79,10 +79,12 @@ function AssistantModelSetting() {
         title="Model"
         description="The default model for new chats. Providers and credentials are managed in AI Providers."
         control={
-          <AgentModelMenu
+          <AgentModelPicker
             value={selectedModel}
             onChange={handleModelChange}
-            limitToCuratedModels={false}
+            placement="bottom end"
+            shouldFlip
+            triggerVariant="default"
           />
         }
       >

@@ -23,6 +23,9 @@ echo "--- factory bootstrap report"
 echo "node: $(node --version 2>/dev/null || echo missing) (want v$node_version)"
 echo "pnpm: $(pnpm --version 2>/dev/null || echo missing)"
 echo "uv: $(uv --version 2>/dev/null || echo missing)"
+echo "gh: $(gh --version 2>/dev/null | head -n 1 | grep . || echo missing)"
+echo "px: $(px --version 2>/dev/null || echo missing)"
+echo "agent-browser: $(agent-browser --version 2>/dev/null || echo missing)"
 if [ "$setup_status" -eq 0 ]; then
   echo "make setup: ok"
 else

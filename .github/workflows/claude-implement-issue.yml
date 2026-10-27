@@ -32,6 +32,11 @@ jobs:
       # passed to the action below (so no write-scoped App token is minted via
       # OIDC), and publishing is done by later steps with a PAT.
       contents: read
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
     env:
       GH_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -104,7 +109,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           # Hand the action the read-only workflow token instead of letting it
           # mint a write-scoped Claude App token via OIDC. Claude never writes

@@ -44,6 +44,22 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.md" />
 </p>
 
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix is Arize's open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For managed production workflows, Arize also offers [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme). Phoenix provides:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -183,7 +199,9 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | | [Strands Agents](https://arize.com/docs/phoenix/integrations/python/strands-agents) | `openinference-instrumentation-strands-agents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-strands-agents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-strands-agents) |
 | | [Restate](https://arize.com/docs/phoenix/integrations/python/restate) | `openinference-instrumentation-openai-agents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai-agents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai-agents) |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/mcp.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/mcp.png"></picture> | [MCP](https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp) | `openinference-instrumentation-mcp` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-mcp.svg)](https://pypi.python.org/pypi/openinference-instrumentation-mcp) |
+| | [Microsoft Agent Framework](https://arize.com/docs/phoenix/integrations/python/microsoft-agent-framework) | `openinference-instrumentation-agent-framework` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agent-framework.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agent-framework) |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/pydanticai-color.png" height="14"> | [Pydantic AI](https://arize.com/docs/phoenix/integrations/python/pydantic) | `openinference-instrumentation-pydantic-ai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pydantic-ai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pydantic-ai) |
+| | [Pipecat](https://arize.com/docs/phoenix/integrations/python/pipecat) | `openinference-instrumentation-pipecat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pipecat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pipecat) |
 | | [AG2](https://arize.com/docs/phoenix/integrations/python/ag2) | `openinference-instrumentation-ag2` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-ag2.svg)](https://pypi.python.org/pypi/openinference-instrumentation-ag2) |
 | | [Autogen AgentChat](https://arize.com/docs/phoenix/integrations/frameworks/autogen/autogen-tracing) | `openinference-instrumentation-autogen-agentchat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-autogen-agentchat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-autogen-agentchat) |
 | | [Portkey](https://arize.com/docs/phoenix/integrations/portkey) | `openinference-instrumentation-portkey` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-portkey.svg)](https://pypi.python.org/pypi/openinference-instrumentation-portkey) |
@@ -315,3 +333,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

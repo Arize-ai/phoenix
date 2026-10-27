@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, cast
 
 if TYPE_CHECKING:
     from _pytest.nodes import Item
@@ -68,8 +68,7 @@ def resolve_evaluators(item: "Item") -> list[Any]:
     if evaluators is None:
         return []
     if isinstance(evaluators, (list, tuple)):
-        seq: Any = evaluators
-        return list(seq)
+        return list(cast(Iterable[Any], evaluators))
     return [evaluators]
 
 

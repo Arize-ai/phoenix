@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from secrets import token_hex
 from typing import Any, Iterator, Mapping, NamedTuple, cast
 
-import httpx
+import httpx2
 import pytest
 import pytest_asyncio
 
@@ -94,7 +94,7 @@ mutation DeleteDatasetEvaluators($input: DeleteDatasetEvaluatorsInput!) {
 
 
 async def _gql(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     query: str,
     variables: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -182,7 +182,7 @@ async def _custom_providers(
     suffix = token_hex(8)
     providers: CustomProviders | None = None
 
-    async with httpx.AsyncClient(base_url=_app.base_url) as client:
+    async with httpx2.AsyncClient(base_url=_app.base_url) as client:
         # Create OpenAI provider
         openai_data = await _gql(
             client,
@@ -334,7 +334,7 @@ async def _dataset_id(
     """Create a dataset with 2 examples for testing."""
     suffix = token_hex(8)
 
-    async with httpx.AsyncClient(base_url=_app.base_url) as client:
+    async with httpx2.AsyncClient(base_url=_app.base_url) as client:
         # Create dataset
         data = await _gql(
             client,
@@ -511,7 +511,7 @@ async def _dataset_evaluators(
     """Create dataset evaluators for all supported LLM providers."""
     suffix = token_hex(8)
 
-    async with httpx.AsyncClient(base_url=_app.base_url) as client:
+    async with httpx2.AsyncClient(base_url=_app.base_url) as client:
         # Output config names (and tool names) are stored on dataset_evaluators and
         # drive experiment annotation names; use stable names. Suffix only the dataset
         # evaluator row name for uniqueness within the dataset.

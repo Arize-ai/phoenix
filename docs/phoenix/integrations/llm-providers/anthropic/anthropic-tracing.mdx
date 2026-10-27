@@ -16,6 +16,8 @@ pip install openinference-instrumentation-anthropic anthropic
 
 <RegisterTracerPython projectName="my-llm-app" />
 
+From `anthropic` 1.14.0, the Anthropic SDK also records its own traces. With the instrumentor on, every call would appear twice in Phoenix, with tokens and cost counted twice. Pass `open_telemetry=False` when you create the client, as in the example below, or set `ANTHROPIC_OPEN_TELEMETRY=false` in your environment.
+
 ## Run Anthropic
 
 A simple Anthropic application that is now instrumented
@@ -23,7 +25,7 @@ A simple Anthropic application that is now instrumented
 ```python
 import anthropic
 
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(open_telemetry=False)  # the instrumentor traces calls; skip the SDK's own spans
 
 message = client.messages.create(
     model="claude-sonnet-4-6",

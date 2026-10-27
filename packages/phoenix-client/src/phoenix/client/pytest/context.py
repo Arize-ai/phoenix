@@ -5,7 +5,7 @@ import logging
 from contextlib import AbstractContextManager, nullcontext
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, cast
 
 if TYPE_CHECKING:
     from .tracing import SpanHandle, SuiteTracer
@@ -19,7 +19,7 @@ class _RunRecord:
     external_id: str
     output: Any = None
     output_logged: bool = False
-    evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
+    evaluations: dict[str, dict[str, Any]] = field(default_factory=dict[str, dict[str, Any]])
     # Test CHAIN trace_id (set by the hookwrapper) carried onto bare annotations.
     trace_id: Optional[str] = None
     # Suite tracer for the test's dataset; lets inline evaluate() open EVALUATOR spans.
@@ -327,7 +327,7 @@ def _iter_scores(result: Any, *, default_name: str) -> list[dict[str, Any]]:
     for idx, entry in enumerate(entries):
         if not isinstance(entry, Mapping):
             continue
-        mapping: Mapping[str, Any] = entry
+        mapping = cast(Mapping[str, Any], entry)
         name = mapping.get("name") or (
             default_name if len(entries) == 1 else f"{default_name}-{idx + 1}"
         )
