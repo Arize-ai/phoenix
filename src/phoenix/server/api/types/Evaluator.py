@@ -28,20 +28,7 @@ from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomes,
 )
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
-from phoenix.server.api.evaluators import (
-    BuiltInEvaluator as BuiltInEvaluatorClass,
-)
-from phoenix.server.api.evaluators import (
-    infer_input_schema_from_prompt_template,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.code_evaluator_schema import (
-    infer_python_evaluate_input_schema,
-    infer_typescript_evaluate_input_schema,
-)
-from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
-from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
-from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
@@ -52,7 +39,10 @@ from phoenix.server.api.types.AnnotationConfig import (
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
-from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
+from phoenix.server.api.types.EvaluatorDistribution import (
+    EvaluatorDistribution,
+    resolve_evaluator_distribution,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -60,6 +50,18 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.evaluators.results.annotations import primary_result_annotation
+from phoenix.server.evaluators.runtime.base import result_annotation_names
+from phoenix.server.evaluators.runtime.builtin import (
+    BuiltInEvaluator as BuiltInEvaluatorClass,
+)
+from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
+from phoenix.server.evaluators.schemas import (
+    decision_input_schema,
+    infer_input_schema_from_prompt_template,
+    infer_python_evaluate_input_schema,
+    infer_typescript_evaluate_input_schema,
+)
 from phoenix.server.online_eval.queue_health import (
     DEGRADED_QUEUE_WAIT,
     EVALUATION_LOAD_WINDOW,
@@ -791,8 +793,6 @@ class DecisionEvaluator(Evaluator, Node):
 
     @strawberry.field
     async def input_schema(self, info: Info[Context, None]) -> JSON:
-        from phoenix.server.api.helpers.decision_evaluators import decision_input_schema
-
         return JSON(decision_input_schema((await self._record(info)).selected_version.inputs))
 
     @strawberry.field
@@ -1064,20 +1064,11 @@ class BuiltInEvaluator(Evaluator, Node):
 
     async def _get_evaluator_class(self, info: Info[Context, None]) -> type[BuiltInEvaluatorClass]:
         """Helper to fetch builtin evaluator class from DB key."""
-        from phoenix.server.api.evaluators import (
-            get_builtin_evaluator_by_key,
-            get_builtin_evaluator_from_orm,
-        )
-
-        if self.db_record is not None:
-            # Use cached record to avoid extra DB call
-            evaluator_class = get_builtin_evaluator_by_key(self.db_record.key)
-            if evaluator_class is None:
-                raise NotFound(f"Built-in evaluator class not found for key: {self.db_record.key}")
-            return evaluator_class
-        # Fall back to helper that fetches from DB
-        async with info.context.db.read() as session:
-            return await get_builtin_evaluator_from_orm(session, self.id)
+        record = await self._get_db_record(info)
+        evaluator_class = get_builtin_evaluator_by_key(record.key)
+        if evaluator_class is None:
+            raise NotFound(f"Built-in evaluator class not found for key: {record.key}")
+        return evaluator_class
 
     @strawberry.field
     async def name(
@@ -1321,8 +1312,6 @@ class DatasetEvaluator(Node):
         If an override is set on the dataset evaluator, returns that.
         Otherwise, returns the base evaluator's description.
         """
-        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
@@ -1343,8 +1332,6 @@ class DatasetEvaluator(Node):
         Returns the effective output_configs for this dataset evaluator.
         If an override is set, returns that. Otherwise, falls back to the base evaluator's configs.
         """
-        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-
         record = await self._get_record(info)
         configs = record.output_configs
         if configs is None:

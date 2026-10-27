@@ -15,7 +15,7 @@ from phoenix.server.api.helpers.decision_clients import (
     TypeSafeDecisionClient,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.graphql import AsyncGraphQLClient, GraphQLExecutionResult
 
 from .test_saved_decision_mutations import CREATE_VERSION, create, version_input
 
@@ -509,7 +509,7 @@ async def test_decision_evaluator_snapshots_survive_binding_deletion_and_experim
 ) -> None:
     from sqlalchemy import insert, select
 
-    from phoenix.server.api.helpers.decision_evaluator_snapshots import (
+    from phoenix.server.evaluators.snapshots import (
         capture_dataset_decision_evaluators,
     )
 
@@ -557,7 +557,7 @@ async def test_decision_evaluator_snapshots_survive_binding_deletion_and_experim
         job = await session.get(models.ExperimentJob, experiment_id)
         assert job is not None
         job.decision_evaluator_snapshots = [
-            {**job.decision_evaluator_snapshots[0], "project_id": fallback.id}
+            job.decision_evaluator_snapshots[0].model_copy(update={"project_id": fallback.id})
         ]
         fallback_id = fallback.id
     assert binding_project_id is not None
@@ -600,7 +600,7 @@ async def test_typed_scoring_variants_and_frozen_definition(
     empty_dataset: None,
 ) -> None:
     from phoenix.db.types.evaluators import InputMapping
-    from phoenix.server.api.helpers.decision_evaluators import capture_decision_evaluator_definition
+    from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
 
     version = version_input()
     version["questions"].append(
@@ -794,7 +794,7 @@ mutation ($input: PatchDecisionEvaluatorInput!) {
 async def test_patch_decision_evaluator(gql_client: AsyncGraphQLClient) -> None:
     decision, evaluator = await saved_evaluator(gql_client)
 
-    async def patch(**fields: Any) -> Any:
+    async def patch(**fields: Any) -> GraphQLExecutionResult:
         return await gql_client.execute(
             PATCH_EVALUATOR, variables={"input": {"evaluatorId": evaluator["id"], **fields}}
         )
