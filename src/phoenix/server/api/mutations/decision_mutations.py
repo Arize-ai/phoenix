@@ -21,11 +21,6 @@ from phoenix.server.api.helpers.decision_clients import (
     get_custom_provider_decision_client,
     get_decision_client,
 )
-from phoenix.server.api.helpers.decision_versions import (
-    render_state,
-    validate_inputs,
-    validate_questions,
-)
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.DecisionConnectionInput import (
     DecisionConnectionInput,
@@ -40,6 +35,11 @@ from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decis
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.decisions.rendering import render_state
+from phoenix.server.decisions.validation import (
+    validate_inputs,
+    validate_questions,
+)
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.tracers import Tracer
 

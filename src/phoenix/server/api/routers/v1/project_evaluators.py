@@ -16,8 +16,6 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers import project_evaluator_service as project_service
-from phoenix.server.api.helpers.evaluator_management import EVALUATOR_TYPENAME_BY_KIND
 from phoenix.server.api.routers.v1.evaluator_common import (
     EVALUATOR_TYPE_BY_KIND,
     EvaluatorRequest,
@@ -36,6 +34,8 @@ from phoenix.server.api.routers.v1.utils import (
     get_project_by_identifier,
 )
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.evaluators.services import project_bindings
+from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_KIND
 
 router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
@@ -202,9 +202,9 @@ async def create_project_evaluator(
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_id = GlobalID("Project", str(project.id))
-        row = await project_service.add_project_evaluator(
+        row = await project_bindings.add_project_evaluator(
             evaluator_service_context(request),
-            project_service.AddProjectCodeEvaluatorInput(
+            project_bindings.AddProjectCodeEvaluatorInput(
                 project_id=project_id,
                 name=body.name,
                 evaluation_target=body.evaluation_target,
@@ -294,10 +294,10 @@ async def patch_project_evaluator(
 ) -> ProjectEvaluatorResponseBody:
     """Update only binding settings. Evaluation target and evaluator kind are immutable."""
     with evaluator_api_errors():
-        await project_service.patch_project_evaluator(
+        await project_bindings.patch_project_evaluator(
             evaluator_service_context(request),
             parse_global_id(project_evaluator_id),
-            project_service.ProjectEvaluatorPatch(
+            project_bindings.ProjectEvaluatorPatch(
                 **{name: getattr(body, name) for name in body.model_fields_set}
             ),
         )
@@ -323,7 +323,7 @@ async def delete_project_evaluator(request: Request, project_evaluator_id: str) 
     DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
-        await project_service.detach_project_evaluators(
+        await project_bindings.detach_project_evaluators(
             evaluator_service_context(request), [parse_global_id(project_evaluator_id)]
         )
         return Response(status_code=204)
@@ -356,7 +356,7 @@ async def delete_project_evaluators(
     with evaluator_api_errors():
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
-        await project_service.detach_project_evaluators(
+        await project_bindings.detach_project_evaluators(
             evaluator_service_context(request),
             [parse_global_id(value) for value in project_evaluator_id],
             project_id=GlobalID("Project", str(project.id)),

@@ -8,14 +8,16 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.server.api.context import Context
-from phoenix.server.api.helpers.evaluator_comparison import (
+from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
+from phoenix.server.api.types.EvaluatorDistribution import (
+    EvaluatorDistribution,
+    resolve_evaluator_distribution,
+)
+from phoenix.server.evaluators.results.comparison import (
     ComparisonResult,
     SideSummary,
 )
-from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
-from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
-from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 
 _SHARED_POPULATION = (
     "Computed over the shared population: entities in the selected time range "

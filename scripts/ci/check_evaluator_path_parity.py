@@ -39,7 +39,7 @@ def main() -> int:
     from pydantic import ValidationError
 
     from phoenix.db.types.evaluators import InputMapping
-    from phoenix.server.api.evaluators import apply_input_mapping
+    from phoenix.server.evaluators.input_mapping import apply_input_mapping
 
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
     contexts: dict[str, dict[str, Any]] = fixture["contexts"]

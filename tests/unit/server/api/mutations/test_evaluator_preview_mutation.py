@@ -22,7 +22,7 @@ from phoenix.server.sandbox.result_protocol import (
 )
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
-from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.graphql import AsyncGraphQLClient, GraphQLExecutionResult
 
 
 async def test_preview_hides_every_annotation_under_its_own_name() -> None:
@@ -75,7 +75,9 @@ class TestEvaluatorPreviewMutation:
       }
     """
 
-    async def _preview(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
+    async def _preview(
+        self, gql_client: AsyncGraphQLClient, **input_fields: Any
+    ) -> GraphQLExecutionResult:
         return await gql_client.execute(self._MUTATION, {"input": input_fields})
 
     @pytest.fixture
@@ -209,7 +211,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         source_code: str = "def evaluate(output):\n    return 1.0",
         context: Any = None,
         apply_online_evaluation_limits: bool = False,
-    ) -> Any:
+    ) -> GraphQLExecutionResult:
         return await gql_client.execute(
             TestEvaluatorPreviewMutation._MUTATION,
             {
@@ -362,7 +364,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.close = AsyncMock(return_value=None)
 
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -400,7 +402,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         oversized_context = {"output": "o" * 4096}
 
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=backend,
         ):
             unlimited = await self._preview_inline_code_evaluator(
@@ -434,7 +436,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.execute_with_inputs = AsyncMock(side_effect=MontyBusy("internal capacity detail"))
 
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -482,7 +484,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.execute_with_inputs = AsyncMock(side_effect=error)
 
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -599,7 +601,7 @@ class TestStoredCodeEvaluatorPreview:
 
         gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=backend,
         ):
             result = await gql_client.execute(

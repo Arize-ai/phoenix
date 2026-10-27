@@ -6,7 +6,6 @@ from typing import Any, Optional
 import strawberry
 from strawberry.relay import GlobalID
 
-from phoenix.server.api.helpers import decision_evaluators as metadata
 from phoenix.server.api.types.DecisionAnswer import DecisionAnswer, to_gql_answer
 from phoenix.server.api.types.DecisionDefinition import DecisionChoiceOption, DecisionScaleLevel
 from phoenix.server.api.types.DecisionScoringPolicy import (
@@ -18,6 +17,7 @@ from phoenix.server.api.types.EvaluatorTaskDefinition import (
     to_gql_evaluator_source,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.evaluators.runtime import decision as metadata
 
 
 @strawberry.enum

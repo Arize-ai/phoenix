@@ -42,11 +42,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import (
-    BaseEvaluator,
-    build_evaluator_from_definition,
-    pin_evaluator_definition,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_experiments import build_example_request
 from phoenix.server.api.helpers.message_helpers import (
@@ -84,6 +79,12 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.evaluators.resolution import build_evaluator_from_definition
+from phoenix.server.evaluators.runtime.base import BaseEvaluator
+from phoenix.server.evaluators.snapshots import (
+    capture_dataset_decision_evaluators,
+    pin_evaluator_definition,
+)
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
@@ -540,10 +541,6 @@ async def _stream_experiments_over_dataset(
                         output_configs=list(resolved_evaluator_task.evaluator.output_configs),
                     )
                 )
-            from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-                capture_dataset_decision_evaluators,
-            )
-
             await capture_dataset_decision_evaluators(session, experiment.id)
             experiments.append(experiment)
 

@@ -43,12 +43,6 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
-from phoenix.server.api.evaluators import (
-    BaseEvaluator,
-    CodeEvaluatorRunner,
-    EvaluationResult,
-    LLMEvaluator,
-)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionPayload,
@@ -69,6 +63,9 @@ from phoenix.server.daemons.experiment_runner import (
     TaskWorkItem,
     WorkItem,
 )
+from phoenix.server.evaluators.runtime.base import BaseEvaluator, EvaluationResult
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
+from phoenix.server.evaluators.runtime.llm import LLMEvaluator
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
 from phoenix.server.sandbox.result_protocol import PHOENIX_RESULT_BEGIN, PHOENIX_RESULT_END
@@ -146,20 +143,20 @@ class _BlockingTokenBucket:
 class _StubTokenBucketRegistry:
     """Registry that returns the same bucket for all keys."""
 
-    def __init__(self, bucket: Any = None) -> None:
+    def __init__(self, bucket: _StubTokenBucket | _BlockingTokenBucket | None = None) -> None:
         self._bucket = bucket or _StubTokenBucket()
 
-    def __getitem__(self, key: Hashable) -> Any:
+    def __getitem__(self, key: Hashable) -> _StubTokenBucket | _BlockingTokenBucket:
         return self._bucket
 
 
 class _AsyncSessionContext:
     """Minimal async context manager wrapper for mocked DB sessions."""
 
-    def __init__(self, session: Any) -> None:
+    def __init__(self, session: MagicMock) -> None:
         self._session = session
 
-    async def __aenter__(self) -> Any:
+    async def __aenter__(self) -> MagicMock:
         return self._session
 
     async def __aexit__(self, *args: Any) -> None:
@@ -2249,7 +2246,7 @@ class TestLoadEvaluatorTaskConfig:
         )
 
         with patch(
-            "phoenix.server.api.evaluators.build_sandbox_backend",
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
             return_value=MagicMock(),
         ):
             async with db() as session:

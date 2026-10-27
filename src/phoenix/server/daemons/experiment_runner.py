@@ -106,7 +106,7 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, override
+from typing_extensions import TypeAlias, TypedDict, override
 
 from phoenix.config import EXPERIMENT_STALE_CLAIM_TIMEOUT
 from phoenix.db import models
@@ -123,16 +123,6 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
-from phoenix.server.api.decision_evaluator import DecisionEvaluator
-from phoenix.server.api.evaluators import (
-    BaseEvaluator,
-    EvaluationResult,
-    EvaluatorProviderClient,
-    build_evaluator_from_definition,
-    code_evaluator_sandbox_session_key,
-    evaluation_result_to_model,
-    get_evaluators,
-)
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
@@ -142,7 +132,6 @@ from phoenix.server.api.helpers.decision_experiments import (
     build_example_request,
     decision_run_output,
 )
-from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
@@ -165,6 +154,19 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.evaluators.resolution import (
+    build_evaluator_from_definition,
+    code_evaluator_sandbox_session_key,
+    get_evaluators,
+)
+from phoenix.server.evaluators.results.annotations import evaluation_result_to_model
+from phoenix.server.evaluators.runtime.base import (
+    BaseEvaluator,
+    EvaluationResult,
+    EvaluatorProviderClient,
+    result_annotation_names,
+)
+from phoenix.server.evaluators.runtime.decision import DecisionEvaluator
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import AdaptiveTokenBucket, UnavailableTokensError
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -548,7 +550,7 @@ class ExampleWorkItem(WorkItem):
         *,
         start_time: datetime,
         tracer: Tracer | None = None,
-        output: dict[str, Any] | None = None,
+        output: models.ExperimentRunOutput | None = None,
         error: str | None = None,
         exc: Exception | None = None,
     ) -> None:
@@ -1248,16 +1250,26 @@ class DecisionTaskWorkItem(ExampleWorkItem):
             )
 
 
-def _verdicts(eval_results: Sequence[EvaluationResult]) -> Any:
+class EvaluatorTaskVerdict(TypedDict):
+    name: str
+    label: str | None
+    score: float | None
+    explanation: str | None
+    metadata: dict[str, Any]
+
+
+def _verdicts(
+    eval_results: Sequence[EvaluationResult],
+) -> EvaluatorTaskVerdict | list[EvaluatorTaskVerdict]:
     """The run output of an evaluator task: its verdict, or a list for a multi-output evaluator."""
-    verdicts = [
-        {
-            "name": result["name"],
-            "label": result["label"],
-            "score": result["score"],
-            "explanation": result["explanation"],
-            "metadata": result["metadata"],
-        }
+    verdicts: list[EvaluatorTaskVerdict] = [
+        EvaluatorTaskVerdict(
+            name=result["name"],
+            label=result["label"],
+            score=result["score"],
+            explanation=result["explanation"],
+            metadata=result["metadata"],
+        )
         for result in eval_results
     ]
     return verdicts[0] if len(verdicts) == 1 else verdicts
@@ -3292,14 +3304,7 @@ class ExperimentRunner(DaemonTask):
             )
             .where(models.ExperimentDatasetEvaluator.experiment_id == experiment_id)
         )
-        from phoenix.server.api.helpers.decision_evaluator_snapshots import (
-            DecisionEvaluatorSnapshot,
-        )
-
-        snapshots = [
-            DecisionEvaluatorSnapshot.model_validate(value)
-            for value in experiment_job.decision_evaluator_snapshots
-        ]
+        snapshots = list(experiment_job.decision_evaluator_snapshots)
         frozen_ids = {snapshot.dataset_evaluator_id for snapshot in snapshots}
         dataset_evaluators = [
             binding for binding in dataset_evaluators_result.all() if binding.id not in frozen_ids
@@ -3330,7 +3335,7 @@ class ExperimentRunner(DaemonTask):
             ]
 
         snapshots_updated = False
-        for snapshot in snapshots:
+        for index, snapshot in enumerate(snapshots):
             evaluator = await build_evaluator_from_definition(
                 definition=snapshot.definition,
                 session=session,
@@ -3340,7 +3345,7 @@ class ExperimentRunner(DaemonTask):
             project_id = snapshot.project_id
             # TODO: Handle SQLite reusing a deleted trace-project ID before resume.
             if await session.get(models.Project, project_id) is None:
-                from phoenix.server.api.helpers.evaluator_management import (
+                from phoenix.server.evaluators.services.management import (
                     get_project_for_dataset_evaluator,
                 )
 
@@ -3350,7 +3355,7 @@ class ExperimentRunner(DaemonTask):
                 session.add(project)
                 await session.flush()
                 project_id = project.id
-                snapshot.project_id = project_id
+                snapshots[index] = snapshot.model_copy(update={"project_id": project_id})
                 snapshots_updated = True
             evaluator_run_specs.append(
                 EvaluatorRunSpec(
@@ -3363,9 +3368,7 @@ class ExperimentRunner(DaemonTask):
                 )
             )
         if snapshots_updated:
-            experiment_job.decision_evaluator_snapshots = [
-                snapshot.model_dump(mode="json") for snapshot in snapshots
-            ]
+            experiment_job.decision_evaluator_snapshots = snapshots
             await session.flush()
 
         logger.debug(
