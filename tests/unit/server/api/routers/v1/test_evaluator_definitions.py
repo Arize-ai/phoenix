@@ -522,15 +522,37 @@ async def test_llm_definition_input_schema_round_trip(
     assert cleared.json()["data"]["input_schema"] == schema
 
 
+async def test_unparseable_prompt_template_reads_as_null_input_schema(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """A prompt with an unclosed Mustache section has no variables to report, so its
+    definition reads with a null input schema instead of failing the read or the list."""
+    name = f"broken-{token_hex(4)}"
+    async with db() as session:
+        evaluator = await _add_llm_evaluator(
+            session, name, tagged=True, prompt_text="Judge {{#ctx}}{{output}}"
+        )
+    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(evaluator.id))}"
+
+    read = await httpx_client.get(route)
+    assert read.status_code == 200, read.text
+    assert read.json()["data"].get("input_schema") is None
+
+    listed = await httpx_client.get("v1/evaluators", params={"type": "llm", "name": name})
+    assert listed.status_code == 200, listed.text
+    assert [definition["name"] for definition in listed.json()["data"]] == [name]
+
+
 async def _add_llm_evaluator(
-    session: AsyncSession, name: str, *, tagged: bool
+    session: AsyncSession, name: str, *, tagged: bool, prompt_text: str = "Judge {{output}}"
 ) -> models.LLMEvaluator:
     """A minimal LLM evaluator with a real prompt version, tagged (pinned) or not."""
     version = models.PromptVersion(
         template_type=PromptTemplateType.CHAT,
         template_format=PromptTemplateFormat.MUSTACHE,
         template=PromptChatTemplate(
-            type="chat", messages=[PromptMessage(role="user", content="Judge {{output}}")]
+            type="chat", messages=[PromptMessage(role="user", content=prompt_text)]
         ),
         invocation_parameters=PromptOpenAIInvocationParameters(
             type="openai", openai=PromptOpenAIInvocationParametersContent()

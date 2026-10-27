@@ -4446,7 +4446,7 @@ export interface components {
             output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
             /**
              * Input Schema
-             * @description The variables of the prompt version the evaluator runs, with a description on each the author described. Null when that version cannot be resolved.
+             * @description The variables of the prompt version the evaluator runs, with a description on each the author described. Null when that version cannot be resolved or its template cannot be parsed.
              */
             input_schema: {
                 [key: string]: unknown;

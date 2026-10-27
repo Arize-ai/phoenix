@@ -973,7 +973,10 @@ class LLMEvaluator(Evaluator, Node):
             stored_input_schema = await info.context.data_loaders.llm_evaluator_fields.load(
                 (self.id, models.LLMEvaluator.input_schema),
             )
-        return JSON(described_llm_input_schema(prompt_version, stored_input_schema))
+        schema = described_llm_input_schema(prompt_version, stored_input_schema)
+        if schema is None:
+            raise BadRequest("The evaluator's prompt template could not be parsed")
+        return JSON(schema)
 
     @strawberry.field
     async def user(

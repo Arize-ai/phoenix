@@ -1,9 +1,17 @@
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from strawberry import UNSET
 
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptTemplateFormat,
+)
 from phoenix.server.evaluators.input_descriptions import (
+    apply_llm_input_schema,
+    described_llm_input_schema,
     input_descriptions,
     parse_input_schema,
     resolve_input_descriptions,
@@ -109,3 +117,39 @@ def test_resolve_input_descriptions_keeps_clears_or_replaces() -> None:
     assert resolve_input_descriptions(
         {"properties": {"other": {"description": "Docs."}}}, previous=previous, declared=declared
     ) == {"other": "Docs."}
+
+
+def _prompt_version(text: str) -> Any:
+    return SimpleNamespace(
+        template=PromptChatTemplate(
+            type="chat", messages=[PromptMessage(role="user", content=text)]
+        ),
+        template_format=PromptTemplateFormat.MUSTACHE,
+    )
+
+
+_STORED = {"type": "object", "properties": {"output": {"description": "The answer."}}}
+
+
+def test_unparseable_template_reads_as_none() -> None:
+    assert described_llm_input_schema(_prompt_version("Judge {{#ctx}}"), _STORED) is None
+    assert described_llm_input_schema(_prompt_version("Judge {{output}}"), _STORED) == {
+        "type": "object",
+        "properties": {"output": {"type": "string", "description": "The answer."}},
+        "required": ["output"],
+    }
+
+
+def test_unparseable_template_keeps_or_clears_but_never_sets_descriptions() -> None:
+    broken = _prompt_version("Judge {{#ctx}}")
+    evaluator: Any = SimpleNamespace(input_schema=_STORED)
+    assert apply_llm_input_schema(evaluator, broken) is False
+    assert evaluator.input_schema == _STORED
+    assert apply_llm_input_schema(evaluator, broken, {"properties": {"output": {}}}) is False
+    assert evaluator.input_schema == _STORED
+    with pytest.raises(ValueError, match="could not be parsed"):
+        apply_llm_input_schema(
+            evaluator, broken, {"properties": {"output": {"description": "New."}}}
+        )
+    assert apply_llm_input_schema(evaluator, broken, None) is True
+    assert evaluator.input_schema is None

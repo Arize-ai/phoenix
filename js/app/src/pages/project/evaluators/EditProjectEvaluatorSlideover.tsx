@@ -13,6 +13,7 @@ import {
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   buildInputSchemaInput,
@@ -28,7 +29,6 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
@@ -395,7 +395,9 @@ function EditLlmProjectEvaluatorContent({
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
-  const { variableKeys } = useDerivedPlaygroundVariables({ instanceId });
+  // The same names the mapping rows show, so an f-string `{reference.label}`
+  // sends its description under `reference`.
+  const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [isFilterValid, setIsFilterValid] = useState(true);
@@ -482,7 +484,7 @@ function EditLlmProjectEvaluatorContent({
             projectEvaluatorId: evaluator.id,
             inputMapping: state.evaluator.inputMapping,
             inputSchema: buildInputSchemaInput({
-              variables: variableKeys,
+              variables,
               inputDescriptions: state.evaluator.inputDescriptions,
             }),
             samplingRate: scope.samplingRate,

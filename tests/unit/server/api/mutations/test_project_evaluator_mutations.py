@@ -999,6 +999,23 @@ async def test_project_llm_evaluator_input_descriptions_round_trip(
         assert evaluator.input_schema is None
 
 
+async def test_project_llm_evaluator_with_unparseable_template_saves_without_descriptions(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """A prompt with an unclosed Mustache section still saves, as it did before input
+    descriptions existed; only an attempt to describe its variables is refused."""
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="broken-llm", text="Judge {{#ctx}}{{input}}")
+    created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert created.data and not created.errors, created.errors
+
+    described = _llm_input(project, name="broken-llm-2", text="Judge {{#ctx}}{{input}}")
+    described["inputSchema"] = _described(input="The question.")
+    refused = await gql_client.execute(_CREATE_LLM, {"input": described})
+    assert refused.errors and "could not be parsed" in refused.errors[0].message
+
+
 async def test_project_code_evaluator_input_descriptions_round_trip(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

@@ -20,6 +20,7 @@ from phoenix.server.evaluators.schemas import (
     infer_python_evaluate_input_schema,
     infer_typescript_evaluate_input_schema,
 )
+from phoenix.utilities.template_formatters import TemplateFormatterError
 
 InputDescriptions = dict[str, str]
 
@@ -153,18 +154,28 @@ def described_code_input_schema(
     )
 
 
+def _infer_llm_input_schema(prompt_version: models.PromptVersion) -> Optional[dict[str, Any]]:
+    """The schema the prompt's variables declare, or None when the template cannot be
+    parsed, such as one with an unclosed Mustache section."""
+    try:
+        return infer_input_schema_from_prompt_template(
+            template=prompt_version.template,
+            template_format=prompt_version.template_format,
+        )
+    except TemplateFormatterError:
+        return None
+
+
 def described_llm_input_schema(
     prompt_version: models.PromptVersion,
     stored: Optional[Mapping[str, Any]],
-) -> dict[str, Any]:
-    """An LLM evaluator's inferred schema with its stored descriptions overlaid."""
-    return with_input_descriptions(
-        infer_input_schema_from_prompt_template(
-            template=prompt_version.template,
-            template_format=prompt_version.template_format,
-        ),
-        input_descriptions(stored),
-    )
+) -> Optional[dict[str, Any]]:
+    """An LLM evaluator's inferred schema with its stored descriptions overlaid, or None
+    when the prompt template cannot be parsed."""
+    inferred = _infer_llm_input_schema(prompt_version)
+    if inferred is None:
+        return None
+    return with_input_descriptions(inferred, input_descriptions(stored))
 
 
 def apply_llm_input_schema(
@@ -176,11 +187,23 @@ def apply_llm_input_schema(
 
     Returns whether the column changed. Raises ValueError for a malformed schema or a
     description of a variable the prompt does not name.
+
+    A prompt whose template cannot be parsed declares no variables that could be
+    checked, so the save goes through with the stored descriptions left as they are,
+    unless the edit clears them (None) or tries to set some, which is refused.
     """
-    inferred = infer_input_schema_from_prompt_template(
-        template=prompt_version.template,
-        template_format=prompt_version.template_format,
-    )
+    inferred = _infer_llm_input_schema(prompt_version)
+    if inferred is None:
+        if submitted is None:
+            changed = evaluator.input_schema is not None
+            evaluator.input_schema = None
+            return changed
+        if submitted is not UNSET and parse_input_schema(submitted):
+            raise ValueError(
+                "The prompt template could not be parsed, so its variables cannot be "
+                "described. Fix the template, then add descriptions."
+            )
+        return False
     descriptions = resolve_input_descriptions(
         submitted, previous=evaluator.input_schema, declared=inferred.get("properties") or {}
     )

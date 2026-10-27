@@ -281,7 +281,8 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     input_schema: Optional[dict[str, Any]] = Field(
         description=(
             "The variables of the prompt version the evaluator runs, with a description on each "
-            "the author described. Null when that version cannot be resolved."
+            "the author described. Null when that version cannot be resolved or its template "
+            "cannot be parsed."
         )
     )
 

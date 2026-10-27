@@ -8,6 +8,7 @@ import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
+import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   buildInputSchemaInput,
@@ -24,7 +25,6 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
@@ -574,7 +574,9 @@ function CreateLlmProjectEvaluatorDialog({
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
-  const { variableKeys } = useDerivedPlaygroundVariables({ instanceId });
+  // The same names the mapping rows show, so an f-string `{reference.label}`
+  // sends its description under `reference`.
+  const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFilterValid, setIsFilterValid] = useState(true);
@@ -615,7 +617,7 @@ function CreateLlmProjectEvaluatorDialog({
           ...llmInput,
           inputMapping: state.evaluator.inputMapping,
           inputSchema: buildInputSchemaInput({
-            variables: variableKeys,
+            variables,
             inputDescriptions: state.evaluator.inputDescriptions,
           }),
           projectId,
