@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -187,7 +187,7 @@ def pytest_collection_modifyitems(
             experiment_metadata_value, Mapping
         ):
             raise pytest.UsageError("phoenix marker experiment_metadata must be a mapping")
-        experiment_metadata: Optional[Mapping[str, Any]] = experiment_metadata_value
+        experiment_metadata = cast(Optional[Mapping[str, Any]], experiment_metadata_value)
         try:
             state.register_item(
                 item,
@@ -304,7 +304,7 @@ def _ensure_controller_collected(config: "Config") -> None:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_call(item: "Item") -> Any:
+def pytest_runtest_call(item: "Item") -> Generator[None, Any, Any]:
     """Open the test's CHAIN span and capture the run context, stashing it for ``makereport`` to
     finalize. The pass/fail decision is deferred there because the call phase alone cannot tell a
     failure from an expected-xfail or an in-body skip (both raise here but pytest resolves them
@@ -364,7 +364,7 @@ def pytest_runtest_call(item: "Item") -> Any:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: "Item", call: Any) -> Any:
+def pytest_runtest_makereport(item: "Item", call: Any) -> Generator[None, Any, None]:
     """Finalize the run from pytest's per-phase reports, so the recorded outcome reflects the
     whole test lifecycle rather than the call phase alone:
 

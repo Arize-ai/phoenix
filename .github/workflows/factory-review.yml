@@ -8,8 +8,8 @@ name: Factory Review
 on:
   # zizmor: ignore[dangerous-triggers] The job checks out the base branch, never the PR's
   # commits, and runs only review.py from it. The PR's code runs inside the Managed Agents
-  # sandbox, which holds no repository secret: the vault injects the machine account's token
-  # into GitHub calls, and a ruleset keeps that account off every branch but factory/**.
+  # sandbox, which holds no repository secret: the vault injects the factory app's installation
+  # token into GitHub calls, and a ruleset keeps that app off every branch but factory/**.
   pull_request_target:
     types: [labeled]
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
-      pull-requests: write # comment on the PR and remove the `factory-review` label
+      pull-requests: write # report a failed start; the app posts every other comment
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
@@ -51,8 +51,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install the Anthropic SDK
-        run: pip install --quiet "anthropic==1.12.1"
+      - name: Install the Anthropic SDK and PyJWT
+        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
 
       # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
@@ -64,8 +64,10 @@ jobs:
         id: start
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          # Mounted as the session's github_repository token; see factory-dispatch.yml.
-          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+          # The factory's GitHub App; review.py mints installation tokens for the session and
+          # the GitHub vault the same way dispatch.py does. The private key never enters the session.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           REQUESTED_BY: ${{ github.event.sender.login }}
         run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
 
@@ -73,12 +75,16 @@ jobs:
         if: steps.start.outputs.started == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          FACTORY_LOGIN: ${{ vars.FACTORY_LOGIN }}
+          # Re-mints the session's token before it expires, and looks for the app's review.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           HEAD_SHA: ${{ steps.start.outputs.head_sha }}
         run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --head-sha "$HEAD_SHA"
 
-      # The watch step reports its own failures on the PR.
+      # The watch step reports its own failures on the PR. This report uses GITHUB_TOKEN, so
+      # it still lands when the failure is the app's credentials.
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'
         run: |

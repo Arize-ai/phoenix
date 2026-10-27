@@ -1,11 +1,11 @@
-mypy==2.3.0
+mypy==2.4.0
 numpy<2.3; python_version < "3.12"
 pytest
 pytest-xdist
 pytest-asyncio
 uvloop; platform_system != 'Windows'
 pydantic>=1.0,!=2.0.*,<3
-pyright[nodejs]==1.1.394
+pyright[nodejs]==1.1.414
 pytest-randomly
 pytest-rerunfailures
 pytest-timeout

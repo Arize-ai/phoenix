@@ -279,6 +279,59 @@ class _MockFormatter:
 
 
 class TestToChatMessagesAndKwargs:
+    @pytest.mark.parametrize(
+        "content, expected_extra_body",
+        [
+            (
+                {"max_tokens": 100, "extra_body": {"metadata": {"user_id": "test-user"}}},
+                {"metadata": {"user_id": "test-user"}},
+            ),
+            (
+                {
+                    "max_tokens": 100,
+                    "temperature": 0.5,
+                    "top_p": 0.9,
+                    "extra_body": {"metadata": {"user_id": "test-user"}},
+                },
+                {"temperature": 0.5, "top_p": 0.9, "metadata": {"user_id": "test-user"}},
+            ),
+            (
+                {
+                    "max_tokens": 100,
+                    "temperature": 0.5,
+                    "top_p": 0.9,
+                    "extra_body": {"temperature": 0.0, "top_p": 0.0},
+                },
+                {"temperature": 0.0, "top_p": 0.0},
+            ),
+            ({"max_tokens": 100, "extra_body": {}}, None),
+            (
+                {"max_tokens": 100, "temperature": 0.0, "extra_body": {}},
+                {"temperature": 0.0},
+            ),
+            ({"max_tokens": 100, "temperature": 0.0}, {"temperature": 0.0}),
+        ],
+    )
+    def test_extra_body_is_preserved(
+        self,
+        content: v1.PromptAnthropicInvocationParametersContent,
+        expected_extra_body: Optional[dict[str, Any]],
+    ) -> None:
+        original = json.loads(json.dumps(content))
+        pv = v1.PromptVersionData(
+            template={"type": "chat", "messages": [{"role": "user", "content": "Hello"}]},
+            template_type="CHAT",
+            template_format="NONE",
+            model_provider="ANTHROPIC",
+            model_name="claude-sonnet-4-5",
+            invocation_parameters={"type": "anthropic", "anthropic": content},
+        )
+        messages, kwargs = to_chat_messages_and_kwargs(pv)
+        assert kwargs.get("extra_body") == expected_extra_body
+        assert kwargs["max_tokens"] == 100
+        assert messages == [{"role": "user", "content": "Hello"}]
+        assert content == original
+
     def test_str_system_message_formats_variables(self) -> None:
         pv = v1.PromptVersionData(
             template={

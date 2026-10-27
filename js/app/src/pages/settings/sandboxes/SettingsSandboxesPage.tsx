@@ -8,7 +8,8 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
-import { CanManageSandboxes } from "@phoenix/components/auth";
+import { CanViewSandboxes } from "@phoenix/components/auth";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import type { settingsSandboxesPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsSandboxesPageLoaderQuery.graphql";
 import type { SettingsSandboxesPageLoaderType } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { settingsSandboxesPageLoaderGql } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
@@ -32,9 +33,9 @@ export function SettingsSandboxesPage() {
     loaderData
   );
   return (
-    <CanManageSandboxes>
+    <CanViewSandboxes>
       <SettingsSandboxesPageContent query={query} />
-    </CanManageSandboxes>
+    </CanViewSandboxes>
   );
 }
 
@@ -101,6 +102,7 @@ function SettingsSandboxesPageContent({
     `,
     query
   );
+  const canManageSandboxes = useViewerCanManageSandboxes();
 
   const providerRows = useMemo(() => {
     const backendByType = new Map(
@@ -153,8 +155,16 @@ function SettingsSandboxesPageContent({
 
   return (
     <Flex direction="column" gap="size-200">
-      <SandboxProvidersCard providers={providerRows} onRefresh={refresh} />
-      <SandboxConfigsCard configRows={configRows} providerRows={providerRows} />
+      <SandboxProvidersCard
+        providers={providerRows}
+        onRefresh={refresh}
+        canManage={canManageSandboxes}
+      />
+      <SandboxConfigsCard
+        configRows={configRows}
+        providerRows={providerRows}
+        canManage={canManageSandboxes}
+      />
     </Flex>
   );
 }

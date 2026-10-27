@@ -1,5 +1,5 @@
-# The vault container only. Its one credential, a static bearer token for the factory's
-# machine account keyed by https://api.githubcopilot.com/mcp/, is added out of band -
-# see factory/README.md.
+# The vault container only. Its credentials, the factory app's installation token for
+# https://api.githubcopilot.com/mcp/ and as GH_TOKEN, are written by dispatch.py and
+# log_scan.py on each session - see Bootstrap in factory/README.md.
 type: vault
 display_name: factory-github
