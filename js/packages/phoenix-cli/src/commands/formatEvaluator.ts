@@ -83,7 +83,12 @@ export function formatEvaluatorsOutput({
 }
 
 const BASE_COLUMNS = ["name", "id", "type", "description"];
-const KIND_COLUMNS = ["prompt version", "language", "version"];
+const KIND_COLUMNS = [
+  "prompt version",
+  "decision version",
+  "language",
+  "version",
+];
 
 function evaluatorRow(evaluator: EvaluatorDefinition): Record<string, unknown> {
   const row: Record<string, unknown> = {
@@ -98,6 +103,12 @@ function evaluatorRow(evaluator: EvaluatorDefinition): Record<string, unknown> {
         evaluator.prompt.selector.type === "latest"
           ? `latest (${evaluator.prompt.resolved_prompt_version_id ?? "none"})`
           : evaluator.prompt.selector.prompt_version_id;
+      break;
+    case "decision":
+      row["decision version"] =
+        evaluator.decision.selector.type === "latest"
+          ? `latest (${evaluator.decision.resolved_decision_version_id})`
+          : evaluator.decision.selector.decision_version_id;
       break;
     case "code":
       row.language = evaluator.language;
