@@ -487,7 +487,8 @@ px prompt list --format raw --no-progress | jq '.[].name'
 
 List all versions of a prompt by name or ID, newest first. The table shows each
 version's ID, description, model provider, model name, and creation date. Creation
-dates are blank when connected to an older server. Tags are not included.
+dates use local date/time formatting and are blank when connected to an older
+server. Tags are not included.
 
 ```bash
 px prompt-versions list my-evaluator
@@ -497,6 +498,15 @@ px prompt-versions list my-evaluator --format raw --no-progress | jq '.[].id'
 
 Without `--limit`, fetches all pages. JSON and raw output contain an array of full
 version objects; `created_at` is only present when the server returns it.
+JSON and raw output preserve the original timestamp string.
+
+| Option              | Description                         | Default             |
+| ------------------- | ----------------------------------- | ------------------- |
+| `--limit <number>`  | Maximum number of versions to fetch | All versions        |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty`            |
+| `--endpoint <url>`  | Phoenix API endpoint                | Configured endpoint |
+| `--api-key <key>`   | Phoenix API key                     | Configured API key  |
+| `--no-progress`     | Suppress progress output            | Progress enabled    |
 
 ---
 

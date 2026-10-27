@@ -293,10 +293,11 @@ describe("formatPromptVersionsOutput", () => {
       "Improved greeting",
       "OPENAI",
       "gpt-4o",
-      PROMPT_VERSION.created_at,
+      new Date(PROMPT_VERSION.created_at).toLocaleString(),
     ]) {
       expect(output).toContain(value);
     }
+    expect(output).not.toContain(PROMPT_VERSION.created_at);
     expect(output).not.toContain("template");
   });
 

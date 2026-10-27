@@ -35,7 +35,9 @@ export function formatPromptVersionsOutput({
       description: promptVersion.description ?? "",
       model_provider: promptVersion.model_provider,
       model_name: promptVersion.model_name,
-      created_at: promptVersion.created_at ?? "",
+      created_at: promptVersion.created_at
+        ? new Date(promptVersion.created_at).toLocaleString()
+        : "",
     }))
   );
 }
