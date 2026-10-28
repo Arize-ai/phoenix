@@ -189,3 +189,24 @@ export function getEvaluatorCostRanking({
     })
     .sort((a, b) => b.cost - a.cost);
 }
+
+const DURATION_TICK_STEPS_SECONDS = [
+  1, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600,
+  43200, 86400,
+];
+
+/**
+ * Up to `maxTickCount` evenly spaced ticks from 0 that reach `maxSeconds`, on a
+ * whole duration step, so a lag axis reads "10m, 20m" rather than "8m 20s".
+ */
+export function getDurationTicks(
+  maxSeconds: number,
+  maxTickCount = 4
+): number[] {
+  const step =
+    DURATION_TICK_STEPS_SECONDS.find(
+      (candidate) => Math.ceil(maxSeconds / candidate) <= maxTickCount
+    ) ?? Math.ceil(maxSeconds / maxTickCount / 86400) * 86400;
+  const tickCount = Math.max(Math.ceil(maxSeconds / step), 1);
+  return Array.from({ length: tickCount + 1 }, (_, i) => i * step);
+}

@@ -67,6 +67,7 @@ import type {
   EvaluatorSeriesMetric,
 } from "./evaluatorActivity";
 import {
+  getDurationTicks,
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
@@ -226,6 +227,16 @@ function EvaluatorTimeSeriesChart({
       return value != null && (isLag || value > 0);
     })
   );
+  const lagTicks = isLag
+    ? getDurationTicks(
+        Math.max(
+          DEGRADED_LAG_SECONDS,
+          ...chartData.flatMap((row) =>
+            series.map(({ dataKey }) => row[dataKey] ?? 0)
+          )
+        )
+      )
+    : undefined;
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const getColor = useEvaluatorSeriesColor();
   const semanticColors = useSemanticChartColors();
@@ -257,7 +268,14 @@ function EvaluatorTimeSeriesChart({
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
-              <YAxis {...compactYAxisProps} tickFormatter={formatTick} />
+              <YAxis
+                {...compactYAxisProps}
+                tickFormatter={formatTick}
+                ticks={lagTicks}
+                domain={
+                  lagTicks ? [0, lagTicks[lagTicks.length - 1]] : undefined
+                }
+              />
               <Tooltip
                 content={
                   <EvaluatorTimeSeriesTooltipContent

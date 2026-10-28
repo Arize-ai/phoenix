@@ -5,6 +5,7 @@ import type {
   EvaluatorActivityGroup,
 } from "../evaluatorActivity";
 import {
+  getDurationTicks,
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
@@ -172,5 +173,13 @@ describe("getEvaluatorCostRanking", () => {
       { dataKey: "evaluator1", name: "b-name", cost: 3, share: 75 },
       { dataKey: "evaluator0", name: "a-name", cost: 1, share: 25 },
     ]);
+  });
+});
+
+describe("getDurationTicks", () => {
+  it("steps lag ticks on whole durations", () => {
+    expect(getDurationTicks(1400)).toEqual([0, 600, 1200, 1800]);
+    expect(getDurationTicks(600)).toEqual([0, 300, 600]);
+    expect(getDurationTicks(45)).toEqual([0, 15, 30, 45]);
   });
 });
