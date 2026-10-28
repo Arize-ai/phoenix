@@ -586,6 +586,26 @@ class TestPromptVersionConversion:
         assert kwargs["config"].response_mime_type == "application/json"
         assert kwargs["config"].response_json_schema == schema
 
+    def test_developer_message_is_treated_as_system_instruction(self) -> None:
+        pv = v1.PromptVersionData(
+            template={
+                "type": "chat",
+                "messages": [
+                    {"role": "developer", "content": "You are {{ persona }}."},
+                    {"role": "user", "content": "Hello {{ persona }}."},
+                ],
+            },
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="GOOGLE",
+            model_name="gemini-2.0-flash",
+        )
+        messages, kwargs = to_chat_messages_and_kwargs(pv, variables={"persona": "a pirate"})
+        assert kwargs["config"].system_instruction == "You are a pirate."
+        assert [content.model_dump(exclude_none=True) for content in messages] == [
+            {"role": "user", "parts": [{"text": "Hello a pirate."}]}
+        ]
+
     @pytest.mark.parametrize(
         ("system_instruction", "expected"),
         [
