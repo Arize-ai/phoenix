@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
+import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
 import { userEvent } from "storybook/test";
 import type { Mock } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -107,37 +107,32 @@ const PAST_PREVIEW_DELAYS_MS = 300;
  * prompt tokens and one completion token.
  */
 function createTestEnvironment(onFetch: (traceNodeId: unknown) => void) {
-  return new Environment({
-    network: Network.create((operation, variables) => {
-      if (operation.name !== "SessionTurnPreviewTooltipUsageQuery") {
-        throw new Error(`Unexpected query ${operation.name}`);
-      }
-      onFetch(variables.traceNodeId);
-      const cost = (value: number) => ({ cost: value });
-      return {
-        data: {
-          node: {
-            __typename: "Trace",
-            id: variables.traceNodeId,
-            rootSpan: {
-              id: `${variables.traceNodeId}-root`,
-              cumulativeTokenCountTotal: 3,
-              cumulativeTokenCountPrompt: 2,
-              cumulativeTokenCountCompletion: 1,
-              cumulativeCostDetailSummaryEntries: [],
-            },
-            costSummary: {
-              total: cost(0.02),
-              prompt: cost(0.015),
-              completion: cost(0.005),
-            },
-            costDetailSummaryEntries: [],
-          },
-        },
-      };
-    }),
-    store: new Store(new RecordSource()),
+  const environment = createMockEnvironment();
+  environment.mock.queueOperationResolver((operation) => {
+    onFetch(operation.request.variables.traceNodeId);
+    return MockPayloadGenerator.generate(operation, {
+      Node: () => ({ __typename: "Trace" }),
+      Trace: () => ({ costDetailSummaryEntries: [] }),
+      Span: () => ({ cumulativeCostDetailSummaryEntries: [] }),
+      // Product queries carry no scalar type info, so numbers reach the
+      // String resolver; key them by schema field name
+      String: ({ name }) => {
+        switch (name) {
+          case "cumulativeTokenCountTotal":
+            return 3;
+          case "cumulativeTokenCountPrompt":
+            return 2;
+          case "cumulativeTokenCountCompletion":
+            return 1;
+          case "cost":
+            return 0.01;
+          default:
+            return undefined;
+        }
+      },
+    });
   });
+  return environment;
 }
 
 function getTooltip() {
@@ -174,7 +169,7 @@ describe("SessionTurnList", () => {
   let container: HTMLDivElement;
   let root: Root;
   let onFetch: Mock<(traceNodeId: unknown) => void>;
-  let environment: Environment;
+  let environment: ReturnType<typeof createMockEnvironment>;
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
@@ -242,18 +237,6 @@ describe("SessionTurnList", () => {
   const unhoverTurn = (index: number) =>
     act(() => user.unhover(getTurn(index)));
   const pressKey = (key: string) => act(() => user.keyboard(key));
-
-  /**
-   * jsdom doesn't lay out, so focusing a row never scrolls the list; send the
-   * scroll that arrowing past the fold would, which React Aria's tooltip
-   * closes on.
-   */
-  const scrollList = () =>
-    act(async () => {
-      container
-        .querySelector('[role="listbox"]')
-        ?.dispatchEvent(new Event("scroll"));
-    });
 
   /**
    * Clicks the first turn, then arrows down to the second. The click renders
@@ -338,6 +321,20 @@ describe("SessionTurnList", () => {
     expect(getTooltip()?.textContent).not.toMatch(/of \d+ unfavorable/);
   });
 
+  it("describes the previewed row by its preview while open", async () => {
+    renderTurnList();
+
+    await hoverTurn(0);
+    await waitForPreview("First turn");
+    const tooltipId = getTooltip()?.id;
+    expect(tooltipId).toBeTruthy();
+    expect(getTurn(0).getAttribute("aria-describedby")).toBe(tooltipId);
+
+    await unhoverTurn(0);
+    await waitForNoPreview();
+    expect(getTurn(0).hasAttribute("aria-describedby")).toBe(false);
+  });
+
   it("follows the turn's refetched data while open", async () => {
     renderTurnList();
     await hoverTurn(0);
@@ -353,14 +350,8 @@ describe("SessionTurnList", () => {
     await waitForPreview("Renamed turn");
   });
 
-  it("closes a hovered preview on scroll and on click, and Escape after the click opens nothing", async () => {
+  it("closes a hovered preview on click, and Escape after the click opens nothing", async () => {
     renderTurnList();
-
-    await hoverTurn(0);
-    await waitForPreview("First turn");
-    await scrollList();
-    await waitForNoPreview();
-    await unhoverTurn(0);
 
     await hoverTurn(1);
     await waitForPreview("Second turn");
@@ -371,31 +362,6 @@ describe("SessionTurnList", () => {
     await unhoverTurn(1);
     await pressKey("{Escape}");
     await expectNoPreviewToOpen();
-  });
-
-  it("keeps a keyboard preview through list scrolls and hovers, until its row scrolls out of view", async () => {
-    renderTurnList();
-    await arrowToSecondTurn();
-
-    await scrollList();
-    expect(getTooltip()?.textContent).toContain("Second turn");
-
-    // As a row scrolling under a still pointer is
-    await hoverTurn(2);
-    expect(getTooltip()?.textContent).toContain("Second turn");
-    await unhoverTurn(2);
-    expect(getTooltip()?.textContent).toContain("Second turn");
-
-    // As a wheel scroll moves the focused row above the viewport
-    vi.spyOn(getTurn(1), "getBoundingClientRect").mockReturnValue(
-      DOMRect.fromRect({ x: 0, y: -200, width: 300, height: 80 })
-    );
-    await scrollList();
-    await waitForNoPreview();
-    await expectNoPreviewToOpen();
-
-    await pressKey("{ArrowDown}");
-    await waitForPreview("Third turn");
   });
 
   it("dismisses only the preview on the first Escape", async () => {

@@ -440,12 +440,15 @@ function getTurnIndexLabel(index: number) {
   return String(index + 1).padStart(2, "0");
 }
 
-function getPreviewTurn(row: IndexedSessionTurnRow): SessionTurnPreviewTurn {
+function getPreviewTurn(
+  row: SessionTurnRow,
+  index: number
+): SessionTurnPreviewTurn {
   const { rootSpan } = row;
   return {
     traceId: row.traceId,
     traceNodeId: rootSpan.trace.id,
-    indexLabel: getTurnIndexLabel(row.index),
+    indexLabel: getTurnIndexLabel(index),
     name: rootSpan.name,
     statusCode: rootSpan.statusCode,
     startTime: rootSpan.startTime,
@@ -544,12 +547,18 @@ export function SessionTurnList({
   // starts as arrowing moves past the fold.
   const isFocusPreview = isFocusVisible && anchors.focus != null;
   const anchor = isFocusPreview ? anchors.focus : anchors.hover;
-  // Built from the current rows, so an open preview follows refetched data
-  const previewRow =
-    anchor && indexedRows.find((row) => row.traceId === anchor.traceId);
+  // Built from the current rows, so an open preview follows refetched data.
+  // Looked up on `rows`, not `indexedRows`, so the list's items don't depend
+  // on the anchors and hovering doesn't re-render every row.
+  const previewIndex = anchor
+    ? rows.findIndex((row) => row.traceId === anchor.traceId)
+    : -1;
   const previewTarget: SessionTurnPreviewTarget | null =
-    anchor && previewRow
-      ? { element: anchor.element, turn: getPreviewTurn(previewRow) }
+    anchor && previewIndex >= 0
+      ? {
+          element: anchor.element,
+          turn: getPreviewTurn(rows[previewIndex], previewIndex),
+        }
       : null;
   return (
     // Keeps each previewed turn's usage, so revisiting a turn shows it at once

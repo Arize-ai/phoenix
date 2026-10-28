@@ -2,8 +2,8 @@ import { getScrollParent } from "@react-aria/utils";
 import {
   useEffect,
   useEffectEvent,
+  useId,
   useLayoutEffect,
-  useMemo,
   useState,
 } from "react";
 import {
@@ -20,20 +20,19 @@ import {
   rowPreviewTooltipCSS,
   RowPreviewQuery,
 } from "@phoenix/components/trace/RowPreviewQuery";
-import { getTokenCostDetailsFromCostDetails } from "@phoenix/components/trace/TokenCostsDetails";
-import { getTokenCountDetailsFromCostDetails } from "@phoenix/components/trace/TokenCountDetails";
-import type { TokenDetailsBreakdownProps } from "@phoenix/components/trace/TokenDetailsBreakdown";
 import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "@phoenix/components/trace/TokenDetailsBreakdown";
 
-import type {
-  SessionTurnPreviewTooltipUsageQuery as SessionTurnPreviewTooltipUsageQueryType,
-  SessionTurnPreviewTooltipUsageQuery$data,
-} from "./__generated__/SessionTurnPreviewTooltipUsageQuery.graphql";
+import type { SessionTurnPreviewTooltipUsageQuery as SessionTurnPreviewTooltipUsageQueryType } from "./__generated__/SessionTurnPreviewTooltipUsageQuery.graphql";
 import type {
   SessionTurnPreviewCardProps,
   SessionTurnPreviewTurn,
 } from "./SessionTurnPreviewCard";
 import { SessionTurnPreviewCard } from "./SessionTurnPreviewCard";
+import {
+  EMPTY_METRICS_DETAILS,
+  getTurnMetricsDetails,
+  isSpanInView,
+} from "./sessionTurnPreviewUtils";
 
 /** Matches the trace tree: React Aria warms up, so later rows open at once. */
 const TURN_PREVIEW_DELAY_MS = 150;
@@ -144,8 +143,16 @@ export function SessionTurnListPreview({
     onTriggerHidden: onDismiss,
   });
   useDismissOnEscape({ isOpen: isActive && state.isOpen, onDismiss });
+  const tooltipId = useId();
+  useDescribedByTooltip({
+    triggerElement: target?.element ?? null,
+    tooltipId,
+    isOpen: isActive && state.isOpen,
+  });
 
-  // open/close are recreated every render; only the target should re-run this
+  // open/close are recreated every render, and the target object is rebuilt
+  // whenever the list re-renders; only a new row should re-run this, or a
+  // re-render would reopen a preview the list's scroll closed
   const syncOpen = useEffectEvent((shouldOpen: boolean) => {
     if (shouldOpen) {
       state.open();
@@ -155,19 +162,20 @@ export function SessionTurnListPreview({
   });
   useEffect(() => {
     syncOpen(isActive);
-  }, [target, isActive]);
-
-  const triggerRef = useMemo(
-    () => ({ current: target?.element ?? null }),
-    [target]
-  );
+  }, [target?.element, target?.turn.traceId, isActive]);
 
   if (target == null) {
     return null;
   }
+  // React Aria's TooltipTrigger passes the id through this context too,
+  // though TooltipProps doesn't declare it
+  const tooltipContext = {
+    triggerRef: { current: target.element },
+    id: tooltipId,
+  };
   return (
     <TooltipTriggerStateContext.Provider value={tooltipState}>
-      <TooltipContext.Provider value={{ triggerRef }}>
+      <TooltipContext.Provider value={tooltipContext}>
         {/* Keyed so hopping rows while open re-anchors the preview and
             restarts its usage fetch for the new turn */}
         <SessionTurnPreviewTooltip
@@ -263,15 +271,8 @@ function useReopeningTooltipState({
   };
 }
 
-/**
- * Whether any of `element` lies within its scroll container's visible area.
- *
- * @remarks
- * Edges count as visible, so elements without layout (zero-sized rects, as
- * in jsdom) are treated as visible.
- */
-export function isElementInScrollView(element: Element): boolean {
-  const rect = element.getBoundingClientRect();
+/** Whether any of `element` lies within its scroll container's visible area. */
+function isElementInScrollView(element: Element): boolean {
   const scrollParent = getScrollParent(element);
   const isViewport =
     scrollParent === document.scrollingElement ||
@@ -279,7 +280,42 @@ export function isElementInScrollView(element: Element): boolean {
   const view = isViewport
     ? { top: 0, bottom: window.innerHeight }
     : scrollParent.getBoundingClientRect();
-  return rect.bottom >= view.top && rect.top <= view.bottom;
+  return isSpanInView(element.getBoundingClientRect(), view);
+}
+
+/**
+ * Describes the trigger by the open tooltip, as React Aria's
+ * `useTooltipTrigger` does for the trace tree's previews, so assistive tech
+ * reads the preview with its row.
+ *
+ * @remarks
+ * Set on the row's element rather than through the list's items, which would
+ * re-render every row whenever a preview opens or closes.
+ */
+function useDescribedByTooltip({
+  triggerElement,
+  tooltipId,
+  isOpen,
+}: {
+  triggerElement: Element | null;
+  tooltipId: string;
+  isOpen: boolean;
+}) {
+  useEffect(() => {
+    const element = isOpen ? triggerElement : null;
+    const describedBy = element?.getAttribute("aria-describedby") ?? null;
+    element?.setAttribute(
+      "aria-describedby",
+      describedBy ? `${describedBy} ${tooltipId}` : tooltipId
+    );
+    return () => {
+      if (describedBy == null) {
+        element?.removeAttribute("aria-describedby");
+      } else {
+        element?.setAttribute("aria-describedby", describedBy);
+      }
+    };
+  }, [triggerElement, tooltipId, isOpen]);
 }
 
 /**
@@ -310,8 +346,6 @@ function useDismissOnEscape({
   }, [isOpen]);
 }
 
-const EMPTY_METRICS_DETAILS: TokenDetailsBreakdownProps = {};
-
 function SessionTurnPreviewDetails(props: SessionTurnPreviewTooltipProps) {
   const { turn } = props;
   // A turn without usage has no split to load
@@ -339,36 +373,4 @@ function SessionTurnPreviewDetails(props: SessionTurnPreviewTooltipProps) {
       )}
     </RowPreviewQuery>
   );
-}
-
-type UsageNode = SessionTurnPreviewTooltipUsageQuery$data["node"];
-
-/**
- * Maps the usage query onto the breakdown's props; see
- * {@link SessionTurnPreviewTooltipUsageQuery} for which scope each measure
- * comes from.
- */
-function getTurnMetricsDetails(node: UsageNode): TokenDetailsBreakdownProps {
-  if (node.__typename !== "Trace") {
-    return EMPTY_METRICS_DETAILS;
-  }
-  const { rootSpan, costSummary, costDetailSummaryEntries } = node;
-  return {
-    tokens: rootSpan
-      ? {
-          total: rootSpan.cumulativeTokenCountTotal,
-          prompt: rootSpan.cumulativeTokenCountPrompt,
-          completion: rootSpan.cumulativeTokenCountCompletion,
-          ...getTokenCountDetailsFromCostDetails(
-            rootSpan.cumulativeCostDetailSummaryEntries
-          ),
-        }
-      : null,
-    costs: {
-      total: costSummary.total.cost,
-      prompt: costSummary.prompt.cost,
-      completion: costSummary.completion.cost,
-      ...getTokenCostDetailsFromCostDetails(costDetailSummaryEntries),
-    },
-  };
 }
