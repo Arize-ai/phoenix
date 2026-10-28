@@ -41,12 +41,14 @@ Add a case to `integrations.json` only after its format is supported. Each
 case defines the doc path, language, install, setup, and run section headings,
 environment variables, setup extraction, output assertions, and Phoenix span
 verification rules. The runner supports Python setup code in imported MDX
-`<CodeBlock>` components, plus JavaScript, Go, and .NET setup code in fenced blocks.
+`<CodeBlock>` components, plus JavaScript, Go, Java, and .NET setup code in
+fenced blocks.
 It deliberately rejects unsupported languages and verifier types instead of
 silently skipping them.
 
 The dependency parsers read package names from `pip install`, `npm install`,
-, `go get`, and `dotnet add package` commands without executing shell commands from the docs. Setup
+`go get`, Gradle dependency declarations, and `dotnet add package` commands
+without executing shell commands from the docs. Setup
 code is resolved from imported MDX components or language-tagged code fences.
 For referenced components, quoted JSX props are substituted into JavaScript
 template expressions. Set `project_name_prop` in the setup configuration when
