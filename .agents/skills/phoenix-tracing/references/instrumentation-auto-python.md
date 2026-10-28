@@ -60,7 +60,17 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
 Phoenix automatically converts [OTel GenAI semantic convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes (`gen_ai.*`) to OpenInference when receiving OTLP spans. This means you can use **OTel-native AI instrumentation** — any library that emits `gen_ai.*` attributes — without installing OpenInference instrumentors, and Phoenix will display spans with proper LLM span kind, model names, token counts, and message content.
 
-If a span already has OpenInference attributes set (e.g. from a dual-emitting instrumentor), those values take precedence over the synthesized ones.
+Attributes a span already carries win over the synthesized ones, so a
+dual-emitting instrumentor's own OpenInference values are kept. The message
+namespaces `llm.input_messages` and `llm.output_messages` are all-or-nothing:
+if the span writes any key under one of them, Phoenix drops every synthesized
+key for that namespace rather than filling the gaps. Message keys are
+positional, and a client-side mapping can number messages differently from the
+synthesized one, so gap-filling would splice the two into messages that were
+never emitted. The practical consequence: an instrumentor that converts most
+`gen_ai.*` message attributes itself but skips one (say
+`gen_ai.system_instructions`) keeps its own consistent message list, and the
+skipped message does not appear.
 
 Message parts are converted structurally, not concatenated. A `gen_ai` message's
 text, image, blob, and reasoning parts each become an entry under
