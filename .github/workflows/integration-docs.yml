@@ -96,32 +96,111 @@ jobs:
           python scripts/testing/integration_docs/prepare_services.py \
             --docs-file "${REPORT_DIR}/docs.json" \
             --shard "${SHARD}/${SHARD_TOTAL}"
-      - name: Start Phoenix and run this shard
+      - name: Start authenticated Phoenix and create an API key
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          PHOENIX_ENDPOINT: http://127.0.0.1:6006
+          RUNNER_TEMP: ${{ runner.temp }}
+        with:
+          script: |
+            const crypto = require('crypto');
+            const fs = require('fs');
+            const { spawn } = require('child_process');
+
+            const endpoint = process.env.PHOENIX_ENDPOINT;
+            const phoenixSecret = crypto.randomBytes(32).toString('hex');
+            const adminSecret = crypto.randomBytes(32).toString('hex');
+            core.setSecret(phoenixSecret);
+            core.setSecret(adminSecret);
+
+            const logFd = fs.openSync(`${process.env.RUNNER_TEMP}/phoenix.log`, 'a');
+            const server = spawn('uv', ['run', 'phoenix', 'serve', '--host', '127.0.0.1', '--port', '6006'], {
+              cwd: process.env.GITHUB_WORKSPACE,
+              detached: true,
+              env: {
+                ...process.env,
+                PHOENIX_ENABLE_AUTH: 'true',
+                PHOENIX_SECRET: phoenixSecret,
+                PHOENIX_ADMIN_SECRET: adminSecret,
+              },
+              stdio: ['ignore', logFd, logFd],
+            });
+            fs.closeSync(logFd);
+            if (!server.pid) {
+              throw new Error('Could not start Phoenix.');
+            }
+            server.unref();
+            core.exportVariable('PHOENIX_SERVER_PID', String(server.pid));
+            core.exportVariable('PHOENIX_ENABLE_AUTH', 'true');
+            core.exportVariable('PHOENIX_SECRET', phoenixSecret);
+            core.exportVariable('PHOENIX_ADMIN_SECRET', adminSecret);
+            core.exportVariable('PHOENIX_ENDPOINT', endpoint);
+
+            let ready = false;
+            for (let attempt = 0; attempt < 60; attempt++) {
+              if (server.exitCode !== null) {
+                throw new Error('Phoenix exited before becoming ready.');
+              }
+              try {
+                const response = await fetch(`${endpoint}/healthz`, { signal: AbortSignal.timeout(2000) });
+                if (response.ok) {
+                  ready = true;
+                  break;
+                }
+              } catch {}
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+            if (!ready) {
+              throw new Error('Phoenix did not become ready within 120 seconds.');
+            }
+
+            const response = await fetch(`${endpoint}/v1/system/api_keys`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${adminSecret}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                data: {
+                  name: 'integration-docs-harness',
+                  description: 'Ephemeral key for the integration docs CI run',
+                  expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                },
+              }),
+            });
+            if (!response.ok) {
+              throw new Error(`Could not create the Phoenix API key (HTTP ${response.status}).`);
+            }
+            const payload = await response.json();
+            const apiKey = payload?.data?.key;
+            if (typeof apiKey !== 'string' || apiKey.length === 0) {
+              throw new Error('Phoenix API key response did not include a key.');
+            }
+            core.setSecret(apiKey);
+            core.exportVariable('PHOENIX_API_KEY', apiKey);
+      - name: Run this shard
         shell: bash
         env:
-          RUNNABLE_DOCS: ${{ needs.classify.outputs.runnable_docs }}
           SHARD: ${{ matrix.shard }}
           SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
           REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
         run: |
           set -euo pipefail
-          report_dir="ci-results/integration-docs/shard-${SHARD}"
-          uv run phoenix serve --host 127.0.0.1 --port 6006 > "${RUNNER_TEMP}/phoenix.log" 2>&1 &
-          phoenix_pid=$!
-          trap 'kill "${phoenix_pid}" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:6006/healthz >/dev/null; then break; fi
-            if [[ "${attempt}" -eq 60 ]]; then cat "${RUNNER_TEMP}/phoenix.log"; echo "Phoenix did not become ready" >&2; exit 1; fi
-            sleep 2
-          done
-          make test-integration-docs INTEGRATION_DOCS_ARGS="--docs-file ${report_dir}/docs.json --shard ${SHARD}/${SHARD_TOTAL} --output-dir ${report_dir}"
+          make test-integration-docs INTEGRATION_DOCS_ARGS="--docs-file ${REPORT_DIR}/docs.json --shard ${SHARD}/${SHARD_TOTAL} --output-dir ${REPORT_DIR}"
       - name: Upload shard report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: integration-docs-shard-${{ matrix.shard }}
+          name: integration-docs-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/shard-${{ matrix.shard }}/integration-docs.*
           if-no-files-found: warn
+      - name: Stop Phoenix
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${PHOENIX_SERVER_PID:-}" ]]; then
+            kill -- "-${PHOENIX_SERVER_PID}" 2>/dev/null || true
+          fi
 
   aggregate:
     name: Aggregate integration docs results
@@ -143,7 +222,7 @@ jobs:
       - name: Download shard reports
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          pattern: integration-docs-shard-*
+          pattern: integration-docs-shard-*-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/shards
           merge-multiple: false
       - name: Build aggregate report
@@ -181,6 +260,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: integration-docs-report
+          name: integration-docs-report-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/integration-docs.*
           if-no-files-found: warn

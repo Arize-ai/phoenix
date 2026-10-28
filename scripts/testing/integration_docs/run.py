@@ -31,6 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
 SKIP_CONFIG_PATH = REPO_ROOT / ".agents/skills/test-integration/scripts/skip_config.json"
 DEFAULT_ENDPOINT = "http://127.0.0.1:6006"
+PYTHON_BASE_PACKAGES = ("arize-phoenix-otel",)
 FENCE = re.compile(r"^```(?P<language>[\w+-]+)[^\n]*\n(?P<body>[\s\S]*?)^```", re.MULTILINE)
 IMPORT = re.compile(
     r'^import\s+(?P<name>[A-Za-z_]\w*)\s+from\s+["\'](?P<path>[^"\']+)["\'];?',
@@ -44,7 +45,7 @@ EMBEDDED_CODE = re.compile(
     re.MULTILINE,
 )
 PIP_COMMAND = re.compile(r"(?:^|\s)(?:python\s+-m\s+)?pip3?\s+install\b(?P<args>.*)$")
-NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+install\b(?P<args>.*)$")
+NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+(?:install|i)\b(?P<args>.*)$")
 GO_GET_COMMAND = re.compile(r"(?:^|\s)go\s+get\b(?P<args>.*)$")
 GO_IMPORT_BLOCK = re.compile(r"(?m)^import\s*\((.*?)^\)", re.DOTALL)
 GO_IMPORT_PATH = re.compile(r'^(?:[A-Za-z_]\w*\s+)?"(?P<path>[^"]+)"$')
@@ -64,9 +65,11 @@ class IntegrationSpec:
     setup_section: str
     required_env: tuple[str, ...]
     python_version: str
+    npm_install_flags: tuple[str, ...]
     setup: dict[str, str]
     output: dict[str, Any]
     verification: dict[str, Any]
+    additional_sections: tuple[dict[str, str], ...]
 
 
 def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
@@ -131,9 +134,14 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     setup_section=str(raw.get("setup_section", "Setup")),
                     required_env=tuple(raw.get("required_env", [])),
                     python_version=str(raw.get("python_version", "3.11")),
+                    npm_install_flags=tuple(str(flag) for flag in raw.get("npm_install_flags", [])),
                     setup={str(key): str(value) for key, value in setup.items()},
                     output=dict(raw.get("output", {})),
                     verification=dict(verification),
+                    additional_sections=tuple(
+                        {str(key): str(value) for key, value in section.items()}
+                        for section in raw.get("additional_sections", [])
+                    ),
                 )
             )
             seen_ids.add(integration_id)
@@ -170,6 +178,7 @@ def section_body(document_text: str, heading: str) -> str:
 
 def code_fence(section: str, language: str, context: str) -> str:
     aliases = {"javascript": {"javascript", "js", "typescript", "ts"}}
+    aliases["python"] = {"python", "py"}
     accepted_languages = aliases.get(language, {language})
     for block in FENCE.finditer(section):
         if block.group("language").lower() in accepted_languages:
@@ -232,12 +241,12 @@ def component_setup(spec: IntegrationSpec, document_text: str, project: str) -> 
             for item in JSX_ATTRIBUTE.finditer(component.group("props"))
         }
         project_name_prop = spec.setup.get("project_name_prop")
-        if project_name_prop:
-            if project_name_prop not in props:
-                raise HarnessError(
-                    f"Setup component is missing configured project name prop {project_name_prop!r}"
-                )
+        if project_name_prop and project_name_prop in props:
             props[project_name_prop] = project
+        elif project_name_prop and "${" + project_name_prop + "}" in component_text:
+            raise HarnessError(
+                f"Setup component is missing configured project name prop {project_name_prop!r}"
+            )
         for block in EMBEDDED_CODE.finditer(component_text):
             if block.group("language").lower() != spec.setup.get("language", "python").lower():
                 continue
@@ -277,6 +286,8 @@ def combine_go_files(setup: str, run: str) -> str:
 def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dict[str, str]]:
     text = spec.document.read_text()
     packages = package_names(section_body(text, spec.install_section), spec.language)
+    if spec.language == "python":
+        packages = list(dict.fromkeys((*PYTHON_BASE_PACKAGES, *packages)))
     if spec.setup["source"] == "referenced_components":
         setup = component_setup(spec, text, project)
     else:
@@ -286,14 +297,32 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
     run = code_fence(section_body(text, spec.run_section), spec.language, f"## {spec.run_section}")
 
     if spec.language == "python":
-        sections = [setup, run]
+        program: dict[str, str] = {}
+        setup_filename = spec.setup.get("filename")
+        if setup_filename:
+            if Path(setup_filename).name != setup_filename:
+                raise HarnessError(f"Setup filename must be a basename: {setup_filename!r}")
+            program[setup_filename] = setup + "\n"
+            sections = [run]
+        else:
+            sections = [setup, run]
         flush_code = spec.setup.get("flush_code", "").strip()
         if flush_code:
             sections.append(flush_code)
-        return packages, {"example.py": "\n\n".join(sections)}
-    if spec.language == "javascript":
-        return packages, {"instrumentation.js": setup, "example.js": run}
-    return packages, {"main.go": combine_go_files(setup, run)}
+        program["example.py"] = "\n\n".join(sections)
+    elif spec.language == "javascript":
+        program = {"instrumentation.js": setup, "example.js": run}
+    else:
+        program = {"main.go": combine_go_files(setup, run)}
+    for extra in spec.additional_sections:
+        section = section_body(text, extra["section"])
+        filename = extra["filename"]
+        if Path(filename).name != filename:
+            raise HarnessError(f"Additional example filename must be a basename: {filename!r}")
+        program[filename] = code_fence(
+            section, extra.get("language", spec.language), extra["section"]
+        )
+    return packages, program
 
 
 def request_json(url: str, api_key: str | None) -> dict[str, Any]:
@@ -388,6 +417,20 @@ def run_example(
         env = os.environ.copy()
         env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint
         env["PHOENIX_PROJECT_NAME"] = project
+        if api_key := env.get("PHOENIX_API_KEY"):
+            # Phoenix-aware exporters read PHOENIX_API_KEY, while generic OTLP
+            # exporters need the standard OTEL headers variable.
+            encoded_api_key = urllib.parse.quote(api_key, safe="")
+            env["OTEL_EXPORTER_OTLP_HEADERS"] = f"authorization=Bearer%20{encoded_api_key}"
+            env["PHOENIX_CLIENT_HEADERS"] = f"authorization=Bearer%20{encoded_api_key}"
+        if spec.id == "mastra-typescript":
+            # Mastra's ArizeExporter expects the complete OTLP HTTP URL.
+            env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint.rstrip("/") + "/v1/traces"
+        if spec.id == "crewai-python":
+            # CrewAI stores app data under the user's platform data directory.
+            # Isolate that storage inside this disposable example environment.
+            env["HOME"] = str(temp)
+            env["CREWAI_STORAGE_DIR"] = "crewai-test"
         if spec.language == "python":
             uv = REPO_ROOT / "scripts/uv.sh"
             if not uv.is_file():
@@ -403,8 +446,9 @@ def run_example(
                 check=True,
                 cwd=temp,
             )
+            for filename, source in program.items():
+                (temp / filename).write_text(source)
             sample = temp / "example.py"
-            sample.write_text(program[sample.name])
             command = (
                 [str(python_executable(venv)), "-m", "py_compile", str(sample)]
                 if lint_only
@@ -418,7 +462,15 @@ def run_example(
                 "NPM_CONFIG_CACHE", os.environ.get("npm_config_cache", str(temp / ".npm-cache"))
             )
             subprocess.run(
-                ["npm", "install", "--no-audit", "--no-fund", "--no-save", *packages],
+                [
+                    "npm",
+                    "install",
+                    "--no-audit",
+                    "--no-fund",
+                    "--no-save",
+                    *spec.npm_install_flags,
+                    *packages,
+                ],
                 check=True,
                 cwd=temp,
                 env=env,

@@ -16,10 +16,14 @@ OPENAI_API_KEY=... make test-integration-docs
 
 The server endpoint defaults to `http://127.0.0.1:6006`. Set
 `PHOENIX_ENDPOINT` to override it and `PHOENIX_API_KEY` when the server
-requires authentication. Each example runs in an isolated environment using
+requires authentication. The GitHub Actions workflow starts Phoenix with
+authentication enabled and creates an ephemeral system API key for each shard,
+so the examples exercise authenticated trace export without a shared Phoenix
+credential. Each example runs in an isolated environment using
 the dependencies from its page's `Install` code block: Python uses a temporary
-Python 3.11 venv created by `uv`, Node.js uses a temporary npm project, and Go
-uses a temporary Go module. Each invocation uses a distinct Phoenix project so
+venv created by `uv` with the version configured for that page (Python 3.11 by
+default), Node.js uses a temporary npm project, and Go uses a temporary Go
+module. Each invocation uses a distinct Phoenix project so
 concurrent runs cannot satisfy one another's span check.
 
 The runner parses the page before checking credentials. If a required
