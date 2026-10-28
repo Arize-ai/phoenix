@@ -400,6 +400,8 @@ enum AnnotatorKind {
   LLM
   HUMAN
   CODE
+  DECISION
+  AGENT
 }
 
 type AnthropicAuthenticationMethod {
@@ -2209,6 +2211,8 @@ enum ExperimentRunAnnotatorKind {
   LLM
   HUMAN
   CODE
+  DECISION
+  AGENT
 }
 
 input ExperimentRunColumn @oneOf {

@@ -51,6 +51,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SAWarning
+from sqlean import dbapi2 as sqlean_dbapi2
 
 import phoenix.db
 
@@ -1215,7 +1216,10 @@ def run_alembic_migrations(database: Path, skip_if_failed: bool = False) -> bool
         config = Config(str(alembic_ini))
         config.set_main_option("script_location", str(phoenix_db_path / "migrations"))
 
-        engine = create_engine(URL.create(drivername="sqlite", database=str(database)))
+        engine = create_engine(
+            URL.create(drivername="sqlite", database=str(database)),
+            module=sqlean_dbapi2,
+        )
 
         print("Running Alembic migrations...")
         with engine.connect() as conn:
