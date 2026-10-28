@@ -85,6 +85,15 @@ jobs:
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
+      - name: Set up Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+        with:
+          gradle-version: "8.14.3"
       - name: Install Phoenix
         run: uv sync --frozen
       - name: Prepare selected docs and local services

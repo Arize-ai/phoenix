@@ -47,6 +47,9 @@ EMBEDDED_CODE = re.compile(
 PIP_COMMAND = re.compile(r"(?:^|\s)(?:python\s+-m\s+)?pip3?\s+install\b(?P<args>.*)$")
 NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+(?:install|i)\b(?P<args>.*)$")
 GO_GET_COMMAND = re.compile(r"(?:^|\s)go\s+get\b(?P<args>.*)$")
+GRADLE_DEPENDENCY = re.compile(
+    r"(?m)^\s*(?:implementation|api|runtimeOnly|compileOnly)\s+[\'\"](?P<coordinate>[^\'\"]+)[\'\"]"
+)
 DOTNET_ADD_PACKAGE = re.compile(r"(?:^|\s)dotnet\s+add\s+package\s+(?P<args>.*)$")
 GO_IMPORT_BLOCK = re.compile(r"(?m)^import\s*\((.*?)^\)", re.DOTALL)
 GO_IMPORT_PATH = re.compile(r'^(?:[A-Za-z_]\w*\s+)?"(?P<path>[^"]+)"$')
@@ -67,7 +70,7 @@ class IntegrationSpec:
     required_env: tuple[str, ...]
     python_version: str
     npm_install_flags: tuple[str, ...]
-    setup: dict[str, str]
+    setup: dict[str, Any]
     output: dict[str, Any]
     verification: dict[str, Any]
     additional_sections: tuple[dict[str, str], ...]
@@ -95,10 +98,10 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             language = str(raw["language"]).lower()
             if integration_id in seen_ids:
                 raise HarnessError(f"Duplicate integration id or document: {integration_id}")
-            if language not in {"python", "javascript", "go", "dotnet"}:
+            if language not in {"python", "javascript", "go", "dotnet", "java"}:
                 raise HarnessError(
                     f"Integration {integration_id} uses unsupported language {language!r}; "
-                    "supported languages are Python, JavaScript, Go, and .NET"
+                    "supported languages are Python, JavaScript, Go, .NET, and Java"
                 )
             setup = raw["setup"]
             verification = raw["verification"]
@@ -135,7 +138,7 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     required_env=tuple(raw.get("required_env", [])),
                     python_version=str(raw.get("python_version", "3.11")),
                     npm_install_flags=tuple(str(flag) for flag in raw.get("npm_install_flags", [])),
-                    setup={str(key): str(value) for key, value in setup.items()},
+                    setup={str(key): value for key, value in setup.items()},
                     output=dict(raw.get("output", {})),
                     verification=dict(verification),
                     additional_sections=tuple(
@@ -218,6 +221,11 @@ def package_names(section: str, language: str) -> list[str]:
         "javascript": NPM_COMMAND,
         "go": GO_GET_COMMAND,
     }
+    if language == "java":
+        packages = [c for c in GRADLE_DEPENDENCY.findall(normalized) if c.count(":") >= 2]
+        if not packages:
+            raise HarnessError("Install section must contain Gradle dependency coordinates")
+        return list(dict.fromkeys(packages))
     if language == "dotnet":
         packages = []
         for line in normalized.splitlines():
@@ -334,6 +342,43 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
     packages = package_names(section_body(text, spec.install_section), spec.language)
     if spec.language == "python":
         packages = list(dict.fromkeys((*PYTHON_BASE_PACKAGES, *packages)))
+    if spec.language == "java":
+        java_files = spec.setup.get("java_files", [])
+        if not java_files:
+            raise HarnessError(f"Java integration {spec.id} must configure java_files")
+        program = {}
+        for file_spec in java_files:
+            filename = file_spec["filename"]
+            if (
+                Path(filename).is_absolute()
+                or ".." in Path(filename).parts
+                or not filename.endswith(".java")
+            ):
+                raise HarnessError(f"Java filename must be a safe .java path: {filename!r}")
+            section_names = file_spec.get("sections") or [file_spec["section"]]
+            sections = [
+                code_fence(section_body(text, section), "java", f"## {section}")
+                for section in section_names
+            ]
+            source = "\n\n".join(sections)
+            if file_spec.get("compose") == "main":
+                imports, bodies = [], []
+                for part in sections:
+                    imports.extend(re.findall(r"(?m)^import\s+[^;]+;", part))
+                    body = re.sub(r"(?m)^import\s+[^;]+;\s*", "", part)
+                    body = re.sub(r"(?m)^package\s+[\w.]+;\s*", "", body)
+                    bodies.append(body.strip())
+                setup_body, run_body = bodies
+                source = (
+                    "\n".join(dict.fromkeys(imports))
+                    + "\n\npublic class Main {\n"
+                    + setup_body
+                    + "\n\npublic static void main(String[] args) throws Exception {\n"
+                    + run_body
+                    + "\n}\n}\n"
+                )
+            program[filename] = source + "\n"
+        return packages, program
     if spec.setup["source"] == "referenced_components":
         setup = component_setup(spec, text, project)
     else:
@@ -576,6 +621,47 @@ def run_example(
                         subprocess.run(["node", "--check", filename], check=True, cwd=temp, env=env)
                 return ""
             command = ["node", "example.js"]
+        elif spec.language == "java":
+            source_root = temp / "src/main/java"
+            source_root.mkdir(parents=True)
+            for filename, source in program.items():
+                target = source_root / filename
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(source)
+            main_class = spec.setup.get("main_class")
+            if not main_class:
+                raise HarnessError(f"Java integration {spec.id} must configure main_class")
+            dependencies = "\n".join(f'    implementation("{package}")' for package in packages)
+            build_file = f"""plugins {{
+    id "application"
+}}
+
+repositories {{
+    mavenCentral()
+}}
+
+dependencies {{
+{dependencies}
+}}
+
+tasks.withType(JavaCompile).configureEach {{
+    options.compilerArgs += "-parameters"
+}}
+
+application {{
+    mainClass = "{main_class}"
+}}
+"""
+            (temp / "build.gradle").write_text(build_file)
+            (temp / "settings.gradle").write_text('rootProject.name = "integration-docs-test"\n')
+            env["GRADLE_USER_HOME"] = os.environ.get(
+                "GRADLE_USER_HOME", str(Path.home() / ".gradle")
+            )
+            command = (
+                ["gradle", "--no-daemon", "--console=plain", "compileJava"]
+                if lint_only
+                else ["gradle", "--no-daemon", "--console=plain", "run"]
+            )
         elif spec.language == "go":
             (temp / "main.go").write_text(program["main.go"])
             env["GOPATH"] = os.environ.get("GOPATH", str(temp / ".go-path"))

@@ -804,17 +804,33 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Microsoft Agent Framework",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "dotnet", "filename": "Program.cs"},
-      "additional_sections": [
-        {"section": "Add a tool", "filename": "WeatherTools.cs", "language": "dotnet"}
+      "required_env": [
+        "OPENAI_API_KEY"
       ],
-      "output": {"require_non_empty": true},
+      "setup": {
+        "source": "section_code",
+        "language": "dotnet",
+        "filename": "Program.cs"
+      },
+      "additional_sections": [
+        {
+          "section": "Add a tool",
+          "filename": "WeatherTools.cs",
+          "language": "dotnet"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1387,6 +1403,117 @@
           "decision.provider",
           "decision.model_name"
         ]
+      }
+    },
+    {
+      "id": "langchain4j-java",
+      "document": "docs/phoenix/integrations/java/langchain4j/langchain4j-tracing.mdx",
+      "language": "java",
+      "install_section": "Prerequisites",
+      "setup_section": "Configuration for Phoenix Tracing",
+      "run_section": "Run LangChain4j",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "Main",
+        "java_files": [
+          {
+            "filename": "Main.java",
+            "sections": [
+              "Configuration for Phoenix Tracing",
+              "Run LangChain4j"
+            ],
+            "compose": "main"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "spring-ai-java",
+      "document": "docs/phoenix/integrations/java/springai/springai-tracing.mdx",
+      "language": "java",
+      "install_section": "Prerequisites",
+      "setup_section": "Configuration for Phoenix Tracing",
+      "run_section": "Run Spring AI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "Main",
+        "java_files": [
+          {
+            "filename": "Main.java",
+            "sections": [
+              "Configuration for Phoenix Tracing",
+              "Run Spring AI"
+            ],
+            "compose": "main"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "java-annotation-openai",
+      "document": "docs/phoenix/integrations/java/annotation/annotation-tracing.mdx",
+      "language": "java",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run annotated code",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "example.Main",
+        "java_files": [
+          {
+            "filename": "example/Main.java",
+            "section": "Setup"
+          },
+          {
+            "filename": "example/QAService.java",
+            "section": "Run annotated code"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM"
       }
     }
   ]
