@@ -1,8 +1,8 @@
+import { scopeExampleVariables } from "../datasetExampleVariables";
 import {
   formatInputPreview,
   getDecisionInputPreviews,
   getExampleInputNames,
-  scopeExampleVariables,
 } from "../decisionStateInputsHints";
 import { toStructuredInputValue } from "../decisionUtils";
 

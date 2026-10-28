@@ -1,3 +1,4 @@
+import isEqual from "lodash/isEqual";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -1607,6 +1608,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       exampleVariables: unknown[];
       datasetId: string;
     }) => {
+      // The examples table recomputes these whenever its rows change; the
+      // first examples rarely do, and a new array would re-render every
+      // decision editor that reads them.
+      const current = get().stateByDatasetId[datasetId]?.exampleVariables;
+      if (current && isEqual(current, exampleVariables)) return;
       set(
         {
           stateByDatasetId: {

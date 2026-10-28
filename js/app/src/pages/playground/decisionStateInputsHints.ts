@@ -1,5 +1,4 @@
 import { isStringKeyedObject } from "@phoenix/typeUtils";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 /** How long a value preview beside an input may be before it is cut. */
 export const INPUT_PREVIEW_MAX_CHARS = 60;
@@ -41,25 +40,6 @@ export function formatInputPreview(
         : text,
     full,
   };
-}
-
-/**
- * The variables one dataset example offers a task: the example context
- * (`input`, `reference` for the example's output, `metadata`) scoped to the
- * template variables path, or the whole context when the path is empty.
- */
-export function scopeExampleVariables(
-  example: { input: unknown; output: unknown; metadata: unknown },
-  templateVariablesPath: string | null | undefined
-): unknown {
-  const context = {
-    input: example.input,
-    reference: example.output,
-    metadata: example.metadata,
-  };
-  return templateVariablesPath
-    ? getValueAtPath(context, templateVariablesPath)
-    : context;
 }
 
 /** A JSON object with named fields; an array's indexes are not input names. */

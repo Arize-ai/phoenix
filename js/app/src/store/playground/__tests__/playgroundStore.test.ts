@@ -222,6 +222,30 @@ describe("normalized decision prompts", () => {
   });
 });
 
+describe("setExampleVariables", () => {
+  it("leaves the store alone when the first examples have not changed", () => {
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    store.getState().setExampleVariables({
+      exampleVariables: [{ phrase: "rather than" }],
+      datasetId: "D1",
+    });
+    const before = store.getState().stateByDatasetId;
+    store.getState().setExampleVariables({
+      exampleVariables: [{ phrase: "rather than" }],
+      datasetId: "D1",
+    });
+    expect(store.getState().stateByDatasetId).toBe(before);
+    store.getState().setExampleVariables({
+      exampleVariables: [{ phrase: "tests pass" }],
+      datasetId: "D1",
+    });
+    expect(store.getState().stateByDatasetId).not.toBe(before);
+    expect(store.getState().stateByDatasetId.D1?.exampleVariables).toEqual([
+      { phrase: "tests pass" },
+    ]);
+  });
+});
+
 describe("duplicateInstance", () => {
   it("inserts the copy after the source and returns its id", () => {
     const store = createPlaygroundStore({ modelConfigByProvider: {} });

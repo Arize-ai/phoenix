@@ -108,10 +108,7 @@ import {
   isStringKeyedObject,
 } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
-import {
-  extractPathsFromDatasetExamples,
-  getValueAtPath,
-} from "@phoenix/utils/objectUtils";
+import { extractPathsFromDatasetExamples } from "@phoenix/utils/objectUtils";
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
@@ -125,8 +122,11 @@ import type {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  scopeExampleVariables,
+  toTemplateVariablesContext,
+} from "./datasetExampleVariables";
 import { DecisionResult } from "./DecisionResult";
-import { scopeExampleVariables } from "./decisionStateInputsHints";
 import {
   getEvaluatorTaskAnnotation,
   PlaygroundEvaluatorColumnHeader,
@@ -217,17 +217,9 @@ function getPossibleVariablesForPath({
 }): string[] {
   // TODO: dynamically parse all valid root-level paths from the dataset example
   // instead of hardcoding these known keys
-  const templateVariablesContext = {
-    input: datasetExample.input,
-    reference: datasetExample.output,
-    metadata: datasetExample.metadata,
-  };
-
-  // Look up the object at the path and return its keys
-  // When path is empty, getValueAtPath returns the whole context object
-  const targetObject = getValueAtPath(
-    templateVariablesContext,
-    templateVariablesPath ?? ""
+  const targetObject = scopeExampleVariables(
+    datasetExample,
+    templateVariablesPath
   );
   if (isStringKeyedObject(targetObject)) {
     return Object.keys(targetObject);
@@ -307,28 +299,11 @@ function EmptyExampleOutput({
   isExpanded: boolean;
   onExpandedChange: (isExpanded: boolean) => void;
 }) {
-  // Build the template variables context matching the backend mapping
-  // (output is renamed to reference)
-  const templateVariablesContext = useMemo(
-    () => ({
-      input: datasetExample.input,
-      reference: datasetExample.output,
-      metadata: datasetExample.metadata,
-    }),
-    [datasetExample]
-  );
-
   // Get the target object based on the template variables path
   const targetObject = useMemo((): Record<string, unknown> => {
-    if (!templateVariablesPath) {
-      return templateVariablesContext as Record<string, unknown>;
-    }
-    const value = getValueAtPath(
-      templateVariablesContext,
-      templateVariablesPath
-    );
+    const value = scopeExampleVariables(datasetExample, templateVariablesPath);
     return isStringKeyedObject(value) ? value : {};
-  }, [templateVariablesContext, templateVariablesPath]);
+  }, [datasetExample, templateVariablesPath]);
 
   // Get possible variables based on the path
   const possibleVariables = useMemo(() => {
@@ -1594,11 +1569,7 @@ export function PlaygroundDatasetExamplesTable({
   // or when templateVariablesPath changes (which scopes the paths)
   useEffect(() => {
     if (tableData.length > 0) {
-      const examples = tableData.map((row) => ({
-        input: row.input,
-        reference: row.output,
-        metadata: row.metadata,
-      }));
+      const examples = tableData.map(toTemplateVariablesContext);
       const paths = extractPathsFromDatasetExamples(
         examples,
         templateVariablesPath,
