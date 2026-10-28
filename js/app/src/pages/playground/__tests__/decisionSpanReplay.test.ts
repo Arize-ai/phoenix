@@ -57,15 +57,15 @@ describe("decision span replay", () => {
       modelType: "DECISION",
     });
     expect(playgroundInstance.llmModel?.provider).toBe("OPENAI");
-    // The structured state opens as inputs, its values in the Inputs panel.
+    // The structured state opens as inputs, one per key, sent as an object,
+    // with their values in the Inputs panel.
     expect(playgroundInstance.decisionPrompt?.state).toMatchObject({
       mode: "inputs",
-      inputNames: ["state"],
+      inputNames: ["complaint"],
+      inputsShape: "object",
     });
     expect(playgroundInput).toEqual({
-      variablesValueCache: {
-        state: JSON.stringify({ complaint: "I was charged twice." }, null, 2),
-      },
+      variablesValueCache: { complaint: "I was charged twice." },
     });
     const request = buildSystemOneRequest({
       draft: playgroundInstance.decisionPrompt!,

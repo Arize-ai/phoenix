@@ -101,7 +101,11 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
 it("switches between Template and Inputs, keeping each, and says what the inputs send", async () => {
   const draft = {
     ...createDecisionDraft(),
-    state: createDecisionStateDraft({ mode: "inputs", inputNames: ["state"] }),
+    state: createDecisionStateDraft({
+      mode: "inputs",
+      inputNames: ["state"],
+      inputsShape: "value",
+    }),
   };
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
@@ -146,8 +150,8 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         container.querySelectorAll('[aria-label="State mode"] button')
       ).map((button) => button.textContent)
     ).toEqual(["Template", "Inputs"]);
-    // One input is sent as its value, drawn as the input alone, with the
-    // value typed in the Inputs panel beside it as it is sent.
+    // One input sent alone is drawn as the input alone, with the value typed
+    // in the Inputs panel beside it as it is sent.
     expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
     expect(container.textContent).toContain("Sends the value of state as-is");
     expect(
@@ -160,6 +164,7 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
       mode: "template",
       template: "{{state}}",
       inputNames: ["state"],
+      inputsShape: "value",
     });
     expect(
       container.querySelector<HTMLInputElement>(
@@ -187,6 +192,28 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
       '{"state": state,// {"ticket":"Refund"}"plan": plan}'
     );
     expect(container.textContent).toContain("Sends an object of 2 inputs");
+
+    // Removing an input back to one keeps the object; the footer offers
+    // sending the value alone, and back.
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
+        ?.click()
+    );
+    expect(readState()).toMatchObject({
+      inputNames: ["state"],
+      inputsShape: "object",
+    });
+    expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
+    const footerButton = (label: string) =>
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === label
+      );
+    await act(async () => footerButton("Send the value alone")?.click());
+    expect(readState()?.inputsShape).toBe("value");
+    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
+    await act(async () => footerButton("Wrap in an object")?.click());
+    expect(readState()?.inputsShape).toBe("object");
   } finally {
     await act(async () => root.unmount());
     container.remove();

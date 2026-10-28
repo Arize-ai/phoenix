@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
-import type { DecisionPromptDraft } from "@phoenix/store/playground/types";
+import type {
+  DecisionPromptDraft,
+  DecisionStateDraft,
+} from "@phoenix/store/playground/types";
 
 import {
   buildDecisionInput,
@@ -25,12 +28,19 @@ const mustache = TemplateFormats.Mustache;
 const fString = TemplateFormats.FString;
 
 /** A draft over this template, or over these inputs when given a list. */
-function makeDraft(state: string | string[]): DecisionPromptDraft {
+function makeDraft(
+  state: string | string[],
+  inputsShape: DecisionStateDraft["inputsShape"] = "object"
+): DecisionPromptDraft {
   return {
     state:
       typeof state === "string"
         ? createDecisionStateDraft({ template: state })
-        : createDecisionStateDraft({ mode: "inputs", inputNames: state }),
+        : createDecisionStateDraft({
+            mode: "inputs",
+            inputNames: state,
+            inputsShape,
+          }),
     questions: [
       createDecisionQuestion({
         type: "predicate",
@@ -143,7 +153,16 @@ describe("toDecisionVersionInput", () => {
     expect(input.questions).toHaveLength(3);
   });
 
-  it("passes one listed input as that input", () => {
+  it("saves one input sent alone as that input, and one wrapped as an object", () => {
+    expect(
+      toDecisionVersionInput({
+        instance: makeInstance(makeDraft(["ticket"], "value")),
+        templateFormat: fString,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }],
+      state: { input: "ticket" },
+    });
     expect(
       toDecisionVersionInput({
         instance: makeInstance(makeDraft(["ticket"])),
@@ -151,7 +170,7 @@ describe("toDecisionVersionInput", () => {
       })
     ).toMatchObject({
       inputs: [{ name: "ticket" }],
-      state: { input: "ticket" },
+      state: { object: true },
     });
   });
 
@@ -273,7 +292,7 @@ describe("savedDecisionVersionToDraft", () => {
 
   it("round-trips an input state in any template format, including NONE", () => {
     for (const format of [mustache, fString, TemplateFormats.NONE] as const) {
-      const draft = makeDraft(["ticket"]);
+      const draft = makeDraft(["ticket"], "value");
       const saved = toSavedVersion(
         toDecisionVersionInput({
           instance: makeInstance(draft),
@@ -496,6 +515,31 @@ describe("savedDecisionVersionToDraft", () => {
       templateFormat: mustache,
     });
     expect(withoutIds(loaded)).toEqual(withoutIds(draft));
+  });
+
+  it("keeps a one-input object an object across load and save", () => {
+    const loaded = savedDecisionVersionToDraft({
+      version: {
+        inputs: [{ name: "answer" }],
+        state: { kind: "object", inputs: ["answer"] },
+        questions: [],
+      },
+      templateFormat: mustache,
+    });
+    expect(loaded.state).toMatchObject({
+      mode: "inputs",
+      inputNames: ["answer"],
+      inputsShape: "object",
+    });
+    expect(
+      toDecisionVersionInput({
+        instance: makeInstance({
+          ...makeDraft(["answer"]),
+          state: loaded.state,
+        }),
+        templateFormat: mustache,
+      })
+    ).toMatchObject({ inputs: [{ name: "answer" }], state: { object: true } });
   });
 
   it("refuses a text state written in the other template format", () => {

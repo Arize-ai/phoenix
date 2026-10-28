@@ -42,6 +42,7 @@ import {
   createDecisionDraft,
   createDecisionQuestion,
   decisionFieldId,
+  describeDecisionInputsState,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
   switchDecisionStateMode,
@@ -189,8 +190,11 @@ export function DecisionPromptEditor({
   const { state } = request;
   const updateState = (next: DecisionStateDraft) => update({ state: next });
   const inputsHints = useDecisionStateInputsHints(state.inputNames);
+  // What Copy copies and the collapsed card shows: the state as sent.
   const stateSummary =
-    state.mode === "inputs" ? state.inputNames.join(", ") : state.template;
+    state.mode === "inputs"
+      ? describeDecisionInputsState(state)
+      : state.template;
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -258,9 +262,13 @@ export function DecisionPromptEditor({
         {state.mode === "inputs" ? (
           <DecisionStateInputsEditor
             names={state.inputNames}
+            inputsShape={state.inputsShape}
             isDisabled={isRunning}
             isInvalid={!!errors.state}
             onChange={(inputNames) => updateState({ ...state, inputNames })}
+            onShapeChange={(inputsShape) =>
+              updateState({ ...state, inputsShape })
+            }
             onBlur={() => touch(decisionFieldId.state())}
             previews={inputsHints.previews}
             suggestions={inputsHints.suggestions}

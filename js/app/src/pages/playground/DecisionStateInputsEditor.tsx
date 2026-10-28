@@ -19,9 +19,13 @@ import {
   pierreTokenColors,
 } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
+import type { DecisionStateDraft } from "@phoenix/store/playground/types";
 
 import type { DecisionInputPreview } from "./decisionStateInputsHints";
-import { parseStateInputNames } from "./decisionUtils";
+import {
+  getDecisionInputsStateShape,
+  parseStateInputNames,
+} from "./decisionUtils";
 
 /**
  * The template editor's line-number gutter. The inputs have no line numbers
@@ -72,7 +76,7 @@ const surfaceCSS = css`
   .decision-state-inputs__comment-source {
     opacity: 0.7;
   }
-  .decision-state-inputs__add-all {
+  .decision-state-inputs__link {
     font: inherit;
     font-family: var(--global-font-family-sans);
     font-size: var(--global-font-size-xs);
@@ -153,50 +157,97 @@ const slotCSS = css`
   }
 `;
 
-/** The suggestion list opens wider than the slot it hangs from. */
+/**
+ * The suggestion list opens wider than the slot it hangs from, and lists
+ * names in the slot's monospace font.
+ */
 const suggestionsPopoverCSS = css`
   min-width: 200px;
   .react-aria-ListBox {
     max-height: 240px;
   }
+  .react-aria-ListBoxItem {
+    font-family: monospace;
+  }
 `;
 
 const footerCSS = css`
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-50) var(--global-dimension-size-250);
   padding-left: calc(
     ${TEMPLATE_GUTTER_WIDTH} + var(--global-dimension-size-250)
   );
   border-top: 1px solid var(--global-border-color-default);
+  .decision-state-inputs__link {
+    font: inherit;
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-700);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: var(--global-rounding-small);
+    outline: none;
+    &[data-hovered] {
+      color: var(--global-text-color-900);
+      text-decoration: underline;
+    }
+    &[data-focus-visible] {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    }
+  }
 `;
 
+type InputsShape = DecisionStateDraft["inputsShape"];
+
 /** The sentence under the inputs saying what the state will be. */
-export function describeInputsState(names: readonly string[]): string | null {
+export function describeInputsState({
+  names,
+  inputsShape,
+}: {
+  names: readonly string[];
+  inputsShape: InputsShape;
+}): string | null {
   if (names.length === 0) return null;
-  if (names.length === 1) return `Sends the value of ${names[0]} as-is`;
-  return `Sends an object of ${names.length} inputs`;
+  const resolved = getDecisionInputsStateShape({
+    inputNames: [...names],
+    inputsShape,
+  });
+  if (resolved.shape === "value") {
+    return `Sends the value of ${resolved.name} as-is`;
+  }
+  return names.length === 1
+    ? `Sends an object with ${names[0]}`
+    : `Sends an object of ${names.length} inputs`;
 }
 
 /**
- * The inputs an `inputs` state is made of, drawn as the state it sends: one
- * input is its value, several are an object keyed by name. Each input is a
+ * The inputs an `inputs` state is made of, drawn as the state it sends: an
+ * object keyed by name, or one input's value alone. Each input is a
  * variable pill, followed by a preview of its value as a code comment; names
  * typed into the slot are added on Enter, a comma, or leaving it. Over a
- * dataset the slot suggests the names its examples have.
+ * dataset the slot suggests the names its examples have. With one input the
+ * footer switches between sending it as an object and as its value alone.
  */
 export function DecisionStateInputsEditor({
   names,
+  inputsShape,
   isDisabled,
   isInvalid,
   onChange,
+  onShapeChange,
   onBlur,
   previews,
   suggestions = [],
 }: {
   names: readonly string[];
+  inputsShape: InputsShape;
   isDisabled: boolean;
   isInvalid: boolean;
   onChange: (names: string[]) => void;
+  onShapeChange: (inputsShape: InputsShape) => void;
   onBlur: () => void;
   /** A value to show beside each input, keyed by input name. */
   previews?: Readonly<Record<string, DecisionInputPreview>>;
@@ -369,8 +420,24 @@ export function DecisionStateInputsEditor({
   const punctuation = (text: string) => (
     <span style={{ color: tokenColors.punctuation }}>{text}</span>
   );
-  const description = describeInputsState(names);
+  const description = describeInputsState({ names, inputsShape });
+  const isObject =
+    names.length > 0 &&
+    getDecisionInputsStateShape({ inputNames: [...names], inputsShape })
+      .shape === "object";
   const canAddAll = names.length === 0 && remaining.length > 0 && !isDisabled;
+  // Adds the dataset's names after anything typed but not yet added. Taking
+  // focus from the slot would add the typed name first and, with an input
+  // listed, drop this button before the press lands, so it never takes it.
+  const addAll = () => {
+    const typed = parseStateInputNames(pending).filter(
+      (name) => !names.includes(name)
+    );
+    setPending("");
+    change([...new Set([...names, ...typed, ...remaining])], {
+      refocus: true,
+    });
+  };
 
   return (
     <div>
@@ -392,27 +459,7 @@ export function DecisionStateInputsEditor({
           if (event.target === event.currentTarget) slotRef.current?.focus();
         }}
       >
-        {names.length < 2 ? (
-          <div
-            className={
-              names.length === 1
-                ? lineClassName(names[0], false)
-                : "decision-state-inputs__line"
-            }
-          >
-            {names.length === 1 ? pill(names[0]) : null}
-            {names.length === 1 ? comment(names[0]) : null}
-            {slot}
-            {canAddAll ? (
-              <AriaButton
-                className="decision-state-inputs__add-all"
-                onPress={() => change([...remaining], { refocus: true })}
-              >
-                {`Add all ${remaining.length} input${remaining.length === 1 ? "" : "s"} from the dataset`}
-              </AriaButton>
-            ) : null}
-          </div>
-        ) : (
+        {isObject ? (
           <>
             <div className="decision-state-inputs__line">
               {punctuation("{")}
@@ -435,12 +482,47 @@ export function DecisionStateInputsEditor({
               {punctuation("}")}
             </div>
           </>
+        ) : (
+          <div
+            className={
+              names.length === 1
+                ? lineClassName(names[0], false)
+                : "decision-state-inputs__line"
+            }
+          >
+            {names.length === 1 ? pill(names[0]) : null}
+            {names.length === 1 ? comment(names[0]) : null}
+            {slot}
+            {canAddAll ? (
+              <AriaButton
+                className="decision-state-inputs__link decision-state-inputs__add-all"
+                preventFocusOnPress
+                onPress={addAll}
+              >
+                {`Add all ${remaining.length} input${remaining.length === 1 ? "" : "s"} from the dataset`}
+              </AriaButton>
+            ) : null}
+          </div>
         )}
       </div>
       {description ? (
-        <Text size="XS" color="text-700" css={footerCSS}>
-          {description}
-        </Text>
+        <div css={footerCSS} className="decision-state-inputs__footer">
+          <Text size="XS" color="text-700">
+            {description}
+          </Text>
+          {names.length === 1 && !isDisabled ? (
+            <AriaButton
+              className="decision-state-inputs__link"
+              onPress={() =>
+                onShapeChange(inputsShape === "value" ? "object" : "value")
+              }
+            >
+              {inputsShape === "value"
+                ? "Wrap in an object"
+                : "Send the value alone"}
+            </AriaButton>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

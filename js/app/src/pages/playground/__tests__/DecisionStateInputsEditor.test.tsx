@@ -14,6 +14,7 @@ async function renderEditor(
   props: Partial<ComponentProps<typeof DecisionStateInputsEditor>> = {}
 ) {
   const onChange = vi.fn<(names: string[]) => void>();
+  const onShapeChange = vi.fn<(shape: "object" | "value") => void>();
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -29,9 +30,11 @@ async function renderEditor(
       >
         <DecisionStateInputsEditor
           names={names}
+          inputsShape="object"
           isDisabled={false}
           isInvalid={false}
           onChange={onChange}
+          onShapeChange={onShapeChange}
           onBlur={vi.fn()}
           {...props}
         />
@@ -58,21 +61,27 @@ async function renderEditor(
     await act(async () => root.unmount());
     container.remove();
   };
-  return { container, slot, onChange, type, press, cleanup };
+  return { container, slot, onChange, onShapeChange, type, press, cleanup };
 }
 
 it("describes what the inputs send", () => {
-  expect(describeInputsState([])).toBeNull();
-  expect(describeInputsState(["ticket"])).toBe(
+  expect(describeInputsState({ names: [], inputsShape: "object" })).toBeNull();
+  expect(describeInputsState({ names: ["ticket"], inputsShape: "value" })).toBe(
     "Sends the value of ticket as-is"
   );
-  expect(describeInputsState(["reference", "output"])).toBe(
-    "Sends an object of 2 inputs"
-  );
+  expect(
+    describeInputsState({ names: ["ticket"], inputsShape: "object" })
+  ).toBe("Sends an object with ticket");
+  expect(
+    describeInputsState({
+      names: ["reference", "output"],
+      inputsShape: "value",
+    })
+  ).toBe("Sends an object of 2 inputs");
 });
 
-it("draws one input alone and several as an object", async () => {
-  const one = await renderEditor(["ticket"]);
+it("draws one input sent alone as the input, and an object keyed by name", async () => {
+  const one = await renderEditor(["ticket"], { inputsShape: "value" });
   try {
     expect(
       one.container.querySelector('[aria-label="State inputs"]')?.textContent
@@ -80,6 +89,15 @@ it("draws one input alone and several as an object", async () => {
     expect(one.slot.placeholder).toBe("+ input");
   } finally {
     await one.cleanup();
+  }
+  const wrapped = await renderEditor(["ticket"]);
+  try {
+    expect(
+      wrapped.container.querySelector('[aria-label="State inputs"]')
+        ?.textContent
+    ).toBe('{"ticket": ticket}');
+  } finally {
+    await wrapped.cleanup();
   }
   const several = await renderEditor(["reference", "output"]);
   try {
@@ -153,12 +171,14 @@ it("keeps focus in the slot when adding an input redraws the state as an object"
     return (
       <DecisionStateInputsEditor
         names={names}
+        inputsShape="value"
         isDisabled={false}
         isInvalid={false}
         onChange={(next) => {
           onChange(next);
           setNames(next);
         }}
+        onShapeChange={vi.fn()}
         onBlur={vi.fn()}
       />
     );
@@ -232,6 +252,7 @@ it("prints each input's value beside its pill as a comment", async () => {
 
 it("prints the single input's value on the same line as its pill", async () => {
   const editor = await renderEditor(["ticket"], {
+    inputsShape: "value",
     previews: { ticket: { kind: "value", text: '"Refund"', full: "Refund" } },
   });
   try {
@@ -297,6 +318,64 @@ it("offers no add-all once an input is added", async () => {
   });
   try {
     expect(editor.container.textContent).not.toContain("Add all");
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("switches one input between an object and its value alone from the footer", async () => {
+  const wrapped = await renderEditor(["ticket"]);
+  try {
+    const button = Array.from(
+      wrapped.container.querySelectorAll("button")
+    ).find((candidate) => candidate.textContent === "Send the value alone");
+    await act(async () => button?.click());
+    expect(wrapped.onShapeChange).toHaveBeenCalledWith("value");
+  } finally {
+    await wrapped.cleanup();
+  }
+  const alone = await renderEditor(["ticket"], { inputsShape: "value" });
+  try {
+    expect(alone.container.textContent).toContain(
+      "Sends the value of ticket as-is"
+    );
+    const button = Array.from(alone.container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent === "Wrap in an object"
+    );
+    await act(async () => button?.click());
+    expect(alone.onShapeChange).toHaveBeenCalledWith("object");
+  } finally {
+    await alone.cleanup();
+  }
+  // Several inputs are always an object, so there is nothing to switch.
+  const several = await renderEditor(["reference", "output"]);
+  try {
+    expect(several.container.textContent).not.toContain("value alone");
+  } finally {
+    await several.cleanup();
+  }
+});
+
+it("adds a typed name along with the dataset's when Add all is pressed", async () => {
+  const editor = await renderEditor([], {
+    suggestions: ["phrase", "context"],
+  });
+  try {
+    await editor.type("extra");
+    const addAll = Array.from(
+      editor.container.querySelectorAll<HTMLElement>(
+        ".decision-state-inputs__add-all"
+      )
+    )[0];
+    // The button never takes focus from the slot (checked in the browser),
+    // so the typed name is added together with the dataset's, in one change.
+    await act(async () => addAll.click());
+    expect(editor.onChange).toHaveBeenCalledTimes(1);
+    expect(editor.onChange).toHaveBeenLastCalledWith([
+      "extra",
+      "phrase",
+      "context",
+    ]);
   } finally {
     await editor.cleanup();
   }
