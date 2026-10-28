@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - version-sandboxes
+      - version-online-evals
 
 # One push supersedes the previous one on the same branch: the older run is
 # only racing to publish a tag that the newer run will overwrite.
