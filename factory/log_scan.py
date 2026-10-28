@@ -4,8 +4,8 @@ The script is a gate and a starter. It counts the error lines the source has for
 with none, it exits without spending anything. Otherwise it starts a session with the source's
 triage agent, which reads the errors and the code, checks the open issues carrying the source's
 label, and files or updates issues itself. Unless `--no-dispatch` is given, the issues the
-session created then get the `factory` label, up to `--max-dispatch` of them, so
-factory-dispatch.yml runs the bug lane on each.
+session created then get the `factory` label, so factory-dispatch.yml runs the bug lane on
+each.
 
 Two sources, chosen with `--source`:
 
@@ -331,12 +331,6 @@ def main() -> None:
         action="store_true",
         help="Don't label the issues the session created `factory`",
     )
-    parser.add_argument(
-        "--max-dispatch",
-        type=int,
-        default=3,
-        help="Most issues to label `factory` per run; each starts a bug-lane session",
-    )
     parser.add_argument("--dry-run", action="store_true", help="Count the errors and stop")
     args = parser.parse_args()
 
@@ -400,12 +394,10 @@ def main() -> None:
     touched_issues = list_source_issues(
         repo=args.repo, label=source.label, token=app_token.refresh(), since=session_start
     )
-    dispatched = 0
     for issue in sorted(touched_issues, key=lambda issue: issue["createdAt"]):
         is_new = parse_timestamp(issue["createdAt"]) >= session_start
-        dispatch = is_new and not args.no_dispatch and dispatched < args.max_dispatch
+        dispatch = is_new and not args.no_dispatch
         if dispatch:
-            dispatched += 1
             run_gh(
                 "issue",
                 "edit",
@@ -422,15 +414,6 @@ def main() -> None:
         summary.append(f"- {verb}{suffix}: [#{issue['number']}]({issue['url']}) {issue['title']}\n")
     if not touched_issues:
         summary.append("No issues filed or updated.\n")
-    undispatched = (
-        sum(1 for issue in touched_issues if parse_timestamp(issue["createdAt"]) >= session_start)
-        - dispatched
-    )
-    if undispatched and not args.no_dispatch:
-        summary.append(
-            f"\n{undispatched} new issue(s) left for a maintainer to label: the per-run cap is "
-            f"{args.max_dispatch}.\n"
-        )
     write_step_summary(summary)
     if stop_reason != "end_turn":
         raise SystemExit(f"The session stopped with {stop_reason}; see the Claude Console.")
