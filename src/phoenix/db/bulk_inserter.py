@@ -265,7 +265,6 @@ class BulkInserter:
                             except Exception:
                                 BULK_LOADER_EXCEPTIONS.inc()
                                 logger.exception("Failed to run queued operation")
-
                 except Exception:
                     BULK_LOADER_EXCEPTIONS.inc()
                     logger.exception("Failed to insert queued operations")

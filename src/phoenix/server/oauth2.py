@@ -574,7 +574,6 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "Access denied: Role claim value is not a valid Phoenix role "
                 "(expected ADMIN, MEMBER, or VIEWER). Strict mode is enabled."
             )
-
         return "VIEWER"  # Non-strict: default to least privilege
 
     @staticmethod

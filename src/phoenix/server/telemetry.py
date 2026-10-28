@@ -81,7 +81,6 @@ class GraphQLTracingExtension(OpenTelemetryExtension):
         span = self._tracer.start_span(
             _operation_span_name(self._operation_name), kind=SpanKind.SERVER
         )
-
         span.set_attribute("component", "graphql")
         self._span_holder[LifecycleStep.OPERATION] = span
         yield
@@ -104,7 +103,6 @@ def graphql_tracing_extension(tracer_provider: TracerProvider) -> Callable[[], S
 
 
 def initialize_opentelemetry_tracer_provider() -> TracerProvider:
-
     logger.info("Initializing OpenTelemetry tracer provider")
     tracer_provider = TracerProvider(resource=_server_resource())
     if http_endpoint := os.getenv(

@@ -1285,7 +1285,6 @@ async def _execute_sqlite_file(
         # mistyped a column. Logged at error so a malformed database or a bug of
         # ours leaves a trace rather than being answered as bad SQL.
         logger.error("analytics sql: unclassified database error (%s)", type(exc).__name__)
-
         # SQLite's own words, as PostgreSQL's are already passed through. The
         # commonest arrival here is an unqualified column two joined tables both
         # offer, which admission cannot refuse and whose message names only the

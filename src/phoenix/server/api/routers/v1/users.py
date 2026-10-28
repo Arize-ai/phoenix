@@ -342,7 +342,6 @@ async def create_user(
             await request.app.state.email_sender.send_welcome_email(user.email, user.username)
         except Exception as error:
             logger.error("Failed to send welcome email (%s)", type(error).__name__)
-
     return CreateUserResponseBody(data=data)
 
 

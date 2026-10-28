@@ -197,7 +197,6 @@ class DbDiskUsageMonitor(DaemonTask):
                 )
             except Exception:
                 logger.exception("Failed to send database usage warning email")
-
                 # Count email send errors
                 DB_DISK_USAGE_WARNING_EMAIL_ERRORS.inc()
             else:
