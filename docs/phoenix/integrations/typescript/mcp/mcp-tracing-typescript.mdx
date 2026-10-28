@@ -28,7 +28,8 @@ import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
 
 // Initialize Phoenix tracing
 export const tracerProvider = register({
-  projectName: "mcp-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME || "mcp-app",
+  batch: false,
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
@@ -54,6 +55,7 @@ async function main() {
   const transport = new StdioClientTransport({
     command: "node",
     args: ["./server.js"],
+    env: { ...process.env },
   });
 
   const client = new Client({
@@ -86,6 +88,10 @@ import { trace } from "@opentelemetry/api";
 import { tracerProvider } from "./instrumentation.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
 const server = new Server({
   name: "example-server",
@@ -97,7 +103,7 @@ const server = new Server({
 });
 
 // Define a tool
-server.setRequestHandler("tools/call", async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "get_weather") {
     const location = request.params.arguments?.location;
     return trace.getTracer("mcp-server").startActiveSpan("get_weather", (span) => {
@@ -116,7 +122,7 @@ server.setRequestHandler("tools/call", async (request) => {
 });
 
 // List available tools
-server.setRequestHandler("tools/list", async () => {
+server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [{
       name: "get_weather",

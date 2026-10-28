@@ -31,6 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
 SKIP_CONFIG_PATH = REPO_ROOT / ".agents/skills/test-integration/scripts/skip_config.json"
 DEFAULT_ENDPOINT = "http://127.0.0.1:6006"
+PYTHON_BASE_PACKAGES = ("arize-phoenix-otel",)
 FENCE = re.compile(r"^```(?P<language>[\w+-]+)[^\n]*\n(?P<body>[\s\S]*?)^```", re.MULTILINE)
 IMPORT = re.compile(
     r'^import\s+(?P<name>[A-Za-z_]\w*)\s+from\s+["\'](?P<path>[^"\']+)["\'];?',
@@ -64,6 +65,7 @@ class IntegrationSpec:
     setup_section: str
     required_env: tuple[str, ...]
     python_version: str
+    npm_install_flags: tuple[str, ...]
     setup: dict[str, str]
     output: dict[str, Any]
     verification: dict[str, Any]
@@ -132,6 +134,7 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                     setup_section=str(raw.get("setup_section", "Setup")),
                     required_env=tuple(raw.get("required_env", [])),
                     python_version=str(raw.get("python_version", "3.11")),
+                    npm_install_flags=tuple(str(flag) for flag in raw.get("npm_install_flags", [])),
                     setup={str(key): str(value) for key, value in setup.items()},
                     output=dict(raw.get("output", {})),
                     verification=dict(verification),
@@ -283,6 +286,8 @@ def combine_go_files(setup: str, run: str) -> str:
 def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dict[str, str]]:
     text = spec.document.read_text()
     packages = package_names(section_body(text, spec.install_section), spec.language)
+    if spec.language == "python":
+        packages = list(dict.fromkeys((*PYTHON_BASE_PACKAGES, *packages)))
     if spec.setup["source"] == "referenced_components":
         setup = component_setup(spec, text, project)
     else:
@@ -292,11 +297,19 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
     run = code_fence(section_body(text, spec.run_section), spec.language, f"## {spec.run_section}")
 
     if spec.language == "python":
-        sections = [setup, run]
+        program: dict[str, str] = {}
+        setup_filename = spec.setup.get("filename")
+        if setup_filename:
+            if Path(setup_filename).name != setup_filename:
+                raise HarnessError(f"Setup filename must be a basename: {setup_filename!r}")
+            program[setup_filename] = setup + "\n"
+            sections = [run]
+        else:
+            sections = [setup, run]
         flush_code = spec.setup.get("flush_code", "").strip()
         if flush_code:
             sections.append(flush_code)
-        program = {"example.py": "\n\n".join(sections)}
+        program["example.py"] = "\n\n".join(sections)
     elif spec.language == "javascript":
         program = {"instrumentation.js": setup, "example.js": run}
     else:
@@ -404,6 +417,14 @@ def run_example(
         env = os.environ.copy()
         env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint
         env["PHOENIX_PROJECT_NAME"] = project
+        if spec.id == "mastra-typescript":
+            # Mastra's ArizeExporter expects the complete OTLP HTTP URL.
+            env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint.rstrip("/") + "/v1/traces"
+        if spec.id == "crewai-python":
+            # CrewAI stores app data under the user's platform data directory.
+            # Isolate that storage inside this disposable example environment.
+            env["HOME"] = str(temp)
+            env["CREWAI_STORAGE_DIR"] = "crewai-test"
         if spec.language == "python":
             uv = REPO_ROOT / "scripts/uv.sh"
             if not uv.is_file():
@@ -435,7 +456,15 @@ def run_example(
                 "NPM_CONFIG_CACHE", os.environ.get("npm_config_cache", str(temp / ".npm-cache"))
             )
             subprocess.run(
-                ["npm", "install", "--no-audit", "--no-fund", "--no-save", *packages],
+                [
+                    "npm",
+                    "install",
+                    "--no-audit",
+                    "--no-fund",
+                    "--no-save",
+                    *spec.npm_install_flags,
+                    *packages,
+                ],
                 check=True,
                 cwd=temp,
                 env=env,

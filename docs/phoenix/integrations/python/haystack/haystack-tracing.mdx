@@ -35,7 +35,7 @@ From here, you can set up your Haystack app as normal:
 
 ```python expandable
 from haystack import Pipeline
-from haystack.components.generators import OpenAIGenerator
+from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.components.builders.prompt_builder import PromptBuilder
 
 prompt_template = """
@@ -48,7 +48,7 @@ Answer:
 pipeline = Pipeline()
 
 # Initialize the OpenAI generator component
-llm = OpenAIGenerator(model="gpt-5.6-terra")
+llm = OpenAIChatGenerator(model="gpt-5.6-terra")
 prompt_builder = PromptBuilder(template=prompt_template)
 
 # Add the generator component to the pipeline
@@ -59,7 +59,7 @@ pipeline.connect("prompt_builder", "llm")
 # Define the question
 question = "What is the location of the Hanging Gardens of Babylon?"
 result = pipeline.run({"prompt_builder": {"question": question}})
-print(result["llm"]["replies"][0])
+print(result["llm"]["replies"][0].text)
 ```
 
 ## Observe

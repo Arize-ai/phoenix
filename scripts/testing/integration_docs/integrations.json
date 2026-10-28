@@ -652,28 +652,6 @@
       "python_version": "3.11"
     },
     {
-      "id": "guardrails-python",
-      "document": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
-      "language": "python",
-      "install_section": "Install",
-      "setup_section": "Setup",
-      "run_section": "Run Guardrails",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {
-        "source": "referenced_components",
-        "language": "python",
-        "project_name_prop": "projectName"
-      },
-      "output": {"require_non_empty": true},
-      "verification": {
-        "kind": "phoenix_spans",
-        "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
-      },
-      "python_version": "3.11"
-    },
-    {
       "id": "microsoft-agent-framework-python",
       "document": "docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
       "language": "python",
@@ -681,7 +659,7 @@
       "setup_section": "Setup",
       "run_section": "Run Microsoft Agent Framework",
       "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python"},
+      "setup": {"source": "section_code", "language": "python", "filename": "instrumentation.py"},
       "output": {"require_non_empty": true},
       "verification": {
         "kind": "phoenix_spans",
@@ -751,9 +729,9 @@
       "output": {"require_non_empty": true},
       "verification": {
         "kind": "phoenix_spans",
-        "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "span_kind": "AGENT",
+        "required_attributes": ["input.value"],
+        "non_empty_attributes": ["input.value"]
       },
       "python_version": "3.11"
     },
@@ -827,6 +805,7 @@
       "setup_section": "Setup",
       "run_section": "Run BeeAI",
       "required_env": ["OPENAI_API_KEY"],
+      "npm_install_flags": ["--legacy-peer-deps"],
       "setup": {"source": "section_code", "language": "javascript"},
       "output": {"require_non_empty": true},
       "verification": {

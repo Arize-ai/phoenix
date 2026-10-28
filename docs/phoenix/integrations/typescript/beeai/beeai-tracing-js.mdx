@@ -17,15 +17,24 @@ This module provides **automatic instrumentation** for [BeeAI framework](https:/
 ## Install
 
 ```python
-npm install --save beeai-framework \
+npm install --legacy-peer-deps --save "beeai-framework@0.1.13" "@ai-sdk/openai@^1" \
   @arizeai/openinference-instrumentation-beeai \
   @arizeai/openinference-semantic-conventions \
-  @opentelemetry/sdk-trace-node \
-  @opentelemetry/resources \
   @opentelemetry/exporter-trace-otlp-proto \
-  @opentelemetry/semantic-conventions \
-  @opentelemetry/instrumentation
+  @opentelemetry/instrumentation \
+  @opentelemetry/resources \
+  @opentelemetry/sdk-trace-base \
+  @opentelemetry/sdk-trace-node \
+  @opentelemetry/semantic-conventions
 ```
+
+<Note>
+  The BeeAI instrumentor currently patches `beeai-framework` versions `>=0.1.9`
+  and `<0.1.14`. Newer versions install but are not instrumented, so this example
+  uses the latest compatible release, `0.1.13`. Remove the framework version
+  constraint when the instrumentor supports newer BeeAI releases. This BeeAI
+  version uses AI SDK 4, so keep the OpenAI provider on its compatible v1 major.
+</Note>
 
 ## Setup
 
@@ -34,11 +43,9 @@ To instrument your application, import and enable BeeAIInstrumentation. Create t
 ```javascript expandable
 import {
   NodeTracerProvider,
-  SimpleSpanProcessor,
-  ConsoleSpanExporter,
 } from "@opentelemetry/sdk-trace-node";
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { resourceFromAttributes } from "@opentelemetry/resources";
+import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
@@ -46,18 +53,19 @@ import * as beeaiFramework from "beeai-framework";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { BeeAIInstrumentation } from "@arizeai/openinference-instrumentation-beeai";
 
-const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
+const projectName = process.env.PHOENIX_PROJECT_NAME ?? "beeai-project";
+const collectorEndpoint =
+  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
 
 export const provider = new NodeTracerProvider({
   resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: "beeai-project",
-    [SEMRESATTRS_PROJECT_NAME]: "beeai-project",
+    [ATTR_SERVICE_NAME]: projectName,
+    [SEMRESATTRS_PROJECT_NAME]: projectName,
   }),
   spanProcessors: [
-    new SimpleSpanProcessor(new ConsoleSpanExporter()),
     new SimpleSpanProcessor(
       new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
+        url: `${collectorEndpoint}/v1/traces`,
         // (optional) if connecting to Phoenix with Authentication enabled
         headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
       }),
@@ -82,31 +90,24 @@ console.log("👀 OpenInference initialized");
 Sample agent built using BeeAI with automatic tracing:
 
 ```javascript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import { ToolCallingAgent } from "beeai-framework/agents/toolCalling/agent";
 import { TokenMemory } from "beeai-framework/memory/tokenMemory";
-import { DuckDuckGoSearchTool } from "beeai-framework/tools/search/duckDuckGoSearch";
-import { OpenMeteoTool } from "beeai-framework/tools/weather/openMeteo";
 import { OpenAIChatModel } from "beeai-framework/adapters/openai/backend/chat";
 
-const llm = new OpenAIChatModel(
-  "gpt-4o",
-  {},
-  { apiKey: process.env.OPENAI_API_KEY }
-);
+const llm = new OpenAIChatModel("gpt-5.5");
 
 const agent = new ToolCallingAgent({
   llm,
   memory: new TokenMemory(),
-  tools: [
-    new DuckDuckGoSearchTool(),
-    new OpenMeteoTool(), // weather tool
-  ],
+  tools: [],
 });
 
 async function main() {
-  const response = await agent.run({ prompt: "What's the current weather in Berlin?" });
-  console.log(`Agent 🤖 : `, response.result.text);
+  const response = await agent.run({
+    prompt: "Why is the ocean salty? Answer in two sentences.",
+  });
+  console.log(response.result.text);
 }
 
 await main();

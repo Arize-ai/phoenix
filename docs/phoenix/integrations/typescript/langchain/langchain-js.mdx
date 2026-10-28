@@ -23,7 +23,7 @@ import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation
 import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
 
 export const provider = register({
-  projectName: "langchain-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME || "langchain-app",
 });
 
 const lcInstrumentation = new LangChainInstrumentation();

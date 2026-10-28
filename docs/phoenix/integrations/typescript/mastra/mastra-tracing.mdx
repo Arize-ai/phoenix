@@ -45,7 +45,7 @@ export const mastra = new Mastra({
   // ... other config (agents, workflows, etc.)
   observability: new Observability({
     configs: {
-      arize: {
+    default: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
@@ -105,6 +105,7 @@ const weatherTool = {
 
 // Create an agent
 const weatherAgent = new Agent({
+  id: "weather-agent",
   name: "Weather Assistant",
   instructions: "You help users get weather information. Use the weather tool to get current conditions.",
   model: openai("gpt-4o-mini"),
@@ -116,7 +117,7 @@ const mastra = new Mastra({
   agents: { weatherAgent },
   observability: new Observability({
     configs: {
-      arize: {
+      default: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
@@ -130,8 +131,10 @@ const mastra = new Mastra({
   }),
 });
 
-const result = await weatherAgent.generate("What is the weather in Paris?");
+const agent = mastra.getAgentById("weather-agent");
+const result = await agent.generate("What is the weather in Paris?");
 console.log(result.text);
+await mastra.observability.flush();
 ```
 
 ## Running Your Application

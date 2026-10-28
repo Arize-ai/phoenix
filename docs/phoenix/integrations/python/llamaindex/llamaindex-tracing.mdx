@@ -38,12 +38,14 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 You can now use LlamaIndex as normal, and tracing will be automatically captured and sent to your Phoenix instance.
 
 ```python
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import Settings, VectorStoreIndex, Document
+from llama_index.llms.openai import OpenAI
 import os
 
 os.environ.setdefault("OPENAI_API_KEY", "YOUR OPENAI API KEY")
+Settings.llm = OpenAI(model="gpt-5.6-terra")
 
-documents = SimpleDirectoryReader("data").load_data()
+documents = [Document(text="Phoenix provides observability for LLM applications.")]
 index = VectorStoreIndex.from_documents(documents)
 query_engine = index.as_query_engine()
 response = query_engine.query("Some question about the data should go here")

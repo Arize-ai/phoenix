@@ -38,7 +38,7 @@ import { registerTelemetry } from "ai";
 // Handles all the OpenTelemetry setup and exports spans to Phoenix.
 // Reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the environment.
 export const provider = register({
-  projectName: "my-ai-sdk-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME || "my-ai-sdk-app",
 });
 
 // Point the AI SDK's telemetry at OpenTelemetry. headers: false keeps

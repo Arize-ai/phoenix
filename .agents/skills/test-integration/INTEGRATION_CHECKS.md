@@ -29,7 +29,7 @@ do not trigger a full integration run.
 | Enabled | AutoGen AgentChat Python | `docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing.mdx` | OpenAI-backed AgentChat team; checks output and an LLM span. |
 | Enabled | AutoGen Python | `docs/phoenix/integrations/python/autogen/autogen-tracing.mdx` | OpenAI-backed AutoGen Classic; checks output and an LLM span. |
 | Enabled | LlamaIndex Workflows Python | `docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing.mdx` | OpenAI call inside a LlamaIndex workflow; checks output and an LLM span. |
-| Enabled | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | OpenAI-backed Guardrails call; checks output and an LLM span. |
+| Deferred | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | Legacy Guardrails SDK and instrumentor are incompatible; AX skips this doc pending a rewrite for the replacement SDK. |
 | Enabled | Microsoft Agent Framework Python | `docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx` | OpenAI-backed agent; checks output and an LLM span. |
 | Enabled | smolagents Python | `docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx` | OpenAI-backed agent; checks output and an LLM span. |
 | Enabled | AG2 Python | `docs/phoenix/integrations/python/ag2/ag2-tracing.mdx` | AG2 Classic with OpenAI; checks output and an LLM span. |
@@ -70,7 +70,7 @@ it in `integrations.json`.
 | Enabled | AutoGen AgentChat Python | `docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing.mdx` | OpenAI-backed AgentChat team; checks output and an LLM span. |
 | Enabled | AutoGen Python | `docs/phoenix/integrations/python/autogen/autogen-tracing.mdx` | OpenAI-backed AutoGen Classic; checks output and an LLM span. |
 | Enabled | LlamaIndex Workflows Python | `docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing.mdx` | OpenAI call inside a LlamaIndex workflow; checks output and an LLM span. |
-| Enabled | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | OpenAI-backed Guardrails call; checks output and an LLM span. |
+| Deferred | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | Legacy Guardrails SDK and instrumentor are incompatible; AX skips this doc pending a rewrite for the replacement SDK. |
 | Enabled | Microsoft Agent Framework Python | `docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx` | OpenAI-backed agent; checks output and an LLM span. |
 | Enabled | smolagents Python | `docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx` | OpenAI-backed agent; checks output and an LLM span. |
 | Enabled | AG2 Python | `docs/phoenix/integrations/python/ag2/ag2-tracing.mdx` | AG2 Classic with OpenAI; checks output and an LLM span. |

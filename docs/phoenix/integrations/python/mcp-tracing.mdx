@@ -30,6 +30,7 @@ tracer_provider = register(auto_instrument=True)
 
 ```python expandable
 import asyncio
+import os
 
 from agents import Agent, Runner
 from agents.mcp import MCPServer, MCPServerStdio
@@ -57,6 +58,11 @@ async def main():
         params={
             "command": "fastmcp",
             "args": ["run", "./server.py"],
+            "env": {
+                "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+                "PHOENIX_COLLECTOR_ENDPOINT": os.environ["PHOENIX_COLLECTOR_ENDPOINT"],
+                "PHOENIX_PROJECT_NAME": os.environ["PHOENIX_PROJECT_NAME"],
+            },
         },
         client_session_timeout_seconds=30,
     ) as server:
@@ -75,7 +81,7 @@ from datetime import datetime, timedelta
 
 import openai
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from pydantic import BaseModel
 
 from phoenix.otel import register
