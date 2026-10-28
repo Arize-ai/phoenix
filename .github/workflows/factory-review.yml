@@ -1,15 +1,12 @@
 name: Factory Review
 
-# A maintainer labels a pull request `factory-review`, or dispatches it by hand with its
-# number, and review.py starts a Managed Agents session that checks out the PR's commit in
-# the factory sandbox, runs the project's checks, has the area reviewers read the diff, and
-# posts one review for a human to act on. It is for the community PRs the automated review
-# skips: Claude Code Review runs on `pull_request`, which has no secrets for a fork.
+# Reviews a pull request labeled `factory-review`, or dispatched by number, in the factory
+# sandbox. It covers fork PRs, which Claude Code Review skips because `pull_request` gets no
+# secrets for a fork.
 on:
-  # zizmor: ignore[dangerous-triggers] The job checks out the base branch, never the PR's
-  # commits, and runs only review.py from it. The PR's code runs inside the Managed Agents
-  # sandbox, which holds no repository secret: the vault injects the factory app's installation
-  # token into GitHub calls, and a ruleset keeps that app off every branch but factory/**.
+  # zizmor: ignore[dangerous-triggers] The job checks out only the base branch and runs
+  # review.py from it. The PR's code runs in the Managed Agents sandbox, which holds no repo
+  # secret, and a ruleset keeps the app's token off every branch but factory/**.
   pull_request_target:
     types: [labeled]
   workflow_dispatch:
@@ -23,11 +20,10 @@ permissions:
 
 jobs:
   review:
-    # review.py starts a session only for someone with write access, so a label a triage-only
-    # account applies is turned away. GitHub lets anyone with triage access label a PR.
+    # Triage access is enough to label a PR, so review.py also checks for write access.
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory-review'
-    # The job lasts as long as its session; a second trigger for the same PR queues behind it.
-    # On the job, not the workflow, so runs for other labels never enter the group.
+    # A second trigger for the same PR waits for this one. Set on the job, not the workflow,
+    # so runs for other labels skip the group.
     concurrency:
       group: factory-review-${{ github.event.pull_request.number || inputs.pr }}
       cancel-in-progress: false
@@ -64,10 +60,10 @@ jobs:
         id: start
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          # The factory's GitHub App; review.py mints installation tokens for the session and
-          # the GitHub vault the same way dispatch.py does. The private key never enters the session.
+          # Used to mint the session's GitHub token.
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           REQUESTED_BY: ${{ github.event.sender.login }}
         run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
 
@@ -75,7 +71,7 @@ jobs:
         if: steps.start.outputs.started == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          # Re-mints the session's token before it expires, and looks for the app's review.
+          # Re-mints the session's token before it expires.
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
@@ -83,9 +79,9 @@ jobs:
           HEAD_SHA: ${{ steps.start.outputs.head_sha }}
         run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --head-sha "$HEAD_SHA"
 
-      # The watch step reports its own failures on the PR. This report uses GITHUB_TOKEN, so
-      # it still lands when the failure is the app's credentials.
+      # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
+      # the app's credentials are what failed.
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'
         run: |
-          gh pr comment "$PR_NUMBER" --body "🏭 The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          gh pr comment "$PR_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
