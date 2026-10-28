@@ -935,7 +935,7 @@
       "language": "python",
       "install_section": "Install",
       "setup_section": "Setup",
-      "run_section": "Run Portkey",
+      "run_section": "Basic Usage with OpenAI",
       "required_env": ["OPENAI_API_KEY", "PORTKEY_API_KEY"],
       "setup": {
         "source": "referenced_components",
