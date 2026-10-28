@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
+OLLAMA_PULL_ATTEMPTS = 5
+OLLAMA_PULL_INITIAL_DELAY_SECONDS = 5
+OLLAMA_PULL_MAX_DELAY_SECONDS = 30
 
 
 def ollama_is_ready() -> bool:
@@ -38,6 +42,44 @@ def install_ollama() -> None:
     with urllib.request.urlopen("https://ollama.com/install.sh", timeout=30) as response:
         installer = response.read().decode("utf-8")
     subprocess.run(["sh"], input=installer, text=True, check=True, timeout=600)
+
+
+def pull_ollama_model(model: str, env: dict[str, str]) -> None:
+    for attempt in range(1, OLLAMA_PULL_ATTEMPTS + 1):
+        result = subprocess.run(
+            ["ollama", "pull", model],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+            timeout=1800,
+        )
+        if result.returncode == 0:
+            return
+
+        detail = "\n".join(
+            output.strip() for output in (result.stderr, result.stdout) if output.strip()
+        )
+        detail = detail[-3000:]
+        transient = bool(
+            re.search(r"\b5\d{2}\b", detail)
+            or re.search(r"connection (?:reset|refused|closed)", detail, re.IGNORECASE)
+            or re.search(r"temporarily unavailable|unexpected eof", detail, re.IGNORECASE)
+        )
+        if not transient or attempt == OLLAMA_PULL_ATTEMPTS:
+            raise RuntimeError(
+                f"Ollama model pull failed on attempt {attempt}/{OLLAMA_PULL_ATTEMPTS}: {detail}"
+            )
+
+        delay = min(
+            OLLAMA_PULL_INITIAL_DELAY_SECONDS * 2 ** (attempt - 1),
+            OLLAMA_PULL_MAX_DELAY_SECONDS,
+        )
+        print(
+            f"Ollama model pull attempt {attempt}/{OLLAMA_PULL_ATTEMPTS} failed: {detail}. "
+            f"Retrying in {delay} seconds."
+        )
+        time.sleep(delay)
 
 
 def ensure_ollama(model: str) -> None:
@@ -73,7 +115,7 @@ def ensure_ollama(model: str) -> None:
         }
         if model not in installed_models:
             print(f"Pulling Ollama model {model}")
-            subprocess.run(["ollama", "pull", model], check=True, env=env, timeout=1800)
+            pull_ollama_model(model, env)
         else:
             print(f"Ollama model {model} is already available")
         print(f"Ollama is ready with model {model}")
