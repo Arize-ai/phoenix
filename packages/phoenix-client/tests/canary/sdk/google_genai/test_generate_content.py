@@ -599,6 +599,10 @@ class TestPromptVersionConversion:
             template_format="MUSTACHE",
             model_provider="GOOGLE",
             model_name="gemini-2.0-flash",
+            invocation_parameters={
+                "type": "google",
+                "google": {"max_output_tokens": 100},
+            },
         )
         messages, kwargs = to_chat_messages_and_kwargs(pv, variables={"persona": "a pirate"})
         assert kwargs["config"].system_instruction == "You are a pirate."
