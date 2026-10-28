@@ -2,14 +2,16 @@
 
 import logging
 from typing import Annotated, Optional
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, StringConstraints, model_validator
 from starlette.status import HTTP_204_NO_CONTENT
 
 from phoenix.config import get_env_disable_rate_limit
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
+from phoenix.server.utils import get_root_path
 
 logger = logging.getLogger("phoenix.client_errors")
 
@@ -39,6 +41,16 @@ class ErrorReport(BaseModel):
         }
 
 
+def route_path(url: Optional[str], *, root_path: str) -> Optional[str]:
+    """The app route the browser was on, without origin, query, fragment or root path."""
+    if url is None:
+        return None
+    path = urlsplit(url).path
+    if root_path and (path == root_path or path.startswith(f"{root_path}/")):
+        path = path[len(root_path) :] or "/"
+    return path
+
+
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=1,
     enforcement_window_seconds=20,
@@ -58,7 +70,10 @@ def create_client_errors_router(authentication_enabled: bool) -> APIRouter:
     router = APIRouter(include_in_schema=False, dependencies=dependencies)
 
     @router.post("/client_errors", status_code=HTTP_204_NO_CONTENT)
-    async def report_client_error(report: ErrorReport) -> Response:
+    async def report_client_error(report: ErrorReport, request: Request) -> Response:
+        report = report.model_copy(
+            update={"url": route_path(report.url, root_path=get_root_path(request.scope))}
+        )
         logger.error(
             "Client error at %s: %s",
             report.url or "<unknown url>",
