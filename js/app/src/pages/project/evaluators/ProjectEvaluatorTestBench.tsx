@@ -631,6 +631,7 @@ function useEvaluatorPreviewRuns({
           results {
             evaluatorName
             annotation {
+              ...decisionAnnotation_annotation @relay(mask: false)
               name
               label
               score
