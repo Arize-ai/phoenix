@@ -57,7 +57,9 @@ function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
     <RowPreviewQuery<SpanMetricsDetailsQueryType>
       query={SpanMetricsDetailsQuery}
       variables={{ nodeId: span.id }}
-      placeholder={<SpanPreviewCard {...props} />}
+      placeholder={(metricsError) => (
+        <SpanPreviewCard {...props} metricsError={metricsError} />
+      )}
     >
       {(data) => (
         <LoadedSpanPreviewCard

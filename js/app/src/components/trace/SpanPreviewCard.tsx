@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Text } from "@phoenix/components";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
@@ -25,6 +26,8 @@ export type SpanPreviewCardProps = {
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   /** Omit while loading; a skeleton then surrounds the span's known totals. */
   metricsDetails?: TokenDetailsBreakdownProps | null;
+  /** Shown in place of the breakdown when it failed to load. */
+  metricsError?: ReactNode;
 };
 
 /** The content of a trace tree row's preview; `SpanPreviewTooltip` loads its details. */
@@ -32,6 +35,7 @@ export function SpanPreviewCard({
   span,
   annotationConfigsByName,
   metricsDetails,
+  metricsError,
 }: SpanPreviewCardProps) {
   return (
     <RowPreviewCard
@@ -58,6 +62,7 @@ export function SpanPreviewCard({
         latencyMs: span.latencyMs,
       }}
       metricsDetails={metricsDetails}
+      metricsError={metricsError}
       totals={{
         tokens: span.tokenCountTotal,
         cost: span.costSummary?.total?.cost,

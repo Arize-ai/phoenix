@@ -8,6 +8,7 @@ import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import { ErrorBoundary } from "@phoenix/components";
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackComponent } from "@phoenix/components/exception/types";
 import { useRetainQuery } from "@phoenix/contexts/QueryRetentionContext";
 import { useSettled } from "@phoenix/hooks";
 
@@ -34,8 +35,11 @@ export const rowPreviewTooltipCSS = css`
 type RowPreviewQueryProps<TQuery extends OperationType> = {
   query: GraphQLTaggedNode;
   variables: TQuery["variables"];
-  /** Shown until the query settles and loads, and if it fails to. */
-  placeholder: ReactNode;
+  /**
+   * The preview without its details: shown until the query settles and
+   * loads, and, given an error label to show in their place, if it fails to.
+   */
+  placeholder: (detailsError?: ReactNode) => ReactNode;
   children: (data: TQuery["response"]) => ReactNode;
 };
 
@@ -58,12 +62,14 @@ export function RowPreviewQuery<TQuery extends OperationType>({
         .status === "available"
   );
   const hasSettled = useSettled(ROW_PREVIEW_SETTLE_MS);
+  const ErrorFallback: ErrorBoundaryFallbackComponent = ({ error }) =>
+    placeholder(<TextErrorBoundaryFallback error={error} />);
   if (!wasCached && !hasSettled) {
-    return placeholder;
+    return placeholder();
   }
   return (
-    <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-      <Suspense fallback={placeholder}>
+    <ErrorBoundary fallback={ErrorFallback}>
+      <Suspense fallback={placeholder()}>
         <LoadedRowPreviewQuery query={query} variables={variables}>
           {children}
         </LoadedRowPreviewQuery>

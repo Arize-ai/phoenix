@@ -11,6 +11,7 @@ import type {
 } from "./TokenDetailsBreakdown";
 import {
   TokenDetailsBreakdown,
+  TokenDetailsBreakdownError,
   TokenDetailsBreakdownSkeleton,
 } from "./TokenDetailsBreakdown";
 
@@ -42,6 +43,8 @@ export type RowPreviewCardProps = {
   timing: SpanTimingDetailsProps;
   /** Omit while loading; a skeleton then surrounds `totals`. */
   metricsDetails?: TokenDetailsBreakdownProps | null;
+  /** Shown in place of the breakdown when it failed to load. */
+  metricsError?: ReactNode;
   /** The totals the row already shows, for the skeleton. */
   totals: {
     tokens: number | null | undefined;
@@ -67,6 +70,7 @@ export function RowPreviewCard({
   header,
   timing,
   metricsDetails,
+  metricsError,
   totals,
   skeletonRows,
   children,
@@ -77,7 +81,13 @@ export function RowPreviewCard({
       <header className="row-preview-card__header">{header}</header>
       <SpanTimingDetails {...timing} />
       {children}
-      {metricsDetails ? (
+      {metricsError != null ? (
+        <TokenDetailsBreakdownError
+          tokens={{ total: totals.tokens }}
+          costs={{ total: totals.cost }}
+          error={metricsError}
+        />
+      ) : metricsDetails ? (
         <TokenDetailsBreakdown {...metricsDetails} />
       ) : (
         <TokenDetailsBreakdownSkeleton

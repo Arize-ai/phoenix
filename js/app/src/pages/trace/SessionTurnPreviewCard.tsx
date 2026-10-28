@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Text } from "@phoenix/components";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
@@ -68,6 +69,8 @@ export type SessionTurnPreviewCardProps = {
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   /** Omit while loading; a skeleton then surrounds the turn's known totals. */
   metricsDetails?: TokenDetailsBreakdownProps | null;
+  /** Shown in place of the breakdown when it failed to load. */
+  metricsError?: ReactNode;
 };
 
 /**
@@ -80,6 +83,7 @@ export function SessionTurnPreviewCard({
   turn,
   annotationConfigsByName,
   metricsDetails,
+  metricsError,
 }: SessionTurnPreviewCardProps) {
   const hasEvals =
     !!turn.traceAnnotationSummaries?.length ||
@@ -113,6 +117,7 @@ export function SessionTurnPreviewCard({
         latencyMs: turn.latencyMs,
       }}
       metricsDetails={metricsDetails}
+      metricsError={metricsError}
       totals={{ tokens: turn.tokenCountTotal, cost: turn.costTotal }}
       // Most turns split into input and output only, so the preview holds still on load
       skeletonRows={2}

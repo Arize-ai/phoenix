@@ -327,7 +327,9 @@ function SessionTurnPreviewDetails(props: SessionTurnPreviewTooltipProps) {
     <RowPreviewQuery<SessionTurnPreviewTooltipUsageQueryType>
       query={SessionTurnPreviewTooltipUsageQuery}
       variables={{ traceNodeId: turn.traceNodeId }}
-      placeholder={<SessionTurnPreviewCard {...props} />}
+      placeholder={(metricsError) => (
+        <SessionTurnPreviewCard {...props} metricsError={metricsError} />
+      )}
     >
       {(data) => (
         <SessionTurnPreviewCard
