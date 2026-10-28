@@ -1,3 +1,5 @@
+import { css } from "@emotion/react";
+
 import {
   RichTooltip,
   Text,
@@ -6,6 +8,10 @@ import {
 } from "@phoenix/components";
 import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+
+const lagValueCSS = css`
+  white-space: nowrap;
+`;
 
 export type ProjectEvaluatorLag = {
   p50Seconds: number;
@@ -34,7 +40,11 @@ export function ProjectEvaluatorLagCell({
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
-        <Text fontFamily="mono" color={isLagging ? "warning" : undefined}>
+        <Text
+          fontFamily="mono"
+          color={isLagging ? "warning" : undefined}
+          css={lagValueCSS}
+        >
           {formatLag(lag.p95Seconds)}
         </Text>
       </TriggerWrap>
