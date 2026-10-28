@@ -2042,6 +2042,90 @@
       "verification": {
         "kind": "phoenix_spans"
       }
+    },
+    {
+      "id": "bedrock-agentcore-python-lint",
+      "document": "docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock AgentCore",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "doubleword-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Doubleword",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "prismml-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run PrismML",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "truefoundry-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run TrueFoundry",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "gravitee-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Gravitee",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     }
   ]
 }
