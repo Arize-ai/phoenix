@@ -234,14 +234,14 @@
       "env_vars": [
         "TYPESAFE_API_KEY"
       ],
-      "reason": "A TypeSafe API key is not provisioned for docs CI. Add the DOCS_TYPESAFE_API_KEY secret to run this live check."
+      "reason": "The TYPESAFE_API_KEY secret is not provisioned for docs CI. Add it to run this live check."
     },
     {
       "doc": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx",
       "env_vars": [
         "TYPESAFE_API_KEY"
       ],
-      "reason": "A TypeSafe API key is not provisioned for docs CI. Add the DOCS_TYPESAFE_API_KEY secret to run this live check."
+      "reason": "The TYPESAFE_API_KEY secret is not provisioned for docs CI. Add it to run this live check."
     }
   ]
 }
