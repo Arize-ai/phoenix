@@ -54,6 +54,41 @@
   ],
   "skip_if_missing_env": [
     {
+      "doc": "docs/phoenix/integrations/llm-providers/baseten/baseten-tracing.mdx",
+      "env_vars": ["BASETEN_API_KEY", "BASETEN_MODEL"],
+      "reason": "Baseten credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing.mdx",
+      "env_vars": ["CEREBRAS_API_KEY", "CEREBRAS_MODEL"],
+      "reason": "Cerebras credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing.mdx",
+      "env_vars": ["DEEPSEEK_API_KEY"],
+      "reason": "A DeepSeek API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing.mdx",
+      "env_vars": ["FIREWORKS_API_KEY", "FIREWORKS_MODEL"],
+      "reason": "Fireworks credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing.mdx",
+      "env_vars": ["NOVITA_API_KEY", "NOVITA_MODEL"],
+      "reason": "Novita credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/xai/xai-tracing.mdx",
+      "env_vars": ["XAI_API_KEY"],
+      "reason": "An xAI API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing.mdx",
+      "env_vars": ["ZAI_API_KEY"],
+      "reason": "A Z.ai API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
       "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing.mdx",
       "env_vars": ["GOOGLE_CLOUD_PROJECT"],
       "reason": "Vertex AI tracing needs a configured Google Cloud project and Application Default Credentials."

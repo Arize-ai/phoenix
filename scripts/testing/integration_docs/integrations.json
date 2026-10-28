@@ -33,6 +33,160 @@
       }
     },
     {
+      "id": "baseten-python",
+      "document": "docs/phoenix/integrations/llm-providers/baseten/baseten-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Baseten",
+      "required_env": ["BASETEN_API_KEY", "BASETEN_MODEL"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "cerebras-python",
+      "document": "docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Cerebras",
+      "required_env": ["CEREBRAS_API_KEY", "CEREBRAS_MODEL"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "deepseek-python",
+      "document": "docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run DeepSeek",
+      "required_env": ["DEEPSEEK_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "fireworks-ai-python",
+      "document": "docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Fireworks AI",
+      "required_env": ["FIREWORKS_API_KEY", "FIREWORKS_MODEL"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "novita-ai-python",
+      "document": "docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Novita AI",
+      "required_env": ["NOVITA_API_KEY", "NOVITA_MODEL"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "xai-python",
+      "document": "docs/phoenix/integrations/llm-providers/xai/xai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run xAI Grok",
+      "required_env": ["XAI_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "zai-python",
+      "document": "docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Z.ai",
+      "required_env": ["ZAI_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
       "id": "openai-javascript",
       "document": "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx",
       "language": "javascript",

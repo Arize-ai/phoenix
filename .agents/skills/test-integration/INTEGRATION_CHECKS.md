@@ -10,6 +10,13 @@ do not trigger a full integration run.
 | Enabled | OpenAI Python | `docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx` | Checks documented output and an LLM span with a model name. |
 | Enabled | OpenAI JavaScript | `docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx` | Checks documented output and an LLM span with a model name. |
 | Enabled | OpenAI Go | `docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx` | Checks documented output and an LLM span with a model name. |
+| Enabled | Baseten Python | `docs/phoenix/integrations/llm-providers/baseten/baseten-tracing.mdx` | Checks documented output and an LLM span; requires a Baseten API key and model ID. |
+| Enabled | Cerebras Python | `docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing.mdx` | Checks documented output and an LLM span; requires a Cerebras API key and model ID. |
+| Enabled | DeepSeek Python | `docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing.mdx` | Checks documented output and an LLM span. |
+| Enabled | Fireworks AI Python | `docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing.mdx` | Checks documented output and an LLM span; requires a Fireworks API key and model ID. |
+| Enabled | Novita AI Python | `docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing.mdx` | Checks documented output and an LLM span; requires a Novita API key and model ID. |
+| Enabled | xAI Python | `docs/phoenix/integrations/llm-providers/xai/xai-tracing.mdx` | Checks documented output and an LLM span. |
+| Enabled | Z.ai Python | `docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing.mdx` | Checks documented output and an LLM span. |
 | Enabled | Ollama Python | `docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx` | Native Ollama client; CI pulls `llama3.2:1b` locally. |
 | Enabled | Ollama Node.js | `docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
 | Enabled | Ollama Go | `docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
