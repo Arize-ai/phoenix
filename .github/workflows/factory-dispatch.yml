@@ -101,4 +101,4 @@ jobs:
       - name: Report a failed dispatch
         if: failure() && steps.start.outcome != 'success'
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "🏭 The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          gh issue comment "$ISSUE_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
