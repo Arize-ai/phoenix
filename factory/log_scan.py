@@ -1,27 +1,3 @@
-"""Triage a day of Phoenix server errors into GitHub issues.
-
-The script is a gate and a starter. It counts the error lines the source has for the window;
-with none, it exits without spending anything. Otherwise it starts a session with the source's
-triage agent, which reads the errors and the code, checks the open issues carrying the source's
-label, and files or updates issues itself. Unless `--no-dispatch` is given, the issues the
-session created then get the `factory` label, so factory-dispatch.yml runs the bug lane on
-each.
-
-Two sources, chosen with `--source`:
-
-- `railway`: the Phoenix team's internal Railway deployment, whose logs are in Grafana Loki.
-  Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token with
-  the Viewer role), FACTORY_GRAFANA_LOGQL (the selector for server errors) and optionally
-  FACTORY_GRAFANA_LOKI_UID. Issues are labeled `railway-dev`.
-- `cloud`: Phoenix Cloud, the multi-tenant production deployment Arize runs, whose logs and
-  traces are in Datadog. Environment: FACTORY_DATADOG_TOKEN (a Service Access Token with
-  `logs_read_data`), FACTORY_DATADOG_QUERY (the log search that selects server errors) and
-  optionally FACTORY_DATADOG_SITE. Issues are labeled `phoenix-cloud`.
-
-Every source also needs ANTHROPIC_API_KEY, FACTORY_APP_CLIENT_ID and FACTORY_APP_PRIVATE_KEY
-for the session.
-"""
-
 import argparse
 import json
 import os
@@ -297,7 +273,7 @@ def write_step_summary(lines: list[str]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
     parser.add_argument(
         "--source",
