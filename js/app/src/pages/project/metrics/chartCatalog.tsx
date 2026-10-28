@@ -9,15 +9,24 @@ import {
 import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import type {
   BuiltInProjectMetricChartKey,
-  MetricChartTableView,
+  AnnotationMetricLevel,
   ProjectMetricChartKey,
 } from "@phoenix/pages/project/constants";
 import {
+  EVALUATOR_METRIC_CHART_KEYS,
   getProjectAnnotationMetricChartInfo,
   PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   PROJECT_METRIC_CHART_KEYS,
 } from "@phoenix/pages/project/constants";
 
+import {
+  CostByEvaluator,
+  CostOverTimeByEvaluatorTimeSeries,
+  EvaluationLagByEvaluatorTimeSeries,
+  EvaluationQueueSizeTimeSeries,
+  EvaluationsByEvaluatorTimeSeries,
+  FailuresByEvaluatorTimeSeries,
+} from "./EvaluatorActivityCharts";
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
 import { ProjectAnnotationMetricPanel } from "./ProjectAnnotationMetrics";
@@ -41,7 +50,7 @@ import type { ProjectMetricViewProps } from "./types";
 
 export type ProjectMetricChart = {
   key: ProjectMetricChartKey;
-  annotationLevel?: MetricChartTableView;
+  annotationLevel?: AnnotationMetricLevel;
   annotationName?: string;
   /**
    * Shown as the chart panel title and as the chart's name in chart pickers
@@ -61,7 +70,7 @@ export type ProjectMetricChart = {
 };
 
 type ProjectMetricPanelProps = ProjectMetricViewProps & {
-  annotationLevel?: MetricChartTableView;
+  annotationLevel?: AnnotationMetricLevel;
   annotationName?: string;
   fillHeight?: boolean;
   /** Panel title; the catalog entry's name when omitted. */
@@ -78,9 +87,10 @@ type ProjectMetricChartDefinition = Omit<
 };
 
 /**
- * The catalog of all project metric charts, keyed by chart key. Every chart
- * here can be rendered on the metrics tab as well as added to the strip of
- * charts above the spans table.
+ * The catalog of all project metric charts, keyed by chart key. The project
+ * charts can be rendered on the metrics tab as well as added to the strip of
+ * charts above the spans, traces and sessions tables; the evaluator charts to
+ * the strip above the evaluators table.
  */
 const CHART_DEFINITIONS: Record<
   BuiltInProjectMetricChartKey,
@@ -182,6 +192,42 @@ const CHART_DEFINITIONS: Record<
     chartType: "line",
     Component: SessionAnnotationScoreTimeSeries,
   },
+  evaluations_by_evaluator: {
+    name: "Evaluations by evaluator",
+    description: "Completed evaluations",
+    chartType: "bar",
+    Component: EvaluationsByEvaluatorTimeSeries,
+  },
+  evaluation_lag_by_evaluator: {
+    name: "Evaluation lag by evaluator",
+    description: "95th percentile time from queued to result",
+    chartType: "line",
+    Component: EvaluationLagByEvaluatorTimeSeries,
+  },
+  cost_by_evaluator: {
+    name: "Cost by evaluator",
+    description: "Estimated cost in USD and share of the total",
+    chartType: "barHorizontal",
+    Component: CostByEvaluator,
+  },
+  failures_by_evaluator: {
+    name: "Failures by evaluator",
+    description: "Failed evaluations",
+    chartType: "line",
+    Component: FailuresByEvaluatorTimeSeries,
+  },
+  cost_over_time_by_evaluator: {
+    name: "Cost over time by evaluator",
+    description: "Estimated cost in USD",
+    chartType: "bar",
+    Component: CostOverTimeByEvaluatorTimeSeries,
+  },
+  evaluation_queue_size: {
+    name: "Queue size",
+    description: "Queued evaluations at the end of each interval",
+    chartType: "line",
+    Component: EvaluationQueueSizeTimeSeries,
+  },
 };
 
 function createProjectMetricPanel({
@@ -213,7 +259,7 @@ function createProjectMetricPanel({
  * one stable panel component.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
-  PROJECT_METRIC_CHART_KEYS.map((key) => {
+  [...PROJECT_METRIC_CHART_KEYS, ...EVALUATOR_METRIC_CHART_KEYS].map((key) => {
     const definition = CHART_DEFINITIONS[key];
     return [
       key,
@@ -342,3 +388,9 @@ export const getProjectMetricCharts = (
  */
 export const PROJECT_METRIC_CHARTS: ProjectMetricChart[] =
   getProjectMetricCharts(PROJECT_METRIC_CHART_KEYS);
+
+/**
+ * The evaluator metric charts in display order.
+ */
+export const EVALUATOR_METRIC_CHARTS: ProjectMetricChart[] =
+  getProjectMetricCharts(EVALUATOR_METRIC_CHART_KEYS);

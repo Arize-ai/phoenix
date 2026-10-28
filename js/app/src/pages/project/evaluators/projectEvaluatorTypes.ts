@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type { ProjectEvaluatorRunStatus } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import {
@@ -134,7 +134,7 @@ export function getDefaultProjectEvaluatorFilterCondition(
  */
 export function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
-): MetricChartTableView {
+): AnnotationMetricLevel {
   switch (evaluationTarget) {
     case "SPAN":
       return "spans";
