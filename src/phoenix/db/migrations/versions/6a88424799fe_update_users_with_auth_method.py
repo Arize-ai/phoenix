@@ -88,6 +88,39 @@ def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
         )
 
 
+def _sqlite_check_name(table_name: str, constraint_name: str) -> str:
+    """SQLite identifier produced by the ck_%(table_name)s_`%(constraint_name)s` convention."""
+    return f'"ck_{table_name}_`{constraint_name}`"'
+
+
+def _drop_check_constraint(table_name: str, constraint_name: str) -> None:
+    """Drop a CHECK constraint without a SQLite table rewrite.
+
+    Alembic's SQLite dialect rejects ``op.drop_constraint`` outside batch mode.
+    SQLite 3.53+ can drop the constraint in place; the stored name is the
+    naming-convention form, not the logical Alembic name.
+    """
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            "ALTER TABLE "
+            f"{table_name} DROP CONSTRAINT {_sqlite_check_name(table_name, constraint_name)}"
+        )
+        return
+    op.drop_constraint(constraint_name, table_name, type_="check")
+
+
+def _create_check_constraint(table_name: str, constraint_name: str, condition: str) -> None:
+    """Add a CHECK constraint without a SQLite table rewrite."""
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            "ALTER TABLE "
+            f"{table_name} ADD CONSTRAINT {_sqlite_check_name(table_name, constraint_name)} "
+            f"CHECK ({condition})"
+        )
+        return
+    op.create_check_constraint(constraint_name, table_name, condition)
+
+
 def upgrade() -> None:
     """Upgrade the database schema to include the auth_method column.
 
@@ -124,43 +157,47 @@ def upgrade() -> None:
         # For SQLite, first add the column as nullable
         batch_op.add_column(sa.Column("auth_method", sa.String, nullable=True))
 
+    op.execute("""
+        UPDATE users
+        SET auth_method = CASE
+        WHEN password_hash IS NOT NULL THEN 'LOCAL' ELSE 'OAUTH2' END
+    """)
+    # Drop the legacy checks before the rebuild so SQLite does not copy them onto
+    # the new table. 3.53+ drops them in place; Alembic still requires batch mode
+    # for the NOT NULL change below.
+    _drop_check_constraint("users", "password_hash_and_salt")
+    _drop_check_constraint("users", "exactly_one_auth_method")
+    _drop_check_constraint("users", "oauth2_client_id_and_user_id")
+
     with (
         _preserve_sqlite_sequence("users"),
         op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
     ):
-        batch_op.execute("""
-            UPDATE users
-            SET auth_method = CASE
-            WHEN password_hash IS NOT NULL THEN 'LOCAL' ELSE 'OAUTH2' END
-        """)
         # Make the column non-nullable
         batch_op.alter_column("auth_method", nullable=False, existing_nullable=True)
-
-        # Drop both old constraints as they're now redundant
-        batch_op.drop_constraint("password_hash_and_salt", type_="check")
-        batch_op.drop_constraint("exactly_one_auth_method", type_="check")
-        batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
 
         # Drop redundant single column indices, because a composite index already
         # exists in the uniqueness constraint for (client_id, user_id)
         batch_op.drop_index("ix_users_oauth2_client_id")
         batch_op.drop_index("ix_users_oauth2_user_id")
 
-        # Add CHECK constraint to ensure only valid values are allowed
-        batch_op.create_check_constraint(
-            "valid_auth_method",
-            "auth_method IN ('LOCAL', 'OAUTH2')",
-        )
-        batch_op.create_check_constraint(
-            "local_auth_has_password_no_oauth",
-            "auth_method != 'LOCAL' "
-            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
-            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
-        )
-        batch_op.create_check_constraint(
-            "non_local_auth_has_no_password",
-            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
-        )
+    _create_check_constraint(
+        "users",
+        "valid_auth_method",
+        "auth_method IN ('LOCAL', 'OAUTH2')",
+    )
+    _create_check_constraint(
+        "users",
+        "local_auth_has_password_no_oauth",
+        "auth_method != 'LOCAL' "
+        "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+        "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+    )
+    _create_check_constraint(
+        "users",
+        "non_local_auth_has_no_password",
+        "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+    )
 
 
 def downgrade() -> None:
@@ -185,34 +222,34 @@ def downgrade() -> None:
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """  # noqa: E501
-    # Use batch_alter_table for SQLite compatibility
-    # This ensures the downgrade works on both SQLite and PostgreSQL
+    # Drop checks that reference auth_method before the column is removed.
+    _drop_check_constraint("users", "non_local_auth_has_no_password")
+    _drop_check_constraint("users", "local_auth_has_password_no_oauth")
+    _drop_check_constraint("users", "valid_auth_method")
+
     with (
         _preserve_sqlite_sequence("users"),
         op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
     ):
-        # Drop the CHECK constraint and column
-        batch_op.drop_constraint("non_local_auth_has_no_password", type_="check")
-        batch_op.drop_constraint("local_auth_has_password_no_oauth", type_="check")
-        batch_op.drop_constraint("valid_auth_method", type_="check")
-
         # Recreate single column indices
         batch_op.create_index("ix_users_oauth2_user_id", ["oauth2_user_id"])
         batch_op.create_index("ix_users_oauth2_client_id", ["oauth2_client_id"])
 
-        # Recreate both old constraints that were dropped in upgrade
-        batch_op.create_check_constraint(
-            "oauth2_client_id_and_user_id",
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-        )
-        batch_op.create_check_constraint(
-            "exactly_one_auth_method",
-            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
-        )
-        batch_op.create_check_constraint(
-            "password_hash_and_salt",
-            "(password_hash IS NULL) = (password_salt IS NULL)",
-        )
-
         # Remove added column
         batch_op.drop_column("auth_method")
+
+    _create_check_constraint(
+        "users",
+        "oauth2_client_id_and_user_id",
+        "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
+    )
+    _create_check_constraint(
+        "users",
+        "exactly_one_auth_method",
+        "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
+    )
+    _create_check_constraint(
+        "users",
+        "password_hash_and_salt",
+        "(password_hash IS NULL) = (password_salt IS NULL)",
+    )
