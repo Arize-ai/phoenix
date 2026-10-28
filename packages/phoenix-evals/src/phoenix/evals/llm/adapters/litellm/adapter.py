@@ -335,7 +335,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
@@ -389,7 +393,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
