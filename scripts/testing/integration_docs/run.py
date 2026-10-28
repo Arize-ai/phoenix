@@ -166,12 +166,12 @@ def skip_route(spec: IntegrationSpec) -> tuple[str, dict[str, Any]] | None:
 
 
 def section_body(document_text: str, heading: str) -> str:
-    """Return the body under a level-two Markdown heading."""
-    pattern = re.compile(rf"^##\s+{re.escape(heading)}\s*$", re.MULTILINE)
+    """Return the body under a Markdown heading, stopping at the next heading."""
+    pattern = re.compile(rf"^#{{2,6}}\s+{re.escape(heading)}\s*$", re.MULTILINE)
     match = pattern.search(document_text)
     if not match:
         raise HarnessError(f"Missing '## {heading}' section")
-    next_heading = re.search(r"^##\s+", document_text[match.end() :], re.MULTILINE)
+    next_heading = re.search(r"^#{2,6}\s+", document_text[match.end() :], re.MULTILINE)
     end = match.end() + next_heading.start() if next_heading else len(document_text)
     return document_text[match.end() : end]
 
@@ -294,6 +294,15 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         setup = code_fence(
             section_body(text, spec.setup_section), spec.language, f"## {spec.setup_section}"
         )
+    if spec.setup_section == spec.run_section:
+        flush_code = spec.setup.get("flush_code", "").strip()
+        if spec.language == "python":
+            program = {"example.py": "\n\n".join(filter(None, (setup, flush_code)))}
+        elif spec.language == "javascript":
+            program = {"example.js": setup}
+        else:
+            program = {"main.go": combine_go_files(setup, "")}
+        return packages, program
     run = code_fence(section_body(text, spec.run_section), spec.language, f"## {spec.run_section}")
 
     if spec.language == "python":

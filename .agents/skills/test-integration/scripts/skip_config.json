@@ -50,6 +50,34 @@
     {
       "doc": "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing.mdx",
       "reason": "Live execution requires a Scalekit development environment; validate the documented code without calling the service."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/restate/restate-tracing.mdx",
+      "reason": "Requires a running Restate service; validate the documented example without making a service request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
+      "reason": "Requires a running Temporal development server; validate the documented example without starting an external service."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx",
+      "reason": "Requires a locally hosted PrismML server and model; validate the documented example without provisioning the model."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
+      "reason": "Requires a locally hosted vLLM server and model; validate the documented example without provisioning the model."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/pipecat/pipecat-tracing.mdx",
+      "reason": "The example defines a voice pipeline but requires a connected transport and client audio session; CI validates the code without starting an interactive session."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx",
+      "reason": "Requires AWS Bedrock model access and an AgentCore deployment; CI validates the documented example without provisioning cloud resources."
+    },
+    {
+      "doc": "docs/phoenix/integrations/typescript/vercel/eve-tracing.mdx",
+      "reason": "Eve requires a Vercel runtime and provider gateway credentials; CI validates the tracing setup syntax without deploying it."
     }
   ],
   "skip_if_missing_env": [
@@ -97,6 +125,87 @@
       "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals.mdx",
       "env_vars": ["GOOGLE_CLOUD_PROJECT"],
       "reason": "Vertex AI evaluations need a configured Google Cloud project and Application Default Credentials."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing.mdx",
+      "env_vars": [
+        "DOUBLEWORD_API_KEY"
+      ],
+      "reason": "A Doubleword API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/hugging-face-inference-providers/hugging-face-inference-providers-tracing.mdx",
+      "env_vars": [
+        "HF_TOKEN"
+      ],
+      "reason": "A Hugging Face token with Inference Providers access is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing.mdx",
+      "env_vars": [
+        "GRAVITEE_BASE_URL",
+        "GRAVITEE_API_KEY"
+      ],
+      "reason": "A deployed Gravitee LLM Proxy and subscription key are not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/qwen/qwen-tracing.mdx",
+      "env_vars": [
+        "DASHSCOPE_API_KEY",
+        "QWEN_BASE_URL"
+      ],
+      "reason": "A Model Studio API key and endpoint are not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing.mdx",
+      "env_vars": [
+        "TRUEFOUNDRY_API_KEY"
+      ],
+      "reason": "A TrueFoundry gateway token is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/agentspec/agentspec-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/openllmetry/openllmetry-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_AI_GATEWAY_NAME"
+      ],
+      "reason": "A Cloudflare AI Gateway account and endpoint are not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
     }
   ]
 }

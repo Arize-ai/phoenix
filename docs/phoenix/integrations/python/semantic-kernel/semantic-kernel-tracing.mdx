@@ -21,6 +21,7 @@ Set your API keys as environment variables:
 
 ```bash
 export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_PROJECT_NAME=semantic-kernel
 export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 export PHOENIX_API_KEY=[your_phoenix_api_key]
 ```
@@ -28,11 +29,13 @@ export PHOENIX_API_KEY=[your_phoenix_api_key]
 Register Phoenix, add the OpenInference span processor ahead of the Phoenix exporter, then initialize OpenLIT:
 
 ```python instrumentation.py
+import os
+
 import openlit
 from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
 from phoenix.otel import BatchSpanProcessor, HTTPSpanExporter, register
 
-tracer_provider = register(project_name="semantic-kernel")
+tracer_provider = register(project_name=os.environ["PHOENIX_PROJECT_NAME"])
 
 # Convert OpenLIT's spans to OpenInference. This replaces register()'s default
 # exporter, so add the Phoenix exporter back after it.

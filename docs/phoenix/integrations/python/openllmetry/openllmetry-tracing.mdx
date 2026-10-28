@@ -19,6 +19,7 @@ Set your API keys as environment variables:
 
 ```bash
 export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_PROJECT_NAME=openllmetry
 export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 export PHOENIX_API_KEY=[your_phoenix_api_key]
 ```
@@ -26,11 +27,14 @@ export PHOENIX_API_KEY=[your_phoenix_api_key]
 Pass the OpenInference span processor and a Phoenix exporter to `Traceloop.init()`. The conversion processor must come before the exporting processor:
 
 ```python instrumentation.py
+import os
+
 from openinference.instrumentation.openllmetry import OpenInferenceSpanProcessor
+from opentelemetry import trace
 from phoenix.otel import PROJECT_NAME, HTTPSpanExporter, SimpleSpanProcessor
 from traceloop.sdk import Traceloop
 
-project_name = "openllmetry"
+project_name = os.environ["PHOENIX_PROJECT_NAME"]
 
 # HTTPSpanExporter reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
 Traceloop.init(
@@ -39,6 +43,7 @@ Traceloop.init(
     processor=[OpenInferenceSpanProcessor(), SimpleSpanProcessor(HTTPSpanExporter())],
     resource_attributes={PROJECT_NAME: project_name},
 )
+tracer_provider = trace.get_tracer_provider()
 ```
 
 OpenLLMetry instruments every provider it supports the same way. To trace a different provider, swap the OpenAI client below for [another supported provider](https://www.traceloop.com/docs/openllmetry/tracing/supported) and keep the setup unchanged.
@@ -52,7 +57,7 @@ OpenLLMetry instruments every provider it supports the same way. To trace a diff
 ```python example.py
 # Import instrumentation first so Traceloop.init() activates OpenLLMetry's
 # instrumentation before the OpenAI client is used.
-from instrumentation import project_name  # noqa: F401
+from instrumentation import tracer_provider
 
 from openai import OpenAI
 
