@@ -15,6 +15,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "status", label: "status" },
   { id: "queue", label: "queued" },
   { id: "load", label: "load" },
+  { id: "lag", label: "lag p95" },
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
   { id: "meanScore", label: "mean score" },

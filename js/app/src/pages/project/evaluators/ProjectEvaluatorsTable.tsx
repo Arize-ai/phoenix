@@ -59,12 +59,14 @@ import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
+import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_lag.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
   EvaluatorScoreWindowProvider,
@@ -106,6 +108,7 @@ const readRow = (
   row: ProjectEvaluatorsTable_row$key &
     ProjectEvaluatorsTable_costs$key &
     ProjectEvaluatorsTable_failures$key &
+    ProjectEvaluatorsTable_lag$key &
     ProjectEvaluatorsTable_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
@@ -244,6 +247,20 @@ const readRow = (
     `,
     row
   );
+  const lagData = readInlineData<ProjectEvaluatorsTable_lag$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_lag on ProjectEvaluator
+      @inline
+      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
+        lag(timeRange: $timeRange) {
+          p50Seconds
+          p95Seconds
+          p99Seconds
+        }
+      }
+    `,
+    row
+  );
   const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
     graphql`
       fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
@@ -281,7 +298,13 @@ const readRow = (
     `,
     row
   );
-  return { ...rowData, ...costData, ...failuresData, ...scoresData };
+  return {
+    ...rowData,
+    ...costData,
+    ...failuresData,
+    ...lagData,
+    ...scoresData,
+  };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -302,7 +325,7 @@ export function ProjectEvaluatorsTable({
   projectId: string;
   /** Free-text name search from the toolbar; empty means unfiltered. */
   filter: string;
-  /** Selected project time range used by the cost and failure aggregates. */
+  /** Selected project time range used by the cost, failure and lag aggregates. */
   timeRange: TimeRangeISOStrings;
   /** Normalized filter used to fetch the rows supplied by the owner query. */
   initialFilter: string;
@@ -343,6 +366,7 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_scores
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
@@ -536,6 +560,13 @@ export function ProjectEvaluatorsTable({
             evaluationLoad={row.original.evaluationLoad}
           />
         ),
+      },
+      {
+        id: "lag",
+        header: "lag p95",
+        size: 80,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => <ProjectEvaluatorLagCell lag={row.original.lag} />,
       },
       {
         id: "failures",
