@@ -937,6 +937,14 @@
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk</loc>
+    <lastmod>2026-10-28T15:18:09+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk</loc>
+    <lastmod>2026-10-28T15:18:09+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
