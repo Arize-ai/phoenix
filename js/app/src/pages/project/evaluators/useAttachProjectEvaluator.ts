@@ -9,6 +9,7 @@ import type { GraphQLTaggedNode, MutationParameters } from "relay-runtime";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**
  * Attaches an existing evaluator to a project: once the mutation lands, the
@@ -64,7 +65,11 @@ export function useAttachProjectEvaluator<
             )
           );
       },
-      onError: (mutationError) => setError(mutationError.message),
+      onError: (mutationError) =>
+        setError(
+          getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
+            mutationError.message
+        ),
     });
   };
   return { attach, isAttaching, error };
