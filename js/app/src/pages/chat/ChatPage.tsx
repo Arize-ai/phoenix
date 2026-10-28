@@ -1,5 +1,4 @@
 import { css, keyframes } from "@emotion/react";
-import type { ChatStatus } from "ai";
 import { Suspense, useRef, useState } from "react";
 import {
   Group,
@@ -10,8 +9,6 @@ import {
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import {
-  Alert,
-  Button,
   Icon,
   IconButton,
   Icons,
@@ -19,15 +16,6 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import {
-  Message,
-  MessageAction,
-  MessageActions,
-  MessageContent,
-  MessageCopyAction,
-  MessageResponse,
-  MessageToolbar,
-} from "@phoenix/components/ai/message";
 import {
   PromptInput,
   PromptInputActions,
@@ -37,7 +25,6 @@ import {
   PromptInputTextarea,
   PromptInputTools,
 } from "@phoenix/components/ai/prompt-input";
-import { Shimmer } from "@phoenix/components/ai/shimmer";
 import { ChatTokenUsage } from "@phoenix/components/ai/token-usage";
 import {
   BROWSER_AI_MENU_ITEM_ID,
@@ -50,6 +37,11 @@ import { isProviderProvisioned } from "@phoenix/components/generative/modelProvi
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 
+import {
+  ChatEmptyState,
+  ChatMessages,
+  ChatStatusMessage,
+} from "./ChatConversation";
 import type { ChatModelSelection } from "./chatModel";
 import { getStoredChatModel, storeChatModel } from "./chatModelStorage";
 import type { ChatParameters } from "./chatParameters";
@@ -58,25 +50,12 @@ import {
   getStoredChatParameters,
   storeChatParameters,
 } from "./chatParametersStorage";
-import type { DirectChatMessage } from "./useDirectChat";
 import { useDirectChat } from "./useDirectChat";
 
 const chatFadeUp = keyframes`
   from {
     opacity: 0;
     transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const chatEmptyFadeUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(16px);
   }
 
   to {
@@ -136,63 +115,9 @@ const chatPageCSS = css`
       min-height: 100%;
     }
 
-    .chat-page__empty {
+    .chat-empty-state {
       margin-block: auto;
     }
-  }
-
-  .chat-page__empty {
-    width: min(100%, var(--global-dimension-size-8500));
-    margin-inline: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: var(--global-dimension-size-150);
-    color: var(--global-text-color-500);
-  }
-
-  .chat-page__empty-glyph {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--global-dimension-size-600);
-    height: var(--global-dimension-size-600);
-    border-radius: var(--global-rounding-full);
-    border: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-    background: linear-gradient(
-      135deg,
-      rgba(var(--global-color-gray-500-rgb), 0.18),
-      rgba(var(--global-color-gray-500-rgb), 0.04)
-    );
-    color: var(--global-text-color-700);
-    font-size: var(--global-font-size-xl);
-    opacity: 0;
-    animation: ${chatEmptyFadeUp} 500ms ease-out 100ms forwards;
-  }
-
-  .chat-page__empty-title {
-    margin: 0;
-    font-size: var(--global-font-size-xl);
-    font-weight: 600;
-    color: var(--global-text-color-900);
-    opacity: 0;
-    animation: ${chatEmptyFadeUp} 500ms ease-out 200ms forwards;
-  }
-
-  .chat-page__empty-subtext {
-    margin: 0;
-    max-width: var(--global-dimension-size-5000);
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    color: var(--global-text-color-500);
-    opacity: 0;
-    animation: ${chatEmptyFadeUp} 500ms ease-out 300ms forwards;
-  }
-
-  .chat-page__thinking {
-    padding-block: var(--global-dimension-size-50);
   }
 
   /* Mirrors the PXI chat's input-meta grid: the usage summary sits right-
@@ -223,9 +148,6 @@ const chatPageCSS = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .chat-page__empty-glyph,
-    .chat-page__empty-title,
-    .chat-page__empty-subtext,
     .chat-page__input {
       opacity: 1;
       animation: none;
@@ -327,76 +249,6 @@ function getDefaultModel({
 
   const builtin = availableBuiltinModels[0];
   return builtin ? toSelection(builtin) : null;
-}
-
-function ChatMessages({
-  messages,
-  status,
-  onRegenerate,
-}: {
-  messages: DirectChatMessage[];
-  status: ChatStatus;
-  onRegenerate: () => void;
-}) {
-  const hasChatSettled = status === "ready" || status === "error";
-  return messages.map((message, index) => {
-    const isLast = index === messages.length - 1;
-    if (message.role === "user") {
-      return <ChatUserMessage key={message.id} message={message} />;
-    }
-    return (
-      <ChatAssistantMessage
-        key={message.id}
-        message={message}
-        isStreaming={isLast && status === "streaming"}
-        showActions={!isLast || hasChatSettled}
-        pinToolbar={isLast && hasChatSettled}
-        onRegenerate={isLast && hasChatSettled ? onRegenerate : undefined}
-      />
-    );
-  });
-}
-
-function ChatStatusMessage({
-  status,
-  downloadProgress,
-  error,
-  canRetry,
-  onRetry,
-}: {
-  status: ChatStatus;
-  downloadProgress: number | null;
-  error: string | null;
-  canRetry: boolean;
-  onRetry: () => void;
-}) {
-  return (
-    <>
-      {status === "submitted" ? (
-        <div className="chat-page__thinking">
-          <Shimmer size="S" color="text-500" fontStyle="italic">
-            {downloadProgress != null
-              ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
-              : "Thinking..."}
-          </Shimmer>
-        </div>
-      ) : null}
-      {error != null ? (
-        <Alert
-          variant="danger"
-          extra={
-            canRetry ? (
-              <Button size="S" onPress={onRetry}>
-                Retry
-              </Button>
-            ) : undefined
-          }
-        >
-          {error}
-        </Alert>
-      ) : null}
-    </>
-  );
 }
 
 function ChatSurface() {
@@ -615,71 +467,12 @@ function ChatSurface() {
 function ChatEmptyHero({ model }: { model: ChatModelSelection | null }) {
   const browserName = getBrowserBuiltInModel()?.browserName;
   return (
-    <div className="chat-page__empty">
-      <div className="chat-page__empty-glyph">
-        <Icon svg={<Icons.MessageCircle />} />
-      </div>
-      <h1 className="chat-page__empty-title">Chat with your models</h1>
-      <p className="chat-page__empty-subtext">
-        {model == null
-          ? "No models are available yet. Configure a model provider in settings, then come back to start chatting."
-          : model.kind === "browser"
-            ? `Messages run on-device with ${browserName ?? "your browser"}'s built-in model and never leave this device. Conversations aren't saved when you leave.`
-            : "Messages go straight to the model through your configured providers. Conversations aren't saved when you leave."}
-      </p>
-    </div>
-  );
-}
-
-function ChatUserMessage({ message }: { message: DirectChatMessage }) {
-  return (
-    <Message from="user">
-      <MessageContent>{message.content}</MessageContent>
-      <MessageToolbar>
-        <MessageActions>
-          <MessageCopyAction text={message.content} />
-        </MessageActions>
-      </MessageToolbar>
-    </Message>
-  );
-}
-
-function ChatAssistantMessage({
-  message,
-  isStreaming,
-  showActions,
-  pinToolbar,
-  onRegenerate,
-}: {
-  message: DirectChatMessage;
-  isStreaming: boolean;
-  showActions: boolean;
-  pinToolbar: boolean;
-  onRegenerate?: () => void;
-}) {
-  return (
-    <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
-      <MessageContent>
-        <MessageResponse renderMode={isStreaming ? "streaming" : "static"}>
-          {message.content}
-        </MessageResponse>
-      </MessageContent>
-      {showActions ? (
-        <MessageToolbar>
-          <MessageActions>
-            <MessageCopyAction text={message.content} />
-            {onRegenerate ? (
-              <MessageAction
-                label="Regenerate"
-                tooltip="Regenerate response"
-                onPress={onRegenerate}
-              >
-                <Icon svg={<Icons.Refresh />} />
-              </MessageAction>
-            ) : null}
-          </MessageActions>
-        </MessageToolbar>
-      ) : null}
-    </Message>
+    <ChatEmptyState title="Chat with your models">
+      {model == null
+        ? "No models are available yet. Configure a model provider in settings, then come back to start chatting."
+        : model.kind === "browser"
+          ? `Messages run on-device with ${browserName ?? "your browser"}'s built-in model and never leave this device. Conversations aren't saved when you leave.`
+          : "Messages go straight to the model through your configured providers. Conversations aren't saved when you leave."}
+    </ChatEmptyState>
   );
 }
