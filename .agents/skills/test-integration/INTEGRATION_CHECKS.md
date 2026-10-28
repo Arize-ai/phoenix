@@ -21,6 +21,8 @@ do not trigger a full integration run.
 | Lint-only | OpenRouter Python | `docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx` | Installs dependencies and syntax-checks; no stable provider credits are available for CI. |
 | Lint-only | OrcaRouter Python | `docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx` | Installs dependencies and syntax-checks; no OrcaRouter API key is configured for CI. |
 
+| Skipped | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | AX quarantine: legacy framework and instrumentor need a coordinated rewrite for the replacement SDK. |
+
 Add integrations one at a time after the runner supports their language and
 example shape, credentials are declared, and the verifier checks the behavior
 the page promises. Do not add an integration here as a substitute for enabling
