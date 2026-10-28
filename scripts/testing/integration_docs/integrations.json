@@ -587,7 +587,7 @@
         "required_attributes": ["llm.model_name"],
         "non_empty_attributes": ["llm.model_name"]
       },
-      "python_version": "3.11"
+      "python_version": "3.12"
     },
     {
       "id": "autogen-agentchat-python",

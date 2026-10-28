@@ -103,9 +103,13 @@ jobs:
           SHARD: ${{ matrix.shard }}
           SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
           REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
+          PHOENIX_ENDPOINT: http://127.0.0.1:6006
         run: |
           set -euo pipefail
           report_dir="ci-results/integration-docs/shard-${SHARD}"
+          export PHOENIX_ENABLE_AUTH=true
+          export PHOENIX_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          export PHOENIX_ADMIN_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
           uv run phoenix serve --host 127.0.0.1 --port 6006 > "${RUNNER_TEMP}/phoenix.log" 2>&1 &
           phoenix_pid=$!
           trap 'kill "${phoenix_pid}" 2>/dev/null || true' EXIT
@@ -114,6 +118,9 @@ jobs:
             if [[ "${attempt}" -eq 60 ]]; then cat "${RUNNER_TEMP}/phoenix.log"; echo "Phoenix did not become ready" >&2; exit 1; fi
             sleep 2
           done
+          python scripts/testing/integration_docs/create_api_key.py \
+            --output-file "${RUNNER_TEMP}/phoenix-api-key"
+          export PHOENIX_API_KEY="$(cat "${RUNNER_TEMP}/phoenix-api-key")"
           make test-integration-docs INTEGRATION_DOCS_ARGS="--docs-file ${report_dir}/docs.json --shard ${SHARD}/${SHARD_TOTAL} --output-dir ${report_dir}"
       - name: Upload shard report
         if: always()
