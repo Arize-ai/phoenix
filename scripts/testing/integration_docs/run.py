@@ -116,7 +116,8 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                 )
             if language != "skip" and setup_source == "skip_only":
                 raise HarnessError(
-                    f"Integration {integration_id} can use skip_only setup only with language 'skip'"
+                    f"Integration {integration_id} can use skip_only setup only with "
+                    "language 'skip'"
                 )
             if language not in {"python", "skip"} and setup_source != "section_code":
                 raise HarnessError(
