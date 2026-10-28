@@ -24,10 +24,6 @@
       "reason": "Requires a deployed Bedrock Agent Runtime that CI cannot create for each run."
     },
     {
-      "doc": "docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx",
-      "reason": "Requires AWS permissions to provision an AgentCore runtime and supporting resources; CI validates the documented example without deploying cloud infrastructure."
-    },
-    {
       "doc": "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx",
       "reason": "Routes through Bedrock and inherits its short-lived CI credential constraint."
     },
@@ -46,22 +42,6 @@
     {
       "doc": "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx",
       "reason": "No OrcaRouter API key is provisioned for docs CI."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing.mdx",
-      "reason": "No Doubleword API key is provisioned for docs CI; validate the example without calling the provider."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx",
-      "reason": "Requires a running PrismML model server that CI cannot provision for each run."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing.mdx",
-      "reason": "No TrueFoundry API token is provisioned for docs CI; validate the example without calling the gateway."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing.mdx",
-      "reason": "Requires a configured Gravitee LLM Proxy endpoint that CI cannot provision for each run."
     },
     {
       "doc": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
