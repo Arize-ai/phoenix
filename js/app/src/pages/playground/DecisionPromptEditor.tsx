@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { useRef, useState } from "react";
-import { Button as AriaButton } from "react-aria-components";
 
 import {
   Alert,
@@ -11,19 +10,11 @@ import {
   Flex,
   Icon,
   Icons,
-  Input,
-  Label,
   SegmentedControl,
   SegmentedControlItem,
-  Tag,
-  TagGroup,
-  TagList,
-  Text,
-  TextField,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-  View,
 } from "@phoenix/components";
 import {
   TemplateEditor,
@@ -42,14 +33,13 @@ import type {
 } from "@phoenix/store/playground/types";
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
+import { DecisionStateInputsEditor } from "./DecisionStateInputsEditor";
 import {
   createDecisionDraft,
   createDecisionQuestion,
   decisionFieldId,
-  inputsStateValue,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
-  parseStateInputNames,
   switchDecisionStateMode,
   validateDecisionDraft,
 } from "./decisionUtils";
@@ -69,48 +59,6 @@ const questionListCSS = css`
 `;
 
 const FOOTER_MIN_HEIGHT = 32;
-
-const statePreviewCSS = css`
-  margin: 0;
-  font-size: var(--global-font-size-s);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-`;
-
-const inputNameTagCSS = css`
-  gap: var(--global-dimension-size-50);
-  padding-top: 0;
-  padding-bottom: 0;
-  height: var(--global-dimension-size-300);
-  font-family: var(--global-font-family-mono);
-`;
-
-const removeInputNameButtonCSS = css`
-  display: flex;
-  align-items: center;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--global-text-color-700);
-  cursor: pointer;
-  font-size: var(--global-font-size-s);
-  border-radius: var(--global-rounding-small);
-  outline: none;
-  &[data-hovered] {
-    color: var(--global-text-color-900);
-  }
-  &[data-focus-visible] {
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-  }
-  &[data-disabled] {
-    cursor: default;
-    opacity: 0.5;
-  }
-`;
 
 /**
  * Template or Inputs, the way an AI message picks between text and tool
@@ -150,125 +98,6 @@ function DecisionStateModeRadioGroup({
         </Tooltip>
       </TooltipTrigger>
     </SegmentedControl>
-  );
-}
-
-/**
- * The inputs an `inputs` state is made of: one tag per input, and a field
- * that adds the names typed into it on Enter, a comma, or leaving it.
- */
-function DecisionStateInputNames({
-  names,
-  isDisabled,
-  isInvalid,
-  onChange,
-  onBlur,
-}: {
-  names: readonly string[];
-  isDisabled: boolean;
-  isInvalid: boolean;
-  onChange: (names: string[]) => void;
-  onBlur: () => void;
-}) {
-  const [pending, setPending] = useState("");
-  const addPending = (text: string) => {
-    const added = parseStateInputNames(text).filter(
-      (name) => !names.includes(name)
-    );
-    setPending("");
-    if (added.length > 0) onChange([...names, ...new Set(added)]);
-  };
-  return (
-    <Flex direction="column" gap="size-100">
-      {names.length > 0 ? (
-        <TagGroup
-          aria-label="State inputs"
-          onRemove={(keys) => onChange(names.filter((name) => !keys.has(name)))}
-        >
-          <TagList>
-            {names.map((name) => (
-              <Tag
-                key={name}
-                id={name}
-                textValue={name}
-                isDisabled={isDisabled}
-                css={inputNameTagCSS}
-              >
-                {name}
-                <AriaButton
-                  slot="remove"
-                  aria-label={`Remove ${name}`}
-                  isDisabled={isDisabled}
-                  css={removeInputNameButtonCSS}
-                >
-                  <Icon svg={<Icons.Close />} />
-                </AriaButton>
-              </Tag>
-            ))}
-          </TagList>
-        </TagGroup>
-      ) : null}
-      <TextField
-        size="S"
-        value={pending}
-        isDisabled={isDisabled}
-        isInvalid={isInvalid}
-        onChange={(text) => {
-          if (text.includes(",")) {
-            addPending(text);
-          } else {
-            setPending(text);
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            addPending(pending);
-          }
-        }}
-        onBlur={() => {
-          addPending(pending);
-          onBlur();
-        }}
-      >
-        <Label>Add input</Label>
-        <Input placeholder={names.length ? "another input" : "ticket"} />
-        <Text slot="description">
-          One input sends its value as the state; several send an object keyed
-          by name.
-        </Text>
-      </TextField>
-    </Flex>
-  );
-}
-
-/** What an `inputs` state sends: the values typed in so far, or its shape. */
-function DecisionStatePreview({ names }: { names: readonly string[] }) {
-  const variables = usePlaygroundContext(
-    (state) => state.input.variablesValueCache
-  );
-  const isDatasetMode = usePlaygroundContext(
-    (state) => state.datasetId != null
-  );
-  if (names.length === 0) return null;
-
-  const hasValues =
-    !isDatasetMode && names.every((name) => variables?.[name] != null);
-  const preview = hasValues
-    ? JSON.stringify(inputsStateValue(names, variables))
-    : names.length === 1
-      ? `<${names[0]}>`
-      : `{ ${names.map((name) => `${JSON.stringify(name)}: <${name}>`).join(", ")} }`;
-
-  return (
-    <Flex direction="column" gap="size-50">
-      <Text size="S" color="text-700">
-        {hasValues ? "State preview" : "State shape"}
-      </Text>
-      <pre css={statePreviewCSS} aria-label="Decision state preview">
-        <code>{preview}</code>
-      </pre>
-    </Flex>
   );
 }
 
@@ -391,18 +220,13 @@ export function DecisionPromptEditor({
           </Alert>
         ) : null}
         {state.mode === "inputs" ? (
-          <View padding="size-100">
-            <Flex direction="column" gap="size-100">
-              <DecisionStateInputNames
-                names={state.inputNames}
-                isDisabled={isRunning}
-                isInvalid={!!errors.state}
-                onChange={(inputNames) => updateState({ ...state, inputNames })}
-                onBlur={() => touch(decisionFieldId.state())}
-              />
-              <DecisionStatePreview names={state.inputNames} />
-            </Flex>
-          </View>
+          <DecisionStateInputsEditor
+            names={state.inputNames}
+            isDisabled={isRunning}
+            isInvalid={!!errors.state}
+            onChange={(inputNames) => updateState({ ...state, inputNames })}
+            onBlur={() => touch(decisionFieldId.state())}
+          />
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor

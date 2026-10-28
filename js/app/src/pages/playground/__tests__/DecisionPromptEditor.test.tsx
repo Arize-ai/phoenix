@@ -98,7 +98,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   }
 });
 
-it("switches between Template and Inputs, keeping each, and previews structured input values", async () => {
+it("switches between Template and Inputs, keeping each, and says what the inputs send", async () => {
   const draft = {
     ...createDecisionDraft(),
     state: createDecisionStateDraft({ mode: "inputs", inputNames: ["state"] }),
@@ -138,17 +138,17 @@ it("switches between Template and Inputs, keeping each, and previews structured 
         </ThemeContext.Provider>
       )
     );
-    const preview = () =>
-      container.querySelector('[aria-label="Decision state preview"]')
-        ?.textContent;
+    const inputsEditor = () =>
+      container.querySelector('[aria-label="State inputs"]')?.textContent;
     // Only two modes: the JSON, Value and Object modes are gone.
     expect(
       Array.from(
         container.querySelectorAll('[aria-label="State mode"] button')
       ).map((button) => button.textContent)
     ).toEqual(["Template", "Inputs"]);
-    // One input is sent as its value, and JSON typed for it as that JSON.
-    expect(preview()).toBe(JSON.stringify({ ticket: "Refund" }));
+    // One input is sent as its value, drawn as the input alone.
+    expect(inputsEditor()).toBe("state");
+    expect(container.textContent).toContain("Sends the value of state as-is");
     expect(
       container.querySelector('[aria-label="Remove state"]')
     ).not.toBeNull();
@@ -181,13 +181,8 @@ it("switches between Template and Inputs, keeping each, and previews structured 
         },
       })
     );
-    await act(async () => store.getState().setVariableValue("plan", "pro"));
-    expect(preview()).toBe(
-      JSON.stringify({ state: { ticket: "Refund" }, plan: "pro" })
-    );
-    await act(async () => store.setState({ datasetId: "dataset" }));
-    expect(container.textContent).toContain("State shape");
-    expect(preview()).toBe('{ "state": <state>, "plan": <plan> }');
+    expect(inputsEditor()).toBe('{"state": state,"plan": plan}');
+    expect(container.textContent).toContain("Sends an object of 2 inputs");
   } finally {
     await act(async () => root.unmount());
     container.remove();

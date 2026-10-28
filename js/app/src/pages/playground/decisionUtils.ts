@@ -624,7 +624,7 @@ export function structuredInputValuesOf(
  * The state an `inputs` draft sends: one input's value as is, or several as
  * one object keyed by name.
  */
-export function inputsStateValue(
+function inputsStateValue(
   names: readonly string[],
   variables: Record<string, string | undefined> | undefined
 ): unknown {
