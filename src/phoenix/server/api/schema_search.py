@@ -505,12 +505,8 @@ def _render_default(value_def: _ValueDef) -> str:
 
 def _coerced_default(value_def: _ValueDef) -> object:
     """The default a resolver receives, through the execution coercion API."""
-    argument = (
-        value_def
-        if isinstance(value_def, GraphQLArgument)
-        else GraphQLArgument(
-            value_def.type, default_value=value_def.default_value, default=value_def.default
-        )
+    argument = GraphQLArgument(
+        value_def.type, default_value=value_def.default_value, default=value_def.default
     )
     field = GraphQLField(GraphQLInt, args={"x": argument})
     values = get_argument_values(field, FieldNode(name=NameNode(value="f"), arguments=()))
