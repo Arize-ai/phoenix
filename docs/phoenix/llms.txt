@@ -183,6 +183,7 @@
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
 - [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run evals as pytest tests with arize-phoenix-client[pytest], recorded as experiments and gating CI
+- [Evaluate a Prompt Change in Code](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change): Compare two code-based prompts in an experiment with a deterministic evaluator and no LLM key
 - [Run Experiments in the Background](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background): Start Playground experiments that keep running after you close the browser
 
 ## Prompt Engineering
@@ -231,6 +232,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 ### Coding Agents
 
 - [Claude Code](https://arize.com/docs/phoenix/integrations/coding-agents/claude-code): Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs in Phoenix
+- [Antigravity](https://arize.com/docs/phoenix/integrations/coding-agents/antigravity): Trace Google Antigravity CLI and IDE turns, model calls, and tool invocations in Phoenix
+- [Devin](https://arize.com/docs/phoenix/integrations/coding-agents/devin): Trace Devin CLI interactions, per-generation model calls, token usage, and tool calls in Phoenix
 - [Codex](https://arize.com/docs/phoenix/integrations/coding-agents/codex): Trace OpenAI Codex CLI agent turns, tool calls, and API requests in Phoenix
 - [GitHub Copilot](https://arize.com/docs/phoenix/integrations/coding-agents/copilot): Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix
 - [Cursor](https://arize.com/docs/phoenix/integrations/coding-agents/cursor): Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix
@@ -244,7 +247,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument the OpenAI Python SDK, including the Decisions API, with openinference-instrumentation-openai
 - [OpenAI Agents SDK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing): Trace OpenAI Agents SDK workflows including tool calls and handoffs
 - [OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk): Instrument OpenAI calls, including the Decisions API, in TypeScript/Node.js
-- [OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk): Instrument openai/openai-go with openinference-instrumentation-openai-go middleware
+- [OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk): Instrument openai/openai-go, including the Decisions API, with openinference-instrumentation-openai-go middleware
 - [Anthropic Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing): Auto-instrument Anthropic Python SDK
 - [Anthropic TypeScript SDK](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript): Instrument Anthropic calls in TypeScript
 - [Anthropic SDK Go](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go): Instrument anthropics/anthropic-sdk-go with openinference-instrumentation-anthropic-sdk-go middleware
@@ -266,11 +269,27 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Trace TypeSafe AI SDK system_one calls as DECISION spans in Python with openinference-instrumentation-typesafe
 - [TypeSafe AI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript): Trace TypeSafe AI SDK systemOne calls as DECISION spans in TypeScript with @arizeai/openinference-instrumentation-typesafe
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
+- [OpenRouter Broadcast](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast): Export a trace for every OpenRouter request to Phoenix via an OTel Collector, no code changes
+- [Baseten Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/baseten/baseten-tracing): Trace Baseten's OpenAI-compatible endpoint with openinference-instrumentation-openai
+- [Cerebras Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing): Trace Cerebras Inference's OpenAI-compatible endpoint with openinference-instrumentation-openai
+- [DeepSeek Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing): Trace DeepSeek reasoning and chat models with openinference-instrumentation-openai
+- [Doubleword Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing): Trace Doubleword's OpenAI-compatible inference API with openinference-instrumentation-openai
+- [Fireworks AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing): Trace Fireworks AI's OpenAI-compatible endpoint with openinference-instrumentation-openai
+- [Gravitee Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing): Trace requests through the Gravitee AI Gateway LLM Proxy with openinference-instrumentation-openai
+- [Hugging Face Inference Providers Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers/hugging-face-inference-providers-tracing): Trace calls through the Hugging Face router with openinference-instrumentation-openai
+- [Novita AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing): Trace Novita AI chat completions with openinference-instrumentation-openai
+- [PrismML Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/prismml/prismml-tracing): Trace local PrismML Bonsai model calls with openinference-instrumentation-openai
+- [Qwen Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/qwen/qwen-tracing): Trace Qwen calls via Alibaba Cloud Model Studio with openinference-instrumentation-openai
+- [TrueFoundry Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing): Trace app-side TrueFoundry AI Gateway calls with openinference-instrumentation-openai
+- [vLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vllm/vllm-tracing): Combine vLLM's built-in OpenTelemetry export with OpenAI SDK client instrumentation
+- [xAI Grok Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/xai/xai-tracing): Trace xAI Grok calls with openinference-instrumentation-openai
+- [Z.ai Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing): Trace Z.ai GLM model calls with openinference-instrumentation-openai
 
 ### Python Frameworks
 
 - [AG2 Tracing](https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing): Trace AG2 1.x agents via built-in OpenTelemetry middleware, and AG2 Classic via the OpenInference instrumentor
 - [Agno Tracing](https://arize.com/docs/phoenix/integrations/python/agno/agno-tracing): Auto-instrument Agno agent workflows
+- [Atomic Agents Tracing](https://arize.com/docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing): Auto-instrument Atomic Agents agent runs and tool calls
 - [AgentSpec Tracing](https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing): Auto-instrument AgentSpec agents
 - [AutoGen Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-tracing): Auto-instrument AutoGen conversations
 - [AutoGen AgentChat Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing): Trace AutoGen AgentChat multi-agent conversations
@@ -289,12 +308,20 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [LlamaIndex Tracing](https://arize.com/docs/phoenix/integrations/python/llamaindex/llamaindex-tracing): Auto-instrument LlamaIndex queries and pipelines
 - [LlamaIndex Workflows Tracing](https://arize.com/docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing): Trace LlamaIndex workflow orchestration
 - [MCP Tracing (Python)](https://arize.com/docs/phoenix/integrations/python/mcp-tracing): Trace MCP client and server interactions
+- [Microsoft Agent Framework Tracing](https://arize.com/docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing): Reshape Microsoft Agent Framework spans into OpenInference with a span processor
 - [NeMo Agent Tracing](https://arize.com/docs/phoenix/integrations/python/nvidia/nemo-agent-tracing): Trace NVIDIA NeMo agent workflows
+- [Pipecat Tracing](https://arize.com/docs/phoenix/integrations/python/pipecat/pipecat-tracing): Auto-instrument Pipecat voice agents with one span per conversation turn and sessions grouped by conversation id
 - [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
 - [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
 - [Restate Tracing](https://arize.com/docs/phoenix/integrations/python/restate/restate-tracing): Trace durable AI agent executions powered by Restate, unifying workflow and LLM spans in Phoenix
 - [Strands Agents Tracing](https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): Auto-instrument Strands Agents with openinference-instrumentation-strands-agents
+- [Bedrock AgentCore Tracing](https://arize.com/docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing): Trace Strands agents deployed on AWS Bedrock AgentCore Runtime with OpenInference
+- [LiveKit Agents Tracing](https://arize.com/docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing): Send LiveKit Agents' built-in OpenTelemetry spans for voice sessions, turns, and model calls to Phoenix
+- [OpenLIT Tracing](https://arize.com/docs/phoenix/integrations/python/openlit/openlit-tracing): Convert OpenLIT OpenTelemetry spans to OpenInference with a span processor
+- [OpenLLMetry Tracing](https://arize.com/docs/phoenix/integrations/python/openllmetry/openllmetry-tracing): Convert Traceloop OpenLLMetry spans to OpenInference with a span processor
+- [Semantic Kernel Tracing](https://arize.com/docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing): Trace Python Semantic Kernel apps by converting OpenLIT spans to OpenInference
+- [Temporal Tracing](https://arize.com/docs/phoenix/integrations/python/temporal/temporal-tracing): Trace Temporal workflows, activities, and inner LLM calls with Temporal's OpenTelemetry plugin
 
 ### TypeScript Frameworks
 
@@ -305,7 +332,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [MCP Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript): Trace MCP interactions in TypeScript
 - [OpenAI Agents SDK (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/openai-agents): Trace @openai/agents runs, handoffs, and guardrails with @arizeai/openinference-instrumentation-openai-agents
 - [TanStack AI Tracing](https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing): Auto-instrument TanStack AI chat, tool calls, and agent loops
-- [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Auto-instrument Vercel AI SDK
+- [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Trace Vercel AI SDK v7 calls with @arizeai/phoenix-otel, including experimental_decide decision models as DECISION spans
 - [Vercel Eve Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing): Trace Vercel Eve filesystem-first agents by registering the @arizeai/openinference-vercel span processor
 
 ### Java Frameworks
@@ -314,13 +341,25 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Google ADK Tracing (Java)](https://arize.com/docs/phoenix/integrations/java/google-adk/google-adk-tracing): Attach the OpenInference Java agent JAR to enrich Google ADK spans — no code changes
 - [LangChain4j Tracing](https://arize.com/docs/phoenix/integrations/java/langchain4j/langchain4j-tracing): Auto-instrument LangChain4j chains and agents
 - [Spring AI Tracing](https://arize.com/docs/phoenix/integrations/java/springai/springai-tracing): Auto-instrument Spring AI applications
+- [Java Annotation Tracing](https://arize.com/docs/phoenix/integrations/java/annotation/annotation-tracing): Trace Java AI apps with OpenInference @Agent, @Chain, @LLM, and @Tool annotations
+
+### .NET Frameworks
+
+- [Microsoft Agent Framework Integration (.NET)](https://arize.com/docs/phoenix/integrations/dotnet/microsoft-agent-framework): Connect C# Microsoft Agent Framework agents to Phoenix
+- [Microsoft Agent Framework Tracing (.NET)](https://arize.com/docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing): Trace C# agent, model, and tool spans using OpenTelemetry GenAI semantic conventions
 
 ### Platforms
 
+- [Claude Managed Agents](https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents): Connect Anthropic's hosted managed-agent platform to Phoenix
+- [Claude Managed Agents Tracing](https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing): Send Claude Platform OTLP traces and SDK spans to Phoenix
 - [Dify Tracing](https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing): Send traces from Dify workflows
 - [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
+- [Scalekit Tracing](https://arize.com/docs/phoenix/integrations/platforms/scalekit/scalekit-tracing): Trace Scalekit AgentKit tool calls as TOOL spans with traceTool
+- [n8n Tracing](https://arize.com/docs/phoenix/integrations/platforms/n8n/n8n-tracing): Export n8n workflow, node, and agent OpenTelemetry spans to Phoenix over OTLP
+- [Open WebUI Tracing](https://arize.com/docs/phoenix/integrations/platforms/openwebui/openwebui-tracing): Export Open WebUI's built-in OpenTelemetry backend traces to Phoenix over OTLP
+- [TrueFoundry AI Gateway Tracing](https://arize.com/docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing): Configure the gateway to export a trace per request to Phoenix, no code changes
 
 ### Vector Databases
 
@@ -333,6 +372,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
 - [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing
 - [UQLM Confidence & Hallucination Risk](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Score LLM response uncertainty with UQLM black-box and white-box signals in Phoenix
+- [NVIDIA RAG Metrics via Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas-nvidia-rag-metrics): Grade traces and experiments with Ragas Answer Accuracy, Context Relevance, and Response Groundedness
+- [Microsoft Azure AI Evaluation](https://arize.com/docs/phoenix/integrations/evaluation-integrations/azure-ai-evaluation): Grade traces and score experiments with azure-ai-evaluation evaluators like GroundednessEvaluator
 
 ### Sandboxes
 
@@ -348,6 +389,10 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Flowise Integration](https://arize.com/docs/phoenix/integrations/platforms/flowise): Connect Flowise chatflows and agentflows to Phoenix
 - [LangFlow Integration](https://arize.com/docs/phoenix/integrations/platforms/langflow): Connect LangFlow's visual workflow builder to Phoenix
 - [Prompt Flow Integration](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow): Connect Azure Prompt Flow orchestrations to Phoenix
+- [Scalekit Integration](https://arize.com/docs/phoenix/integrations/platforms/scalekit): Connect Scalekit AgentKit tool execution to Phoenix
+- [n8n Integration](https://arize.com/docs/phoenix/integrations/platforms/n8n): Connect n8n workflow automation and AI agents to Phoenix
+- [Open WebUI Integration](https://arize.com/docs/phoenix/integrations/platforms/openwebui): Connect the self-hosted Open WebUI chat interface to Phoenix
+- [TrueFoundry AI Gateway Integration](https://arize.com/docs/phoenix/integrations/platforms/truefoundry): Connect TrueFoundry's enterprise multi-provider AI Gateway to Phoenix with gateway-side export
 
 ### Java Frameworks — Additional
 
@@ -355,6 +400,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Google ADK Integration (Java)](https://arize.com/docs/phoenix/integrations/java/google-adk): Connect Google Agent Development Kit agents written in Java to Phoenix
 - [LangChain4j Integration](https://arize.com/docs/phoenix/integrations/java/langchain4j): Connect LangChain4j Java chains and agents to Phoenix
 - [Spring AI Integration](https://arize.com/docs/phoenix/integrations/java/springai): Connect Spring AI applications to Phoenix
+- [Java Annotations Integration](https://arize.com/docs/phoenix/integrations/java/annotation): Add annotation-driven OpenInference tracing to Java AI apps with @Agent, @Tool, and @Span
 
 ### TypeScript Frameworks — Additional
 
@@ -370,6 +416,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [AG2 Integration](https://arize.com/docs/phoenix/integrations/python/ag2): Connect AG2 agents, tools, and multi-agent networks to Phoenix
 - [Agent Spec Integration](https://arize.com/docs/phoenix/integrations/python/agentspec): Connect Open Agent Spec agentic systems to Phoenix
 - [Agno Integration](https://arize.com/docs/phoenix/integrations/python/agno): Connect Agno model-agnostic Python agents to Phoenix
+- [Atomic Agents Integration](https://arize.com/docs/phoenix/integrations/python/atomic-agents): Connect Atomic Agents schema-driven agents and tools to Phoenix
 - [AutoGen Integration](https://arize.com/docs/phoenix/integrations/python/autogen): Connect AutoGen multi-agent conversations to Phoenix
 - [BeeAI Integration (Python)](https://arize.com/docs/phoenix/integrations/python/beeai): Connect BeeAI agent composition to Phoenix from Python
 - [CrewAI Integration](https://arize.com/docs/phoenix/integrations/python/crewai): Connect CrewAI role-playing agent crews to Phoenix
@@ -388,6 +435,14 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Pydantic AI Integration](https://arize.com/docs/phoenix/integrations/python/pydantic): Connect Pydantic AI agents and its evals framework to Phoenix
 - [Restate Integration](https://arize.com/docs/phoenix/integrations/python/restate): Connect Restate durable agent executions to Phoenix
 - [Strands Agents Integration](https://arize.com/docs/phoenix/integrations/python/strands-agents): Connect Strands Agents model-driven orchestration to Phoenix
+- [Bedrock AgentCore Integration](https://arize.com/docs/phoenix/integrations/python/bedrock-agentcore): Connect agents running on the AWS Bedrock AgentCore managed runtime to Phoenix
+- [LiveKit Agents Integration](https://arize.com/docs/phoenix/integrations/python/livekit-agents): Connect LiveKit real-time voice and multimodal agents to Phoenix
+- [Microsoft Agent Framework Integration (Python)](https://arize.com/docs/phoenix/integrations/python/microsoft-agent-framework): Connect Python Microsoft Agent Framework agents and multi-agent orchestration to Phoenix
+- [OpenLIT Integration](https://arize.com/docs/phoenix/integrations/python/openlit): Route OpenLIT-instrumented providers, frameworks, and vector DBs into Phoenix
+- [OpenLLMetry & Traceloop Integration](https://arize.com/docs/phoenix/integrations/python/openllmetry): Route Traceloop SDK OpenLLMetry instrumentations into Phoenix
+- [Pipecat Integration](https://arize.com/docs/phoenix/integrations/python/pipecat): Connect Pipecat real-time voice and multimodal agents to Phoenix
+- [Semantic Kernel Integration](https://arize.com/docs/phoenix/integrations/python/semantic-kernel): Connect Microsoft Semantic Kernel functions, plugins, and prompts to Phoenix
+- [Temporal Integration](https://arize.com/docs/phoenix/integrations/python/temporal): Connect Temporal durable workflows and activities to Phoenix
 
 ### LLM Providers — Additional
 
@@ -406,6 +461,20 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
 - [TypeSafe AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe): Pick a TypeSafe AI tracing path for Python or TypeScript
 - [VertexAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Trace and evaluate Google Cloud Vertex AI model calls in Phoenix
+- [Baseten Integration](https://arize.com/docs/phoenix/integrations/llm-providers/baseten): Trace Baseten foundation and custom model deployments in Phoenix
+- [Cerebras Integration](https://arize.com/docs/phoenix/integrations/llm-providers/cerebras): Trace Cerebras high-speed inference calls in Phoenix
+- [DeepSeek Integration](https://arize.com/docs/phoenix/integrations/llm-providers/deepseek): Trace DeepSeek reasoning and chat model calls in Phoenix
+- [Doubleword Integration](https://arize.com/docs/phoenix/integrations/llm-providers/doubleword): Trace Doubleword high-throughput, low-cost inference calls in Phoenix
+- [Fireworks AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/fireworks-ai): Trace Fireworks AI fast inference calls in Phoenix
+- [Gravitee Integration](https://arize.com/docs/phoenix/integrations/llm-providers/gravitee): Trace requests sent through the governed Gravitee AI Gateway in Phoenix
+- [Hugging Face Inference Providers Integration](https://arize.com/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers): Trace model calls routed across Hugging Face hosted providers in Phoenix
+- [Novita AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai): Trace Novita AI model API calls in Phoenix
+- [PrismML Integration](https://arize.com/docs/phoenix/integrations/llm-providers/prismml): Trace locally served PrismML Bonsai open-weight models in Phoenix
+- [Qwen Integration](https://arize.com/docs/phoenix/integrations/llm-providers/qwen): Trace Qwen model calls from Alibaba Cloud Model Studio in Phoenix
+- [TrueFoundry Integration](https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry): Trace calls through TrueFoundry's multi-provider AI Gateway in Phoenix
+- [vLLM Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vllm): Trace vLLM server spans and client calls in Phoenix
+- [xAI Grok Integration](https://arize.com/docs/phoenix/integrations/llm-providers/xai): Trace xAI Grok model calls in Phoenix
+- [Z.ai Integration](https://arize.com/docs/phoenix/integrations/llm-providers/z-ai): Trace Z.ai GLM model calls in Phoenix
 
 ## Settings
 
@@ -467,7 +536,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [General FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions about Phoenix features, pricing, and compatibility
 - [Contribute](https://arize.com/docs/phoenix/resources/contribute-to-phoenix): Open-source contribution guide
 - [Arize Phoenix or Arize AX](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Compare open-source Phoenix with the commercial Arize AX platform and decide which fits your team
-- [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Move traces, evaluations, annotations, datasets, and experiments from Phoenix to Arize AX
+- [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Use the supported AX guide and migration skill to migrate supported Phoenix traces, datasets, experiments, and evaluation results
 
 - [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison): Compare Phoenix and Braintrust across tracing, evaluation, and licensing
 - [Can I add other users to my Phoenix Instance?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance): Enable authentication and invite teammates to a Phoenix deployment
@@ -647,6 +716,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Create A New Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt): POST /v1/prompts — create a prompt or push a new prompt version
 - [Delete A Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt): DELETE /v1/prompts/{prompt_identifier} — delete a prompt and all of its versions
 - [List Prompt Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions): GET /v1/prompts/{prompt_identifier}/versions — paginate versions of a prompt
+- [Create Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version): POST /v1/prompts/{prompt_identifier}/versions — add a version, with optional tags, to an existing prompt
 - [Get Prompt Version By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id): GET /v1/prompt_versions/{prompt_version_id} — fetch a specific prompt version
 - [Get Prompt Version By Tag](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag): GET /v1/prompts/{prompt_identifier}/tags/{tag_name} — resolve a tag to a prompt version
 - [Get Latest Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version): GET /v1/prompts/{prompt_identifier}/latest — fetch the most recent prompt version
@@ -772,6 +842,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): Benchmark meta-prompting, few-shot, and gradient-style prompt optimizers side by side
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): Build and evaluate a reason-then-act prompting loop with tool calls
 - [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Build and trace an agentic RAG system using LlamaIndex's ReAct agent with vector and SQL query tools
+- [Trace and Evaluate Claude Managed Agents](https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide): Trace and evaluate a Claude Managed Agents issue-triage workflow
 - [Identifying High-Signal Traces](https://arize.com/docs/phoenix/cookbook/tracing/identify-high-signal-traces): Surface anomalies, latency outliers, and failure clusters worth investigating across millions of production traces
 - [OpenInference Best Practices](https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices): Enrich auto-instrumented traces with LLM, tool, agent, chain, and session attributes using OpenInference span kinds
 - [More Tracing Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Index of notebook examples for instrumenting and troubleshooting LLM applications
@@ -850,8 +921,13 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
 - [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
 - [09.08.2026: New Model Providers, Trace Filters, and PXI Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi): Run Z.ai, MiniMax, and Meta models in the Playground and PXI; filter traces by error status and latency
+- [09.08.2026: Harbor Plugin for Agent Benchmarks](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks): Record Harbor agent benchmark jobs as Phoenix datasets and experiments, with rewards as evaluations and ATIF trajectories as traces
 - [09.14.2026: Coding Agent Plugins and Error Analysis](https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis): Install Phoenix as a Claude Code, Cursor, or Codex plugin; run error analysis over MCP; score completeness
 - [09.29.2026: Editable Dataset Examples, Trace Metrics, and Custom Skills](https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics): Edit dataset examples in the table, see latency and cost per trace row, and mount custom skills into MCP and PXI
+- [10.01.2026: Trace Tree Evals and Decision Spans](https://arize.com/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans): Find failed evaluations in trace trees and represent model decision calls as DECISION spans
+- [10.13.2026: Docker Sandboxes and MCP GraphQL Tools](https://arize.com/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools): Run code evaluators in Docker Cloud Sandboxes and let MCP clients query Phoenix data through GraphQL
+- [10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon](https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon): Trace Claude Managed Agents and Atomic Agents, try Gemini 4 Argon in the Playground, and export server logs over OTLP
+- [10.27.2026: Decision-Model Evaluators and Project Onboarding](https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding): Run TypeScript classification evaluators on AI SDK decision models and get setup guides in empty projects
 
 ### 2025
 

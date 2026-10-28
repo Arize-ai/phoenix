@@ -17,8 +17,10 @@ if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
 from uvicorn import Config, Server
+from uvicorn.config import LOGGING_CONFIG
 
 from phoenix.config import (
+    LoggingMode,
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allow_external_resources,
@@ -54,6 +56,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
     get_pids_path,
+    server_log_export_is_enabled,
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
@@ -335,6 +338,7 @@ def run(args: Namespace) -> None:
             else None
         ),
         prometheus_enabled=bool(enable_prometheus),
+        otlp_log_export_enabled=server_log_export_is_enabled(),
         smtp_hostname=smtp_hostname,
         telemetry_enabled=get_env_telemetry_enabled(),
         skills_paths=[str(path) for path in get_env_skills_paths()],
@@ -409,6 +413,7 @@ def run(args: Namespace) -> None:
         port=port,
         root_path=host_root_path,
         log_level=Settings.logging_level,
+        log_config=None if Settings.logging_mode is LoggingMode.STRUCTURED else LOGGING_CONFIG,
     )
 
     if tls_enabled_for_http:

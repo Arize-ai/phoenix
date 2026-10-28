@@ -102,57 +102,29 @@ function ViewModeSelect({
 /**
  * Skeleton fallback for the dialog content while data is loading.
  */
-function ExampleDetailsDialogSkeleton() {
+export function ExampleDetailsDialogSkeleton() {
   return (
-    <Group orientation="vertical">
-      <Panel defaultSize="65%">
-        <div
-          css={css`
-            overflow-y: auto;
-            height: 100%;
-          `}
-        >
-          <Flex direction="row" justifyContent="center">
-            <View width="900px" padding="size-200">
-              <Flex direction="column" gap="size-200">
-                <Card title="Input" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
-                </Card>
-                <Card title="Output" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
-                </Card>
-                <Card title="Metadata" {...defaultCardProps}>
-                  <Skeleton height={60} animation="wave" />
-                </Card>
-              </Flex>
-            </View>
-          </Flex>
-        </div>
-      </Panel>
-      <Separator css={resizeHandleCSS} />
-      <Panel defaultSize="35%">
-        <Flex direction="column" height="100%">
-          <View
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderBottomColor="default"
-            borderBottomWidth="thin"
-            flex="none"
-          >
-            <Heading level={3}>Experiment Runs</Heading>
-          </View>
-          <View padding="size-200" flex="1 1 auto">
-            <Flex direction="column" gap="size-100">
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
+    <Flex direction="column" height="100%">
+      <View flex="65 1 0" overflow="hidden">
+        <Flex direction="row" justifyContent="center">
+          <View width="900px" padding="size-200">
+            <Flex direction="column" gap="size-200">
+              <Skeleton height={148} borderRadius="medium" />
+              <Skeleton height={148} borderRadius="medium" />
+              <Skeleton height={108} borderRadius="medium" />
             </Flex>
           </View>
         </Flex>
-      </Panel>
-    </Group>
+      </View>
+      <View flex="35 1 0" overflow="hidden" padding="size-200">
+        <Flex direction="column" gap="size-100">
+          <Skeleton width={160} height={24} />
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+        </Flex>
+      </View>
+    </Flex>
   );
 }
 
@@ -400,7 +372,7 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
           <TitleWithID title="Example" id={exampleId} />
         </Flex>
         <DialogTitleExtra>
-          <Skeleton width={60} height={24} animation="wave" />
+          <Skeleton width={60} height={24} />
         </DialogTitleExtra>
       </DialogHeader>
       <ExampleDetailsDialogSkeleton />

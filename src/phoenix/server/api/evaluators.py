@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
-from jsonpath_ng import parse as parse_jsonpath
+from jsonpath_ng.parser import JsonPathParser
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -74,6 +74,7 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.cancellation import run_cancel_once
 from phoenix.server.sandbox.result_protocol import (
     PHOENIX_RESULT_BEGIN,
     PHOENIX_RESULT_END,
@@ -1023,7 +1024,8 @@ def apply_input_mapping(
                 ignored_keys.append(key)
                 continue
             try:
-                jsonpath = parse_jsonpath(path_expr)
+                parser = JsonPathParser()
+                jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)
@@ -2792,11 +2794,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
+                            run_cancel_once(
+                                self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
                             ),
                             timeout=self._timeout,
                         )
@@ -2821,7 +2825,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                                     return await session.execute(code, timeout=self._timeout)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            run_cancel_once(_managed_execute()), timeout=self._timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE

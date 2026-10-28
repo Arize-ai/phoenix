@@ -15,7 +15,7 @@
     <a href="https://pypi.org/project/arize-phoenix-client/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-client" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html">
+    <a href="https://arize-phoenix.readthedocs.io/projects/client/">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-client/README.md" />
@@ -274,6 +274,12 @@ traces = client.traces.get_traces(
     project_identifier="my-llm-app",
     session_id="my-session-id",
 )
+
+# Filter with an expression (requires Phoenix server >= 20.12.0)
+traces = client.traces.get_traces(
+    project_identifier="my-llm-app",
+    filter="error_count > 0 and latency_ms >= 1000",
+)
 ```
 
 **Async usage:**
@@ -298,10 +304,16 @@ traces = await async_client.traces.get_traces(
 | `order`                | `"asc" \| "desc" \| None`              | `None`  | Sort direction (server defaults to `"desc"`)         |
 | `include_spans`        | `bool`                                  | `False` | Include full span details for each trace             |
 | `session_id`           | `str \| Sequence[str] \| None`          | `None`  | Filter by session ID(s) or GlobalID(s)               |
+| `filter`               | `str \| None`                           | `None`  | [Trace filter expression](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) |
+| `error`                | `bool \| None`                          | `None`  | Deprecated: only traces with (`True`) or without (`False`) errored spans |
+| `min_latency_ms`       | `float \| None`                         | `None`  | Deprecated: inclusive lower bound on trace latency (ms) |
+| `max_latency_ms`       | `float \| None`                         | `None`  | Deprecated: inclusive upper bound on trace latency (ms) |
 | `limit`                | `int`                                   | `100`   | Maximum number of traces to return                   |
 | `timeout`              | `int \| None`                           | `60`    | Request timeout in seconds                           |
 
-> **Note:** Requires Phoenix server >= 13.15.0.
+> **Note:** Requires Phoenix server >= 13.15.0. `filter` requires >= 20.12.0, and `error`, `min_latency_ms`, and `max_latency_ms` require >= 20.8.0.
+
+`error`, `min_latency_ms`, and `max_latency_ms` are deprecated. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and `latency_ms <= N` in `filter` instead. Deprecated parameters are combined with `filter` using AND, and an empty `filter` does not filter.
 
 ### Spans
 
@@ -328,6 +340,15 @@ annotations_df = client.spans.get_span_annotations_dataframe(
     project_identifier="my-llm-app",
     include_annotation_names=["relevance", "accuracy"],  # Only specific annotations
     exclude_annotation_names=["note"],  # Exclude UI notes
+)
+
+# Get the 100 spans that started most recently (requires Phoenix server >= 20.16.0).
+# Without sort="start_time", spans are ordered by insertion, not by start time.
+recent_spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    sort="start_time",
+    order="desc",
+    limit=100,
 )
 ```
 
@@ -381,6 +402,12 @@ client = Client()
 sessions = client.sessions.list(project_name="my-llm-app")
 for session in sessions:
     print(f"Session: {session['session_id']}")
+
+# Filter sessions with an expression (requires Phoenix server >= 20.12.0)
+sessions = client.sessions.list(
+    project_name="my-llm-app",
+    filter="num_traces > 5 and total_cost > 0.50",
+)
 
 # Get conversation turns for a session
 turns = client.sessions.get_session_turns(session_id="my-session-id")
@@ -515,7 +542,7 @@ print(f"Created project with ID: {new_project['id']}")
 
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Main Phoenix documentation
 - **[GitHub Repository](https://github.com/Arize-ai/phoenix)** - Source code and examples
 

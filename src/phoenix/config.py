@@ -387,6 +387,12 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT"
+)
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT"
+)
 
 ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS = "PHOENIX_MASK_INTERNAL_SERVER_ERRORS"
 """
@@ -1126,6 +1132,12 @@ def server_instrumentation_is_enabled() -> bool:
     return bool(
         getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
     ) or bool(getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
+
+
+def server_log_export_is_enabled() -> bool:
+    return bool(
+        getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT)
+    ) or bool(getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT))
 
 
 def _get_temp_path() -> Path:
@@ -3207,7 +3219,7 @@ def _no_local_storage() -> bool:
     return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
 
 
-class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+class RestrictedPath(wrapt.ObjectProxy[Path]):
     """
     This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
 
@@ -3277,7 +3289,7 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
     def __len__(self) -> int:
         return len(self.__wrapped__.parts)
 
-    def __contains__(self, item: str) -> bool:
+    def __contains__(self, item: object) -> bool:
         return item in self.__wrapped__.parts
 
 

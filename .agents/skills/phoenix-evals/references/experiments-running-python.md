@@ -103,3 +103,32 @@ from phoenix.client.experiments import evaluate_experiment
 
 evaluate_experiment(experiment=experiment, evaluators=[new_evaluator])
 ```
+
+`evaluate_experiment` scores every run again and overwrites evaluations of the same name. To score only the runs still missing an evaluation, use `resume_evaluation` (below).
+
+## Resume an Interrupted Experiment
+
+When a run crashed, hit a provider outage, or was interrupted, finish it instead of starting over:
+
+```python
+client = Client()
+
+# Re-runs the task only for (example, repetition) pairs with no successful run,
+# then applies evaluators to runs missing that evaluation.
+client.experiments.resume_experiment(
+    experiment_id="experiment-id",
+    task=my_task,
+    evaluators=[exact_match],
+)
+
+# All tasks finished, but some evaluations are missing or failed —
+# or you want to add a new evaluator to a finished experiment.
+client.experiments.resume_evaluation(
+    experiment_id="experiment-id",
+    evaluators={"exact_match": exact_match},
+)
+```
+
+- `resume_evaluation` matches evaluators to existing evaluations by name, so each evaluator should return a single result whose name matches its key. Evaluators that return a list of results re-run on every call.
+- When `resume_experiment` replaces an errored run, the run keeps its ID; LLM and code evaluations on it are discarded and re-scored, human annotations are kept. Requires Phoenix server >= 20.21.3.
+- Both also exist on `AsyncClient` (with a `concurrency` parameter).

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import Mock
 
-import httpx
+import httpx2
 import pytest
 from pydantic import SecretStr
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
@@ -124,13 +124,13 @@ class TestErrorSanitization:
     @staticmethod
     def _failing_call(status_code: int) -> Any:
         async def call_tool(name: str, args: dict[str, Any], **_: Any) -> Any:
-            request = httpx.Request(
+            request = httpx2.Request(
                 "POST", "https://example.com/mcp/", headers={"Authorization": f"Bearer {_TOKEN}"}
             )
-            raise httpx.HTTPStatusError(
+            raise httpx2.HTTPStatusError(
                 f"{status_code} for url with Authorization: Bearer {_TOKEN}",
                 request=request,
-                response=httpx.Response(status_code, request=request),
+                response=httpx2.Response(status_code, request=request),
             )
 
         return call_tool
@@ -160,7 +160,7 @@ class TestErrorSanitization:
 
     async def test_transport_error_reduces_to_class_name(self) -> None:
         async def call_tool(name: str, args: dict[str, Any], **_: Any) -> Any:
-            raise httpx.ConnectError(f"connect failed, headers: Bearer {_TOKEN}")
+            raise httpx2.ConnectError(f"connect failed, headers: Bearer {_TOKEN}")
 
         with pytest.raises(ModelRetry) as exc_info:
             await _call_tool_with_sanitized_errors(Mock(), call_tool, "issue_read", {})

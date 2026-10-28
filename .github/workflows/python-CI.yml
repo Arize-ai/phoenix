@@ -28,10 +28,10 @@ jobs:
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
       prompts: ${{ steps.filter.outputs.prompts }}
-      phoenix: ${{ steps.filter.outputs.phoenix }}
-      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
-      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
-      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
+      phoenix: ${{ steps.filter.outputs.phoenix == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_client: ${{ steps.filter.outputs.phoenix_client == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel == 'true' && steps.bookkeeping.outputs.only != 'true' }}
       migrations: ${{ steps.filter.outputs.migrations }}
       ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
@@ -45,6 +45,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -109,6 +110,25 @@ jobs:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
+      # Skip suites only when every changed path is a changelog or release
+      # manifest.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          python3 - <<'PYTHON'
+          import os, re, subprocess
+          files = subprocess.check_output([
+              "git", "diff", "--no-renames", "--name-only", "-z", "HEAD^1", "HEAD"
+          ]).split(b"\0")[:-1]
+          allowed = rb"(?:\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md)"
+          only = bool(files) and all(re.fullmatch(allowed, path) for path in files)
+          print(f"Release bookkeeping only: {only}")
+          if only:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                  output.write("only=true\n")
+          PYTHON
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -150,7 +170,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.11", "3.13", "3.14"]
+        py: ["3.11", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -176,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.13", "3.14"]
+        py: ["3.11", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -200,7 +220,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -230,11 +250,9 @@ jobs:
             os: ubuntu-latest
           - py: "3.11"
             os: macos-latest
-          - py: "3.12"
-            os: ubuntu-latest
-          - py: "3.13"
+          - py: "3.15"
             os: windows-latest
-          - py: "3.14"
+          - py: "3.15"
             os: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -248,6 +266,10 @@ jobs:
             packages/
             evals/harbor/verifiers/
             .jcs-test-data/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -271,7 +293,7 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -298,7 +320,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -325,7 +347,7 @@ jobs:
     if: ${{ needs.changes.outputs.harbor_graphql == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -351,7 +373,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.filter_dsl == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -403,7 +425,7 @@ jobs:
     if: ${{ needs.changes.outputs.skill_graphql_examples == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -431,7 +453,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -457,7 +479,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -484,7 +506,7 @@ jobs:
     if: ${{ needs.changes.outputs.ddl == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -515,7 +537,7 @@ jobs:
     if: ${{ needs.changes.outputs.prompts == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -550,7 +572,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: lts/*
+          node-version-file: .nvmrc
       - name: Compile MCP Skills
         run: make mcp-skills
       - name: Check for changes
@@ -566,7 +588,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -591,7 +613,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -621,7 +643,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -791,10 +813,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Set up Python 3.14
+      - name: Set up Python 3.11
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: 3.14
+          python-version: "3.11"
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -802,7 +824,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
-          version: "0.12.19"
+          version: "0.13.5"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'

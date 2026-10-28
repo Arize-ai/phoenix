@@ -37,14 +37,30 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.el.md" />
 </p>
 
-Το Arize Phoenix είναι η πλατφόρμα παρατηρησιμότητας AI ανοιχτού κώδικα της Arize, σχεδιασμένη για πειραματισμό, αξιολόγηση και αντιμετώπιση προβλημάτων. Για διαχειριζόμενες ροές εργασίας παραγωγής, η Arize προσφέρει επίσης το [Arize AX](https://arize.com/products/ax/). Το Phoenix παρέχει:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Το Arize Phoenix είναι η πλατφόρμα παρατηρησιμότητας AI ανοιχτού κώδικα της Arize, σχεδιασμένη για πειραματισμό, αξιολόγηση και αντιμετώπιση προβλημάτων. Για διαχειριζόμενες ροές εργασίας παραγωγής, η Arize προσφέρει επίσης το [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-el). Το Phoenix παρέχει:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Παρακολουθήστε την εκτέλεση της εφαρμογής LLM σας μέσω instrumentation βασισμένου στο OpenTelemetry.
 - [**_Αξιολόγηση_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Αξιοποιήστε LLM για τη μέτρηση της απόδοσης της εφαρμογής σας με evals απαντήσεων και ανάκτησης.
@@ -53,7 +69,7 @@
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Βελτιστοποιήστε prompts, συγκρίνετε μοντέλα, ρυθμίστε παραμέτρους και επαναλάβετε καταγεγραμμένες κλήσεις LLM.
 - [**_Διαχείριση prompts_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Διαχειριστείτε και δοκιμάστε συστηματικά αλλαγές σε prompts με έλεγχο εκδόσεων, ετικέτες και πειραματισμό.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Ένας agent μηχανικής AI ενσωματωμένος στο Phoenix για αποσφαλμάτωση traces, επαναληπτική βελτίωση prompts και πλοήγηση στο προϊόν.
-- [**_Απομακρυσμένος διακομιστής MCP_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Συνδέστε το Claude Code, το Cursor και άλλους πελάτες MCP απευθείας στο endpoint `/mcp` της εγκατάστασης Phoenix σας για να κάνετε ερωτήματα σε traces, σύνολα δεδομένων, πειράματα και άλλα.
+- [**_Απομακρυσμένος διακομιστής MCP_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Συνδέστε το Claude Code, το Cursor και άλλους πελάτες MCP απευθείας στο endpoint `/mcp` της εγκατάστασης Phoenix σας για να κάνετε ερωτήματα σε traces, σύνολα δεδομένων, πειράματα και άλλα.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -64,7 +80,7 @@
 Το Phoenix εκτελείται σχεδόν οπουδήποτε, όπως στον τοπικό σας υπολογιστή, σε ανάπτυξη με containers ή στο cloud. Δείτε την ενότητα [Περιβάλλοντα](https://arize.com/docs/phoenix/environments) για αναλυτική περιγραφή κάθε επιλογής ή μεταβείτε κατευθείαν στον [Οδηγό γρήγορης εκκίνησης για tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Το Phoenix είναι ανοιχτού κώδικα και αυτο-φιλοξενούμενο. Για διαχειριζόμενη πλατφόρμα, η Arize προσφέρει το [Arize AX](https://arize.com/products/ax/) — το ίδιο instrumentation OpenTelemetry/OpenInference λειτουργεί και με τα δύο. Δείτε την [πλήρη σύγκριση](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Το Phoenix είναι ανοιχτού κώδικα και αυτο-φιλοξενούμενο. Για διαχειριζόμενη πλατφόρμα, η Arize προσφέρει το [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-el) — το ίδιο instrumentation OpenTelemetry/OpenInference λειτουργεί και με τα δύο. Δείτε την [πλήρη σύγκριση](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Πίνακας περιεχομένων
 
@@ -144,7 +160,7 @@ npx @arizeai/phoenix-cli setup
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Παρέχει ένα ελαφρύ wrapper γύρω από τα primitives του OpenTelemetry με προεπιλογές προσαρμοσμένες στο Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Πελάτης για το API του Arize Phoenix                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Βιβλιοθήκη αξιολόγησης TypeScript για εφαρμογές LLM (έκδοση alpha)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Αυτόνομος διακομιστής MCP stdio για παλαιότερες εκδόσεις του Phoenix (λειτουργία συντήρησης — έχει αντικατασταθεί από τον [απομακρυσμένο διακομιστή MCP](https://arize.com/docs/phoenix/integrations/remote-mcp) που είναι ενσωματωμένος στο Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Αυτόνομος διακομιστής MCP stdio για παλαιότερες εκδόσεις του Phoenix (λειτουργία συντήρησης — έχει αντικατασταθεί από τον [απομακρυσμένο διακομιστή MCP](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) που είναι ενσωματωμένος στο Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI για ανάκτηση traces, συνόλων δεδομένων και πειραμάτων για χρήση με το Claude Code, το Cursor και άλλους coding agents |
 
 ## Ενσωματώσεις tracing
@@ -269,7 +285,7 @@ npx @arizeai/phoenix-cli setup
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — το `npx @arizeai/phoenix-cli` ανακτά traces, σύνολα δεδομένων και πειράματα και κάνει το instrumentation της εφαρμογής σας (`setup`), ώστε ένας agent να μπορεί να αντλεί πλαίσιο και να ενεργεί με βάση αυτό από το τερματικό.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — το [`.agents/skills/`](../../.agents/skills/) περιέχει έτοιμες ροές εργασίας που διδάσκουν στους agents πώς να κάνουν αποσφαλμάτωση, αξιολόγηση και tracing με το Phoenix.
-- **[Απομακρυσμένος διακομιστής MCP](https://arize.com/docs/phoenix/integrations/remote-mcp)** — συνδέστε οποιονδήποτε πελάτη MCP στο endpoint `/mcp` της εγκατάστασής σας για να κάνετε ερωτήματα απευθείας στο Phoenix.
+- **[Απομακρυσμένος διακομιστής MCP](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — συνδέστε οποιονδήποτε πελάτη MCP στο endpoint `/mcp` της εγκατάστασής σας για να κάνετε ερωτήματα απευθείας στο Phoenix.
 
 Δείτε την [τεκμηρίωση για coding agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) για οδηγίες ρύθμισης και χρήσης.
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. Με την επιφύλαξη παντός δικ
 Τμήματα αυτού του κώδικα προστατεύονται από ένα ή περισσότερα διπλώματα ευρεσιτεχνίας των ΗΠΑ. Δείτε το [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Το παρόν λογισμικό διατίθεται βάσει των όρων της Elastic License 2.0 (ELv2). Δείτε το [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable
 
-import httpx
+import httpx2
 import pytest
 from pydantic import SecretStr
 
@@ -88,7 +88,7 @@ def _put_secrets(
     app: _AppInfo,
     secrets: list[dict[str, Any]],
     auth: _SecurityArtifact | None = _UNSET,
-) -> httpx.Response:
+) -> httpx2.Response:
     """PUT /v1/secrets and return the response.
 
     Pass ``auth=None`` to send the request without any credentials.

@@ -196,7 +196,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
     model_name: str,
     decrypt: Callable[[bytes], bytes],
 ) -> "PydanticAIModel":
-    import httpx
+    import httpx2
     from anthropic import AsyncAnthropic
     from openai import AsyncOpenAI
     from pydantic_ai.models.anthropic import AnthropicModel
@@ -321,7 +321,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             api_key=config.google_genai_authentication_method.api_key,
             base_url=http_options.base_url if http_options else None,
             http_client=(
-                httpx.AsyncClient(headers=http_options.headers)
+                httpx2.AsyncClient(headers=http_options.headers)
                 if http_options and http_options.headers
                 else None
             ),

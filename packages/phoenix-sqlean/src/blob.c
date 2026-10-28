@@ -378,30 +378,13 @@ PyObject* pysqlite_blob_exit(pysqlite_Blob *self, PyObject *args)
     Py_RETURN_FALSE;
 }
 
-static PyObject* pysqlite_blob_concat(pysqlite_Blob *self, PyObject *args)
-{
-    if (pysqlite_check_blob(self)) {
-        PyErr_SetString(PyExc_SystemError,
-                        "Blob don't support concatenation");
-    }
-    return NULL;
-}
-
-static PyObject* pysqlite_blob_repeat(pysqlite_Blob *self, PyObject *args)
-{
-    if (pysqlite_check_blob(self)) {
-        PyErr_SetString(PyExc_SystemError,
-                        "Blob don't support repeat operation");
-    }
-    return NULL;
-}
-
+/* Without this slot, `in` would fall back to iterating via sq_item. The
+   message matches the stdlib sqlite3 module's. */
 static int pysqlite_blob_contains(pysqlite_Blob *self, PyObject *args)
 {
-    if (pysqlite_check_blob(self)) {
-        PyErr_SetString(PyExc_SystemError,
-                        "Blob don't support contains operation");
-    }
+    PyErr_Format(PyExc_TypeError,
+                 "argument of type '%.200s' is not a container or iterable",
+                 Py_TYPE(self)->tp_name);
     return -1;
 }
 
@@ -699,8 +682,6 @@ static PyMethodDef blob_methods[] = {
 
 static PySequenceMethods blob_sequence_methods = {
     .sq_length = (lenfunc)pysqlite_blob_length,
-    .sq_concat = (binaryfunc)pysqlite_blob_concat,
-    .sq_repeat = (ssizeargfunc)pysqlite_blob_repeat,
     .sq_item = (ssizeargfunc)pysqlite_blob_item,
     .sq_ass_item = (ssizeobjargproc)pysqlite_blob_ass_item,
     .sq_contains = (objobjproc)pysqlite_blob_contains,

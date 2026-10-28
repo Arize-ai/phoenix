@@ -17,6 +17,7 @@ import pytest
 import strawberry
 from graphql import (
     GraphQLArgument,
+    GraphQLDefaultInput,
     GraphQLInputObjectType,
     GraphQLInterfaceType,
     GraphQLObjectType,
@@ -27,7 +28,7 @@ from graphql import (
     get_named_type,
     parse,
 )
-from graphql.language import ValueNode, parse_value, print_ast
+from graphql.language import ValueNode, parse_const_value, parse_value, print_ast
 from graphql.pyutils import Undefined
 from graphql.utilities import ast_from_value, value_from_ast_untyped
 
@@ -978,7 +979,7 @@ def test_a_custom_scalar_default_renders_as_a_graphql_literal() -> None:
     index = build_index(build_schema(sdl))
     assert (
         first_line(lookup(index, "Query.ok"))
-        == 'Query.ok(x: JSON = {a: [1, "b", null, true]}): Int'
+        == 'Query.ok(x: JSON = { a: [1, "b", null, true] }): Int'
     )
 
 
@@ -1118,14 +1119,106 @@ def test_a_code_first_default_renders_by_type() -> None:
     opt = GraphQLInputObjectType(
         "Opt", {"payload": GraphQLInputField(json_scalar), "choice": GraphQLInputField(choice)}
     )
-    # Inside an input object graphql-core coerces an omitted default by enum name.
+    # External defaults use enum names and are coerced before reaching a resolver.
     default = {"payload": {"a": [1, "b", None]}, "choice": "A"}
     query = GraphQLObjectType(
-        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt, default)})}
+        "Query",
+        {
+            "ok": GraphQLField(
+                GraphQLString,
+                args={"x": GraphQLArgument(opt, default=GraphQLDefaultInput(default))},
+            )
+        },
     )
     index = build_index(GraphQLSchema(query=query))
     line = first_line(lookup(index, "Query.ok"))
     assert line == 'Query.ok(x: Opt = {payload: {a: [1, "b", null]}, choice: A}): String'
+
+
+@pytest.mark.parametrize("default_kind", ["runtime", "literal", "legacy"])
+def test_input_field_defaults_render_as_the_value_execution_delivers(default_kind: str) -> None:
+    from graphql import (
+        GraphQLEnumType,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLList,
+        GraphQLString,
+        graphql_sync,
+        parse_const_value,
+    )
+
+    choice = GraphQLEnumType("Choice", {"A": "a"})
+    field = GraphQLInputField(GraphQLList(choice), out_name="chosen")
+    if default_kind == "runtime":
+        field.default = GraphQLDefaultInput(["A"])
+    elif default_kind == "literal":
+        field.default = GraphQLDefaultInput(literal=parse_const_value("[A]"))
+    else:
+        field.default_value = ["a"]
+    option = GraphQLInputObjectType("Opt", {"choice": field})
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "ok": GraphQLField(
+                GraphQLString,
+                args={"x": GraphQLArgument(option, default=GraphQLDefaultInput({}))},
+                resolve=lambda _root, _info, x: repr(x),
+            )
+        },
+    )
+    schema = GraphQLSchema(query=query)
+    index = build_index(schema)
+    assert first_line(lookup(index, "Opt.choice")) == "Opt.choice: [Choice] = [A]"
+    omitted = graphql_sync(schema, "{ ok }")
+    supplied = graphql_sync(schema, "{ ok(x: {choice: [A]}) }")
+    assert not omitted.errors and not supplied.errors
+    assert omitted.data == supplied.data == {"ok": "{'chosen': ['a']}"}
+
+
+def test_an_external_scalar_default_inside_a_custom_output_object_renders() -> None:
+    from datetime import datetime
+
+    from graphql import GraphQLField, GraphQLInputField, GraphQLString
+
+    when = GraphQLScalarType(
+        "DateTime", serialize=lambda value: value.isoformat(), parse_value=datetime.fromisoformat
+    )
+    option = GraphQLInputObjectType(
+        "Opt", {"when": GraphQLInputField(when)}, out_type=lambda values: tuple(values.items())
+    )
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "ok": GraphQLField(
+                GraphQLString,
+                args={
+                    "x": GraphQLArgument(
+                        option, default=GraphQLDefaultInput({"when": "2026-10-07T00:00:00"})
+                    )
+                },
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == (
+        'Query.ok(x: Opt = { when: "2026-10-07T00:00:00" }): String'
+    )
+
+
+def test_an_invalid_external_default_is_marked_without_breaking_search() -> None:
+    from graphql import GraphQLField, GraphQLInt
+
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "ok": GraphQLField(
+                GraphQLInt,
+                args={"x": GraphQLArgument(GraphQLInt, default=GraphQLDefaultInput("invalid"))},
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Int = <unprintable>): Int"
 
 
 def test_a_connection_over_a_scalar_is_an_ordinary_type() -> None:
@@ -1701,7 +1794,7 @@ def test_a_shared_root_answers_a_mutations_only_search() -> None:
 def test_a_source_literal_is_used_only_while_it_spells_the_current_default() -> None:
     schema = build_schema("type Query { f(x: Int = 1): Int }")
     assert schema.query_type is not None
-    schema.query_type.fields["f"].args["x"].default_value = 2
+    schema.query_type.fields["f"].args["x"].default = GraphQLDefaultInput(2)
     assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: Int = 2): Int"
 
 
@@ -1726,6 +1819,7 @@ def test_a_default_whose_comparison_fails_still_indexes() -> None:
 
     schema = build_schema("scalar V type Query { f(x: V = [1, 2]): Int }")
     assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = Awkward()
     assert (
         first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: V = <unprintable>): Int"
@@ -1735,6 +1829,7 @@ def test_a_default_whose_comparison_fails_still_indexes() -> None:
 def test_a_stale_literal_is_not_kept_for_a_value_of_another_kind() -> None:
     schema = build_schema("scalar JSON type Query { f(x: JSON = true): String }")
     assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = 1
     assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: JSON = 1): String"
 
@@ -1783,11 +1878,11 @@ def test_a_source_literal_is_compared_after_input_field_renaming() -> None:
             "right": GraphQLInputField(GraphQLInt, out_name="left"),
         },
     )
-    arg = GraphQLArgument(opt, {"right": 1})
+    arg = GraphQLArgument(opt, default=GraphQLDefaultInput({"right": 1}))
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{left: 1}"),
+        default_value=parse_const_value("{left: 1}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -1809,7 +1904,7 @@ def test_a_source_literal_of_another_kind_than_the_raw_default_is_not_kept() -> 
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Flag")),
-        default_value=parse_value("true"),
+        default_value=parse_const_value("true"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -1838,7 +1933,7 @@ def test_a_default_renders_as_the_literal_that_delivers_it() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Choice")),
-        default_value=parse_value("A"),
+        default_value=parse_const_value("A"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -1869,6 +1964,7 @@ def test_a_stale_literal_that_no_longer_validates_is_not_kept() -> None:
     opt = schema.type_map["Opt"]
     assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
     del opt.fields["old"]
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = {"a": 1}
     assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
 
@@ -1876,6 +1972,7 @@ def test_a_stale_literal_that_no_longer_validates_is_not_kept() -> None:
 def test_a_tuple_inside_a_list_of_custom_scalars_keeps_its_kind() -> None:
     schema = build_schema("scalar Seq type Query { f(x: [Seq] = [[1, 2]]): String }")
     assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = [(1, 2)]
     assert (
         first_line(lookup(build_index(schema), "Query.f"))
@@ -1890,6 +1987,7 @@ def test_a_singleton_literal_for_a_list_is_checked_against_the_item_type() -> No
     opt = schema.type_map["Opt"]
     assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
     del opt.fields["old"]
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = [{"a": 1}]
     assert (
         first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: [Opt] = [{a: 1}]): String"
@@ -1904,6 +2002,7 @@ def test_colliding_output_names_fall_back_to_kind_strict_comparison() -> None:
     assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
     for field in opt.fields.values():
         field.out_name = "v"
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = {"a": (1, 2)}
     assert (
         first_line(lookup(build_index(schema), "Query.f"))
@@ -1925,7 +2024,13 @@ def test_a_custom_output_type_still_renders_a_faithful_default() -> None:
         "Opt", {"a": GraphQLInputField(GraphQLInt)}, out_type=lambda d: tuple(d.items())
     )
     query = GraphQLObjectType(
-        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt, {"a": 1})})}
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString,
+                args={"x": GraphQLArgument(opt, default=GraphQLDefaultInput({"a": 1}))},
+            )
+        },
     )
     index = build_index(GraphQLSchema(query=query))
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
@@ -1947,7 +2052,7 @@ def test_a_literal_with_duplicate_fields_is_not_kept() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: 1, a: 2}"),
+        default_value=parse_const_value("{a: 1, a: 2}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -1977,7 +2082,7 @@ def test_a_dictionary_returning_output_type_still_compares_by_kind() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: [1, 2]}"),
+        default_value=parse_const_value("{a: [1, 2]}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -1986,7 +2091,13 @@ def test_a_dictionary_returning_output_type_still_compares_by_kind() -> None:
         "Opt", {"a": GraphQLInputField(GraphQLInt)}, out_type=lambda d: {"renamed": d["a"]}
     )
     query = GraphQLObjectType(
-        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(renamed, {"a": 1})})}
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString,
+                args={"x": GraphQLArgument(renamed, default=GraphQLDefaultInput({"a": 1}))},
+            )
+        },
     )
     index = build_index(GraphQLSchema(query=query))
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
@@ -2006,7 +2117,7 @@ def test_duplicate_fields_inside_a_custom_scalar_literal_are_rejected() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: 1, a: 2}"),
+        default_value=parse_const_value("{a: 1, a: 2}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2033,11 +2144,11 @@ def test_a_custom_output_object_compares_its_fields_by_kind() -> None:
     opt = GraphQLInputObjectType(
         "Opt", {"a": GraphQLInputField(GraphQLScalarType("Val"))}, out_type=lambda d: OptValue(**d)
     )
-    arg = GraphQLArgument(opt, {"a": 1})
+    arg = GraphQLArgument(opt, default=GraphQLDefaultInput({"a": 1}))
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: true}"),
+        default_value=parse_const_value("{a: true}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2082,7 +2193,7 @@ def test_a_literal_with_a_variable_is_not_kept() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: $missing}"),
+        default_value=parse_value("{a: $missing}"),  # type: ignore[arg-type]  # deliberately invalid AST
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2109,11 +2220,11 @@ def test_a_slotted_output_object_compares_its_slots() -> None:
     opt = GraphQLInputObjectType(
         "Opt", {"a": GraphQLInputField(GraphQLScalarType("Val"))}, out_type=lambda d: Slotted(**d)
     )
-    arg = GraphQLArgument(opt, {"a": 1})
+    arg = GraphQLArgument(opt, default=GraphQLDefaultInput({"a": 1}))
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: true}"),
+        default_value=parse_const_value("{a: true}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2191,7 +2302,7 @@ def test_a_type_definition_without_directives_does_not_crash() -> None:
     from graphql.language import InputObjectTypeDefinitionNode, NameNode
 
     opt = GraphQLInputObjectType("Opt", {"a": GraphQLInputField(GraphQLInt)})
-    opt.ast_node = InputObjectTypeDefinitionNode(name=NameNode(value="Opt"), fields=[])
+    opt.ast_node = InputObjectTypeDefinitionNode(name=NameNode(value="Opt"), fields=())
     query = GraphQLObjectType(
         "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt)})}
     )
@@ -2216,11 +2327,11 @@ def _opt_with_output(out_type: object) -> Index:
         {"a": GraphQLInputField(GraphQLScalarType("Val"))},
         out_type=out_type,  # type: ignore[arg-type]
     )
-    arg = GraphQLArgument(opt, {"a": 1})
+    arg = GraphQLArgument(opt, default=GraphQLDefaultInput({"a": 1}))
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="Opt")),
-        default_value=parse_value("{a: true}"),
+        default_value=parse_const_value("{a: true}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     return build_index(GraphQLSchema(query=query))
@@ -2300,7 +2411,7 @@ def test_a_native_subclass_default_keeps_its_value() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="When")),
-        default_value=parse_value('"2020-01-01T00:00:00"'),
+        default_value=parse_const_value('"2020-01-01T00:00:00"'),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2397,7 +2508,7 @@ def test_an_ordered_mapping_default_keeps_its_order() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="JSON")),
-        default_value=parse_value("{a: 1, b: 2}"),
+        default_value=parse_const_value("{a: 1, b: 2}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2462,7 +2573,7 @@ def test_container_metadata_and_plain_dictionary_order_are_compared() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="JSON")),
-        default_value=parse_value("{a: 1, b: 2}"),
+        default_value=parse_const_value("{a: 1, b: 2}"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2472,6 +2583,7 @@ def test_container_metadata_and_plain_dictionary_order_are_compared() -> None:
 def test_negative_zero_keeps_its_sign() -> None:
     schema = build_schema("type Query { f(x: Float = 0.0): String }")
     assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default = None
     schema.query_type.fields["f"].args["x"].default_value = -0.0
     assert first_line(lookup(build_index(schema), "Query.f")) in (
         "Query.f(x: Float = -0.0): String",
@@ -2483,7 +2595,7 @@ def test_a_rebuild_re_renders_a_changed_default() -> None:
     schema = build_schema("type Query { f(x: Int = 1): String }")
     assert schema.query_type is not None
     assert "x: Int = 1" in lookup(build_index(schema), "Query.f")
-    schema.query_type.fields["f"].args["x"].default_value = 2
+    schema.query_type.fields["f"].args["x"].default = GraphQLDefaultInput(2)
     assert "x: Int = 2" in lookup(build_index(schema), "Query.f")
 
 
@@ -2549,7 +2661,7 @@ def test_primitive_subclasses_default_factories_and_signed_zero_in_sets() -> Non
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="FloatSet")),
-        default_value=parse_value("[0.0]"),
+        default_value=parse_const_value("[0.0]"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2673,7 +2785,7 @@ def test_a_float_subclass_default_keeps_the_sign_of_zero() -> None:
     arg.ast_node = InputValueDefinitionNode(
         name=NameNode(value="x"),
         type=NamedTypeNode(name=NameNode(value="TokenFloat")),
-        default_value=parse_value("0.0"),
+        default_value=parse_const_value("0.0"),
     )
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
@@ -2735,7 +2847,7 @@ def test_the_implicit_fields_are_known(toy: Index) -> None:
     )
     assert lookup(toy, "__Type.name") == "__Type.name: String"
     assert search(toy, "__Type.fields").startswith(
-        "__Type.fields(includeDeprecated: Boolean = false)"
+        "__Type.fields(includeDeprecated: Boolean! = false)"
     )
 
 

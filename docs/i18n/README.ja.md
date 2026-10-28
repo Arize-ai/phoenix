@@ -37,14 +37,30 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ja.md" />
 </p>
 
-Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/) も提供しています。Phoenix は以下の機能を備えています。
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) も提供しています。Phoenix は以下の機能を備えています。
 
 - [**_トレーシング_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry ベースの計装により、LLM アプリケーションの実行時の動作をトレースします。
 - [**_評価_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - LLM を活用し、応答および検索（リトリーバル）の評価によってアプリケーションのパフォーマンスをベンチマークします。
@@ -53,7 +69,7 @@ Arize Phoenix は、実験・評価・トラブルシューティングのため
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- プロンプトの最適化、モデルの比較、パラメータの調整、トレース済みの LLM 呼び出しのリプレイを行えます。
 - [**_プロンプト管理_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- バージョン管理、タグ付け、実験を用いて、プロンプトの変更を体系的に管理・テストします。
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Phoenix に組み込まれた AI エンジニアリングエージェント。トレースのデバッグ、プロンプトの改善、プロダクト内のナビゲーションを支援します。
-- [**_リモート MCP サーバー_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Claude Code、Cursor などの MCP クライアントを Phoenix インスタンスの `/mcp` エンドポイントに直接接続し、トレース、データセット、実験などをクエリできます。
+- [**_リモート MCP サーバー_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Claude Code、Cursor などの MCP クライアントを Phoenix インスタンスの `/mcp` エンドポイントに直接接続し、トレース、データセット、実験などをクエリできます。
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -64,7 +80,7 @@ Phoenix は特定のベンダーや言語に依存せず、人気のフレーム
 Phoenix はローカルマシン、コンテナ化されたデプロイ環境、クラウドなど、ほぼあらゆる環境で動作します。各オプションの手順については [環境](https://arize.com/docs/phoenix/environments) を参照するか、すぐに [トレーシングのクイックスタート](https://arize.com/docs/phoenix/get-started/get-started-tracing) に進んでください。
 
 > [!NOTE]
-> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
+> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
 
 ## 目次
 
@@ -144,7 +160,7 @@ Docker Compose、Kubernetes/Helm、その他のデプロイオプションにつ
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Phoenix 向けのデフォルト設定を備えた、OpenTelemetry プリミティブの軽量ラッパーを提供                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API 用のクライアント                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM アプリケーション向けの TypeScript 評価ライブラリ（アルファ版）                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 旧バージョンの Phoenix 向けのスタンドアロン stdio MCP サーバー（メンテナンスモード — Phoenix に組み込まれた [リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/remote-mcp) に置き換えられました） |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 旧バージョンの Phoenix 向けのスタンドアロン stdio MCP サーバー（メンテナンスモード — Phoenix に組み込まれた [リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) に置き換えられました） |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code、Cursor などのコーディングエージェントで使用するために、トレース、データセット、実験を取得する CLI |
 
 ## トレーシング統合
@@ -269,7 +285,7 @@ Phoenix は、人間と AI コーディングエージェントのどちらか�
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` はトレース、データセット、実験を取得し、アプリを計装します（`setup`）。これにより、エージェントはターミナルからコンテキストを取得して作業できます。
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) には、Phoenix を使ったデバッグ、評価、トレースの方法をエージェントに教えるワークフローがパッケージ化されています。
-- **[リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/remote-mcp)** — 任意の MCP クライアントをインスタンスの `/mcp` エンドポイントに接続し、Phoenix に直接クエリできます。
+- **[リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 任意の MCP クライアントをインスタンスの `/mcp` エンドポイントに接続し、Phoenix に直接クエリできます。
 
 セットアップと使用方法については、[コーディングエージェントのドキュメント](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) を参照してください。
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 このコードの一部は、1 件以上の米国特許によって保護されています。[IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) を参照してください。
 
 このソフトウェアは Elastic License 2.0 (ELv2) の条件の下でライセンスされています。[LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) を参照してください。
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

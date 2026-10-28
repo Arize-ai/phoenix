@@ -4,10 +4,10 @@ from io import StringIO
 from secrets import token_hex
 from typing import Any, Optional
 
-import httpx
+import httpx2
 import pandas as pd
 import pytest
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -19,7 +19,7 @@ from tests.unit.server.api.conftest import ExperimentsWithIncompleteRuns
 
 
 async def test_experiments_api(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     db: DbSessionFactory,
 ) -> None:
@@ -217,7 +217,7 @@ async def test_experiments_api(
 
 
 async def test_experiment_json_and_csv_export_with_errored_run(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     db: DbSessionFactory,
 ) -> None:
@@ -290,7 +290,7 @@ async def test_experiment_json_and_csv_export_with_errored_run(
     ],
 )
 async def test_experiment_evaluation_recovers_metadata_nested_under_result(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     db: DbSessionFactory,
     extra_payload: dict[str, Any],
@@ -340,8 +340,79 @@ async def test_experiment_evaluation_recovers_metadata_nested_under_result(
     assert annotation.metadata_ == expected_metadata
 
 
+async def test_replacing_an_errored_run_removes_evaluations_of_the_failed_output(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """
+    ``resume_experiment`` re-runs errored runs by upserting them in place. An evaluation scored on
+    the failed output must not survive as the score of the new output, or ``resume_evaluation``
+    treats the run as already evaluated and the stale score stays.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    experiment_gid = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    run = {
+        "dataset_example_id": str(GlobalID("DatasetExample", "0")),
+        "output": None,
+        "repetition_number": 1,
+        "start_time": now,
+        "end_time": now,
+        "error": "boom",
+    }
+    response = await httpx_client.post(f"v1/experiments/{experiment_gid}/runs", json=run)
+    assert response.status_code == 200
+    run_gid = response.json()["data"]["id"]
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "exact",
+            "annotator_kind": "CODE",
+            "start_time": now,
+            "end_time": now,
+            "result": {"score": 0.0},
+        },
+    )
+    assert response.status_code == 200
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "reviewer note",
+            "annotator_kind": "HUMAN",
+            "start_time": now,
+            "end_time": now,
+            "result": {"label": "flaky"},
+        },
+    )
+    assert response.status_code == 200
+
+    response = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs", json={**run, "output": "B", "error": None}
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == run_gid
+    async with db() as session:
+        annotations = (
+            await session.scalars(
+                select(models.ExperimentRunAnnotation).where(
+                    models.ExperimentRunAnnotation.experiment_run_id
+                    == int(GlobalID.from_id(run_gid).node_id)
+                )
+            )
+        ).all()
+    assert [(a.name, a.annotator_kind) for a in annotations] == [("reviewer note", "HUMAN")]
+
+
 async def test_experiment_404s_with_missing_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     incorrect_dataset_gid = GlobalID("Dataset", "1")
@@ -352,7 +423,7 @@ async def test_experiment_404s_with_missing_dataset(
 
 
 async def test_experiment_404s_with_missing_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     correct_dataset_gid = GlobalID("Dataset", "0")
@@ -365,7 +436,7 @@ async def test_experiment_404s_with_missing_version(
 
 
 async def test_reading_experiments(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_experiments_without_runs: Any,
 ) -> None:
     experiment_gid = GlobalID("Experiment", "0")
@@ -386,7 +457,7 @@ async def test_reading_experiments(
 
 
 async def test_listing_experiments_on_empty_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_experiments_without_runs: Any,
 ) -> None:
     dataset_gid = GlobalID("Dataset", "0")
@@ -399,7 +470,7 @@ async def test_listing_experiments_on_empty_dataset(
 
 
 async def test_listing_experiments_by_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_experiments_without_runs: Any,
 ) -> None:
     dataset_gid = GlobalID("Dataset", "1")
@@ -416,7 +487,7 @@ async def test_listing_experiments_by_dataset(
 
 
 async def test_deleting_dataset_also_deletes_experiments(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_experiments_runs_and_evals: Any,
 ) -> None:
     ds_url = f"v1/datasets/{GlobalID('Dataset', str(1))}"
@@ -431,7 +502,7 @@ async def test_deleting_dataset_also_deletes_experiments(
 
 
 async def test_experiment_runs_pagination(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     """Test pagination functionality for experiment runs endpoint."""
@@ -543,7 +614,7 @@ class TestExperimentCounts:
 
     @staticmethod
     async def _get_experiment(
-        httpx_client: httpx.AsyncClient, experiment_gid: GlobalID
+        httpx_client: httpx2.AsyncClient, experiment_gid: GlobalID
     ) -> dict[str, Any]:
         """Helper to fetch experiment data."""
         response = await httpx_client.get(f"v1/experiments/{experiment_gid}")
@@ -552,7 +623,7 @@ class TestExperimentCounts:
 
     @staticmethod
     async def _create_run(
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiment_gid: GlobalID,
         example_gid: GlobalID,
         repetition_number: int,
@@ -576,7 +647,7 @@ class TestExperimentCounts:
 
     async def test_comprehensive_count_scenarios(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiments_with_incomplete_runs: ExperimentsWithIncompleteRuns,
     ) -> None:
         """
@@ -839,7 +910,7 @@ class TestIncompleteRuns:
 
     @staticmethod
     async def _get_incomplete_runs(
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiment_gid: GlobalID,
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
@@ -864,7 +935,7 @@ class TestIncompleteRuns:
 
     @staticmethod
     async def _create_run(
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiment_gid: GlobalID,
         example_gid: GlobalID,
         repetition_number: int,
@@ -888,7 +959,7 @@ class TestIncompleteRuns:
 
     async def test_incomplete_runs(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiments_with_incomplete_runs: ExperimentsWithIncompleteRuns,
     ) -> None:
         """
@@ -1118,7 +1189,7 @@ class TestIncompleteEvaluations:
 
     @staticmethod
     async def _get_incomplete_evaluations(
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiment_gid: GlobalID,
         evaluator_names: Optional[list[str]] = None,
         limit: Optional[int] = None,
@@ -1146,7 +1217,7 @@ class TestIncompleteEvaluations:
 
     async def test_incomplete_evaluations(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         experiments_with_incomplete_runs: ExperimentsWithIncompleteRuns,
         db: DbSessionFactory,
     ) -> None:
@@ -1795,7 +1866,7 @@ class TestPatchExperiment:
 
     async def test_metadata_only_patch_leaves_name_and_description_untouched(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1816,7 +1887,7 @@ class TestPatchExperiment:
 
     async def test_patch_all_three_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1836,7 +1907,7 @@ class TestPatchExperiment:
 
     async def test_explicit_null_description_clears_it(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1854,7 +1925,7 @@ class TestPatchExperiment:
 
     async def test_metadata_replaces_as_a_whole_no_deep_merge(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1868,7 +1939,7 @@ class TestPatchExperiment:
 
     async def test_null_name_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1880,7 +1951,7 @@ class TestPatchExperiment:
 
     async def test_null_metadata_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1892,7 +1963,7 @@ class TestPatchExperiment:
 
     async def test_null_name_alongside_other_field_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         # An explicit null name must 422 even when paired with a valid field, rather than
@@ -1906,7 +1977,7 @@ class TestPatchExperiment:
 
     async def test_null_metadata_alongside_other_field_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1918,7 +1989,7 @@ class TestPatchExperiment:
 
     async def test_non_object_metadata_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1930,7 +2001,7 @@ class TestPatchExperiment:
 
     async def test_empty_effective_patch_is_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         experiment_gid = GlobalID("Experiment", "0")
@@ -1939,7 +2010,7 @@ class TestPatchExperiment:
 
     async def test_invalid_id_format_is_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         response = await httpx_client.patch(
@@ -1950,7 +2021,7 @@ class TestPatchExperiment:
 
     async def test_missing_experiment_is_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         dataset_with_experiments_without_runs: Any,
     ) -> None:
         missing_gid = GlobalID("Experiment", "9000")

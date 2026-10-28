@@ -80,6 +80,7 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   {{ disabled_sandbox_prefix }}{{ disabled_marker }}{{ disabled_sandboxes | join(", ") }}
 {% endif %}
   Prometheus metrics  {{ enabled if prometheus_enabled else disabled }}
+  OTLP log export     {{ enabled if otlp_log_export_enabled else disabled }}
   Email (SMTP)        {{ smtp_hostname or not_configured }}
   Telemetry           {{ enabled if telemetry_enabled else disabled }}
 
@@ -212,6 +213,7 @@ class BootMessage:
     agent_assistant_enabled: bool
     docs_mcp_url: Optional[str]
     prometheus_enabled: bool
+    otlp_log_export_enabled: bool
     smtp_hostname: str
     telemetry_enabled: bool
     # Depends on database-backed system settings, so it is only known once the

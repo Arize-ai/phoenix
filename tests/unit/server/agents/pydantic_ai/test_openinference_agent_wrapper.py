@@ -18,7 +18,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
@@ -66,7 +66,7 @@ def tracer(tracer_provider: TracerProvider) -> OITracer:
 
 
 @pytest.fixture
-def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def wrapped_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     inner = TestModel(custom_output_text=MODEL_OUTPUT_TEXT)
     return OpenInferenceModelWrapper(inner, tracer=tracer)
 
@@ -74,7 +74,7 @@ def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
 @pytest.fixture
 def wrapped_agent(
     wrapped_model: OpenInferenceModelWrapper,
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     inner: Agent[None, str] = Agent(
         wrapped_model,
@@ -113,7 +113,7 @@ def raising_model() -> WrapperModel:
 
 
 @pytest.fixture
-def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper[None, str]:
+def native_tool_agent(tracer: OITracer) -> OpenInferenceAgentWrapper[None, str]:
     class _NativeToolModel(WrapperModel):
         async def request(
             self,
@@ -167,7 +167,7 @@ def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper[None, str]:
 @pytest.fixture
 def raising_agent(
     raising_model: WrapperModel,
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
@@ -176,7 +176,7 @@ def raising_agent(
 
 @pytest.fixture
 def test_model_agent(
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
 
@@ -205,7 +205,7 @@ def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
 
 @pytest.fixture
 def make_agent_with_response_parts(
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> Callable[[list[Any]], OpenInferenceAgentWrapper[None, str]]:
     def _make_agent_with_response_parts(parts: list[Any]) -> OpenInferenceAgentWrapper[None, str]:
         class _StaticResponseModel(WrapperModel):
@@ -275,7 +275,7 @@ async def test_iter_emits_agent_span_for_text_response(
 
 async def test_iter_uses_explicit_span_name_override(
     wrapped_model: OpenInferenceModelWrapper,
-    tracer: Tracer,
+    tracer: OITracer,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """``span_name`` overrides the default ``{agent name}.iter`` naming."""

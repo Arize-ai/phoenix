@@ -45,7 +45,8 @@
   "seo": {
     "metatags": {
       "canonical": "https://arize.com"
-    }
+    },
+    "indexing": "all"
   },
   "navigation": {
     "tabs": [
@@ -500,10 +501,45 @@
                 ]
               },
               {
+                "group": "Baseten",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/baseten",
+                  "docs/phoenix/integrations/llm-providers/baseten/baseten-tracing"
+                ]
+              },
+              {
+                "group": "Cerebras",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cerebras",
+                  "docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing"
+                ]
+              },
+              {
                 "group": "Cohere",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/cohere",
                   "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing"
+                ]
+              },
+              {
+                "group": "DeepSeek",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/deepseek",
+                  "docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing"
+                ]
+              },
+              {
+                "group": "Doubleword",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/doubleword",
+                  "docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing"
+                ]
+              },
+              {
+                "group": "Fireworks AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/fireworks-ai",
+                  "docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing"
                 ]
               },
               {
@@ -515,10 +551,24 @@
                 ]
               },
               {
+                "group": "Gravitee",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/gravitee",
+                  "docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing"
+                ]
+              },
+              {
                 "group": "Groq",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/groq",
                   "docs/phoenix/integrations/llm-providers/groq/groq-tracing"
+                ]
+              },
+              {
+                "group": "Hugging Face Inference Providers",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/hugging-face-inference-providers",
+                  "docs/phoenix/integrations/llm-providers/hugging-face-inference-providers/hugging-face-inference-providers-tracing"
                 ]
               },
               {
@@ -536,10 +586,19 @@
                 ]
               },
               {
+                "group": "Novita AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/novita-ai",
+                  "docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing"
+                ]
+              },
+              {
                 "group": "Ollama",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/ollama",
-                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing"
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk"
                 ]
               },
               {
@@ -556,7 +615,8 @@
                 "group": "OpenRouter",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/openrouter",
-                  "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing"
+                  "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+                  "docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast"
                 ]
               },
               {
@@ -574,10 +634,31 @@
                 ]
               },
               {
+                "group": "PrismML",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/prismml",
+                  "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing"
+                ]
+              },
+              {
+                "group": "Qwen",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/qwen",
+                  "docs/phoenix/integrations/llm-providers/qwen/qwen-tracing"
+                ]
+              },
+              {
                 "group": "Together AI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/together",
                   "docs/phoenix/integrations/llm-providers/together/together-tracing"
+                ]
+              },
+              {
+                "group": "TrueFoundry",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/truefoundry",
+                  "docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing"
                 ]
               },
               {
@@ -593,6 +674,27 @@
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
                   "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing"
+                ]
+              },
+              {
+                "group": "vLLM",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/vllm",
+                  "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing"
+                ]
+              },
+              {
+                "group": "xAI Grok",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/xai",
+                  "docs/phoenix/integrations/llm-providers/xai/xai-tracing"
+                ]
+              },
+              {
+                "group": "Z.ai",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/z-ai",
+                  "docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing"
                 ]
               }
             ]
@@ -672,11 +774,25 @@
                 ]
               },
               {
+                "group": "Atomic Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/atomic-agents",
+                  "docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing"
+                ]
+              },
+              {
                 "group": "AutoGen",
                 "pages": [
                   "docs/phoenix/integrations/python/autogen",
                   "docs/phoenix/integrations/python/autogen/autogen-tracing",
                   "docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing"
+                ]
+              },
+              {
+                "group": "Bedrock AgentCore",
+                "pages": [
+                  "docs/phoenix/integrations/python/bedrock-agentcore",
+                  "docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing"
                 ]
               },
               {
@@ -744,6 +860,13 @@
                 ]
               },
               {
+                "group": "LiveKit Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/livekit-agents",
+                  "docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing"
+                ]
+              },
+              {
                 "group": "LlamaIndex",
                 "pages": [
                   "docs/phoenix/integrations/python/llamaindex",
@@ -767,10 +890,38 @@
               },
               "docs/phoenix/integrations/python/mcp-tracing",
               {
+                "group": "Microsoft Agent Framework",
+                "pages": [
+                  "docs/phoenix/integrations/python/microsoft-agent-framework",
+                  "docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing"
+                ]
+              },
+              {
                 "group": "NVIDIA",
                 "pages": [
                   "docs/phoenix/integrations/python/nvidia",
                   "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing"
+                ]
+              },
+              {
+                "group": "OpenLIT",
+                "pages": [
+                  "docs/phoenix/integrations/python/openlit",
+                  "docs/phoenix/integrations/python/openlit/openlit-tracing"
+                ]
+              },
+              {
+                "group": "OpenLLMetry & Traceloop",
+                "pages": [
+                  "docs/phoenix/integrations/python/openllmetry",
+                  "docs/phoenix/integrations/python/openllmetry/openllmetry-tracing"
+                ]
+              },
+              {
+                "group": "Pipecat",
+                "pages": [
+                  "docs/phoenix/integrations/python/pipecat",
+                  "docs/phoenix/integrations/python/pipecat/pipecat-tracing"
                 ]
               },
               {
@@ -796,10 +947,24 @@
                 ]
               },
               {
+                "group": "Semantic Kernel",
+                "pages": [
+                  "docs/phoenix/integrations/python/semantic-kernel",
+                  "docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing"
+                ]
+              },
+              {
                 "group": "Strands Agents",
                 "pages": [
                   "docs/phoenix/integrations/python/strands-agents",
                   "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
+                ]
+              },
+              {
+                "group": "Temporal",
+                "pages": [
+                  "docs/phoenix/integrations/python/temporal",
+                  "docs/phoenix/integrations/python/temporal/temporal-tracing"
                 ]
               }
             ]
@@ -807,6 +972,13 @@
           {
             "group": "Java",
             "pages": [
+              {
+                "group": "Annotations",
+                "pages": [
+                  "docs/phoenix/integrations/java/annotation",
+                  "docs/phoenix/integrations/java/annotation/annotation-tracing"
+                ]
+              },
               {
                 "group": "Google ADK",
                 "pages": [
@@ -838,8 +1010,27 @@
             ]
           },
           {
+            "group": ".NET",
+            "pages": [
+              {
+                "group": "Microsoft Agent Framework",
+                "pages": [
+                  "docs/phoenix/integrations/dotnet/microsoft-agent-framework",
+                  "docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing"
+                ]
+              }
+            ]
+          },
+          {
             "group": "Platform",
             "pages": [
+              {
+                "group": "Claude Managed Agents",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/claude-managed-agents",
+                  "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing"
+                ]
+              },
               {
                 "group": "Dify",
                 "pages": [
@@ -862,10 +1053,38 @@
                 ]
               },
               {
+                "group": "n8n",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/n8n",
+                  "docs/phoenix/integrations/platforms/n8n/n8n-tracing"
+                ]
+              },
+              {
+                "group": "Open WebUI",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/openwebui",
+                  "docs/phoenix/integrations/platforms/openwebui/openwebui-tracing"
+                ]
+              },
+              {
                 "group": "Prompt Flow",
                 "pages": [
                   "docs/phoenix/integrations/platforms/prompt-flow",
                   "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
+                ]
+              },
+              {
+                "group": "Scalekit",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/scalekit",
+                  "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing"
+                ]
+              },
+              {
+                "group": "TrueFoundry AI Gateway",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/truefoundry",
+                  "docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing"
                 ]
               }
             ]
@@ -890,20 +1109,24 @@
           {
             "group": "Evaluation Integrations",
             "pages": [
+              "docs/phoenix/integrations/evaluation-integrations/azure-ai-evaluation",
               "docs/phoenix/integrations/evaluation-integrations/harbor",
               "docs/phoenix/integrations/evaluation-integrations/cleanlab",
               "docs/phoenix/integrations/evaluation-integrations/mlflow",
               "docs/phoenix/integrations/evaluation-integrations/ragas",
+              "docs/phoenix/integrations/evaluation-integrations/ragas-nvidia-rag-metrics",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
           },
           {
             "group": "Coding Agents",
             "pages": [
+              "docs/phoenix/integrations/coding-agents/antigravity",
               "docs/phoenix/integrations/coding-agents/claude-code",
               "docs/phoenix/integrations/coding-agents/codex",
               "docs/phoenix/integrations/coding-agents/copilot",
               "docs/phoenix/integrations/coding-agents/cursor",
+              "docs/phoenix/integrations/coding-agents/devin",
               "docs/phoenix/integrations/coding-agents/gemini",
               "docs/phoenix/integrations/coding-agents/kiro",
               "docs/phoenix/integrations/coding-agents/oh-my-pi",
@@ -1126,6 +1349,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version",
@@ -1283,6 +1507,7 @@
             "pages": [
               "docs/phoenix/cookbook/tracing/identify-high-signal-traces",
               "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
+              "docs/phoenix/cookbook/tracing/claude-managed-agents-guide",
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
               "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
@@ -1349,6 +1574,9 @@
           {
             "group": "10.2026",
             "pages": [
+              "docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding",
+              "docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon",
+              "docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools",
               "docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans"
             ]
           },
@@ -1357,6 +1585,7 @@
             "pages": [
               "docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics",
               "docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis",
+              "docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks",
               "docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi",
               "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
             ]

@@ -37,14 +37,30 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.tl.md" />
 </p>
 
-Ang Arize Phoenix ay ang open-source na AI observability platform ng Arize na idinisenyo para sa eksperimentasyon, ebalwasyon, at pag-troubleshoot. Para sa mga pinamamahalaang production workflow, nag-aalok din ang Arize ng [Arize AX](https://arize.com/products/ax/). Ang Phoenix ay nagbibigay ng:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Ang Arize Phoenix ay ang open-source na AI observability platform ng Arize na idinisenyo para sa eksperimentasyon, ebalwasyon, at pag-troubleshoot. Para sa mga pinamamahalaang production workflow, nag-aalok din ang Arize ng [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tl). Ang Phoenix ay nagbibigay ng:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - I-trace ang runtime ng inyong LLM application gamit ang instrumentation na batay sa OpenTelemetry.
 - [**_Ebalwasyon_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Gamitin ang mga LLM upang i-benchmark ang performance ng inyong application gamit ang mga eval para sa response at retrieval.
@@ -53,7 +69,7 @@ Ang Arize Phoenix ay ang open-source na AI observability platform ng Arize na id
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- I-optimize ang mga prompt, ikumpara ang mga model, i-adjust ang mga parameter, at i-replay ang mga na-trace na LLM call.
 - [**_Pamamahala ng Prompt_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Pamahalaan at subukan ang mga pagbabago sa prompt nang sistematiko gamit ang version control, tagging, at eksperimentasyon.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Isang AI engineering agent na nakapaloob sa Phoenix para sa pag-debug ng mga trace, pag-iterate sa mga prompt, at pag-navigate sa produkto.
-- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Ikonekta ang Claude Code, Cursor, at iba pang MCP client nang direkta sa `/mcp` endpoint ng inyong Phoenix instance upang mag-query ng mga trace, dataset, eksperimento, at iba pa.
+- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Ikonekta ang Claude Code, Cursor, at iba pang MCP client nang direkta sa `/mcp` endpoint ng inyong Phoenix instance upang mag-query ng mga trace, dataset, eksperimento, at iba pa.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -64,7 +80,7 @@ Ang Phoenix ay vendor- at language-agnostic, na may handa nang suporta para sa m
 Ang Phoenix ay tumatakbo halos kahit saan, kabilang ang inyong lokal na makina, isang containerized deployment, o sa cloud. Tingnan ang [Mga Environment](https://arize.com/docs/phoenix/environments) para sa gabay sa bawat opsyon, o dumiretso sa [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Ang Phoenix ay open-source at self-hosted. Para sa isang pinamamahalaang platform, nag-aalok ang Arize ng [Arize AX](https://arize.com/products/ax/) — ang parehong OpenTelemetry/OpenInference instrumentation ay gumagana sa dalawa. Tingnan ang [buong paghahambing](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Ang Phoenix ay open-source at self-hosted. Para sa isang pinamamahalaang platform, nag-aalok ang Arize ng [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tl) — ang parehong OpenTelemetry/OpenInference instrumentation ay gumagana sa dalawa. Tingnan ang [buong paghahambing](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Talaan ng Nilalaman
 
@@ -144,7 +160,7 @@ Ang `arize-phoenix` package ay naglalaman ng buong Phoenix platform. Gayunpaman,
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Nagbibigay ng magaang wrapper sa mga primitive ng OpenTelemetry na may mga default na angkop sa Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client para sa Arize Phoenix API                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript na library sa ebalwasyon para sa mga LLM application (alpha release)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Standalone na stdio MCP server para sa mga lumang bersyon ng Phoenix (maintenance mode — pinalitan na ng [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) na nakapaloob sa Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Standalone na stdio MCP server para sa mga lumang bersyon ng Phoenix (maintenance mode — pinalitan na ng [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) na nakapaloob sa Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI para kumuha ng mga trace, dataset, at eksperimento para gamitin sa Claude Code, Cursor, at iba pang coding agent |
 
 ## Mga Integrasyon para sa Tracing
@@ -269,7 +285,7 @@ Ang Phoenix ay ginawa upang magamit ng mga tao at ng mga AI coding agent. Tatlon
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — ang `npx @arizeai/phoenix-cli` ay kumukuha ng mga trace, dataset, at eksperimento at nag-i-instrument ng inyong app (`setup`), upang ang isang agent ay makakuha ng konteksto at kumilos dito mula sa terminal.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — ang [`.agents/skills/`](../../.agents/skills/) ay nagpa-package ng mga workflow na nagtuturo sa mga agent kung paano mag-debug, mag-evaluate, at mag-trace gamit ang Phoenix.
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — ikonekta ang anumang MCP client sa `/mcp` endpoint ng inyong instance upang direktang mag-query sa Phoenix.
+- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — ikonekta ang anumang MCP client sa `/mcp` endpoint ng inyong instance upang direktang mag-query sa Phoenix.
 
 Tingnan ang [dokumentasyon sa mga coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) para sa setup at paggamit.
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. Nakalaan ang Lahat ng Karapatan.
 Ang ilang bahagi ng code na ito ay protektado ng isa o higit pang U.S. Patent. Tingnan ang [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Ang software na ito ay lisensyado sa ilalim ng mga tuntunin ng Elastic License 2.0 (ELv2). Tingnan ang [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
 
       - name: Update skills from skills-lock.json
         run: npx --yes skills update --project -y
@@ -79,3 +79,9 @@ jobs:
         # truncate the command mid-string.
         run: |
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
+      - name: Approve pull request
+        if: steps.cpr.outputs.pull-request-number != ''
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ steps.cpr.outputs.pull-request-number }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}

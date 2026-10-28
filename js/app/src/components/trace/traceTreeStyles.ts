@@ -20,7 +20,7 @@ const ICON_SIZE = 20;
  * Tree lines stop this far short of the icon on every side, so the icon reads
  * as a node the lines point at rather than one they pierce.
  */
-const LINE_GAP = 5;
+export const LINE_GAP = 5;
 /**
  * Run and corner radius of the elbow that joins a row to its parent's line.
  * It ends one gap before the icon's left edge.

@@ -37,14 +37,30 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.pt-PT.md" />
 </p>
 
-O Arize Phoenix é a plataforma de observabilidade de IA de código aberto da Arize, concebida para experimentação, avaliação e resolução de problemas. Para fluxos de trabalho geridos em produção, a Arize disponibiliza também o [Arize AX](https://arize.com/products/ax/). O Phoenix proporciona:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+O Arize Phoenix é a plataforma de observabilidade de IA de código aberto da Arize, concebida para experimentação, avaliação e resolução de problemas. Para fluxos de trabalho geridos em produção, a Arize disponibiliza também o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-pt). O Phoenix proporciona:
 
 - [**_Rastreio_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Rastreie a execução da sua aplicação LLM através de instrumentação baseada em OpenTelemetry.
 - [**_Avaliação_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Tire partido de LLMs para aferir o desempenho da sua aplicação com avaliações de resposta e de recuperação (retrieval).
@@ -53,7 +69,7 @@ O Arize Phoenix é a plataforma de observabilidade de IA de código aberto da Ar
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Otimize prompts, compare modelos, ajuste parâmetros e volte a executar chamadas LLM rastreadas.
 - [**_Gestão de prompts_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Faça a gestão e teste alterações a prompts de forma sistemática, recorrendo a controlo de versões, etiquetas e experimentação.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Um agente de engenharia de IA integrado no Phoenix para depurar traces, iterar sobre prompts e navegar no produto.
-- [**_Servidor MCP remoto_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Ligue o Claude Code, o Cursor e outros clientes MCP diretamente ao endpoint `/mcp` da sua instância do Phoenix para consultar traces, conjuntos de dados, experiências e muito mais.
+- [**_Servidor MCP remoto_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Ligue o Claude Code, o Cursor e outros clientes MCP diretamente ao endpoint `/mcp` da sua instância do Phoenix para consultar traces, conjuntos de dados, experiências e muito mais.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -64,7 +80,7 @@ O Phoenix é independente do fornecedor e da linguagem, com suporte de origem pa
 O Phoenix funciona praticamente em qualquer lado, incluindo a sua máquina local, uma implementação em contentores ou a nuvem. Consulte [Ambientes](https://arize.com/docs/phoenix/environments) para uma descrição detalhada de cada opção ou avance diretamente para o [Guia de início rápido de rastreio](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> O Phoenix é de código aberto e de alojamento próprio. Para uma plataforma gerida, a Arize disponibiliza o [Arize AX](https://arize.com/products/ax/) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Consulte a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> O Phoenix é de código aberto e de alojamento próprio. Para uma plataforma gerida, a Arize disponibiliza o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-pt) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Consulte a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Índice
 
@@ -144,7 +160,7 @@ O pacote `arize-phoenix` inclui toda a plataforma Phoenix. Contudo, se já tiver
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Disponibiliza um wrapper leve sobre as primitivas do OpenTelemetry, com predefinições adaptadas ao Phoenix |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Cliente para a API do Arize Phoenix |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Biblioteca de avaliação em TypeScript para aplicações LLM (versão alfa) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Servidor MCP stdio autónomo para versões mais antigas do Phoenix (modo de manutenção — substituído pelo [servidor MCP remoto](https://arize.com/docs/phoenix/integrations/remote-mcp) integrado no Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Servidor MCP stdio autónomo para versões mais antigas do Phoenix (modo de manutenção — substituído pelo [servidor MCP remoto](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) integrado no Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI para obter traces, conjuntos de dados e experiências para utilização com o Claude Code, o Cursor e outros agentes de programação |
 
 ## Integrações de rastreio
@@ -269,7 +285,7 @@ O Phoenix foi concebido para ser utilizado tanto por pessoas como por agentes de
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — o `npx @arizeai/phoenix-cli` obtém traces, conjuntos de dados e experiências e instrumenta a sua aplicação (`setup`), para que um agente possa recolher contexto e agir com base nele a partir do terminal.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — o [`.agents/skills/`](../../.agents/skills/) reúne fluxos de trabalho que ensinam os agentes a depurar, avaliar e rastrear com o Phoenix.
-- **[Servidor MCP remoto](https://arize.com/docs/phoenix/integrations/remote-mcp)** — ligue qualquer cliente MCP ao endpoint `/mcp` da sua instância para consultar o Phoenix diretamente.
+- **[Servidor MCP remoto](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — ligue qualquer cliente MCP ao endpoint `/mcp` da sua instância para consultar o Phoenix diretamente.
 
 Consulte a [documentação sobre agentes de programação](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) para obter informações sobre configuração e utilização.
 
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. Todos os direitos reservados.
 Partes deste código estão protegidas por uma ou mais patentes dos EUA. Consulte o [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Este software está licenciado nos termos da Elastic License 2.0 (ELv2). Consulte a [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

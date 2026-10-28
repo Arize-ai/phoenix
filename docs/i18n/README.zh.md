@@ -37,14 +37,30 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.zh.md" />
 </p>
 
-Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/)。Phoenix 核心功能包括：
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
+Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平台，专为实验对比、效果评估与故障排查而设计。针对托管式生产级工作流，Arize 亦提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)。Phoenix 核心功能包括：
 
 - [**_链路追踪 (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - 基于 OpenTelemetry 标准的插桩，追踪大语言模型（LLM）应用的运行时调用链。
 - [**_效果评估 (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 利用 LLM 自主能力，通过回答质量评估与检索效果评测建立基准测试。
@@ -53,7 +69,7 @@ Arize Phoenix 是 Arize 推出的开源 AI 可观测性（AI Observability）平
 - [**_试验场 (Playground)_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- 优化提示词、横向对比不同模型、灵活调整参数，并一键重放历史追踪的 LLM 调用。
 - [**_提示词管理 (Prompt Management)_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- 通过版本控制、标签体系与科学实验，系统化管理并验证提示词变更。
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - 内置于 Phoenix 的 AI 研发智能体，辅助分析调用链路、迭代优化提示词及系统导航。
-- [**_远程 MCP 服务器 (Remote MCP Server)_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - 支持将 Claude Code、Cursor 及其他 MCP 客户端直连到 Phoenix 实例的 `/mcp` 端点，以便快捷检索链路追踪、数据集与实验指标。
+- [**_远程 MCP 服务器 (Remote MCP Server)_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - 支持将 Claude Code、Cursor 及其他 MCP 客户端直连到 Phoenix 实例的 `/mcp` 端点，以便快捷检索链路追踪、数据集与实验指标。
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -64,7 +80,7 @@ Phoenix 与模型供应商和编程语言完全解耦，开箱即用地支持主
 Phoenix 可在几乎任何环境中运行，包括本地开发机、容器化环境或云端平台。详细操作请参阅[运行环境指南 (Environments)](https://arize.com/docs/phoenix/environments)，或直接查阅[链路追踪快速入门 (Tracing Quickstart)](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
 
 > [!NOTE]
-> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
+> Phoenix 为开源且支持私有化自托管。对于全托管生产级平台需求，Arize 提供了 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh)——二者使用相同的 OpenTelemetry / OpenInference 插桩体系。详见[完整功能对比说明](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
 
 ## 目录
 
@@ -144,7 +160,7 @@ Phoenix 容器镜像已发布在 [Docker Hub](https://hub.docker.com/r/arizephoe
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | 对 OpenTelemetry 原语的轻量级封装，预置适配 Phoenix 的默认配置 |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | 用于对接 Arize Phoenix API 的 TypeScript 客户端 |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | 专为 LLM 应用打造的 TypeScript 评估库（Alpha 预览版） |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | 适用于老版本 Phoenix 的独立 stdio MCP 服务器（维护模式——已被 Phoenix 内置的[远程 MCP 服务器](https://arize.com/docs/phoenix/integrations/remote-mcp)所取代） |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | 适用于老版本 Phoenix 的独立 stdio MCP 服务器（维护模式——已被 Phoenix 内置的[远程 MCP 服务器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)所取代） |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | 用于获取 Traces、数据集和实验数据的 CLI 工具，供 Claude Code、Cursor 等编程智能体使用 |
 
 ## 追踪集成生态
@@ -269,7 +285,7 @@ Phoenix 既为人类工程师打造，也原生支持各类 AI 编程智能体�
 
 - **[CLI 命令行](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — 运行 `npx @arizeai/phoenix-cli` 抓取 Traces、数据集与实验指标，并自动插桩应用（`setup`），使智能体可以直接在终端获取上下文并执行任务。
 - **[智能体技能 (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) 目录打包了专有工作流，赋予编程智能体使用 Phoenix 调试、评估与链路追踪的完整技能。
-- **[远程 MCP 服务器](https://arize.com/docs/phoenix/integrations/remote-mcp)** — 支持将任意符合 MCP 规范的客户端连接至 Phoenix 实例的 `/mcp` 端点，直接执行上下文检索与操作。
+- **[远程 MCP 服务器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 支持将任意符合 MCP 规范的客户端连接至 Phoenix 实例的 `/mcp` 端点，直接执行上下文检索与操作。
 
 关于智能体的完整配置与调用方式，请参阅[编程智能体集成指南](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)。
 
@@ -318,3 +334,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 ---
 
 > 💡 **文档维护说明**：本中文文档由社区志愿者（@JasonYeYuhe）翻译维护，最后同步更新于 2026年9月8日。如发现内容与官方英文原版存在差异或新特性滞后，欢迎提交 PR 共同完善！
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

@@ -7,7 +7,7 @@ import random
 import traceback
 import uuid
 from binascii import hexlify
-from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Generator, Iterable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
@@ -57,6 +57,7 @@ from phoenix.client.resources.experiments.types import (
     ExampleProxy,
     Experiment,
     ExperimentEvaluationRun,
+    ExperimentEvaluator,
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
@@ -110,7 +111,7 @@ def _patched_span_init(self: ReadableSpan, *args: Any, **kwargs: Any) -> None:
 
 
 @contextmanager
-def _monkey_patch_span_init() -> Iterator[None]:
+def _monkey_patch_span_init() -> Generator[None, None, None]:
     """Context manager that monkey patches ReadableSpan.__init__ with reference counting."""
     global _span_init_monkey_patch_count, _original_span_init
 
@@ -134,7 +135,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
 
 
 @contextmanager
-def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
+def capture_spans(resource: Resource) -> Generator[SpanModifier, None, None]:
     """A context manager that captures spans and modifies them with the specified resources.
 
     Args:
@@ -216,7 +217,7 @@ class _RoutingTracer(Tracer):
 
 
 @contextmanager
-def _attach_global_tracer_provider(provider: Any) -> Iterator[None]:
+def _attach_global_tracer_provider(provider: Any) -> Generator[None, None, None]:
     """Temporarily mount a provider while preserving OpenTelemetry's exact prior state."""
     global _evaluator_provider_mount_count
 
@@ -388,11 +389,11 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
         return evaluators_by_name
 
     elif isinstance(obj, Mapping):
-        for name, value in obj.items():
+        for name, value in cast(Iterable[tuple[EvaluatorName, ExperimentEvaluator]], obj.items()):
             evaluator = create_evaluator(name=name)(value)
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
-        for value in obj:
+        for value in cast(Iterable[ExperimentEvaluator], obj):
             evaluator = create_evaluator()(value)
             evaluators_by_name[evaluator.name] = evaluator
     else:
@@ -1891,7 +1892,7 @@ class Experiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
@@ -2080,7 +2081,7 @@ class Experiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         results_to_submit: list[Optional[EvaluationResult]]
@@ -3745,7 +3746,7 @@ class AsyncExperiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
@@ -3939,7 +3940,7 @@ class AsyncExperiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         results_to_submit: list[Optional[EvaluationResult]]

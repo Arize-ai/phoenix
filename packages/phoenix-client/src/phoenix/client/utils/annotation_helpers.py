@@ -573,9 +573,10 @@ def _chunk_annotations_dataframe(
                 else:
                     raise ValueError(f"Row {idx}: Missing required ID columns: {missing_ids}")
 
-            label = (
-                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None
-            )
+            # Stringify before testing for emptiness: a label whose value is falsy
+            # but meaningful (e.g. the integer 0, common in labelled eval data) must
+            # still be reported, so only a blank string counts as "no label".
+            label = (str(row.loc["label"]).strip() or None) if "label" in row else None
             score = None
             if "score" in row and row.loc["score"] is not None:
                 try:

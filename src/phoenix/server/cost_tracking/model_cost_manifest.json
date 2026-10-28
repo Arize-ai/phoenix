@@ -1724,6 +1724,33 @@
       ]
     },
     {
+      "name": "gemini-4-argon",
+      "name_pattern": "gemini-4-argon",
+      "source": "manual",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-5,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-5,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
       "name": "gemini-exp-1206",
       "name_pattern": "gemini-exp-1206",
       "source": "litellm",
@@ -6770,6 +6797,29 @@
         },
         {
           "base_rate": 2e-9,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "meta/muse-wonder-1.0",
+      "name_pattern": "muse-wonder-1\\.0",
+      "source": "litellm",
+      "provider": "meta",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-5,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }

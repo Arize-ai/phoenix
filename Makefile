@@ -39,6 +39,7 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -81,6 +82,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
@@ -209,10 +211,11 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
+# The generator requires graphql-core<3.3; keep it separate from the server.
 codegen-harbor-graphql: ## Compile evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
 	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
 	@rm -rf $(CURDIR)/evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
-	@$(UV) run ariadne-codegen
+	@$(UV) tool run --from ariadne-codegen==0.19.0 ariadne-codegen
 	@echo -e "$(GREEN)✓ evals/harbor/verifiers/harbor_verifiers/graphql/__generated__$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI
@@ -285,6 +288,9 @@ dev-frontend: ## Frontend only (React dev server)
 #=============================================================================
 # Testing
 #=============================================================================
+
+test-integration-docs: ## Run configured integration docs against a running Phoenix server
+	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
