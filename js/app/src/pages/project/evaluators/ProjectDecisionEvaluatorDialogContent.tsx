@@ -43,6 +43,7 @@ import {
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
 import {
   type EvaluatorFormDirtyCheck,
   useEvaluatorFormDirtyCheck,
@@ -94,19 +95,6 @@ const createMutation = graphql`
     }
   }
 `;
-
-function useFinishCreate({ projectId, onSuccess }: DialogProps) {
-  const environment = useRelayEnvironment();
-  const { timeRangeISOStrings } = useTimeRange();
-  return async () => {
-    await refetchProjectEvaluators({
-      environment,
-      projectId,
-      timeRange: timeRangeISOStrings,
-    });
-    onSuccess();
-  };
-}
 
 function toDecisionPreview(
   draft: DecisionEvaluatorDraft
@@ -298,43 +286,43 @@ function CreateProjectDecisionEvaluatorForm({
 
 export function AttachProjectDecisionEvaluatorDialogContent({
   evaluator,
-  ...props
+  title,
+  projectId,
+  scope,
+  onScopeChange,
+  onSuccess,
+  registerDirtyCheck,
 }: DialogProps & { evaluator: DecisionEvaluatorData }) {
-  const { title, projectId, scope, onScopeChange, registerDirtyCheck } = props;
   const store = useEvaluatorStoreInstance();
   const variables = inputNamesFromSchema(evaluator.inputSchema);
-  const [create, isCreating] =
-    useMutation<ProjectDecisionEvaluatorDialogContentCreateMutation>(
-      createMutation
-    );
   const getInputMapping = useDeclaredInputMapping(variables);
-  const finish = useFinishCreate(props);
+  const { attach, isAttaching, error } =
+    useAttachProjectEvaluator<ProjectDecisionEvaluatorDialogContentCreateMutation>(
+      {
+        mutation: createMutation,
+        projectId,
+        evaluatorId: evaluator.id,
+        onSuccess,
+      }
+    );
   const [isFilterValid, setIsFilterValid] = useState(true);
-  const [submitError, setSubmitError] = useState<string>();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
   });
   trackStoreForDirtyCheck(store);
 
-  const onSubmit = async () => {
-    setSubmitError(undefined);
-    try {
-      await commitAsync(create, {
-        input: {
-          projectId,
-          evaluatorId: evaluator.id,
-          name: evaluator.name,
-          inputMapping: getInputMapping(),
-          ...getBindingFields(scope),
-          enabled: true,
-        },
-      });
-      await finish();
-    } catch (error) {
-      setSubmitError(getMutationErrorMessage(error));
-    }
-  };
+  const onSubmit = () =>
+    attach({
+      input: {
+        projectId,
+        evaluatorId: evaluator.id,
+        name: evaluator.name,
+        inputMapping: getInputMapping(),
+        ...getBindingFields(scope),
+        enabled: true,
+      },
+    });
 
   return (
     <ProjectDecisionEvaluatorLayout
@@ -344,11 +332,11 @@ export function AttachProjectDecisionEvaluatorDialogContent({
       scope={scope}
       variables={variables}
       decision={{ decisionEvaluatorId: evaluator.id }}
-      isSubmitting={isCreating}
+      isSubmitting={isAttaching}
       isSubmitDisabled={false}
       isFilterValid={isFilterValid}
-      error={submitError}
-      onSubmit={() => void onSubmit()}
+      error={error}
+      onSubmit={onSubmit}
       definition={
         <ProjectDecisionEvaluatorFormSections
           projectId={projectId}

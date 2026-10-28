@@ -1,11 +1,6 @@
 import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import {
-  ConnectionHandler,
-  graphql,
-  useMutation,
-  useRelayEnvironment,
-} from "react-relay";
+import { graphql, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -40,7 +35,6 @@ import {
   ProjectEvaluatorInputMappingDock,
   ProjectLlmEvaluatorFormSections,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
@@ -54,6 +48,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
@@ -469,34 +464,41 @@ function AttachCodeProjectEvaluatorDialog({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const store = useEvaluatorStoreInstance();
-  const environment = useRelayEnvironment();
-  const { timeRangeISOStrings } = useTimeRange();
-  const [error, setError] = useState<string>();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
   });
   trackStoreForDirtyCheck(store);
-  const [addCodeEvaluator, isAddingCodeEvaluator] =
-    useMutation<CreateProjectEvaluatorSlideoverAddCodeMutation>(graphql`
-      mutation CreateProjectEvaluatorSlideoverAddCodeMutation(
-        $input: AddProjectCodeEvaluatorInput!
-      ) {
-        addProjectCodeEvaluator(input: $input) {
-          evaluator {
-            id
-            name
-            evaluationTarget
-            filterCondition
-            samplingRate
-            enabled
+  const {
+    attach,
+    isAttaching: isAddingCodeEvaluator,
+    error,
+  } = useAttachProjectEvaluator<CreateProjectEvaluatorSlideoverAddCodeMutation>(
+    {
+      mutation: graphql`
+        mutation CreateProjectEvaluatorSlideoverAddCodeMutation(
+          $input: AddProjectCodeEvaluatorInput!
+        ) {
+          addProjectCodeEvaluator(input: $input) {
             evaluator {
-              kind
+              id
+              name
+              evaluationTarget
+              filterCondition
+              samplingRate
+              enabled
+              evaluator {
+                kind
+              }
             }
           }
         }
-      }
-    `);
+      `,
+      projectId,
+      evaluatorId: creationMode.evaluatorId,
+      onSuccess,
+    }
+  );
   return (
     <ProjectCodeEvaluatorDialogContent
       title={title}
@@ -509,64 +511,28 @@ function AttachCodeProjectEvaluatorDialog({
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
-      onSubmit={() => {
-        setError(undefined);
-        addCodeEvaluator({
-          variables: {
-            input: {
-              projectId,
-              evaluatorId: creationMode.evaluatorId,
-              name: creationMode.name,
-              samplingRate: scope.samplingRate,
-              evaluationTarget: scope.targetType,
-              filterCondition: scope.filterCondition,
-              ...toEvaluationDelayInput(scope),
-              enabled: true,
-              // Left as it was, the project keeps reading through the
-              // evaluator's own mapping, and follows it if that changes.
-              inputMapping: isSameInputMapping(
-                store.getState().evaluator.inputMapping,
-                creationMode.inputMapping
-              )
-                ? null
-                : store.getState().evaluator.inputMapping,
-            },
+      onSubmit={() =>
+        attach({
+          input: {
+            projectId,
+            evaluatorId: creationMode.evaluatorId,
+            name: creationMode.name,
+            samplingRate: scope.samplingRate,
+            evaluationTarget: scope.targetType,
+            filterCondition: scope.filterCondition,
+            ...toEvaluationDelayInput(scope),
+            enabled: true,
+            // Left as it was, the project keeps reading through the
+            // evaluator's own mapping, and follows it if that changes.
+            inputMapping: isSameInputMapping(
+              store.getState().evaluator.inputMapping,
+              creationMode.inputMapping
+            )
+              ? null
+              : store.getState().evaluator.inputMapping,
           },
-          onCompleted: (_response, errors) => {
-            if (errors?.length) {
-              setError(errors.map(({ message }) => message).join("\n"));
-              return;
-            }
-            environment.commitUpdate((relayStore) => {
-              const galleryConnection = ConnectionHandler.getConnection(
-                relayStore.getRoot(),
-                PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
-                { excludeProjectId: projectId }
-              );
-              if (galleryConnection) {
-                ConnectionHandler.deleteNode(
-                  galleryConnection,
-                  creationMode.evaluatorId
-                );
-              }
-            });
-            void refetchProjectEvaluators({
-              environment,
-              projectId,
-              timeRange: timeRangeISOStrings,
-            })
-              .then(onSuccess)
-              .catch((refetchError: unknown) =>
-                setError(
-                  refetchError instanceof Error
-                    ? refetchError.message
-                    : "Unable to refresh project evaluators"
-                )
-              );
-          },
-          onError: (mutationError) => setError(mutationError.message),
-        });
-      }}
+        })
+      }
     />
   );
 }

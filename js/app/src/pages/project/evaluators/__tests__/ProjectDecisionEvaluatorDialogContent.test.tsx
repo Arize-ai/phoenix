@@ -1,17 +1,25 @@
 import { act, type ReactNode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
+import { createOperationDescriptor } from "relay-runtime";
 import { createMockEnvironment } from "relay-test-utils";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-import { CreateProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
+import galleryQuery, {
+  type projectEvaluatorGalleryModalQuery,
+} from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryModalQuery.graphql";
+import {
+  AttachProjectDecisionEvaluatorDialogContent,
+  CreateProjectDecisionEvaluatorDialogContent,
+} from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   type ProjectEvaluatorScope,
@@ -105,6 +113,18 @@ const scope: ProjectEvaluatorScope = {
   filterCondition: "span_kind == 'LLM'",
   samplingRate: 0.5,
   evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+};
+
+const savedEvaluator: DecisionEvaluatorData = {
+  id: "evaluator-1",
+  name: "saved_relevance",
+  inputSchema: { properties: { output: {} } },
+  scoringPolicy: { questions: [] },
+  decisionVersion: {
+    id: "version-1",
+    decision: { id: "decision-1", name: "saved-decision" },
+    questions: [],
+  },
 };
 
 function RejectAllFields() {
@@ -219,5 +239,64 @@ describe("Project decision evaluator forms", () => {
     expect(document.body.textContent).toContain(
       "Fix the highlighted fields before saving."
     );
+  });
+
+  it("attaches a saved evaluator and drops it from the gallery", async () => {
+    const environment = relay.environment as ReturnType<
+      typeof createMockEnvironment
+    >;
+    const gallery = createOperationDescriptor(galleryQuery, {
+      projectId: "project-1",
+    });
+    environment.commitPayload(gallery, {
+      evaluatorGalleryConfigs: [],
+      evaluators: {
+        edges: [
+          {
+            cursor: "cursor-1",
+            evaluator: {
+              __typename: "DecisionEvaluator",
+              id: savedEvaluator.id,
+              name: savedEvaluator.name,
+              description: null,
+            },
+            node: { __typename: "DecisionEvaluator", id: savedEvaluator.id },
+          },
+        ],
+        pageInfo: { endCursor: "cursor-1", hasNextPage: false },
+      },
+    });
+    const galleryEdges = () =>
+      (
+        environment.lookup(gallery.fragment)
+          .data as projectEvaluatorGalleryModalQuery["response"]
+      ).evaluators.edges;
+    expect(galleryEdges()).toHaveLength(1);
+
+    await render(
+      <AttachProjectDecisionEvaluatorDialogContent
+        title="Attach decision evaluator"
+        projectId="project-1"
+        evaluator={savedEvaluator}
+        scope={scope}
+        onScopeChange={vi.fn()}
+        onSuccess={onSuccess}
+        registerDirtyCheck={vi.fn()}
+      />
+    );
+    expect(document.body.textContent).toContain("saved-decision");
+    await click("Create");
+
+    const [[operation, { variables }]] = commit.mock.calls;
+    expect(operation).toBe(
+      "ProjectDecisionEvaluatorDialogContentCreateMutation"
+    );
+    expect(variables.input).toMatchObject({
+      projectId: "project-1",
+      evaluatorId: savedEvaluator.id,
+      name: savedEvaluator.name,
+    });
+    expect(galleryEdges()).toHaveLength(0);
+    expect(onSuccess).toHaveBeenCalled();
   });
 });
