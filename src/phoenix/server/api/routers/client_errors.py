@@ -45,7 +45,10 @@ def route_path(url: Optional[str], *, root_path: str) -> Optional[str]:
     """The app route the browser was on, without origin, query, fragment or root path."""
     if url is None:
         return None
-    path = urlsplit(url).path
+    try:
+        path = urlsplit(url).path
+    except ValueError:
+        return None
     if root_path and (path == root_path or path.startswith(f"{root_path}/")):
         path = path[len(root_path) :] or "/"
     return path
