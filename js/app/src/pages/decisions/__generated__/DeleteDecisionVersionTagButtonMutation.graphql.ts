@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee63acd8fd0bd2a249cc2da2104c7a66>>
+ * @generated SignedSource<<57eb26e4c49b5013beda8d9bdb83496f>>
  * @lightSyntaxTransform
  */
 
@@ -8,19 +8,19 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionActionsDeleteMutation$variables = {
+export type DeleteDecisionVersionTagButtonMutation$variables = {
   id: string;
 };
-export type DecisionActionsDeleteMutation$data = {
-  readonly deleteDecision: {
+export type DeleteDecisionVersionTagButtonMutation$data = {
+  readonly deleteDecisionVersionTag: {
     readonly query: {
       readonly __typename: "Query";
     };
   };
 };
-export type DecisionActionsDeleteMutation = {
-  response: DecisionActionsDeleteMutation$data;
-  variables: DecisionActionsDeleteMutation$variables;
+export type DeleteDecisionVersionTagButtonMutation = {
+  response: DeleteDecisionVersionTagButtonMutation$data;
+  variables: DeleteDecisionVersionTagButtonMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -39,7 +39,7 @@ v1 = [
         "fields": [
           {
             "kind": "Variable",
-            "name": "decisionId",
+            "name": "decisionVersionTagId",
             "variableName": "id"
           }
         ],
@@ -47,9 +47,9 @@ v1 = [
         "name": "input"
       }
     ],
-    "concreteType": "DeleteDecisionMutationPayload",
+    "concreteType": "DecisionVersionTagMutationPayload",
     "kind": "LinkedField",
-    "name": "deleteDecision",
+    "name": "deleteDecisionVersionTag",
     "plural": false,
     "selections": [
       {
@@ -79,7 +79,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DecisionActionsDeleteMutation",
+    "name": "DeleteDecisionVersionTagButtonMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -88,20 +88,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "DecisionActionsDeleteMutation",
+    "name": "DeleteDecisionVersionTagButtonMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "a71b05d59c1855973cfb12dde3992eee",
+    "cacheID": "050acbfea8393c059317ef7a34fd2544",
     "id": null,
     "metadata": {},
-    "name": "DecisionActionsDeleteMutation",
+    "name": "DeleteDecisionVersionTagButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionActionsDeleteMutation(\n  $id: ID!\n) {\n  deleteDecision(input: {decisionId: $id}) {\n    query {\n      __typename\n    }\n  }\n}\n"
+    "text": "mutation DeleteDecisionVersionTagButtonMutation(\n  $id: ID!\n) {\n  deleteDecisionVersionTag(input: {decisionVersionTagId: $id}) {\n    query {\n      __typename\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dbe2692856f29d884ab07db168e202ec";
+(node as any).hash = "81139d57f900728a394c8387427b6362";
 
 export default node;

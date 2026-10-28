@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a7be4f981d6153685132588e8c7b4ba>>
+ * @generated SignedSource<<e3ee0dc5cf9e68853290e81dfeb9beed>>
  * @lightSyntaxTransform
  */
 
@@ -8,12 +8,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionActionsSetTagMutation$variables = {
+export type TagDecisionVersionButtonSetTagMutation$variables = {
   description?: string | null;
   name: string;
   versionId: string;
 };
-export type DecisionActionsSetTagMutation$data = {
+export type TagDecisionVersionButtonSetTagMutation$data = {
   readonly setDecisionVersionTag: {
     readonly decisionVersionTag: {
       readonly decisionVersionId: string;
@@ -23,9 +23,9 @@ export type DecisionActionsSetTagMutation$data = {
     } | null;
   };
 };
-export type DecisionActionsSetTagMutation = {
-  response: DecisionActionsSetTagMutation$data;
-  variables: DecisionActionsSetTagMutation$variables;
+export type TagDecisionVersionButtonSetTagMutation = {
+  response: TagDecisionVersionButtonSetTagMutation$data;
+  variables: TagDecisionVersionButtonSetTagMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -127,7 +127,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "DecisionActionsSetTagMutation",
+    "name": "TagDecisionVersionButtonSetTagMutation",
     "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -140,20 +140,20 @@ return {
       (v0/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "DecisionActionsSetTagMutation",
+    "name": "TagDecisionVersionButtonSetTagMutation",
     "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "2caeaecccdecd9e28e9ff2aa38c657ba",
+    "cacheID": "2405fb1d58b98dc20c60754a9d1a06c8",
     "id": null,
     "metadata": {},
-    "name": "DecisionActionsSetTagMutation",
+    "name": "TagDecisionVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionActionsSetTagMutation(\n  $versionId: ID!\n  $name: Identifier!\n  $description: String\n) {\n  setDecisionVersionTag(input: {decisionVersionId: $versionId, name: $name, description: $description}) {\n    decisionVersionTag {\n      id\n      name\n      description\n      decisionVersionId\n    }\n  }\n}\n"
+    "text": "mutation TagDecisionVersionButtonSetTagMutation(\n  $versionId: ID!\n  $name: Identifier!\n  $description: String\n) {\n  setDecisionVersionTag(input: {decisionVersionId: $versionId, name: $name, description: $description}) {\n    decisionVersionTag {\n      id\n      name\n      description\n      decisionVersionId\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2c7d10aff51b668b7d14c4be8977229a";
+(node as any).hash = "3d9160281944face3f2a6a96822a5f33";
 
 export default node;

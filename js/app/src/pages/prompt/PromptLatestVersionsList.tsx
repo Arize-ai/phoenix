@@ -1,19 +1,12 @@
-import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { useResolvedPath } from "react-router";
 
-import { Flex, Link } from "@phoenix/components";
+import { LatestVersionsList } from "@phoenix/components/versions/LatestVersionsList";
 
 import type { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
 import { PromptVersionSummary } from "./PromptVersionSummary";
 
-const NUM_VERSIONS_TO_SHOW = 5;
-
-const versionListItemCSS = css`
-  padding-bottom: var(--global-dimension-size-200);
-  position: relative;
-`;
 export function PromptLatestVersionsList(props: {
   prompt: PromptLatestVersionsListFragment$key;
 }) {
@@ -48,57 +41,12 @@ export function PromptLatestVersionsList(props: {
   }
 
   return (
-    <div>
-      <ul>
-        {versions.map((version, index) => {
-          const isLastConnector = index === NUM_VERSIONS_TO_SHOW - 1;
-          return (
-            <li key={version.id} css={versionListItemCSS}>
-              <PromptVersionSummary promptVersion={version} />
-              {version.sequenceNumber !== 1 ? (
-                <VersionsConnector isLastConnector={isLastConnector} />
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      <Flex direction="row" justifyContent="end">
-        <Link to={`${basePath}/versions`}>View all versions</Link>
-      </Flex>
-    </div>
+    <LatestVersionsList
+      versions={versions}
+      renderVersion={(version) => (
+        <PromptVersionSummary promptVersion={version} />
+      )}
+      viewAllTo={`${basePath}/versions`}
+    />
   );
-}
-
-const versionsConnectorCSS = css`
-  position: absolute;
-  top: 25px;
-  left: 11px;
-  height: calc(100% - 32px);
-  width: 2px;
-  --connector-color: var(--global-color-gray-400);
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0 4px,
-      var(--global-color-gray-50) 4px 8px
-    ),
-    var(--connector-color);
-  background-size: 4px 100%;
-  background-position: 80%;
-  background-repeat: no-repeat;
-  &[data-last="true"] {
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0 4px,
-        var(--global-color-gray-50) 4px 8px
-      ),
-      linear-gradient(to bottom, var(--connector-color), transparent);
-  }
-`;
-
-/**
- */
-function VersionsConnector({ isLastConnector }: { isLastConnector?: boolean }) {
-  return <div css={versionsConnectorCSS} data-last={isLastConnector} />;
 }

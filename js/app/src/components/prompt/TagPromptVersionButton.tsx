@@ -1,22 +1,15 @@
-import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
-import {
-  Button,
-  Checkbox,
-  Dialog,
-  DialogTrigger,
-  Icon,
-  Icons,
-  Loading,
-  Popover,
-  PopoverArrow,
-  View,
-} from "@phoenix/components";
+import { DialogTrigger, Loading, View } from "@phoenix/components";
 import type { TagPromptVersionButtonSetTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonSetTagMutation.graphql";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
+import {
+  getDefaultVersionTagDescription,
+  TagVersionButton,
+  VersionTagCheckboxList,
+  withDefaultVersionTagNames,
+} from "@phoenix/components/versions/TagVersionButton";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -38,58 +31,36 @@ export function TagPromptVersionButton({
   const notifySuccess = useNotifySuccess();
 
   return (
-    <div>
-      <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTags />} />}
-          css={css`
-            text-wrap: nowrap;
-          `}
-        >
-          Tag Version
-        </Button>
-        <Popover placement="bottom end">
-          <PopoverArrow />
-          <Dialog>
-            <Suspense
-              fallback={
-                <View padding="size-100">
-                  <Loading size="S" />
-                </View>
-              }
-            >
-              <TagList
-                promptId={promptId}
-                versionId={versionId}
-                fetchKey={fetchKey}
-                onTagSet={(tagName) => {
-                  setFetchKey((prev) => prev + 1);
-                  notifySuccess({
-                    title: "Tag Set",
-                    message: `The tag ${tagName} has been set on the version`,
-                  });
-                }}
-              />
-            </Suspense>
-            <View padding="size-100" width="250px">
-              <Button
-                leadingVisual={<Icon svg={<Icons.Plus />} />}
-                size="S"
-                css={css`
-                  width: 100%;
-                `}
-                onPress={() => {
-                  setShowTagList(false);
-                  setShowNewTagDialog(true);
-                }}
-              >
-                New Tag
-              </Button>
+    <TagVersionButton
+      isOpen={showTagList}
+      onOpenChange={setShowTagList}
+      onNewTag={() => {
+        setShowTagList(false);
+        setShowNewTagDialog(true);
+      }}
+      tagList={
+        <Suspense
+          fallback={
+            <View padding="size-100">
+              <Loading size="S" />
             </View>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
+          }
+        >
+          <TagList
+            promptId={promptId}
+            versionId={versionId}
+            fetchKey={fetchKey}
+            onTagSet={(tagName) => {
+              setFetchKey((prev) => prev + 1);
+              notifySuccess({
+                title: "Tag Set",
+                message: `The tag ${tagName} has been set on the version`,
+              });
+            }}
+          />
+        </Suspense>
+      }
+    >
       <DialogTrigger
         isOpen={showNewTagDialog}
         onOpenChange={(isOpen) => {
@@ -109,7 +80,7 @@ export function TagPromptVersionButton({
           }}
         />
       </DialogTrigger>
-    </div>
+    </TagVersionButton>
   );
 }
 
@@ -150,24 +121,17 @@ function TagList({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  const allVersionTags = useMemo(() => {
-    return data?.prompt?.versionTags?.map((tag) => tag.name) || [];
-  }, [data?.prompt?.versionTags]);
+  const allVersionTagsWithDefaults = useMemo(
+    () =>
+      withDefaultVersionTagNames(
+        data?.prompt?.versionTags?.map((tag) => tag.name) || []
+      ),
+    [data?.prompt?.versionTags]
+  );
 
   const tagsSetOnVersion = useMemo(() => {
     return data?.promptVersion?.tags?.map((tag) => tag.name) || [];
   }, [data?.promptVersion?.tags]);
-
-  const allVersionTagsWithDefaults = useMemo(() => {
-    return Array.from(
-      new Set([
-        ...DEFAULT_PROMPT_VERSION_TAGS.map(
-          (tagDefinition) => tagDefinition.name
-        ),
-        ...allVersionTags,
-      ])
-    );
-  }, [allVersionTags]);
 
   const [commitSetTag, isCommitting] =
     useMutation<TagPromptVersionButtonSetTagMutation>(graphql`
@@ -184,74 +148,43 @@ function TagList({
       }
     `);
   return (
-    <ul>
-      {allVersionTagsWithDefaults.map((tagName: string) => {
-        const isTagSet = tagsSetOnVersion.includes(tagName);
-        return (
-          <li key={tagName}>
-            <View
-              paddingY="size-100"
-              paddingX="size-200"
-              borderBottomColor="default"
-              borderBottomWidth="thin"
-            >
-              <Checkbox
-                name={tagName}
-                isSelected={isTagSet}
-                isDisabled={isTagSet || isCommitting}
-                onChange={(isSelected) => {
-                  if (isSelected) {
-                    const isCreate = !tagsSetOnVersion.includes(tagName);
-                    let description = "";
-                    if (isCreate) {
-                      const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
-                        (tagDefinition) => tagDefinition.name === tagName
-                      );
-                      description = tagDefinition?.description || "";
-                    }
-
-                    commitSetTag({
-                      variables: {
-                        input: {
-                          name: tagName,
-                          promptVersionId: versionId,
-                          description,
-                        },
-                      },
-                      updater: (store, data) => {
-                        const tagId =
-                          data?.setPromptVersionTag.promptVersionTag?.id;
-                        if (tagId) {
-                          movePromptVersionTag({
-                            store,
-                            promptId,
-                            versionId,
-                            tagId,
-                          });
-                        }
-                      },
-                      onCompleted: () => {
-                        onTagSet(tagName);
-                      },
-                      onError: (error) => {
-                        notifyError({
-                          title: "Failed to set tag",
-                          message:
-                            getErrorMessagesFromRelayMutationError(
-                              error
-                            )?.[0] ?? error.message,
-                        });
-                      },
-                    });
-                  }
-                }}
-              >
-                {tagName}
-              </Checkbox>
-            </View>
-          </li>
-        );
-      })}
-    </ul>
+    <VersionTagCheckboxList
+      tagNames={allVersionTagsWithDefaults}
+      setTagNames={tagsSetOnVersion}
+      isCommitting={isCommitting}
+      onSetTag={(tagName) =>
+        commitSetTag({
+          variables: {
+            input: {
+              name: tagName,
+              promptVersionId: versionId,
+              description: getDefaultVersionTagDescription(tagName),
+            },
+          },
+          updater: (store, data) => {
+            const tagId = data?.setPromptVersionTag.promptVersionTag?.id;
+            if (tagId) {
+              movePromptVersionTag({
+                store,
+                promptId,
+                versionId,
+                tagId,
+              });
+            }
+          },
+          onCompleted: () => {
+            onTagSet(tagName);
+          },
+          onError: (error) => {
+            notifyError({
+              title: "Failed to set tag",
+              message:
+                getErrorMessagesFromRelayMutationError(error)?.[0] ??
+                error.message,
+            });
+          },
+        })
+      }
+    />
   );
 }

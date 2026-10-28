@@ -1,60 +1,33 @@
-import { css } from "@emotion/react";
 import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   Card,
   CopyToClipboardButton,
   Flex,
-  Heading,
   Icon,
   Icons,
   LinkButton,
   Switch,
-  Text,
   TitleWithID,
-  View,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { JSONBlock } from "@phoenix/components/code";
-import { UserDisplay } from "@phoenix/components/user/UserDisplay";
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { useTheme } from "@phoenix/contexts";
-import { DECISION_QUESTION_TYPES } from "@phoenix/pages/playground/decisionUtils";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
-import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { DecisionVersionDetails_definition$key } from "./__generated__/DecisionVersionDetails_definition.graphql";
 import type { DecisionVersionDetails_version$key } from "./__generated__/DecisionVersionDetails_version.graphql";
-import { SetDecisionTagButton } from "./DecisionActions";
+import { DecisionDefinition } from "./DecisionDefinition";
+import { DecisionModelConfigurationCard } from "./DecisionModelConfigurationCard";
 import { decisionVersionToText } from "./decisionVersionUtils";
-
-const levelListCSS = css`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-`;
-
-const QUESTION_TYPE_BY_TYPENAME = {
-  DecisionPredicateQuestion: "predicate",
-  DecisionChoiceQuestion: "choice",
-  DecisionScaleQuestion: "scale",
-} as const;
-
-/** The question type as the playground's question editor names it. */
-function getQuestionTypeLabel(typename: string): string | null {
-  const type =
-    QUESTION_TYPE_BY_TYPENAME[
-      typename as keyof typeof QUESTION_TYPE_BY_TYPENAME
-    ];
-  return (
-    DECISION_QUESTION_TYPES.find((questionType) => questionType.id === type)
-      ?.label ?? null
-  );
-}
+import { TagDecisionVersionButton } from "./TagDecisionVersionButton";
 
 const definitionFragment = graphql`
   fragment DecisionVersionDetails_definition on DecisionVersion {
@@ -112,16 +85,21 @@ const definitionFragment = graphql`
   }
 `;
 
+/**
+ * The main column of the decision pages: the definition and model cards for
+ * the overview, plus the version header, diff toggle and metadata card for
+ * a version's own page.
+ */
 export function DecisionVersionDetails({
   versionRef,
   decisionId,
-  tagNames,
+  decisionTagNames,
   onRefresh,
   isOverview = false,
 }: {
   versionRef: DecisionVersionDetails_version$key;
   decisionId: string;
-  tagNames: readonly string[];
+  decisionTagNames: ReadonlyArray<string>;
   onRefresh: () => void;
   isOverview?: boolean;
 }) {
@@ -129,13 +107,7 @@ export function DecisionVersionDetails({
     graphql`
       fragment DecisionVersionDetails_version on DecisionVersion {
         id
-        description
-        createdAt
         metadata
-        user {
-          username
-          profilePictureUrl
-        }
         tags {
           id
           name
@@ -158,9 +130,7 @@ export function DecisionVersionDetails({
     version.previousVersion
   );
   const { theme } = useTheme();
-  const [params, setParams] = useSearchParams();
-  const showDiff =
-    !isOverview && params.get("diff") === "true" && previous != null;
+  const [showDiff, setShowDiff] = useState(false);
   const definitionText = decisionVersionToText(definition);
   const fileDiff = useMemo(
     () =>
@@ -175,15 +145,7 @@ export function DecisionVersionDetails({
         : null,
     [previous, definitionText]
   );
-  const inputValues = Object.fromEntries(
-    definition.inputs.map((input) => [input.name, `<${input.name}>`])
-  );
-  const request = JSON.stringify({
-    query:
-      "mutation RunSavedDecision($id: ID!, $values: JSON!) { runDecisionVersion(input: {decisionVersionId: $id, inputValues: $values}) { result { model answers { name ... on PredicateAnswer { probability } ... on ChoiceAnswer { choice confidence } ... on ScaleAnswer { expectedLevel confidence } } } error } }",
-    variables: { id: version.id, values: inputValues },
-  });
-  const curl = `curl "$PHOENIX_ENDPOINT/graphql" \\\n  -H 'Content-Type: application/json' \\\n  --data '${request.replaceAll("'", "'\\''")}'`;
+  const metadataJSON = JSON.stringify(version.metadata, null, 2);
   return (
     <Flex
       direction="column"
@@ -191,69 +153,66 @@ export function DecisionVersionDetails({
       maxWidth={900}
       marginStart="auto"
       marginEnd="auto"
-      width="100%"
     >
       {!isOverview ? (
-        <Flex
-          justifyContent="space-between"
-          alignItems="center"
-          gap="size-100"
-          wrap
-        >
-          <Flex gap="size-100" alignItems="center">
+        <Flex direction="row" justifyContent="space-between">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <TitleWithID title="Version" id={version.id} />
-            {version.tags.map((tag) => (
-              <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
-            ))}
+            <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
+              {version.tags.map((tag) => (
+                <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
+              ))}
+            </Flex>
           </Flex>
-          <Flex gap="size-100">
+          <Flex direction="row" gap="size-100">
             <CanModify>
-              <SetDecisionTagButton
+              <TagDecisionVersionButton
                 versionId={version.id}
-                tagNames={tagNames}
-                onSaved={onRefresh}
+                decisionTagNames={decisionTagNames}
+                versionTagNames={version.tags.map((tag) => tag.name)}
+                onTagSet={onRefresh}
               />
             </CanModify>
-            <LinkButton
-              variant="primary"
-              size="S"
-              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              to={`/playground?${new URLSearchParams({ decisionId, decisionVersionId: version.id })}`}
-            >
-              Playground
-            </LinkButton>
+            <TooltipTrigger delay={0}>
+              <TriggerWrap>
+                <LinkButton
+                  variant="primary"
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  to={`/playground?${new URLSearchParams({ decisionId, decisionVersionId: version.id })}`}
+                  size="S"
+                  aria-label="Open this Decision version in Playground"
+                >
+                  Playground
+                </LinkButton>
+              </TriggerWrap>
+              <Tooltip>
+                <TooltipArrow />
+                Open this Decision version in Playground
+              </Tooltip>
+            </TooltipTrigger>
           </Flex>
         </Flex>
       ) : null}
       <Card
-        title="Decision definition"
+        title="Decision Definition"
         collapsible
         extra={
           <Flex gap="size-100" alignItems="center">
             {!isOverview ? (
               <Switch
                 labelPlacement="start"
-                isSelected={showDiff}
+                isSelected={showDiff && previous != null}
                 isDisabled={!previous}
-                onChange={(enabled) =>
-                  setParams((search) => {
-                    if (enabled) search.set("diff", "true");
-                    else search.delete("diff");
-                    return search;
-                  })
-                }
+                onChange={setShowDiff}
               >
                 Diff
               </Switch>
             ) : null}
-            <CopyToClipboardButton
-              text={definitionText}
-              aria-label="Copy decision definition"
-            />
+            <CopyToClipboardButton text={definitionText} />
           </Flex>
         }
       >
-        {showDiff && fileDiff ? (
+        {!isOverview && showDiff && fileDiff ? (
           <FileDiff
             fileDiff={fileDiff}
             options={{
@@ -264,165 +223,23 @@ export function DecisionVersionDetails({
             }}
           />
         ) : (
-          <View padding="size-200">
-            <Flex direction="column" gap="size-200">
-              <section>
-                <Heading level={3}>Inputs</Heading>
-                {definition.inputs.map((input) => (
-                  <View key={input.name} paddingY="size-100">
-                    <Flex direction="column" gap="size-50">
-                      <Text weight="heavy">{input.name}</Text>
-                      {input.description ? (
-                        <Text>{input.description}</Text>
-                      ) : null}
-                      {input.jsonSchema ? (
-                        <JSONBlock
-                          value={JSON.stringify(input.jsonSchema, null, 2)}
-                        />
-                      ) : null}
-                    </Flex>
-                  </View>
-                ))}
-              </section>
-              <section>
-                <Heading level={3}>State</Heading>
-                {definition.state.__typename === "DecisionTextState" ? (
-                  <>
-                    <Text color="text-700">
-                      {definition.state.templateFormat}
-                    </Text>
-                    <pre
-                      css={css`
-                        white-space: pre-wrap;
-                        overflow-wrap: anywhere;
-                      `}
-                    >
-                      {definition.state.template}
-                    </pre>
-                  </>
-                ) : definition.state.__typename === "DecisionInputState" ? (
-                  <Text>Use input: {definition.state.input}</Text>
-                ) : (
-                  <Text>Send the declared inputs as a JSON object.</Text>
-                )}
-              </section>
-              <section>
-                <Heading level={3}>Questions</Heading>
-                <Flex direction="column" gap="size-200">
-                  {definition.questions.map((question, index) => {
-                    if (question.__typename === "%other") return null;
-                    return (
-                      <Flex key={index} direction="column" gap="size-100">
-                        <Heading level={4}>{question.name}</Heading>
-                        <Text color="text-700">
-                          {getQuestionTypeLabel(question.__typename)}
-                        </Text>
-                        <Text>{question.instructions}</Text>
-                        {question.__typename === "DecisionPredicateQuestion" ? (
-                          <>
-                            {question.criteria?.true ? (
-                              <Text>True: {question.criteria.true}</Text>
-                            ) : null}
-                            {question.criteria?.false ? (
-                              <Text>False: {question.criteria.false}</Text>
-                            ) : null}
-                          </>
-                        ) : question.__typename === "DecisionChoiceQuestion" ? (
-                          <ul>
-                            {question.choices.map((choice) => (
-                              <li key={choice.value}>
-                                {choice.value}
-                                {choice.description
-                                  ? ` — ${choice.description}`
-                                  : ""}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : question.__typename === "DecisionScaleQuestion" ? (
-                          // Levels run low to high; their labels already
-                          // number them, so the list adds no markers.
-                          <ol css={levelListCSS}>
-                            {question.levels.map((level, levelIndex) => (
-                              <li key={levelIndex}>
-                                {level.label}
-                                {level.description
-                                  ? ` — ${level.description}`
-                                  : ""}
-                              </li>
-                            ))}
-                          </ol>
-                        ) : null}
-                      </Flex>
-                    );
-                  })}
-                </Flex>
-              </section>
-            </Flex>
-          </View>
+          <DecisionDefinition definition={definition} />
         )}
       </Card>
-      <Card title="Model configuration">
-        <View padding="size-200">
-          <Flex direction="column" gap="size-100">
-            <Text>
-              Provider:{" "}
-              {definition.customProvider?.name ??
-                (isModelProvider(definition.modelProvider)
-                  ? ModelProviders[definition.modelProvider]
-                  : definition.modelProvider)}
-            </Text>
-            <Text>Model: {definition.modelName}</Text>
-          </Flex>
-        </View>
-      </Card>
+      <DecisionModelConfigurationCard
+        modelName={definition.modelName}
+        modelProvider={definition.modelProvider}
+        customProviderName={definition.customProvider?.name}
+      />
       {!isOverview ? (
         <Card
-          title="Version metadata"
-          extra={
-            <CopyToClipboardButton
-              text={JSON.stringify(version.metadata, null, 2)}
-            />
-          }
+          title="Metadata"
+          collapsible
+          extra={<CopyToClipboardButton text={metadataJSON} />}
         >
-          <View padding="size-200">
-            <Flex direction="column" gap="size-100">
-              <Text>{version.description || "No description"}</Text>
-              <Text color="text-700">
-                Created {new Date(version.createdAt).toLocaleString()}
-              </Text>
-              <UserDisplay user={version.user} />
-              <JSONBlock value={JSON.stringify(version.metadata, null, 2)} />
-            </Flex>
-          </View>
+          <JSONBlock value={metadataJSON} />
         </Card>
       ) : null}
-      <Card
-        title="Run this version"
-        extra={
-          <CopyToClipboardButton
-            text={curl}
-            aria-label="Copy decision prompt"
-          />
-        }
-      >
-        <View padding="size-200">
-          <Flex direction="column" gap="size-100">
-            <Text>
-              Set PHOENIX_ENDPOINT to your Phoenix URL and replace the input
-              placeholders. The server uses the saved version’s connection and
-              configured credentials.
-            </Text>
-            <pre
-              css={css`
-                white-space: pre-wrap;
-                overflow-wrap: anywhere;
-              `}
-            >
-              {curl}
-            </pre>
-          </Flex>
-        </View>
-      </Card>
     </Flex>
   );
 }
