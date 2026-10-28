@@ -51,8 +51,8 @@ import type {
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,
-  floatShortFormatter,
   intFormatter,
+  intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
 type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
@@ -285,7 +285,7 @@ function QueueSizeChart({
           <XAxis {...xAxisProps} />
           <YAxis
             {...compactYAxisProps}
-            tickFormatter={(y) => floatShortFormatter(y)}
+            tickFormatter={(y) => intShortFormatter(y)}
           />
           <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
           <ReferenceLine
@@ -296,7 +296,7 @@ function QueueSizeChart({
             // axis to it would flatten a normal queue against the baseline.
             ifOverflow="discard"
             label={{
-              value: `Limit ${floatShortFormatter(queuedLimit)}`,
+              value: `Limit ${intShortFormatter(queuedLimit)}`,
               position: "insideTopLeft",
               fontSize: 11,
               fill: "var(--global-text-color-700)",
@@ -366,7 +366,7 @@ function QueuedVsCompletedChart({
           <XAxis {...xAxisProps} />
           <YAxis
             {...compactYAxisProps}
-            tickFormatter={(y) => floatShortFormatter(y)}
+            tickFormatter={(y) => intShortFormatter(y)}
           />
           <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
           <Line
