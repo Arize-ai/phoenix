@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -35,12 +35,17 @@ import type {
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import { DecisionStateInputsEditor } from "./DecisionStateInputsEditor";
 import {
+  getDecisionInputPreviews,
+  getExampleInputNames,
+} from "./decisionStateInputsHints";
+import {
   createDecisionDraft,
   createDecisionQuestion,
   decisionFieldId,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
   switchDecisionStateMode,
+  toStructuredInputValue,
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
@@ -102,6 +107,36 @@ function DecisionStateModeRadioGroup({
 }
 
 /**
+ * What the Inputs state shows beside its inputs and offers to add. Over a
+ * dataset: the input names its first examples have, and each input's value
+ * in the first example. Otherwise: the values typed in the Inputs panel.
+ */
+function useDecisionStateInputsHints(names: readonly string[]) {
+  const datasetId = usePlaygroundContext((state) => state.datasetId);
+  const exampleVariables = usePlaygroundContext((state) =>
+    state.datasetId != null
+      ? state.stateByDatasetId[state.datasetId]?.exampleVariables
+      : undefined
+  );
+  const variables = usePlaygroundContext(
+    (state) => state.input.variablesValueCache
+  );
+  return useMemo(() => {
+    // Over a dataset, nothing is shown until its examples have loaded.
+    const examples = datasetId != null ? (exampleVariables ?? []) : undefined;
+    return {
+      previews: getDecisionInputPreviews({
+        names,
+        exampleVariables: examples,
+        variables,
+        toSentValue: toStructuredInputValue,
+      }),
+      suggestions: examples ? getExampleInputNames(examples) : [],
+    };
+  }, [datasetId, exampleVariables, names, variables]);
+}
+
+/**
  * One instance's decision prompt, laid out like a chat template: the state
  * is one card and each question is another, so a decision column reads the
  * same way as a prompt column beside it.
@@ -153,6 +188,7 @@ export function DecisionPromptEditor({
     updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
   const { state } = request;
   const updateState = (next: DecisionStateDraft) => update({ state: next });
+  const inputsHints = useDecisionStateInputsHints(state.inputNames);
   const stateSummary =
     state.mode === "inputs" ? state.inputNames.join(", ") : state.template;
   const updateQuestion = (
@@ -226,6 +262,8 @@ export function DecisionPromptEditor({
             isInvalid={!!errors.state}
             onChange={(inputNames) => updateState({ ...state, inputNames })}
             onBlur={() => touch(decisionFieldId.state())}
+            previews={inputsHints.previews}
+            suggestions={inputsHints.suggestions}
           />
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>

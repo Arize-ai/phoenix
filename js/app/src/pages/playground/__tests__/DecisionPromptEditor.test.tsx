@@ -146,8 +146,9 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         container.querySelectorAll('[aria-label="State mode"] button')
       ).map((button) => button.textContent)
     ).toEqual(["Template", "Inputs"]);
-    // One input is sent as its value, drawn as the input alone.
-    expect(inputsEditor()).toBe("state");
+    // One input is sent as its value, drawn as the input alone, with the
+    // value typed in the Inputs panel beside it as it is sent.
+    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
     expect(container.textContent).toContain("Sends the value of state as-is");
     expect(
       container.querySelector('[aria-label="Remove state"]')
@@ -181,7 +182,10 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         },
       })
     );
-    expect(inputsEditor()).toBe('{"state": state,"plan": plan}');
+    // An input with no typed value has no preview.
+    expect(inputsEditor()).toBe(
+      '{"state": state,// {"ticket":"Refund"}"plan": plan}'
+    );
     expect(container.textContent).toContain("Sends an object of 2 inputs");
   } finally {
     await act(async () => root.unmount());

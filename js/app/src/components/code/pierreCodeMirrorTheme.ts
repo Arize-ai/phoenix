@@ -145,6 +145,7 @@ function jsonTokenColors(theme: PierreTheme) {
     number: color("constant.numeric"),
     literal: color("constant.numeric"),
     punctuation: color("punctuation"),
+    comment: color("comment"),
   };
 }
 

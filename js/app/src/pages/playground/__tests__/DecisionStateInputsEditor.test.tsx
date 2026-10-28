@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -8,7 +9,10 @@ import {
   describeInputsState,
 } from "../DecisionStateInputsEditor";
 
-async function renderEditor(names: string[]) {
+async function renderEditor(
+  names: string[],
+  props: Partial<ComponentProps<typeof DecisionStateInputsEditor>> = {}
+) {
   const onChange = vi.fn<(names: string[]) => void>();
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -29,6 +33,7 @@ async function renderEditor(names: string[]) {
           isInvalid={false}
           onChange={onChange}
           onBlur={vi.fn()}
+          {...props}
         />
       </ThemeContext.Provider>
     )
@@ -188,5 +193,111 @@ it("keeps focus in the slot when adding an input redraws the state as an object"
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+it("prints each input's value beside its pill as a comment", async () => {
+  const editor = await renderEditor(["reference", "output", "plan"], {
+    previews: {
+      reference: {
+        kind: "value",
+        text: '{"capital":"Paris"}',
+        full: '{\n  "capital": "Paris"\n}',
+      },
+      output: {
+        kind: "value",
+        source: "example 1",
+        text: '"Paris"',
+        full: "Paris",
+      },
+      plan: { kind: "missing", source: "example 1" },
+    },
+  });
+  try {
+    const comments = [
+      ...editor.container.querySelectorAll<HTMLElement>(
+        ".decision-state-inputs__comment"
+      ),
+    ];
+    expect(comments.map((comment) => comment.textContent)).toEqual([
+      '// {"capital":"Paris"}',
+      '// example 1: "Paris"',
+      "// not in example 1",
+    ]);
+    expect(comments[0].title).toBe('{\n  "capital": "Paris"\n}');
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("prints the single input's value on the same line as its pill", async () => {
+  const editor = await renderEditor(["ticket"], {
+    previews: { ticket: { kind: "value", text: '"Refund"', full: "Refund" } },
+  });
+  try {
+    const lines = editor.container.querySelectorAll(
+      ".decision-state-inputs__line"
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0].textContent).toContain('// "Refund"');
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("adds a suggested name picked from the slot's list", async () => {
+  const editor = await renderEditor(["reference"], {
+    suggestions: ["reference", "ticket", "customer"],
+  });
+  try {
+    await act(async () => editor.slot.focus());
+    await editor.type("tic");
+    const options = [
+      ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+    ];
+    // Added names and names that do not match what is typed are not offered.
+    expect(options.map((option) => option.textContent)).toEqual(["ticket"]);
+    await act(async () => options[0].click());
+    expect(editor.onChange).toHaveBeenLastCalledWith(["reference", "ticket"]);
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("still adds a typed name that is not suggested", async () => {
+  const editor = await renderEditor([], { suggestions: ["ticket"] });
+  try {
+    await editor.type("notes");
+    await editor.press("Enter");
+    expect(editor.onChange).toHaveBeenLastCalledWith(["notes"]);
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("adds every suggested name at once from an empty state", async () => {
+  const editor = await renderEditor([], {
+    suggestions: ["ticket", "customer"],
+  });
+  try {
+    const addAll = [
+      ...editor.container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent?.startsWith("Add all"));
+    expect(addAll?.textContent).toBe("Add all 2 inputs from the dataset");
+    await act(async () => addAll?.click());
+    expect(editor.onChange).toHaveBeenLastCalledWith(["ticket", "customer"]);
+  } finally {
+    await editor.cleanup();
+  }
+});
+
+it("offers no add-all once an input is added", async () => {
+  const editor = await renderEditor(["ticket"], {
+    suggestions: ["ticket", "customer"],
+  });
+  try {
+    expect(editor.container.textContent).not.toContain("Add all");
+  } finally {
+    await editor.cleanup();
   }
 });

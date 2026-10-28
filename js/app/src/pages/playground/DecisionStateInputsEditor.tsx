@@ -1,14 +1,26 @@
 import { css } from "@emotion/react";
 import { useEffect, useRef, useState } from "react";
-import { Button as AriaButton } from "react-aria-components";
+import {
+  Button as AriaButton,
+  ComboBox as AriaComboBox,
+  Input as AriaInput,
+} from "react-aria-components";
 
-import { Icon, Icons, Text } from "@phoenix/components";
+import {
+  ComboBoxItem,
+  Icon,
+  Icons,
+  ListBox,
+  Popover,
+  Text,
+} from "@phoenix/components";
 import {
   pierreTemplateVariableColor,
   pierreTokenColors,
 } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 
+import type { DecisionInputPreview } from "./decisionStateInputsHints";
 import { parseStateInputNames } from "./decisionUtils";
 
 /**
@@ -18,15 +30,14 @@ import { parseStateInputNames } from "./decisionUtils";
 const TEMPLATE_GUTTER_WIDTH = "20px";
 
 /**
- * Laid out like the template editor beside it (font, padding, background and
- * height), so switching between Template and Inputs does not move the card.
+ * Laid out like the template editor beside it (font, padding and
+ * background), and as tall as its lines: one input is one line.
  */
 const surfaceCSS = css`
   background-color: var(--code-mirror-editor-background-color);
   font-family: monospace;
   font-size: var(--global-font-size-s);
   line-height: 1.4;
-  min-height: 75px;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-250);
   padding-left: calc(
     ${TEMPLATE_GUTTER_WIDTH} + var(--global-dimension-size-250)
@@ -44,6 +55,42 @@ const surfaceCSS = css`
   .decision-state-inputs__line--entry {
     padding-left: 2ch;
     gap: 0;
+  }
+  /* A line with a value preview keeps to one line; the preview is cut. */
+  .decision-state-inputs__line--previewed {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .decision-state-inputs__comment {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 2ch;
+    color: var(--decision-state-inputs-comment-color);
+  }
+  .decision-state-inputs__comment-source {
+    opacity: 0.7;
+  }
+  .decision-state-inputs__add-all {
+    font: inherit;
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-700);
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: var(--global-dimension-size-100);
+    cursor: pointer;
+    border-radius: var(--global-rounding-small);
+    outline: none;
+    &[data-hovered] {
+      color: var(--global-text-color-900);
+      text-decoration: underline;
+    }
+    &[data-focus-visible] {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    }
   }
   &[data-disabled] {
     cursor: default;
@@ -106,6 +153,14 @@ const slotCSS = css`
   }
 `;
 
+/** The suggestion list opens wider than the slot it hangs from. */
+const suggestionsPopoverCSS = css`
+  min-width: 200px;
+  .react-aria-ListBox {
+    max-height: 240px;
+  }
+`;
+
 const footerCSS = css`
   display: block;
   padding: var(--global-dimension-size-50) var(--global-dimension-size-250);
@@ -125,8 +180,9 @@ export function describeInputsState(names: readonly string[]): string | null {
 /**
  * The inputs an `inputs` state is made of, drawn as the state it sends: one
  * input is its value, several are an object keyed by name. Each input is a
- * variable pill; names typed into the slot are added on Enter, a comma, or
- * leaving it.
+ * variable pill, followed by a preview of its value as a code comment; names
+ * typed into the slot are added on Enter, a comma, or leaving it. Over a
+ * dataset the slot suggests the names its examples have.
  */
 export function DecisionStateInputsEditor({
   names,
@@ -134,12 +190,18 @@ export function DecisionStateInputsEditor({
   isInvalid,
   onChange,
   onBlur,
+  previews,
+  suggestions = [],
 }: {
   names: readonly string[];
   isDisabled: boolean;
   isInvalid: boolean;
   onChange: (names: string[]) => void;
   onBlur: () => void;
+  /** A value to show beside each input, keyed by input name. */
+  previews?: Readonly<Record<string, DecisionInputPreview>>;
+  /** Names the slot offers, e.g. a dataset's input keys; added ones are skipped. */
+  suggestions?: readonly string[];
 }) {
   const { theme } = useTheme();
   const tokenColors = pierreTokenColors[theme];
@@ -172,47 +234,84 @@ export function DecisionStateInputsEditor({
       { refocus: true }
     );
 
-  const placeholder = names.length === 0 ? "+ add an input" : "+ input";
-  const slot = (
-    <input
-      ref={slotRef}
-      css={slotCSS}
-      className="decision-state-inputs__slot"
-      aria-label="Add input"
-      aria-invalid={isInvalid || undefined}
-      placeholder={placeholder}
-      size={Math.max(pending.length, placeholder.length) + 1}
-      value={pending}
-      disabled={isDisabled}
-      onChange={(event) => {
-        const text = event.target.value;
-        if (text.includes(",")) {
-          addPending(text, { refocus: true });
-        } else {
-          setPending(text);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          addPending(pending, { refocus: true });
-        } else if (event.key === "Escape") {
-          setPending("");
-        } else if (
-          event.key === "Backspace" &&
-          pending === "" &&
-          names.length > 0
-        ) {
-          event.preventDefault();
-          change(names.slice(0, -1), { refocus: true });
-        }
-      }}
-      onBlur={() => {
-        addPending(pending, { refocus: false });
-        onBlur();
-      }}
-    />
+  const remaining = suggestions.filter((name) => !names.includes(name));
+  const query = pending.trim().toLowerCase();
+  const matching = remaining.filter((name) =>
+    name.toLowerCase().includes(query)
   );
+  const placeholder = names.length === 0 ? "+ add an input" : "+ input";
+  const slotProps = {
+    ref: slotRef,
+    css: slotCSS,
+    className: "decision-state-inputs__slot",
+    "aria-label": "Add input",
+    "aria-invalid": isInvalid || undefined,
+    placeholder,
+    size: Math.max(pending.length, placeholder.length) + 1,
+    onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        // An option highlighted in the suggestion list is the combobox's to
+        // pick; otherwise Enter adds what is typed.
+        if (event.currentTarget.getAttribute("aria-activedescendant")) return;
+        event.preventDefault();
+        addPending(pending, { refocus: true });
+      } else if (event.key === "Escape") {
+        setPending("");
+      } else if (
+        event.key === "Backspace" &&
+        pending === "" &&
+        names.length > 0
+      ) {
+        event.preventDefault();
+        change(names.slice(0, -1), { refocus: true });
+      }
+    },
+    onBlur: () => {
+      addPending(pending, { refocus: false });
+      onBlur();
+    },
+  };
+  const onTextChange = (text: string) => {
+    if (text.includes(",")) {
+      addPending(text, { refocus: true });
+    } else {
+      setPending(text);
+    }
+  };
+  const slot =
+    remaining.length > 0 && !isDisabled ? (
+      <AriaComboBox
+        aria-label="Add input"
+        allowsCustomValue
+        menuTrigger="focus"
+        inputValue={pending}
+        onInputChange={onTextChange}
+        selectedKey={null}
+        onSelectionChange={(key) => {
+          if (key == null) return;
+          addPending(String(key), { refocus: true });
+        }}
+        items={matching.map((name) => ({ id: name, name }))}
+      >
+        <AriaInput {...slotProps} />
+        <Popover css={suggestionsPopoverCSS} placement="bottom start">
+          <ListBox>
+            {(item: { id: string; name: string }) => (
+              <ComboBoxItem id={item.id} textValue={item.name}>
+                {item.name}
+              </ComboBoxItem>
+            )}
+          </ListBox>
+        </Popover>
+      </AriaComboBox>
+    ) : (
+      <input
+        {...slotProps}
+        value={pending}
+        disabled={isDisabled}
+        onChange={(event) => onTextChange(event.target.value)}
+      />
+    );
   const pill = (name: string) => (
     <span css={pillCSS} className="decision-state-inputs__pill">
       {name}
@@ -227,10 +326,51 @@ export function DecisionStateInputsEditor({
       )}
     </span>
   );
+  const comment = (name: string) => {
+    const preview = previews?.[name];
+    if (!preview) return null;
+    const source = preview.source;
+    return (
+      <span
+        className="decision-state-inputs__comment"
+        title={preview.kind === "value" ? preview.full : undefined}
+        aria-label={
+          preview.kind === "value"
+            ? `${name}${source ? ` in ${source}` : ""}: ${preview.text}`
+            : `${name} is not in ${source}`
+        }
+      >
+        {"// "}
+        {preview.kind === "missing" ? (
+          <span className="decision-state-inputs__comment-source">
+            not in {source}
+          </span>
+        ) : (
+          <>
+            {source ? (
+              <span className="decision-state-inputs__comment-source">
+                {source}:{" "}
+              </span>
+            ) : null}
+            {preview.text}
+          </>
+        )}
+      </span>
+    );
+  };
+  const lineClassName = (name: string, entry: boolean) =>
+    [
+      "decision-state-inputs__line",
+      entry ? "decision-state-inputs__line--entry" : null,
+      previews?.[name] ? "decision-state-inputs__line--previewed" : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
   const punctuation = (text: string) => (
     <span style={{ color: tokenColors.punctuation }}>{text}</span>
   );
   const description = describeInputsState(names);
+  const canAddAll = names.length === 0 && remaining.length > 0 && !isDisabled;
 
   return (
     <div>
@@ -244,6 +384,7 @@ export function DecisionStateInputsEditor({
           {
             "--decision-state-inputs-variable-color":
               pierreTemplateVariableColor[theme],
+            "--decision-state-inputs-comment-color": tokenColors.comment,
           } as React.CSSProperties
         }
         onClick={(event) => {
@@ -252,9 +393,24 @@ export function DecisionStateInputsEditor({
         }}
       >
         {names.length < 2 ? (
-          <div className="decision-state-inputs__line">
+          <div
+            className={
+              names.length === 1
+                ? lineClassName(names[0], false)
+                : "decision-state-inputs__line"
+            }
+          >
             {names.length === 1 ? pill(names[0]) : null}
+            {names.length === 1 ? comment(names[0]) : null}
             {slot}
+            {canAddAll ? (
+              <AriaButton
+                className="decision-state-inputs__add-all"
+                onPress={() => change([...remaining], { refocus: true })}
+              >
+                {`Add all ${remaining.length} input${remaining.length === 1 ? "" : "s"} from the dataset`}
+              </AriaButton>
+            ) : null}
           </div>
         ) : (
           <>
@@ -262,16 +418,14 @@ export function DecisionStateInputsEditor({
               {punctuation("{")}
             </div>
             {names.map((name, index) => (
-              <div
-                key={name}
-                className="decision-state-inputs__line decision-state-inputs__line--entry"
-              >
+              <div key={name} className={lineClassName(name, true)}>
                 <span style={{ color: tokenColors.key }}>
                   {JSON.stringify(name)}
                 </span>
                 {punctuation(": ")}
                 {pill(name)}
                 {index < names.length - 1 ? punctuation(",") : null}
+                {comment(name)}
               </div>
             ))}
             <div className="decision-state-inputs__line decision-state-inputs__line--entry">
