@@ -42,10 +42,10 @@ jobs:
               echo "Dispatched $MAX_DISPATCHES; the other candidates wait for the next triage run."
               break
             fi
-            # Every factory run comments on its issue, so a 🏭 comment means the factory already
+            # Every factory comment starts with "The factory", so one means the factory already
             # had a go at it. Running it again is a maintainer's call: re-add the `factory` label.
             read -r AUTHOR PAST_RUNS < <(gh issue view "$ISSUE" --json author,comments \
-              --jq '[.author.login, ([.comments[] | select(.body | startswith("🏭 The factory"))] | length)] | @tsv')
+              --jq '[.author.login, ([.comments[] | select(.body | startswith("The factory"))] | length)] | @tsv')
             if [ "$PAST_RUNS" -gt 0 ]; then
               echo "#$ISSUE: skipped, the factory already ran on it"
               continue

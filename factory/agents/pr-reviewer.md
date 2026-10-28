@@ -6,7 +6,6 @@ mcp_servers:
   - {type: url, name: github, url: https://api.githubcopilot.com/mcp/}
 tools:
   # always_allow: sessions run unattended, so nothing could answer an approval prompt.
-  # The agent can only read the PR and post one review; nothing here pushes code.
   - type: agent_toolset_20260401
     default_config: {enabled: false, permission_policy: {type: always_allow}}
     configs:

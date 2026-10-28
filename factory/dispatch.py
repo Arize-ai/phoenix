@@ -469,7 +469,7 @@ def watch_session(
     )
     if session is None:
         return (
-            f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+            f"The factory's **{lane}** session {format_session_link(session_id=session_id)} "
             f"is still running after {watch_minutes} minutes."
         )
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
@@ -580,7 +580,7 @@ def watch_session(
                 break
 
     report_lines = [
-        f"🏭 The factory's **{lane}** session {format_session_link(session_id=session_id)} "
+        f"The factory's **{lane}** session {format_session_link(session_id=session_id)} "
         f"{status_line}.",
         "",
         f"Outcome: **{run_outcome}** · rubric: `{outcome_result}` · "
@@ -647,7 +647,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_issue(
             issue_number=args.issue,
-            body=f"🏭 The factory skipped this issue: {admission_problem}.",
+            body=f"The factory skipped this issue: {admission_problem}.",
             token=app_token.refresh(),
         )
         remove_factory_label(issue_number=args.issue, token=app_token.refresh())
@@ -674,7 +674,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     comment_on_issue(
         issue_number=args.issue,
         body=(
-            f"🏭 The factory started the **{lane}** lane for this issue "
+            f"The factory started the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
@@ -686,7 +686,7 @@ def run_start(*, args: argparse.Namespace) -> None:
 def run_watch(*, args: argparse.Namespace) -> None:
     # Report on the issue even when watching fails; the error still fails the job.
     report = (
-        f"🏭 The factory lost track of session {format_session_link(session_id=args.session_id)}; "
+        f"The factory lost track of session {format_session_link(session_id=args.session_id)}; "
         "see the workflow run."
     )
     client = anthropic.Anthropic()
