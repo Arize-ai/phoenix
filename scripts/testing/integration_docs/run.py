@@ -651,7 +651,7 @@ def run_example(
             agent_task = (
                 'tasks.named("run", JavaExec) {\n'
                 '    doFirst { jvmArgs "-javaagent:${configurations.javaAgent.singleFile}" }\n'
-                '}\n'
+                "}\n"
                 if java_agent_dependency
                 else ""
             )

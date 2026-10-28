@@ -42,6 +42,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporterBuilder;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -57,7 +58,7 @@ private static SdkTracerProvider initializeOpenTelemetry() {
             System.getenv().getOrDefault("PHOENIX_PROJECT_NAME", "google-adk-java")
     )));
 
-    OtlpGrpcSpanExporter.Builder exporterBuilder = OtlpGrpcSpanExporter.builder()
+    OtlpGrpcSpanExporterBuilder exporterBuilder = OtlpGrpcSpanExporter.builder()
         .setEndpoint(System.getenv().getOrDefault(
             "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"))
         .setTimeout(Duration.ofSeconds(10));
