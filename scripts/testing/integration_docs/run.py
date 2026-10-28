@@ -644,7 +644,11 @@ def run_example(
             if java_agent_dependency:
                 packages = [package for package in packages if package != java_agent_dependency]
             dependencies = "\n".join(f'    implementation("{package}")' for package in packages)
-            agent_configuration = "configurations { javaAgent }" if java_agent_dependency else ""
+            agent_configuration = (
+                "configurations { javaAgent { transitive = false } }"
+                if java_agent_dependency
+                else ""
+            )
             agent_dependency = (
                 f'    javaAgent("{java_agent_dependency}")' if java_agent_dependency else ""
             )
