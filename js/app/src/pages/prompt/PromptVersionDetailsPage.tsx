@@ -1,12 +1,18 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
 import {
   graphql,
   useFragment,
   useLazyLoadQuery,
   usePreloadedQuery,
 } from "react-relay";
-import { useLoaderData, useParams } from "react-router";
+import {
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -28,7 +34,6 @@ import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersion
 import type { promptLoaderQuery as PromptLoaderQuery } from "./__generated__/promptLoaderQuery.graphql";
 import type { PromptVersionDetailsPage__prompt$key } from "./__generated__/PromptVersionDetailsPage__prompt.graphql";
 import type { PromptVersionDetailsPageCompareQuery } from "./__generated__/PromptVersionDetailsPageCompareQuery.graphql";
-import type { PromptVersionDiffView__template$key } from "./__generated__/PromptVersionDiffView__template.graphql";
 import type {
   promptVersionLoaderQuery as PromptVersionLoaderQuery,
   promptVersionLoaderQuery$data,
@@ -153,22 +158,19 @@ function PromptVersionDetailsPageContent({
                 <Flex direction="column" gap="size-100">
                   <Flex
                     direction="row"
-                    justifyContent="space-between"
-                    alignItems="start"
                     gap="size-100"
+                    alignItems="center"
+                    wrap="wrap"
                   >
-                    <Flex
-                      direction="row"
-                      gap="size-100"
-                      alignItems="center"
-                      wrap="wrap"
-                    >
-                      <TitleWithID title="Version" id={promptVersion.id} />
-                      <PromptVersionTagsList promptVersion={promptVersion} />
-                    </Flex>
-                    <TagPromptVersionButton
-                      promptId={promptId}
-                      versionId={promptVersion.id}
+                    <TitleWithID title="Version" id={promptVersion.id} />
+                    <PromptVersionTagsList
+                      promptVersion={promptVersion}
+                      action={
+                        <TagPromptVersionButton
+                          promptId={promptId}
+                          versionId={promptVersion.id}
+                        />
+                      }
                     />
                   </Flex>
                   {promptVersion.description ? (
@@ -190,9 +192,18 @@ function PromptVersionDetailsPageContent({
   );
 }
 
+const COMPARE_VERSION_SEARCH_PARAM = "compareVersionId";
+const NEWER_VERSION_COLOR = "var(--global-color-success)";
+const OLDER_VERSION_COLOR = "var(--global-color-danger)";
+
+type ComparedVersion = { id: string; sequenceNumber: number };
+
 /**
  * The version's prompt, or its diff against another version of the prompt.
  * The diff compares against the previous version until another is chosen.
+ * The compared version lives in the URL so that it survives switching the
+ * viewed version. The diff always reads from the older version to the newer
+ * one, so the viewed version takes the deletion color when it is the older.
  */
 function PromptVersionPromptCard({
   promptVersion,
@@ -201,6 +212,10 @@ function PromptVersionPromptCard({
   promptVersion: PromptVersion;
   prompt: PromptVersionDetailsPage__prompt$key;
 }) {
+  const { promptId } = useParams();
+  invariant(promptId, "promptId is required");
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const promptData = useFragment<PromptVersionDetailsPage__prompt$key>(
     graphql`
       fragment PromptVersionDetailsPage__prompt on Prompt {
@@ -216,91 +231,196 @@ function PromptVersionPromptCard({
     `,
     prompt
   );
+  const viewedSequenceNumber = promptVersion.sequenceNumber;
+  invariant(viewedSequenceNumber != null, "a prompt version is required");
   const previousVersion = promptVersion.previousVersion;
   const defaultCompareVersionId =
     previousVersion?.id ??
     promptData.latestVersions.edges.find(
       ({ node }) => node.id !== promptVersion.id
     )?.node.id;
-  const [showDiff, setShowDiff] = useState(false);
-  const [compareVersionId, setCompareVersionId] = useState(
-    defaultCompareVersionId
+  const requestedCompareVersionId = searchParams.get(
+    COMPARE_VERSION_SEARCH_PARAM
   );
+  const compareVersionId =
+    requestedCompareVersionId !== promptVersion.id
+      ? requestedCompareVersionId
+      : null;
+  const setCompareVersionId = (versionId: string | null) => {
+    setSearchParams(
+      (params) => {
+        const nextParams = new URLSearchParams(params);
+        if (versionId == null) {
+          nextParams.delete(COMPARE_VERSION_SEARCH_PARAM);
+        } else {
+          nextParams.set(COMPARE_VERSION_SEARCH_PARAM, versionId);
+        }
+        return nextParams;
+      },
+      { replace: true }
+    );
+  };
+  const viewVersion = (versionId: string) => {
+    const params = new URLSearchParams(searchParams);
+    navigate(`/prompts/${promptId}/versions/${versionId}?${params}`);
+  };
+  const renderCard = ({
+    comparedVersion,
+    children,
+  }: {
+    comparedVersion: ComparedVersion | null;
+    children: ReactNode;
+  }) => {
+    const isCompareNewer =
+      comparedVersion != null &&
+      comparedVersion.sequenceNumber > viewedSequenceNumber;
+    return (
+      <Card
+        title="Prompt"
+        collapsible
+        data-testid="prompt-chat-messages-card"
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {comparedVersion != null ? (
+              <>
+                <PromptVersionDiffPicker
+                  prompt={promptData}
+                  color={
+                    isCompareNewer ? OLDER_VERSION_COLOR : NEWER_VERSION_COLOR
+                  }
+                  excludedVersionId={comparedVersion.id}
+                  selectedVersionId={promptVersion.id}
+                  selectedSequenceNumber={viewedSequenceNumber}
+                  onSelectionChange={viewVersion}
+                  aria-label="Viewed version"
+                />
+                <PromptVersionDiffPicker
+                  prompt={promptData}
+                  color={
+                    isCompareNewer ? NEWER_VERSION_COLOR : OLDER_VERSION_COLOR
+                  }
+                  excludedVersionId={promptVersion.id}
+                  selectedVersionId={comparedVersion.id}
+                  selectedSequenceNumber={comparedVersion.sequenceNumber}
+                  onSelectionChange={setCompareVersionId}
+                  aria-label="Version to compare against"
+                />
+              </>
+            ) : null}
+            <Switch
+              labelPlacement="start"
+              isSelected={compareVersionId != null}
+              isDisabled={defaultCompareVersionId == null}
+              onChange={(isSelected) =>
+                setCompareVersionId(
+                  isSelected ? (defaultCompareVersionId ?? null) : null
+                )
+              }
+            >
+              Diff
+            </Switch>
+          </Flex>
+        }
+      >
+        {children}
+      </Card>
+    );
+  };
+  const messages = (
+    <View padding="size-200">
+      <PromptChatMessages promptVersion={promptVersion} />
+    </View>
+  );
+  if (compareVersionId == null) {
+    return renderCard({ comparedVersion: null, children: messages });
+  }
+  if (previousVersion != null && compareVersionId === previousVersion.id) {
+    return renderCard({
+      comparedVersion: previousVersion,
+      children: (
+        <PromptVersionDiffView
+          oldVersion={previousVersion}
+          newVersion={promptVersion}
+        />
+      ),
+    });
+  }
   return (
-    <Card
-      title="Prompt"
-      collapsible
-      data-testid="prompt-chat-messages-card"
-      extra={
-        <Flex direction="row" gap="size-100" alignItems="center">
-          {showDiff && compareVersionId ? (
-            <PromptVersionDiffPicker
-              prompt={promptData}
-              currentVersionId={promptVersion.id}
-              selectedVersionId={compareVersionId}
-              onSelectionChange={setCompareVersionId}
-            />
-          ) : null}
-          <Switch
-            labelPlacement="start"
-            isSelected={showDiff}
-            isDisabled={compareVersionId == null}
-            onChange={setShowDiff}
-          >
-            Diff
-          </Switch>
-        </Flex>
-      }
+    <Suspense
+      fallback={renderCard({
+        comparedVersion: null,
+        children: (
+          <View padding="size-200">
+            <Loading />
+          </View>
+        ),
+      })}
     >
-      {showDiff && compareVersionId ? (
-        compareVersionId === previousVersion?.id ? (
-          <PromptVersionDiffView
-            current={promptVersion}
-            previous={previousVersion}
-          />
-        ) : (
-          <Suspense
-            fallback={
-              <View padding="size-200">
-                <Loading />
-              </View>
-            }
-          >
-            <PromptVersionCompareDiff
-              current={promptVersion}
-              compareVersionId={compareVersionId}
-            />
-          </Suspense>
-        )
-      ) : (
-        <View padding="size-200">
-          <PromptChatMessages promptVersion={promptVersion} />
-        </View>
-      )}
-    </Card>
+      <PromptVersionCompareDiff
+        viewedVersion={promptVersion}
+        viewedSequenceNumber={viewedSequenceNumber}
+        compareVersionId={compareVersionId}
+        renderCard={renderCard}
+        fallback={messages}
+      />
+    </Suspense>
   );
 }
 
+/**
+ * Diffs the viewed version against a version that the page has not loaded,
+ * such as one chosen from the picker or named in the URL. A compared id that
+ * is not a prompt version shows the viewed version alone.
+ */
 function PromptVersionCompareDiff({
-  current,
+  viewedVersion,
+  viewedSequenceNumber,
   compareVersionId,
+  renderCard,
+  fallback,
 }: {
-  current: PromptVersionDiffView__template$key;
+  viewedVersion: PromptVersion;
+  viewedSequenceNumber: number;
   compareVersionId: string;
+  renderCard: (props: {
+    comparedVersion: ComparedVersion | null;
+    children: ReactNode;
+  }) => ReactNode;
+  fallback: ReactNode;
 }) {
-  const data = useLazyLoadQuery<PromptVersionDetailsPageCompareQuery>(
-    graphql`
-      query PromptVersionDetailsPageCompareQuery($id: ID!) {
-        compareVersion: node(id: $id) {
-          ... on PromptVersion {
-            ...PromptVersionDiffView__template
+  const { compareVersion } =
+    useLazyLoadQuery<PromptVersionDetailsPageCompareQuery>(
+      graphql`
+        query PromptVersionDetailsPageCompareQuery($id: ID!) {
+          compareVersion: node(id: $id) {
+            __typename
+            id
+            ... on PromptVersion {
+              sequenceNumber
+              ...PromptVersionDiffView__template
+            }
           }
         }
-      }
-    `,
-    { id: compareVersionId }
-  );
-  return (
-    <PromptVersionDiffView current={current} previous={data.compareVersion} />
-  );
+      `,
+      { id: compareVersionId }
+    );
+  const { sequenceNumber } = compareVersion;
+  if (compareVersion.__typename !== "PromptVersion" || sequenceNumber == null) {
+    return renderCard({ comparedVersion: null, children: fallback });
+  }
+  const isCompareNewer = sequenceNumber > viewedSequenceNumber;
+  return renderCard({
+    comparedVersion: { id: compareVersion.id, sequenceNumber },
+    children: isCompareNewer ? (
+      <PromptVersionDiffView
+        oldVersion={viewedVersion}
+        newVersion={compareVersion}
+      />
+    ) : (
+      <PromptVersionDiffView
+        oldVersion={compareVersion}
+        newVersion={viewedVersion}
+      />
+    ),
+  });
 }

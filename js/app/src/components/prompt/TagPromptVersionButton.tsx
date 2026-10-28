@@ -9,6 +9,7 @@ import {
   DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Loading,
   Popover,
@@ -39,18 +40,12 @@ export function TagPromptVersionButton({
   const notifySuccess = useNotifySuccess();
 
   return (
-    <div>
+    <>
       <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTags />} />}
-          css={css`
-            text-wrap: nowrap;
-          `}
-        >
-          Edit Tags
-        </Button>
-        <Popover placement="bottom end">
+        <IconButton size="S" aria-label="Edit tags">
+          <Icon svg={<Icons.PriceTags />} />
+        </IconButton>
+        <Popover placement="bottom start">
           <PopoverArrow />
           <Dialog>
             <Suspense
@@ -108,7 +103,7 @@ export function TagPromptVersionButton({
           }}
         />
       </DialogTrigger>
-    </div>
+    </>
   );
 }
 
