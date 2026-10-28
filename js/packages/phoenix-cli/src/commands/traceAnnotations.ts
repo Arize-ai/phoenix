@@ -69,7 +69,13 @@ async function traceAnnotationsDeleteHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  let annotatorKind: "HUMAN" | "LLM" | "CODE" | "DECISION" | undefined;
+  let annotatorKind:
+    | "HUMAN"
+    | "LLM"
+    | "CODE"
+    | "DECISION"
+    | "AGENT"
+    | undefined;
   try {
     annotatorKind = normalizeAnnotatorKind(options.annotatorKind);
   } catch (error) {
@@ -144,19 +150,20 @@ async function traceAnnotationsDeleteHandler(
 
 function normalizeAnnotatorKind(
   raw: string | undefined
-): "HUMAN" | "LLM" | "CODE" | "DECISION" | undefined {
+): "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT" | undefined {
   if (raw === undefined) return undefined;
   const value = raw.toUpperCase();
   if (
     value === "HUMAN" ||
     value === "LLM" ||
     value === "CODE" ||
-    value === "DECISION"
+    value === "DECISION" ||
+    value === "AGENT"
   ) {
     return value;
   }
   throw new Error(
-    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE, DECISION.`
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE, DECISION, AGENT.`
   );
 }
 
@@ -191,7 +198,7 @@ export function createTraceAnnotationsDeleteCommand(): Command {
     )
     .option(
       "--annotator-kind <kind>",
-      "Narrowing filter — annotator kind (HUMAN, LLM, CODE, or DECISION)"
+      "Narrowing filter — annotator kind (HUMAN, LLM, CODE, DECISION, or AGENT)"
     )
     .option(
       "--start-time <iso>",

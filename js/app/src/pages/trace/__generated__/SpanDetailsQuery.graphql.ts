@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c0c5e4c3128672f33cdf6b0c605d0e7>>
+ * @generated SignedSource<<5414e4741704f95a6b36dee0c2578b5a>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AnnotatorKind = "CODE" | "DECISION" | "HUMAN" | "LLM";
+export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type MimeType = "json" | "text";
 export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";

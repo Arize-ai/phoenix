@@ -401,6 +401,7 @@ enum AnnotatorKind {
   HUMAN
   CODE
   DECISION
+  AGENT
 }
 
 type AnthropicAuthenticationMethod {
@@ -2211,6 +2212,7 @@ enum ExperimentRunAnnotatorKind {
   HUMAN
   CODE
   DECISION
+  AGENT
 }
 
 input ExperimentRunColumn @oneOf {

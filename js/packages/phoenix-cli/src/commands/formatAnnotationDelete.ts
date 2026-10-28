@@ -5,7 +5,7 @@ export type AnnotationDeleteTarget = "trace" | "span" | "session";
 export interface AnnotationDeleteFilter {
   identifier?: string;
   name?: string;
-  annotator_kind?: "HUMAN" | "LLM" | "CODE" | "DECISION";
+  annotator_kind?: "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT";
   start_time?: string;
   end_time?: string;
   all?: boolean;
@@ -20,7 +20,7 @@ export interface AnnotationDeleteResult {
 interface BuildAnnotationDeleteFilterOptions {
   identifier?: string;
   name?: string;
-  annotatorKind?: "HUMAN" | "LLM" | "CODE" | "DECISION";
+  annotatorKind?: "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT";
   startTime?: string;
   endTime?: string;
   all?: boolean;

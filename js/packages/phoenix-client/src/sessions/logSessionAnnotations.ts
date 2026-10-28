@@ -24,7 +24,7 @@ export interface LogSessionAnnotationsParams extends ClientFn {
 /**
  * Log multiple session annotations in a single request.
  *
- * Each annotation can be of type "LLM", "CODE", "HUMAN", or "DECISION" and can include a label, score, and metadata.
+ * Each annotation can be of type "LLM", "CODE", "HUMAN", "DECISION", or "AGENT" and can include a label, score, and metadata.
  * If an identifier is provided and an annotation with that identifier already exists, it will be updated.
  *
  * @param params - The parameters to log session annotations

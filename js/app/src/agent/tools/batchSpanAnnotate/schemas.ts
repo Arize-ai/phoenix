@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
+import { ANNOTATOR_KINDS } from "@phoenix/constants";
 import { isGlobalIdOfType } from "@phoenix/utils/globalIdUtils";
 
 export type BatchSpanAnnotateToolOutputSender = AddToolOutput;
@@ -48,8 +49,7 @@ export const annotateSpanInputSchema = z
     spanId: spanIdSchema.optional(),
     spanNodeId: spanNodeIdSchema.optional(),
     name: annotationNameSchema,
-    // DECISION marks annotations from a decision model; the PXI agent is an LLM.
-    annotatorKind: z.enum(["LLM", "HUMAN", "CODE"]).optional(),
+    annotatorKind: z.enum(ANNOTATOR_KINDS).optional(),
     label: z.string().nullable().optional(),
     score: z.number().nullable().optional(),
     explanation: z.string().nullable().optional(),

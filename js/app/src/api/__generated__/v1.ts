@@ -5496,7 +5496,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5530,7 +5530,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5862,7 +5862,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5896,7 +5896,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5956,7 +5956,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6378,7 +6378,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6412,7 +6412,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6733,7 +6733,7 @@ export interface components {
              * @description The kind of annotator used for the evaluation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /**
              * Start Time
              * Format: date-time
@@ -7942,7 +7942,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8066,7 +8066,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8190,7 +8190,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */

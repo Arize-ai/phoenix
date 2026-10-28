@@ -144,21 +144,6 @@ describe("batch span annotate parsing", () => {
     ).toBeNull();
   });
 
-  it("rejects the DECISION annotator kind", () => {
-    expect(
-      parseBatchSpanAnnotateInput({
-        annotations: [
-          {
-            spanId: "abcdef0123456789",
-            name: "quality",
-            label: "good",
-            annotatorKind: "DECISION",
-          },
-        ],
-      })
-    ).toBeNull();
-  });
-
   it("rejects legacy bare array and single-annotation object forms", () => {
     expect(
       parseBatchSpanAnnotateInput([

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4553898605ee23060409b2b1799b4bd>>
+ * @generated SignedSource<<e85af855e37e3f82fd60292c970aefb0>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "DECISION" | "HUMAN" | "LLM";
+export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryGroup$data = {
   readonly summarySpanAnnotationSummaries: ReadonlyArray<{

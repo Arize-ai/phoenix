@@ -6,6 +6,7 @@ const colorByAnnotatorKind: Record<AnnotatorKind, string> = {
   LLM: "var(--global-color-orange-500)",
   CODE: "var(--global-color-orange-500)",
   DECISION: "var(--global-color-magenta-500)",
+  AGENT: "var(--global-color-seafoam-500)",
 };
 
 export function AnnotatorKindToken(props: { kind: AnnotatorKind }) {

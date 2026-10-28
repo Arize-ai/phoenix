@@ -1,12 +1,11 @@
-"""add DECISION annotator kind
+"""add DECISION and AGENT annotator kinds
 
 Revision ID: 7c2bc8452d60
 Revises: f3b8c2d14e70
 Create Date: 2026-10-27 12:00:00.000000
 
-The downgrade rewrites DECISION annotations to LLM, which is what decision
-evaluators wrote before this kind existed, so the rows survive the narrower
-check.
+The downgrade rewrites DECISION and AGENT annotations to LLM, the closest kind
+that existed before them, so the rows survive the narrower check.
 """
 
 from typing import Sequence, Union
@@ -37,12 +36,15 @@ def _set_valid_annotator_kinds(condition: str) -> None:
 
 
 def upgrade() -> None:
-    _set_valid_annotator_kinds("annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')")
+    _set_valid_annotator_kinds("annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')")
 
 
 def downgrade() -> None:
     for table in _TABLES:
         op.execute(
-            sa.text(f"UPDATE {table} SET annotator_kind = 'LLM' WHERE annotator_kind = 'DECISION'")
+            sa.text(
+                f"UPDATE {table} SET annotator_kind = 'LLM' "
+                "WHERE annotator_kind IN ('DECISION', 'AGENT')"
+            )
         )
     _set_valid_annotator_kinds("annotator_kind IN ('LLM', 'CODE', 'HUMAN')")

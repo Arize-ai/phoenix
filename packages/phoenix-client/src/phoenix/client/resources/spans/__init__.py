@@ -106,7 +106,7 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
 
-_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION"]
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]
 
 
 class Spans:
@@ -808,8 +808,8 @@ class Spans:
         Args:
             span_id (str): The ID of the span to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -970,10 +970,10 @@ class Spans:
                 provide a global annotator_kind. The `span_id` can be either a column in the
                 DataFrame or will be taken from the DataFrame index. Optional columns include:
                 "label", "score", "explanation", "metadata", and "identifier".
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", "HUMAN", or "DECISION".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
@@ -1167,8 +1167,8 @@ class Spans:
             span_id (str): The ID of the span to annotate.
             document_position (int): The 0-based index of the document within the span.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -1368,7 +1368,7 @@ class Spans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided,
                 this name will be used for all rows in the DataFrame. Cannot be used if the
                 DataFrame contains a "name" or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION"]]): The annotator kind to
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The annotator kind to
                 use for all annotations. If provided, this kind will be used for all rows in the
                 DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
             sync (bool): If True, the request will be fulfilled synchronously and the response
@@ -2124,7 +2124,7 @@ class AsyncSpans:
         Args:
             span_id (str): The ID of the span to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
                 Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
@@ -2286,10 +2286,10 @@ class AsyncSpans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", "HUMAN", or "DECISION".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -2494,8 +2494,8 @@ class AsyncSpans:
             span_id (str): The ID of the span to annotate.
             document_position (int): The 0-based index of the document within the span.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for the
-                annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the
+                annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -2694,7 +2694,7 @@ class AsyncSpans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided,
                 this name will be used for all rows in the DataFrame. Cannot be used if the
                 DataFrame contains a "name" or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION"]]): The annotator kind to
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The annotator kind to
                 use for all annotations. If provided, this kind will be used for all rows in the
                 DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
             sync (bool): If True, the request will be fulfilled synchronously and the response

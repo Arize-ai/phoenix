@@ -21,6 +21,7 @@ _TABLES = (
     "project_session_annotations",
     "experiment_run_annotations",
 )
+_NEW_KINDS = ("DECISION", "AGENT")
 _INTEGRITY_ERRORS = (SQLAlchemyIntegrityError, SQLiteIntegrityError)
 
 _Columns = dict[str, dict[str, Any]]
@@ -145,20 +146,20 @@ def _tables(
     return tables
 
 
-def _decision_is_refused(table: str, columns: _Columns) -> Callable[[Connection], None]:
+def _kind_is_refused(table: str, columns: _Columns, kind: str) -> Callable[[Connection], None]:
     def _check(conn: Connection) -> None:
         # The rollback also undoes the connection's search_path on PostgreSQL, so each check
         # gets a connection of its own.
         try:
             with pytest.raises(_INTEGRITY_ERRORS, match="valid_annotator_kind"):
-                _add_annotation(conn, table, columns, "DECISION")
+                _add_annotation(conn, table, columns, kind)
         finally:
             conn.rollback()
 
     return _check
 
 
-async def test_add_decision_annotator_kind(
+async def test_add_decision_and_agent_annotator_kinds(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
@@ -176,29 +177,33 @@ async def test_add_decision_annotator_kind(
     before = await _run_async(_engine, lambda conn: _tables(conn, _db_backend, _schema))
     kinds_before = await _run_async(_engine, _annotator_kinds)
     for table in _TABLES:
-        await _run_async(_engine, _decision_is_refused(table, columns))
+        for kind in _NEW_KINDS:
+            await _run_async(_engine, _kind_is_refused(table, columns, kind))
 
     await _up(_engine, _alembic_config, _UP, _schema)
 
-    def _verify_upgraded(conn: Connection) -> dict[str, int]:
+    def _verify_upgraded(conn: Connection) -> dict[str, list[int]]:
         assert _tables(conn, _db_backend, _schema) == before
         assert _annotator_kinds(conn) == kinds_before
-        decision_ids = {
-            table: _add_annotation(conn, table, columns, "DECISION") for table in _TABLES
+        new_ids = {
+            table: [_add_annotation(conn, table, columns, kind) for kind in _NEW_KINDS]
+            for table in _TABLES
         }
         conn.commit()
-        return decision_ids
+        return new_ids
 
-    decision_ids = await _run_async(_engine, _verify_upgraded)
+    new_ids = await _run_async(_engine, _verify_upgraded)
 
     await _down(_engine, _alembic_config, _DOWN, _schema)
 
     def _verify_downgraded(conn: Connection) -> None:
         assert _tables(conn, _db_backend, _schema) == before
         assert _annotator_kinds(conn) == {
-            table: {**kinds_before[table], decision_ids[table]: "LLM"} for table in _TABLES
+            table: {**kinds_before[table], **dict.fromkeys(new_ids[table], "LLM")}
+            for table in _TABLES
         }
 
     await _run_async(_engine, _verify_downgraded)
     for table in _TABLES:
-        await _run_async(_engine, _decision_is_refused(table, columns))
+        for kind in _NEW_KINDS:
+            await _run_async(_engine, _kind_is_refused(table, columns, kind))

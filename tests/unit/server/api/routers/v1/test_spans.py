@@ -62,10 +62,12 @@ async def test_rest_span_annotation(
     assert orm_annotation.metadata_ == dict()
 
 
-async def test_rest_span_annotation_with_decision_annotator_kind(
+@pytest.mark.parametrize("annotator_kind", ["DECISION", "AGENT"])
+async def test_rest_span_annotation_with_new_annotator_kind(
     httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     fake: Faker,
+    annotator_kind: str,
 ) -> None:
     name = fake.pystr()
     request_body = {
@@ -73,7 +75,7 @@ async def test_rest_span_annotation_with_decision_annotator_kind(
             {
                 "span_id": "7e2f08cb43bbf521",
                 "name": name,
-                "annotator_kind": "DECISION",
+                "annotator_kind": annotator_kind,
                 "result": {"label": "relevant"},
             }
         ]
@@ -87,7 +89,7 @@ async def test_rest_span_annotation_with_decision_annotator_kind(
     )
     assert response.status_code == 200
     [annotation] = [a for a in response.json()["data"] if a["name"] == name]
-    assert annotation["annotator_kind"] == "DECISION"
+    assert annotation["annotator_kind"] == annotator_kind
     assert annotation["result"]["label"] == "relevant"
 
 

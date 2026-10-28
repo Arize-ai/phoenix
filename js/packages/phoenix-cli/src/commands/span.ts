@@ -559,7 +559,7 @@ export function createSpanAnnotateCommand(): Command {
     .option("--explanation <text>", "Annotation explanation")
     .option(
       "--annotator-kind <kind>",
-      "Annotation kind: HUMAN, LLM, CODE, or DECISION"
+      "Annotation kind: HUMAN, LLM, CODE, DECISION, or AGENT"
     )
     .option(
       "--identifier <string>",

@@ -2,7 +2,7 @@ import { InvalidArgumentError } from "../exitCodes";
 import { parseNumber, trimToUndefined } from "../normalize";
 
 export type AnnotationTargetType = "span" | "trace" | "session";
-export type AnnotatorKind = "HUMAN" | "LLM" | "CODE" | "DECISION";
+export type AnnotatorKind = "HUMAN" | "LLM" | "CODE" | "DECISION" | "AGENT";
 
 export interface AnnotationMutationResult {
   id: string;
@@ -80,12 +80,13 @@ function normalizeAnnotatorKind({
     normalizedAnnotatorKind === "HUMAN" ||
     normalizedAnnotatorKind === "LLM" ||
     normalizedAnnotatorKind === "CODE" ||
-    normalizedAnnotatorKind === "DECISION"
+    normalizedAnnotatorKind === "DECISION" ||
+    normalizedAnnotatorKind === "AGENT"
   ) {
     return normalizedAnnotatorKind;
   }
   throw new InvalidArgumentError(
-    `Invalid value for --annotator-kind: ${annotatorKind}\n  Valid values: HUMAN, LLM, CODE, DECISION\n  ${getAnnotateUsage({ targetType })}`
+    `Invalid value for --annotator-kind: ${annotatorKind}\n  Valid values: HUMAN, LLM, CODE, DECISION, AGENT\n  ${getAnnotateUsage({ targetType })}`
   );
 }
 

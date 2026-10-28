@@ -8,6 +8,7 @@ export const ANNOTATOR_KINDS = [
   "HUMAN",
   "CODE",
   "DECISION",
+  "AGENT",
 ] as const satisfies readonly AnnotatorKind[];
 
 export function isAnnotatorKind(value: unknown): value is AnnotatorKind {

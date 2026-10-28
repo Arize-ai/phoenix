@@ -22,7 +22,7 @@ from phoenix.client.__generated__ import v1
 if TYPE_CHECKING:
     import pandas as pd
 
-_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION"]
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]
 _VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
@@ -683,7 +683,7 @@ def _create_session_annotation(
     Args:
         session_id (str): The ID of the session to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.
@@ -740,7 +740,7 @@ def _create_trace_annotation(
     Args:
         trace_id (str): The ID of the trace to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", or "DECISION".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.

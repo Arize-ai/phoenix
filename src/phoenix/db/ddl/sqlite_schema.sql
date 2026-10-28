@@ -672,7 +672,7 @@ CREATE TABLE document_annotations (
     CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier
         UNIQUE (name, span_rowid, document_position, identifier),
     CONSTRAINT "ck_document_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_document_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -962,7 +962,7 @@ CREATE TABLE experiment_run_annotations (
     CONSTRAINT uq_experiment_run_annotations_experiment_run_id_name
         UNIQUE (experiment_run_id, name),
     CONSTRAINT "ck_experiment_run_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
         FOREIGN KEY (experiment_run_id)
         REFERENCES experiment_runs (id)
@@ -1268,7 +1268,7 @@ CREATE TABLE project_session_annotations (
     CONSTRAINT uq_project_session_annotations_name_project_session_id_identifier
         UNIQUE (name, project_session_id, identifier),
     CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT fk_project_session_annotations_project_session_id_project_sessions
         FOREIGN KEY (project_session_id)
         REFERENCES project_sessions (id)
@@ -1633,7 +1633,7 @@ CREATE TABLE span_annotations (
     CONSTRAINT uq_span_annotations_name_span_rowid_identifier
         UNIQUE (name, span_rowid, identifier),
     CONSTRAINT "ck_span_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_span_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -1686,7 +1686,7 @@ CREATE TABLE trace_annotations (
     CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier
         UNIQUE (name, trace_rowid, identifier),
     CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_trace_annotations_trace_rowid_traces
         FOREIGN KEY (trace_rowid)

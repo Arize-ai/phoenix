@@ -1290,9 +1290,10 @@ class SpanAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION"]] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
         CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')", name="valid_annotator_kind"
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
         ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -1334,9 +1335,10 @@ class TraceAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION"]] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
         CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')", name="valid_annotator_kind"
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
         ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -1376,9 +1378,10 @@ class DocumentAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION"]] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
         CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')", name="valid_annotator_kind"
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
         ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -1421,9 +1424,10 @@ class ProjectSessionAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION"]] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
         CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')", name="valid_annotator_kind"
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
         ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -1853,7 +1857,8 @@ class ExperimentRunAnnotation(HasId):
     name: Mapped[str]
     annotator_kind: Mapped[str] = mapped_column(
         CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')", name="valid_annotator_kind"
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
         ),
     )
     label: Mapped[Optional[str]]

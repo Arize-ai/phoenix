@@ -861,7 +861,8 @@
                     "LLM",
                     "CODE",
                     "HUMAN",
-                    "DECISION"
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1211,7 +1212,8 @@
                     "LLM",
                     "CODE",
                     "HUMAN",
-                    "DECISION"
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1561,7 +1563,8 @@
                     "LLM",
                     "CODE",
                     "HUMAN",
-                    "DECISION"
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -19220,7 +19223,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19287,7 +19291,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19929,7 +19934,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19996,7 +20002,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -20112,7 +20119,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21072,7 +21080,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21139,7 +21148,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21905,7 +21915,8 @@
               "LLM",
               "CODE",
               "HUMAN",
-              "DECISION"
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the evaluation"

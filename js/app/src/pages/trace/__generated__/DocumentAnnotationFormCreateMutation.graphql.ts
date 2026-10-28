@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1a37d0eaa9e996bf8a8290357d79e25>>
+ * @generated SignedSource<<47062f33f4779e35b6c4beba6c4e963c>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "DECISION" | "HUMAN" | "LLM";
+export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type CreateDocumentAnnotationInput = {
   annotatorKind: AnnotatorKind;
   documentPosition: number;
