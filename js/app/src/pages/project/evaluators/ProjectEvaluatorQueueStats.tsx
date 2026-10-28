@@ -5,7 +5,6 @@ import {
   Suspense,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -33,6 +32,7 @@ import {
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
+  useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatElapsedShort,
@@ -40,8 +40,6 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
-
-const REFRESH_INTERVAL_MS = 30_000;
 
 /**
  * Refetches the queue stats at once. Provided by the evaluators page, and
@@ -89,6 +87,7 @@ export function ProjectEvaluatorQueueAside({
   action?: (clearableCount: number | null) => ReactNode;
 }) {
   const [clearableCount, setClearableCount] = useState<number | null>(null);
+  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   return (
     <Group orientation="vertical">
       <TitledPanel title="Evaluation Queue" headingLevel={2}>
@@ -103,7 +102,8 @@ export function ProjectEvaluatorQueueAside({
               <Suspense fallback={<QueueStatsPlaceholder />}>
                 <ProjectEvaluatorQueueStatsContent
                   projectId={projectId}
-                  refreshKey={refreshKey}
+                  fetchKey={fetchKey}
+                  lagTimeRange={lastHour}
                   onClearableCount={setClearableCount}
                 />
               </Suspense>
@@ -118,28 +118,15 @@ export function ProjectEvaluatorQueueAside({
 
 function ProjectEvaluatorQueueStatsContent({
   projectId,
-  refreshKey,
+  fetchKey,
+  lagTimeRange,
   onClearableCount,
 }: {
   projectId: string;
-  refreshKey: number;
+  fetchKey: string;
+  lagTimeRange: { start: string; end: string };
   onClearableCount: (clearableCount: number | null) => void;
 }) {
-  const [pollKey, setPollKey] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(
-      () => setPollKey((key) => key + 1),
-      REFRESH_INTERVAL_MS
-    );
-    return () => clearInterval(interval);
-  }, []);
-  // Recomputed only on a poll or refresh, so the query's variables stay put
-  // between them.
-  const lagTimeRange = useMemo(
-    () => getLastHourTimeRange(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pollKey, refreshKey]
-  );
   const data = useLazyLoadQuery<ProjectEvaluatorQueueStatsQuery>(
     graphql`
       query ProjectEvaluatorQueueStatsQuery(
@@ -211,7 +198,7 @@ function ProjectEvaluatorQueueStatsContent({
       }
     `,
     { projectId, lagTimeRange },
-    { fetchKey: `${refreshKey}:${pollKey}`, fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
   const projectQueue = data.project?.evaluationQueue ?? null;
@@ -445,13 +432,6 @@ function QueueRateStat({
       </HoverDetail>
     </StatItem>
   );
-}
-
-/** The last hour, as of now. */
-function getLastHourTimeRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date(end.getTime() - 60 * 60_000);
-  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 /**

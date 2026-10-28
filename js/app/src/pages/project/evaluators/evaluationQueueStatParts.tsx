@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Focusable } from "react-aria";
 
 import {
@@ -20,6 +21,41 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
  */
 
 export type EvaluationQueueStatusValue = "HEALTHY" | "DEGRADED";
+
+const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
+
+/** The last hour, as of now. */
+function getLastHourTimeRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end.getTime() - 60 * 60_000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+/**
+ * Polls the queue stats: a fetch key that changes on every poll or refresh,
+ * and the last hour as of the latest poll. Call it above the stats' Suspense
+ * boundary. Below it, a first load that suspends loses its state, so the
+ * range moves on every retry and the query never settles.
+ */
+export function useQueueStatsPoll(refreshKey: number) {
+  const [poll, setPoll] = useState(() => ({
+    count: 0,
+    lastHour: getLastHourTimeRange(),
+  }));
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Read outside the updater: React reruns a pending updater on every
+      // render attempt, and each new range would suspend the attempt again.
+      const lastHour = getLastHourTimeRange();
+      // A new range is a new query; keep the current stats up while it loads.
+      startTransition(() =>
+        setPoll(({ count }) => ({ count: count + 1, lastHour }))
+      );
+    }, QUEUE_STATS_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+  return { fetchKey: `${refreshKey}:${poll.count}`, lastHour: poll.lastHour };
+}
 
 const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
   SPAN: "Spans",

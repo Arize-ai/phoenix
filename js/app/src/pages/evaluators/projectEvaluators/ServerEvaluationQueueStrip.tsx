@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Text, View } from "@phoenix/components";
@@ -19,6 +19,7 @@ import {
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
+  useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatElapsedShort,
@@ -26,8 +27,6 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
-
-const REFRESH_INTERVAL_MS = 30_000;
 
 const stripCSS = css`
   display: flex;
@@ -37,13 +36,6 @@ const stripCSS = css`
   column-gap: var(--global-dimension-size-400);
   row-gap: var(--global-dimension-size-150);
 `;
-
-/** The last hour, as of now. */
-function getLastHourTimeRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date(end.getTime() - 60 * 60_000);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
 
 /**
  * The server-wide queue strip: the one queue every project's evaluators share,
@@ -59,6 +51,7 @@ export function ServerEvaluationQueueStrip({
   refreshKey: number;
   onQueueCleared: () => void;
 }) {
+  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   return (
     <View
       paddingX="size-200"
@@ -76,7 +69,8 @@ export function ServerEvaluationQueueStrip({
         <ErrorBoundary fallback={() => <StripPlaceholder />}>
           <Suspense fallback={<StripPlaceholder />}>
             <ServerEvaluationQueueStripContent
-              refreshKey={refreshKey}
+              fetchKey={fetchKey}
+              lastHour={lastHour}
               onQueueCleared={onQueueCleared}
             />
           </Suspense>
@@ -87,28 +81,15 @@ export function ServerEvaluationQueueStrip({
 }
 
 function ServerEvaluationQueueStripContent({
-  refreshKey,
+  fetchKey,
+  lastHour,
   onQueueCleared,
 }: {
-  refreshKey: number;
+  fetchKey: string;
+  lastHour: { start: string; end: string };
   onQueueCleared: () => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  const [pollKey, setPollKey] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(
-      () => setPollKey((key) => key + 1),
-      REFRESH_INTERVAL_MS
-    );
-    return () => clearInterval(interval);
-  }, []);
-  // Recomputed only on a poll or refresh, so the query's variables stay put
-  // between them.
-  const lastHour = useMemo(
-    () => getLastHourTimeRange(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pollKey, refreshKey]
-  );
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
     graphql`
       query ServerEvaluationQueueStripQuery(
@@ -151,7 +132,7 @@ function ServerEvaluationQueueStripContent({
       }
     `,
     { lastHour, timeRange: timeRangeISOStrings },
-    { fetchKey: `${refreshKey}:${pollKey}`, fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
   const colors = useCategoryChartColors();
