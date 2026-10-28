@@ -34,9 +34,6 @@ const definitionFragment = graphql`
     inputs {
       name
       description
-      # Not rendered: the card lists name and description only, but the
-      # copied definition and the version diff carry the whole input.
-      jsonSchema
     }
     state {
       __typename

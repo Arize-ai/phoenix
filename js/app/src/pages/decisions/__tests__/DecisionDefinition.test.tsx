@@ -64,12 +64,8 @@ describe("DecisionDefinition", () => {
     const text = await render(
       definition({
         inputs: [
-          {
-            name: "question",
-            description: "The user's question",
-            jsonSchema: null,
-          },
-          { name: "answer", description: null, jsonSchema: { type: "string" } },
+          { name: "question", description: "The user's question" },
+          { name: "answer", description: null },
         ],
         state: {
           __typename: "DecisionTextState",
@@ -80,7 +76,6 @@ describe("DecisionDefinition", () => {
     );
     expect(text).toContain("question: The user's question");
     expect(text).toContain("answer");
-    expect(text).not.toContain("string");
     expect(text).toContain("Mustache");
     expect(
       container.querySelector('[data-testid="template"]')?.textContent

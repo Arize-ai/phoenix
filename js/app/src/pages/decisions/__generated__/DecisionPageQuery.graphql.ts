@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<308ecfdace0f15b099dd1d7666d6274c>>
+ * @generated SignedSource<<3e3458f3da86d9fc0f7a1bb5f5f23f69>>
  * @lightSyntaxTransform
  */
 
@@ -217,14 +217,7 @@ v17 = {
   "plural": true,
   "selections": [
     (v4/*:: as any*/),
-    (v5/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "jsonSchema",
-      "storageKey": null
-    }
+    (v5/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -710,12 +703,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "77060eb2fce8b0052f328ea1fb4a3863",
+    "cacheID": "65b6264af91373263a1108e2794de04c",
     "id": null,
     "metadata": {},
     "name": "DecisionPageQuery",
     "operationKind": "query",
-    "text": "query DecisionPageQuery(\n  $id: ID!\n  $versionId: ID\n) {\n  decision: node(id: $id) {\n    __typename\n    ... on Decision {\n      id\n      name\n      description\n      metadata\n      versionCount\n      sourceDecision {\n        id\n        name\n      }\n      versionTags {\n        id\n        name\n        description\n        decisionVersionId\n      }\n      ...DecisionLabels\n      ...DecisionLatestVersionsList_decision\n      ...DecisionVersionsList_versions\n      version(versionId: $versionId) {\n        id\n        ...DecisionVersionDetails_version\n      }\n    }\n    id\n  }\n}\n\nfragment DecisionLabels on Decision {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment DecisionLatestVersionsList_decision on Decision {\n  id\n  latestVersions: versions(first: 5) {\n    edges {\n      node {\n        id\n        sequenceNumber\n        ...DecisionVersionSummary_version\n      }\n    }\n  }\n}\n\nfragment DecisionVersionDetails_definition on DecisionVersion {\n  inputs {\n    name\n    description\n    jsonSchema\n  }\n  state {\n    __typename\n    ... on DecisionObjectState {\n      object\n    }\n    ... on DecisionTextState {\n      template\n      templateFormat\n    }\n    ... on DecisionInputState {\n      input\n    }\n  }\n  questions {\n    __typename\n    ... on DecisionPredicateQuestion {\n      name\n      instructions\n      criteria {\n        true\n        false\n      }\n    }\n    ... on DecisionChoiceQuestion {\n      name\n      instructions\n      choices {\n        value\n        description\n      }\n    }\n    ... on DecisionScaleQuestion {\n      name\n      instructions\n      levels {\n        label\n        description\n      }\n    }\n  }\n  modelName\n  modelProvider\n  customProvider {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionDetails_version on DecisionVersion {\n  id\n  metadata\n  tags {\n    id\n    name\n  }\n  ...DecisionVersionDetails_definition\n  previousVersion {\n    id\n    ...DecisionVersionDetails_definition\n  }\n}\n\nfragment DecisionVersionSummary_version on DecisionVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionsList_versions on Decision {\n  pagedVersions: versions(first: 50) {\n    edges {\n      node {\n        id\n        ...DecisionVersionSummary_version\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DecisionPageQuery(\n  $id: ID!\n  $versionId: ID\n) {\n  decision: node(id: $id) {\n    __typename\n    ... on Decision {\n      id\n      name\n      description\n      metadata\n      versionCount\n      sourceDecision {\n        id\n        name\n      }\n      versionTags {\n        id\n        name\n        description\n        decisionVersionId\n      }\n      ...DecisionLabels\n      ...DecisionLatestVersionsList_decision\n      ...DecisionVersionsList_versions\n      version(versionId: $versionId) {\n        id\n        ...DecisionVersionDetails_version\n      }\n    }\n    id\n  }\n}\n\nfragment DecisionLabels on Decision {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment DecisionLatestVersionsList_decision on Decision {\n  id\n  latestVersions: versions(first: 5) {\n    edges {\n      node {\n        id\n        sequenceNumber\n        ...DecisionVersionSummary_version\n      }\n    }\n  }\n}\n\nfragment DecisionVersionDetails_definition on DecisionVersion {\n  inputs {\n    name\n    description\n  }\n  state {\n    __typename\n    ... on DecisionObjectState {\n      object\n    }\n    ... on DecisionTextState {\n      template\n      templateFormat\n    }\n    ... on DecisionInputState {\n      input\n    }\n  }\n  questions {\n    __typename\n    ... on DecisionPredicateQuestion {\n      name\n      instructions\n      criteria {\n        true\n        false\n      }\n    }\n    ... on DecisionChoiceQuestion {\n      name\n      instructions\n      choices {\n        value\n        description\n      }\n    }\n    ... on DecisionScaleQuestion {\n      name\n      instructions\n      levels {\n        label\n        description\n      }\n    }\n  }\n  modelName\n  modelProvider\n  customProvider {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionDetails_version on DecisionVersion {\n  id\n  metadata\n  tags {\n    id\n    name\n  }\n  ...DecisionVersionDetails_definition\n  previousVersion {\n    id\n    ...DecisionVersionDetails_definition\n  }\n}\n\nfragment DecisionVersionSummary_version on DecisionVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionsList_versions on Decision {\n  pagedVersions: versions(first: 50) {\n    edges {\n      node {\n        id\n        ...DecisionVersionSummary_version\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
