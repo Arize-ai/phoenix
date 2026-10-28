@@ -26,6 +26,7 @@ LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
 ENVIRONMENT_LOCK_KEY = "./environments/phoenix-dev.yaml"
 VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
+DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
 
 LANE_AGENT_LOCK_KEYS = {
@@ -196,6 +197,7 @@ def read_vault_ids(*, lock: dict[str, Any]) -> list[str]:
     return [
         read_lock_id(lock=lock, lock_key=VAULT_LOCK_KEY),
         read_lock_id(lock=lock, lock_key=GRAFANA_VAULT_LOCK_KEY),
+        read_lock_id(lock=lock, lock_key=DATADOG_VAULT_LOCK_KEY),
     ]
 
 
