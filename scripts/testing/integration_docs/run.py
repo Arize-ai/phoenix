@@ -640,7 +640,21 @@ def run_example(
             main_class = spec.setup.get("main_class")
             if not main_class:
                 raise HarnessError(f"Java integration {spec.id} must configure main_class")
+            java_agent_dependency = spec.setup.get("java_agent_dependency")
+            if java_agent_dependency:
+                packages = [package for package in packages if package != java_agent_dependency]
             dependencies = "\n".join(f'    implementation("{package}")' for package in packages)
+            agent_configuration = "configurations { javaAgent }" if java_agent_dependency else ""
+            agent_dependency = (
+                f'    javaAgent("{java_agent_dependency}")' if java_agent_dependency else ""
+            )
+            agent_task = (
+                'tasks.named("run", JavaExec) {\n'
+                '    doFirst { jvmArgs "-javaagent:${configurations.javaAgent.singleFile}" }\n'
+                '}\n'
+                if java_agent_dependency
+                else ""
+            )
             build_file = f"""plugins {{
     id "application"
 }}
@@ -649,8 +663,11 @@ repositories {{
     mavenCentral()
 }}
 
+{agent_configuration}
+
 dependencies {{
 {dependencies}
+{agent_dependency}
 }}
 
 tasks.withType(JavaCompile).configureEach {{
@@ -660,6 +677,8 @@ tasks.withType(JavaCompile).configureEach {{
 application {{
     mainClass = "{main_class}"
 }}
+
+{agent_task}
 """
             (temp / "build.gradle").write_text(build_file)
             (temp / "settings.gradle").write_text('rootProject.name = "integration-docs-test"\n')

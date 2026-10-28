@@ -98,6 +98,11 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Always skip | Open WebUI | `docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx` | Requires a deployed app and collector. |
 | Always skip | LiveKit Agents | `docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx` | Requires live session and media traffic. |
 
+| Enabled | Google GenAI Python | `docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing.mdx` | Uses `DOCS_GEMINI_API_KEY`; checks response output and a Phoenix LLM span. |
+| Enabled | Google ADK Python | `docs/phoenix/integrations/python/google-adk/google-adk-tracing.mdx` | Uses `DOCS_GEMINI_API_KEY`; checks response output and a Phoenix LLM span. |
+| Enabled | Google ADK Provider Python | `docs/phoenix/integrations/llm-providers/google-adk/google-adk-tracing.mdx` | Uses `DOCS_GEMINI_API_KEY`; checks response output and a Phoenix LLM span. |
+| Enabled | Gemini Go SDK | `docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk.mdx` | Uses `DOCS_GEMINI_API_KEY`; checks response output and the emitted GenAI model attribute. |
+| Enabled | Google ADK Java | `docs/phoenix/integrations/java/google-adk/google-adk-tracing.mdx` | Uses `DOCS_GEMINI_API_KEY`; runs ADK with the published OpenInference Java agent and verifies an LLM span. |
 Add integrations after the runner supports their language and example shape,
 credentials are declared, and the verifier checks the behavior the page promises.
 Keep this inventory aligned with the harness configuration.
