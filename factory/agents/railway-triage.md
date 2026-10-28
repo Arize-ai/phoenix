@@ -6,6 +6,12 @@ mcp_servers:
   - {type: url, name: github, url: https://api.githubcopilot.com/mcp/}
   - {type: url, name: grafana, url: https://factory-grafana-mcp-production.up.railway.app/mcp}
 tools:
+  - type: agent_toolset_20260401
+    default_config: {enabled: false}
+    configs:
+      - {name: read, enabled: true, permission_policy: {type: always_allow}}
+      - {name: glob, enabled: true, permission_policy: {type: always_allow}}
+      - {name: grep, enabled: true, permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: github
     default_config: {enabled: false}
