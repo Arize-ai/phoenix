@@ -37,7 +37,7 @@ flowchart TB
   maintainer -->|"factory label"| issue
   maintainer -->|"review, merge"| pr
   maintainer -->|"factory-review label<br/>on any PR"| prreview
-  prreview -->|"start session,<br/>report outcome"| reviewer
+  prreview -->|"start session,<br/>report verdict"| reviewer
   reviewer -->|"one COMMENT review"| pr
   triage -->|"factory-candidate label"| issue
   candidates -->|"candidates by authors<br/>with write access"| dispatch
@@ -103,8 +103,8 @@ Each part does one job, so it can be changed and tested on its own:
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
-| `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, and reports on the PR whether a review was posted. See [Reviewing a PR](#reviewing-a-pr) |
-| `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary |
+| `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, and comments the review's verdict on the PR, or that none was posted. See [Reviewing a PR](#reviewing-a-pr) |
+| `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
 | `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which files a user-facing `bug` issue per new bug or updates the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
@@ -114,7 +114,7 @@ Each part does one job, so it can be changed and tested on its own:
 - **Untrusted input.** Issue text, issue comments, CI logs, review comments, fetched web pages, and log lines, spans and metrics from Grafana can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
 - **The sandbox.** Code there can use the factory app's token for the whole session, so it can push any branch the token reaches. The token is an installation token of the `arize-phoenix-factory` GitHub App, limited to this repo with Contents, Issues and Pull requests write, and a ruleset limits the app to `factory/**` branches. The app's private key stays in GitHub Actions. Factory Guard recognizes factory PRs by their `factory/` branch or by the app as their author, and PXI evals don't run with secrets on PRs authored by `FACTORY_GITHUB_LOGIN`.
 - **Community code in the sandbox.** The review lane checks out a contributor's commit and runs the project's `make` targets and tests on it, so that code runs with the sandbox's access: the factory app's installation token (injected by the vault into GitHub calls, never visible as a value) and the limited network. The agent runs nothing the PR adds except through those targets, and the ruleset bounds what the token can do. The Actions job itself only ever checks out the base branch.
-- **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or a PR, or by writing an issue that triage nominates, and only a human merges. The review agent is instructed to post only `COMMENT` reviews, never to approve or request changes.
+- **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or a PR, or by writing an issue that triage nominates, and only a human merges. The review agent recommends a verdict in the review body but is instructed to submit only `COMMENT` reviews, never to approve or request changes.
 
 A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. To run an issue again, re-add the `factory` label. To have the factory review a pull request, label it `factory-review`.
 
@@ -128,7 +128,6 @@ sequenceDiagram
   participant github as GitHub
   participant review as review.py
   participant session as Session
-  participant grader as Outcome grader
 
   maintainer->>github: add the factory-review label
   github->>review: pull_request_target labeled
@@ -139,16 +138,14 @@ sequenceDiagram
     review->>session: create with pr-reviewer, the repo mounted on the base branch, the commit to review
     session->>session: bootstrap, fetch pull/N/head, check out the commit, run checks, area review, verify findings
     session->>github: submit one COMMENT review with inline findings and the summary
-    session->>grader: end turn
-    grader-->>session: needs revision, up to 2 iterations, or satisfied
-    review->>github: report the outcome, rubric result and cost, remove the label
+    review->>github: comment the verdict with a link to the review, remove the label
   end
-  maintainer->>github: read the review at its depth, then decide
+  maintainer->>github: read the verdict and table at its depth, then decide
 ```
 
-The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR, and it is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label, so the report names what was reviewed even if the author pushes meanwhile; re-add the label to review the new head. Each review session has a spend cap of $10 at list price and the job waits up to 100 minutes for it.
+The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR, and it is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label, and reviews the current head only if that commit is gone; the PR comment names the commit the review is on. `review.py` finds the review as the first one the factory submitted after the session started, so a review from an earlier run is never reported as this one's. Re-add the label to review a new head. Each review session has a spend cap of $10 at list price and the job waits up to 100 minutes for it.
 
-The review's body follows the summary template in `agents/pr-reviewer.md`: the PR's intent, whether the diff fits it, what the sandbox verified and what it couldn't, the finding counts, the area reviewers' risk ratings and a review depth. Findings go inline on the lines they concern, each verified, each marked **Blocking** or **Non-blocking**. The outcome report on the PR uses the same `success`, `flawed` and `blocked` outcomes as the build lanes; `flawed` here means the session posted no review or the grader found the review wanting.
+The review's body follows the summary template in `agents/pr-reviewer.md`: a verdict of **Approve**, **Request changes** or **Close**, the one criterion that decided it, and a table grading Fit, Checks, Tests, the finding counts, Risk and Review depth, with the full intent, verification and risk notes collapsed under Details. The verdict follows fixed rules in [`agents/pr-reviewer.md` § Verdict](agents/pr-reviewer.md#verdict) and is only a recommendation; the review is always a `COMMENT`. Findings go inline on the lines they concern, each verified, each marked **Blocking** or **Non-blocking**. When the session ends, `review.py` comments the verdict on the PR with a link to the review, or says the session posted none; the stop reason and cost go to the job log. The lane has no graded outcome: a posted review can't be taken back, so a grader's revision cycles could only edit or repost it.
 
 ## Run outcomes
 
@@ -167,7 +164,7 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 agents/          one file per agent: frontmatter = config, body = system prompt
 environments/    the sandbox (uv, tox, pnpm, limited networking)
 vaults/          the vault containers (GitHub, Grafana); the Grafana credential is added by hand
-rubrics/         outcome rubrics, inlined by dispatch.py and review.py (not ant resources)
+rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
