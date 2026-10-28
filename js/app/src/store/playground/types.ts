@@ -659,6 +659,12 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
      * Not persisted - computed at runtime when dataset is loaded.
      */
     availablePaths: z.array(z.string()).optional(),
+    /**
+     * The template variables of the dataset's first examples, each scoped to
+     * the task's template variables path, for decision input suggestions and
+     * previews. Not persisted - computed at runtime when the dataset is loaded.
+     */
+    exampleVariables: z.array(z.unknown()).optional(),
   })
 );
 
@@ -1038,6 +1044,16 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId,
   }: {
     availablePaths: string[];
+    datasetId: string;
+  }) => void;
+  /**
+   * Set the scoped template variables of the dataset's first examples.
+   */
+  setExampleVariables: ({
+    exampleVariables,
+    datasetId,
+  }: {
+    exampleVariables: unknown[];
     datasetId: string;
   }) => void;
   /**

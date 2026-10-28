@@ -126,6 +126,7 @@ import type {
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import { DecisionResult } from "./DecisionResult";
+import { scopeExampleVariables } from "./decisionStateInputsHints";
 import {
   getEvaluatorTaskAnnotation,
   PlaygroundEvaluatorColumnHeader,
@@ -911,6 +912,9 @@ export function PlaygroundDatasetExamplesTable({
   const setAvailablePaths = usePlaygroundContext(
     (state) => state.setAvailablePaths
   );
+  const setExampleVariables = usePlaygroundContext(
+    (state) => state.setExampleVariables
+  );
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
@@ -1601,11 +1605,25 @@ export function PlaygroundDatasetExamplesTable({
         MAX_EXAMPLES_FOR_PATH_EXTRACTION
       );
       setAvailablePaths({ availablePaths: paths, datasetId });
+      // A decision's input suggestions and previews read the same examples.
+      setExampleVariables({
+        exampleVariables: tableData
+          .slice(0, MAX_EXAMPLES_FOR_PATH_EXTRACTION)
+          .map((row) => scopeExampleVariables(row, templateVariablesPath)),
+        datasetId,
+      });
     } else {
       // Clear paths when dataset becomes empty to avoid stale autocomplete suggestions
       setAvailablePaths({ availablePaths: [], datasetId });
+      setExampleVariables({ exampleVariables: [], datasetId });
     }
-  }, [tableData, datasetId, templateVariablesPath, setAvailablePaths]);
+  }, [
+    tableData,
+    datasetId,
+    templateVariablesPath,
+    setAvailablePaths,
+    setExampleVariables,
+  ]);
 
   // We assume that the experiments were run on the latest version of the dataset.
   // This is subject to a race condition where a new dataset version is created after the playground experiments were run.

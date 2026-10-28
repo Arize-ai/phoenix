@@ -1600,6 +1600,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }
       );
     },
+    setExampleVariables: ({
+      exampleVariables,
+      datasetId,
+    }: {
+      exampleVariables: unknown[];
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
+              exampleVariables,
+            },
+          },
+        },
+        false,
+        { type: "setExampleVariables" }
+      );
+    },
     updateInstanceModelInvocationParameters: ({
       instanceId,
       invocationParameters,
@@ -2113,12 +2134,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     persist(devtools(playgroundStore, { name: "playgroundStore" }), {
       name: PLAYGROUND_STORAGE_KEY,
       partialize: (state) => {
-        // Exclude availablePaths from persistence - it's computed at runtime
+        // Exclude availablePaths and exampleVariables from persistence -
+        // they're computed at runtime
         const filteredState: typeof state.stateByDatasetId = {};
         for (const [datasetId, datasetState] of Object.entries(
           state.stateByDatasetId
         )) {
-          const { availablePaths: _, ...rest } = datasetState;
+          const {
+            availablePaths: _paths,
+            exampleVariables: _examples,
+            ...rest
+          } = datasetState;
           filteredState[datasetId] = rest;
         }
         return {
