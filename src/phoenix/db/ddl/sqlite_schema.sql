@@ -1258,17 +1258,17 @@ CREATE TABLE project_session_annotations (
     metadata JSONB NOT NULL,
     annotator_kind VARCHAR NOT NULL,
     user_id INTEGER,
-    identifier VARCHAR DEFAULT ('') NOT NULL,
-    source VARCHAR NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    identifier VARCHAR DEFAULT '' NOT NULL,
+    source VARCHAR NOT NULL
+        CONSTRAINT "ck_project_session_annotations_`valid_source`"
+        CHECK (source IN ('API', 'APP')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_session_annotations PRIMARY KEY (id),
     CONSTRAINT uq_project_session_annotations_name_project_session_id_identifier
         UNIQUE (name, project_session_id, identifier),
     CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
         CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION')),
-    CONSTRAINT "ck_project_session_annotations_`valid_source`"
-        CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_project_session_annotations_project_session_id_project_sessions
         FOREIGN KEY (project_session_id)
         REFERENCES project_sessions (id)

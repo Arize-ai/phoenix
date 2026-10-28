@@ -31,9 +31,9 @@ _TABLES = (
 
 def _set_valid_annotator_kinds(condition: str) -> None:
     for table in _TABLES:
-        with op.batch_alter_table(table) as batch_op:
-            batch_op.drop_constraint("valid_annotator_kind", type_="check")
-            batch_op.create_check_constraint("valid_annotator_kind", condition)
+        constraint = f'"ck_{table}_`valid_annotator_kind`"'
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT {constraint}")
+        op.execute(f"ALTER TABLE {table} ADD CONSTRAINT {constraint} CHECK ({condition})")
 
 
 def upgrade() -> None:
