@@ -417,6 +417,12 @@ def run_example(
         env = os.environ.copy()
         env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint
         env["PHOENIX_PROJECT_NAME"] = project
+        if api_key := env.get("PHOENIX_API_KEY"):
+            # Phoenix-aware exporters read PHOENIX_API_KEY, while generic OTLP
+            # exporters need the standard OTEL headers variable.
+            encoded_api_key = urllib.parse.quote(api_key, safe="")
+            env["OTEL_EXPORTER_OTLP_HEADERS"] = f"authorization=Bearer%20{encoded_api_key}"
+            env["PHOENIX_CLIENT_HEADERS"] = f"authorization=Bearer%20{encoded_api_key}"
         if spec.id == "mastra-typescript":
             # Mastra's ArizeExporter expects the complete OTLP HTTP URL.
             env["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint.rstrip("/") + "/v1/traces"

@@ -23,7 +23,7 @@ Because the MCP instrumentor does not generate its own telemetry, you must use i
 ```python
 from phoenix.otel import register
 
-tracer_provider = register(auto_instrument=True)
+tracer_provider = register(auto_instrument=True, verbose=False)
 ```
 
 ## Run MCP Client
@@ -62,6 +62,7 @@ async def main():
                 "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
                 "PHOENIX_COLLECTOR_ENDPOINT": os.environ["PHOENIX_COLLECTOR_ENDPOINT"],
                 "PHOENIX_PROJECT_NAME": os.environ["PHOENIX_PROJECT_NAME"],
+                "PHOENIX_API_KEY": os.environ.get("PHOENIX_API_KEY", ""),
             },
         },
         client_session_timeout_seconds=30,
@@ -89,7 +90,7 @@ from phoenix.otel import register
 load_dotenv()
 
 # You must also connect your MCP server to Phoenix
-tracer_provider = register(auto_instrument=True)
+tracer_provider = register(auto_instrument=True, verbose=False)
 
 # Get a tracer to add additional instrumentattion
 tracer = tracer_provider.get_tracer("financial-analysis-server")
