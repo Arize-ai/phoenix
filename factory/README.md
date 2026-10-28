@@ -108,10 +108,11 @@ Each part does one job, so it can be changed and tested on its own:
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
 | `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which files a user-facing `bug` issue per new bug or updates the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
+| `factory-cloud-log-scan.yml` | The same for Phoenix Cloud, half an hour later: checks Datadog for the last day of server errors across every tenant and runs the `cloud-triage` agent, which files issues with the customer data redacted. See [Log scan](#log-scan) |
 
 ### Trust boundaries
 
-- **Untrusted input.** Issue text, issue comments, CI logs, review comments, fetched web pages, and log lines, spans and metrics from Grafana can come from anyone. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
+- **Untrusted input.** Issue text, issue comments, CI logs, review comments, fetched web pages, and log lines, spans and metrics from Grafana and Datadog can come from anyone. Datadog's also describe customers' servers, so agents never copy them into an issue, test, commit or PR. Agents treat them as evidence, never as instructions. The kickoff message carries only the issue number, its labels and the commit identity.
 - **The sandbox.** Code there can use the factory app's token for the whole session, so it can push any branch the token reaches. The token is an installation token of the `arize-phoenix-factory` GitHub App, limited to this repo with Contents, Issues and Pull requests write, and a ruleset limits the app to `factory/**` branches. The app's private key stays in GitHub Actions. Factory Guard recognizes factory PRs by their `factory/` branch or by the app as their author, and PXI evals don't run with secrets on PRs authored by `FACTORY_GITHUB_LOGIN`.
 - **Community code in the sandbox.** The review lane checks out a contributor's commit and runs the project's `make` targets and tests on it, so that code runs with the sandbox's access: the factory app's installation token (injected by the vault into GitHub calls, never visible as a value) and the limited network. The agent runs nothing the PR adds except through those targets, and the ruleset bounds what the token can do. The Actions job itself only ever checks out the base branch.
 - **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or a PR, or by writing an issue that triage nominates, and only a human merges. The review agent recommends a verdict in the review body but is instructed to submit only `COMMENT` reviews, never to approve or request changes.
@@ -163,14 +164,14 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt
 environments/    the sandbox (uv, tox, pnpm, limited networking)
-vaults/          the vault containers (GitHub, Grafana); the Grafana credential is added by hand
+vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports the review it posts
-log_scan.py      counts the day's server errors in Grafana and, if any, runs the railway-triage session
+log_scan.py      counts the day's server errors in Grafana or Datadog and, if any, runs the matching triage session
 ```
 
 `claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
@@ -205,29 +206,53 @@ The deployment is the `phoenix-dev` Railway project in the Arize AI workspace: P
    Railway's `startCommand` on an image service supplies the arguments. The caller token is required: without `MCP_GRAFANA_SERVER_TOKEN` the server answers anyone who can reach the domain. Set the `url` of the `grafana` MCP server in `agents/railway-triage.md`, `agents/bug-fixer.md` and `agents/bug-reproducer.md` to `https://<domain>/mcp`. Merging that applies the agents; the Grafana vault is created by the same apply.
 3. Add the caller token to the Grafana vault (its ID is in `claude-lock.json` on `factory-state`, under `./vaults/grafana.yaml`) as a `static_bearer` credential for `https://<domain>/mcp`, using `ant beta:vaults:credentials create`.
 
+## Datadog access
+
+Phoenix Cloud, the multi-tenant hosted Phoenix that Arize runs for its customers, sends every tenant server's warning-and-above logs and its traces to Datadog as `service:arize-phoenix-server` with `env:prod`. The `cloud-triage` agent and the bug lane's `bug-fixer` and `bug-reproducer` reach them through Datadog's hosted [MCP server](https://docs.datadoghq.com/bits_ai/mcp_server/setup/) at `https://mcp.datadoghq.com/v1/mcp`, with only read tools enabled: `search_datadog_logs` and `analyze_datadog_logs` for the logs, `search_datadog_spans`, `aggregate_spans` and `get_datadog_trace` for the traces, and the skill tools the server wants loaded before a query. The Datadog organization has MCP Write Access disabled, so the server hides its write tools from everyone. Log lines carry the exception and its stack trace under `@exception.*`, the raise site under `@code.*`, and a `trace_id` when logged inside a request, so an agent can go from an error line to the failing span.
+
+Everything these tools return is customer data and the Phoenix repository is public. The agents are told to treat it as evidence only and to redact tenant and user identifiers and user-entered values before quoting a line; the `cloud-triage` rubric fails a run that leaks any.
+
+The MCP server authenticates the caller with a Datadog Service Access Token (SAT) sent as a bearer token, which the `factory-datadog` vault supplies. The same kind of token authenticates the scan's count query. `dispatch.py` attaches that vault to every lane session once `claude-lock.json` has it.
+
+### Datadog access bootstrap
+
+1. In the Datadog organization that receives Phoenix Cloud's telemetry, create a service account `factory-log-scan` with a role limited to `logs_read_data`, `apm_read` and `mcp_read`, and create one Service Access Token for the scan and one for the MCP server. The organization must have MCP Access enabled and MCP Write Access disabled.
+2. Merge the `datadog` MCP server into `agents/cloud-triage.md`, `agents/bug-fixer.md` and `agents/bug-reproducer.md`; the apply creates the Datadog vault alongside.
+3. Add the MCP server's token to the Datadog vault (its ID is in `claude-lock.json` on `factory-state`, under `./vaults/datadog.yaml`) as a `static_bearer` credential for `https://mcp.datadoghq.com/v1/mcp`, using `ant beta:vaults:credentials create`.
+
 ## Log scan
 
 The scan closes the loop from production to a PR: an error in the server logs becomes an issue, and the bug lane picks it up with read access to the same telemetry.
 
 ```mermaid
 flowchart LR
-  phoenix["Phoenix server<br/>OTLP logs"] --> loki["Loki"] --> grafana["Grafana"]
-  grafana -->|"any errors in the last day?"| scan["factory-log-scan.yml<br/>log_scan.py"]
+  phoenix["Railway Phoenix server<br/>OTLP logs"] --> loki["Loki"] --> grafana["Grafana"]
+  cloud["Phoenix Cloud tenants<br/>OTLP logs and traces"] --> datadog["Datadog"]
+  grafana -->|"any errors in the last day?"| scan["factory-log-scan.yml<br/>log_scan.py --source railway"]
+  datadog -->|"any errors in the last day?"| cloudscan["factory-cloud-log-scan.yml<br/>log_scan.py --source cloud"]
   scan --> triage["railway-triage session"]
+  cloudscan --> cloudtriage["cloud-triage session"]
   triage <-->|"query_loki_logs"| mcp
+  cloudtriage <-->|"search_datadog_logs"| ddmcp
   triage -->|"one issue per bug<br/>bug + railway-dev labels"| issue["Issue"]
+  cloudtriage -->|"one issue per bug, redacted<br/>bug + phoenix-cloud labels"| issue
   scan -->|"factory label<br/>when enabled"| issue
+  cloudscan -->|"factory label<br/>when enabled"| issue
   issue --> dispatch["factory-dispatch.yml"]
   dispatch --> session["bug lane session"]
   session <-->|"query_loki_logs"| mcp["mcp-grafana<br/>streamable HTTP, read-only"]
+  session <-->|"search_datadog_logs"| ddmcp["Datadog MCP server<br/>hosted, read-only"]
   mcp --> grafana
+  ddmcp --> datadog
 ```
 
-`log_scan.py` runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy, and stops if it matches nothing, so quiet days cost nothing. Otherwise it starts a session with the `railway-triage` agent (`agents/railway-triage.md`, graded by `rubrics/railway-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has the Grafana read tools and the GitHub issue tools, and nothing that pushes code.
+`log_scan.py` takes a `--source`. For `railway` it runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy; for `cloud` it counts the Datadog log search in `FACTORY_DATADOG_QUERY` over the same window through the Logs aggregate API. Either way it stops if the query matches nothing, so quiet days cost nothing. Otherwise it starts a session with the source's triage agent (`agents/railway-triage.md` graded by `rubrics/railway-triage.md`, or `agents/cloud-triage.md` graded by `rubrics/cloud-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has that source's read tools and the GitHub issue tools, and nothing that pushes code.
 
-The agent does the work a regex can't. It reads the window's lines through mcp-grafana and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs and a re-query LogQL in the body. It searches the open issues, not only those it filed, so a bug a human already reported gets a comment with new evidence, and the `railway-dev` label, instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. Each session has a spend cap of $10 at list price.
+The agent does the work a regex can't. It reads the window's lines through mcp-grafana and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs and a re-query LogQL in the body. It searches the open issues, not only those it filed, so a bug a human already reported gets a comment with new evidence, and the source's label (`railway-dev` or `phoenix-cloud`), instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. Each session has a spend cap of $10 at list price.
 
-The session files and comments as the factory app through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created as the app, oldest first, up to three per run (`--max-dispatch`), since each label starts a bug-lane session at once with its own budget; the rest wait for a maintainer, and the step summary says how many. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and `dispatch.py` accepts the app, `FACTORY_GITHUB_LOGIN`, as a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` to `false` to pause it for the schedule, or untick `dispatch` on a manual run.
+The cloud scan sees every tenant at once, so one bug shows up as many lines from many servers; the `cloud-triage` agent counts the tenants in the issue's impact without naming them, and distinguishes a platform event every tenant hit for the same minutes (not a bug) from an error one tenant keeps hitting (a bug). A background daemon's line carries no `trace_id`, so grouping there goes by the innermost Phoenix frame of the stack trace.
+
+The session files and comments as the factory app through the GitHub MCP server. It never adds the `factory` label: an agent reading untrusted log lines should not be what starts spend. After the session, `log_scan.py` labels the issues it created as the app, oldest first, up to three per run (`--max-dispatch`), since each label starts a bug-lane session at once with its own budget; the rest wait for a maintainer, and the step summary says how many. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and `dispatch.py` accepts the app, `FACTORY_GITHUB_LOGIN`, as a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` (or `FACTORY_CLOUD_LOG_SCAN_DISPATCH` for the cloud scan) to `false` to pause it for the schedule, or untick `dispatch` on a manual run.
 
 ### Log scan bootstrap
 
@@ -237,9 +262,15 @@ Grafana access must be bootstrapped first.
 2. Run **Factory Log Scan** by hand with `dry_run` on and a wide `hours` window; it prints how many lines the LogQL matches. Check the same query in Grafana Explore and tighten it until it selects server errors and not noise.
 3. Run the scan by hand with `dispatch` unticked and read the issues the triage session files; fix its prompt or rubric until the titles and grouping are right. Then run it once with `dispatch` on and watch a bug-lane session use the Grafana tools.
 
+For the cloud scan, Datadog access must be bootstrapped first, then:
+
+1. Set the repository secret `FACTORY_DATADOG_TOKEN` to the scan's Service Access Token and the variable `FACTORY_DATADOG_QUERY` to the log search that selects server errors, for example `service:arize-phoenix-server env:prod status:error`. Set `FACTORY_DATADOG_SITE` only if the organization is not on `datadoghq.com`. The `phoenix-cloud` label already exists.
+2. Run **Factory Cloud Log Scan** by hand with `dry_run` on and a wide `hours` window; it prints how many logs the search matches. Check the same search in the Datadog Logs Explorer and tighten it until it selects server errors and not noise.
+3. Run the scan by hand with `dispatch` unticked and read every issue the triage session files for customer data before anything else, then for titles and grouping. Fix the prompt or rubric until both are right. Then run it once with `dispatch` on and watch a bug-lane session use the Datadog tools.
+
 ## Switching workspaces
 
-Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the `factory-state` branch, then run `Factory Sync` from `main` with **Run workflow**; it recreates every resource in the new workspace. The first session creates the new GitHub vault's credentials; repeat Grafana access step 3 for the new Grafana vault.
+Resources live in the workspace of `FACTORY_ANTHROPIC_API_KEY`, so `claude-lock.json` IDs point at the old one after the key changes. Delete the `factory-state` branch, then run `Factory Sync` from `main` with **Run workflow**; it recreates every resource in the new workspace. The first session creates the new GitHub vault's credentials; repeat Grafana access step 3 for the new Grafana vault and Datadog access step 3 for the new Datadog vault.
 
 ## Changing an agent
 

@@ -1,16 +1,25 @@
-"""Triage a day of Phoenix server errors from Grafana into GitHub issues.
+"""Triage a day of Phoenix server errors into GitHub issues.
 
-The script is a gate and a starter. It counts the error lines Loki has for the window;
-with none, it exits without spending anything. Otherwise it starts a session with the
-railway-triage agent, which reads the errors and the code, checks the open `railway-dev` issues,
-and files or updates issues itself. Unless `--no-dispatch` is given, the `railway-dev` issues
-the session created then get the `factory` label, up to `--max-dispatch` of them, so
+The script is a gate and a starter. It counts the error lines the source has for the window;
+with none, it exits without spending anything. Otherwise it starts a session with the source's
+triage agent, which reads the errors and the code, checks the open issues carrying the source's
+label, and files or updates issues itself. Unless `--no-dispatch` is given, the issues the
+session created then get the `factory` label, up to `--max-dispatch` of them, so
 factory-dispatch.yml runs the bug lane on each.
 
-Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token
-with the Viewer role), FACTORY_GRAFANA_LOGQL (the selector for server errors), optionally
-FACTORY_GRAFANA_LOKI_UID, and for the session ANTHROPIC_API_KEY, FACTORY_APP_CLIENT_ID and
-FACTORY_APP_PRIVATE_KEY.
+Two sources, chosen with `--source`:
+
+- `railway`: the Phoenix team's internal Railway deployment, whose logs are in Grafana Loki.
+  Environment: FACTORY_GRAFANA_URL, FACTORY_GRAFANA_TOKEN (a Grafana service-account token with
+  the Viewer role), FACTORY_GRAFANA_LOGQL (the selector for server errors) and optionally
+  FACTORY_GRAFANA_LOKI_UID. Issues are labeled `railway-dev`.
+- `cloud`: Phoenix Cloud, the multi-tenant production deployment Arize runs, whose logs and
+  traces are in Datadog. Environment: FACTORY_DATADOG_TOKEN (a Service Access Token with
+  `logs_read_data`), FACTORY_DATADOG_QUERY (the log search that selects server errors) and
+  optionally FACTORY_DATADOG_SITE. Issues are labeled `phoenix-cloud`.
+
+Every source also needs ANTHROPIC_API_KEY, FACTORY_APP_CLIENT_ID and FACTORY_APP_PRIVATE_KEY
+for the session.
 """
 
 import argparse
@@ -20,8 +29,10 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Protocol
 
 import anthropic
 from dispatch import (
@@ -38,15 +49,53 @@ from dispatch import (
     wait_for_session,
 )
 
-SOURCE_LABEL = "railway-dev"
-TRIAGE_AGENT_LOCK_KEY = "./agents/railway-triage.md"
-TRIAGE_RUBRIC_PATH = FACTORY_DIR / "rubrics" / "railway-triage.md"
 LOKI_QUERY_LIMIT = 5000
+DEFAULT_DATADOG_SITE = "datadoghq.com"
 TRIAGE_OUTCOME = (
     "Every Phoenix server error in the window that a maintainer should fix has exactly one "
     "open issue in {repo}: a comment on the existing issue when one covers it, otherwise a "
-    "new issue labeled bug and railway-dev whose title says what the user experiences."
+    "new issue labeled bug and {label} whose title says what the user experiences."
 )
+
+
+@dataclass(frozen=True)
+class TriageSource:
+    """A deployment whose errors get triaged: its issue label and its triage agent."""
+
+    name: str
+    heading: str
+    label: str
+    agent_lock_key: str
+    rubric_path: Path
+
+
+RAILWAY = TriageSource(
+    name="railway",
+    heading="Railway triage",
+    label="railway-dev",
+    agent_lock_key="./agents/railway-triage.md",
+    rubric_path=FACTORY_DIR / "rubrics" / "railway-triage.md",
+)
+CLOUD = TriageSource(
+    name="cloud",
+    heading="Phoenix Cloud triage",
+    label="phoenix-cloud",
+    agent_lock_key="./agents/cloud-triage.md",
+    rubric_path=FACTORY_DIR / "rubrics" / "cloud-triage.md",
+)
+SOURCES = {source.name: source for source in (RAILWAY, CLOUD)}
+
+
+class ErrorStore(Protocol):
+    """A deployment's log store: counts the window's errors and briefs the triage agent."""
+
+    source: TriageSource
+
+    def count_errors(self, *, start: datetime, end: datetime) -> int: ...
+
+    def kickoff_text(
+        self, *, repo: str, start: datetime, end: datetime, line_count: int
+    ) -> str: ...
 
 
 class GrafanaClient:
@@ -94,6 +143,84 @@ class GrafanaClient:
         return sum(len(stream["values"]) for stream in result["data"]["result"])
 
 
+class LokiErrors:
+    """The Railway deployment's errors, read from Grafana Loki."""
+
+    source = RAILWAY
+
+    def __init__(self) -> None:
+        self.grafana = GrafanaClient(
+            url=os.environ["FACTORY_GRAFANA_URL"], token=os.environ["FACTORY_GRAFANA_TOKEN"]
+        )
+        self.logql = os.environ["FACTORY_GRAFANA_LOGQL"]
+        self.datasource_uid = self.grafana.find_loki_datasource_uid(
+            preferred_uid=os.environ.get("FACTORY_GRAFANA_LOKI_UID")
+        )
+        print(f"datasource={self.datasource_uid}")
+
+    def count_errors(self, *, start: datetime, end: datetime) -> int:
+        return self.grafana.count_loki_lines(
+            datasource_uid=self.datasource_uid, logql=self.logql, start=start, end=end
+        )
+
+    def kickoff_text(self, *, repo: str, start: datetime, end: datetime, line_count: int) -> str:
+        return (
+            f"Triage the Phoenix server errors logged between {format_timestamp(start)} and "
+            f"{format_timestamp(end)} into issues in {repo}. The Loki datasource UID is "
+            f"{self.datasource_uid}. The LogQL that selects server errors is:\n\n{self.logql}\n\n"
+            f"It matched {line_count} lines in the window."
+        )
+
+
+class DatadogErrors:
+    """Phoenix Cloud's errors, counted through the Datadog Logs aggregate API."""
+
+    source = CLOUD
+
+    def __init__(self) -> None:
+        self.site = os.environ.get("FACTORY_DATADOG_SITE") or DEFAULT_DATADOG_SITE
+        self.token = os.environ["FACTORY_DATADOG_TOKEN"]
+        self.query = os.environ["FACTORY_DATADOG_QUERY"]
+
+    def count_errors(self, *, start: datetime, end: datetime) -> int:
+        request = urllib.request.Request(
+            f"https://api.{self.site}/api/v2/logs/analytics/aggregate",
+            data=json.dumps(
+                {
+                    "compute": [{"aggregation": "count"}],
+                    "filter": {
+                        "query": self.query,
+                        "from": str(int(start.timestamp() * 1000)),
+                        "to": str(int(end.timestamp() * 1000)),
+                    },
+                }
+            ).encode(),
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=60) as response:
+            result = json.load(response)
+        buckets = result.get("data", {}).get("buckets", [])
+        if not buckets:
+            return 0
+        return int(buckets[0]["computes"]["c0"])
+
+    def kickoff_text(self, *, repo: str, start: datetime, end: datetime, line_count: int) -> str:
+        return (
+            f"Triage the Phoenix Cloud server errors logged between {format_timestamp(start)} "
+            f"and {format_timestamp(end)} into issues in {repo}. The Datadog site is "
+            f"{self.site}. The log search that selects server errors is:\n\n{self.query}\n\n"
+            f"It matched {line_count} logs in the window."
+        )
+
+
+ERROR_STORES: dict[str, type[ErrorStore]] = {RAILWAY.name: LokiErrors, CLOUD.name: DatadogErrors}
+
+
 def format_timestamp(moment: datetime) -> str:
     return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -105,30 +232,22 @@ def parse_timestamp(text: str) -> datetime:
 def start_triage_session(
     *,
     client: anthropic.Anthropic,
+    source: TriageSource,
     repo: str,
     github_token: str,
-    datasource_uid: str,
-    logql: str,
-    window_start: datetime,
+    kickoff_text: str,
     window_end: datetime,
-    line_count: int,
     budget_cents: int,
 ) -> str:
     lock = json.loads(LOCK_FILE_PATH.read_text())
     # Only maintainer-set values go in the prompt; the agent reads the untrusted log lines
-    # itself through the Grafana MCP server.
-    kickoff_text = (
-        f"Triage the Phoenix server errors logged between {format_timestamp(window_start)} and "
-        f"{format_timestamp(window_end)} into issues in {repo}. The Loki datasource UID is "
-        f"{datasource_uid}. The LogQL that selects server errors is:\n\n{logql}\n\n"
-        f"It matched {line_count} lines in the window."
-    )
+    # itself through the source's MCP server.
     session = client.beta.sessions.create(
-        agent=read_lock_id(lock=lock, lock_key=TRIAGE_AGENT_LOCK_KEY),
+        agent=read_lock_id(lock=lock, lock_key=source.agent_lock_key),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
-        title=f"railway triage: {repo} {window_end.strftime('%Y-%m-%d')}",
-        metadata={"repo": repo, "lane": "railway-triage"},
+        title=f"{source.name} triage: {repo} {window_end.strftime('%Y-%m-%d')}",
+        metadata={"repo": repo, "lane": f"{source.name}-triage"},
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -145,8 +264,8 @@ def start_triage_session(
             {"type": "user.message", "content": [{"type": "text", "text": kickoff_text}]},
             {
                 "type": "user.define_outcome",
-                "description": TRIAGE_OUTCOME.format(repo=repo),
-                "rubric": {"type": "text", "content": TRIAGE_RUBRIC_PATH.read_text()},
+                "description": TRIAGE_OUTCOME.format(repo=repo, label=source.label),
+                "rubric": {"type": "text", "content": source.rubric_path.read_text()},
                 "max_iterations": 2,
             },
         ],
@@ -154,7 +273,9 @@ def start_triage_session(
     return session.id
 
 
-def list_source_issues(*, repo: str, token: str, since: datetime) -> list[dict[str, Any]]:
+def list_source_issues(
+    *, repo: str, label: str, token: str, since: datetime
+) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = json.loads(
         run_gh(
             "issue",
@@ -162,7 +283,7 @@ def list_source_issues(*, repo: str, token: str, since: datetime) -> list[dict[s
             "--repo",
             repo,
             "--label",
-            SOURCE_LABEL,
+            label,
             "--state",
             "open",
             "--limit",
@@ -186,6 +307,12 @@ def write_step_summary(lines: list[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
+    parser.add_argument(
+        "--source",
+        choices=sorted(SOURCES),
+        default=RAILWAY.name,
+        help="Which deployment's errors to triage",
+    )
     parser.add_argument("--hours", type=float, default=24.0, help="Window to scan, ending now")
     parser.add_argument(
         "--overlap-minutes",
@@ -213,28 +340,21 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Count the errors and stop")
     args = parser.parse_args()
 
-    grafana = GrafanaClient(
-        url=os.environ["FACTORY_GRAFANA_URL"], token=os.environ["FACTORY_GRAFANA_TOKEN"]
-    )
-    logql = os.environ["FACTORY_GRAFANA_LOGQL"]
-    datasource_uid = grafana.find_loki_datasource_uid(
-        preferred_uid=os.environ.get("FACTORY_GRAFANA_LOKI_UID")
-    )
+    store = ERROR_STORES[args.source]()
+    source = store.source
     window_end = datetime.now(timezone.utc)
     window_start = window_end - timedelta(hours=args.hours, minutes=args.overlap_minutes)
-    line_count = grafana.count_loki_lines(
-        datasource_uid=datasource_uid, logql=logql, start=window_start, end=window_end
-    )
+    line_count = store.count_errors(start=window_start, end=window_end)
     print(
-        f"datasource={datasource_uid} window={format_timestamp(window_start)}"
+        f"source={source.name} window={format_timestamp(window_start)}"
         f"..{format_timestamp(window_end)} lines={line_count}"
     )
     summary = [
-        f"## Railway triage\n\n{line_count} error lines in the last {args.hours:g} hours\n\n"
+        f"## {source.heading}\n\n{line_count} error lines in the last {args.hours:g} hours\n\n"
     ]
     if line_count == 0 or args.dry_run:
         if line_count:
-            print("dry run: would start a railway-triage session")
+            print(f"dry run: would start a {source.name}-triage session")
         write_step_summary(summary)
         return
 
@@ -243,13 +363,13 @@ def main() -> None:
     session_start = datetime.now(timezone.utc)
     session_id = start_triage_session(
         client=client,
+        source=source,
         repo=args.repo,
         github_token=app_token.refresh(),
-        datasource_uid=datasource_uid,
-        logql=logql,
-        window_start=window_start,
+        kickoff_text=store.kickoff_text(
+            repo=args.repo, start=window_start, end=window_end, line_count=line_count
+        ),
         window_end=window_end,
-        line_count=line_count,
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
@@ -266,7 +386,9 @@ def main() -> None:
     if session is None:
         summary.append(f"Still running after {args.watch_minutes} minutes.\n")
         write_step_summary(summary)
-        raise SystemExit("The railway-triage session is still running; see the Claude Console.")
+        raise SystemExit(
+            f"The {source.name}-triage session is still running; see the Claude Console."
+        )
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
@@ -276,7 +398,7 @@ def main() -> None:
 
     # The session files and comments as the factory app; find what it touched by time.
     touched_issues = list_source_issues(
-        repo=args.repo, token=app_token.refresh(), since=session_start
+        repo=args.repo, label=source.label, token=app_token.refresh(), since=session_start
     )
     dispatched = 0
     for issue in sorted(touched_issues, key=lambda issue: issue["createdAt"]):

@@ -1,0 +1,78 @@
+name: Factory Cloud Log Scan
+
+# Daily: if Phoenix Cloud logged server errors in the last day, run the cloud-triage agent, which
+# files or updates issues for them. Labels them as the factory's GitHub App, since a label
+# applied by GITHUB_TOKEN would not start factory-dispatch.yml.
+on:
+  schedule:
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: Hours to scan, ending now
+        default: "24"
+      dispatch:
+        description: Add the factory label to the issues the session files, up to the per-run cap
+        type: boolean
+        default: true
+      dry_run:
+        description: Count the window's errors without starting a session
+        type: boolean
+        default: false
+
+concurrency:
+  group: factory-cloud-log-scan
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      FACTORY_DATADOG_SITE: ${{ vars.FACTORY_DATADOG_SITE }}
+      FACTORY_DATADOG_QUERY: ${{ vars.FACTORY_DATADOG_QUERY }}
+      FACTORY_DATADOG_TOKEN: ${{ secrets.FACTORY_DATADOG_TOKEN }}
+      FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+      FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the Anthropic SDK and PyJWT
+        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
+
+      # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
+      - name: Pull claude-lock.json
+        run: |
+          git fetch --quiet --depth=1 origin factory-state
+          git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
+
+      - name: Triage
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          HOURS: ${{ inputs.hours || '24' }}
+          # Set the FACTORY_CLOUD_LOG_SCAN_DISPATCH repository variable to 'false' to pause
+          # dispatch from the schedule; a manual run follows its own input.
+          DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_CLOUD_LOG_SCAN_DISPATCH != 'false' || inputs.dispatch == true }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: |
+          if [ -z "$FACTORY_DATADOG_QUERY" ]; then
+            echo "FACTORY_DATADOG_QUERY is not set; see Log scan in factory/README.md."
+            exit 1
+          fi
+          ARGS=(--repo "$GH_REPO" --source cloud --hours "$HOURS")
+          [ "$DISPATCH" = "true" ] || ARGS+=(--no-dispatch)
+          [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
+          python factory/log_scan.py "${ARGS[@]}"

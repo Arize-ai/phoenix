@@ -1,0 +1,4 @@
+# The vault container only. Its credential, a Datadog Service Access Token for
+# https://mcp.datadoghq.com/v1/mcp, is added by hand - see Datadog access in factory/README.md.
+type: vault
+display_name: factory-datadog
