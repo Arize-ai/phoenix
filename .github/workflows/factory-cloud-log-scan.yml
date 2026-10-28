@@ -1,8 +1,5 @@
 name: Factory Cloud Log Scan
 
-# Daily: if Phoenix Cloud logged server errors in the last day, run the cloud-triage agent, which
-# files or updates issues for them. Labels them as the factory's GitHub App, since a label
-# applied by GITHUB_TOKEN would not start factory-dispatch.yml.
 on:
   schedule:
     - cron: "30 9 * * *"
