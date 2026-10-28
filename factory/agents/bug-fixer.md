@@ -26,37 +26,10 @@ tools:
       - {name: add_reply_to_pull_request_comment, enabled: true, permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: grafana
-    default_config: {enabled: false}
-    configs:
-      - {name: list_datasources, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_stats, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_patterns, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_trace, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_tempo_traces, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_tempo_metrics, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_traceql_docs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus_histogram, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_metadata, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_values, enabled: true, permission_policy: {type: always_allow}}
+    default_config: {permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: datadog
-    default_config: {enabled: false}
-    configs:
-      - {name: list_datadog_skills, enabled: true, permission_policy: {type: always_allow}}
-      - {name: load_datadog_skill, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_datadog_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: analyze_datadog_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_datadog_spans, enabled: true, permission_policy: {type: always_allow}}
-      - {name: aggregate_spans, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_datadog_trace, enabled: true, permission_policy: {type: always_allow}}
+    default_config: {permission_policy: {type: always_allow}}
 multiagent:
   type: multiagent_20261001
   subagents:
