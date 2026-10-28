@@ -54,9 +54,8 @@ def _serialize_attribute_value(v: _AttributeValue) -> str:
 
     - int/float: str(v). Non-finite floats raise ValueError.
     - bool: json.dumps(v) → "true"/"false".
-    - str: passed as-is, unless it is empty or json.loads(v) would parse it as a
-      non-string type, in which case it is JSON-quoted to force string comparison
-      on the server.
+    - str: passed as-is, unless it is empty or json.loads(v) would parse it,
+      in which case it is JSON-quoted to preserve the original string on the server.
     """
     if isinstance(v, bool):
         return json.dumps(v)
@@ -71,12 +70,10 @@ def _serialize_attribute_value(v: _AttributeValue) -> str:
     if v == "":
         return json.dumps(v)
     try:
-        parsed = json.loads(v)
+        json.loads(v)
     except (json.JSONDecodeError, ValueError):
         return v
-    if not isinstance(parsed, str):
-        return json.dumps(v)
-    return v
+    return json.dumps(v)
 
 
 def _serialize_attributes(attributes: _Attributes) -> list[str]:
