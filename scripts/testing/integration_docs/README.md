@@ -3,7 +3,8 @@
 This harness extracts examples from published Phoenix integration docs and
 runs them in isolated environments. End-to-end entries verify their spans in
 Phoenix; `lint_only` entries install the documented dependencies and compile
-or syntax-check the examples without contacting a provider. `integrations.json`
+or syntax-check the examples without contacting a provider. `skip` entries are
+metadata-only routes for `always_skip` documents that have no runnable code example. `integrations.json`
 is the allowlist. Other integration pages are not discovered or reported as
 passing.
 

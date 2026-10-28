@@ -98,24 +98,33 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             language = str(raw["language"]).lower()
             if integration_id in seen_ids:
                 raise HarnessError(f"Duplicate integration id or document: {integration_id}")
-            if language not in {"python", "javascript", "go", "dotnet", "java"}:
+            if language not in {"python", "javascript", "go", "dotnet", "java", "skip"}:
                 raise HarnessError(
                     f"Integration {integration_id} uses unsupported language {language!r}; "
-                    "supported languages are Python, JavaScript, Go, .NET, and Java"
+                    "supported languages are Python, JavaScript, Go, .NET, Java, and skip-only"
                 )
             setup = raw["setup"]
             verification = raw["verification"]
             setup_source = setup.get("source")
-            if setup_source not in {"referenced_components", "section_code"}:
+            if setup_source not in {"referenced_components", "section_code", "skip_only"}:
                 raise HarnessError(
                     f"Integration {integration_id} has unsupported setup source {setup_source!r}"
                 )
-            if language != "python" and setup_source != "section_code":
+            if language == "skip" and setup_source != "skip_only":
+                raise HarnessError(
+                    f"Integration {integration_id} with language 'skip' must use skip_only setup"
+                )
+            if language != "skip" and setup_source == "skip_only":
+                raise HarnessError(
+                    f"Integration {integration_id} can use skip_only setup only with "
+                    "language 'skip'"
+                )
+            if language not in {"python", "skip"} and setup_source != "section_code":
                 raise HarnessError(
                     f"Integration {integration_id} {language} setup must use section_code"
                 )
             code_language = str(setup.get("language", language)).lower()
-            if code_language != language:
+            if language != "skip" and code_language != language:
                 raise HarnessError(
                     f"Integration {integration_id} setup language {code_language!r} "
                     f"must match {language!r}"
@@ -747,6 +756,13 @@ def run_one(spec: IntegrationSpec, endpoint: str) -> dict[str, Any]:
         "status": "fail",
     }
     route = skip_route(spec)
+    if spec.language == "skip" and (not route or route[0] != "always_skip"):
+        result.update(
+            status="fail",
+            error="Skip-only integration specs require an always_skip route",
+            ended_at=datetime.now(timezone.utc).isoformat(),
+        )
+        return result
     if route and route[0] == "always_skip":
         result.update(
             status="skipped",
