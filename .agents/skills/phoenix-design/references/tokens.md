@@ -16,7 +16,6 @@ Design tokens are design decisions translated into CSS custom properties. They p
 | Font size (scale) | `--global-dimension-font-size-{n}` | `--global-dimension-font-size-100` → 14px | Numeric scale font sizes |
 | Font size (named) | `--global-font-size-{t-shirt}` | `--global-font-size-s` → 14px | T-shirt sized fonts (xxs–xxl) |
 | Line height | `--global-line-height-{t-shirt}` | `--global-line-height-s` → 20px | T-shirt sized line heights |
-| Line length | `--global-line-length-max` | `--global-line-length-max` → 80ch | Cap on the inline size of running text, such as descriptions |
 | Global color | `--global-color-{hue}-{intensity}` | `--global-color-blue-500` | Raw color palette (100–1400) |
 | Semantic color | `--global-color-{intent}` | `--global-color-danger` | Purpose: danger, success, warning, severe, info |
 | Primary color | `--global-color-primary-{opacity}` | `--global-color-primary-500` | Gray-900 at opacity levels |
