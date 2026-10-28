@@ -2304,7 +2304,8 @@ class Experiments:
         Args:
             experiment_run_id (str): The ID of the run being evaluated.
             name (str): The annotation name. One run carries many annotations keyed by name.
-            annotator_kind (str): One of "CODE", "LLM", "HUMAN". Defaults to "CODE".
+            annotator_kind (str): One of "CODE", "LLM", "HUMAN", "DECISION", "AGENT".
+                Defaults to "CODE".
             start_time (Optional[datetime]): Evaluation start. Defaults to now.
             end_time (Optional[datetime]): Evaluation end. Defaults to ``start_time``.
             score (Optional[float]): Numeric score.
