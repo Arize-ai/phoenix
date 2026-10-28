@@ -1,0 +1,111 @@
+---
+title: "10.27.2026: Decision-Model Evaluators and Project Onboarding"
+description: "Run TypeScript classification evaluators on AI SDK decision models, get a setup guide in empty projects that clears when the first trace lands, and read annotation scores by how far they sit from the target."
+---
+
+TypeScript classification evaluators, including every built-in, now run on AI SDK decision models such as OpenAI's `gpt-6-luna`. New projects also show a setup guide until their first trace arrives, and annotation score colors now show how far each score sits from its target.
+
+# Classification Evaluators on AI SDK Decision Models
+
+October 21, 2026
+
+**Available in @arizeai/phoenix-evals 2.7.0+ and @arizeai/phoenix-otel 2.3.0+ (TypeScript)**
+
+Pass a decision model as `model` to any classification evaluator. A decision model picks one of the labels directly and returns a probability for each, so it is much faster and cheaper than a chat model judge.
+
+- **Probabilities in `metadata`.** `metadata.probabilities` maps each label to its probability, and `metadata.confidence` is included when the provider reports one. Decision models do not return an `explanation`.
+- **Refusals throw** the AI SDK's `Experimental_DecisionRefusalError`. In `runExperiment`, a refusal is recorded as that evaluation's error.
+- **Decision calls are traced.** Decide spans record the decision state, question, and answer, and `@arizeai/phoenix-otel` 2.3.0 traces AI SDK decision models. `isDecisionModel` and the `DecisionModel` type are also exported.
+- **Evaluation models change too.** TypeSafe's Jev now also goes through `experimental_decide`, and message prompts are sent as plain text instead of JSON state. Use `@ai-sdk/openai` 4.0.89 or later with OpenAI decision models.
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+const correctness = createCorrectnessEvaluator({
+  model: openai.decisionModel("gpt-6-luna"),
+});
+
+const result = await correctness.evaluate({
+  input: "What is the capital of Australia?",
+  output: "Sydney.",
+});
+// result.label === "incorrect"
+// result.metadata?.probabilities -> { correct: 0.02, incorrect: 0.98 }
+```
+
+<Warning>
+Decision models can't work through a problem step by step. Use them for judgments you can read off the text, such as relevance, faithfulness, and toxicity, and keep a language model for checks that need a calculation.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Classification Evaluators" icon="tags" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification">
+    Decision models, probabilities, and refusals
+  </Card>
+</CardGroup>
+
+# A Setup Guide for Empty Projects
+
+October 21, 2026
+
+**Available in arize-phoenix 20.24.0+**
+
+A project with no traces now shows its setup guide over the Spans, Traces, and Sessions tabs. The guide disappears as soon as the first trace arrives, without a page reload, and the table underneath is already filled in.
+
+- **The tab strip and Config tab stay usable**, so you can configure the project before sending traces.
+- **Skeleton loaders** now stand in for tables, charts, and panels while they load across the app, and their wave animation stops when your system asks for reduced motion.
+
+<CardGroup cols={2}>
+  <Card title="Tracing" icon="chart-network" href="/docs/phoenix/tracing/llm-traces">
+    Send your first traces to Phoenix
+  </Card>
+</CardGroup>
+
+# Graded Annotation Score Colors
+
+October 21, 2026
+
+**Available in arize-phoenix 20.24.0+**
+
+Score colors now get stronger the further a score sits from the annotation config's threshold or midpoint, in the direction the config optimizes. Before, every score was just green or red.
+
+- **Applies everywhere scores are colored**: annotation summaries and badges, span previews, metrics tooltips, evaluator previews, and the experiment compare views.
+- **A score exactly at the threshold is neutral** instead of unfavorable.
+- **Bounded freeform scores without a threshold** now get colors in the experiment example details view too, as they already did in the compare table.
+
+<CardGroup cols={2}>
+  <Card title="Annotations" icon="tag" href="/docs/phoenix/tracing/concepts-tracing/annotations-concepts">
+    Annotation configs and optimization direction
+  </Card>
+</CardGroup>
+
+# Server Telemetry for Self-Hosted Deployments
+
+October 21 to 23, 2026
+
+**Available in arize-phoenix 20.24.0+ (frontend errors) and 20.26.0+ (service.version)**
+
+Self-hosted operators get more signal from the Phoenix server's own telemetry.
+
+- **Browser errors reach the server log.** Uncaught errors and unhandled promise rejections in the Phoenix UI are logged at `ERROR` level on the `phoenix.client_errors` logger. Identical errors are reported once per page session, and reports are rate limited per client IP.
+- **`service.version` on server telemetry.** The server's OpenTelemetry resource now carries the Phoenix version next to `service.name`, so you can split server traces and logs by release.
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/docs/phoenix/self-hosting/configuration">
+    Server instrumentation environment variables
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+October 21 to 27, 2026
+
+**Available in arize-phoenix 20.24.0–20.26.1, arize-phoenix-evals 3.9.4+ (Python), @arizeai/phoenix-client 7.16.3+ and @arizeai/phoenix-evals 2.7.1+ (TypeScript)**
+
+- **MiniMax-M3.1-Flash** replaces MiniMax-M2.7 in the playground's MiniMax model list, and you can still type any other MiniMax model name.
+- **The prompt Versions tab loads every version** as you scroll, instead of stopping at the first 50, and its counter shows the total.
+- **The icon-only Add to Dataset action** in the span details header now has a tooltip and an accessible name.
+- **Cancelled code evaluations delete their sandbox**, so a sandbox no longer keeps running on the provider account until it expires.
+- **Python evals honor overrides**: `template_format` now applies when copying a `PromptTemplate`, and sync and async client kwargs now override the shared LLM kwargs.
+- **TypeScript `toSDK` keeps `description`, `default`, and other keywords** next to `anyOf` in prompt tool and response-format schemas.
+- **`createEvaluator` keeps the `metadata`** returned by custom TypeScript evaluator functions.
