@@ -70,7 +70,7 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type { SessionTurnPreviewTurn } from "./SessionTurnPreviewCard";
 import type { SessionTurnPreviewTarget } from "./SessionTurnPreviewTooltip";
-import { SessionTurnPreviewTooltip } from "./SessionTurnPreviewTooltip";
+import { SessionTurnListPreview } from "./SessionTurnPreviewTooltip";
 import { TraceActionToolbar } from "./TraceActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -668,7 +668,7 @@ export function SessionTurnList({
           );
         }}
       </ListBox>
-      <SessionTurnPreviewTooltip
+      <SessionTurnListPreview
         target={previewTarget}
         annotationConfigsByName={annotationConfigsByName}
         // Focus stays on the row as the list scrolls to it; hover doesn't

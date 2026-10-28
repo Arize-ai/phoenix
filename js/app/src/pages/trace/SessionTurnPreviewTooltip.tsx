@@ -29,7 +29,10 @@ import type {
   SessionTurnPreviewTooltipUsageQuery as SessionTurnPreviewTooltipUsageQueryType,
   SessionTurnPreviewTooltipUsageQuery$data,
 } from "./__generated__/SessionTurnPreviewTooltipUsageQuery.graphql";
-import type { SessionTurnPreviewTurn } from "./SessionTurnPreviewCard";
+import type {
+  SessionTurnPreviewCardProps,
+  SessionTurnPreviewTurn,
+} from "./SessionTurnPreviewCard";
 import { SessionTurnPreviewCard } from "./SessionTurnPreviewCard";
 
 /** Matches the trace tree: React Aria warms up, so later rows open at once. */
@@ -92,7 +95,7 @@ export type SessionTurnPreviewTarget = {
   turn: SessionTurnPreviewTurn;
 };
 
-type SessionTurnPreviewTooltipProps = {
+type SessionTurnListPreviewProps = {
   target: SessionTurnPreviewTarget | null;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   /**
@@ -123,12 +126,12 @@ type SessionTurnPreviewTooltipProps = {
  * up the option's slotted label/description ids and React Aria's id merging
  * loops.
  */
-export function SessionTurnPreviewTooltip({
+export function SessionTurnListPreview({
   target,
   annotationConfigsByName,
   shouldReopenOnClose = false,
   onDismiss,
-}: SessionTurnPreviewTooltipProps) {
+}: SessionTurnListPreviewProps) {
   const state = useTooltipTriggerState({
     delay: TURN_PREVIEW_DELAY_MS,
     closeDelay: 0,
@@ -167,20 +170,41 @@ export function SessionTurnPreviewTooltip({
       <TooltipContext.Provider value={{ triggerRef }}>
         {/* Keyed so hopping rows while open re-anchors the preview and
             restarts its usage fetch for the new turn */}
-        <RichTooltip
+        <SessionTurnPreviewTooltip
           key={target.turn.traceId}
-          placement="right top"
-          width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
-          css={rowPreviewTooltipCSS}
-        >
-          <TooltipArrow />
-          <SessionTurnPreviewDetails
-            turn={target.turn}
-            annotationConfigsByName={annotationConfigsByName}
-          />
-        </RichTooltip>
+          turn={target.turn}
+          annotationConfigsByName={annotationConfigsByName}
+        />
       </TooltipContext.Provider>
     </TooltipTriggerStateContext.Provider>
+  );
+}
+
+export type SessionTurnPreviewTooltipProps = Pick<
+  SessionTurnPreviewCardProps,
+  "turn" | "annotationConfigsByName"
+>;
+
+/**
+ * A session turn row's tooltip: a {@link SessionTurnPreviewCard} that loads
+ * the turn's token and cost breakdown once the tooltip settles.
+ *
+ * @remarks
+ * Render it as the tooltip of a `TooltipTrigger`, or of the trigger state
+ * and context {@link SessionTurnListPreview} supplies for the turn list.
+ */
+export function SessionTurnPreviewTooltip(
+  props: SessionTurnPreviewTooltipProps
+) {
+  return (
+    <RichTooltip
+      placement="right top"
+      width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
+      css={rowPreviewTooltipCSS}
+    >
+      <TooltipArrow />
+      <SessionTurnPreviewDetails {...props} />
+    </RichTooltip>
   );
 }
 
@@ -286,14 +310,9 @@ function useDismissOnEscape({
   }, [isOpen]);
 }
 
-type SessionTurnPreviewDetailsProps = {
-  turn: SessionTurnPreviewTurn;
-  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
-};
-
 const EMPTY_METRICS_DETAILS: TokenDetailsBreakdownProps = {};
 
-function SessionTurnPreviewDetails(props: SessionTurnPreviewDetailsProps) {
+function SessionTurnPreviewDetails(props: SessionTurnPreviewTooltipProps) {
   const { turn } = props;
   // A turn without usage has no split to load
   if (!turn.tokenCountTotal && !turn.costTotal) {
