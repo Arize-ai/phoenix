@@ -104,9 +104,12 @@ export function DecisionDefinition({
                     </LabeledText>
                     {input.jsonSchema ? (
                       <View paddingStart="size-200">
-                        <JSONBlock
-                          value={JSON.stringify(input.jsonSchema, null, 2)}
-                        />
+                        <TemplateEditorWrap readOnly>
+                          <JSONBlock
+                            value={JSON.stringify(input.jsonSchema, null, 2)}
+                            basicSetup={{ foldGutter: false }}
+                          />
+                        </TemplateEditorWrap>
                       </View>
                     ) : null}
                   </Flex>
