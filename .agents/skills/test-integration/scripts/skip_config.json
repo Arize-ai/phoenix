@@ -2,16 +2,96 @@
   "_comment_": "Classification and routing overrides for integration docs. Keep reasons descriptive; CI scopes changes by routing fields, not reason text.",
   "always_skip": [
     {
+      "doc": "docs/phoenix/integrations/coding-agents/antigravity.mdx",
+      "reason": "Interactive coding-agent session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/claude-code.mdx",
+      "reason": "Requires an interactive Claude Code CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/codex.mdx",
+      "reason": "Requires an interactive Codex CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/copilot.mdx",
+      "reason": "Requires an interactive Copilot session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/cursor.mdx",
+      "reason": "Requires an interactive Cursor session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/devin.mdx",
+      "reason": "Requires a Devin-managed live session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/gemini.mdx",
+      "reason": "Requires an interactive Gemini CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/kiro.mdx",
+      "reason": "Requires an interactive Kiro session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/oh-my-pi.mdx",
+      "reason": "Requires an interactive Oh My Pi terminal session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/opencode.mdx",
+      "reason": "Requires an interactive OpenCode session; no deterministic, self-contained run for CI."
+    },
+    {
       "doc": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
       "reason": "Requires a Cloudflare AI Gateway account and configured gateway endpoint that CI cannot provision."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast.mdx",
+      "reason": "Documents dashboard-side OpenRouter broadcast configuration without a runnable app example."
     },
     {
       "doc": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
       "reason": "Requires a locally hosted vLLM server and model runtime that CI cannot provision reliably."
     },
     {
+      "doc": "docs/phoenix/integrations/platforms/dify/dify-tracing.mdx",
+      "reason": "Configuration is performed in the Dify UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/flowise/flowise-tracing.mdx",
+      "reason": "Configuration is performed in the Flowise UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/langflow/langflow-tracing.mdx",
+      "reason": "Configuration is performed in the Langflow UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/n8n/n8n-tracing.mdx",
+      "reason": "Requires a configured n8n server and workflow; CI cannot run the documented UI workflow deterministically."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx",
+      "reason": "Requires a running Open WebUI deployment and collector; CI cannot provision the documented platform setup."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx",
+      "reason": "The page documents Prompt Flow configuration rather than a self-contained runnable CI example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing.mdx",
+      "reason": "Requires TrueFoundry dashboard configuration; no self-contained CI runnable example."
+    },
+    {
       "doc": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
       "reason": "The original guardrails-ai framework has been quarantined on PyPI and replaced by the guardrails-ai-sdk hosted-service client. This doc and openinference-instrumentation-guardrails target the original framework internals; rewrite the doc and add a matching instrumentor before enabling end-to-end checks."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx",
+      "reason": "Requires a live LiveKit agent session and media traffic; CI cannot provision an interactive session."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing.mdx",
+      "reason": "The page relies on external configuration and workflow setup rather than a self-contained CI runnable example."
     },
     {
       "doc": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",

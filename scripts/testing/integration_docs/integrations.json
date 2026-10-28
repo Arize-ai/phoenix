@@ -1579,6 +1579,306 @@
       "verification": {
         "kind": "phoenix_spans"
       }
+    },
+    {
+      "id": "antigravity-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/antigravity.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "claude-code-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/claude-code.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "codex-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/codex.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "copilot-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/copilot.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cursor-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/cursor.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "devin-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/devin.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "gemini-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/gemini.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "kiro-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/kiro.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "oh-my-pi-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/oh-my-pi.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "opencode-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/opencode.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "dify-always-skip",
+      "document": "docs/phoenix/integrations/platforms/dify/dify-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "flowise-always-skip",
+      "document": "docs/phoenix/integrations/platforms/flowise/flowise-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "langflow-always-skip",
+      "document": "docs/phoenix/integrations/platforms/langflow/langflow-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "prompt-flow-always-skip",
+      "document": "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "nemo-agent-always-skip",
+      "document": "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "truefoundry-always-skip",
+      "document": "docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openrouter-broadcast-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "n8n-always-skip",
+      "document": "docs/phoenix/integrations/platforms/n8n/n8n-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openwebui-always-skip",
+      "document": "docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "livekit-agents-always-skip",
+      "document": "docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     }
   ]
 }

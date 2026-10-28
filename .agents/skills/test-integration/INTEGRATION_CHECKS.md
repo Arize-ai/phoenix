@@ -31,7 +31,7 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Lint-only | Together Python Lint | `docs/phoenix/integrations/llm-providers/together/together-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Lint-only | Openrouter Python Lint | `docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Lint-only | Orcarouter Python Lint | `docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx` | Installs dependencies and syntax-checks the example. |
-| Deferred | Guardrails Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | Checks documented output and Phoenix spans. |
+| Always skip | Guardrails Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | The documented framework and instrumentor target the quarantined original Guardrails package; the guide needs a rewrite before end-to-end checks can run. |
 | Enabled | Langchain Python | `docs/phoenix/integrations/python/langchain/langchain-tracing.mdx` | Checks documented output and Phoenix spans. |
 | Enabled | Openai Agents Typescript | `docs/phoenix/integrations/typescript/openai-agents.mdx` | Checks documented output and Phoenix spans. |
 | Enabled | Instructor Python | `docs/phoenix/integrations/python/instructor/instructor-tracing.mdx` | Checks documented output and Phoenix spans. |
@@ -77,6 +77,26 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Lint-only | Bedrock Agentcore Python | `docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Env-gated | Tanstack Ai Typescript | `docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Lint-only | Eve Typescript Lint | `docs/phoenix/integrations/typescript/vercel/eve-tracing.mdx` | Installs dependencies and syntax-checks the example. |
+| Always skip | Antigravity | `docs/phoenix/integrations/coding-agents/antigravity.mdx` | Interactive coding-agent session; no deterministic CI run. |
+| Always skip | Claude Code | `docs/phoenix/integrations/coding-agents/claude-code.mdx` | Requires an interactive CLI session; no deterministic CI run. |
+| Always skip | Codex | `docs/phoenix/integrations/coding-agents/codex.mdx` | Requires an interactive CLI session; no deterministic CI run. |
+| Always skip | Copilot | `docs/phoenix/integrations/coding-agents/copilot.mdx` | Requires an interactive session; no deterministic CI run. |
+| Always skip | Cursor | `docs/phoenix/integrations/coding-agents/cursor.mdx` | Requires an interactive IDE session; no deterministic CI run. |
+| Always skip | Devin | `docs/phoenix/integrations/coding-agents/devin.mdx` | Requires a Devin-managed live session. |
+| Always skip | Gemini CLI | `docs/phoenix/integrations/coding-agents/gemini.mdx` | Requires an interactive CLI session; no deterministic CI run. |
+| Always skip | Kiro | `docs/phoenix/integrations/coding-agents/kiro.mdx` | Requires an interactive IDE session; no deterministic CI run. |
+| Always skip | Oh My Pi | `docs/phoenix/integrations/coding-agents/oh-my-pi.mdx` | Requires an interactive terminal session; no deterministic CI run. |
+| Always skip | OpenCode | `docs/phoenix/integrations/coding-agents/opencode.mdx` | Requires an interactive session; no deterministic CI run. |
+| Always skip | Dify | `docs/phoenix/integrations/platforms/dify/dify-tracing.mdx` | UI configuration; no self-contained runnable example. |
+| Always skip | Flowise | `docs/phoenix/integrations/platforms/flowise/flowise-tracing.mdx` | UI configuration; no self-contained runnable example. |
+| Always skip | Langflow | `docs/phoenix/integrations/platforms/langflow/langflow-tracing.mdx` | UI configuration; no self-contained runnable example. |
+| Always skip | Prompt Flow | `docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx` | Configuration guide; no self-contained runnable example. |
+| Always skip | NVIDIA NeMo Agent Toolkit | `docs/phoenix/integrations/python/nvidia/nemo-agent-tracing.mdx` | External workflow/configuration setup; no self-contained runnable example. |
+| Always skip | TrueFoundry platform | `docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing.mdx` | Dashboard configuration; no self-contained runnable example. |
+| Always skip | OpenRouter broadcast | `docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast.mdx` | Dashboard-side broadcast configuration; no runnable app example. |
+| Always skip | n8n | `docs/phoenix/integrations/platforms/n8n/n8n-tracing.mdx` | Requires a configured server and workflow. |
+| Always skip | Open WebUI | `docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx` | Requires a deployed app and collector. |
+| Always skip | LiveKit Agents | `docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx` | Requires live session and media traffic. |
 
 Add integrations after the runner supports their language and example shape,
 credentials are declared, and the verifier checks the behavior the page promises.
