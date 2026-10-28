@@ -2,33 +2,32 @@ import { type ReactNode, useState } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import { useRevalidator } from "react-router";
 
-import { Alert, Flex, Heading, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { DecisionEvaluatorDefinitionFields } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDefinitionFields";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
 import {
   commitAsync,
   type DecisionEvaluatorData,
   getMutationErrorMessage,
   inputNamesFromSchema,
-  pickDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import {
   type DecisionEvaluatorDraft,
   useDecisionEvaluatorDraft,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import {
+  useDecisionEvaluatorSave,
+  useDeclaredInputMapping,
+} from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
-import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
-import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { createDecisionQuestion } from "@phoenix/pages/playground/decisionUtils";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
 import type { ProjectDecisionEvaluatorDialogContentUpdateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentUpdateMutation.graphql";
 import {
+  ProjectDecisionEvaluatorFormSections,
   ProjectEvaluatorInputMappingDock,
-  ProjectEvaluatorScopeSection,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import {
   type ProjectEvaluatorDecisionPreview,
@@ -49,7 +48,6 @@ import {
   useEvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import type { DecisionPromptDraft } from "@phoenix/store/playground";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 type ScopeProps = {
   projectId: string;
@@ -62,9 +60,6 @@ type DialogProps = ScopeProps & {
   onSuccess: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 };
-
-const SCORING_DESCRIPTION =
-  "Turn each answer into the score this evaluator records.";
 
 function createProjectDecisionDraft(): DecisionPromptDraft {
   return {
@@ -100,16 +95,7 @@ const createMutation = graphql`
   }
 `;
 
-function useDeclaredInputMapping(variables: readonly string[]) {
-  const store = useEvaluatorStoreInstance();
-  return () =>
-    pickDeclaredInputMapping(
-      store.getState().evaluator.inputMapping,
-      variables
-    );
-}
-
-function useFinishCreate({ projectId, onSuccess }: ScopeProps & DialogProps) {
+function useFinishCreate({ projectId, onSuccess }: DialogProps) {
   const environment = useRelayEnvironment();
   const { timeRangeISOStrings } = useTimeRange();
   return async () => {
@@ -228,16 +214,23 @@ export function CreateProjectDecisionEvaluatorDialogContent(
   );
 }
 
-function CreateProjectDecisionEvaluatorForm(props: DialogProps) {
-  const { title, projectId, scope, onScopeChange, registerDirtyCheck } = props;
+function CreateProjectDecisionEvaluatorForm({
+  title,
+  projectId,
+  scope,
+  onScopeChange,
+  onSuccess,
+  registerDirtyCheck,
+}: DialogProps) {
   const store = useEvaluatorStoreInstance();
+  const environment = useRelayEnvironment();
+  const { timeRangeISOStrings } = useTimeRange();
   const draft = useDecisionEvaluatorDraft({});
+  const { buildCreateInput } = useDecisionEvaluatorSave(draft);
   const [create] =
     useMutation<ProjectDecisionEvaluatorDialogContentCreateMutation>(
       createMutation
     );
-  const getInputMapping = useDeclaredInputMapping(draft.variables);
-  const finish = useFinishCreate(props);
   const [isFilterValid, setIsFilterValid] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
@@ -250,31 +243,25 @@ function CreateProjectDecisionEvaluatorForm(props: DialogProps) {
 
   const onSubmit = async () => {
     setSubmitError(undefined);
-    if (!(await store.getState().validateAll())) {
-      setSubmitError("Fix the highlighted fields before saving.");
-      return;
-    }
-    const state = store.getState();
-    const name = state.evaluator.globalName.trim();
     try {
-      if (validateIdentifier(name) !== true)
-        throw new Error("Enter a valid evaluator name.");
-      draft.getDefinition(name);
+      const input = await buildCreateInput(
+        store.getState().evaluator.globalName
+      );
       setIsSubmitting(true);
       await commitAsync(create, {
         input: {
+          ...input,
           projectId,
-          name,
-          evaluatorName: name,
-          description: state.evaluator.description.trim() || null,
-          inputMapping: getInputMapping(),
-          ...draft.getCreateDecisionSource(),
-          scoringPolicy: draft.policy,
           ...getBindingFields(scope),
           enabled: true,
         },
       });
-      await finish();
+      await refetchProjectEvaluators({
+        environment,
+        projectId,
+        timeRange: timeRangeISOStrings,
+      });
+      onSuccess();
     } catch (error) {
       setSubmitError(getMutationErrorMessage(error));
     } finally {
@@ -296,22 +283,14 @@ function CreateProjectDecisionEvaluatorForm(props: DialogProps) {
       error={submitError ?? draft.loadError}
       onSubmit={() => void onSubmit()}
       definition={
-        <>
-          <EvaluatorNameAndDescriptionFields isNameRequired />
-          <ProjectEvaluatorScopeSection
-            projectId={projectId}
-            scope={scope}
-            onScopeChange={onScopeChange}
-            onFilterValidityChange={setIsFilterValid}
-          />
-          <Flex direction="column" gap="size-200">
-            <DecisionEvaluatorDefinitionFields
-              draft={draft}
-              isDisabled={isSubmitting}
-              scoringDescription={SCORING_DESCRIPTION}
-            />
-          </Flex>
-        </>
+        <ProjectDecisionEvaluatorFormSections
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
+          draft={draft}
+          isDisabled={isSubmitting}
+        />
       }
     />
   );
@@ -371,35 +350,13 @@ export function AttachProjectDecisionEvaluatorDialogContent({
       error={submitError}
       onSubmit={() => void onSubmit()}
       definition={
-        <>
-          <View marginBottom="size-200" flex="none">
-            <Flex direction="column" gap="size-100">
-              <EvaluatorSectionHeader
-                title="Evaluator"
-                description="Attach the selected decision evaluator to this project."
-              />
-              <View
-                borderRadius="medium"
-                borderWidth="thin"
-                borderColor="default"
-                padding="size-200"
-              >
-                <Flex direction="column" gap="size-50">
-                  <Heading level={3}>{evaluator.name}</Heading>
-                  <Text size="S" color="text-500">
-                    {evaluator.decisionVersion.decision.name}
-                  </Text>
-                </Flex>
-              </View>
-            </Flex>
-          </View>
-          <ProjectEvaluatorScopeSection
-            projectId={projectId}
-            scope={scope}
-            onScopeChange={onScopeChange}
-            onFilterValidityChange={setIsFilterValid}
-          />
-        </>
+        <ProjectDecisionEvaluatorFormSections
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
+          attachedEvaluator={evaluator}
+        />
       }
     />
   );
@@ -456,6 +413,7 @@ function EditProjectDecisionEvaluatorForm({
   const store = useEvaluatorStoreInstance();
   const notifySuccess = useNotifySuccess();
   const { revalidate } = useRevalidator();
+  const { buildUpdateInput } = useDecisionEvaluatorSave(draft);
   const [update] =
     useMutation<ProjectDecisionEvaluatorDialogContentUpdateMutation>(graphql`
       mutation ProjectDecisionEvaluatorDialogContentUpdateMutation(
@@ -473,29 +431,21 @@ function EditProjectDecisionEvaluatorForm({
         }
       }
     `);
-  const getInputMapping = useDeclaredInputMapping(draft.variables);
   const [isFilterValid, setIsFilterValid] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
 
   const onSubmit = async () => {
     setSubmitError(undefined);
-    if (!(await store.getState().validateAll())) {
-      setSubmitError("Fix the highlighted fields before saving.");
-      return;
-    }
-    const state = store.getState();
     try {
-      draft.getDefinition(state.evaluator.globalName);
+      const input = await buildUpdateInput(
+        store.getState().evaluator.globalName
+      );
       setIsSubmitting(true);
       await commitAsync(update, {
         input: {
+          ...input,
           projectEvaluatorId,
-          name: state.evaluator.globalName.trim(),
-          description: state.evaluator.description.trim() || null,
-          inputMapping: getInputMapping(),
-          ...draft.getUpdateDecisionSource(),
-          scoringPolicy: draft.policy,
           ...getBindingFields(scope),
         },
       });
@@ -531,28 +481,15 @@ function EditProjectDecisionEvaluatorForm({
         error={submitError ?? draft.loadError}
         onSubmit={() => void onSubmit()}
         definition={
-          <>
-            <EvaluatorNameAndDescriptionFields isNameRequired />
-            <ProjectEvaluatorScopeSection
-              projectId={projectId}
-              scope={scope}
-              onScopeChange={onScopeChange}
-              onFilterValidityChange={setIsFilterValid}
-              isTargetDisabled
-            />
-            <Flex direction="column" gap="size-200">
-              <Alert variant="warning" title="Shared evaluator">
-                Decision and scoring changes affect every dataset and online
-                evaluator using this evaluator. Saving definition changes
-                creates a new Decision version.
-              </Alert>
-              <DecisionEvaluatorDefinitionFields
-                draft={draft}
-                isDisabled={isSubmitting}
-                scoringDescription={SCORING_DESCRIPTION}
-              />
-            </Flex>
-          </>
+          <ProjectDecisionEvaluatorFormSections
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={onScopeChange}
+            onFilterValidityChange={setIsFilterValid}
+            isTargetDisabled
+            draft={draft}
+            isDisabled={isSubmitting}
+          />
         }
       />
     </>

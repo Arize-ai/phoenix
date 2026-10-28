@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { Flex, Loading, Text } from "@phoenix/components";
+import { Alert, Flex, Loading, Text } from "@phoenix/components";
 import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
 import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
 import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
@@ -19,16 +19,26 @@ export function DecisionEvaluatorDefinitionFields({
   draft,
   isDisabled,
   scoringDescription,
+  sharedEvaluatorNote,
 }: {
   draft: DecisionEvaluatorDraft;
   isDisabled?: boolean;
   scoringDescription: string;
+  sharedEvaluatorNote?: string;
 }) {
   const playground = usePlaygroundStore();
   const model = usePlaygroundContext((state) => state.instances[0].model);
   const { initialEvaluator } = draft;
   return (
     <>
+      {initialEvaluator ? (
+        <Alert variant="warning" title="Shared evaluator">
+          Decision and scoring changes affect every dataset and online evaluator
+          using this evaluator.
+          {sharedEvaluatorNote ? ` ${sharedEvaluatorNote}` : ""} Saving
+          definition changes creates a new Decision version.
+        </Alert>
+      ) : null}
       {initialEvaluator ? (
         <DecisionVersionSelector
           decision={{

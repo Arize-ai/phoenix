@@ -1,19 +1,27 @@
-import { act } from "react";
+import { act, type ReactNode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
+import { createMockEnvironment } from "relay-test-utils";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
-import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import {
+  EvaluatorStoreProvider,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { CreateProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import { DEFAULT_EVALUATION_DELAY_SECONDS } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  DEFAULT_EVALUATION_DELAY_SECONDS,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
-const { commit, onSuccess } = vi.hoisted(() => ({
+const { commit, onSuccess, relay } = vi.hoisted(() => ({
   commit: vi.fn(),
   onSuccess: vi.fn(),
+  relay: { environment: {} as unknown },
 }));
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelay>()),
@@ -24,7 +32,7 @@ vi.mock("react-relay", async (importOriginal) => ({
     },
     false,
   ],
-  useRelayEnvironment: () => ({}),
+  useRelayEnvironment: () => relay.environment,
 }));
 vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -45,9 +53,15 @@ vi.mock(
 );
 vi.mock(
   "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections",
-  () => ({
-    ProjectEvaluatorScopeSection: () => null,
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
     ProjectEvaluatorInputMappingDock: () => null,
+  })
+);
+vi.mock(
+  "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields",
+  () => ({
+    ProjectEvaluatorScopeFieldGroup: () => null,
   })
 );
 vi.mock("@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel", () => ({
@@ -86,11 +100,31 @@ vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
 
 installTestStorage();
 
-describe("Project decision evaluator creation", () => {
+const scope: ProjectEvaluatorScope = {
+  targetType: "SPAN",
+  filterCondition: "span_kind == 'LLM'",
+  samplingRate: 0.5,
+  evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+};
+
+function RejectAllFields() {
+  const store = useEvaluatorStoreInstance();
+  useEffect(
+    () =>
+      store
+        .getState()
+        .registerValidator("rejected", () => Promise.resolve(false)),
+    [store]
+  );
+  return null;
+}
+
+describe("Project decision evaluator forms", () => {
   let container: HTMLDivElement;
   let root: Root;
   beforeEach(() => {
     vi.clearAllMocks();
+    relay.environment = createMockEnvironment();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -100,7 +134,7 @@ describe("Project decision evaluator creation", () => {
     container.remove();
   });
 
-  it("creates the evaluator and binds it to the project's spans", async () => {
+  async function render(children: ReactNode) {
     await act(async () =>
       root.render(
         <ThemeContext.Provider
@@ -125,30 +159,39 @@ describe("Project decision evaluator creation", () => {
                 },
               }}
             >
-              <CreateProjectDecisionEvaluatorDialogContent
-                title="Create new decision evaluator"
-                projectId="project-1"
-                scope={{
-                  targetType: "SPAN",
-                  filterCondition: "span_kind == 'LLM'",
-                  samplingRate: 0.5,
-                  evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
-                }}
-                onScopeChange={vi.fn()}
-                onSuccess={onSuccess}
-                registerDirtyCheck={vi.fn()}
-              />
+              {children}
             </EvaluatorStoreProvider>
           </Dialog>
         </ThemeContext.Provider>
       )
     );
-    const button = (label: string) =>
-      Array.from(document.querySelectorAll("button")).find(
-        (element) => element.textContent?.trim() === label
-      );
-    await act(async () => button("Pick model")?.click());
-    await act(async () => button("Create")?.click());
+  }
+  const click = async (label: string) => {
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (element) => element.textContent?.trim() === label
+    );
+    expect(button, label).toBeDefined();
+    await act(async () => button?.click());
+  };
+  const renderCreate = (extra?: ReactNode) =>
+    render(
+      <>
+        {extra}
+        <CreateProjectDecisionEvaluatorDialogContent
+          title="Create new decision evaluator"
+          projectId="project-1"
+          scope={scope}
+          onScopeChange={vi.fn()}
+          onSuccess={onSuccess}
+          registerDirtyCheck={vi.fn()}
+        />
+      </>
+    );
+
+  it("creates the evaluator and binds it to the project's spans", async () => {
+    await renderCreate();
+    await click("Pick model");
+    await click("Create");
 
     const [[operation, { variables }]] = commit.mock.calls;
     expect(operation).toBe(
@@ -165,5 +208,16 @@ describe("Project decision evaluator creation", () => {
       decisionVersion: expect.objectContaining({ modelName: "jev-latest" }),
     });
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("sends nothing while a field fails validation", async () => {
+    await renderCreate(<RejectAllFields />);
+    await click("Pick model");
+    await click("Create");
+
+    expect(commit).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain(
+      "Fix the highlighted fields before saving."
+    );
   });
 });
