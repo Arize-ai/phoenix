@@ -1306,6 +1306,68 @@
       "verification": {
         "kind": "phoenix_spans"
       }
+    },
+    {
+      "id": "typesafe-python",
+      "document": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-python.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run TypeSafe AI",
+      "required_env": [
+        "TYPESAFE_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "DECISION",
+        "required_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ],
+        "non_empty_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ]
+      }
+    },
+    {
+      "id": "typesafe-typescript",
+      "document": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": [
+        "TYPESAFE_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "DECISION",
+        "required_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ],
+        "non_empty_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ]
+      }
     }
   ]
 }

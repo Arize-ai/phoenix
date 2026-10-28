@@ -6,6 +6,8 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 
 | Status | Integration | Document | Notes |
 |---|---|---|---|
+| Enabled | TypeSafe AI Python | `docs/phoenix/integrations/llm-providers/typesafe/typesafe-python.mdx` | Checks output and a DECISION span; skips when `TYPESAFE_API_KEY` is missing. |
+| Enabled | TypeSafe AI TypeScript | `docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx` | Checks output and a DECISION span; skips when `TYPESAFE_API_KEY` is missing. |
 | Enabled | Openai Python | `docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx` | Checks documented output and Phoenix spans. |
 | Env-gated | Baseten Python | `docs/phoenix/integrations/llm-providers/baseten/baseten-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Env-gated | Cerebras Python | `docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
