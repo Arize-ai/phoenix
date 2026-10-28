@@ -47,6 +47,7 @@ EMBEDDED_CODE = re.compile(
 PIP_COMMAND = re.compile(r"(?:^|\s)(?:python\s+-m\s+)?pip3?\s+install\b(?P<args>.*)$")
 NPM_COMMAND = re.compile(r"(?:^|\s)npm\s+(?:install|i)\b(?P<args>.*)$")
 GO_GET_COMMAND = re.compile(r"(?:^|\s)go\s+get\b(?P<args>.*)$")
+DOTNET_ADD_PACKAGE = re.compile(r"(?:^|\s)dotnet\s+add\s+package\s+(?P<args>.*)$")
 GO_IMPORT_BLOCK = re.compile(r"(?m)^import\s*\((.*?)^\)", re.DOTALL)
 GO_IMPORT_PATH = re.compile(r'^(?:[A-Za-z_]\w*\s+)?"(?P<path>[^"]+)"$')
 
@@ -94,10 +95,10 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             language = str(raw["language"]).lower()
             if integration_id in seen_ids:
                 raise HarnessError(f"Duplicate integration id or document: {integration_id}")
-            if language not in {"python", "javascript", "go"}:
+            if language not in {"python", "javascript", "go", "dotnet"}:
                 raise HarnessError(
                     f"Integration {integration_id} uses unsupported language {language!r}; "
-                    "supported languages are Python, JavaScript, and Go"
+                    "supported languages are Python, JavaScript, Go, and .NET"
                 )
             setup = raw["setup"]
             verification = raw["verification"]
@@ -198,6 +199,7 @@ def section_body(document_text: str, heading: str) -> str:
 def code_fence(section: str, language: str, context: str, index: int = 0) -> str:
     aliases = {"javascript": {"javascript", "js", "typescript", "ts"}}
     aliases["python"] = {"python", "py"}
+    aliases["dotnet"] = {"csharp", "cs", "dotnet"}
     accepted_languages = aliases.get(language, {language})
     matches = []
     for block in FENCE.finditer(section):
@@ -216,6 +218,28 @@ def package_names(section: str, language: str) -> list[str]:
         "javascript": NPM_COMMAND,
         "go": GO_GET_COMMAND,
     }
+    if language == "dotnet":
+        packages = []
+        for line in normalized.splitlines():
+            match = DOTNET_ADD_PACKAGE.search(line.strip())
+            if not match:
+                continue
+            tokens = shlex.split(match.group("args"))
+            if not tokens:
+                raise HarnessError("dotnet add package command is missing a package name")
+            package = tokens[0]
+            version = None
+            for index, token in enumerate(tokens[1:], start=1):
+                if token in {"--version", "-v"}:
+                    if index + 1 >= len(tokens):
+                        raise HarnessError(f"Package {package} has no version after {token}")
+                    version = tokens[index + 1]
+                    break
+            packages.append(f"{package}@{version}" if version else package)
+        unique = list(dict.fromkeys(packages))
+        if not unique:
+            raise HarnessError("Install section must contain a dotnet add package command")
+        return unique
     install_command = commands[language]
     packages: list[str] = []
     for line in normalized.splitlines():
@@ -319,11 +343,15 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
             f"## {spec.setup_section}",
             int(spec.setup.get("code_block_index", 0)),
         )
-    run = code_fence(
-        section_body(text, spec.run_section),
-        spec.language,
-        f"## {spec.run_section}",
-        int(spec.setup.get("run_code_block_index", 0)),
+    run = (
+        ""
+        if spec.language == "dotnet"
+        else code_fence(
+            section_body(text, spec.run_section),
+            spec.language,
+            f"## {spec.run_section}",
+            int(spec.setup.get("run_code_block_index", 0)),
+        )
     )
 
     if spec.language == "python":
@@ -346,8 +374,13 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         if Path(setup_filename).name != setup_filename or Path(run_filename).name != run_filename:
             raise HarnessError("JavaScript filenames must be basenames")
         program = {setup_filename: setup, run_filename: run}
-    else:
+    elif spec.language == "go":
         program = {"main.go": combine_go_files(setup, run)}
+    else:
+        setup_filename = spec.setup.get("filename", "Program.cs")
+        if Path(setup_filename).name != setup_filename:
+            raise HarnessError(f"Setup filename must be a basename: {setup_filename!r}")
+        program = {setup_filename: setup}
     for extra in spec.additional_sections:
         section = section_body(text, extra["section"])
         filename = extra["filename"]
@@ -543,7 +576,7 @@ def run_example(
                         subprocess.run(["node", "--check", filename], check=True, cwd=temp, env=env)
                 return ""
             command = ["node", "example.js"]
-        else:
+        elif spec.language == "go":
             (temp / "main.go").write_text(program["main.go"])
             env["GOPATH"] = os.environ.get("GOPATH", str(temp / ".go-path"))
             env["GOMODCACHE"] = os.environ.get("GOMODCACHE", str(temp / ".go-mod-cache"))
@@ -557,6 +590,39 @@ def run_example(
                 timeout=600,
             )
             command = ["go", "vet", "./..."] if lint_only else ["go", "run", "."]
+        else:
+            env["DOTNET_CLI_HOME"] = str(temp / ".dotnet")
+            env["NUGET_PACKAGES"] = str(temp / ".nuget" / "packages")
+            env["NUGET_HTTP_CACHE_PATH"] = str(temp / ".nuget" / "http-cache")
+            env["DOTNET_NOLOGO"] = "1"
+            env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+            env["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
+            subprocess.run(
+                ["dotnet", "new", "console", "--framework", "net10.0", "--no-restore"],
+                check=True,
+                cwd=temp,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            for filename, source in program.items():
+                (temp / filename).write_text(source)
+            for package in packages:
+                name, separator, version = package.partition("@")
+                command = ["dotnet", "add", "package", name]
+                if separator:
+                    command.extend(["--version", version])
+                subprocess.run(
+                    command,
+                    check=True,
+                    cwd=temp,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                )
+            command = ["dotnet", "build", "--no-restore"] if lint_only else ["dotnet", "run"]
         completed = subprocess.run(
             command,
             check=True,

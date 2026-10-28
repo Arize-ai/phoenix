@@ -242,6 +242,13 @@
         "TYPESAFE_API_KEY"
       ],
       "reason": "The TYPESAFE_API_KEY secret is not provisioned for docs CI. Add it to run this live check."
+    },
+    {
+      "doc": "docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "The Microsoft Agent Framework C# example requires an OpenAI API key."
     }
   ]
 }

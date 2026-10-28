@@ -6,6 +6,7 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 
 | Status | Integration | Document | Notes |
 |---|---|---|---|
+| Enabled | Microsoft Agent Framework .NET | `docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx` | OpenAI-backed C# agent; installs documented NuGet packages, checks output, and verifies an LLM span. |
 | Enabled | TypeSafe AI Python | `docs/phoenix/integrations/llm-providers/typesafe/typesafe-python.mdx` | Checks output and a DECISION span; skips when `TYPESAFE_API_KEY` is missing. |
 | Enabled | TypeSafe AI TypeScript | `docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx` | Checks output and a DECISION span; skips when `TYPESAFE_API_KEY` is missing. |
 | Enabled | Openai Python | `docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx` | Checks documented output and Phoenix spans. |
