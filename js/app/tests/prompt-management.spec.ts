@@ -94,7 +94,9 @@ test.describe("Prompt Management", () => {
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
     await page.getByRole("tab", { name: "Versions" }).click();
     await expect(
-      page.getByRole("tabpanel").getByText("very angry chatbot")
+      page
+        .getByTestId("prompt-version-item-description")
+        .getByText("very angry chatbot")
     ).toBeVisible();
   });
 
