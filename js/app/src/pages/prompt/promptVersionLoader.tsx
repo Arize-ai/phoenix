@@ -23,6 +23,7 @@ export const promptVersionLoaderQuery = graphql`
         ...PromptVersionTagsList_data
         description
         modelName
+        sequenceNumber
 
         tags {
           name
@@ -30,6 +31,7 @@ export const promptVersionLoaderQuery = graphql`
         ...PromptVersionDiffView__template
         previousVersion {
           id
+          sequenceNumber
           ...PromptVersionDiffView__template
         }
       }

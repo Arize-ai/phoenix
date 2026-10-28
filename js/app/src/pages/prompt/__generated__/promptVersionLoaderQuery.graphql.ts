@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<86eb356dc8361c53630755b81537367c>>
+ * @generated SignedSource<<c0c59a36446aa2a3bf8407b26292f2af>>
  * @lightSyntaxTransform
  */
 
@@ -20,8 +20,10 @@ export type promptVersionLoaderQuery$data = {
     readonly modelName?: string;
     readonly previousVersion?: {
       readonly id: string;
+      readonly sequenceNumber: number;
       readonly " $fragmentSpreads": FragmentRefs<"PromptVersionDiffView__template">;
     } | null;
+    readonly sequenceNumber?: number;
     readonly tags?: ReadonlyArray<{
       readonly name: string;
     }>;
@@ -80,71 +82,78 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "sequenceNumber",
   "storageKey": null
 },
 v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v8 = {
   "args": null,
   "kind": "FragmentSpread",
   "name": "PromptVersionDiffView__template"
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -216,7 +225,7 @@ v16 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v15/*:: as any*/),
+                        (v16/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -232,7 +241,7 @@ v16 = {
                               "name": "arguments",
                               "storageKey": null
                             },
-                            (v6/*:: as any*/)
+                            (v7/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -254,7 +263,7 @@ v16 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v15/*:: as any*/),
+                        (v16/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -348,6 +357,7 @@ return {
               },
               (v4/*:: as any*/),
               (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -356,11 +366,11 @@ return {
                 "name": "tags",
                 "plural": true,
                 "selections": [
-                  (v6/*:: as any*/)
+                  (v7/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -370,7 +380,8 @@ return {
                 "plural": false,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v7/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -420,7 +431,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v8/*:: as any*/),
+                      (v9/*:: as any*/),
                       {
                         "alias": "openaiMaxTokens",
                         "args": null,
@@ -435,9 +446,9 @@ return {
                         "name": "maxCompletionTokens",
                         "storageKey": null
                       },
-                      (v9/*:: as any*/),
                       (v10/*:: as any*/),
                       (v11/*:: as any*/),
+                      (v12/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -459,7 +470,7 @@ return {
                         "name": "reasoningEffort",
                         "storageKey": null
                       },
-                      (v12/*:: as any*/)
+                      (v13/*:: as any*/)
                     ],
                     "type": "PromptOpenAIInvocationParameters",
                     "abstractKey": null
@@ -474,9 +485,9 @@ return {
                         "name": "maxTokens",
                         "storageKey": null
                       },
-                      (v8/*:: as any*/),
-                      (v11/*:: as any*/),
-                      (v13/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v12/*:: as any*/),
+                      (v14/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -556,7 +567,7 @@ return {
                         ],
                         "storageKey": null
                       },
-                      (v12/*:: as any*/)
+                      (v13/*:: as any*/)
                     ],
                     "type": "PromptAnthropicInvocationParameters",
                     "abstractKey": null
@@ -564,7 +575,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v8/*:: as any*/),
+                      (v9/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -572,10 +583,10 @@ return {
                         "name": "maxOutputTokens",
                         "storageKey": null
                       },
-                      (v13/*:: as any*/),
-                      (v10/*:: as any*/),
-                      (v9/*:: as any*/),
+                      (v14/*:: as any*/),
                       (v11/*:: as any*/),
+                      (v10/*:: as any*/),
+                      (v12/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -629,9 +640,9 @@ return {
                         "name": "maxTokens",
                         "storageKey": null
                       },
-                      (v8/*:: as any*/),
-                      (v11/*:: as any*/),
-                      (v13/*:: as any*/)
+                      (v9/*:: as any*/),
+                      (v12/*:: as any*/),
+                      (v14/*:: as any*/)
                     ],
                     "type": "PromptAwsInvocationParameters",
                     "abstractKey": null
@@ -692,7 +703,7 @@ return {
                             "name": "function",
                             "plural": false,
                             "selections": [
-                              (v6/*:: as any*/),
+                              (v7/*:: as any*/),
                               (v4/*:: as any*/),
                               {
                                 "alias": null,
@@ -701,7 +712,7 @@ return {
                                 "name": "parameters",
                                 "storageKey": null
                               },
-                              (v14/*:: as any*/)
+                              (v15/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -743,7 +754,7 @@ return {
                 "name": "modelProvider",
                 "storageKey": null
               },
-              (v16/*:: as any*/),
+              (v17/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -782,7 +793,7 @@ return {
                     "name": "jsonSchema",
                     "plural": false,
                     "selections": [
-                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
                       (v4/*:: as any*/),
                       {
                         "alias": null,
@@ -791,7 +802,7 @@ return {
                         "name": "schema",
                         "storageKey": null
                       },
-                      (v14/*:: as any*/)
+                      (v15/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -821,11 +832,12 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v6/*:: as any*/)
+                  (v7/*:: as any*/)
                 ],
                 "storageKey": null
               },
               (v4/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -835,7 +847,8 @@ return {
                 "plural": false,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v16/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v17/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -849,16 +862,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b964d62e2ccfa8055d440cb355387280",
+    "cacheID": "9023a71d7af0a8072d6dee507b201ebc",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: ID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionMetadataCard__main\n      ...PromptVersionTagsList_data\n      description\n      modelName\n      tags {\n        name\n        id\n      }\n      ...PromptVersionDiffView__template\n      previousVersion {\n        id\n        ...PromptVersionDiffView__template\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n\nfragment PromptVersionMetadataCard__main on PromptVersion {\n  metadata\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: ID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionMetadataCard__main\n      ...PromptVersionTagsList_data\n      description\n      modelName\n      sequenceNumber\n      tags {\n        name\n        id\n      }\n      ...PromptVersionDiffView__template\n      previousVersion {\n        id\n        sequenceNumber\n        ...PromptVersionDiffView__template\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  id\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  modelName\n  modelProvider\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  tools {\n    toolChoice {\n      type\n      functionName\n    }\n  }\n}\n\nfragment PromptLLM__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  model: modelName\n  provider: modelProvider\n  ...PromptLLM__main\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptResponseFormatFragment\n}\n\nfragment PromptResponseFormatFragment on PromptVersion {\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n\nfragment PromptVersionMetadataCard__main on PromptVersion {\n  metadata\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0fdb670d93643055b2f1f0cc993d89e5";
+(node as any).hash = "ae33c56ac8c1baf5cb5ea3185b0db8d2";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd602a041941be03e5fbfe72ad825747>>
+ * @generated SignedSource<<72cdd0866e0498a50562424a4897dfaa>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,9 @@ export type PromptVersionDetailsPageCompareQuery$variables = {
 };
 export type PromptVersionDetailsPageCompareQuery$data = {
   readonly compareVersion: {
+    readonly __typename: string;
+    readonly id: string;
+    readonly sequenceNumber?: number;
     readonly " $fragmentSpreads": FragmentRefs<"PromptVersionDiffView__template">;
   };
 };
@@ -48,6 +51,20 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "sequenceNumber",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 };
@@ -66,9 +83,12 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
+              (v4/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -100,9 +120,11 @@ return {
         "plural": false,
         "selections": [
           (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -175,7 +197,7 @@ return {
                                     "name": "toolCall",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*:: as any*/),
+                                      (v5/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -219,7 +241,7 @@ return {
                                     "name": "toolResult",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*:: as any*/),
+                                      (v5/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -264,13 +286,6 @@ return {
             ],
             "type": "PromptVersion",
             "abstractKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
           }
         ],
         "storageKey": null
@@ -278,16 +293,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "49701681f85169dedca10b98893be920",
+    "cacheID": "683aa65f74bdc4902b7703eceb32f00e",
     "id": null,
     "metadata": {},
     "name": "PromptVersionDetailsPageCompareQuery",
     "operationKind": "query",
-    "text": "query PromptVersionDetailsPageCompareQuery(\n  $id: ID!\n) {\n  compareVersion: node(id: $id) {\n    __typename\n    ... on PromptVersion {\n      ...PromptVersionDiffView__template\n    }\n    id\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n"
+    "text": "query PromptVersionDetailsPageCompareQuery(\n  $id: ID!\n) {\n  compareVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      sequenceNumber\n      ...PromptVersionDiffView__template\n    }\n  }\n}\n\nfragment PromptVersionDiffView__template on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bf003b28ca4a85e67689227ea2268e75";
+(node as any).hash = "284dafb949159baa204edb5231240e6f";
 
 export default node;

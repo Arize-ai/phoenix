@@ -4,7 +4,6 @@ import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
 import {
-  Button,
   Icon,
   Icons,
   Menu,
@@ -13,9 +12,9 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
+import { ComparisonPickerButton } from "@phoenix/components/compare";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 
@@ -30,19 +29,25 @@ const menuItemCSS = css`
 `;
 
 /**
- * Chooses the version that the viewed version is compared against. Lists the
- * prompt's other versions the same way the version timeline does.
+ * Chooses one side of a version diff. Lists the prompt's versions, except the
+ * one on the other side, the same way the version timeline does.
  */
 export function PromptVersionDiffPicker({
   prompt,
-  currentVersionId,
+  color,
+  excludedVersionId,
   selectedVersionId,
+  selectedSequenceNumber,
   onSelectionChange,
+  "aria-label": ariaLabel,
 }: {
   prompt: PromptVersionDiffPicker__versions$key;
-  currentVersionId: string;
+  color: string;
+  excludedVersionId: string;
   selectedVersionId: string;
+  selectedSequenceNumber: number;
   onSelectionChange: (versionId: string) => void;
+  "aria-label": string;
 }) {
   const { contains } = useFilter({ sensitivity: "base" });
   const { promptVersions } = useFragment<PromptVersionDiffPicker__versions$key>(
@@ -74,20 +79,14 @@ export function PromptVersionDiffPicker({
     () =>
       promptVersions.edges
         .map(({ version }) => version)
-        .filter((version) => version.id !== currentVersionId),
-    [promptVersions, currentVersionId]
-  );
-  const selectedVersion = versions.find(
-    (version) => version.id === selectedVersionId
+        .filter((version) => version.id !== excludedVersionId),
+    [promptVersions, excludedVersionId]
   );
   return (
     <MenuTrigger>
-      <Button size="S" aria-label="Version to compare against">
-        <Text fontFamily="mono">
-          {selectedVersion ? `v${selectedVersion.sequenceNumber}` : "Version"}
-        </Text>
-        <SelectChevronUpDownIcon />
-      </Button>
+      <ComparisonPickerButton color={color} aria-label={ariaLabel}>
+        <Text fontFamily="mono">{`v${selectedSequenceNumber}`}</Text>
+      </ComparisonPickerButton>
       <MenuContainer
         placement="bottom end"
         minHeight={0}
