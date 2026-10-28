@@ -65,6 +65,11 @@ const surfaceCSS = css`
     flex-wrap: nowrap;
     min-width: 0;
   }
+  /* A comma sits in the middle of its monospace cell; pull it up to the
+     pill before it, as it would sit after a word. */
+  .decision-state-inputs__comma {
+    margin-left: -0.3ch;
+  }
   .decision-state-inputs__comment {
     flex: 0 1 auto;
     min-width: 0;
@@ -116,7 +121,7 @@ const pillCSS = css`
     display: inline-flex;
     align-items: center;
     box-sizing: border-box;
-    padding: 0 0 0 var(--global-dimension-size-25);
+    padding: 0;
     border: none;
     background: none;
     color: inherit;
@@ -129,11 +134,13 @@ const pillCSS = css`
     overflow: hidden;
     &[data-focus-visible] {
       max-width: none;
+      padding-left: var(--global-dimension-size-25);
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     }
   }
   &:hover .decision-state-inputs__remove {
     max-width: none;
+    padding-left: var(--global-dimension-size-25);
   }
 `;
 
@@ -163,10 +170,10 @@ const slotCSS = css`
  */
 const suggestionsPopoverCSS = css`
   min-width: 200px;
-  .react-aria-ListBox {
+  [role="listbox"] {
     max-height: 240px;
   }
-  .react-aria-ListBoxItem {
+  [role="option"] {
     font-family: monospace;
   }
 `;
@@ -471,7 +478,14 @@ export function DecisionStateInputsEditor({
                 </span>
                 {punctuation(": ")}
                 {pill(name)}
-                {index < names.length - 1 ? punctuation(",") : null}
+                {index < names.length - 1 ? (
+                  <span
+                    className="decision-state-inputs__comma"
+                    style={{ color: tokenColors.punctuation }}
+                  >
+                    ,
+                  </span>
+                ) : null}
                 {comment(name)}
               </div>
             ))}
