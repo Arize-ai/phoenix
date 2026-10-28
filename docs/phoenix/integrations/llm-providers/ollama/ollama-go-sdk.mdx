@@ -1,0 +1,124 @@
+---
+title: "Ollama with the OpenAI Go SDK"
+description: Trace Go OpenAI SDK calls to Ollama's local OpenAI-compatible API.
+---
+
+[Ollama](https://ollama.com/) exposes an OpenAI-compatible API, so applications using the OpenAI Go SDK can call local Ollama models. Phoenix traces these calls with the OpenAI Go instrumentation.
+
+## Install
+
+```bash
+go get github.com/openai/openai-go
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+```
+
+## Setup
+
+Configure an OTLP/HTTP exporter pointed at Phoenix. Create `tracing.go`:
+
+```go expandable
+package main
+
+import (
+	"context"
+	"os"
+	"strings"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	endpoint := strings.TrimRight(os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"), "/")
+	if endpoint == "" {
+		endpoint = "http://localhost:6006"
+	}
+	projectName := os.Getenv("PHOENIX_PROJECT_NAME")
+	if projectName == "" {
+		projectName = "ollama-go-app"
+	}
+	exporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpointURL(endpoint+"/v1/traces"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	res, err := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName(projectName),
+		attribute.String("openinference.project.name", projectName),
+	))
+	if err != nil {
+		return nil, err
+	}
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res))
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+```
+
+## Run Ollama
+
+Start Ollama locally and pull a model, for example `ollama pull llama3.2:1b`. The OpenAI client requires an API key value, which a local Ollama server ignores:
+
+```go expandable
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/shared"
+	"go.opentelemetry.io/otel"
+
+	"github.com/Arize-ai/openinference/go/openinference-instrumentation"
+	openaiotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go"
+)
+
+func main() {
+	ctx := context.Background()
+	projectName := "ollama-go-app"
+	tp, err := initTracer(ctx)
+	if err != nil {
+		log.Fatalf("initialize tracer: %v", err)
+	}
+	defer tp.Shutdown(ctx)
+
+	client := openai.NewClient(
+		option.WithAPIKey("ollama"),
+		option.WithBaseURL("http://127.0.0.1:11434/v1/"),
+		option.WithMiddleware(openaiotel.Middleware(otel.Tracer(projectName))),
+	)
+	ctx = instrumentation.WithSession(ctx, "ollama-session")
+
+	response, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: shared.ChatModel("llama3.2:1b"),
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage("Explain why local language models are useful."),
+		},
+	})
+	if err != nil {
+		log.Fatalf("Ollama completion: %v", err)
+	}
+	fmt.Println(response.Choices[0].Message.Content)
+}
+```
+
+## Observe
+
+Phoenix receives an LLM span for the Ollama-backed completion, including the model name and messages.
+
+## Resources
+
+* [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+* [OpenInference Go package for OpenAI](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go)

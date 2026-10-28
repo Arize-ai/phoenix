@@ -1,0 +1,6 @@
+{
+  "_comment_": "Classification and routing overrides for integration docs. Keep reasons descriptive; CI scopes changes by routing fields, not reason text.",
+  "always_skip": [],
+  "lint_only": [],
+  "skip_if_missing_env": []
+}

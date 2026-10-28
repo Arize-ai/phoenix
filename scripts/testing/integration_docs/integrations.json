@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "description": "Runnable Phoenix integration documentation checks. Add an entry only after its example and verifier are supported.",
+  "integrations": [
+    {
+      "id": "openai-python",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "openai-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "openai-go",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "anthropic-python",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "anthropic-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "setup": {"source": "section_code", "language": "javascript"},
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "anthropic-go",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": ["ANTHROPIC_API_KEY"],
+      "setup": {"source": "section_code", "language": "go"},
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
+      "id": "ollama-python",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {"source": "section_code", "language": "javascript"},
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-go",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {"source": "section_code", "language": "go"},
+      "services": [{"kind": "ollama", "model": "llama3.2:1b"}],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"],
+        "attributes": {"llm.model_name": "llama3.2:1b"},
+        "timeout_seconds": 240
+      }
+    }
+  ]
+}
