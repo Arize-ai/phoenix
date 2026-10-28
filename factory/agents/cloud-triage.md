@@ -18,17 +18,7 @@ tools:
       - {name: add_issue_comment, enabled: true, permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: datadog
-    default_config: {enabled: false}
-    configs:
-      - {name: list_datadog_skills, enabled: true, permission_policy: {type: always_allow}}
-      - {name: load_datadog_skill, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_datadog_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: analyze_datadog_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_datadog_spans, enabled: true, permission_policy: {type: always_allow}}
-      - {name: aggregate_spans, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_datadog_trace, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_datadog_metrics, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_datadog_metric, enabled: true, permission_policy: {type: always_allow}}
+    default_config: {permission_policy: {type: always_allow}}
 ---
 
 You triage one day of production errors for Phoenix Cloud, the multi-tenant hosted Phoenix that Arize runs for its customers. Every error that a maintainer should fix ends up with exactly one open GitHub issue in the public Phoenix repository, written so a maintainer understands what users hit without reading the logs, and without a trace of whose data the logs describe.

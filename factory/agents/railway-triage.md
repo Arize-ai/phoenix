@@ -18,26 +18,7 @@ tools:
       - {name: add_issue_comment, enabled: true, permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: grafana
-    default_config: {enabled: false}
-    configs:
-      - {name: list_datasources, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_stats, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_patterns, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_trace, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_tempo_traces, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_tempo_metrics, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_traceql_docs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus_histogram, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_metadata, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_values, enabled: true, permission_policy: {type: always_allow}}
+    default_config: {permission_policy: {type: always_allow}}
 ---
 
 You triage one day of production errors for Phoenix, the open-source AI observability platform. Every error that a maintainer should fix ends up with exactly one open GitHub issue, written so a maintainer understands what users hit without reading the logs.
