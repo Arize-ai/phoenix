@@ -2,21 +2,22 @@
 
 `start` checks that the PR is open and that whoever asked has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
-commit to review and graded against rubrics/review.md. `watch` waits for the session to end,
-checks that it left a review on that commit, and reports the result on the PR. Agent,
-environment and vault IDs come from claude-lock.json, which `ant apply` writes.
+commit to review. `watch` waits for the session to end, finds the review it posted, and
+reports that review's verdict on the PR. Agent, environment and vault IDs come from
+claude-lock.json, which `ant apply` writes.
 """
 
 import argparse
 import json
 import os
+import re
 import time
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import anthropic
 from dispatch import (
     ENVIRONMENT_LOCK_KEY,
-    FACTORY_DIR,
     LOCK_FILE_PATH,
     STARTING_PERMISSIONS,
     WORKFLOW_LOGIN,
@@ -34,11 +35,8 @@ from github_app import GitHubAppToken
 
 REVIEW_LABEL = "factory-review"
 REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
-REVIEW_RUBRIC_PATH = FACTORY_DIR / "rubrics" / "review.md"
-REVIEW_OUTCOME = (
-    "One review on pull request #{pr_number} in {repo}, submitted as a comment on commit "
-    "{head_sha}, with verified findings as inline comments and the review summary as its body."
-)
+# The verdict in the review summary's heading, its first line, per agents/pr-reviewer.md.
+VERDICT_PATTERN = re.compile(r"## Factory review of \S+: (Approve|Request changes|Close)")
 
 
 def read_pr(*, pr_number: int) -> dict[str, Any]:
@@ -130,31 +128,40 @@ def start_session(
                 "checkout": {"type": "branch", "name": pr["baseRefName"]},
             }
         ],
+        # No graded outcome: a posted review can't be taken back, so a grader's revision
+        # cycles could only edit or repost it.
         initial_events=[
             {"type": "user.message", "content": [{"type": "text", "text": kickoff_text}]},
-            {
-                "type": "user.define_outcome",
-                "description": REVIEW_OUTCOME.format(
-                    pr_number=pr["number"], repo=repo, head_sha=head_sha[:10]
-                ),
-                "rubric": {"type": "text", "content": REVIEW_RUBRIC_PATH.read_text()},
-                "max_iterations": 2,
-            },
         ],
     )
     return session.id
 
 
-def find_factory_review(*, pr_number: int, head_sha: str, factory_login: str) -> Optional[str]:
-    review_urls = run_gh(
+def find_factory_review(
+    *, pr_number: int, started_at: str, factory_login: str
+) -> Optional[dict[str, Any]]:
+    """Return the first review the factory submitted since `started_at`, on any commit.
+
+    Matching by time rather than by commit finds the review when the agent had to review a
+    newer head, and never picks up a review from an earlier run. The concurrency group
+    keeps one review session per PR, so a review after `started_at` is this session's.
+    """
+    review_lines = run_gh(
         "api",
         "--paginate",
         f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/reviews",
         "--jq",
-        f'.[] | select(.user.login == "{factory_login}" and .commit_id == "{head_sha}") '
-        "| .html_url",
-    ).split()
-    return review_urls[-1] if review_urls else None
+        f'.[] | select(.user.login == "{factory_login}" and .submitted_at >= "{started_at}") '
+        "| {html_url, body, commit_id}",
+    ).splitlines()
+    reviews = [json.loads(review_line) for review_line in review_lines if review_line]
+    return reviews[0] if reviews else None
+
+
+def read_verdict(*, review_body: str) -> Optional[str]:
+    heading = review_body.lstrip().split("\n", 1)[0].rstrip()
+    verdict_match = VERDICT_PATTERN.fullmatch(heading)
+    return verdict_match.group(1) if verdict_match else None
 
 
 def watch_session(
@@ -163,7 +170,7 @@ def watch_session(
     app_token: GitHubAppToken,
     session_id: str,
     pr_number: int,
-    head_sha: str,
+    started_at: str,
     factory_login: str,
     watch_minutes: int,
 ) -> str:
@@ -179,44 +186,29 @@ def watch_session(
             f"The factory's **review** session {format_session_link(session_id=session_id)} "
             f"is still running after {watch_minutes} minutes."
         )
-    latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
-    outcome_result = latest_outcome.result if latest_outcome else "not graded"
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
-    review_url = find_factory_review(
-        pr_number=pr_number, head_sha=head_sha, factory_login=factory_login
+    # The PR comment is for the maintainer; how the session ran goes to the job log.
+    print(f"stop_reason={stop_reason} cost={format_cost(session=session)}")
+    review = find_factory_review(
+        pr_number=pr_number, started_at=started_at, factory_login=factory_login
     )
 
-    # Same outcomes as the build lanes: `success` is ready for a human, `flawed` means the
-    # agent did the wrong thing, `blocked` means it ran out of budget, time or access.
-    if stop_reason != "end_turn":
-        run_outcome = "blocked"
-    elif review_url is not None and outcome_result == "satisfied":
-        run_outcome = "success"
-    else:
-        run_outcome = "flawed"
-    if review_url is None:
-        status_line = f"ended without posting a review of {head_sha[:10]}"
-    else:
-        status_line = f"posted [its review of {head_sha[:10]}]({review_url})"
-
-    report_lines = [
-        f"The factory's **review** session {format_session_link(session_id=session_id)} "
-        f"{status_line}.",
-        "",
-        f"Outcome: **{run_outcome}** · rubric: `{outcome_result}` · "
-        f"stop reason: `{stop_reason}` · "
-        f"cost: {format_cost(session=session)}",
-    ]
-    if latest_outcome is not None and outcome_result != "satisfied" and latest_outcome.explanation:
-        report_lines += [
-            "",
-            "<details><summary>Grader explanation</summary>",
-            "",
-            latest_outcome.explanation,
-            "",
-            "</details>",
-        ]
-    return "\n".join(report_lines)
+    if review is None:
+        return (
+            f"The factory's **review** session {format_session_link(session_id=session_id)} "
+            f"ended without posting a review (stop reason: `{stop_reason}`)."
+        )
+    reviewed_sha = review["commit_id"][:10]
+    verdict = read_verdict(review_body=review["body"] or "")
+    if verdict is None:
+        return (
+            f"The factory posted [its review of {reviewed_sha}]({review['html_url']}), but the "
+            "review's heading names no verdict."
+        )
+    return (
+        f"The factory recommends **{verdict}** for {reviewed_sha}. "
+        f"[Read the review]({review['html_url']})."
+    )
 
 
 def run_start(*, args: argparse.Namespace) -> None:
@@ -246,6 +238,8 @@ def run_start(*, args: argparse.Namespace) -> None:
 
     # Fail before starting a session that the watch step could not check.
     read_factory_login()
+    # Taken before the session exists, so every review it posts is submitted at or after it.
+    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     session_id = start_session(
         client=client,
         repo=args.repo,
@@ -263,7 +257,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         ),
         token=app_token.refresh(),
     )
-    write_github_outputs(started="true", session_id=session_id, head_sha=pr["headRefOid"])
+    write_github_outputs(started="true", session_id=session_id, started_at=started_at)
 
 
 def run_watch(*, args: argparse.Namespace) -> None:
@@ -283,7 +277,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             app_token=app_token,
             session_id=args.session_id,
             pr_number=args.pr,
-            head_sha=args.head_sha,
+            started_at=args.started_at,
             factory_login=factory_login,
             watch_minutes=args.watch_minutes,
         )
@@ -316,7 +310,9 @@ def main() -> None:
 
     watch_parser = subparsers.add_parser("watch", help="Follow a review session to its report")
     watch_parser.add_argument("--session-id", required=True)
-    watch_parser.add_argument("--head-sha", required=True, help="The commit the session reviews")
+    watch_parser.add_argument(
+        "--started-at", required=True, help="UTC time the start step created the session"
+    )
     watch_parser.add_argument("--watch-minutes", type=int, default=100)
 
     args = parser.parse_args()
