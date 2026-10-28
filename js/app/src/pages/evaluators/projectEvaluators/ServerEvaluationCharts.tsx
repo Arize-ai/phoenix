@@ -19,6 +19,7 @@ import {
   Text,
   ToggleButton,
   ToggleButtonGroup,
+  Truncate,
   View,
 } from "@phoenix/components";
 import {
@@ -403,7 +404,7 @@ type TopProjectsMetric = "evaluations" | "cost";
 
 const rankedListCSS = css`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto;
+  grid-template-columns: fit-content(40%) minmax(0, 1fr) auto auto;
   column-gap: var(--global-dimension-size-150);
   row-gap: var(--global-dimension-size-75);
   align-items: center;
@@ -521,8 +522,10 @@ function RankedRow({
 }) {
   return (
     <>
-      <Text size="S" title={name}>
-        {name}
+      <Text size="S" minWidth={0}>
+        <Truncate maxWidth="100%" title={name}>
+          {name}
+        </Truncate>
       </Text>
       <div className="ranked-list__track">
         <div
