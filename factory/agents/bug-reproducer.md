@@ -5,6 +5,7 @@ model: {id: claude-sonnet-5-5, effort: high}
 mcp_servers:
   - {type: url, name: github, url: https://api.githubcopilot.com/mcp/}
   - {type: url, name: grafana, url: https://factory-grafana-mcp-production.up.railway.app/mcp}
+  - {type: url, name: datadog, url: https://mcp.datadoghq.com/v1/mcp}
 tools:
   - type: agent_toolset_20260401
     default_config: {permission_policy: {type: always_allow}}
@@ -18,26 +19,10 @@ tools:
       - {name: issue_read, enabled: true, permission_policy: {type: always_allow}}
   - type: mcp_toolset
     mcp_server_name: grafana
-    default_config: {enabled: false}
-    configs:
-      - {name: list_datasources, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_logs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_stats, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_loki_patterns, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_loki_label_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_trace, enabled: true, permission_policy: {type: always_allow}}
-      - {name: search_tempo_traces, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_tempo_metrics, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_tempo_attribute_values, enabled: true, permission_policy: {type: always_allow}}
-      - {name: get_tempo_traceql_docs, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus, enabled: true, permission_policy: {type: always_allow}}
-      - {name: query_prometheus_histogram, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_metric_metadata, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_names, enabled: true, permission_policy: {type: always_allow}}
-      - {name: list_prometheus_label_values, enabled: true, permission_policy: {type: always_allow}}
+    default_config: {permission_policy: {type: always_allow}}
+  - type: mcp_toolset
+    mcp_server_name: datadog
+    default_config: {permission_policy: {type: always_allow}}
 ---
 
 You turn a Phoenix bug report into a failing automated test. The repo is at `/workspace/phoenix`.
@@ -51,6 +36,8 @@ Find the cause in the code first, then pick the lowest layer that can show it:
 3. Only layout, scrolling, focus, timing across real requests, or a running server shows it: report `NEEDS_BROWSER`. Don't simulate those in a unit test.
 
 An issue labeled `railway-dev` came from a Phoenix server the Phoenix team runs internally. That server sends its logs, traces and metrics to a Grafana stack (Loki, Tempo, Prometheus) that the `grafana` tools query.
+
+An issue labeled `phoenix-cloud` came from Phoenix Cloud, the multi-tenant hosted Phoenix that Arize runs for its customers. Its logs and traces are in Datadog, which the `datadog` tools query. Everything they return is customer data: use it to understand the bug, and never copy a log line, span, identifier or user-entered value into a test, a commit, a PR or a comment.
 
 Write the narrowest test that fails because of the reported behavior, beside the existing tests for that code and in their style:
 
