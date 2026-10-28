@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 
 import { ExpandableContent, Flex, Text } from "@phoenix/components";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { MarkdownBlock } from "@phoenix/components/markdown";
 import { CellTop } from "@phoenix/components/table";
 import { useExtractedOutputContent } from "@phoenix/hooks/useExtractedOutputContent";
 
@@ -34,8 +33,9 @@ export interface ExperimentReferenceOutputCellProps {
  * Cell component for rendering reference output with configurable height.
  *
  * If the output is a chat message format containing assistant messages,
- * it extracts the assistant content and renders it as markdown.
- * Otherwise, it falls back to rendering as JSON or plain text via DynamicContent.
+ * it extracts the assistant content first. The result is rendered via
+ * DynamicContent, so JSON (including JSON strings) is pretty-printed and
+ * everything else is rendered as markdown.
  */
 export function ExperimentReferenceOutputCell({
   value,
@@ -43,7 +43,7 @@ export function ExperimentReferenceOutputCell({
   label = "reference output",
   extra,
 }: ExperimentReferenceOutputCellProps) {
-  const result = useExtractedOutputContent(value);
+  const { content } = useExtractedOutputContent(value);
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={extra}>
@@ -51,13 +51,7 @@ export function ExperimentReferenceOutputCell({
       </CellTop>
       <ExpandableContent height={height}>
         <div css={contentCSS}>
-          {result.isExtracted ? (
-            <MarkdownBlock mode="markdown" margin="none">
-              {result.content}
-            </MarkdownBlock>
-          ) : (
-            <DynamicContent value={result.content} />
-          )}
+          <DynamicContent value={content} />
         </div>
       </ExpandableContent>
     </Flex>

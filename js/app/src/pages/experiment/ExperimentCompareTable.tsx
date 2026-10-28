@@ -63,7 +63,10 @@ import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/exp
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
-import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import {
+  datasetEvaluatorsToAnnotationConfigs,
+  getAnnotationConfigsWithResults,
+} from "@phoenix/utils/datasetEvaluatorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -343,10 +346,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     );
   }, [data]);
 
+  // Only show annotations with results in at least one compared experiment,
+  // so evaluators that never ran on them don't add empty rows.
   const annotationConfigs = useMemo(() => {
     const evaluators =
       data.dataset?.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
-    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+    return getAnnotationConfigsWithResults({
+      annotationConfigs: datasetEvaluatorsToAnnotationConfigs(evaluators),
+      annotationNames:
+        data.dataset?.experiments?.edges.flatMap((edge) =>
+          edge.experiment.annotationSummaries.map(
+            (summary) => summary.annotationName
+          )
+        ) ?? [],
+    });
   }, [data]);
 
   const baseExperiment = experimentInfoById[baseExperimentId];
@@ -377,22 +390,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return tableData.map((row) => row.id);
   }, [tableData]);
 
-  // Calculate the max annotation count across all repeated run groups for consistent row heights
-  const maxAnnotationCount = useMemo(() => {
-    let max = 0;
-    for (const row of tableData) {
-      for (const group of Object.values(row.repeatedRunGroupsByExperimentId)) {
-        const count = group.annotationSummaries.length;
-        if (count > max) max = count;
-      }
-    }
-    return max;
-  }, [tableData]);
-
-  // Calculate cell content height to account for annotation list
+  // Every run cell lists each annotation config (as a result or a placeholder),
+  // so the config count sets a consistent annotation list height
   const cellContentHeight =
     CELL_PRIMARY_CONTENT_HEIGHT +
-    calculateAnnotationListHeight(maxAnnotationCount);
+    calculateAnnotationListHeight(annotationConfigs.length);
 
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
@@ -749,7 +751,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={calculateEstimatedRowHeight(
-                  maxAnnotationCount
+                  annotationConfigs.length
                 )}
               />
             ) : (
@@ -757,7 +759,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={calculateEstimatedRowHeight(
-                  maxAnnotationCount
+                  annotationConfigs.length
                 )}
               />
             )}
