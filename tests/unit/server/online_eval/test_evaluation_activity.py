@@ -6,8 +6,12 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.online_eval.evaluation_activity import (
+    ActivityBinGroup,
+    ActivityGroup,
     EvaluationLag,
+    load_evaluation_activity,
     load_evaluation_lags,
 )
 from phoenix.server.types import DbSessionFactory
@@ -17,6 +21,7 @@ from ..._helpers import _add_project, _add_project_session, _add_span, _add_trac
 from .test_producer import _seed_criteria
 
 _NOON = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+_HOURLY = TimeBucketSpec()
 
 
 def _at(hour: int, minute: int = 0) -> datetime:
@@ -167,6 +172,189 @@ async def test_lag_percentiles_over_evaluations_that_ran(db: DbSessionFactory) -
     assert await load_evaluation_lags(db, [seeded.span_evaluator_id], _at(13), _at(13, 20)) == {
         seeded.span_evaluator_id: _lag(2700, 2700, 2700)
     }
+
+
+async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
+    )
+    project_id = seeded.first_project_id
+    span, trace = seeded.span_evaluator_id, seeded.trace_evaluator_id
+
+    assert (activity.evaluated_count, activity.failed_count) == (3, 1)
+    assert activity.lag == _lag(900, 2475, 2655)
+    assert activity.cost == _approx(1.75)
+    assert activity.groups == (
+        ActivityGroup(project_id, span, 2, 1, _lag(1200, 2550, 2670), _approx(1.75)),
+        ActivityGroup(project_id, trace, 1, 0, _lag(600, 600, 600), None),
+    )
+    assert [activity_bin.timestamp for activity_bin in activity.series] == [
+        _at(12),
+        _at(13),
+        _at(14),
+    ]
+    assert [activity_bin.groups for activity_bin in activity.series] == [
+        (
+            ActivityBinGroup(project_id, span, 1, 0, 2, _approx(1200), _approx(0.75), 2),
+            ActivityBinGroup(project_id, trace, 1, 0, 1, _approx(600), None, 0),
+        ),
+        (ActivityBinGroup(project_id, span, 1, 1, 1, _approx(2595), None, 1),),
+        (
+            ActivityBinGroup(project_id, span, 0, 0, 1, None, _approx(1.0), 2),
+            ActivityBinGroup(project_id, trace, 0, 0, 1, None, None, 1),
+        ),
+    ]
+
+
+async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db, project_id=None, start=_at(12), end=_at(15), time_bins=_HOURLY
+    )
+    first, second = seeded.first_project_id, seeded.second_project_id
+
+    assert (activity.evaluated_count, activity.failed_count) == (3, 2)
+    assert activity.lag == _lag(1200, 3420, 3564)
+    assert activity.cost == _approx(3.75)
+    assert activity.groups == (
+        ActivityGroup(first, None, 3, 1, _lag(900, 2475, 2655), _approx(1.75)),
+        ActivityGroup(second, None, 0, 1, _lag(3600, 3600, 3600), _approx(2.0)),
+    )
+    assert [activity_bin.groups for activity_bin in activity.series] == [
+        (ActivityBinGroup(first, None, 2, 0, 3, _approx(1170), _approx(0.75), 2),),
+        (
+            ActivityBinGroup(first, None, 1, 1, 1, _approx(2595), None, 1),
+            ActivityBinGroup(second, None, 0, 0, 1, None, _approx(2.0), 1),
+        ),
+        (
+            ActivityBinGroup(first, None, 0, 0, 2, None, _approx(1.0), 3),
+            ActivityBinGroup(second, None, 0, 1, 0, _approx(3600), None, 0),
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "time_bins",
+    [
+        pytest.param(TimeBucketSpec(unit="minute", units_per_bin=30), id="30-minute"),
+        pytest.param(TimeBucketSpec(unit="hour", utc_offset_minutes=330), id="hour-utc+5:30"),
+        pytest.param(TimeBucketSpec(unit="day", utc_offset_minutes=-300), id="day-utc-5"),
+    ],
+)
+async def test_activity_bins_follow_the_time_bin_config(
+    db: DbSessionFactory, time_bins: TimeBucketSpec
+) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=time_bins
+    )
+    assert [activity_bin.timestamp for activity_bin in activity.series] == list(
+        time_bins.timestamps(_at(12), _at(15))
+    )
+    bin_groups = [group for activity_bin in activity.series for group in activity_bin.groups]
+    assert sum(group.evaluated_count for group in bin_groups) == activity.evaluated_count == 3
+    assert sum(group.failed_count for group in bin_groups) == activity.failed_count == 1
+    # Queued in the range: two span evaluations at 12:20 and 12:40, one at 13:10 and one at
+    # 14:30; trace evaluations at 12:05 and 14:10.
+    assert sum(group.queued_count for group in bin_groups) == 6
+    assert sum(group.cost or 0 for group in bin_groups) == _approx(1.75)
+    # Queued or running at 15:00: one PENDING and one RUNNING span evaluation, one trace
+    # evaluation awaiting a retry.
+    assert {
+        group.project_evaluator_id: group.queue_size for group in activity.series[-1].groups
+    } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
+
+
+async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db, project_id=seeded.first_project_id, start=_at(10), end=_at(11), time_bins=_HOURLY
+    )
+    assert (activity.evaluated_count, activity.failed_count) == (0, 0)
+    assert (activity.lag, activity.cost) == (None, None)
+    assert [(group.project_evaluator_id, group.evaluated_count) for group in activity.groups] == [
+        (seeded.span_evaluator_id, 0),
+        (seeded.trace_evaluator_id, 0),
+    ]
+    assert [(activity_bin.timestamp, activity_bin.groups) for activity_bin in activity.series] == [
+        (_at(10), ())
+    ]
+
+
+async def test_evaluation_activity_graphql(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    seeded = await _seed(db)
+    time_range = {"start": _at(12).isoformat(), "end": _at(15).isoformat()}
+    response = await gql_client.execute(
+        """query ($projectId: ID!, $timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) {
+                evaluatedCount
+                groups { project { id } projectEvaluator { id } }
+            }
+            project: node(id: $projectId) {
+                ... on Project {
+                    evaluationActivity(timeRange: $timeRange, timeBinConfig: {scale: HOUR}) {
+                        evaluatedCount
+                        failedCount
+                        lag { p50Seconds p95Seconds p99Seconds }
+                        cost
+                        groups { projectEvaluator { id } evaluatedCount failedCount cost }
+                        series {
+                            timestamp
+                            groups {
+                                projectEvaluator { id }
+                                queuedCount
+                                queueSize
+                                lagP95Seconds
+                            }
+                        }
+                    }
+                }
+            }
+        }""",
+        {
+            "projectId": str(GlobalID("Project", str(seeded.first_project_id))),
+            "timeRange": time_range,
+        },
+    )
+    assert not response.errors and response.data
+    span = str(GlobalID("ProjectEvaluator", str(seeded.span_evaluator_id)))
+    trace = str(GlobalID("ProjectEvaluator", str(seeded.trace_evaluator_id)))
+
+    server = response.data["evaluationActivity"]
+    assert server["evaluatedCount"] == 3
+    assert server["groups"] == [
+        {"project": {"id": str(GlobalID("Project", str(project_id)))}, "projectEvaluator": None}
+        for project_id in (seeded.first_project_id, seeded.second_project_id)
+    ]
+
+    project: dict[str, Any] = response.data["project"]["evaluationActivity"]
+    assert project["lag"] == {
+        "p50Seconds": _approx(900),
+        "p95Seconds": _approx(2475),
+        "p99Seconds": _approx(2655),
+    }
+    assert (project["evaluatedCount"], project["failedCount"]) == (3, 1)
+    assert project["cost"] == _approx(1.75)
+    assert project["groups"] == [
+        {"projectEvaluator": {"id": span}, "evaluatedCount": 2, "failedCount": 1, "cost": 1.75},
+        {"projectEvaluator": {"id": trace}, "evaluatedCount": 1, "failedCount": 0, "cost": None},
+    ]
+    assert [
+        datetime.fromisoformat(activity_bin["timestamp"]) for activity_bin in project["series"]
+    ] == [_at(12), _at(13), _at(14)]
+    assert project["series"][2]["groups"] == [
+        {"projectEvaluator": {"id": span}, "queuedCount": 1, "queueSize": 2, "lagP95Seconds": None},
+        {
+            "projectEvaluator": {"id": trace},
+            "queuedCount": 1,
+            "queueSize": 1,
+            "lagP95Seconds": None,
+        },
+    ]
 
 
 async def test_project_evaluator_lag_graphql(

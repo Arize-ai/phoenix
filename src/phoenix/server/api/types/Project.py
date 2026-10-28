@@ -52,6 +52,11 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
+)
 from phoenix.server.api.types.EvaluationQueue import ProjectEvaluationQueue
 from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
 from phoenix.server.api.types.EvaluatorComparison import (
@@ -410,6 +415,25 @@ class Project(Node):
     async def evaluation_queue(self, info: Info[Context, None]) -> ProjectEvaluationQueue:
         queue = await info.context.data_loaders.project_evaluation_queue.load(self.id)
         return ProjectEvaluationQueue(queue=queue)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluation activity of this project's evaluators, grouped by evaluator. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        )
+    )
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=self.id,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
+        )
 
     @strawberry.field
     async def evaluators(

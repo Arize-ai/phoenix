@@ -69,6 +69,8 @@ from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSor
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
@@ -88,6 +90,11 @@ from phoenix.server.api.types.Decision import (
     DecisionLabel,
     DecisionVersion,
     DecisionVersionTag,
+)
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
 )
 from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
@@ -1870,6 +1877,25 @@ class Query:
     )  # type: ignore
     async def evaluation_queue(self, info: Info[Context, None]) -> EvaluationQueue:
         return EvaluationQueue(queue=await info.context.data_loaders.evaluation_queue.load(None))
+
+    @strawberry.field(
+        description=(
+            "Evaluation activity of every project evaluator on the server, grouped by project. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        ),
+    )  # type: ignore
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=None,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
+        )
 
     @strawberry.field(
         description=(

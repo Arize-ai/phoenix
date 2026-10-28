@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -10,8 +10,13 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomesDataLoader,
 )
+from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.evaluation_activity import (
+    load_evaluation_activity,
+    load_evaluation_lags,
+)
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.queue_health import (
     load_evaluation_queue,
@@ -67,6 +72,18 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         first_latest_outcome_plan = len(plans)
         await ProjectEvaluatorLatestOutcomesDataLoader(db).load(1)
         latest_outcome_plans = plans[first_latest_outcome_plan:]
+        first_activity_plan = len(plans)
+        now = datetime.now(timezone.utc)
+        await load_evaluation_lags(db, [1], now - timedelta(hours=1), now)
+        for project_id in (1, None):
+            await load_evaluation_activity(
+                db,
+                project_id=project_id,
+                start=now - timedelta(hours=1),
+                end=now,
+                time_bins=TimeBucketSpec(),
+            )
+        activity_plans = plans[first_activity_plan:]
     finally:
         event.remove(connection.sync_engine, "before_cursor_execute", explain)
 
@@ -97,3 +114,14 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         for outcome in ("done", "failed")
     }
     assert [step for step in latest_outcome_steps if "TEMP B-TREE" in step] == []
+    activity_indexes = {
+        match.group(1)
+        for _, steps in activity_plans
+        for step in steps
+        if (match := re.match(r"(?:SCAN|SEARCH) eval_\w*work_units\b.*?(?:INDEX (\S+)|$)", step))
+    }
+    assert activity_indexes == {
+        f"ix_{table}_{index}"
+        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
+        for index in ("terminal", "claimable")
+    }

@@ -2689,6 +2689,96 @@ type EvalWorkItemId {
   datasetEvaluatorId: Int!
 }
 
+"""
+Online evaluation activity over a time range. Evaluations count when they complete, and lag runs from when an evaluation was queued to its result.
+"""
+type EvaluationActivity {
+  """Evaluations that produced an annotation in the range."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on in the range."""
+  failedCount: Int!
+
+  """Lag of evaluations completed in the range; null if none completed."""
+  lag: EvaluationLag
+
+  """
+  Cost in USD of the evaluations' traces started in the range; null if none.
+  """
+  cost: Float
+
+  """Activity per group, most evaluations first."""
+  groups: [EvaluationActivityGroup!]!
+
+  """Activity per time bin, oldest first, with every bin in the range."""
+  series: [EvaluationActivityBin!]!
+}
+
+"""Evaluation activity in one time bin."""
+type EvaluationActivityBin {
+  """The start of the bin."""
+  timestamp: DateTime!
+
+  """
+  Groups with any activity in the bin, most evaluations over the range first.
+  """
+  groups: [EvaluationActivityBinGroup!]!
+}
+
+"""One group's evaluation activity in one time bin."""
+type EvaluationActivityBinGroup {
+  project: Project!
+
+  """The project evaluator, when activity is grouped by project evaluator."""
+  projectEvaluator: ProjectEvaluator
+
+  """Evaluations that produced an annotation in the bin."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on in the bin."""
+  failedCount: Int!
+
+  """Evaluations queued in the bin."""
+  queuedCount: Int!
+
+  """
+  95th percentile lag in seconds of evaluations completed in the bin; null if none.
+  """
+  lagP95Seconds: Float
+
+  """
+  Cost in USD of the evaluations' traces started in the bin; null if none.
+  """
+  cost: Float
+
+  """Evaluations queued or running at the end of the bin."""
+  queueSize: Int!
+}
+
+"""
+One project evaluator's evaluation activity, or one project's, over the range.
+"""
+type EvaluationActivityGroup {
+  project: Project!
+
+  """The project evaluator, when activity is grouped by project evaluator."""
+  projectEvaluator: ProjectEvaluator
+
+  """Evaluations that produced an annotation."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on."""
+  failedCount: Int!
+
+  """Lag of evaluations completed in the range; null if none completed."""
+  lag: EvaluationLag
+
+  """
+  Cost in USD of the evaluations' traces started in the range; null if none.
+  """
+  cost: Float
+}
+
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
@@ -4628,6 +4718,11 @@ type Project implements Node {
   This project's part of the online evaluation queue, shared by every project.
   """
   evaluationQueue: ProjectEvaluationQueue!
+
+  """
+  Evaluation activity of this project's evaluators, grouped by evaluator. Finished span evaluations are deleted once older than the online evaluation retention period, so a range reaching past it counts less than it covers.
+  """
+  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
   evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
@@ -5907,6 +6002,11 @@ type Query {
   The online evaluation queue, shared by every project on the server and by span, trace, and session evaluations.
   """
   evaluationQueue: EvaluationQueue!
+
+  """
+  Evaluation activity of every project evaluator on the server, grouped by project. Finished span evaluations are deleted once older than the online evaluation retention period, so a range reaching past it counts less than it covers.
+  """
+  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
 
   """
   Persisted assistant chat sessions, most recently active first. By default, users see their own sessions. Admins can pass viewerOnly: false to see all sessions. When authentication is disabled, all sessions are returned.
