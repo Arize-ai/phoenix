@@ -5868,6 +5868,11 @@ type Query {
   ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
+
+  """
+  Every project evaluator on the server, across projects, newest first. projectId narrows to one project.
+  """
+  projectEvaluators(first: Int = 100, after: String, filter: ProjectEvaluatorFilter, projectId: ID): ProjectEvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
   evaluatorGalleryConfigs: [ClassificationEvaluatorConfig!]!

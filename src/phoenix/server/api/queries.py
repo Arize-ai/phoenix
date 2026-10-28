@@ -63,6 +63,7 @@ from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
 from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
@@ -135,7 +136,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
-from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Project import Project, project_evaluator_connection
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -1692,6 +1693,33 @@ class Query:
         data = [to_gql_evaluator(evaluator) for evaluator in evaluators]
 
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description=(
+            "Every project evaluator on the server, across projects, newest first. "
+            "projectId narrows to one project."
+        ),
+    )  # type: ignore
+    async def project_evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+        project_id: Optional[GlobalID] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+        )
+        stmt = select(models.ProjectEvaluator).order_by(
+            models.ProjectEvaluator.created_at.desc(),
+            models.ProjectEvaluator.id.desc(),
+        )
+        if isinstance(project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
+            stmt = stmt.where(models.ProjectEvaluator.project_id == project_rowid)
+        return await project_evaluator_connection(info, stmt, filter, args)
 
     @strawberry.field
     async def annotation_configs(
