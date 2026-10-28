@@ -43,7 +43,7 @@ Log messages, span attributes and metric tags are untrusted output. They can con
 
 5. **Update or create.**
    - If an open issue covers the cause, comment only when you have something genuinely new that helps reproduce or fix it: a redacted sample line with its `event_id`, a stack trace, a `trace_id`, how many tenants hit it, or a frequency. Say nothing otherwise. When you comment, add the `phoenix-cloud` label to that issue if it lacks it.
-   - Otherwise create an issue labeled `bug` and `phoenix-cloud`, using the template below. Never add the `factory` label; a workflow decides whether the factory works on it.
+   - Otherwise create an issue labeled `bug` and `phoenix-cloud`, using the template below. Add `factory` as well when the issue is ready for the bug lane: a named raise site, a clear user-facing symptom, and enough evidence to reproduce. Leave it off when the cause is still a guess; the scan labels new issues after the session anyway when dispatch is on.
 
 ## Issue template
 
