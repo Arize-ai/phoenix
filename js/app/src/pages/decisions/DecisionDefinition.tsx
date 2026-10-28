@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, Token, View } from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
 import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import {
   TemplateEditor,
@@ -98,21 +97,9 @@ export function DecisionDefinition({
                 </Text>
               ) : (
                 inputs.map((input) => (
-                  <Flex key={input.name} direction="column" gap="size-50">
-                    <LabeledText label={input.name}>
-                      {input.description}
-                    </LabeledText>
-                    {input.jsonSchema ? (
-                      <View paddingStart="size-200">
-                        <TemplateEditorWrap readOnly>
-                          <JSONBlock
-                            value={JSON.stringify(input.jsonSchema, null, 2)}
-                            basicSetup={{ foldGutter: false }}
-                          />
-                        </TemplateEditorWrap>
-                      </View>
-                    ) : null}
-                  </Flex>
+                  <LabeledText key={input.name} label={input.name}>
+                    {input.description}
+                  </LabeledText>
                 ))
               )}
             </Flex>
