@@ -107,8 +107,8 @@ Each part does one job, so it can be changed and tested on its own:
 | `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
-| `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which files a user-facing `bug` issue per new bug or updates the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
-| `factory-cloud-log-scan.yml` | The same for Phoenix Cloud, half an hour later: checks Datadog for the last day of server errors across every tenant and runs the `cloud-triage` agent, which files issues with the customer data redacted. See [Log scan](#log-scan) |
+| `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which follows the `phoenix-railway-triage` skill to file a user-facing `bug` issue per new bug or update the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
+| `factory-cloud-log-scan.yml` | The same for Phoenix Cloud, half an hour later: checks Datadog for the last day of server errors across every tenant and runs the `cloud-triage` agent, which follows the `phoenix-cloud-triage` skill to file issues with the customer data redacted. See [Log scan](#log-scan) |
 
 ### Trust boundaries
 
@@ -162,7 +162,7 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 ## Layout
 
 ```
-agents/          one file per agent: frontmatter = config, body = system prompt
+agents/          one file per agent: frontmatter = config, body = system prompt; the triage agents' procedure is in .agents/skills/
 environments/    the sandbox (uv, tox, pnpm, limited networking)
 vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
@@ -246,7 +246,7 @@ flowchart LR
   ddmcp --> datadog
 ```
 
-`log_scan.py` takes a `--source`. For `railway` it runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy; for `cloud` it counts the Datadog log search in `FACTORY_DATADOG_QUERY` over the same window through the Logs aggregate API. Either way it stops if the query matches nothing, so quiet days cost nothing. Otherwise it starts a session with the source's triage agent (`agents/railway-triage.md` graded by `rubrics/railway-triage.md`, or `agents/cloud-triage.md` graded by `rubrics/cloud-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has that source's read tools and the GitHub issue tools, and nothing that pushes code.
+`log_scan.py` takes a `--source`. For `railway` it runs the LogQL in `FACTORY_GRAFANA_LOGQL` over the last day plus a five-minute overlap, through Grafana's datasource proxy; for `cloud` it counts the Datadog log search in `FACTORY_DATADOG_QUERY` over the same window through the Logs aggregate API. Either way it stops if the query matches nothing, so quiet days cost nothing. Otherwise it starts a session with the source's triage agent (`agents/railway-triage.md` graded by `rubrics/railway-triage.md`, or `agents/cloud-triage.md` graded by `rubrics/cloud-triage.md`) in the same sandbox as the lanes, with the repo mounted so it can read the code. The agent has that source's read tools and the GitHub issue tools, and nothing that pushes code. Its system prompt is a few lines; the procedure, issue template and report are the internal skills [`phoenix-railway-triage`](../.agents/skills/phoenix-railway-triage/SKILL.md) and [`phoenix-cloud-triage`](../.agents/skills/phoenix-cloud-triage/SKILL.md), which the agent reads from the mounted repo at the start of each session, so a maintainer can run the same triage from Claude Code with the Grafana or Datadog MCP tools, and a change to a skill takes effect on the next scan without an apply.
 
 The agent does the work a regex can't. It reads the window's lines through mcp-grafana and groups them by cause rather than by message: lines from one request (shared `trace_id`) or one raise site are one bug, even when the repository layer, the resolver and the request handler each logged their own line. It reads the code at the raise site to write a title that says what a user experiences, such as `[bug] Trace detail page fails for spans whose parent was deleted`, with impact, cause, evidence with trace IDs and a re-query LogQL in the body. It searches the open issues, not only those it filed, so a bug a human already reported gets a comment with new evidence, and the source's label (`railway-dev` or `phoenix-cloud`), instead of a duplicate. Handled client errors and one-off infrastructure errors around a restart are not filed. Each session has a spend cap of $10 at list price.
 
@@ -260,13 +260,13 @@ Grafana access must be bootstrapped first.
 
 1. Create the `railway-dev` label, and a second token for the `factory-log-scan` service account. Set the repository variable `FACTORY_GRAFANA_URL` to the Grafana URL and the secret `FACTORY_GRAFANA_TOKEN` to that token. Set `FACTORY_GRAFANA_LOGQL` to the selector for server errors, for example `{service_name="arize-phoenix-server"} | detected_level=~"error|fatal"`, and `FACTORY_GRAFANA_LOKI_UID` if Grafana has more than one Loki datasource.
 2. Run **Factory Log Scan** by hand with `dry_run` on and a wide `hours` window; it prints how many lines the LogQL matches. Check the same query in Grafana Explore and tighten it until it selects server errors and not noise.
-3. Run the scan by hand with `dispatch` unticked and read the issues the triage session files; fix its prompt or rubric until the titles and grouping are right. Then run it once with `dispatch` on and watch a bug-lane session use the Grafana tools.
+3. Run the scan by hand with `dispatch` unticked and read the issues the triage session files; fix the skill or the rubric until the titles and grouping are right. Then run it once with `dispatch` on and watch a bug-lane session use the Grafana tools.
 
 For the cloud scan, Datadog access must be bootstrapped first, then:
 
 1. Set the repository secret `FACTORY_DATADOG_TOKEN` to the scan's Service Access Token and the variable `FACTORY_DATADOG_QUERY` to the log search that selects server errors, for example `service:arize-phoenix-server env:prod status:error`. Set `FACTORY_DATADOG_SITE` only if the organization is not on `datadoghq.com`. The `phoenix-cloud` label already exists.
 2. Run **Factory Cloud Log Scan** by hand with `dry_run` on and a wide `hours` window; it prints how many logs the search matches. Check the same search in the Datadog Logs Explorer and tighten it until it selects server errors and not noise.
-3. Run the scan by hand with `dispatch` unticked and read every issue the triage session files for customer data before anything else, then for titles and grouping. Fix the prompt or rubric until both are right. Then run it once with `dispatch` on and watch a bug-lane session use the Datadog tools.
+3. Run the scan by hand with `dispatch` unticked and read every issue the triage session files for customer data before anything else, then for titles and grouping. Fix the skill or the rubric until both are right. Then run it once with `dispatch` on and watch a bug-lane session use the Datadog tools.
 
 ## Switching workspaces
 
