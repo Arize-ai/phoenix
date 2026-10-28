@@ -15,10 +15,7 @@ from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
-from phoenix.server.api.dataloaders.span_cost_summary_by_project import (
-    SpanCostSummaryByProjectDataLoader,
-)
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.db.project_aggregates import cost_summary_by_project, token_counts_by_project
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -195,15 +192,13 @@ async def get_project(
     return GetProjectResponseBody(data=data)
 
 
-class CostBreakdown(V1RoutesBaseModel):
-    tokens: float = Field(description="Number of tokens")
-    cost: float = Field(description="Cost in USD")
-
-
 class ProjectCostSummary(V1RoutesBaseModel):
-    prompt: CostBreakdown
-    completion: CostBreakdown
-    total: CostBreakdown
+    token_count_prompt: int = Field(description="Number of prompt tokens")
+    token_count_completion: int = Field(description="Number of completion tokens")
+    token_count_total: int = Field(description="Total number of tokens")
+    cost_usd_prompt: float = Field(description="Cost of the prompt tokens in USD")
+    cost_usd_completion: float = Field(description="Cost of the completion tokens in USD")
+    cost_usd_total: float = Field(description="Total cost in USD")
 
 
 class GetProjectCostSummaryResponseBody(ResponseBody[ProjectCostSummary]):
@@ -214,8 +209,9 @@ class GetProjectCostSummaryResponseBody(ResponseBody[ProjectCostSummary]):
     "/projects/{project_identifier}/cost_summary",
     operation_id="getProjectCostSummary",
     summary="Get token counts and costs for a project",
-    description="Return prompt, completion, and total token counts and costs (in USD) summed "
-    "across the project's traces, optionally restricted to traces that start within a time range.",
+    description="Return the project's prompt, completion, and total token counts and costs (in "
+    "USD), the same totals the project page shows. Token counts sum the project's LLM spans that "
+    "start within the time range; costs sum the span costs of traces that start within it.",
     response_description="The project's token count and cost summary",
     responses=add_errors_to_responses([404, 422]),
 )
@@ -225,32 +221,26 @@ async def get_project_cost_summary(
         description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     ),
     start_time: Optional[datetime] = Query(
-        default=None, description="Inclusive lower bound on trace start time"
+        default=None, description="Inclusive lower bound on start time"
     ),
     end_time: Optional[datetime] = Query(
-        default=None, description="Exclusive upper bound on trace start time"
+        default=None, description="Exclusive upper bound on start time"
     ),
 ) -> GetProjectCostSummaryResponseBody:
+    start = normalize_datetime(start_time, timezone.utc)
+    end = normalize_datetime(end_time, timezone.utc)
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
-    time_range = (
-        TimeRange(
-            start=normalize_datetime(start_time, timezone.utc),
-            end=normalize_datetime(end_time, timezone.utc),
-        )
-        if start_time or end_time
-        else None
-    )
-    summary = await SpanCostSummaryByProjectDataLoader(request.app.state.db).load(
-        (project.id, time_range, None, None)
-    )
+        tokens = (await session.execute(token_counts_by_project([project.id], start, end))).first()
+        costs = (await session.execute(cost_summary_by_project([project.id], start, end))).first()
     return GetProjectCostSummaryResponseBody(
         data=ProjectCostSummary(
-            prompt=CostBreakdown(tokens=summary.prompt.tokens or 0, cost=summary.prompt.cost or 0),
-            completion=CostBreakdown(
-                tokens=summary.completion.tokens or 0, cost=summary.completion.cost or 0
-            ),
-            total=CostBreakdown(tokens=summary.total.tokens or 0, cost=summary.total.cost or 0),
+            token_count_prompt=tokens.prompt if tokens else 0,
+            token_count_completion=tokens.completion if tokens else 0,
+            token_count_total=tokens.total if tokens else 0,
+            cost_usd_prompt=costs.prompt_cost if costs else 0,
+            cost_usd_completion=costs.completion_cost if costs else 0,
+            cost_usd_total=costs.total_cost if costs else 0,
         )
     )
 

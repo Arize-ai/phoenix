@@ -1203,7 +1203,7 @@ export interface paths {
         };
         /**
          * Get token counts and costs for a project
-         * @description Return prompt, completion, and total token counts and costs (in USD) summed across the project's traces, optionally restricted to traces that start within a time range.
+         * @description Return the project's prompt, completion, and total token counts and costs (in USD), the same totals the project page shows. Token counts sum the project's LLM spans that start within the time range; costs sum the span costs of traces that start within it.
          */
         get: operations["getProjectCostSummary"];
         put?: never;
@@ -2555,19 +2555,6 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
-        };
-        /** CostBreakdown */
-        CostBreakdown: {
-            /**
-             * Tokens
-             * @description Number of tokens
-             */
-            tokens: number;
-            /**
-             * Cost
-             * @description Cost in USD
-             */
-            cost: number;
         };
         /**
          * CreateAgentSessionRequestBody
@@ -4564,9 +4551,36 @@ export interface components {
         };
         /** ProjectCostSummary */
         ProjectCostSummary: {
-            prompt: components["schemas"]["CostBreakdown"];
-            completion: components["schemas"]["CostBreakdown"];
-            total: components["schemas"]["CostBreakdown"];
+            /**
+             * Token Count Prompt
+             * @description Number of prompt tokens
+             */
+            token_count_prompt: number;
+            /**
+             * Token Count Completion
+             * @description Number of completion tokens
+             */
+            token_count_completion: number;
+            /**
+             * Token Count Total
+             * @description Total number of tokens
+             */
+            token_count_total: number;
+            /**
+             * Cost Usd Prompt
+             * @description Cost of the prompt tokens in USD
+             */
+            cost_usd_prompt: number;
+            /**
+             * Cost Usd Completion
+             * @description Cost of the completion tokens in USD
+             */
+            cost_usd_completion: number;
+            /**
+             * Cost Usd Total
+             * @description Total cost in USD
+             */
+            cost_usd_total: number;
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -11849,9 +11863,9 @@ export interface operations {
     getProjectCostSummary: {
         parameters: {
             query?: {
-                /** @description Inclusive lower bound on trace start time */
+                /** @description Inclusive lower bound on start time */
                 start_time?: string | null;
-                /** @description Exclusive upper bound on trace start time */
+                /** @description Exclusive upper bound on start time */
                 end_time?: string | null;
             };
             header?: never;

@@ -3,12 +3,12 @@ from datetime import datetime
 from typing import Any, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
-from sqlalchemy.sql.functions import coalesce
+from sqlalchemy import Select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.project_aggregates import cost_summary_by_project
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -115,26 +115,7 @@ def _get_stmt(
     project_rowids = params
     (start_time, end_time), filter_condition, session_filter_condition = segment
 
-    stmt: Select[*tuple[Any, ...]] = (
-        select(
-            models.Trace.project_rowid,
-            coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-            coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
-            coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-            coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-            coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
-            coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
-        )
-        .select_from(models.Trace)
-        .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
-        .where(models.Trace.project_rowid.in_(project_rowids))
-        .group_by(models.Trace.project_rowid)
-    )
-
-    if start_time:
-        stmt = stmt.where(start_time <= models.Trace.start_time)
-    if end_time:
-        stmt = stmt.where(models.Trace.start_time < end_time)
+    stmt = cost_summary_by_project(project_rowids, start_time, end_time)
 
     if filter_condition:
         sf = SpanFilter(filter_condition)

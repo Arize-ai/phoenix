@@ -7394,7 +7394,7 @@
           "projects"
         ],
         "summary": "Get token counts and costs for a project",
-        "description": "Return prompt, completion, and total token counts and costs (in USD) summed across the project's traces, optionally restricted to traces that start within a time range.",
+        "description": "Return the project's prompt, completion, and total token counts and costs (in USD), the same totals the project page shows. Token counts sum the project's LLM spans that start within the time range; costs sum the span costs of traces that start within it.",
         "operationId": "getProjectCostSummary",
         "parameters": [
           {
@@ -7422,10 +7422,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive lower bound on trace start time",
+              "description": "Inclusive lower bound on start time",
               "title": "Start Time"
             },
-            "description": "Inclusive lower bound on trace start time"
+            "description": "Inclusive lower bound on start time"
           },
           {
             "name": "end_time",
@@ -7441,10 +7441,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Exclusive upper bound on trace start time",
+              "description": "Exclusive upper bound on start time",
               "title": "End Time"
             },
-            "description": "Exclusive upper bound on trace start time"
+            "description": "Exclusive upper bound on start time"
           }
         ],
         "responses": {
@@ -11801,26 +11801,6 @@
           "optimization_direction"
         ],
         "title": "ContinuousAnnotationConfigData"
-      },
-      "CostBreakdown": {
-        "properties": {
-          "tokens": {
-            "type": "number",
-            "title": "Tokens",
-            "description": "Number of tokens"
-          },
-          "cost": {
-            "type": "number",
-            "title": "Cost",
-            "description": "Cost in USD"
-          }
-        },
-        "type": "object",
-        "required": [
-          "tokens",
-          "cost"
-        ],
-        "title": "CostBreakdown"
       },
       "CreateAgentSessionRequestBody": {
         "properties": {
@@ -16912,21 +16892,45 @@
       },
       "ProjectCostSummary": {
         "properties": {
-          "prompt": {
-            "$ref": "#/components/schemas/CostBreakdown"
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Number of prompt tokens"
           },
-          "completion": {
-            "$ref": "#/components/schemas/CostBreakdown"
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Number of completion tokens"
           },
-          "total": {
-            "$ref": "#/components/schemas/CostBreakdown"
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Total number of tokens"
+          },
+          "cost_usd_prompt": {
+            "type": "number",
+            "title": "Cost Usd Prompt",
+            "description": "Cost of the prompt tokens in USD"
+          },
+          "cost_usd_completion": {
+            "type": "number",
+            "title": "Cost Usd Completion",
+            "description": "Cost of the completion tokens in USD"
+          },
+          "cost_usd_total": {
+            "type": "number",
+            "title": "Cost Usd Total",
+            "description": "Total cost in USD"
           }
         },
         "type": "object",
         "required": [
-          "prompt",
-          "completion",
-          "total"
+          "token_count_prompt",
+          "token_count_completion",
+          "token_count_total",
+          "cost_usd_prompt",
+          "cost_usd_completion",
+          "cost_usd_total"
         ],
         "title": "ProjectCostSummary"
       },

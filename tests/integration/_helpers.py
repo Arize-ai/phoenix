@@ -2195,6 +2195,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Projects
     (404, "GET", "v1/projects/fake-id-{}"),
     (200, "GET", "v1/projects"),
+    (404, "GET", "v1/projects/fake-id-{}/cost_summary"),
     # Datasets
     (422, "GET", "v1/datasets/fake-id-{}"),
     (200, "GET", "v1/datasets"),

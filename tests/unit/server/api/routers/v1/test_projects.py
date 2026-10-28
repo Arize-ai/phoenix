@@ -4,7 +4,7 @@ import re
 import string
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote
 
 import httpx2
@@ -27,6 +27,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_span, _add_trace
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 class TestProjects:
@@ -1536,34 +1537,6 @@ class TestGetProjectCostSummary:
     """GET /projects/{project_identifier}/cost_summary"""
 
     @staticmethod
-    async def _add_trace_with_cost(
-        session: AsyncSession,
-        project: models.Project,
-        model: models.GenerativeModel,
-        start_time: datetime,
-        prompt: tuple[float, float],
-        completion: tuple[float, float],
-    ) -> None:
-        """Add a trace whose single span has the given (tokens, cost) for prompt and completion."""
-        trace = await _add_trace(session, project, start_time=start_time)
-        span = await _add_span(session, trace, start_time=start_time)
-        session.add(
-            models.SpanCost(
-                span_rowid=span.id,
-                trace_rowid=trace.id,
-                span_start_time=span.start_time,
-                model_id=model.id,
-                prompt_tokens=prompt[0],
-                prompt_cost=prompt[1],
-                completion_tokens=completion[0],
-                completion_cost=completion[1],
-                total_tokens=prompt[0] + completion[0],
-                total_cost=prompt[1] + completion[1],
-            )
-        )
-        await session.flush()
-
-    @staticmethod
     async def _add_model(session: AsyncSession) -> models.GenerativeModel:
         name = f"test-model-{token_hex(4)}"
         model = models.GenerativeModel(
@@ -1576,79 +1549,185 @@ class TestGetProjectCostSummary:
         await session.flush()
         return model
 
+    @staticmethod
+    async def _add_llm_span(
+        session: AsyncSession,
+        trace: models.Trace,
+        tokens: tuple[int, int],
+        model: Optional[models.GenerativeModel] = None,
+        cost: Optional[tuple[float, float]] = None,
+        parent_span: Optional[models.Span] = None,
+    ) -> models.Span:
+        """Add an LLM span with (prompt, completion) token counts and, if `cost` is given,
+        a span cost record with the same token counts and the given (prompt, completion) cost.
+        """
+        span = await _add_span(
+            session,
+            trace,
+            parent_span=parent_span,
+            start_time=trace.start_time,
+            llm_token_count_prompt=tokens[0],
+            llm_token_count_completion=tokens[1],
+        )
+        if cost is not None:
+            assert model is not None
+            session.add(
+                models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=span.start_time,
+                    model_id=model.id,
+                    prompt_tokens=tokens[0],
+                    prompt_cost=cost[0],
+                    completion_tokens=tokens[1],
+                    completion_cost=cost[1],
+                    total_tokens=tokens[0] + tokens[1],
+                    total_cost=cost[0] + cost[1],
+                )
+            )
+            await session.flush()
+        return span
+
     async def test_sums_tokens_and_costs_across_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
+        jan_1 = datetime(2024, 1, 1, tzinfo=timezone.utc)
         async with db() as session:
             model = await self._add_model(session)
             project = await _add_project(session)
             other_project = await _add_project(session)
-            jan_1 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-            await self._add_trace_with_cost(session, project, model, jan_1, (100, 1.0), (10, 2.0))
-            await self._add_trace_with_cost(session, project, model, jan_1, (200, 3.0), (20, 4.0))
-            # Costs in another project must not leak into the summary.
-            await self._add_trace_with_cost(
-                session, other_project, model, jan_1, (999, 99.0), (999, 99.0)
-            )
+            for tokens, cost in (((100, 10), (1.0, 2.0)), ((200, 20), (3.0, 4.0))):
+                trace = await _add_trace(session, project, start_time=jan_1)
+                await self._add_llm_span(session, trace, tokens, model, cost)
+            # Tokens and costs in another project must not leak into the summary.
+            trace = await _add_trace(session, other_project, start_time=jan_1)
+            await self._add_llm_span(session, trace, (999, 999), model, (99.0, 99.0))
         gid = str(GlobalID(Project.__name__, str(project.id)))
         for identifier in (project.name, gid):
             response = await httpx_client.get(f"v1/projects/{identifier}/cost_summary")
             assert response.status_code == 200, response.text
             assert response.json()["data"] == {
-                "prompt": {"tokens": 300, "cost": 4.0},
-                "completion": {"tokens": 30, "cost": 6.0},
-                "total": {"tokens": 330, "cost": 10.0},
+                "token_count_prompt": 300,
+                "token_count_completion": 30,
+                "token_count_total": 330,
+                "cost_usd_prompt": 4.0,
+                "cost_usd_completion": 6.0,
+                "cost_usd_total": 10.0,
             }
 
-    async def test_time_range_filters_on_trace_start_time(
+    async def test_matches_graphql_project_totals(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Token counts follow `Project.tokenCount*` (leaf LLM spans, including spans
+        without a cost record) and costs follow `Project.costSummary`."""
+        jan_1 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        async with db() as session:
+            model = await self._add_model(session)
+            project = await _add_project(session)
+            trace = await _add_trace(session, project, start_time=jan_1)
+            # A wrapping LLM span repeats its LLM child's tokens; only the child counts.
+            wrapper = await self._add_llm_span(session, trace, (50, 5))
+            await self._add_llm_span(session, trace, (50, 5), model, (0.5, 0.25), wrapper)
+            # A span without a cost record still counts toward the tokens.
+            await self._add_llm_span(session, trace, (7, 3))
+        response = await httpx_client.get(f"v1/projects/{project.name}/cost_summary")
+        assert response.status_code == 200, response.text
+        data = response.json()["data"]
+        assert data == {
+            "token_count_prompt": 57,
+            "token_count_completion": 8,
+            "token_count_total": 65,
+            "cost_usd_prompt": 0.5,
+            "cost_usd_completion": 0.25,
+            "cost_usd_total": 0.75,
+        }
+
+        gql_response = await gql_client.execute(
+            query="""
+                query ($id: ID!) {
+                    node(id: $id) {
+                        ... on Project {
+                            tokenCountPrompt
+                            tokenCountCompletion
+                            tokenCountTotal
+                            costSummary {
+                                prompt { cost }
+                                completion { cost }
+                                total { cost }
+                            }
+                        }
+                    }
+                }
+            """,
+            variables={"id": str(GlobalID(Project.__name__, str(project.id)))},
+        )
+        assert not gql_response.errors
+        assert gql_response.data is not None
+        node = gql_response.data["node"]
+        assert data == {
+            "token_count_prompt": node["tokenCountPrompt"],
+            "token_count_completion": node["tokenCountCompletion"],
+            "token_count_total": node["tokenCountTotal"],
+            "cost_usd_prompt": node["costSummary"]["prompt"]["cost"],
+            "cost_usd_completion": node["costSummary"]["completion"]["cost"],
+            "cost_usd_total": node["costSummary"]["total"]["cost"],
+        }
+
+    async def test_time_range_filters_on_start_time(
+        self,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
             model = await self._add_model(session)
             project = await _add_project(session)
             for day in (1, 2, 3):
-                await self._add_trace_with_cost(
-                    session,
-                    project,
-                    model,
-                    datetime(2024, 1, day, tzinfo=timezone.utc),
-                    (day, float(day)),
-                    (0, 0.0),
-                )
+                start_time = datetime(2024, 1, day, tzinfo=timezone.utc)
+                trace = await _add_trace(session, project, start_time=start_time)
+                await self._add_llm_span(session, trace, (day, 0), model, (float(day), 0.0))
         # The interval includes start_time and excludes end_time, so only Jan 2 is counted.
         response = await httpx_client.get(
             f"v1/projects/{project.name}/cost_summary",
             params={"start_time": "2024-01-02T00:00:00Z", "end_time": "2024-01-03T00:00:00Z"},
         )
         assert response.status_code == 200, response.text
-        assert response.json()["data"]["total"] == {"tokens": 2, "cost": 2.0}
+        data = response.json()["data"]
+        assert (data["token_count_total"], data["cost_usd_total"]) == (2, 2.0)
 
         response = await httpx_client.get(
             f"v1/projects/{project.name}/cost_summary",
             params={"start_time": "2024-01-02T00:00:00Z"},
         )
         assert response.status_code == 200, response.text
-        assert response.json()["data"]["total"] == {"tokens": 5, "cost": 5.0}
+        data = response.json()["data"]
+        assert (data["token_count_total"], data["cost_usd_total"]) == (5, 5.0)
 
-    async def test_project_without_costs_returns_zeros(
+    async def test_project_without_spans_returns_zeros(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
             project = await _add_project(session)
         response = await httpx_client.get(f"v1/projects/{project.name}/cost_summary")
         assert response.status_code == 200, response.text
-        zero = {"tokens": 0, "cost": 0}
-        assert response.json()["data"] == {"prompt": zero, "completion": zero, "total": zero}
+        assert response.json()["data"] == {
+            "token_count_prompt": 0,
+            "token_count_completion": 0,
+            "token_count_total": 0,
+            "cost_usd_prompt": 0,
+            "cost_usd_completion": 0,
+            "cost_usd_total": 0,
+        }
 
     async def test_unknown_project_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.get(f"v1/projects/{token_hex(8)}/cost_summary")
         assert response.status_code == 404

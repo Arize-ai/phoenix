@@ -118,11 +118,6 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CostBreakdown(TypedDict):
-    tokens: float
-    cost: float
-
-
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -514,9 +509,12 @@ class Project(TypedDict):
 
 
 class ProjectCostSummary(TypedDict):
-    prompt: CostBreakdown
-    completion: CostBreakdown
-    total: CostBreakdown
+    token_count_prompt: int
+    token_count_completion: int
+    token_count_total: int
+    cost_usd_prompt: float
+    cost_usd_completion: float
+    cost_usd_total: float
 
 
 class ProjectRetentionPolicyData(TypedDict):
