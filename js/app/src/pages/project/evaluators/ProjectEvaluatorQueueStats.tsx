@@ -5,27 +5,17 @@ import {
   Suspense,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
-import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group } from "react-resizable-panels";
 
-import {
-  Flex,
-  RichTooltip,
-  Text,
-  TooltipArrow,
-  TooltipTrigger,
-  View,
-} from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
-import type { BadgeVariant } from "@phoenix/components/core/badge";
-import { Badge } from "@phoenix/components/core/badge";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import type {
-  EvaluationQueueStatus,
   ProjectEvaluatorQueueStatsQuery,
   ProjectEvaluatorQueueStatsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorQueueStatsQuery.graphql";
@@ -33,9 +23,22 @@ import {
   EvaluationQueueMeter,
   EvaluationQueueSwatch,
 } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
-import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  DEGRADED_WAIT_MS,
+  formatPerHour,
+  getQueueLabel,
+  getQueueStatusDetail,
+  hasWaitedTooLong,
+  HoverDetail,
+  QUEUE_METER_COLOR_BY_TARGET,
+  QueueStatusBadge,
+  StatValue,
+} from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import {
+  formatElapsedShort,
+  formatLag,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -63,44 +66,6 @@ type QueueRates = Pick<
   EvaluationQueue,
   "queuedPerMinute" | "evaluationsPerMinute"
 >;
-
-const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
-  SPAN: "Spans",
-  TRACE: "Traces",
-  SESSION: "Sessions",
-};
-
-function getQueueLabel(target: { evaluationTarget: string }): string {
-  return (
-    QUEUE_LABEL_BY_TARGET[target.evaluationTarget] ?? target.evaluationTarget
-  );
-}
-
-const QUEUE_STATUS_BADGE: Record<
-  EvaluationQueueStatus,
-  { label: string; variant: BadgeVariant }
-> = {
-  HEALTHY: { label: "Healthy", variant: "success" },
-  DEGRADED: { label: "Degraded", variant: "warning" },
-};
-
-function getQueueStatusDetail(queue: EvaluationQueue): string | null {
-  switch (queue.status) {
-    case "HEALTHY":
-      return null;
-    case "DEGRADED":
-      return queue.atCapacity
-        ? "Queue is full; new evaluations wait to be queued"
-        : "Evaluations are waiting more than 10 minutes";
-    default:
-      return assertUnreachable(queue.status);
-  }
-}
-
-/** A per-minute rate as a whole number per hour. */
-function formatPerHour(perMinute: number): string {
-  return intFormatter(Math.round(perMinute * 60));
-}
 
 /**
  * The evaluators table's aside: this project's share of the server's
@@ -168,9 +133,19 @@ function ProjectEvaluatorQueueStatsContent({
     );
     return () => clearInterval(interval);
   }, []);
+  // Recomputed only on a poll or refresh, so the query's variables stay put
+  // between them.
+  const lagTimeRange = useMemo(
+    () => getLastHourTimeRange(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pollKey, refreshKey]
+  );
   const data = useLazyLoadQuery<ProjectEvaluatorQueueStatsQuery>(
     graphql`
-      query ProjectEvaluatorQueueStatsQuery($projectId: ID!) {
+      query ProjectEvaluatorQueueStatsQuery(
+        $projectId: ID!
+        $lagTimeRange: TimeRange!
+      ) {
         evaluationQueue {
           status
           atCapacity
@@ -199,6 +174,11 @@ function ProjectEvaluatorQueueStatsContent({
         }
         project: node(id: $projectId) {
           ... on Project {
+            evaluationActivity(timeRange: $lagTimeRange) {
+              lag {
+                p95Seconds
+              }
+            }
             evaluationQueue {
               queuedCount
               runningCount
@@ -230,7 +210,7 @@ function ProjectEvaluatorQueueStatsContent({
         }
       }
     `,
-    { projectId },
+    { projectId, lagTimeRange },
     { fetchKey: `${refreshKey}:${pollKey}`, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
@@ -268,7 +248,10 @@ function ProjectEvaluatorQueueStatsContent({
           description="This project's evaluations evaluated or failed in the last hour"
         />
       </Flex>
-      <QueueWaitStat
+      <QueueLagStat
+        lagP95Seconds={
+          data.project?.evaluationActivity?.lag?.p95Seconds ?? null
+        }
         projectOldestQueuedAt={projectQueue?.oldestQueuedAt ?? null}
       />
     </>
@@ -293,7 +276,7 @@ function QueueStatsPlaceholder() {
           <StatValue>--</StatValue>
         </StatItem>
       </Flex>
-      <StatItem label="Waiting">
+      <StatItem label="Lag p95">
         <StatValue>--</StatValue>
       </StatItem>
     </>
@@ -301,7 +284,6 @@ function QueueStatsPlaceholder() {
 }
 
 function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
-  const badge = QUEUE_STATUS_BADGE[queue.status];
   const detail = getQueueStatusDetail(queue);
   return (
     <StatItem label="Status">
@@ -319,20 +301,11 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           </>
         }
       >
-        <div css={badgeRowCSS}>
-          <Badge variant={badge.variant}>{badge.label}</Badge>
-        </div>
+        <QueueStatusBadge status={queue.status} />
       </HoverDetail>
     </StatItem>
   );
 }
-
-/** Each kind of evaluation's color in the queue meter and its legend. */
-const QUEUE_METER_COLOR_BY_TARGET = {
-  SPAN: "category1",
-  TRACE: "category2",
-  SESSION: "category3",
-} as const;
 
 /** Other projects' share of the queue, one neutral section of the meter. */
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
@@ -474,45 +447,50 @@ function QueueRateStat({
   );
 }
 
-/** How long an evaluation may wait before its queue counts as Degraded. */
-const DEGRADED_WAIT_MS = 10 * 60_000;
-
-function hasWaitedTooLong(since: string): boolean {
-  return Date.now() - new Date(since).getTime() > DEGRADED_WAIT_MS;
+/** The last hour, as of now. */
+function getLastHourTimeRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end.getTime() - 60 * 60_000);
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
-function QueueWaitStat({
+/**
+ * How stale this project's results are: p95 time from queued to result over
+ * the last hour. The longest wait now goes in the hover, since a stuck queue
+ * completes nothing and so has no lag.
+ */
+function QueueLagStat({
+  lagP95Seconds,
   projectOldestQueuedAt,
 }: {
+  lagP95Seconds: number | null;
   projectOldestQueuedAt: string | null;
 }) {
   const isWaitingTooLong =
     projectOldestQueuedAt != null && hasWaitedTooLong(projectOldestQueuedAt);
+  const isLagging =
+    lagP95Seconds != null && lagP95Seconds * 1000 > DEGRADED_WAIT_MS;
   return (
-    <StatItem label="Waiting">
+    <StatItem label="Lag p95">
       <HoverDetail
         detail={
-          <Text size="S" color="text-700">
-            {"Longest wait, not counting retries"}
-          </Text>
+          <>
+            <Text size="S" color="text-700">
+              Queued to result, last hour
+            </Text>
+            <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
+              {`Longest wait now: ${projectOldestQueuedAt != null ? formatElapsedShort(projectOldestQueuedAt) : "none"}`}
+            </Text>
+          </>
         }
       >
-        <StatValue color={isWaitingTooLong ? "warning" : null}>
-          {projectOldestQueuedAt != null
-            ? formatElapsedShort(projectOldestQueuedAt)
-            : "--"}
+        <StatValue color={isLagging || isWaitingTooLong ? "warning" : null}>
+          {lagP95Seconds != null ? formatLag(lagP95Seconds) : "--"}
         </StatValue>
       </HoverDetail>
     </StatItem>
   );
 }
-
-/** The badge sits on the same line height as the mono values beside it. */
-const badgeRowCSS = css`
-  display: flex;
-  align-items: center;
-  min-height: var(--global-line-height-l);
-`;
 
 const legendCSS = css`
   display: flex;
@@ -535,44 +513,3 @@ const legendCSS = css`
     margin: 0;
   }
 `;
-
-function StatValue({
-  color = null,
-  children,
-}: {
-  color?: "warning" | null;
-  children: ReactNode;
-}) {
-  return (
-    <Text size="L" fontFamily="mono" color={color ?? undefined}>
-      {children}
-    </Text>
-  );
-}
-
-function HoverDetail({
-  detail,
-  children,
-}: {
-  /** Shown on hover; null for a value that needs no explanation. */
-  detail: ReactNode;
-  children: ReactNode;
-}) {
-  if (detail == null) {
-    return children;
-  }
-  return (
-    <TooltipTrigger delay={0}>
-      <Focusable>
-        <span role="button">{children}</span>
-      </Focusable>
-      {/* Sized to its lines, so a queue's line never wraps. */}
-      <RichTooltip placement="bottom start" width="max-content">
-        <TooltipArrow />
-        <Flex direction="column" gap="size-50">
-          {detail}
-        </Flex>
-      </RichTooltip>
-    </TooltipTrigger>
-  );
-}

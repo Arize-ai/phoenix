@@ -369,6 +369,25 @@ export function formatDurationShort(milliseconds: number): string {
   return "<1m";
 }
 
+/** A lag in its two largest units: "42s", "3m 50s", "2h 35m", "1d 4h". */
+export function formatLag(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  const secs = total % 60;
+  if (days > 0) {
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  if (minutes > 0) {
+    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+  }
+  return `${secs}s`;
+}
+
 /** Time elapsed since `since`, in its largest whole unit. */
 export function formatElapsedShort(
   since: string,
