@@ -191,7 +191,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: integration-docs-shard-${{ matrix.shard }}
+          name: integration-docs-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/shard-${{ matrix.shard }}/integration-docs.*
           if-no-files-found: warn
       - name: Stop Phoenix
@@ -222,7 +222,7 @@ jobs:
       - name: Download shard reports
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          pattern: integration-docs-shard-*
+          pattern: integration-docs-shard-*-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/shards
           merge-multiple: false
       - name: Build aggregate report
@@ -260,6 +260,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: integration-docs-report
+          name: integration-docs-report-attempt-${{ github.run_attempt }}
           path: ci-results/integration-docs/integration-docs.*
           if-no-files-found: warn
