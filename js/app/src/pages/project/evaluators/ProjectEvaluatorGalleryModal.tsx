@@ -41,6 +41,7 @@ import {
   TypeScriptBlockWithCopy,
 } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { DecisionEvaluatorSummary } from "@phoenix/components/evaluators/decision/DecisionEvaluatorSummary";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
@@ -61,6 +62,7 @@ import {
   resolveGallerySelection,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorGallerySelection";
 import {
+  getEvaluatorInputSummaries,
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
@@ -231,8 +233,17 @@ function getSectionHeadingId(section: GallerySection): string {
   return `project-evaluator-gallery-section-${section.toLowerCase()}`;
 }
 
-const getCustomEvaluatorKind = (evaluator: CustomEvaluator) =>
-  evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE";
+type CustomEvaluatorKind = "LLM" | "CODE" | "DECISION";
+
+const CUSTOM_EVALUATOR_KINDS = {
+  LLMEvaluator: "LLM",
+  CodeEvaluator: "CODE",
+  DecisionEvaluator: "DECISION",
+} satisfies Record<CustomEvaluator["__typename"], CustomEvaluatorKind>;
+
+const getCustomEvaluatorKind = (
+  evaluator: Pick<CustomEvaluator, "__typename">
+): CustomEvaluatorKind => CUSTOM_EVALUATOR_KINDS[evaluator.__typename];
 
 function getGalleryItemSection(item: GalleryItem): GallerySection {
   return item.kind === "custom"
@@ -311,10 +322,8 @@ function EvaluatorGallery({
     () =>
       data.evaluators.edges
         .map(({ evaluator }) => evaluator)
-        .filter(
-          (evaluator): evaluator is CustomEvaluator =>
-            evaluator.__typename === "LLMEvaluator" ||
-            evaluator.__typename === "CodeEvaluator"
+        .filter((evaluator): evaluator is CustomEvaluator =>
+          Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename)
         ),
     [data.evaluators.edges]
   );
@@ -767,7 +776,7 @@ function EvaluatorGallery({
             <Suspense fallback={<EvaluatorDetailsSkeleton />}>
               <CustomEvaluatorDetails
                 evaluator={selectedItem.evaluator}
-                onAttachCodeEvaluator={() =>
+                onAttachEvaluator={() =>
                   navigate(creationPaths.attach(selectedItem.evaluator.id))
                 }
                 onDuplicateEvaluator={() =>
@@ -817,19 +826,25 @@ const CODE_LANGUAGE_LABELS = {
   TYPESCRIPT: "TypeScript",
 } satisfies Record<CodeProjectEvaluatorDetails["language"], string>;
 
+const EVALUATOR_KIND_LABELS = {
+  LLM: "LLM",
+  CODE: "Code",
+  DECISION: "Decision",
+} satisfies Record<CustomEvaluatorKind, string>;
+
 function EvaluatorTypeSummary({
   evaluatorKind,
   language,
   evaluationTargets,
 }: {
-  evaluatorKind: "CODE" | "LLM";
+  evaluatorKind: CustomEvaluatorKind;
   language?: CodeProjectEvaluatorDetails["language"];
   evaluationTargets?: readonly [
     ProjectEvaluatorTarget,
     ...ProjectEvaluatorTarget[],
   ];
 }) {
-  const kindLabel = evaluatorKind === "LLM" ? "LLM" : "Code";
+  const kindLabel = EVALUATOR_KIND_LABELS[evaluatorKind];
   const languageLabel = language ? CODE_LANGUAGE_LABELS[language] : undefined;
   const targetsLabel = evaluationTargets
     ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
@@ -851,11 +866,11 @@ function EvaluatorTypeSummary({
 
 function CustomEvaluatorDetails({
   evaluator: evaluatorSummary,
-  onAttachCodeEvaluator,
+  onAttachEvaluator,
   onDuplicateEvaluator,
 }: {
   evaluator: CustomEvaluator;
-  onAttachCodeEvaluator: () => void;
+  onAttachEvaluator: () => void;
   onDuplicateEvaluator: () => void;
 }) {
   const data = useLazyLoadQuery<ProjectEvaluatorDetailsQueryType>(
@@ -863,6 +878,15 @@ function CustomEvaluatorDetails({
     { id: evaluatorSummary.id },
     { fetchPolicy: "store-and-network" }
   );
+  if (data.evaluator.__typename === "DecisionEvaluator") {
+    return (
+      <DecisionCustomEvaluatorDetails
+        evaluator={evaluatorSummary}
+        details={data.evaluator}
+        onAttachEvaluator={onAttachEvaluator}
+      />
+    );
+  }
   const evaluator = readProjectEvaluatorDetails(data.evaluator);
   if (!evaluator) {
     return <EvaluatorDetailsError />;
@@ -879,7 +903,7 @@ function CustomEvaluatorDetails({
     return (
       <CodeCustomEvaluatorDetails
         evaluator={evaluator}
-        onAttachCodeEvaluator={onAttachCodeEvaluator}
+        onAttachEvaluator={onAttachEvaluator}
         onDuplicateEvaluator={onDuplicateEvaluator}
       />
     );
@@ -890,7 +914,9 @@ function CustomEvaluatorDetails({
 function CustomEvaluatorDetailsHeader({
   evaluator,
 }: {
-  evaluator: LlmProjectEvaluatorDetails | CodeProjectEvaluatorDetails;
+  evaluator: Pick<CustomEvaluator, "__typename" | "name" | "description"> & {
+    readonly language?: CodeProjectEvaluatorDetails["language"];
+  };
 }) {
   return (
     <Flex direction="column" gap="size-50">
@@ -900,14 +926,8 @@ function CustomEvaluatorDetailsHeader({
           <Heading level={2}>{evaluator.name}</Heading>
         </Flex>
         <EvaluatorTypeSummary
-          evaluatorKind={
-            evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE"
-          }
-          language={
-            evaluator.__typename === "CodeEvaluator"
-              ? evaluator.language
-              : undefined
-          }
+          evaluatorKind={getCustomEvaluatorKind(evaluator)}
+          language={evaluator.language}
         />
       </Flex>
       {evaluator.description ? (
@@ -1100,11 +1120,11 @@ function LlmCustomEvaluatorDetails({
 
 function CodeCustomEvaluatorDetails({
   evaluator,
-  onAttachCodeEvaluator,
+  onAttachEvaluator,
   onDuplicateEvaluator,
 }: {
   evaluator: CodeProjectEvaluatorDetails;
-  onAttachCodeEvaluator: () => void;
+  onAttachEvaluator: () => void;
   onDuplicateEvaluator: () => void;
 }) {
   return (
@@ -1125,12 +1145,40 @@ function CodeCustomEvaluatorDetails({
         </div>
       </Flex>
       <EvaluatorDetailsAction
-        onPress={onAttachCodeEvaluator}
+        onPress={onAttachEvaluator}
         secondaryAction={{
           label: "Duplicate this evaluator",
           onPress: onDuplicateEvaluator,
         }}
       >
+        Use this evaluator
+      </EvaluatorDetailsAction>
+    </Flex>
+  );
+}
+
+function DecisionCustomEvaluatorDetails({
+  evaluator,
+  details,
+  onAttachEvaluator,
+}: {
+  evaluator: CustomEvaluator;
+  details: ProjectEvaluatorDetailsQueryType["response"]["evaluator"];
+  onAttachEvaluator: () => void;
+}) {
+  return (
+    <Flex direction="column" gap="size-300" minHeight="100%">
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <EvaluatorInputSummary
+        inputs={getEvaluatorInputSummaries(details.inputSchema)}
+      />
+      <Flex direction="column" gap="size-75">
+        <Text elementType="h3" size="S" weight="heavy">
+          Decision
+        </Text>
+        <DecisionEvaluatorSummary evaluator={details} />
+      </Flex>
+      <EvaluatorDetailsAction onPress={onAttachEvaluator}>
         Use this evaluator
       </EvaluatorDetailsAction>
     </Flex>

@@ -3,7 +3,7 @@ import type { Selection } from "react-aria-components";
 import type { ProjectEvaluatorTemplate } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 export type CustomEvaluator = {
-  readonly __typename: "LLMEvaluator" | "CodeEvaluator";
+  readonly __typename: "LLMEvaluator" | "CodeEvaluator" | "DecisionEvaluator";
   readonly id: string;
   readonly name: string;
   readonly description: string | null;

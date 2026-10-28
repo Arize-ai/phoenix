@@ -156,6 +156,7 @@ export const projectEvaluatorDetailsQueryNode = graphql`
       ...projectEvaluatorOptions_codeEvaluatorDetails
       ... on DecisionEvaluator {
         ...decisionEvaluatorFragment_evaluator @relay(mask: false)
+        ...DecisionEvaluatorSummary_evaluator
       }
     }
   }
