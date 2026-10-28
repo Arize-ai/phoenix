@@ -54,12 +54,12 @@ def read_pr(*, pr_number: int) -> dict[str, Any]:
     )
 
 
-def comment_on_pr(*, pr_number: int, body: str) -> None:
-    run_gh("pr", "comment", str(pr_number), "--body-file", "-", input_text=body)
+def comment_on_pr(*, pr_number: int, body: str, token: Optional[str]) -> None:
+    run_gh("pr", "comment", str(pr_number), "--body-file", "-", token=token, input_text=body)
 
 
-def remove_review_label(*, pr_number: int) -> None:
-    run_gh("pr", "edit", str(pr_number), "--remove-label", REVIEW_LABEL)
+def remove_review_label(*, pr_number: int, token: Optional[str]) -> None:
+    run_gh("pr", "edit", str(pr_number), "--remove-label", REVIEW_LABEL, token=token)
 
 
 def read_factory_login() -> str:
@@ -232,23 +232,25 @@ def run_start(*, args: argparse.Namespace) -> None:
     print(f"head_sha={pr['headRefOid']} admission_problem={admission_problem}")
     if args.dry_run:
         return
+    client = anthropic.Anthropic()
+    app_token = create_app_token(client=client, repo=args.repo)
     if admission_problem is not None:
         comment_on_pr(
             pr_number=args.pr,
             body=f"The factory skipped reviewing this pull request: {admission_problem}.",
+            token=app_token.refresh(),
         )
-        remove_review_label(pr_number=args.pr)
+        remove_review_label(pr_number=args.pr, token=app_token.refresh())
         write_github_outputs(started="false")
         return
 
     # Fail before starting a session that the watch step could not check.
     read_factory_login()
-    client = anthropic.Anthropic()
     session_id = start_session(
         client=client,
         repo=args.repo,
         pr=pr,
-        github_token=create_app_token(client=client, repo=args.repo).refresh(),
+        github_token=app_token.refresh(),
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
@@ -259,6 +261,7 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
+        token=app_token.refresh(),
     )
     write_github_outputs(started="true", session_id=session_id, head_sha=pr["headRefOid"])
 
@@ -270,6 +273,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         "see the workflow run."
     )
     client = anthropic.Anthropic()
+    app_token: Optional[GitHubAppToken] = None
     try:
         factory_login = read_factory_login()
         app_token = create_app_token(client=client, repo=args.repo)
@@ -284,8 +288,15 @@ def run_watch(*, args: argparse.Namespace) -> None:
             watch_minutes=args.watch_minutes,
         )
     finally:
-        comment_on_pr(pr_number=args.pr, body=report)
-        remove_review_label(pr_number=args.pr)
+        # The workflow's failure report skips a failed watch step, so when the app's
+        # credentials are what failed, report with GITHUB_TOKEN instead.
+        report_token: Optional[str] = None
+        try:
+            report_token = app_token.refresh() if app_token is not None else None
+        except Exception as error:
+            print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
+        comment_on_pr(pr_number=args.pr, body=report, token=report_token)
+        remove_review_label(pr_number=args.pr, token=report_token)
 
 
 def main() -> None:

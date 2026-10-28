@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
-      pull-requests: write # comment on the PR and remove the `factory-review` label
+      pull-requests: write # report a failed start; the app posts every other comment
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
@@ -79,7 +79,8 @@ jobs:
           HEAD_SHA: ${{ steps.start.outputs.head_sha }}
         run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --head-sha "$HEAD_SHA"
 
-      # The watch step reports its own failures.
+      # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
+      # the app's credentials are what failed.
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'
         run: |
