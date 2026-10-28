@@ -77,6 +77,20 @@ import {
 const DEGRADED_LAG_SECONDS = DEGRADED_WAIT_MS / 1000;
 
 /**
+ * At most two rows of evaluators, scrolling past that, so a project with many
+ * evaluators keeps room in the strip to draw them.
+ */
+const evaluatorLegendProps = {
+  ...compactLegendProps,
+  wrapperStyle: {
+    ...compactLegendProps.wrapperStyle,
+    maxHeight:
+      "calc(var(--global-dimension-size-50) + 2 * var(--global-line-height-xs) + var(--global-dimension-size-100))",
+    overflowY: "auto",
+  },
+} satisfies typeof compactLegendProps;
+
+/**
  * Every evaluator chart reads the same query, so the charts in a strip share
  * one request and one copy of the data.
  */
@@ -325,7 +339,7 @@ function EvaluatorTimeSeriesChart({
                 />
               )}
               <InteractiveLegend
-                {...compactLegendProps}
+                {...evaluatorLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType={shape}
                 iconSize={8}
