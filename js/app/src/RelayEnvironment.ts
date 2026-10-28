@@ -144,10 +144,10 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
         return undefined;
       }
       if (Array.isArray(data.errors)) {
+        // The variables stay out of the message: it is reported to the server
+        // log, and they carry whatever the user typed.
         return new Error(
-          `Error fetching GraphQL query '${params.name}' with variables '${JSON.stringify(
-            variables
-          )}': ${JSON.stringify(data.errors)}`
+          `Error fetching GraphQL query '${params.name}': ${JSON.stringify(data.errors)}`
         );
       }
       return undefined;

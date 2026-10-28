@@ -165,6 +165,7 @@ from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import (
+    graphql_tracing_extension,
     initialize_opentelemetry_logger_provider,
     initialize_opentelemetry_tracer_provider,
 )
@@ -1054,22 +1055,7 @@ def create_app(
 
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        from opentelemetry.trace import TracerProvider
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
-        if TYPE_CHECKING:
-            # Type-check the class before monkey-patching its private attribute.
-            assert OpenTelemetryExtension._tracer
-
-        class _OpenTelemetryExtension(OpenTelemetryExtension):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                super().__init__(*args, **kwargs)
-                # Monkey-patch its private tracer to eliminate usage of the global
-                # TracerProvider, which in a notebook setting could be the one
-                # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
-
-        graphql_schema_extensions.append(_OpenTelemetryExtension)
+        graphql_schema_extensions.append(graphql_tracing_extension(tracer_provider))
     logger_provider = None
     if server_log_export_is_enabled():
         logger_provider = initialize_opentelemetry_logger_provider()

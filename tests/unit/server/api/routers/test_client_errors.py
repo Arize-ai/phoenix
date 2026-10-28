@@ -9,7 +9,7 @@ import httpx2
 import pytest
 
 import phoenix.server.api.routers.client_errors as client_errors_module
-from phoenix.server.api.routers.client_errors import route_path
+from phoenix.server.api.routers.client_errors import route_path, strip_origins
 from phoenix.server.rate_limiters import TokenBucket
 
 REPORT: dict[str, Any] = {
@@ -64,6 +64,33 @@ class TestReportClientError:
             == f"Client error at /projects/UHJvamVjdDox/spans: {REPORT['message']}"
         )
         assert getattr(record, "error.url") == "/projects/UHJvamVjdDox/spans"
+
+    async def test_stack_and_message_urls_are_logged_without_their_origin(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        report = {
+            **REPORT,
+            "message": "Failed to fetch https://phoenix.example.com/graphql",
+            "stack": (
+                "TypeError: Failed to fetch\n"
+                "    at fetchJson (https://phoenix.example.com/assets/index-Bx1.js:12:3456)\n"
+                "    at https://phoenix.example.com/assets/vendor-9f.js:1:2"
+            ),
+        }
+        with caplog.at_level(logging.ERROR, logger="phoenix.client_errors"):
+            response = await httpx_client.post("client_errors", json=report)
+        assert response.status_code == 204, response.text
+
+        (record,) = _error_records(caplog)
+        assert record.getMessage() == f"Client error at {REPORT['url']}: Failed to fetch /graphql"
+        assert getattr(record, "error.message") == "Failed to fetch /graphql"
+        assert getattr(record, "error.stack") == (
+            "TypeError: Failed to fetch\n"
+            "    at fetchJson (/assets/index-Bx1.js:12:3456)\n"
+            "    at /assets/vendor-9f.js:1:2"
+        )
 
     async def test_message_alone_is_enough(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.post("client_errors", json={"message": "boom"})
@@ -132,3 +159,52 @@ class TestReportClientError:
 )
 def test_route_path(url: str | None, root_path: str, expected: str | None) -> None:
     assert route_path(url, root_path=root_path) == expected
+
+
+@pytest.mark.parametrize(
+    "text,root_path,expected",
+    [
+        pytest.param(None, "", None, id="absent"),
+        pytest.param(
+            "at SpanDetails (index.js:1:2)", "", "at SpanDetails (index.js:1:2)", id="no-url"
+        ),
+        pytest.param(
+            "at f (https://phoenix.example.com/assets/a.js:1:2)",
+            "",
+            "at f (/assets/a.js:1:2)",
+            id="chrome-frame",
+        ),
+        pytest.param(
+            "f@https://phoenix.example.com:6006/assets/a.js:1:2",
+            "",
+            "f@/assets/a.js:1:2",
+            id="firefox-frame-with-port",
+        ),
+        pytest.param(
+            "at f (https://phoenix.example.com/s/acme/assets/a.js:1:2)",
+            "/s/acme",
+            "at f (/assets/a.js:1:2)",
+            id="root-path-dropped",
+        ),
+        pytest.param(
+            "Failed to fetch https://phoenix.example.com/s/acme",
+            "/s/acme",
+            "Failed to fetch ",
+            id="root-path-alone",
+        ),
+        pytest.param(
+            "Failed to fetch https://phoenix.example.com/s/acme-corp/graphql",
+            "/s/acme",
+            "Failed to fetch /s/acme-corp/graphql",
+            id="prefix-only",
+        ),
+        pytest.param(
+            "at a (http://localhost:6006/x.js:1:1)\n    at b (http://localhost:6006/y.js:2:2)",
+            "",
+            "at a (/x.js:1:1)\n    at b (/y.js:2:2)",
+            id="every-frame",
+        ),
+    ],
+)
+def test_strip_origins(text: str | None, root_path: str, expected: str | None) -> None:
+    assert strip_origins(text, root_path=root_path) == expected

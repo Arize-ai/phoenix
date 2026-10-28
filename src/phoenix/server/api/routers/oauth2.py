@@ -307,8 +307,8 @@ async def create_tokens(
                 role_name=role_name,
                 role_resync=oauth2_client.role_resync,
             )
-    except EmailAlreadyInUse as e:
-        logger.error("Email already in use for IDP %s: %s", idp_name, e)
+    except EmailAlreadyInUse:
+        logger.error("Email already in use for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="email_in_use")
     except SignInNotAllowed as e:
         logger.error("Sign in not allowed for IDP %s: %s", idp_name, e)
@@ -758,7 +758,7 @@ async def _create_or_update_user(
             try:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise EmailAlreadyInUse(f"An account for {user_info.email} is already in use.")
+                raise EmailAlreadyInUse()
     return user
 
 
@@ -819,7 +819,7 @@ async def _create_user(
         username=username,
     )
     if email_exists:
-        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
+        raise EmailAlreadyInUse()
     role_id = select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
     user_id = await session.scalar(
         insert(models.User)
@@ -873,7 +873,7 @@ async def _email_and_username_exist(
 
 
 class EmailAlreadyInUse(Exception):
-    pass
+    """Raised without the address, so that logging the error cannot record it."""
 
 
 class SignInNotAllowed(Exception):
