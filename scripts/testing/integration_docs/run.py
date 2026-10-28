@@ -29,6 +29,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
+SKIP_CONFIG_PATH = REPO_ROOT / ".agents/skills/test-integration/scripts/skip_config.json"
 DEFAULT_ENDPOINT = "http://127.0.0.1:6006"
 FENCE = re.compile(r"^```(?P<language>[\w+-]+)[^\n]*\n(?P<body>[\s\S]*?)^```", re.MULTILINE)
 IMPORT = re.compile(
@@ -140,6 +141,20 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
         except (KeyError, TypeError, ValueError) as exc:
             raise HarnessError(f"Invalid integration config entry {raw!r}: {exc}") from exc
     return specs
+
+
+def skip_route(spec: IntegrationSpec) -> tuple[str, dict[str, Any]] | None:
+    """Look up optional AX-style routing for a configured document."""
+    try:
+        config = json.loads(SKIP_CONFIG_PATH.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HarnessError(f"Could not read skip configuration: {exc}") from exc
+    document = spec.document.relative_to(REPO_ROOT).as_posix()
+    for category in ("always_skip", "lint_only", "skip_if_missing_env"):
+        for entry in config.get(category, []):
+            if entry.get("doc") == document:
+                return category, entry
+    return None
 
 
 def section_body(document_text: str, heading: str) -> str:
@@ -366,6 +381,7 @@ def run_example(
     program: dict[str, str],
     endpoint: str,
     project: str,
+    lint_only: bool = False,
 ) -> str:
     with tempfile.TemporaryDirectory(prefix=f"phoenix-doc-{spec.id}-") as temp_dir:
         temp = Path(temp_dir)
@@ -389,7 +405,11 @@ def run_example(
             )
             sample = temp / "example.py"
             sample.write_text(program[sample.name])
-            command = [str(python_executable(venv)), str(sample)]
+            command = (
+                [str(python_executable(venv)), "-m", "py_compile", str(sample)]
+                if lint_only
+                else [str(python_executable(venv)), str(sample)]
+            )
         elif spec.language == "javascript":
             (temp / "package.json").write_text('{"private":true,"type":"module"}\n')
             for filename, source in program.items():
@@ -404,6 +424,10 @@ def run_example(
                 env=env,
                 timeout=600,
             )
+            if lint_only:
+                for filename in program:
+                    subprocess.run(["node", "--check", filename], check=True, cwd=temp, env=env)
+                return ""
             command = ["node", "example.js"]
         else:
             (temp / "main.go").write_text(program["main.go"])
@@ -418,7 +442,7 @@ def run_example(
                 env=env,
                 timeout=600,
             )
-            command = ["go", "run", "."]
+            command = ["go", "vet", "./..."] if lint_only else ["go", "run", "."]
         completed = subprocess.run(
             command,
             check=True,
@@ -456,6 +480,14 @@ def run_one(spec: IntegrationSpec, endpoint: str) -> dict[str, Any]:
         "project": project,
         "status": "fail",
     }
+    route = skip_route(spec)
+    if route and route[0] == "always_skip":
+        result.update(
+            status="skipped",
+            reason=route[1].get("reason", "Configured to skip"),
+            ended_at=datetime.now(timezone.utc).isoformat(),
+        )
+        return result
     try:
         packages, program = extract_example(spec, project)
         result["packages"] = packages
@@ -464,18 +496,35 @@ def run_one(spec: IntegrationSpec, endpoint: str) -> dict[str, Any]:
         result["ended_at"] = datetime.now(timezone.utc).isoformat()
         return result
 
-    missing = [name for name in spec.required_env if not os.environ.get(name)]
+    lint_only = bool(route and route[0] == "lint_only")
+    env_requirements = list(spec.required_env)
+    if route and route[0] == "skip_if_missing_env":
+        env_requirements.extend(route[1].get("env_vars", []))
+    env_requirements = list(dict.fromkeys(env_requirements))
+    missing = [] if lint_only else [name for name in env_requirements if not os.environ.get(name)]
     if missing:
         result.update(
             status="skipped",
-            reason=f"Missing required environment variable(s): {', '.join(missing)}",
+            reason=(
+                route[1].get("reason", "Required credentials are not configured")
+                if route and route[0] == "skip_if_missing_env"
+                else f"Missing required environment variable(s): {', '.join(missing)}"
+            ),
             ended_at=datetime.now(timezone.utc).isoformat(),
         )
         return result
 
     try:
-        check_health(endpoint)
-        stdout = run_example(spec, packages, program, endpoint, project)
+        if not lint_only:
+            check_health(endpoint)
+        stdout = run_example(spec, packages, program, endpoint, project, lint_only=lint_only)
+        if lint_only:
+            result.update(
+                status="skipped",
+                reason=route[1].get("reason", "Lint-only: end-to-end execution is skipped"),
+                ended_at=datetime.now(timezone.utc).isoformat(),
+            )
+            return result
         result["stdout"] = stdout.strip()
         validate_output(spec, stdout)
         span = verify_phoenix_spans(

@@ -14,6 +14,15 @@ do not trigger a full integration run.
 | Enabled | Ollama Node.js | `docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
 | Enabled | Ollama Go | `docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx` | OpenAI SDK via Ollama's OpenAI-compatible API; CI pulls `llama3.2:1b`. |
 
+| Lint-only | Amazon Bedrock Python | `docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx` | Installs dependencies and syntax-checks; CI credentials cannot reliably access Bedrock. |
+| Lint-only | Strands Agents Python | `docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx` | Installs dependencies and syntax-checks; uses Bedrock credentials unavailable to CI. |
+| Lint-only | Cohere Python | `docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx` | Installs dependencies and syntax-checks; no Cohere key is configured for CI. |
+| Lint-only | Together AI Python | `docs/phoenix/integrations/llm-providers/together/together-tracing.mdx` | Installs dependencies and syntax-checks; no stable provider credits are available for CI. |
+| Lint-only | OpenRouter Python | `docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx` | Installs dependencies and syntax-checks; no stable provider credits are available for CI. |
+| Lint-only | OrcaRouter Python | `docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx` | Installs dependencies and syntax-checks; no OrcaRouter API key is configured for CI. |
+
+| Skipped | Guardrails AI Python | `docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx` | AX quarantine: legacy framework and instrumentor need a coordinated rewrite for the replacement SDK. |
+
 Add integrations one at a time after the runner supports their language and
 example shape, credentials are declared, and the verifier checks the behavior
 the page promises. Do not add an integration here as a substitute for enabling
