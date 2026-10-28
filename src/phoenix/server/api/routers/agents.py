@@ -3702,7 +3702,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         session_id,
                         type(exc).__name__,
                     )
-
                     yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
                 except (asyncio.CancelledError, GeneratorExit) as exc:
                     # A client disconnect (e.g., the UI stop button, a CLI interrupt,
