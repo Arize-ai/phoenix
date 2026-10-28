@@ -291,7 +291,9 @@ function QueueSizeChart({
             y={queuedLimit}
             stroke="var(--global-color-gray-500)"
             strokeDasharray="4 4"
-            ifOverflow="extendDomain"
+            // Shown once the queue's own scale reaches the limit; extending the
+            // axis to it would flatten a normal queue against the baseline.
+            ifOverflow="discard"
             label={{
               value: `Limit ${floatShortFormatter(queuedLimit)}`,
               position: "insideTopLeft",
