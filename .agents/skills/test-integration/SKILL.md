@@ -67,8 +67,7 @@ declared model. Ollama checks do not require a provider API key.
 The skip configuration supports AX-style `always_skip`, `lint_only`, and
 `skip_if_missing_env` routes. A lint-only document is extracted, its documented
 dependencies are installed, and its Python example is bytecode-compiled,
-JavaScript is syntax-checked, TypeScript is compiled with `tsc`, or Go is
-compiled with `go vet`, without contacting the model provider. Conditional
+JavaScript is syntax-checked, TypeScript is compiled with `tsc`, Go is compiled with `go vet`, or .NET is compiled with `dotnet build`, without contacting the model provider. Conditional
 documents run normally when their configured environment variables are set;
 otherwise the report records the configured skip reason.
 4. Run the document locally against Phoenix and inspect both the generated

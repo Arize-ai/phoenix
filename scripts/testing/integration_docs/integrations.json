@@ -798,6 +798,26 @@
       "python_version": "3.11"
     },
     {
+      "id": "microsoft-agent-framework-dotnet",
+      "document": "docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
+      "language": "dotnet",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Microsoft Agent Framework",
+      "required_env": ["OPENAI_API_KEY"],
+      "setup": {"source": "section_code", "language": "dotnet", "filename": "Program.cs"},
+      "additional_sections": [
+        {"section": "Add a tool", "filename": "WeatherTools.cs", "language": "dotnet"}
+      ],
+      "output": {"require_non_empty": true},
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": ["llm.model_name"],
+        "non_empty_attributes": ["llm.model_name"]
+      }
+    },
+    {
       "id": "smolagents-python",
       "document": "docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx",
       "language": "python",
