@@ -50,7 +50,6 @@ jobs:
       - name: Install the Anthropic SDK and PyJWT
         run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
 
-      # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
         run: |
           git fetch --quiet --depth=1 origin factory-state
@@ -60,8 +59,6 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
           HOURS: ${{ inputs.hours || '24' }}
-          # Set the FACTORY_CLOUD_LOG_SCAN_DISPATCH repository variable to 'false' to pause
-          # dispatch from the schedule; a manual run follows its own input.
           DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_CLOUD_LOG_SCAN_DISPATCH != 'false' || inputs.dispatch == true }}
           DRY_RUN: ${{ inputs.dry_run == true }}
         run: |
