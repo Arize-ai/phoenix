@@ -1,10 +1,11 @@
 # Integration documentation harness
 
-This harness extracts runnable examples from published Phoenix integration
-docs, runs them in isolated environments, and verifies their observable
-results against a Phoenix server. `integrations.json` is the allowlist. It
-currently enables the OpenAI Python, Node.js, and Go SDK pages; other
-integration pages are not discovered or reported as passing.
+This harness extracts examples from published Phoenix integration docs and
+runs them in isolated environments. End-to-end entries verify their spans in
+Phoenix; `lint_only` entries install the documented dependencies and compile
+or syntax-check the examples without contacting a provider. `integrations.json`
+is the allowlist. Other integration pages are not discovered or reported as
+passing.
 
 ## Run it
 
@@ -28,7 +29,9 @@ concurrent runs cannot satisfy one another's span check.
 
 The runner parses the page before checking credentials. If a required
 provider key is missing, it records `skipped`; parsing and harness errors
-still fail. Reports are written to `ci-results/integration-docs/` as JSON
+still fail. Lint-only checks install the page's packages, then use Python
+bytecode compilation, TypeScript's compiler, Node syntax checks, or `go vet`
+as appropriate. Reports are written to `ci-results/integration-docs/` as JSON
 and Markdown. `--list` shows the enabled pages, and `--doc <path>` selects a
 single enabled page.
 
@@ -51,7 +54,7 @@ the component's project name should be replaced with the run's unique project
 name. The verifier polls Phoenix's versioned spans endpoint and checks the
 configured span kind and required attributes.
 
-The GitHub workflow triggers for each enabled OpenAI SDK page, the shared
-Python tracer component, and harness changes. Expand those path filters and
-add more allowlisted pages when their code and verification shapes are
-supported.
+The GitHub workflow classifies changes against the configured documents and
+their shared snippets. Changes to the runner, routing config, workflow, skill
+scripts, or Makefile run the full enabled set; the weekly schedule also runs
+all enabled documents.

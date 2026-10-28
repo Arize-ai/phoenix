@@ -38,7 +38,10 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Baseten",
-      "required_env": ["BASETEN_API_KEY", "BASETEN_MODEL"],
+      "required_env": [
+        "BASETEN_API_KEY",
+        "BASETEN_MODEL"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -46,12 +49,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -60,7 +69,10 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Cerebras",
-      "required_env": ["CEREBRAS_API_KEY", "CEREBRAS_MODEL"],
+      "required_env": [
+        "CEREBRAS_API_KEY",
+        "CEREBRAS_MODEL"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -68,12 +80,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -82,7 +100,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run DeepSeek",
-      "required_env": ["DEEPSEEK_API_KEY"],
+      "required_env": [
+        "DEEPSEEK_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -90,12 +110,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -104,7 +130,10 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Fireworks AI",
-      "required_env": ["FIREWORKS_API_KEY", "FIREWORKS_MODEL"],
+      "required_env": [
+        "FIREWORKS_API_KEY",
+        "FIREWORKS_MODEL"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -112,12 +141,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -126,7 +161,10 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Novita AI",
-      "required_env": ["NOVITA_API_KEY", "NOVITA_MODEL"],
+      "required_env": [
+        "NOVITA_API_KEY",
+        "NOVITA_MODEL"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -134,12 +172,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -148,7 +192,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run xAI Grok",
-      "required_env": ["XAI_API_KEY"],
+      "required_env": [
+        "XAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -156,12 +202,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -170,7 +222,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run Z.ai",
-      "required_env": ["ZAI_API_KEY"],
+      "required_env": [
+        "ZAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -178,12 +232,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -543,19 +603,27 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Guardrails",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -564,7 +632,9 @@
       "language": "python",
       "install_section": "Install",
       "run_section": "Run LangChain",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
@@ -572,12 +642,18 @@
         "project_name_prop": "projectName",
         "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -587,14 +663,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Usage",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -604,18 +691,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Instructor",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -626,14 +721,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run LlamaIndex",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -644,18 +750,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run DSPy",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -666,18 +780,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Haystack",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -688,18 +810,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run LangGraph",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -710,18 +840,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Agno",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -732,14 +870,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Atomic Agents",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.12"
     },
@@ -750,18 +899,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run AutoGen AgentChat",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -772,18 +929,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Autogen",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -794,14 +959,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run LlamaIndex Workflows",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -812,14 +988,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run Microsoft Agent Framework",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python", "filename": "instrumentation.py"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "filename": "instrumentation.py"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -830,18 +1018,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Create & Run an Agent",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -852,18 +1048,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run BeeAI",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -874,18 +1078,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run CrewAI",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "AGENT",
-        "required_attributes": ["input.value"],
-        "non_empty_attributes": ["input.value"]
+        "required_attributes": [
+          "input.value"
+        ],
+        "non_empty_attributes": [
+          "input.value"
+        ]
       },
       "python_version": "3.11"
     },
@@ -896,18 +1108,26 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run LiteLLM",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -918,14 +1138,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Basic Usage",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "python"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -936,18 +1167,27 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Basic Usage with OpenAI",
-      "required_env": ["OPENAI_API_KEY", "PORTKEY_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY",
+        "PORTKEY_API_KEY"
+      ],
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       },
       "python_version": "3.11"
     },
@@ -958,15 +1198,28 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run BeeAI",
-      "required_env": ["OPENAI_API_KEY"],
-      "npm_install_flags": ["--legacy-peer-deps"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "npm_install_flags": [
+        "--legacy-peer-deps"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -976,14 +1229,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Create Agents and Tools",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -993,14 +1257,25 @@
       "install_section": "Installation",
       "setup_section": "Setup",
       "run_section": "Run Vercel AI SDK",
-      "required_env": ["OPENAI_API_KEY"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1010,19 +1285,27 @@
       "install_section": "Install AG2 Classic",
       "setup_section": "Setup AG2 Classic",
       "run_section": "Run AG2 Classic",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1032,19 +1315,27 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run OpenAI Agents",
-      "required_env": ["OPENAI_API_KEY"],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
       "python_version": "3.11",
       "setup": {
         "source": "referenced_components",
         "language": "python",
         "project_name_prop": "projectName"
       },
-      "output": {"require_non_empty": true},
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1054,14 +1345,25 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run LangChain.js",
-      "required_env": ["ANTHROPIC_API_KEY"],
-      "setup": {"source": "section_code", "language": "javascript"},
-      "output": {"require_non_empty": true},
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1071,18 +1373,33 @@
       "install_section": "Install",
       "setup_section": "Setup",
       "run_section": "Run MCP Client",
-      "required_env": ["OPENAI_API_KEY"],
-      "python_version": "3.11",
-      "setup": {"source": "section_code", "language": "python"},
-      "additional_sections": [
-        {"section": "MCP Server", "filename": "server.py", "language": "python"}
+      "required_env": [
+        "OPENAI_API_KEY"
       ],
-      "output": {"require_non_empty": true},
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "additional_sections": [
+        {
+          "section": "MCP Server",
+          "filename": "server.py",
+          "language": "python"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
       "verification": {
         "kind": "phoenix_spans",
         "span_kind": "LLM",
-        "required_attributes": ["llm.model_name"],
-        "non_empty_attributes": ["llm.model_name"]
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
       }
     },
     {
@@ -1093,12 +1410,23 @@
       "setup_section": "Setup",
       "run_section": "Run MCP Client",
       "required_env": [],
-      "setup": {"source": "section_code", "language": "javascript"},
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
       "additional_sections": [
-        {"section": "MCP Server", "filename": "server.js", "language": "javascript"}
+        {
+          "section": "MCP Server",
+          "filename": "server.js",
+          "language": "javascript"
+        }
       ],
-      "output": {"require_non_empty": true},
-      "verification": {"kind": "phoenix_spans"}
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     },
     {
       "id": "doubleword-python",
@@ -1618,6 +1946,99 @@
         "source": "section_code",
         "language": "javascript"
       },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-evals-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals.mdx",
+      "language": "python",
+      "install_section": "Using Amazon Bedrock with Phoenix Evals",
+      "setup_section": "Using Amazon Bedrock with Phoenix Evals",
+      "run_section": "Using Amazon Bedrock with Phoenix Evals",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-agents-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock Agents",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-agent-runtime-javascript-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "claude-managed-agents-python-lint",
+      "document": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup tracing",
+      "run_section": "Run Claude Managed Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "scalekit-javascript-lint",
+      "document": "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Setup",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript",
+        "filename": "instrumentation.ts",
+        "run_filename": "example.ts",
+        "code_block_index": "0",
+        "run_code_block_index": "2"
+      },
+      "additional_sections": [
+        {
+          "section": "Setup",
+          "filename": "traced-tools.ts",
+          "language": "javascript",
+          "code_block_index": "1"
+        }
+      ],
       "verification": {
         "kind": "phoenix_spans"
       }

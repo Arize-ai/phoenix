@@ -85,7 +85,6 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
 
     specs: list[IntegrationSpec] = []
     seen_ids: set[str] = set()
-    seen_documents: set[Path] = set()
     for raw in config["integrations"]:
         try:
             relative = Path(raw["document"])
@@ -93,7 +92,7 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
             document.relative_to(REPO_ROOT)
             integration_id = str(raw["id"])
             language = str(raw["language"]).lower()
-            if integration_id in seen_ids or document in seen_documents:
+            if integration_id in seen_ids:
                 raise HarnessError(f"Duplicate integration id or document: {integration_id}")
             if language not in {"python", "javascript", "go"}:
                 raise HarnessError(
@@ -145,7 +144,6 @@ def load_specs(config_path: Path = CONFIG_PATH) -> list[IntegrationSpec]:
                 )
             )
             seen_ids.add(integration_id)
-            seen_documents.add(document)
         except (KeyError, TypeError, ValueError) as exc:
             raise HarnessError(f"Invalid integration config entry {raw!r}: {exc}") from exc
     return specs
@@ -166,23 +164,47 @@ def skip_route(spec: IntegrationSpec) -> tuple[str, dict[str, Any]] | None:
 
 
 def section_body(document_text: str, heading: str) -> str:
-    """Return the body under a Markdown heading, stopping at the next heading."""
-    pattern = re.compile(rf"^#{{2,6}}\s+{re.escape(heading)}\s*$", re.MULTILINE)
-    match = pattern.search(document_text)
-    if not match:
-        raise HarnessError(f"Missing '## {heading}' section")
-    next_heading = re.search(r"^#{2,6}\s+", document_text[match.end() :], re.MULTILINE)
-    end = match.end() + next_heading.start() if next_heading else len(document_text)
-    return document_text[match.end() : end]
+    """Return the body under a Markdown heading, at any heading level."""
+    heading_pattern = re.compile(r"^(?P<level>#{1,6})\s+(?P<title>.+?)\s*#*\s*$")
+    offsets: list[tuple[int, re.Match[str]]] = []
+    in_fence = False
+    offset = 0
+    for line in document_text.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+        elif not in_fence and (match := heading_pattern.match(line.rstrip("\r\n"))):
+            offsets.append((offset, match))
+        offset += len(line)
+    selected = next(
+        ((position, match) for position, match in offsets if match.group("title") == heading),
+        None,
+    )
+    if selected is None:
+        raise HarnessError(f"Missing Markdown section {heading!r}")
+    start, match = selected
+    content_start = start + len(document_text[start:].splitlines(keepends=True)[0])
+    level = len(match.group("level"))
+    end = next(
+        (
+            position
+            for position, next_match in offsets
+            if position > start and len(next_match.group("level")) <= level
+        ),
+        len(document_text),
+    )
+    return document_text[content_start:end]
 
 
-def code_fence(section: str, language: str, context: str) -> str:
+def code_fence(section: str, language: str, context: str, index: int = 0) -> str:
     aliases = {"javascript": {"javascript", "js", "typescript", "ts"}}
     aliases["python"] = {"python", "py"}
     accepted_languages = aliases.get(language, {language})
+    matches = []
     for block in FENCE.finditer(section):
         if block.group("language").lower() in accepted_languages:
-            return block.group("body").strip()
+            matches.append(block.group("body").strip())
+    if 0 <= index < len(matches):
+        return matches[index]
     raise HarnessError(f"No {language} code block found in {context}")
 
 
@@ -292,18 +314,17 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         setup = component_setup(spec, text, project)
     else:
         setup = code_fence(
-            section_body(text, spec.setup_section), spec.language, f"## {spec.setup_section}"
+            section_body(text, spec.setup_section),
+            spec.language,
+            f"## {spec.setup_section}",
+            int(spec.setup.get("code_block_index", 0)),
         )
-    if spec.setup_section == spec.run_section:
-        flush_code = spec.setup.get("flush_code", "").strip()
-        if spec.language == "python":
-            program = {"example.py": "\n\n".join(filter(None, (setup, flush_code)))}
-        elif spec.language == "javascript":
-            program = {"example.js": setup}
-        else:
-            program = {"main.go": combine_go_files(setup, "")}
-        return packages, program
-    run = code_fence(section_body(text, spec.run_section), spec.language, f"## {spec.run_section}")
+    run = code_fence(
+        section_body(text, spec.run_section),
+        spec.language,
+        f"## {spec.run_section}",
+        int(spec.setup.get("run_code_block_index", 0)),
+    )
 
     if spec.language == "python":
         program: dict[str, str] = {}
@@ -320,7 +341,11 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
             sections.append(flush_code)
         program["example.py"] = "\n\n".join(sections)
     elif spec.language == "javascript":
-        program = {"instrumentation.js": setup, "example.js": run}
+        setup_filename = spec.setup.get("filename", "instrumentation.js")
+        run_filename = spec.setup.get("run_filename", "example.js")
+        if Path(setup_filename).name != setup_filename or Path(run_filename).name != run_filename:
+            raise HarnessError("JavaScript filenames must be basenames")
+        program = {setup_filename: setup, run_filename: run}
     else:
         program = {"main.go": combine_go_files(setup, run)}
     for extra in spec.additional_sections:
@@ -329,7 +354,10 @@ def extract_example(spec: IntegrationSpec, project: str) -> tuple[list[str], dic
         if Path(filename).name != filename:
             raise HarnessError(f"Additional example filename must be a basename: {filename!r}")
         program[filename] = code_fence(
-            section, extra.get("language", spec.language), extra["section"]
+            section,
+            extra.get("language", spec.language),
+            extra["section"],
+            int(extra.get("code_block_index", 0)),
         )
     return packages, program
 
@@ -470,6 +498,8 @@ def run_example(
             env["npm_config_cache"] = os.environ.get(
                 "NPM_CONFIG_CACHE", os.environ.get("npm_config_cache", str(temp / ".npm-cache"))
             )
+            is_typescript = any(Path(filename).suffix in {".ts", ".tsx"} for filename in program)
+            lint_packages = ["typescript", "@types/node"] if lint_only and is_typescript else []
             subprocess.run(
                 [
                     "npm",
@@ -479,6 +509,7 @@ def run_example(
                     "--no-save",
                     *spec.npm_install_flags,
                     *packages,
+                    *lint_packages,
                 ],
                 check=True,
                 cwd=temp,
@@ -486,8 +517,30 @@ def run_example(
                 timeout=600,
             )
             if lint_only:
-                for filename in program:
-                    subprocess.run(["node", "--check", filename], check=True, cwd=temp, env=env)
+                if is_typescript:
+                    subprocess.run(
+                        [
+                            "npx",
+                            "tsc",
+                            "--noEmit",
+                            "--skipLibCheck",
+                            "--target",
+                            "ES2022",
+                            "--module",
+                            "NodeNext",
+                            "--moduleResolution",
+                            "NodeNext",
+                            "--types",
+                            "node",
+                            *program,
+                        ],
+                        check=True,
+                        cwd=temp,
+                        env=env,
+                    )
+                else:
+                    for filename in program:
+                        subprocess.run(["node", "--check", filename], check=True, cwd=temp, env=env)
                 return ""
             command = ["node", "example.js"]
         else:
