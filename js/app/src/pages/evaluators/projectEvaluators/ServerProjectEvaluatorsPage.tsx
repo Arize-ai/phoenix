@@ -2,12 +2,14 @@ import { css } from "@emotion/react";
 import { Suspense, useCallback, useState } from "react";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
+import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
+import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
 import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationQueueStrip";
 import { ServerProjectEvaluatorsTable } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
@@ -53,6 +55,9 @@ function ServerProjectEvaluatorsPageContent() {
           refreshKey={refreshKey}
           onQueueCleared={refresh}
         />
+        <Suspense fallback={<ChartPanelStripSkeleton />}>
+          <ServerEvaluationCharts fetchKey={refreshKey} />
+        </Suspense>
         <View padding="size-100" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
             <DebouncedSearch
