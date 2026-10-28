@@ -65,15 +65,15 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Env-gated | Qwen Python | `docs/phoenix/integrations/llm-providers/qwen/qwen-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Env-gated | Truefoundry Python | `docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Env-gated | Agentspec Python | `docs/phoenix/integrations/python/agentspec/agentspec-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
-| Env-gated | Openlit Python | `docs/phoenix/integrations/python/openlit/openlit-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
+| Always skip | Openlit Python | `docs/phoenix/integrations/python/openlit/openlit-tracing.mdx` | Routed to `always_skip` to match AX policy. |
 | Env-gated | Openllmetry Python | `docs/phoenix/integrations/python/openllmetry/openllmetry-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Env-gated | Pipecat Python | `docs/phoenix/integrations/python/pipecat/pipecat-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Env-gated | Semantic Kernel Python | `docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Lint-only | Restate Python | `docs/phoenix/integrations/python/restate/restate-tracing.mdx` | Installs dependencies and syntax-checks the example. |
-| Lint-only | Temporal Python | `docs/phoenix/integrations/python/temporal/temporal-tracing.mdx` | Installs dependencies and syntax-checks the example. |
+| Always skip | Temporal Python | `docs/phoenix/integrations/python/temporal/temporal-tracing.mdx` | Requires a Temporal server and worker that CI does not provision. |
 | Lint-only | Prismml Python | `docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx` | Installs dependencies and syntax-checks the example. |
-| Lint-only | Vllm Python | `docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx` | Installs dependencies and syntax-checks the example. |
-| Env-gated | Cloudflare Ai Gateway Python | `docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
+| Always skip | Vllm Python | `docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx` | Requires a locally hosted vLLM server and model runtime. |
+| Always skip | Cloudflare Ai Gateway Python | `docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx` | Requires a Cloudflare AI Gateway account and configured endpoint. |
 | Lint-only | Bedrock Agentcore Python | `docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Env-gated | Tanstack Ai Typescript | `docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing.mdx` | Runs when required credentials/settings are configured; otherwise skips. |
 | Lint-only | Eve Typescript Lint | `docs/phoenix/integrations/typescript/vercel/eve-tracing.mdx` | Installs dependencies and syntax-checks the example. |

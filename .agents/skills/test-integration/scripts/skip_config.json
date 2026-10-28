@@ -2,8 +2,24 @@
   "_comment_": "Classification and routing overrides for integration docs. Keep reasons descriptive; CI scopes changes by routing fields, not reason text.",
   "always_skip": [
     {
+      "doc": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
+      "reason": "Requires a Cloudflare AI Gateway account and configured gateway endpoint that CI cannot provision."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
+      "reason": "Requires a locally hosted vLLM server and model runtime that CI cannot provision reliably."
+    },
+    {
       "doc": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
       "reason": "The original guardrails-ai framework has been quarantined on PyPI and replaced by the guardrails-ai-sdk hosted-service client. This doc and openinference-instrumentation-guardrails target the original framework internals; rewrite the doc and add a matching instrumentor before enabling end-to-end checks."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
+      "reason": "AX-aligned policy: keep OpenLIT out of automated integration runs pending a separate compatibility review."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
+      "reason": "Requires a running Temporal server and worker that CI does not provision."
     }
   ],
   "lint_only": [
@@ -56,16 +72,8 @@
       "reason": "Requires a running Restate service; validate the documented example without making a service request."
     },
     {
-      "doc": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
-      "reason": "Requires a running Temporal development server; validate the documented example without starting an external service."
-    },
-    {
       "doc": "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx",
       "reason": "Requires a locally hosted PrismML server and model; validate the documented example without provisioning the model."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
-      "reason": "Requires a locally hosted vLLM server and model; validate the documented example without provisioning the model."
     },
     {
       "doc": "docs/phoenix/integrations/python/pipecat/pipecat-tracing.mdx",
@@ -193,13 +201,6 @@
       "reason": "An OpenAI API key is not provisioned in docs CI."
     },
     {
-      "doc": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
-      "env_vars": [
-        "OPENAI_API_KEY"
-      ],
-      "reason": "An OpenAI API key is not provisioned in docs CI."
-    },
-    {
       "doc": "docs/phoenix/integrations/python/openllmetry/openllmetry-tracing.mdx",
       "env_vars": [
         "OPENAI_API_KEY"
@@ -212,15 +213,6 @@
         "OPENAI_API_KEY"
       ],
       "reason": "An OpenAI API key is not provisioned in docs CI."
-    },
-    {
-      "doc": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
-      "env_vars": [
-        "OPENAI_API_KEY",
-        "CLOUDFLARE_ACCOUNT_ID",
-        "CLOUDFLARE_AI_GATEWAY_NAME"
-      ],
-      "reason": "A Cloudflare AI Gateway account and endpoint are not provisioned in docs CI."
     },
     {
       "doc": "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing.mdx",

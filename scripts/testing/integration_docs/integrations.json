@@ -1515,6 +1515,70 @@
         "kind": "phoenix_spans",
         "span_kind": "LLM"
       }
+    },
+    {
+      "id": "openlit-python-always-skip",
+      "document": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenLIT",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cloudflare-ai-gateway-python-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
+      "language": "python",
+      "install_section": "Prerequisites",
+      "setup_section": "Set up tracing",
+      "run_section": "Link gateway spans to your app's traces",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "vllm-python-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run vLLM",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "temporal-python-always-skip",
+      "document": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Temporal",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     }
   ]
 }
