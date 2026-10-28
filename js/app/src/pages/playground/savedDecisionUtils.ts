@@ -4,6 +4,7 @@ import type {
   DecisionInputDeclaration,
   DecisionQuestionDraft,
   DecisionPromptDraft,
+  DecisionStateDraft,
   PlaygroundInstance,
 } from "@phoenix/store/playground/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -12,9 +13,9 @@ import {
   buildDecisionTaskDefinition,
   createChoiceOption,
   createDecisionQuestion,
+  createDecisionStateDraft,
   createScaleLevel,
   type DecisionTaskDefinition,
-  parseStateInputNames,
   stateTemplateVariables,
 } from "./decisionUtils";
 
@@ -120,13 +121,11 @@ export function savedDecisionVersionToDraft({
   version: SavedDecisionVersion;
   templateFormat: TemplateFormat;
 }): DecisionPromptDraft {
-  const draftState = toDraftState({ state: version.state, templateFormat });
+  const state = toDraftState({ state: version.state, templateFormat });
   const impliedNames = new Set(
-    draftState.stateEditorMode === "input"
-      ? [draftState.state.trim()]
-      : draftState.stateEditorMode === "inputs"
-        ? parseStateInputNames(draftState.state)
-        : stateTemplateVariables(draftState.state, templateFormat)
+    state.mode === "inputs"
+      ? state.inputNames
+      : stateTemplateVariables(state.template, templateFormat)
   );
   const hasExplicitInputs = version.inputs?.some(
     (input) =>
@@ -138,7 +137,7 @@ export function savedDecisionVersionToDraft({
     ?.filter((input) => !impliedNames.has(input.name))
     .map((input) => input.name);
   return {
-    ...draftState,
+    state,
     ...(hasExplicitInputs && version.inputs ? { inputs: version.inputs } : {}),
     ...(additionalInputNames?.length ? { additionalInputNames } : {}),
     questions: version.questions.map(toDraftQuestion),
@@ -151,10 +150,13 @@ function toDraftState({
 }: {
   state: SavedDecisionVersion["state"];
   templateFormat: TemplateFormat;
-}): Pick<DecisionPromptDraft, "state" | "stateEditorMode"> {
+}): DecisionStateDraft {
   switch (state.kind) {
     case "input":
-      return { state: state.input, stateEditorMode: "input" };
+      return createDecisionStateDraft({
+        mode: "inputs",
+        inputNames: [state.input],
+      });
     case "text": {
       const format = TEMPLATE_FORMAT_NAMES[state.templateFormat];
       if (format !== templateFormat) {
@@ -162,10 +164,13 @@ function toDraftState({
           `This decision's state is written in ${format === TemplateFormats.Mustache ? "Mustache" : "F-String"}. Switch the template format to load it.`
         );
       }
-      return { state: state.template, stateEditorMode: "text" };
+      return createDecisionStateDraft({ template: state.template });
     }
     case "object":
-      return { state: state.inputs.join(", "), stateEditorMode: "inputs" };
+      return createDecisionStateDraft({
+        mode: "inputs",
+        inputNames: [...state.inputs],
+      });
     default:
       return assertUnreachable(state);
   }

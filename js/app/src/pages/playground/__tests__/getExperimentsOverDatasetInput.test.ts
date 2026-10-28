@@ -1,5 +1,8 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import { getExperimentsOverDatasetInput } from "@phoenix/pages/playground/experimentsOverDatasetInput";
 import { createCredentialsStore, createPlaygroundStore } from "@phoenix/store";
 import type { PlaygroundEvaluatorTaskKind } from "@phoenix/store/playground";
@@ -273,7 +276,10 @@ describe("getExperimentsOverDatasetInput", () => {
 
     store.playgroundStore.getState().updateDecisionPrompt({
       instanceId: decisionId,
-      request: { ...createDecisionDraft(), state: "{{ticket}}" },
+      request: {
+        ...createDecisionDraft(),
+        state: createDecisionStateDraft({ template: "{{ticket}}" }),
+      },
     });
     store.playgroundStore.getState().updateInstance({
       instanceId: decisionId,

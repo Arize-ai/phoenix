@@ -10,7 +10,10 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
-import { createDecisionDraft } from "../decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
 
@@ -140,7 +143,7 @@ describe("PlaygroundRunButton with decision instances", () => {
           ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
             store.getState()
           )!,
-          state: "{{ticket}}",
+          state: createDecisionStateDraft({ template: "{{ticket}}" }),
         },
       })
     );
@@ -168,7 +171,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     await act(async () => user.hover(triggerWrap!));
     await vi.waitFor(() => {
       expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
-        "Instance A: Over a dataset, the state needs a template variable"
+        "Instance A: Over a dataset, the state template needs a variable"
       );
     });
   });

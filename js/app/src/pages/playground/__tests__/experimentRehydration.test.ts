@@ -53,8 +53,7 @@ it("restores a decision's frozen definition, connection, and dataset settings", 
       customProvider: taskConfig.customProvider,
     },
     decisionPrompt: {
-      stateEditorMode: "inputs",
-      state: "ticket",
+      state: { mode: "inputs", inputNames: ["ticket"] },
       questions: [
         {
           type: "predicate",
@@ -90,7 +89,9 @@ it("restores f-string text and a built-in provider's endpoint", () => {
   expect(result.playgroundProps.templateFormat).toBe("F_STRING");
   expect(result.playgroundProps.instances?.[0]).toMatchObject({
     model: { baseUrl: "http://localhost:11434/v1", customProvider: null },
-    decisionPrompt: { stateEditorMode: "text", state: "Ticket: {ticket}" },
+    decisionPrompt: {
+      state: { mode: "template", template: "Ticket: {ticket}" },
+    },
   });
   expect(result.stateByDatasetId).toEqual({});
 });
@@ -133,8 +134,7 @@ it("fetches a fixed-question decision experiment", async () => {
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
     task: { type: "decision" },
     decisionPrompt: {
-      stateEditorMode: "input",
-      state: "ticket",
+      state: { mode: "inputs", inputNames: ["ticket"] },
       questions: [
         { type: "choice", name: "team", instructions: "Which team?" },
         { type: "scale", name: "severity", instructions: "Severity?" },

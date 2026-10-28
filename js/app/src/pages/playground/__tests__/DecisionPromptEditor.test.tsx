@@ -11,7 +11,10 @@ import {
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { DecisionPromptEditor } from "../DecisionPromptEditor";
-import { createDecisionDraft } from "../decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: ({ defaultValue }: { defaultValue: string }) => (
@@ -26,7 +29,10 @@ vi.mock("../DecisionQuestionEditor", () => ({
 installTestStorage();
 
 it("reloads an uncontrolled state editor on load, while typing keeps it mounted", async () => {
-  const draft = { ...createDecisionDraft(), state: "First {{ticket}}" };
+  const draft = {
+    ...createDecisionDraft(),
+    state: createDecisionStateDraft({ template: "First {{ticket}}" }),
+  };
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
@@ -60,7 +66,10 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
     await act(async () =>
       store.getState().updateDecisionPrompt({
         instanceId: 1,
-        request: { ...draft, state: "Typed {{ticket}}" },
+        request: {
+          ...draft,
+          state: createDecisionStateDraft({ template: "Typed {{ticket}}" }),
+        },
       })
     );
     expect(container.querySelector('input[aria-label="Decision state"]')).toBe(
@@ -71,7 +80,10 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
         instanceId: 1,
         instance: {
           ...createDecisionTaskInstance(),
-          decisionPrompt: { ...draft, state: "Second {{ticket}}" },
+          decisionPrompt: {
+            ...draft,
+            state: createDecisionStateDraft({ template: "Second {{ticket}}" }),
+          },
         },
       })
     );
@@ -86,11 +98,10 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   }
 });
 
-it("shows the wrapping difference between Value and Object and keeps dataset previews symbolic", async () => {
+it("switches between Template and Inputs, keeping each, and previews structured input values", async () => {
   const draft = {
     ...createDecisionDraft(),
-    state: "state",
-    stateEditorMode: "input" as const,
+    state: createDecisionStateDraft({ mode: "inputs", inputNames: ["state"] }),
   };
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
@@ -102,6 +113,14 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
+  const readState = () =>
+    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
+  const modeButton = (label: string) =>
+    Array.from(
+      container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="State mode"] button'
+      )
+    ).find((button) => button.textContent === label);
   try {
     await act(async () =>
       root.render(
@@ -122,32 +141,53 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
     const preview = () =>
       container.querySelector('[aria-label="Decision state preview"]')
         ?.textContent;
-    // JSON typed into an Inputs panel field remains a string.
-    expect(preview()).toBe(JSON.stringify('{"ticket":"Refund"}'));
-    expect(container.textContent).toContain("Use this input's value directly.");
-    const objectButton = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Object"]'
-    );
-    expect(objectButton).not.toBeNull();
-    await act(async () => objectButton?.click());
+    // Only two modes: the JSON, Value and Object modes are gone.
     expect(
-      selectPlaygroundInstanceDecisionPrompt(store.getState().instances[0].id)(
-        store.getState()
-      )?.stateEditorMode
-    ).toBe("inputs");
-    expect(preview()).toBe(JSON.stringify({ state: '{"ticket":"Refund"}' }));
-    expect(container.textContent).toContain(
-      "Build an object keyed by these comma-separated names."
+      Array.from(
+        container.querySelectorAll('[aria-label="State mode"] button')
+      ).map((button) => button.textContent)
+    ).toEqual(["Template", "Inputs"]);
+    // One input is sent as its value, and JSON typed for it as that JSON.
+    expect(preview()).toBe(JSON.stringify({ ticket: "Refund" }));
+    expect(
+      container.querySelector('[aria-label="Remove state"]')
+    ).not.toBeNull();
+
+    // An empty template starts from the inputs.
+    await act(async () => modeButton("Template")?.click());
+    expect(readState()).toEqual({
+      mode: "template",
+      template: "{{state}}",
+      inputNames: ["state"],
+    });
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[aria-label="Decision state"]'
+      )?.value
+    ).toBe("{{state}}");
+
+    // Back to Inputs keeps the names; several are sent as one object.
+    await act(async () => modeButton("Inputs")?.click());
+    expect(readState()?.inputNames).toEqual(["state"]);
+    await act(async () =>
+      store.getState().updateDecisionPrompt({
+        instanceId: 1,
+        request: {
+          ...draft,
+          state: createDecisionStateDraft({
+            mode: "inputs",
+            inputNames: ["state", "plan"],
+          }),
+        },
+      })
+    );
+    await act(async () => store.getState().setVariableValue("plan", "pro"));
+    expect(preview()).toBe(
+      JSON.stringify({ state: { ticket: "Refund" }, plan: "pro" })
     );
     await act(async () => store.setState({ datasetId: "dataset" }));
     expect(container.textContent).toContain("State shape");
-    expect(preview()).toBe('{ "state": <state> }');
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Value"]')
-        ?.click()
-    );
-    expect(preview()).toBe("<state>");
+    expect(preview()).toBe('{ "state": <state>, "plan": <plan> }');
   } finally {
     await act(async () => root.unmount());
     container.remove();

@@ -61,8 +61,7 @@ describe("toDecisionInstance", () => {
       tag: "prod",
     });
     expect(instance.decisionPrompt).toMatchObject({
-      state: "Ticket: {{ticket}}",
-      stateEditorMode: "text",
+      state: { mode: "template", template: "Ticket: {{ticket}}" },
     });
     expect(instance.model).toMatchObject({
       provider: "OLLAMA",
@@ -254,7 +253,9 @@ describe("toSavedDecisionVersion and fetchPlaygroundDecisionAsInstance", () => {
     expect(loaded?.templateFormat).toBe(TemplateFormats.FString);
     expect(loaded?.instance).toMatchObject({
       decision: { id: "D1", name: "triage", versionId: "DV1", tag: "prod" },
-      decisionPrompt: { stateEditorMode: "text", state: "Ticket: {ticket}" },
+      decisionPrompt: {
+        state: { mode: "template", template: "Ticket: {ticket}" },
+      },
     });
   });
 });

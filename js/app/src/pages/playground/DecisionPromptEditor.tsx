@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { useRef, useState } from "react";
+import { Button as AriaButton } from "react-aria-components";
 
 import {
   Alert,
@@ -14,11 +15,16 @@ import {
   Label,
   SegmentedControl,
   SegmentedControlItem,
+  Tag,
+  TagGroup,
+  TagList,
   Text,
   TextField,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { JSONEditor } from "@phoenix/components/code";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -32,29 +38,26 @@ import {
 import type {
   DecisionQuestionDraft,
   DecisionPromptDraft,
+  DecisionStateDraft,
 } from "@phoenix/store/playground/types";
-
-const STATE_EDITOR_MODES: ReadonlyArray<
-  DecisionPromptDraft["stateEditorMode"]
-> = ["text", "json", "input", "inputs"];
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
   createDecisionDraft,
   createDecisionQuestion,
   decisionFieldId,
+  inputsStateValue,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
   parseStateInputNames,
+  switchDecisionStateMode,
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
 
-const jsonEditorCSS = css`
-  .cm-editor {
-    min-height: 75px;
-  }
-`;
+function isStateMode(value: unknown): value is DecisionStateDraft["mode"] {
+  return value === "template" || value === "inputs";
+}
 
 const questionListCSS = css`
   list-style: none;
@@ -78,29 +81,182 @@ const statePreviewCSS = css`
   overflow: hidden;
 `;
 
-function DecisionStatePreview({ request }: { request: DecisionPromptDraft }) {
+const inputNameTagCSS = css`
+  gap: var(--global-dimension-size-50);
+  padding-top: 0;
+  padding-bottom: 0;
+  height: var(--global-dimension-size-300);
+  font-family: var(--global-font-family-mono);
+`;
+
+const removeInputNameButtonCSS = css`
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--global-text-color-700);
+  cursor: pointer;
+  font-size: var(--global-font-size-s);
+  border-radius: var(--global-rounding-small);
+  outline: none;
+  &[data-hovered] {
+    color: var(--global-text-color-900);
+  }
+  &[data-focus-visible] {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+  }
+  &[data-disabled] {
+    cursor: default;
+    opacity: 0.5;
+  }
+`;
+
+/**
+ * Template or Inputs, the way an AI message picks between text and tool
+ * calls: each mode keeps its own content.
+ */
+function DecisionStateModeRadioGroup({
+  mode,
+  isDisabled,
+  onChange,
+}: {
+  mode: DecisionStateDraft["mode"];
+  isDisabled: boolean;
+  onChange: (mode: DecisionStateDraft["mode"]) => void;
+}) {
+  return (
+    <SegmentedControl
+      size="S"
+      aria-label="State mode"
+      selectedKey={mode}
+      isDisabled={isDisabled}
+      onSelectionChange={(key) => {
+        if (isStateMode(key)) onChange(key);
+      }}
+    >
+      <TooltipTrigger delay={0}>
+        <SegmentedControlItem id="template">Template</SegmentedControlItem>
+        <Tooltip placement="top">
+          <TooltipArrow />
+          Write the state as a template over the inputs
+        </Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger delay={0}>
+        <SegmentedControlItem id="inputs">Inputs</SegmentedControlItem>
+        <Tooltip placement="top">
+          <TooltipArrow />
+          Send the inputs themselves as the state
+        </Tooltip>
+      </TooltipTrigger>
+    </SegmentedControl>
+  );
+}
+
+/**
+ * The inputs an `inputs` state is made of: one tag per input, and a field
+ * that adds the names typed into it on Enter, a comma, or leaving it.
+ */
+function DecisionStateInputNames({
+  names,
+  isDisabled,
+  isInvalid,
+  onChange,
+  onBlur,
+}: {
+  names: readonly string[];
+  isDisabled: boolean;
+  isInvalid: boolean;
+  onChange: (names: string[]) => void;
+  onBlur: () => void;
+}) {
+  const [pending, setPending] = useState("");
+  const addPending = (text: string) => {
+    const added = parseStateInputNames(text).filter(
+      (name) => !names.includes(name)
+    );
+    setPending("");
+    if (added.length > 0) onChange([...names, ...new Set(added)]);
+  };
+  return (
+    <Flex direction="column" gap="size-100">
+      {names.length > 0 ? (
+        <TagGroup
+          aria-label="State inputs"
+          onRemove={(keys) => onChange(names.filter((name) => !keys.has(name)))}
+        >
+          <TagList>
+            {names.map((name) => (
+              <Tag
+                key={name}
+                id={name}
+                textValue={name}
+                isDisabled={isDisabled}
+                css={inputNameTagCSS}
+              >
+                {name}
+                <AriaButton
+                  slot="remove"
+                  aria-label={`Remove ${name}`}
+                  isDisabled={isDisabled}
+                  css={removeInputNameButtonCSS}
+                >
+                  <Icon svg={<Icons.Close />} />
+                </AriaButton>
+              </Tag>
+            ))}
+          </TagList>
+        </TagGroup>
+      ) : null}
+      <TextField
+        size="S"
+        value={pending}
+        isDisabled={isDisabled}
+        isInvalid={isInvalid}
+        onChange={(text) => {
+          if (text.includes(",")) {
+            addPending(text);
+          } else {
+            setPending(text);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            addPending(pending);
+          }
+        }}
+        onBlur={() => {
+          addPending(pending);
+          onBlur();
+        }}
+      >
+        <Label>Add input</Label>
+        <Input placeholder={names.length ? "another input" : "ticket"} />
+        <Text slot="description">
+          One input sends its value as the state; several send an object keyed
+          by name.
+        </Text>
+      </TextField>
+    </Flex>
+  );
+}
+
+/** What an `inputs` state sends: the values typed in so far, or its shape. */
+function DecisionStatePreview({ names }: { names: readonly string[] }) {
   const variables = usePlaygroundContext(
     (state) => state.input.variablesValueCache
   );
   const isDatasetMode = usePlaygroundContext(
     (state) => state.datasetId != null
   );
-  const names = parseStateInputNames(request.state);
-  const isValueMode = request.stateEditorMode === "input";
-  const hasValidNames =
-    names.length > 0 && (!isValueMode || names.length === 1);
-  if (!hasValidNames) return null;
+  if (names.length === 0) return null;
 
   const hasValues =
     !isDatasetMode && names.every((name) => variables?.[name] != null);
-  const getValue = (name: string) => variables?.[name] ?? "";
   const preview = hasValues
-    ? JSON.stringify(
-        isValueMode
-          ? getValue(names[0])
-          : Object.fromEntries(names.map((name) => [name, getValue(name)]))
-      )
-    : isValueMode
+    ? JSON.stringify(inputsStateValue(names, variables))
+    : names.length === 1
       ? `<${names[0]}>`
       : `{ ${names.map((name) => `${JSON.stringify(name)}: <${name}>`).join(", ")} }`;
 
@@ -123,7 +279,11 @@ function DecisionStatePreview({ request }: { request: DecisionPromptDraft }) {
  */
 export function DecisionPromptEditor({
   playgroundInstanceId: instanceId,
-}: PlaygroundInstanceProps) {
+  availablePaths,
+}: PlaygroundInstanceProps & {
+  /** Dataset paths the state template can autocomplete, as a prompt message does. */
+  availablePaths?: string[];
+}) {
   const isRunning = usePlaygroundContext(
     (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
   );
@@ -162,6 +322,10 @@ export function DecisionPromptEditor({
 
   const update = (patch: Partial<DecisionPromptDraft>) =>
     updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
+  const { state } = request;
+  const updateState = (next: DecisionStateDraft) => update({ state: next });
+  const stateSummary =
+    state.mode === "inputs" ? state.inputNames.join(", ") : state.template;
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -201,38 +365,21 @@ export function DecisionPromptEditor({
         testId="decision-state"
         {...stateStyles}
         headerContent={
-          <CardCollapsedPreview>{request.state}</CardCollapsedPreview>
+          <CardCollapsedPreview>{stateSummary}</CardCollapsedPreview>
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            <SegmentedControl
-              size="S"
-              aria-label="State editor mode"
-              selectedKey={request.stateEditorMode}
+            <DecisionStateModeRadioGroup
+              mode={state.mode}
               isDisabled={isRunning}
-              onSelectionChange={(key) =>
-                update({
-                  stateEditorMode:
-                    STATE_EDITOR_MODES.find((format) => format === key) ??
-                    "text",
-                })
+              onChange={(mode) =>
+                updateState(
+                  switchDecisionStateMode({ state, mode, templateFormat })
+                )
               }
-            >
-              <SegmentedControlItem id="text" aria-label="Text">
-                Text
-              </SegmentedControlItem>
-              <SegmentedControlItem id="json" aria-label="JSON">
-                JSON
-              </SegmentedControlItem>
-              <SegmentedControlItem id="input" aria-label="Value">
-                Value
-              </SegmentedControlItem>
-              <SegmentedControlItem id="inputs" aria-label="Object">
-                Object
-              </SegmentedControlItem>
-            </SegmentedControl>
+            />
             <CopyToClipboardButton
-              text={request.state}
+              text={stateSummary}
               aria-label="Copy state"
             />
           </Flex>
@@ -243,67 +390,33 @@ export function DecisionPromptEditor({
             {errors.state}
           </Alert>
         ) : null}
-        {request.stateEditorMode === "input" ? (
+        {state.mode === "inputs" ? (
           <View padding="size-100">
             <Flex direction="column" gap="size-100">
-              <TextField
-                size="S"
-                value={request.state}
-                onChange={(state) => update({ state })}
-                onBlur={() => touch(decisionFieldId.state())}
+              <DecisionStateInputNames
+                names={state.inputNames}
                 isDisabled={isRunning}
                 isInvalid={!!errors.state}
-              >
-                <Label>Input name</Label>
-                <Input placeholder="ticket" />
-                <Text slot="description">Use this input's value directly.</Text>
-              </TextField>
-              <DecisionStatePreview request={request} />
-            </Flex>
-          </View>
-        ) : request.stateEditorMode === "inputs" ? (
-          <View padding="size-100">
-            <Flex direction="column" gap="size-100">
-              <TextField
-                size="S"
-                value={request.state}
-                onChange={(state) => update({ state })}
+                onChange={(inputNames) => updateState({ ...state, inputNames })}
                 onBlur={() => touch(decisionFieldId.state())}
-                isDisabled={isRunning}
-                isInvalid={!!errors.state}
-              >
-                <Label>Input names</Label>
-                <Input placeholder="reference, output" />
-                <Text slot="description">
-                  Build an object keyed by these comma-separated names.
-                </Text>
-              </TextField>
-              <DecisionStatePreview request={request} />
+              />
+              <DecisionStatePreview names={state.inputNames} />
             </Flex>
           </View>
-        ) : request.stateEditorMode === "json" ? (
-          <div css={jsonEditorCSS}>
-            <JSONEditor
-              aria-label="Decision state"
-              value={request.state}
-              onChange={(state) => update({ state })}
-              onBlur={() => touch(decisionFieldId.state())}
-              readOnly={isRunning}
-            />
-          </div>
         ) : (
           <TemplateEditorWrap readOnly={isRunning}>
             <TemplateEditor
-              // Loading replaces the draft and its id; typing must keep the
-              // editor mounted.
-              key={`text-${instanceId}-${decisionPromptId}-${templateFormat}`}
+              // Loading replaces the draft and its id, and switching modes
+              // seeds the template; typing must keep the editor mounted.
+              key={`template-${instanceId}-${decisionPromptId}-${templateFormat}`}
               aria-label="Decision state"
               templateFormat={templateFormat}
-              defaultValue={request.state}
+              defaultValue={state.template}
               placeholder="The evidence the questions are asked about"
-              onChange={(state) => update({ state })}
+              onChange={(template) => updateState({ ...state, template })}
               onBlur={() => touch(decisionFieldId.state())}
               readOnly={isRunning}
+              availablePaths={availablePaths}
             />
           </TemplateEditorWrap>
         )}
@@ -321,7 +434,6 @@ export function DecisionPromptEditor({
               errors={errors.byQuestionId[question.id]}
               isDisabled={isRunning}
               canRemove={request.questions.length > 1}
-              templateFormat={templateFormat}
               onTouch={touch}
               onChange={(patch) => updateQuestion(question.id, patch)}
               onRemove={() => {

@@ -150,13 +150,7 @@ export type DecisionInputDeclaration = {
  * prompt, so instances can be compared and mixed with chat instances.
  */
 export type DecisionPromptDraft = {
-  /**
-   * The state as written: a template (`text`), a JSON value (`json`), one
-   * input passed through unchanged (`input`), or the comma-separated names of
-   * the inputs sent together as one object (`inputs`).
-   */
-  state: string;
-  stateEditorMode: "text" | "json" | "input" | "inputs";
+  state: DecisionStateDraft;
   questions: DecisionQuestionDraft[];
   /**
    * Input metadata preserved across loading and saving. Membership in this
@@ -165,6 +159,23 @@ export type DecisionPromptDraft = {
   inputs?: ReadonlyArray<DecisionInputDeclaration>;
   /** Declared inputs not inferred from the loaded state, including section-scoped inputs. */
   additionalInputNames?: ReadonlyArray<string>;
+};
+
+/**
+ * How a decision's state is built from its inputs. Each mode keeps what was
+ * written in it, so switching modes and back loses nothing.
+ */
+export type DecisionStateDraft = {
+  /**
+   * `template`: the state is a template over the inputs, as a prompt message
+   * is. `inputs`: the state is the inputs themselves, one input's value as is
+   * or several as one object keyed by name.
+   */
+  mode: "template" | "inputs";
+  /** The template, in the playground's template format. */
+  template: string;
+  /** The inputs that make up an `inputs` state, in order. */
+  inputNames: string[];
 };
 
 export type PlaygroundInput = {

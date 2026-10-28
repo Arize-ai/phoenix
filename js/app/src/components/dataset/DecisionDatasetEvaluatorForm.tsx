@@ -28,7 +28,10 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import { createDecisionQuestion } from "@phoenix/pages/playground/decisionUtils";
+import {
+  createDecisionQuestion,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type { DecisionPromptDraft } from "@phoenix/store/playground";
 
@@ -48,8 +51,7 @@ type Props = {
 
 function createDatasetDecisionDraft(): DecisionPromptDraft {
   return {
-    state: "{{output}}",
-    stateEditorMode: "text",
+    state: createDecisionStateDraft({ template: "{{output}}" }),
     questions: [
       createDecisionQuestion({
         type: "predicate",

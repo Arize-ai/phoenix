@@ -29,7 +29,7 @@ describe("decision span replay", () => {
   });
 
   it("rebuilds a TypeSafe System One request from the span", () => {
-    const { playgroundInstance, parsingErrors } =
+    const { playgroundInstance, playgroundInput, parsingErrors } =
       transformSpanAttributesToPlaygroundInstance(
         decisionSpan({
           openinference: { span: { kind: "DECISION" } },
@@ -57,8 +57,19 @@ describe("decision span replay", () => {
       modelType: "DECISION",
     });
     expect(playgroundInstance.llmModel?.provider).toBe("OPENAI");
+    // The structured state opens as inputs, its values in the Inputs panel.
+    expect(playgroundInstance.decisionPrompt?.state).toMatchObject({
+      mode: "inputs",
+      inputNames: ["state"],
+    });
+    expect(playgroundInput).toEqual({
+      variablesValueCache: {
+        state: JSON.stringify({ complaint: "I was charged twice." }, null, 2),
+      },
+    });
     const request = buildSystemOneRequest({
       draft: playgroundInstance.decisionPrompt!,
+      variables: playgroundInput?.variablesValueCache,
     });
     expect(request.state).toEqual({ complaint: "I was charged twice." });
     expect(Object.keys(request.questions)).toEqual(["department", "urgent"]);
@@ -96,7 +107,7 @@ describe("decision span replay", () => {
     expect(templateFormat).toBe(TemplateFormats.NONE);
     expect(playgroundInstance.model.provider).toBe("OPENAI");
     expect(playgroundInstance.model.modelName).toBe("gpt-6-luna");
-    expect(playgroundInstance.decisionPrompt?.stateEditorMode).toBe("text");
+    expect(playgroundInstance.decisionPrompt?.state.mode).toBe("template");
     expect(playgroundInstance.decisionPrompt?.questions[0]).toMatchObject({
       name: "urgent",
       type: "predicate",

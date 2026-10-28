@@ -12,6 +12,8 @@ import type {
   DecisionQuestionType,
   DecisionPromptDraft,
   DecisionScaleLevelDraft,
+  DecisionStateDraft,
+  PlaygroundInput,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
@@ -137,12 +139,81 @@ export function createDecisionQuestion({
   };
 }
 
+/** A state draft; a mode not given is a template, and a field not given is empty. */
+export function createDecisionStateDraft(
+  overrides: Partial<DecisionStateDraft> = {}
+): DecisionStateDraft {
+  return { mode: "template", template: "", inputNames: [], ...overrides };
+}
+
+/** `name` as a template variable in `templateFormat`; empty when it has none. */
+function templateVariable(name: string, templateFormat: TemplateFormat) {
+  switch (templateFormat) {
+    case TemplateFormats.Mustache:
+      return `{{${name}}}`;
+    case TemplateFormats.FString:
+      return `{${name}}`;
+    case TemplateFormats.NONE:
+      return "";
+    default:
+      return assertUnreachable(templateFormat);
+  }
+}
+
+/**
+ * A template over the given inputs: one input is its variable alone, several
+ * are one `name: variable` line each.
+ */
+export function inputNamesToTemplate(
+  names: readonly string[],
+  templateFormat: TemplateFormat
+): string {
+  if (names.length === 1) {
+    return templateVariable(names[0], templateFormat) || names[0];
+  }
+  return names
+    .map((name) =>
+      `${name}: ${templateVariable(name, templateFormat)}`.trimEnd()
+    )
+    .join("\n");
+}
+
+/**
+ * The state with `mode` active. What each mode holds is kept; a mode with
+ * nothing in it yet starts from the other: a template from the input names,
+ * input names from the template's variables.
+ */
+export function switchDecisionStateMode({
+  state,
+  mode,
+  templateFormat,
+}: {
+  state: DecisionStateDraft;
+  mode: DecisionStateDraft["mode"];
+  templateFormat: TemplateFormat;
+}): DecisionStateDraft {
+  if (state.mode === mode) return state;
+  if (mode === "template") {
+    const template =
+      state.template.trim() || state.inputNames.length === 0
+        ? state.template
+        : inputNamesToTemplate(state.inputNames, templateFormat);
+    return { ...state, mode, template };
+  }
+  const inputNames =
+    state.inputNames.length > 0
+      ? state.inputNames
+      : stateTemplateVariables(state.template, templateFormat);
+  return { ...state, mode, inputNames };
+}
+
 /** Starter request: one Choice question over a short support ticket. */
 export function createDecisionDraft(): DecisionPromptDraft {
   return {
-    state:
-      "I was charged twice for my order. Please refund the duplicate payment.",
-    stateEditorMode: "text",
+    state: createDecisionStateDraft({
+      template:
+        "I was charged twice for my order. Please refund the duplicate payment.",
+    }),
     questions: [
       createDecisionQuestion({
         type: "choice",
@@ -257,45 +328,26 @@ function getQuestionErrors({
   return errors;
 }
 
-/** The input names an `inputs` state lists, in order. */
-export function parseStateInputNames(state: string): string[] {
-  return state
+/** Input names typed or pasted as one comma-separated list, in order. */
+export function parseStateInputNames(text: string): string[] {
+  return text
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean);
 }
 
+const INPUTS_REQUIRED_ERROR = "Add at least one input";
+
 function getStateError(draft: DecisionPromptDraft): string | undefined {
-  if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
-  if (draft.stateEditorMode === "input") {
-    const names = parseStateInputNames(draft.state);
-    if (names.length === 0) return STATE_REQUIRED_ERROR;
-    return names.length > 1
-      ? "Value takes one input name; use Object to combine several"
-      : undefined;
+  const { state } = draft;
+  if (state.mode === "template") {
+    return state.template.trim() ? undefined : STATE_REQUIRED_ERROR;
   }
-  if (draft.stateEditorMode === "inputs") {
-    const names = parseStateInputNames(draft.state);
-    if (names.length === 0) return STATE_REQUIRED_ERROR;
-    const duplicate = names.find(
-      (name, index) => names.indexOf(name) !== index
-    );
-    return duplicate ? `Input "${duplicate}" is listed twice` : undefined;
-  }
-  if (draft.stateEditorMode !== "json") return undefined;
-  try {
-    const parsed: unknown = JSON.parse(draft.state);
-    if (
-      typeof parsed !== "string" &&
-      !Array.isArray(parsed) &&
-      !isStringKeyedObject(parsed)
-    ) {
-      return "JSON state must be a string, object, or array";
-    }
-  } catch {
-    return "State is not valid JSON";
-  }
-  return undefined;
+  const names = state.inputNames.map((name) => name.trim());
+  if (names.length === 0) return INPUTS_REQUIRED_ERROR;
+  if (names.some((name) => !name)) return "Input names cannot be empty";
+  const duplicate = names.find((name, index) => names.indexOf(name) !== index);
+  return duplicate ? `Input "${duplicate}" is listed twice` : undefined;
 }
 
 export function validateDecisionDraft(
@@ -501,12 +553,12 @@ function createTextFormatter({
 
 /**
  * Build a TypeSafe System One export from a draft, applying template
- * variables to a text state and keeping questions and JSON state literal.
+ * variables to a template state and keeping questions literal.
  *
  * Throws on an invalid draft; call {@link validateDecisionDraft} first to
  * show field-level errors.
  * @param params.draft - the request as edited in the playground
- * @param params.templateFormat - template syntax used by a text state
+ * @param params.templateFormat - template syntax used by a template state
  * @param params.variables - values to substitute for template variables
  */
 export function buildSystemOneRequest({
@@ -517,14 +569,11 @@ export function buildSystemOneRequest({
   const error = getDecisionValidationError(draft);
   if (error) throw new Error(error);
   const formatText = createTextFormatter({ templateFormat, variables });
+  const { state: stateDraft } = draft;
   const state: unknown =
-    draft.stateEditorMode === "input"
-      ? (variables?.[draft.state.trim()] ?? "")
-      : draft.stateEditorMode === "inputs"
-        ? inputValuesOf(parseStateInputNames(draft.state), variables)
-        : draft.stateEditorMode === "json"
-          ? JSON.parse(draft.state)
-          : formatText(draft.state);
+    stateDraft.mode === "inputs"
+      ? inputsStateValue(stateDraft.inputNames, variables)
+      : formatText(stateDraft.template);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
   const questions: Record<string, SystemOneQuestion> = Object.create(null);
@@ -542,6 +591,48 @@ function inputValuesOf(
   return Object.fromEntries(
     names.map((name) => [name, variables?.[name] ?? ""])
   );
+}
+
+/**
+ * An input value as an `inputs` state carries it. Text that is a JSON object
+ * or array is that structure, as a dataset example's value would be; any
+ * other text, including a JSON number or string, stays text.
+ */
+export function toStructuredInputValue(value: string | undefined): unknown {
+  const text = value ?? "";
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return text;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    return typeof parsed === "object" && parsed !== null ? parsed : text;
+  } catch {
+    return text;
+  }
+}
+
+/** Each input's value for an `inputs` state, structured where it is JSON. */
+export function structuredInputValuesOf(
+  names: readonly string[],
+  variables: Record<string, string | undefined> | undefined
+): Record<string, unknown> {
+  return Object.fromEntries(
+    names.map((name) => [name, toStructuredInputValue(variables?.[name])])
+  );
+}
+
+/**
+ * The state an `inputs` draft sends: one input's value as is, or several as
+ * one object keyed by name.
+ */
+export function inputsStateValue(
+  names: readonly string[],
+  variables: Record<string, string | undefined> | undefined
+): unknown {
+  const trimmed = names.map((name) => name.trim());
+  if (trimmed.length === 1) {
+    return toStructuredInputValue(variables?.[trimmed[0]]);
+  }
+  return structuredInputValuesOf(trimmed, variables);
 }
 
 /**
@@ -641,27 +732,24 @@ function toServerTemplateFormat(
 }
 
 /**
- * Send `value` as the whole state, through one input. An object or array is
- * sent unchanged as an `input` state; any other value is rendered as text.
+ * Send `text` as the whole state, through one input, for a template the
+ * server need not render.
  */
-function wholeStateInput(value: unknown): Omit<DecisionRunInput, "questions"> {
+function wholeStateInput(text: string): Omit<DecisionRunInput, "questions"> {
   return {
     inputs: [{ name: WHOLE_STATE_INPUT }],
-    state:
-      typeof value === "object" && value !== null
-        ? { input: WHOLE_STATE_INPUT }
-        : {
-            text: {
-              template: `{{${WHOLE_STATE_INPUT}}}`,
-              templateFormat: "MUSTACHE",
-            },
-          },
-    inputValues: { [WHOLE_STATE_INPUT]: value },
+    state: {
+      text: {
+        template: `{{${WHOLE_STATE_INPUT}}}`,
+        templateFormat: "MUSTACHE",
+      },
+    },
+    inputValues: { [WHOLE_STATE_INPUT]: text },
   };
 }
 
 /**
- * Root input names referenced by a text state template.
+ * Root input names referenced by a state template.
  *
  * Dotted and indexed paths (e.g. `{ticket.subject}` or `{items[0]}`) name their
  * root input (`ticket`, `items`), matching the server's `validate_inputs`.
@@ -687,15 +775,18 @@ export function stateTemplateVariables(
 }
 
 /**
- * Input names for a text state: extracted top-level template variables plus
- * any explicitly declared inputs preserved on the draft (e.g. section-scoped
- * inputs).
+ * Input names for a template state: extracted top-level template variables
+ * plus any explicitly declared inputs preserved on the draft (e.g.
+ * section-scoped inputs).
  */
 export function textStateInputNames(
   draft: Pick<DecisionPromptDraft, "state" | "additionalInputNames">,
   templateFormat: TemplateFormat | undefined
 ): string[] {
-  const extracted = stateTemplateVariables(draft.state, templateFormat);
+  const extracted = stateTemplateVariables(
+    draft.state.template,
+    templateFormat
+  );
   return withAdditionalInputNames(extracted, draft);
 }
 
@@ -737,11 +828,34 @@ function toInputDeclarations(
 }
 
 /**
- * How the state reaches the server. A text state with template variables is
- * sent as a template over those variables, so the server renders it. An input
- * state passes one named input unchanged. A JSON object or listed inputs are
- * sent as an object state, one input per key. Anything else (plain text, a
- * JSON array or string, `{}`) is sent whole.
+ * The inputs and state of an `inputs` draft. One input is passed through
+ * unchanged (alongside any other declared inputs it was saved with); several
+ * are sent as one object keyed by name.
+ */
+function inputsStateDefinition(
+  draft: DecisionPromptDraft
+): Pick<DecisionTaskDefinition, "inputs" | "state"> {
+  const names = draft.state.inputNames.map((name) => name.trim());
+  if (names.length === 1) {
+    return {
+      inputs: toInputDeclarations(
+        withAdditionalInputNames(names, draft),
+        draft.inputs
+      ),
+      state: { input: names[0] },
+    };
+  }
+  return {
+    inputs: toInputDeclarations(names, draft.inputs),
+    state: { object: true },
+  };
+}
+
+/**
+ * How the state reaches the server. An `inputs` state sends the inputs
+ * themselves; see {@link inputsStateDefinition}. A template with variables is
+ * sent as a template over them, so the server renders it. A template without
+ * any, or with no template format, is sent whole as text.
  */
 function toStateInput({
   draft,
@@ -750,46 +864,25 @@ function toStateInput({
 }: TemplateOptions & {
   draft: DecisionPromptDraft;
 }): Omit<DecisionRunInput, "questions"> {
-  if (draft.stateEditorMode === "input") {
-    const name = draft.state.trim();
-    const names = withAdditionalInputNames([name], draft);
+  if (draft.state.mode === "inputs") {
+    const definition = inputsStateDefinition(draft);
     return {
-      inputs: toInputDeclarations(names, draft.inputs),
-      state: { input: name },
-      inputValues: inputValuesOf(names, variables),
+      ...definition,
+      inputValues: structuredInputValuesOf(
+        definition.inputs.map((input) => input.name),
+        variables
+      ),
     };
   }
-  if (draft.stateEditorMode === "inputs") {
-    const names = parseStateInputNames(draft.state);
-    return {
-      inputs: toInputDeclarations(names, draft.inputs),
-      state: { object: true },
-      inputValues: inputValuesOf(names, variables),
-    };
-  }
-  if (draft.stateEditorMode === "json") {
-    const parsed: unknown = JSON.parse(draft.state);
-    if (
-      isStringKeyedObject(parsed) &&
-      !Array.isArray(parsed) &&
-      Object.keys(parsed).length > 0
-    ) {
-      return {
-        inputs: Object.keys(parsed).map((name) => ({ name })),
-        state: { object: true },
-        inputValues: parsed,
-      };
-    }
-    return wholeStateInput(parsed);
-  }
+  const { template } = draft.state;
   const serverFormat = toServerTemplateFormat(templateFormat);
   const names = serverFormat ? textStateInputNames(draft, templateFormat) : [];
   if (!serverFormat || names.length === 0) {
-    return wholeStateInput(draft.state);
+    return wholeStateInput(template);
   }
   return {
     inputs: toInputDeclarations(names, draft.inputs),
-    state: { text: { template: draft.state, templateFormat: serverFormat } },
+    state: { text: { template, templateFormat: serverFormat } },
     inputValues: inputValuesOf(names, variables),
   };
 }
@@ -857,9 +950,9 @@ export type DecisionTaskDefinition = {
 };
 
 /**
- * Why a draft cannot be run, or null when it can. The state must be text with
- * template variables, one input, or a list of inputs. `purpose` selects the
- * error wording.
+ * Why a draft cannot be run, or null when it can. An `inputs` state always
+ * can; a template needs a template format and at least one variable.
+ * `purpose` selects the error wording.
  */
 export function getDecisionDatasetProblem({
   draft,
@@ -870,6 +963,7 @@ export function getDecisionDatasetProblem({
   templateFormat: TemplateFormat;
   purpose?: "dataset" | "save" | "test";
 }): string | null {
+  if (draft.state.mode === "inputs") return null;
   const when =
     purpose === "test"
       ? "To test"
@@ -877,16 +971,11 @@ export function getDecisionDatasetProblem({
         ? "Over a dataset"
         : "To save";
   const filler = purpose === "save" ? "each caller" : "each example";
-  const owner = purpose === "save" ? "caller's" : "example's";
-  if (draft.stateEditorMode !== "input" && draft.stateEditorMode !== "inputs") {
-    const serverFormat = toServerTemplateFormat(templateFormat);
-    if (draft.stateEditorMode !== "text" || !serverFormat) {
-      return `${when}, use Text with template variables, Value for one ${owner} input, or Object to combine named inputs.`;
-    }
-    const names = textStateInputNames(draft, templateFormat);
-    if (names.length === 0) {
-      return `${when}, the state needs a template variable that ${filler} fills.`;
-    }
+  if (!toServerTemplateFormat(templateFormat)) {
+    return `${when}, pick Mustache or F-String for the state template, or switch the state to Inputs.`;
+  }
+  if (textStateInputNames(draft, templateFormat).length === 0) {
+    return `${when}, the state template needs a variable that ${filler} fills, or switch the state to Inputs.`;
   }
   return null;
 }
@@ -924,9 +1013,9 @@ export function getDecisionDatasetBlockedReason({
 }
 
 /**
- * Decision task definition. State template variables become inputs. An input
- * state passes one named input through unchanged. Listed inputs are sent as
- * an object state.
+ * Decision task definition. State template variables become inputs; an
+ * `inputs` state sends the inputs themselves (see
+ * {@link inputsStateDefinition}).
  *
  * Throws when {@link getDecisionDatasetProblem} reports a problem.
  */
@@ -948,33 +1037,17 @@ export function buildDecisionTaskDefinition({
   });
   if (problem) throw new Error(problem);
   const questions = draft.questions.map(toQuestionInput);
-  if (draft.stateEditorMode === "input") {
-    const name = draft.state.trim();
-    return {
-      inputs: toInputDeclarations(
-        withAdditionalInputNames([name], draft),
-        draft.inputs
-      ),
-      state: { input: name },
-      questions,
-    };
-  }
-  if (draft.stateEditorMode === "inputs") {
-    return {
-      inputs: toInputDeclarations(
-        parseStateInputNames(draft.state),
-        draft.inputs
-      ),
-      state: { object: true },
-      questions,
-    };
+  if (draft.state.mode === "inputs") {
+    return { ...inputsStateDefinition(draft), questions };
   }
   const serverFormat = toServerTemplateFormat(templateFormat);
   if (!serverFormat) throw new Error("Unsupported template format");
   const names = textStateInputNames(draft, templateFormat);
   return {
     inputs: toInputDeclarations(names, draft.inputs),
-    state: { text: { template: draft.state, templateFormat: serverFormat } },
+    state: {
+      text: { template: draft.state.template, templateFormat: serverFormat },
+    },
     questions,
   };
 }
@@ -1180,13 +1253,61 @@ export type DecisionImportResult = {
   draft: DecisionPromptDraft;
   /** The `model` field of the imported body, if any. */
   model: string | null;
+  /**
+   * Values for the inputs of an imported structured state, as the Inputs
+   * panel holds them; absent for a text state.
+   */
+  inputValues?: Record<string, string>;
 };
 
-function toStateDraft(
-  state: unknown
-): Pick<DecisionPromptDraft, "state" | "stateEditorMode"> {
-  if (typeof state === "string") return { state, stateEditorMode: "text" };
-  return { state: JSON.stringify(state, null, 2), stateEditorMode: "json" };
+/** The single input a structured state that is not a keyed object is imported into. */
+const IMPORTED_STATE_INPUT = "state";
+
+/** An imported value as the Inputs panel holds it: text as is, anything else as JSON. */
+function toInputValueText(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+/**
+ * The state draft for an imported state, sending the model exactly what was
+ * imported. Text is a template. An object with several keys is an `inputs`
+ * state, one input per key, with the values to fill them. Any other
+ * structured value (an object with one key, an array, `{}`, a number) passes
+ * through one input named `state`: one listed input is sent as its value,
+ * so a one-key object can't be split into its key.
+ */
+function toStateDraft(state: unknown): {
+  state: DecisionStateDraft;
+  inputValues?: Record<string, string>;
+} {
+  if (typeof state === "string") {
+    return { state: createDecisionStateDraft({ template: state }) };
+  }
+  if (
+    isStringKeyedObject(state) &&
+    !Array.isArray(state) &&
+    Object.keys(state).length > 1
+  ) {
+    return {
+      state: createDecisionStateDraft({
+        mode: "inputs",
+        inputNames: Object.keys(state),
+      }),
+      inputValues: Object.fromEntries(
+        Object.entries(state).map(([name, value]) => [
+          name,
+          toInputValueText(value),
+        ])
+      ),
+    };
+  }
+  return {
+    state: createDecisionStateDraft({
+      mode: "inputs",
+      inputNames: [IMPORTED_STATE_INPUT],
+    }),
+    inputValues: { [IMPORTED_STATE_INPUT]: toInputValueText(state) },
+  };
 }
 
 type OpenAIDecisionsBody = z.infer<typeof openAIDecisionsSchema>;
@@ -1194,7 +1315,7 @@ type SystemOneBody = z.infer<typeof systemOneSchema>;
 
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
-): DecisionPromptDraft {
+): Pick<DecisionImportResult, "draft" | "inputValues"> {
   const questions = body.questions.map((question): DecisionQuestionDraft => {
     if (question.type === "choice") {
       return createDecisionQuestion({
@@ -1228,15 +1349,13 @@ function toDraftFromOpenAIDecisions(
       instructions: question.instructions,
     });
   });
-  return {
-    ...(typeof body.input === "string"
-      ? { state: body.input, stateEditorMode: "text" as const }
-      : toStateDraft(body.input)),
-    questions,
-  };
+  const { state, inputValues } = toStateDraft(body.input);
+  return { draft: { state, questions }, inputValues };
 }
 
-function toDraftFromSystemOne(body: SystemOneBody): DecisionPromptDraft {
+function toDraftFromSystemOne(
+  body: SystemOneBody
+): Pick<DecisionImportResult, "draft" | "inputValues"> {
   const questions = Object.entries(body.questions).map(
     ([name, question]): DecisionQuestionDraft => {
       const instructions = toText(question.instructions);
@@ -1281,7 +1400,8 @@ function toDraftFromSystemOne(body: SystemOneBody): DecisionPromptDraft {
       });
     }
   );
-  return { ...toStateDraft(body.state), questions };
+  const { state, inputValues } = toStateDraft(body.state);
+  return { draft: { state, questions }, inputValues };
 }
 
 /** Accepts either provider's request body and returns an editable draft. */
@@ -1304,7 +1424,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
     }
     return {
       model: parsed.data.model ?? null,
-      draft: toDraftFromOpenAIDecisions(parsed.data),
+      ...toDraftFromOpenAIDecisions(parsed.data),
     };
   }
   const parsed = systemOneSchema.safeParse(json);
@@ -1315,7 +1435,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
   }
   return {
     model: parsed.data.model ?? null,
-    draft: toDraftFromSystemOne(parsed.data),
+    ...toDraftFromSystemOne(parsed.data),
   };
 }
 
@@ -1454,20 +1574,9 @@ function chatStateContent({
   draft: DecisionPromptDraft;
   templateFormat: TemplateFormat;
 }): string {
-  const variable = (name: string) =>
-    templateFormat === TemplateFormats.FString
-      ? `{${name}}`
-      : templateFormat === TemplateFormats.Mustache
-        ? `{{${name}}}`
-        : "";
-  if (draft.stateEditorMode === "input") {
-    const name = draft.state.trim();
-    return variable(name) || name;
-  }
-  if (draft.stateEditorMode !== "inputs") return draft.state;
-  return parseStateInputNames(draft.state)
-    .map((name) => `${name}: ${variable(name)}`.trimEnd())
-    .join("\n");
+  return draft.state.mode === "inputs"
+    ? inputNamesToTemplate(draft.state.inputNames, templateFormat)
+    : draft.state.template;
 }
 
 /**
@@ -1551,19 +1660,17 @@ export function extractDecisionVariables({
   templateFormat: TemplateFormat;
 }): string[] {
   if (!draft) return [];
-  if (draft.stateEditorMode === "input") {
-    const name = draft.state.trim();
-    return withAdditionalInputNames(name ? [name] : [], draft);
+  if (draft.state.mode === "inputs") {
+    const names = draft.state.inputNames
+      .map((name) => name.trim())
+      .filter(Boolean);
+    return Array.from(
+      new Set(
+        names.length === 1 ? withAdditionalInputNames(names, draft) : names
+      )
+    );
   }
-  if (draft.stateEditorMode === "inputs") {
-    return Array.from(new Set(parseStateInputNames(draft.state)));
-  }
-  if (
-    draft.stateEditorMode !== "text" ||
-    templateFormat === TemplateFormats.NONE
-  ) {
-    return [];
-  }
+  if (templateFormat === TemplateFormats.NONE) return [];
   return textStateInputNames(draft, templateFormat);
 }
 
@@ -1916,6 +2023,7 @@ function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
 /** The editable request from a span's input body, with a reason when it fails. */
 function readDecisionDraft(inputText: string | null): {
   draft: DecisionPromptDraft;
+  inputValues?: Record<string, string>;
   error: string | null;
 } {
   if (inputText == null) {
@@ -1925,7 +2033,8 @@ function readDecisionDraft(inputText: string | null): {
     };
   }
   try {
-    return { draft: parseDecisionImport(inputText).draft, error: null };
+    const { draft, inputValues } = parseDecisionImport(inputText);
+    return { draft, inputValues, error: null };
   } catch (error) {
     return {
       draft: createDecisionDraft(),
@@ -1960,6 +2069,8 @@ export function buildDecisionInstanceFromSpanAttributes({
   status?: { code: string; message: string };
 }): {
   playgroundInstance: PlaygroundInstance;
+  /** Values for the inputs of a structured state, for the Inputs panel. */
+  playgroundInput?: PlaygroundInput;
   parsingErrors: string[];
   templateFormat: TemplateFormat;
 } {
@@ -1983,7 +2094,7 @@ export function buildDecisionInstanceFromSpanAttributes({
   if (!modelName) {
     parsingErrors.push("Could not determine the decision model from the span.");
   }
-  const { draft, error } = readDecisionDraft(
+  const { draft, inputValues, error } = readDecisionDraft(
     readAttributeValueText(spanAttributes.input)
   );
   if (error) parsingErrors.push(error);
@@ -2020,6 +2131,9 @@ export function buildDecisionInstanceFromSpanAttributes({
         },
       },
     },
+    ...(inputValues
+      ? { playgroundInput: { variablesValueCache: inputValues } }
+      : {}),
     parsingErrors,
     // A DECISION span holds the rendered provider payload, so replay keeps
     // literal braces intact rather than re-interpreting them as a template.

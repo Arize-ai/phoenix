@@ -182,7 +182,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       </Flex>
       <View paddingY="size-100">
         {isDecision ? (
-          <DecisionPromptEditor playgroundInstanceId={instanceId} />
+          <DecisionPromptEditor
+            playgroundInstanceId={instanceId}
+            availablePaths={props.availablePaths}
+          />
         ) : instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />

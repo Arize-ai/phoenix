@@ -833,8 +833,7 @@ function PlaygroundContent() {
     getPlaygroundInstancesWithDecisionPrompts(state).some(
       (instance) =>
         isDecisionInstance(instance) &&
-        (instance.decisionPrompt?.stateEditorMode === "input" ||
-          instance.decisionPrompt?.stateEditorMode === "inputs")
+        instance.decisionPrompt?.state.mode === "inputs"
     )
   );
   const panelIds = useMemo(

@@ -8,6 +8,7 @@ import {
   buildDecisionInput,
   createChoiceOption,
   createDecisionQuestion,
+  createDecisionStateDraft,
   createScaleLevel,
   extractDecisionVariables,
 } from "../decisionUtils";
@@ -23,10 +24,13 @@ import {
 const mustache = TemplateFormats.Mustache;
 const fString = TemplateFormats.FString;
 
-function makeDraft(state: string): DecisionPromptDraft {
+/** A draft over this template, or over these inputs when given a list. */
+function makeDraft(state: string | string[]): DecisionPromptDraft {
   return {
-    state,
-    stateEditorMode: "text",
+    state:
+      typeof state === "string"
+        ? createDecisionStateDraft({ template: state })
+        : createDecisionStateDraft({ mode: "inputs", inputNames: state }),
     questions: [
       createDecisionQuestion({
         type: "predicate",
@@ -139,13 +143,10 @@ describe("toDecisionVersionInput", () => {
     expect(input.questions).toHaveLength(3);
   });
 
-  it("passes an input state as that input", () => {
+  it("passes one listed input as that input", () => {
     expect(
       toDecisionVersionInput({
-        instance: makeInstance({
-          ...makeDraft("ticket"),
-          stateEditorMode: "input",
-        }),
+        instance: makeInstance(makeDraft(["ticket"])),
         templateFormat: fString,
       })
     ).toMatchObject({
@@ -194,7 +195,7 @@ describe("toDecisionVersionInput", () => {
         templateFormat: mustache,
       })
     ).toThrow(
-      "To save, the state needs a template variable that each caller fills"
+      "To save, the state template needs a variable that each caller fills, or switch the state to Inputs."
     );
     expect(() =>
       toDecisionVersionInput({
@@ -213,7 +214,7 @@ describe("toDecisionVersionInput", () => {
         purpose: "test",
       })
     ).toThrow(
-      "To test, the state needs a template variable that each example fills"
+      "To test, the state template needs a variable that each example fills, or switch the state to Inputs."
     );
   });
 });
@@ -257,10 +258,9 @@ describe("savedDecisionVersionToDraft", () => {
       version,
       templateFormat: mustache,
     });
-    expect(loaded).toMatchObject({
-      state: "{{state}}",
-      stateEditorMode: "text",
-    });
+    expect(loaded.state).toEqual(
+      createDecisionStateDraft({ template: "{{state}}" })
+    );
     expect(
       toDecisionVersionInput({
         instance: makeInstance(loaded),
@@ -273,10 +273,7 @@ describe("savedDecisionVersionToDraft", () => {
 
   it("round-trips an input state in any template format, including NONE", () => {
     for (const format of [mustache, fString, TemplateFormats.NONE] as const) {
-      const draft = {
-        ...makeDraft("ticket"),
-        stateEditorMode: "input" as const,
-      };
+      const draft = makeDraft(["ticket"]);
       const saved = toSavedVersion(
         toDecisionVersionInput({
           instance: makeInstance(draft),
@@ -287,10 +284,8 @@ describe("savedDecisionVersionToDraft", () => {
       expect(saved.state).toEqual({ kind: "input", input: "ticket" });
       expect(
         savedDecisionVersionToDraft({ version: saved, templateFormat: format })
-      ).toMatchObject({
-        state: "ticket",
-        stateEditorMode: "input",
-      });
+          .state
+      ).toEqual(draft.state);
     }
   });
 
@@ -409,7 +404,10 @@ describe("savedDecisionVersionToDraft", () => {
       });
       const edited = {
         ...loaded,
-        state: kind === "text" ? "{{message}}" : "message",
+        state:
+          kind === "text"
+            ? { ...loaded.state, template: "{{message}}" }
+            : { ...loaded.state, inputNames: ["message"] },
       };
       const expectedInputs = [{ name: "message" }, version.inputs![1]];
       expect(
@@ -477,17 +475,13 @@ describe("savedDecisionVersionToDraft", () => {
           templateFormat,
         })
       ).toMatchObject({
-        state: "reference, output",
-        stateEditorMode: "inputs",
+        state: { mode: "inputs", inputNames: ["reference", "output"] },
       });
     }
   });
 
   it("round-trips listed inputs as an object state", () => {
-    const draft = {
-      ...makeDraft("reference, output"),
-      stateEditorMode: "inputs" as const,
-    };
+    const draft = makeDraft(["reference", "output"]);
     const input = toDecisionVersionInput({
       instance: makeInstance(draft),
       templateFormat: mustache,
@@ -519,6 +513,7 @@ describe("savedDecisionVersionToDraft", () => {
     ).toThrow("written in F-String");
     expect(
       savedDecisionVersionToDraft({ version, templateFormat: fString }).state
+        .template
     ).toBe("{ticket} again");
   });
 });
