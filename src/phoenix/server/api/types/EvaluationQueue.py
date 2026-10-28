@@ -14,10 +14,15 @@ if TYPE_CHECKING:
     from .Project import Project
 
 _DEGRADED_QUEUE_WAIT_MINUTES = int(queue_health.DEGRADED_QUEUE_WAIT.total_seconds() // 60)
+_OVERFLOW_WINDOW_MINUTES = int(queue_health.OVERFLOW_WINDOW.total_seconds() // 60)
 _RATE_WINDOW_MINUTES = int(queue_health.RATE_WINDOW.total_seconds() // 60)
 
 
-@strawberry.enum(description="Whether queued evaluations are running without long waits.")
+@strawberry.enum(
+    description=(
+        "Whether new evaluations are being queued, and queued ones run without long waits."
+    )
+)
 class EvaluationQueueStatus(Enum):
     HEALTHY = strawberry.enum_value(
         "HEALTHY",
@@ -30,7 +35,14 @@ class EvaluationQueueStatus(Enum):
         "DEGRADED",
         description=(
             f"The oldest evaluation not yet started has waited over "
-            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes, or the queue is at capacity."
+            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes."
+        ),
+    )
+    OVERLOADED = strawberry.enum_value(
+        "OVERLOADED",
+        description=(
+            f"New evaluations were dropped in the last {_OVERFLOW_WINDOW_MINUTES} minutes "
+            "because the queue was full. Takes precedence over DEGRADED."
         ),
     )
 
@@ -94,6 +106,15 @@ class EvaluationQueueTarget:
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
+            "Evaluations not queued because the queue was full, in the last "
+            f"{_OVERFLOW_WINDOW_MINUTES} minutes."
+        )
+    )
+    def overflowed_count(self) -> int:
+        return self.target.overflowed_count
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
             "Evaluations queued per minute. While the queue is at capacity, this follows the "
             "rate evaluations leave it, not the rate they are owed."
         )
@@ -154,13 +175,16 @@ class EvaluationQueue:
         return self.queue.running_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="How many evaluations the queue holds before new ones wait to be queued."
+        description=(
+            "How many evaluations the queue holds. New evaluations that do not fit are dropped, "
+            "not queued."
+        )
     )
     def queued_limit(self) -> int:
         return self.queue.queued_limit
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Whether the queue is full, so new evaluations are not being queued."
+        description="Whether the queue is full, so new evaluations are dropped, not queued."
     )
     def at_capacity(self) -> bool:
         return self.queue.at_capacity
@@ -179,6 +203,15 @@ class EvaluationQueue:
     )
     def oldest_queued_at(self) -> Optional[datetime]:
         return self.queue.waiting.oldest_queued_at
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluations not queued because the queue was full, in the last "
+            f"{_OVERFLOW_WINDOW_MINUTES} minutes."
+        )
+    )
+    def overflowed_count(self) -> int:
+        return self.queue.overflowed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
@@ -268,6 +301,15 @@ class ProjectEvaluationQueue:
     )
     def oldest_queued_at(self) -> Optional[datetime]:
         return self.queue.oldest_queued_at
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluations not queued because the queue was full, in the last "
+            f"{_OVERFLOW_WINDOW_MINUTES} minutes."
+        )
+    )
+    def overflowed_count(self) -> int:
+        return self.queue.overflowed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

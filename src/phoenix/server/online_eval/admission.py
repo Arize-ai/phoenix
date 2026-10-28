@@ -1,6 +1,6 @@
 """The one limit on queued online evaluations: span, trace, and session evaluations share
-one queue, which stops taking new evaluations once this many are queued (PENDING, RUNNING,
-or ERROR awaiting a retry), and resumes as they drain.
+one queue, which holds at most this many queued (PENDING, RUNNING, or ERROR awaiting a
+retry). New evaluations that do not fit under it are dropped, not queued.
 
 The span producer and the trace and session sweepers admit new evaluations only into the
 room left under it, and queue health reads the same limit to report the queue at capacity.
