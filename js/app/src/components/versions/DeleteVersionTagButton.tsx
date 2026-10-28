@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -17,7 +18,8 @@ import {
 
 /**
  * The trash icon on a version tag row and its confirmation dialog. The
- * caller owns the open state and runs the deletion.
+ * caller owns the open state, runs the deletion and reports its error, which
+ * the dialog shows while staying open.
  */
 export function DeleteVersionTagButton({
   isOpen,
@@ -26,12 +28,14 @@ export function DeleteVersionTagButton({
   isDeleting,
   /** The consequence of deleting, e.g. what can no longer be pulled by tag. */
   warning,
+  error,
 }: {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onDelete: () => void;
   isDeleting: boolean;
   warning: string;
+  error?: string | null;
 }) {
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -49,6 +53,11 @@ export function DeleteVersionTagButton({
                 <DialogCloseButton />
               </DialogTitleExtra>
             </DialogHeader>
+            {error ? (
+              <Alert variant="danger" banner>
+                {error}
+              </Alert>
+            ) : null}
             <View padding="size-200">
               <View paddingBottom="size-100">
                 <Text color="danger" size="XS">

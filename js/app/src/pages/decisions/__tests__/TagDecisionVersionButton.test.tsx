@@ -94,7 +94,7 @@ describe("TagDecisionVersionButton", () => {
     expect(byName.production.checked).toBe(false);
   });
 
-  it("sets a default tag with its description and refreshes only on success", async () => {
+  it("sets a new default tag with its description, shows a failure inline and refreshes only on success", async () => {
     const onTagSet = vi.fn();
     await render(
       <TagDecisionVersionButton
@@ -120,12 +120,31 @@ describe("TagDecisionVersionButton", () => {
       options.onCompleted({}, [{ message: "Tag is reserved" }])
     );
     expect(onTagSet).not.toHaveBeenCalled();
-    expect(notifyError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Tag is reserved" })
-    );
+    expect(notifyError).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Tag is reserved");
     await act(async () => options.onCompleted({}, null));
     expect(onTagSet).toHaveBeenCalledOnce();
     expect(notifySuccess).toHaveBeenCalledOnce();
+  });
+
+  it("moves an existing tag without touching its description", async () => {
+    await render(
+      <TagDecisionVersionButton
+        versionId="version-2"
+        decisionTagNames={["production", "canary"]}
+        versionTagNames={[]}
+        onTagSet={vi.fn()}
+      />
+    );
+    await clickButton("Tag Version");
+    for (const name of ["production", "canary"]) {
+      const checkbox = checkboxes().find((checkbox) => checkbox.name === name);
+      await act(async () => checkbox?.click());
+    }
+    expect(commit.mock.calls.map((call) => call[0].variables)).toEqual([
+      { versionId: "version-2", name: "production", description: null },
+      { versionId: "version-2", name: "canary", description: null },
+    ]);
   });
 
   it("opens the new tag dialog and sends a blank description as null", async () => {
@@ -150,6 +169,18 @@ describe("TagDecisionVersionButton", () => {
     await act(async () => {
       setter?.call(nameInput, "canary");
       nameInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    // Whitespace counts as blank, so a moved tag keeps its description.
+    const descriptionInput =
+      dialog?.querySelector<HTMLTextAreaElement>("textarea");
+    expect(descriptionInput).not.toBeNull();
+    const textAreaSetter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value"
+    )?.set;
+    await act(async () => {
+      textAreaSetter?.call(descriptionInput, "   ");
+      descriptionInput?.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await clickButton("Create Tag");
     expect(commit).toHaveBeenCalledOnce();

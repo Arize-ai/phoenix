@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -25,7 +25,7 @@ import {
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-export type EditDetailsFormParams = {
+type EditDetailsFormParams = {
   description: string;
   metadata: string;
 };
@@ -55,51 +55,42 @@ export function EditDetailsButton({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const toDefaults = useCallback(
-    () => ({
-      description: description ?? "",
-      metadata: metadata ? JSON.stringify(metadata, null, 2) : "{}",
-    }),
-    [description, metadata]
-  );
+  const toDefaults = () => ({
+    description: description ?? "",
+    metadata: metadata ? JSON.stringify(metadata, null, 2) : "{}",
+  });
   const { control, handleSubmit, reset } = useForm<EditDetailsFormParams>({
     defaultValues: toDefaults(),
   });
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      setIsOpen(open);
-      if (open) {
-        reset(toDefaults());
-      } else {
-        setError(null);
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      reset(toDefaults());
+    } else {
+      setError(null);
+    }
+  };
+  const submit = async (patch: EditDetailsFormParams) => {
+    // Parse metadata, or set to null to clear if empty
+    let parsedMetadata: unknown = null;
+    if (patch.metadata && patch.metadata.trim() !== "") {
+      try {
+        parsedMetadata = JSON.parse(patch.metadata);
+      } catch (_error) {
+        setError("Failed to parse metadata as JSON");
+        return;
       }
-    },
-    [reset, toDefaults]
-  );
-  const submit = useCallback(
-    async (patch: EditDetailsFormParams) => {
-      // Parse metadata, or set to null to clear if empty
-      let parsedMetadata: unknown = null;
-      if (patch.metadata && patch.metadata.trim() !== "") {
-        try {
-          parsedMetadata = JSON.parse(patch.metadata);
-        } catch (_error) {
-          setError("Failed to parse metadata as JSON");
-          return;
-        }
-      }
-      const submitError = await onSubmit({
-        description: patch.description,
-        metadata: parsedMetadata,
-      });
-      if (submitError) {
-        setError(submitError);
-      } else {
-        setIsOpen(false);
-      }
-    },
-    [onSubmit]
-  );
+    }
+    const submitError = await onSubmit({
+      description: patch.description,
+      metadata: parsedMetadata,
+    });
+    if (submitError) {
+      setError(submitError);
+    } else {
+      setIsOpen(false);
+    }
+  };
   const lowerLabel = entityLabel.toLowerCase();
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>

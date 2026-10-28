@@ -42,7 +42,7 @@ export function VersionListItem({
   );
 }
 
-export const VERSIONS_LIST_WIDTH = 400;
+const VERSIONS_LIST_WIDTH = 400;
 
 const versionsListScrollCSS = css`
   height: 100%;

@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { VersionTagRow } from "@phoenix/components/versions/VersionTagsConfigCard";
@@ -27,20 +26,15 @@ export function PromptVersionTagsConfigCard({
     prompt
   );
   const promptId = data.id;
-  const getVersionPath = useCallback(
-    (versionId: string) => `/prompts/${promptId}/versions/${versionId}`,
-    [promptId]
-  );
-  const renderDeleteButton = useCallback(
-    (tag: VersionTagRow) => (
-      <DeletePromptVersionTagButton
-        promptVersionTagId={tag.id}
-        promptId={promptId}
-        // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
-        key={tag.id}
-      />
-    ),
-    [promptId]
+  const getVersionPath = (versionId: string) =>
+    `/prompts/${promptId}/versions/${versionId}`;
+  const renderDeleteButton = (tag: VersionTagRow) => (
+    <DeletePromptVersionTagButton
+      promptVersionTagId={tag.id}
+      promptId={promptId}
+      // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
+      key={tag.id}
+    />
   );
   return (
     <VersionTagsConfigCard

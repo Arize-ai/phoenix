@@ -1,16 +1,16 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { DialogTrigger } from "@phoenix/components";
 import type { VersionTagFormParams } from "@phoenix/components/versions/NewVersionTagDialog";
 import { NewVersionTagDialog } from "@phoenix/components/versions/NewVersionTagDialog";
 import {
-  getDefaultVersionTagDescription,
+  getVersionTagDescriptionToSet,
   TagVersionButton,
   VersionTagCheckboxList,
   withDefaultVersionTagNames,
 } from "@phoenix/components/versions/TagVersionButton";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { TagDecisionVersionButtonSetTagMutation } from "./__generated__/TagDecisionVersionButtonSetTagMutation.graphql";
@@ -35,13 +35,10 @@ export function TagDecisionVersionButton({
 }) {
   const [showTagList, setShowTagList] = useState(false);
   const [showNewTagDialog, setShowNewTagDialog] = useState(false);
+  const [setTagError, setSetTagError] = useState<string | null>(null);
   const [newTagError, setNewTagError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
-  const tagNames = useMemo(
-    () => withDefaultVersionTagNames(decisionTagNames),
-    [decisionTagNames]
-  );
+  const tagNames = withDefaultVersionTagNames(decisionTagNames);
   const [commitSetTag, isCommitting] =
     useMutation<TagDecisionVersionButtonSetTagMutation>(graphql`
       mutation TagDecisionVersionButtonSetTagMutation(
@@ -66,6 +63,7 @@ export function TagDecisionVersionButton({
       }
     `);
 
+  // A null description keeps a moved tag's description.
   const setTag = ({
     name,
     description,
@@ -73,12 +71,12 @@ export function TagDecisionVersionButton({
     onFail,
   }: {
     name: string;
-    description: string;
+    description: string | null;
     onDone: () => void;
     onFail: (message: string) => void;
   }) =>
     commitSetTag({
-      variables: { versionId, name, description: description || null },
+      variables: { versionId, name, description },
       onCompleted: (_, errors) => {
         if (errors?.length) {
           onFail(errors.map((error) => error.message).join("\n"));
@@ -96,7 +94,10 @@ export function TagDecisionVersionButton({
   return (
     <TagVersionButton
       isOpen={showTagList}
-      onOpenChange={setShowTagList}
+      onOpenChange={(isOpen) => {
+        setShowTagList(isOpen);
+        setSetTagError(null);
+      }}
       onNewTag={() => {
         setShowTagList(false);
         setNewTagError(null);
@@ -107,19 +108,23 @@ export function TagDecisionVersionButton({
           tagNames={tagNames}
           setTagNames={versionTagNames}
           isCommitting={isCommitting}
-          onSetTag={(tagName) =>
+          error={setTagError}
+          onSetTag={(tagName) => {
+            setSetTagError(null);
             setTag({
               name: tagName,
-              description: getDefaultVersionTagDescription(tagName),
+              description: getVersionTagDescriptionToSet(
+                tagName,
+                decisionTagNames
+              ),
               onDone: () =>
                 notifySuccess({
                   title: "Tag Set",
                   message: `The tag ${tagName} has been set on the version`,
                 }),
-              onFail: (message) =>
-                notifyError({ title: "Failed to set tag", message }),
-            })
-          }
+              onFail: setSetTagError,
+            });
+          }}
         />
       }
     >
@@ -136,7 +141,7 @@ export function TagDecisionVersionButton({
             setNewTagError(null);
             setTag({
               name: newTag.name,
-              description: newTag.description,
+              description: newTag.description.trim() || null,
               onDone: () => {
                 setShowNewTagDialog(false);
                 notifySuccess({

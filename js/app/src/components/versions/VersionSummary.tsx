@@ -6,7 +6,7 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useCurrentTime } from "@phoenix/hooks";
 
-export type VersionSummaryProps = {
+type VersionSummaryProps = {
   id: string;
   sequenceNumber: number;
   description?: string | null;

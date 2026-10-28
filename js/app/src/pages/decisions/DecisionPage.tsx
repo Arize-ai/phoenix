@@ -317,7 +317,7 @@ function DecisionDetails({
               <DecisionVersionsList
                 decisionRef={decision}
                 decisionId={decision.id}
-                selectedVersionId={versionId}
+                selectedVersionId={version?.id ?? null}
               />
               <View width="100%" overflow="auto" elementType="section">
                 <View padding="size-200" width="100%" overflow="auto">

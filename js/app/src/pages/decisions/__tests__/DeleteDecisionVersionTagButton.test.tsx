@@ -78,7 +78,7 @@ describe("DeleteDecisionVersionTagButton", () => {
     expect(onDeleted).not.toHaveBeenCalled();
   });
 
-  it("reports a GraphQL failure without refreshing", async () => {
+  it("shows a GraphQL failure in the open dialog without refreshing", async () => {
     const onDeleted = vi.fn();
     await render(
       <DeleteDecisionVersionTagButton tagId="tag-1" onDeleted={onDeleted} />
@@ -91,9 +91,10 @@ describe("DeleteDecisionVersionTagButton", () => {
     await act(async () =>
       options.onCompleted({}, [{ message: "Tag is in use" }])
     );
-    expect(notifyError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Tag is in use" })
-    );
+    expect(notifyError).not.toHaveBeenCalled();
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.textContent).toContain("Tag is in use");
     expect(notifySuccess).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });

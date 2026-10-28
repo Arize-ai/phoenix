@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-
 import { CanModify } from "@phoenix/components/auth";
 import type { VersionTagRow } from "@phoenix/components/versions/VersionTagsConfigCard";
 import { VersionTagsConfigCard } from "@phoenix/components/versions/VersionTagsConfigCard";
@@ -20,19 +18,13 @@ export function DecisionVersionTagsConfigCard({
   }>;
   onDeleted: () => void;
 }) {
-  const getVersionPath = useCallback(
-    (versionId: string) =>
-      `/prompts/decisions/${decisionId}/versions/${versionId}`,
-    [decisionId]
-  );
-  const renderDeleteButton = useCallback(
-    (tag: VersionTagRow) => (
-      // A new key per tag, or the dialog stays open on the row that replaces the deleted one
-      <CanModify key={tag.id}>
-        <DeleteDecisionVersionTagButton tagId={tag.id} onDeleted={onDeleted} />
-      </CanModify>
-    ),
-    [onDeleted]
+  const getVersionPath = (versionId: string) =>
+    `/prompts/decisions/${decisionId}/versions/${versionId}`;
+  const renderDeleteButton = (tag: VersionTagRow) => (
+    // A new key per tag, or the dialog stays open on the row that replaces the deleted one
+    <CanModify key={tag.id}>
+      <DeleteDecisionVersionTagButton tagId={tag.id} onDeleted={onDeleted} />
+    </CanModify>
   );
   return (
     <VersionTagsConfigCard

@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import {
+  Alert,
   Button,
   Checkbox,
   Dialog,
@@ -29,13 +30,19 @@ export function withDefaultVersionTagNames(
 }
 
 /**
- * The description a default tag is created with; other tags start blank.
+ * The description to send when setting `tagName` from the checklist: a
+ * default tag's description when the tag does not exist yet, otherwise null
+ * so that a moved tag keeps the description it has.
  */
-export function getDefaultVersionTagDescription(tagName: string): string {
+export function getVersionTagDescriptionToSet(
+  tagName: string,
+  existingTagNames: ReadonlyArray<string>
+): string | null {
+  if (existingTagNames.includes(tagName)) return null;
   return (
     DEFAULT_PROMPT_VERSION_TAGS.find(
       (tagDefinition) => tagDefinition.name === tagName
-    )?.description ?? ""
+    )?.description || null
   );
 }
 
@@ -96,46 +103,58 @@ export function TagVersionButton({
 /**
  * The popover's checklist. A tag already on the version stays checked and
  * disabled; checking another sets it, moving it from its current version.
+ * `error` is the last failure to set a tag, shown above the list.
  */
 export function VersionTagCheckboxList({
   tagNames,
   setTagNames,
   isCommitting,
   onSetTag,
+  error,
 }: {
   tagNames: ReadonlyArray<string>;
   setTagNames: ReadonlyArray<string>;
   isCommitting: boolean;
   onSetTag: (tagName: string) => void;
+  error?: string | null;
 }) {
   return (
-    <ul>
-      {tagNames.map((tagName) => {
-        const isTagSet = setTagNames.includes(tagName);
-        return (
-          <li key={tagName}>
-            <View
-              paddingY="size-100"
-              paddingX="size-200"
-              borderBottomColor="default"
-              borderBottomWidth="thin"
-            >
-              <Checkbox
-                name={tagName}
-                isSelected={isTagSet}
-                isDisabled={isTagSet || isCommitting}
-                onChange={(isSelected) => {
-                  if (isSelected) {
-                    onSetTag(tagName);
-                  }
-                }}
+    <>
+      {error ? (
+        <View padding="size-100" width="250px">
+          <Alert variant="danger" banner>
+            {error}
+          </Alert>
+        </View>
+      ) : null}
+      <ul>
+        {tagNames.map((tagName) => {
+          const isTagSet = setTagNames.includes(tagName);
+          return (
+            <li key={tagName}>
+              <View
+                paddingY="size-100"
+                paddingX="size-200"
+                borderBottomColor="default"
+                borderBottomWidth="thin"
               >
-                {tagName}
-              </Checkbox>
-            </View>
-          </li>
-        );
-      })}
-    </ul>
+                <Checkbox
+                  name={tagName}
+                  isSelected={isTagSet}
+                  isDisabled={isTagSet || isCommitting}
+                  onChange={(isSelected) => {
+                    if (isSelected) {
+                      onSetTag(tagName);
+                    }
+                  }}
+                >
+                  {tagName}
+                </Checkbox>
+              </View>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

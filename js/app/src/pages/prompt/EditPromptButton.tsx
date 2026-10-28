@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
 import { EditDetailsButton } from "@phoenix/components/versions/EditDetailsButton";
@@ -28,34 +27,37 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         }
       }
     `);
-  const onSubmit = useCallback(
-    ({ description, metadata }: { description: string; metadata: unknown }) =>
-      new Promise<string | null>((resolve) => {
-        mutatePrompt({
-          variables: {
-            input: {
-              promptId: data.id,
-              description,
-              metadata,
-            },
+  const onSubmit = ({
+    description,
+    metadata,
+  }: {
+    description: string;
+    metadata: unknown;
+  }) =>
+    new Promise<string | null>((resolve) => {
+      mutatePrompt({
+        variables: {
+          input: {
+            promptId: data.id,
+            description,
+            metadata,
           },
-          onCompleted: () => {
-            notifySuccess({
-              title: "Prompt updated",
-              message: "The prompt has been updated successfully",
-            });
-            resolve(null);
-          },
-          onError: (error) => {
-            resolve(
-              getErrorMessagesFromRelayMutationError(error)?.[0] ??
-                "Error updating prompt"
-            );
-          },
-        });
-      }),
-    [data.id, mutatePrompt, notifySuccess]
-  );
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "Prompt updated",
+            message: "The prompt has been updated successfully",
+          });
+          resolve(null);
+        },
+        onError: (error) => {
+          resolve(
+            getErrorMessagesFromRelayMutationError(error)?.[0] ??
+              "Error updating prompt"
+          );
+        },
+      });
+    });
   return (
     <EditDetailsButton
       entityLabel="Prompt"

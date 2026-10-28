@@ -1,16 +1,16 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import { DialogTrigger, Loading, View } from "@phoenix/components";
 import type { TagPromptVersionButtonSetTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonSetTagMutation.graphql";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import {
-  getDefaultVersionTagDescription,
+  getVersionTagDescriptionToSet,
   TagVersionButton,
   VersionTagCheckboxList,
   withDefaultVersionTagNames,
 } from "@phoenix/components/versions/TagVersionButton";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -95,7 +95,7 @@ function TagList({
   fetchKey: number;
   onTagSet: (tagName: string) => void;
 }) {
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const data = useLazyLoadQuery<TagPromptVersionButtonTagsQuery>(
     graphql`
       query TagPromptVersionButtonTagsQuery($promptId: ID!, $versionId: ID!) {
@@ -121,17 +121,11 @@ function TagList({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  const allVersionTagsWithDefaults = useMemo(
-    () =>
-      withDefaultVersionTagNames(
-        data?.prompt?.versionTags?.map((tag) => tag.name) || []
-      ),
-    [data?.prompt?.versionTags]
-  );
-
-  const tagsSetOnVersion = useMemo(() => {
-    return data?.promptVersion?.tags?.map((tag) => tag.name) || [];
-  }, [data?.promptVersion?.tags]);
+  const promptTagNames =
+    data?.prompt?.versionTags?.map((tag) => tag.name) || [];
+  const allVersionTagsWithDefaults = withDefaultVersionTagNames(promptTagNames);
+  const tagsSetOnVersion =
+    data?.promptVersion?.tags?.map((tag) => tag.name) || [];
 
   const [commitSetTag, isCommitting] =
     useMutation<TagPromptVersionButtonSetTagMutation>(graphql`
@@ -152,13 +146,19 @@ function TagList({
       tagNames={allVersionTagsWithDefaults}
       setTagNames={tagsSetOnVersion}
       isCommitting={isCommitting}
-      onSetTag={(tagName) =>
+      error={error}
+      onSetTag={(tagName) => {
+        setError(null);
         commitSetTag({
           variables: {
             input: {
               name: tagName,
               promptVersionId: versionId,
-              description: getDefaultVersionTagDescription(tagName),
+              // A null description keeps a moved tag's description.
+              description: getVersionTagDescriptionToSet(
+                tagName,
+                promptTagNames
+              ),
             },
           },
           updater: (store, data) => {
@@ -175,16 +175,13 @@ function TagList({
           onCompleted: () => {
             onTagSet(tagName);
           },
-          onError: (error) => {
-            notifyError({
-              title: "Failed to set tag",
-              message:
-                getErrorMessagesFromRelayMutationError(error)?.[0] ??
-                error.message,
-            });
-          },
-        })
-      }
+          onError: (error) =>
+            setError(
+              getErrorMessagesFromRelayMutationError(error)?.[0] ??
+                error.message
+            ),
+        });
+      }}
     />
   );
 }

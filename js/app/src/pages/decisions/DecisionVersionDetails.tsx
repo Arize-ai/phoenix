@@ -1,7 +1,7 @@
 import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
-import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
+import { useSearchParams } from "react-router";
 
 import {
   Card,
@@ -129,21 +129,25 @@ export function DecisionVersionDetails({
     version.previousVersion
   );
   const { theme } = useTheme();
-  const [showDiff, setShowDiff] = useState(false);
+  // The diff toggle lives in the URL so a diff view can be reloaded or shared.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showDiff = searchParams.get("diff") === "true";
+  const setShowDiff = (enabled: boolean) =>
+    setSearchParams((params) => {
+      if (enabled) params.set("diff", "true");
+      else params.delete("diff");
+      return params;
+    });
   const definitionText = decisionVersionToText(definition);
-  const fileDiff = useMemo(
-    () =>
-      previous
-        ? parseDiffFromFile(
-            {
-              name: "decision.json",
-              contents: decisionVersionToText(previous),
-            },
-            { name: "decision.json", contents: definitionText }
-          )
-        : null,
-    [previous, definitionText]
-  );
+  const fileDiff = previous
+    ? parseDiffFromFile(
+        {
+          name: "decision.json",
+          contents: decisionVersionToText(previous),
+        },
+        { name: "decision.json", contents: definitionText }
+      )
+    : null;
   const metadataJSON = JSON.stringify(version.metadata, null, 2);
   return (
     <Flex

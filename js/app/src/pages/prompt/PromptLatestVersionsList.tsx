@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { useResolvedPath } from "react-router";
 
@@ -32,9 +31,7 @@ export function PromptLatestVersionsList(props: {
     `,
     prompt
   );
-  const versions = useMemo(() => {
-    return data?.latestVersions?.edges?.map((edge) => edge.version);
-  }, [data]);
+  const versions = data?.latestVersions?.edges?.map((edge) => edge.version);
 
   if (!versions) {
     throw new Error("Expected prompt versions to be defined");

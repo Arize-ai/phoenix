@@ -1,6 +1,5 @@
 import { flexRender, useTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { useMemo } from "react";
 
 import { Card, Flex, Icon, Icons, Link } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -30,45 +29,37 @@ export function VersionTagsConfigCard({
   getVersionPath: (versionId: string) => string;
   renderDeleteButton: (tag: VersionTagRow) => ReactNode;
 }) {
-  const columns = useMemo(
-    (): ColumnDef<VersionTagRow>[] => [
-      {
-        header: "Name",
-        accessorKey: "name",
-      },
-      {
-        header: "Description",
-        accessorKey: "description",
-        cell: TextCell,
-      },
-      {
-        header: "Version",
-        accessorKey: "versionId",
-        cell: ({ row }) => (
-          <Link to={getVersionPath(row.original.versionId)}>
-            <Truncate maxWidth="100%">{row.original.versionId}</Truncate>
-          </Link>
-        ),
-      },
-      {
-        id: "actions",
-        header: "",
-        size: 5,
-        accessorKey: "id",
-        cell: ({ row }) => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            justifyContent="end"
-            width="100%"
-          >
-            {renderDeleteButton(row.original)}
-          </Flex>
-        ),
-      },
-    ],
-    [getVersionPath, renderDeleteButton]
-  );
+  const columns: ColumnDef<VersionTagRow>[] = [
+    {
+      header: "Name",
+      accessorKey: "name",
+    },
+    {
+      header: "Description",
+      accessorKey: "description",
+      cell: TextCell,
+    },
+    {
+      header: "Version",
+      accessorKey: "versionId",
+      cell: ({ row }) => (
+        <Link to={getVersionPath(row.original.versionId)}>
+          <Truncate maxWidth="100%">{row.original.versionId}</Truncate>
+        </Link>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      size: 5,
+      accessorKey: "id",
+      cell: ({ row }) => (
+        <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
+          {renderDeleteButton(row.original)}
+        </Flex>
+      ),
+    },
+  ];
 
   const table = useTable({
     features: appTableFeatures,
