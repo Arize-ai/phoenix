@@ -60,8 +60,6 @@ TRIAGE_OUTCOME = (
 
 @dataclass(frozen=True)
 class TriageSource:
-    """A deployment whose errors get triaged: its issue label and its triage agent."""
-
     name: str
     heading: str
     label: str
@@ -87,8 +85,6 @@ SOURCES = {source.name: source for source in (RAILWAY, CLOUD)}
 
 
 class ErrorStore(Protocol):
-    """A deployment's log store: counts the window's errors and briefs the triage agent."""
-
     source: TriageSource
 
     def count_errors(self, *, start: datetime, end: datetime) -> int: ...
@@ -144,8 +140,6 @@ class GrafanaClient:
 
 
 class LokiErrors:
-    """The Railway deployment's errors, read from Grafana Loki."""
-
     source = RAILWAY
 
     def __init__(self) -> None:
@@ -173,8 +167,6 @@ class LokiErrors:
 
 
 class DatadogErrors:
-    """Phoenix Cloud's errors, counted through the Datadog Logs aggregate API."""
-
     source = CLOUD
 
     def __init__(self) -> None:
