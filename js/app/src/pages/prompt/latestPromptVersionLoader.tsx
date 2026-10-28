@@ -1,6 +1,5 @@
 import { loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
@@ -12,8 +11,8 @@ import type { PromptVersionLoaderData } from "./promptVersionLoader";
 import { promptVersionLoaderQuery } from "./promptVersionLoader";
 
 /**
- * Loads the prompt's latest version for the prompt/:promptId page, which shows
- * the latest version without naming it in the URL
+ * Loads the prompt's latest version for the pages that show it without naming
+ * it in the URL: prompt/:promptId and prompt/:promptId/versions
  */
 export async function latestPromptVersionLoader({
   params,
@@ -52,12 +51,4 @@ export async function latestPromptVersionLoader({
     { id: latestVersion.id }
   );
   return { queryRef };
-}
-
-/**
- * prompt/:promptId/versions has no content of its own; versions are browsed
- * from prompt/:promptId
- */
-export function promptVersionsRedirectLoader({ params }: LoaderFunctionArgs) {
-  return redirect(`/prompts/${params.promptId}`);
 }

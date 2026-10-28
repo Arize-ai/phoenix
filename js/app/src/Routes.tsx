@@ -129,11 +129,9 @@ import { layoutLoader } from "./pages/layoutLoader";
 import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
-import {
-  latestPromptVersionLoader,
-  promptVersionsRedirectLoader,
-} from "./pages/prompt/latestPromptVersionLoader";
+import { latestPromptVersionLoader } from "./pages/prompt/latestPromptVersionLoader";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
+import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
@@ -881,15 +879,16 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           >
             <Route element={<PromptLayout />}>
-              <Route element={<PromptVersionsPage />}>
+              <Route
+                index
+                loader={latestPromptVersionLoader}
+                element={<PromptIndexPage />}
+              />
+              <Route path="versions" element={<PromptVersionsPage />}>
                 <Route
                   index
                   loader={latestPromptVersionLoader}
                   element={<PromptVersionDetailsPage />}
-                />
-                <Route
-                  path="versions"
-                  loader={promptVersionsRedirectLoader}
                   handle={{
                     agentRoute: {
                       label: "Prompt Versions",
@@ -899,7 +898,7 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
                 <Route
-                  path="versions/:versionId"
+                  path=":versionId"
                   loader={promptVersionLoader}
                   element={<PromptVersionDetailsPage />}
                   handle={{

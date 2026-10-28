@@ -16,6 +16,8 @@ export const promptVersionLoaderQuery = graphql`
       id
       ... on PromptVersion {
         ...PromptInvocationParameters__main
+        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+        templateFormat
         ...PromptChatMessagesCard__main
         ...PromptCodeExportCard__main
         ...PromptModelConfigurationCard__main

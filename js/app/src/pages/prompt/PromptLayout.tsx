@@ -49,7 +49,12 @@ export function PromptLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { versionId } = useParams();
-  const selectedTab = pathname.endsWith("/config") ? "config" : "prompt";
+  let selectedTab = "prompt";
+  if (pathname.endsWith("/config")) {
+    selectedTab = "config";
+  } else if (/\/versions(\/|$)/.test(pathname)) {
+    selectedTab = "versions";
+  }
 
   const data = useFragment<PromptLayout__main$key>(
     graphql`
@@ -93,17 +98,21 @@ export function PromptLayout() {
         selectedKey={selectedTab}
         onSelectionChange={(key) => {
           navigate(
-            key === "config"
-              ? `/prompts/${data.id}/config`
-              : `/prompts/${data.id}`
+            key === "prompt"
+              ? `/prompts/${data.id}`
+              : `/prompts/${data.id}/${key}`
           );
         }}
       >
         <TabList>
           <Tab id="prompt">Prompt</Tab>
+          <Tab id="versions">Versions</Tab>
           <Tab id="config">Config</Tab>
         </TabList>
         <LazyTabPanel id="prompt">
+          <Outlet />
+        </LazyTabPanel>
+        <LazyTabPanel id="versions">
           <Outlet />
         </LazyTabPanel>
         <LazyTabPanel id="config">

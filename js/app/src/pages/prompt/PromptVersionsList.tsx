@@ -21,7 +21,7 @@ const PROMPT_VERSIONS_LIST_WIDTH = 400;
 
 /**
  * Full height, scrollable, timeline of prompt versions. Each version links
- * to versions/:versionId under the route that renders the list.
+ * to :versionId under the route that renders the list.
  */
 export const PromptVersionsList = ({
   prompt,
@@ -60,7 +60,7 @@ export const PromptVersionsList = ({
           <PromptVersionTimelineItem
             key={version.id}
             promptVersion={version}
-            to={`${basePath}/versions/${version.id}`}
+            to={`${basePath}/${version.id}`}
             isCurrent={itemActive?.(version)}
           />
         ))}

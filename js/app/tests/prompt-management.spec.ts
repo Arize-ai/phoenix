@@ -62,6 +62,7 @@ test.describe("Prompt Management", () => {
     await page.waitForURL("**/prompts");
     await page.getByRole("link", { name: promptName }).click();
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    await page.getByRole("tab", { name: "Versions" }).click();
     await expect(page.getByRole("heading", { name: "Version" })).toBeVisible();
     await page
       .getByRole("link", { name: "Open this Prompt version in Playground" })
