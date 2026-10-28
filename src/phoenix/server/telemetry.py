@@ -1,12 +1,19 @@
 import logging
 import os
+from collections.abc import Generator
+from functools import partial
+from typing import Any, Callable
 
+from graphql import GraphQLResolveInfo
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import Span, SpanKind
+from strawberry.extensions import LifecycleStep, SchemaExtension
+from strawberry.extensions.tracing import OpenTelemetryExtension
 
 from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
@@ -60,7 +67,44 @@ def _server_resource() -> Resource:
     )
 
 
+class GraphQLTracingExtension(OpenTelemetryExtension):
+    """Strawberry's OpenTelemetry extension without the request contents.
+
+    The base class records the whole GraphQL document on the operation span and
+    every resolver argument on the resolver spans. Mutation inputs carry passwords,
+    email addresses and prompt text, so exported spans keep only the operation
+    name, the resolver path and the parent type.
+    """
+
+    def on_operation(self) -> Generator[None, None, None]:
+        self._operation_name = self.execution_context.operation_name
+        span = self._tracer.start_span(
+            _operation_span_name(self._operation_name), kind=SpanKind.SERVER
+        )
+
+        span.set_attribute("component", "graphql")
+        self._span_holder[LifecycleStep.OPERATION] = span
+        yield
+        if not self._operation_name and self.execution_context.operation_name:
+            span.update_name(_operation_span_name(self.execution_context.operation_name))
+        span.end()
+
+    def add_tags(self, span: Span, info: GraphQLResolveInfo[Any], kwargs: Any) -> None:
+        super().add_tags(span, info, {})
+
+
+def _operation_span_name(operation_name: str | None) -> str:
+    return f"GraphQL Query: {operation_name}" if operation_name else "GraphQL Query"
+
+
+def graphql_tracing_extension(tracer_provider: TracerProvider) -> Callable[[], SchemaExtension]:
+    """An extension factory bound to this provider rather than the global one, which in
+    a notebook could be the provider OpenInference is using."""
+    return partial(GraphQLTracingExtension, tracer_provider=tracer_provider)
+
+
 def initialize_opentelemetry_tracer_provider() -> TracerProvider:
+
     logger.info("Initializing OpenTelemetry tracer provider")
     tracer_provider = TracerProvider(resource=_server_resource())
     if http_endpoint := os.getenv(
