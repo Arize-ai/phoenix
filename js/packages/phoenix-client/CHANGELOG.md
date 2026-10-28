@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.16.3
+
+### Patch Changes
+
+- 86ab99c: fix(client): keep `description`, `default` and other keywords next to `anyOf` when converting prompt tool and response-format schemas with `toSDK`
+
 ## 7.16.2
 
 ### Patch Changes

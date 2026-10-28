@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.7.1
+
+### Patch Changes
+
+- 0128562: fix(phoenix-evals): keep `metadata` returned by custom evaluator functions wrapped with `createEvaluator`
+
 ## 2.7.0
 
 ### Minor Changes
