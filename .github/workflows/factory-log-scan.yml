@@ -12,7 +12,7 @@ on:
         description: Hours to scan, ending now
         default: "24"
       dispatch:
-        description: Add the factory label to the issues the session files, up to the per-run cap
+        description: Add the factory label to the issues the session files
         type: boolean
         default: true
       dry_run:
