@@ -44,6 +44,22 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ko.md" />
 </p>
 
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
+  </picture>
+ </a>
+</p>
+
 Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오픈소스 AI 관측성(observability) 플랫폼입니다. 관리형 프로덕션 워크플로가 필요하다면 Arize는 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ko)도 제공합니다. Phoenix가 제공하는 기능은 다음과 같습니다:
 
 - [**_트레이싱_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry 기반 계측을 사용하여 LLM 애플리케이션의 런타임을 트레이싱합니다.
@@ -314,3 +330,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 이 코드의 일부는 하나 이상의 미국 특허로 보호됩니다. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE)를 참고하세요.
 
 이 소프트웨어는 Elastic License 2.0 (ELv2) 조건에 따라 라이선스가 부여됩니다. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE)를 참고하세요.
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

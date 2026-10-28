@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ed6fdd579341eee50324201c351ff38>>
+ * @generated SignedSource<<9a1b343b8fe9592f7f0a51b69d411933>>
  * @lightSyntaxTransform
  */
 
@@ -20,9 +20,12 @@ export type TagPromptVersionButtonSetTagMutation$variables = {
 };
 export type TagPromptVersionButtonSetTagMutation$data = {
   readonly setPromptVersionTag: {
+    readonly promptVersionTag: {
+      readonly id: string;
+    } | null;
     readonly query: {
       readonly prompt: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfig_data" | "PromptVersionsList__main">;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfig_data">;
       };
     };
   };
@@ -52,27 +55,32 @@ v1 = [
     "variableName": "input"
   }
 ],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "promptId"
-  }
-],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "description",
+  "concreteType": "PromptVersionTag",
+  "kind": "LinkedField",
+  "name": "promptVersionTag",
+  "plural": false,
+  "selections": [
+    (v2/*:: as any*/)
+  ],
   "storageKey": null
 },
+v4 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "promptId"
+  }
+],
 v5 = {
   "alias": null,
   "args": null,
@@ -80,63 +88,13 @@ v5 = {
   "name": "name",
   "storageKey": null
 },
-v6 = [
-  (v3/*:: as any*/),
-  (v4/*:: as any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "sequenceNumber",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "createdAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "User",
-    "kind": "LinkedField",
-    "name": "user",
-    "plural": false,
-    "selections": [
-      (v3/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "username",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "profilePictureUrl",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PromptVersionTag",
-    "kind": "LinkedField",
-    "name": "tags",
-    "plural": true,
-    "selections": [
-      (v3/*:: as any*/),
-      (v5/*:: as any*/)
-    ],
-    "storageKey": null
-  }
-];
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -152,6 +110,7 @@ return {
         "name": "setPromptVersionTag",
         "plural": false,
         "selections": [
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -162,7 +121,7 @@ return {
             "selections": [
               {
                 "alias": "prompt",
-                "args": (v2/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -171,11 +130,6 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "args": null,
-                        "kind": "FragmentSpread",
-                        "name": "PromptVersionsList__main"
-                      },
                       {
                         "args": null,
                         "kind": "FragmentSpread",
@@ -212,6 +166,7 @@ return {
         "name": "setPromptVersionTag",
         "plural": false,
         "selections": [
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -222,7 +177,7 @@ return {
             "selections": [
               {
                 "alias": "prompt",
-                "args": (v2/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -235,42 +190,10 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersionConnection",
-                        "kind": "LinkedField",
-                        "name": "promptVersions",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "PromptVersionEdge",
-                            "kind": "LinkedField",
-                            "name": "edges",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": "version",
-                                "args": null,
-                                "concreteType": "PromptVersion",
-                                "kind": "LinkedField",
-                                "name": "node",
-                                "plural": false,
-                                "selections": (v6/*:: as any*/),
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      },
                       {
                         "alias": null,
                         "args": null,
@@ -279,9 +202,9 @@ return {
                         "name": "versionTags",
                         "plural": true,
                         "selections": [
-                          (v3/*:: as any*/),
+                          (v2/*:: as any*/),
                           (v5/*:: as any*/),
-                          (v4/*:: as any*/),
+                          (v6/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -289,7 +212,63 @@ return {
                             "kind": "LinkedField",
                             "name": "promptVersion",
                             "plural": false,
-                            "selections": (v6/*:: as any*/),
+                            "selections": [
+                              (v2/*:: as any*/),
+                              (v6/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "sequenceNumber",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "createdAt",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "User",
+                                "kind": "LinkedField",
+                                "name": "user",
+                                "plural": false,
+                                "selections": [
+                                  (v2/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "username",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "profilePictureUrl",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "PromptVersionTag",
+                                "kind": "LinkedField",
+                                "name": "tags",
+                                "plural": true,
+                                "selections": [
+                                  (v2/*:: as any*/),
+                                  (v5/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -311,16 +290,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "85f7bfdb504afb813dabc5c5ee5122a7",
+    "cacheID": "2a6568430ea3041967db43f24ba1e828",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionsList__main\n          ...PromptVersionTagsConfig_data\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n    }\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionTagsConfig_data\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dc6c3ed3afdd88cf6f2262ae8e5750bb";
+(node as any).hash = "789d130891fe7c812b8990fdbd4bd58a";
 
 export default node;

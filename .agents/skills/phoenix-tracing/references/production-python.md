@@ -26,10 +26,13 @@ export OPENINFERENCE_HIDE_OUTPUT_MESSAGES=true # Hide LLM output messages
 export OPENINFERENCE_HIDE_INPUT_IMAGES=true    # Hide image content
 export OPENINFERENCE_HIDE_INPUT_TEXT=true      # Hide embedding text
 export OPENINFERENCE_HIDE_LLM_TOOLS=true       # Hide tool definitions sent to the LLM (llm.tools.*)
+export OPENINFERENCE_HIDE_RETRIEVAL_DOCUMENTS=true  # Hide retrieved document content and metadata (retrieval.documents.*)
 export OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH=10000  # Limit image size
 ```
 
 > `OPENINFERENCE_HIDE_LLM_TOOLS` is also applied when `OPENINFERENCE_HIDE_INPUTS` is enabled, consistent with `OPENINFERENCE_HIDE_INPUT_MESSAGES` and `OPENINFERENCE_HIDE_LLM_PROMPTS`.
+>
+> `OPENINFERENCE_HIDE_RETRIEVAL_DOCUMENTS` (`hide_retrieval_documents` in `TraceConfig`) is also applied when `OPENINFERENCE_HIDE_OUTPUTS` is enabled. It requires `openinference-instrumentation` >= 0.1.71 and is available in the Python instrumentors only.
 
 **Python TraceConfig:**
 

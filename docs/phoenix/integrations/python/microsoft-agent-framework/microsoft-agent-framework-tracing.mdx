@@ -1,0 +1,113 @@
+---
+title: "Microsoft Agent Framework Tracing"
+description: "Trace Microsoft Agent Framework agents with OpenInference and send spans to Phoenix for LLM observability."
+---
+
+[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/?pivots=programming-language-python) is Microsoft's open-source SDK for building production AI agents: chat, tools, multi-agent orchestration. The framework emits raw OpenTelemetry spans using GenAI semantic conventions; the [`openinference-instrumentation-agent-framework`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agent-framework) span processor reshapes them into the OpenInference format Phoenix expects.
+
+<Note>
+This example was tested with `agent-framework-openai` 1.17.0 and `openinference-instrumentation-agent-framework` 0.1.13. Microsoft Agent Framework evolves quickly; if a newer release changes the API, pin the version with `pip install "agent-framework-openai==1.17.0"`.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel \
+  openinference-instrumentation-agent-framework \
+  agent-framework-openai
+```
+
+<Info>
+Install only the connector you need. The `agent-framework` meta-package pulls in every provider connector through `agent-framework-core[all]` and can fail with `resolution-too-deep`. For another provider, install its connector instead: `agent-framework-anthropic`, `agent-framework-gemini`, `agent-framework-bedrock`, `agent-framework-mistral`, `agent-framework-ollama`, or `agent-framework-foundry` for Azure AI Foundry. The tracing setup below is the same for all of them.
+</Info>
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT=[your_phoenix_project_name]
+```
+
+<Note>
+Instrument Agent Framework with the `openinference-instrumentation-agent-framework` processor plus `enable_instrumentation()`, regardless of model provider (OpenAI, Anthropic, Azure). Do not use a provider instrumentor such as `AnthropicInstrumentor` or `OpenAIInstrumentor`. Agent Framework drives the model through its own client layer and emits its own OpenTelemetry spans, so a provider instrumentor captures no traces.
+</Note>
+
+```python
+# instrumentation.py
+from agent_framework.observability import enable_instrumentation
+from openinference.instrumentation.agent_framework import (
+    AgentFrameworkToOpenInferenceProcessor,
+)
+from phoenix.otel import HTTPSpanExporter, SimpleSpanProcessor, register
+
+# Agent Framework reads the global tracer provider, so start with register()
+# to make Phoenix's provider the process-wide default.
+tracer_provider = register()
+
+# This processor rewrites Agent Framework's native spans into OpenInference
+# spans, so it must run before the exporter that sends spans to Phoenix.
+# Adding a processor replaces Phoenix's default exporter, so add it back after.
+tracer_provider.add_span_processor(AgentFrameworkToOpenInferenceProcessor())
+tracer_provider.add_span_processor(SimpleSpanProcessor(HTTPSpanExporter()))
+
+# enable_sensitive_data=True captures message content in spans. Required for
+# full observability; only enable when you trust the trace destination.
+enable_instrumentation(enable_sensitive_data=True)
+```
+
+`enable_instrumentation()` must run after `register()`, and the two `add_span_processor` calls must stay in this order. If spans reach Phoenix with raw `gen_ai.*` attributes instead of OpenInference ones, the processor was added after the exporter.
+
+## Run Microsoft Agent Framework
+
+```python
+# example.py
+
+# Importing instrumentation first ensures tracing is set up
+# before `agent_framework` is imported.
+from instrumentation import tracer_provider
+
+import asyncio
+
+from agent_framework.openai import OpenAIChatClient
+
+
+async def main() -> None:
+    # OpenAIChatClient reads OPENAI_API_KEY from the environment.
+    agent = OpenAIChatClient(model="gpt-5.6-sol").as_agent(
+        instructions="You are a concise factual assistant.",
+    )
+    response = await agent.run(
+        "Why is the ocean salty? Answer in two sentences."
+    )
+    print(response.text)
+
+
+asyncio.run(main())
+```
+
+## Observe
+
+Each `agent.run()` call appears in Phoenix as one trace: an `AGENT` span named `invoke_agent` wrapping an `LLM` span for the chat call, carrying the system and user messages, the response, the model name, and token usage. Without `enable_sensitive_data=True`, prompts and responses are stripped from the spans.
+
+The processor maps Agent Framework operations to OpenInference span kinds:
+
+| Agent Framework operation | OpenInference span kind |
+| :--- | :--- |
+| `invoke_agent` | `AGENT` |
+| `chat` | `LLM` |
+| `execute_tool` | `TOOL` |
+| `workflow.run`, `executor.process` | `CHAIN` |
+
+Agents that share a `gen_ai.conversation.id` are grouped into a Phoenix [session](/docs/phoenix/tracing/llm-traces/sessions).
+
+## Resources
+
+* [Microsoft Agent Framework documentation](https://learn.microsoft.com/en-us/agent-framework/overview/?pivots=programming-language-python)
+
+* [OpenInference Agent Framework span processor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agent-framework)
+
+* [Microsoft Agent Framework on GitHub](https://github.com/microsoft/agent-framework)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<529516fb80840190d065370692dae2d8>>
+ * @generated SignedSource<<dbbf6e2c0aff9539a85cd6f96a3ee0bd>>
  * @lightSyntaxTransform
  */
 
@@ -30,6 +30,7 @@ export type PromptLayout__main$data = {
     readonly id: string;
     readonly name: string;
   } | null;
+  readonly versionCount: number;
   readonly " $fragmentType": "PromptLayout__main";
 };
 export type PromptLayout__main$key = {
@@ -146,6 +147,13 @@ return {
         }
       ],
       "storageKey": "promptVersions(first:1)"
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "versionCount",
+      "storageKey": null
     }
   ],
   "type": "Prompt",
@@ -153,6 +161,6 @@ return {
 };
 })();
 
-(node as any).hash = "70739fe3a635f6ef4147fedda420d2c1";
+(node as any).hash = "2be0c97f96c06b6116f5a4b27a70450f";
 
 export default node;

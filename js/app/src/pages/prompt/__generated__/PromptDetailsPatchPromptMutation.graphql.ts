@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bc210c0b4317d6ba9cbf19193ea9a46e>>
+ * @generated SignedSource<<9f68e22ad3e7b08ac1a3ce12fbcd26b2>>
  * @lightSyntaxTransform
  */
 
@@ -190,6 +190,13 @@ return {
               }
             ],
             "storageKey": "promptVersions(first:1)"
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "versionCount",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -197,12 +204,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c1b6b769d07015d06b9900651e44a6bb",
+    "cacheID": "4bba8e39dda4275e77a6f07dea66e0d2",
     "id": null,
     "metadata": {},
     "name": "PromptDetailsPatchPromptMutation",
     "operationKind": "mutation",
-    "text": "mutation PromptDetailsPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptDetails_data\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  metadata\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation PromptDetailsPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptDetails_data\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptDetails_data on Prompt {\n  id\n  metadata\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n  versionCount\n}\n"
   }
 };
 })();

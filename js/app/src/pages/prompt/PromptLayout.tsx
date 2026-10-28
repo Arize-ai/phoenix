@@ -3,7 +3,7 @@ import { useFragment, usePreloadedQuery } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
-import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
+import { Counter, LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
 
 import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
@@ -79,6 +79,7 @@ export function PromptLayout() {
             }
           }
         }
+        versionCount
       }
     `,
     preloadedData.prompt
@@ -106,7 +107,9 @@ export function PromptLayout() {
       >
         <TabList>
           <Tab id="prompt">Prompt</Tab>
-          <Tab id="versions">Versions</Tab>
+          <Tab id="versions">
+            Versions <Counter>{data.versionCount}</Counter>
+          </Tab>
           <Tab id="config">Config</Tab>
         </TabList>
         <LazyTabPanel id="prompt">

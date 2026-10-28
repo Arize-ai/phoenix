@@ -24,6 +24,11 @@ import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 
+import {
+  movePromptVersionTag,
+  removePromptVersionTag,
+} from "./movePromptVersionTag";
+
 type TagPromptVersionButtonProps = {
   promptId: string;
   versionId: string;
@@ -92,6 +97,7 @@ export function TagPromptVersionButton({
         }}
       >
         <NewPromptVersionDialog
+          promptId={promptId}
           promptVersionId={versionId}
           onDismiss={() => setShowNewTagDialog(false)}
           onNewTagCreated={(newTag) => {
@@ -190,10 +196,12 @@ function TagList({
         $promptId: ID!
       ) {
         setPromptVersionTag(input: $input) {
+          promptVersionTag {
+            id
+          }
           query {
             prompt: node(id: $promptId) {
               ... on Prompt {
-                ...PromptVersionsList__main
                 ...PromptVersionTagsConfig_data
               }
             }
@@ -211,7 +219,6 @@ function TagList({
           query {
             prompt: node(id: $promptId) {
               ... on Prompt {
-                ...PromptVersionsList__main
                 ...PromptVersionTagsConfig_data
               }
             }
@@ -221,6 +228,37 @@ function TagList({
     `);
   const isCommitting = isSetting || isDeleting;
 
+  const commitMoveTag = ({
+    tagName,
+    targetVersionId,
+    description,
+    onCompleted,
+  }: {
+    tagName: string;
+    targetVersionId: string;
+    description?: string;
+    onCompleted: () => void;
+  }) => {
+    commitSetTag({
+      variables: {
+        input: { name: tagName, promptVersionId: targetVersionId, description },
+        promptId,
+      },
+      updater: (store, response) => {
+        const tagId = response?.setPromptVersionTag.promptVersionTag?.id;
+        if (tagId) {
+          movePromptVersionTag({
+            store,
+            promptId,
+            versionId: targetVersionId,
+            tagId,
+          });
+        }
+      },
+      onCompleted,
+    });
+  };
+
   const setTag = (tagName: string) => {
     const existingTag = tagsByName.get(tagName);
     const description = existingTag
@@ -228,11 +266,10 @@ function TagList({
       : DEFAULT_PROMPT_VERSION_TAGS.find(
           (tagDefinition) => tagDefinition.name === tagName
         )?.description;
-    commitSetTag({
-      variables: {
-        input: { name: tagName, promptVersionId: versionId, description },
-        promptId,
-      },
+    commitMoveTag({
+      tagName,
+      targetVersionId: versionId,
+      description,
       onCompleted: () => {
         onRestoreTargetsChange({
           ...restoreTargets,
@@ -258,11 +295,9 @@ function TagList({
       onTagChanged({ title: "Tag Removed", message });
     };
     if (restoreVersionId) {
-      commitSetTag({
-        variables: {
-          input: { name: tagName, promptVersionId: restoreVersionId },
-          promptId,
-        },
+      commitMoveTag({
+        tagName,
+        targetVersionId: restoreVersionId,
         onCompleted: () => {
           const sequenceNumber =
             sequenceNumberByVersionId.get(restoreVersionId);
@@ -275,6 +310,14 @@ function TagList({
     }
     commitDeleteTag({
       variables: { input: { promptVersionTagId: tag.id }, promptId },
+      updater: (store) => {
+        removePromptVersionTag({
+          store,
+          promptId,
+          versionId: tag.promptVersionId,
+          tagId: tag.id,
+        });
+      },
       onCompleted: () => {
         onCompleted(`The tag ${tagName} has been deleted`);
       },

@@ -13,11 +13,11 @@ permissions:
 
 jobs:
   guard:
-    # A factory PR is one the factory's machine account opens. The agent chooses its branch
-    # name, so the `factory/` prefix is checked as well as the author, never instead of it.
+    # A factory PR is one on a `factory/` branch or one the factory's app opened, since the
+    # agent chooses the branch.
     if: >-
       startsWith(github.head_ref, 'factory/') ||
-      (vars.FACTORY_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_LOGIN)
+      (vars.FACTORY_GITHUB_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_GITHUB_LOGIN)
     runs-on: ubuntu-latest
     steps:
       - name: Reject changes to protected paths

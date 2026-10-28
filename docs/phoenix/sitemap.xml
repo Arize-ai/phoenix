@@ -821,12 +821,52 @@
     <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/baseten</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/baseten/baseten-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cerebras</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cohere</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cohere/cohere-tracing</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/deepseek</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/doubleword</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/fireworks-ai</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai</loc>
@@ -841,12 +881,28 @@
     <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/gravitee</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/groq</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers/hugging-face-inference-providers-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/litellm</loc>
@@ -865,12 +921,28 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk</loc>
+    <lastmod>2026-10-28T15:18:09+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk</loc>
+    <lastmod>2026-10-28T15:18:09+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai</loc>
@@ -901,6 +973,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter</loc>
     <lastmod>2026-07-08T22:09:50+00:00</lastmod>
   </url>
@@ -917,12 +993,36 @@
     <lastmod>2026-09-22T23:33:20+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/prismml</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/prismml/prismml-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/qwen</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/qwen/qwen-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe</loc>
@@ -943,6 +1043,30 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vllm</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vllm/vllm-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/xai</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/xai/xai-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/z-ai</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/beeai</loc>
@@ -1049,6 +1173,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/bedrock-agentcore</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/beeai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1125,6 +1257,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/livekit-agents</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/llamaindex</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1157,12 +1297,44 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/microsoft-agent-framework</loc>
+    <lastmod>2026-10-23T19:07:59+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing</loc>
+    <lastmod>2026-10-23T19:07:59+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/nvidia</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/nvidia/nemo-agent-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/openlit</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/openlit/openlit-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/openllmetry</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/openllmetry/openllmetry-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/pipecat</loc>
+    <lastmod>2026-10-23T15:55:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/pipecat/pipecat-tracing</loc>
+    <lastmod>2026-10-23T15:55:15+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/portkey</loc>
@@ -1193,12 +1365,36 @@
     <lastmod>2026-04-17T18:51:49+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/semantic-kernel</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/strands-agents</loc>
     <lastmod>2026-04-02T15:57:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing</loc>
     <lastmod>2026-04-02T15:57:00+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/temporal</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/temporal/temporal-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/java/annotation</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/java/annotation/annotation-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/java/google-adk</loc>
@@ -1233,6 +1429,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/dotnet/microsoft-agent-framework</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
     <lastmod>2026-10-14T23:25:08+00:00</lastmod>
   </url>
@@ -1265,6 +1469,22 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/n8n</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/n8n/n8n-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/openwebui</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/openwebui/openwebui-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/prompt-flow</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1279,6 +1499,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/scalekit/scalekit-tracing</loc>
     <lastmod>2026-10-12T20:11:40+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/truefoundry</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
@@ -1305,6 +1533,10 @@
     <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/azure-ai-evaluation</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1317,8 +1549,16 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas-nvidia-rag-metrics</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/antigravity</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/coding-agents/claude-code</loc>
@@ -1335,6 +1575,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/coding-agents/cursor</loc>
     <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/devin</loc>
+    <lastmod>2026-10-27T17:54:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/coding-agents/gemini</loc>
@@ -1841,6 +2085,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-prompt-version</loc>
+    <lastmod>2026-10-27T17:18:32+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2223,6 +2471,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding</loc>
+    <lastmod>2026-10-28T14:14:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon</loc>

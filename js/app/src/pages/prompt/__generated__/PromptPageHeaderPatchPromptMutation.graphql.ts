@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<582b6f7a016f5005851e4b1ac6084ca9>>
+ * @generated SignedSource<<c94ed37cbbe9af5aec80985a8df277f4>>
  * @lightSyntaxTransform
  */
 
@@ -185,6 +185,13 @@ return {
               }
             ],
             "storageKey": "promptVersions(first:1)"
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "versionCount",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -192,12 +199,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "df52140fbfe5759c8a45522ae919f6f7",
+    "cacheID": "3e3998527d63dc36b636c83c9e1a68cd",
     "id": null,
     "metadata": {},
     "name": "PromptPageHeaderPatchPromptMutation",
     "operationKind": "mutation",
-    "text": "mutation PromptPageHeaderPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation PromptPageHeaderPatchPromptMutation(\n  $input: PatchPromptInput!\n) {\n  patchPrompt(input: $input) {\n    ...PromptLayout__main\n    id\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  metadata\n  labels {\n    id\n    name\n    color\n  }\n  sourcePrompt {\n    id\n    name\n  }\n  latestVersion: promptVersions(first: 1) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n  versionCount\n}\n"
   }
 };
 })();

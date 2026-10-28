@@ -361,15 +361,15 @@ async def summarize_article_anthropic(example, prompt_template: str, model: str)
     return message.content[0].text
 
 
-claude_35_sonnet = "claude-3-5-sonnet-20240620"
-task = partial(summarize_article_anthropic, prompt_template=template, model=claude_35_sonnet)
+claude_sonnet = "claude-sonnet-4-6"
+task = partial(summarize_article_anthropic, prompt_template=template, model=claude_sonnet)
 
 experiment_results = await px_client.experiments.run_experiment(
     dataset=dataset,
     task=task,
     experiment_name="anthropic-few-shot",
     experiment_description="anthropic",
-    experiment_metadata={"vendor": "anthropic", "model": claude_35_sonnet},
+    experiment_metadata={"vendor": "anthropic", "model": claude_sonnet},
     evaluators=EVALUATORS,
 )
 ```

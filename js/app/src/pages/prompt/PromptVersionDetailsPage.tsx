@@ -278,7 +278,7 @@ function PromptVersionPromptCard({
       <Card
         title="Prompt"
         collapsible
-        data-testid="prompt-chat-messages-card"
+        testId="prompt-chat-messages-card"
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {comparedVersion != null ? (

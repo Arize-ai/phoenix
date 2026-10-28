@@ -1,0 +1,67 @@
+{
+  "_comment_": "Classification and routing overrides for integration docs. Keep reasons descriptive; CI scopes changes by routing fields, not reason text.",
+  "always_skip": [
+    {
+      "doc": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
+      "reason": "The original guardrails-ai framework has been quarantined on PyPI and replaced by the guardrails-ai-sdk hosted-service client. This doc and openinference-instrumentation-guardrails target the original framework internals; rewrite the doc and add a matching instrumentor before enabling end-to-end checks."
+    }
+  ],
+  "lint_only": [
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx",
+      "reason": "AWS credentials are short-lived in CI; validate the example without making a Bedrock request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals.mdx",
+      "reason": "AWS credentials are short-lived in CI; validate the example without making a Bedrock request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx",
+      "reason": "Requires a provisioned Bedrock Agent that CI cannot create for each run."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js.mdx",
+      "reason": "Requires a deployed Bedrock Agent Runtime that CI cannot create for each run."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx",
+      "reason": "Routes through Bedrock and inherits its short-lived CI credential constraint."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx",
+      "reason": "No Cohere API key is provisioned for docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/together/together-tracing.mdx",
+      "reason": "Provider credits are unavailable for stable end-to-end CI runs."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx",
+      "reason": "Provider credits are unavailable for stable end-to-end CI runs."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx",
+      "reason": "No OrcaRouter API key is provisioned for docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
+      "reason": "Requires an Anthropic-managed OTEL destination that CI cannot provision."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing.mdx",
+      "reason": "Live execution requires a Scalekit development environment; validate the documented code without calling the service."
+    }
+  ],
+  "skip_if_missing_env": [
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing.mdx",
+      "env_vars": ["GOOGLE_CLOUD_PROJECT"],
+      "reason": "Vertex AI tracing needs a configured Google Cloud project and Application Default Credentials."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals.mdx",
+      "env_vars": ["GOOGLE_CLOUD_PROJECT"],
+      "reason": "Vertex AI evaluations need a configured Google Cloud project and Application Default Credentials."
+    }
+  ]
+}
