@@ -148,6 +148,7 @@ export function DecisionDefinition({
         <Section title="Questions">
           {questions.map((question, index) => {
             if (question.__typename === "%other") return null;
+            const typeLabel = getQuestionTypeLabel(question.__typename);
             return (
               <div
                 key={index}
@@ -157,9 +158,7 @@ export function DecisionDefinition({
                 <Flex direction="column" gap="size-100">
                   <Flex alignItems="center" gap="size-100">
                     <Text weight="heavy">{question.name}</Text>
-                    <Token size="S">
-                      {getQuestionTypeLabel(question.__typename)}
-                    </Token>
+                    {typeLabel ? <Token size="S">{typeLabel}</Token> : null}
                   </Flex>
                   {question.instructions ? (
                     <Text size="S" color="text-700">

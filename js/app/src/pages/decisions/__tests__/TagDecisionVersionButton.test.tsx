@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
 
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/utils/identifierUtils";
 
 import { TagDecisionVersionButton } from "../TagDecisionVersionButton";
 
@@ -157,5 +158,28 @@ describe("TagDecisionVersionButton", () => {
       name: "canary",
       description: null,
     });
+  });
+  it("rejects an empty tag name before submitting a mutation", async () => {
+    await render(
+      <TagDecisionVersionButton
+        versionId="version-1"
+        decisionTagNames={[]}
+        versionTagNames={[]}
+        onTagSet={vi.fn()}
+      />
+    );
+    await clickButton("Tag Version");
+    await clickButton("New Tag");
+    const form = document.querySelector('[role="dialog"] form');
+    expect(form).not.toBeNull();
+    await act(async () =>
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      )
+    );
+    expect(document.body.textContent).toContain(
+      IDENTIFIER_ERROR_MESSAGES.empty
+    );
+    expect(commit).not.toHaveBeenCalled();
   });
 });

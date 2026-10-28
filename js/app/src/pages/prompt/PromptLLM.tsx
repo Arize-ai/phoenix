@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "react-relay";
 
-import { LLMDisclosure } from "@phoenix/components/generative/LLMDisclosure";
+import { LLMDisclosure } from "@phoenix/components/generative";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import type { PromptLLM__main$key } from "@phoenix/pages/prompt/__generated__/PromptLLM__main.graphql";
 

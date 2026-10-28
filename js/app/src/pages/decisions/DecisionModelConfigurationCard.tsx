@@ -1,5 +1,5 @@
 import { Card, DisclosureGroup } from "@phoenix/components";
-import { LLMDisclosure } from "@phoenix/components/generative/LLMDisclosure";
+import { LLMDisclosure } from "@phoenix/components/generative";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
