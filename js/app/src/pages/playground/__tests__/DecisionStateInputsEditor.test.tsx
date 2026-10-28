@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
@@ -135,5 +135,58 @@ it("removes one input from its pill", async () => {
     expect(editor.onChange).toHaveBeenLastCalledWith(["output"]);
   } finally {
     await editor.cleanup();
+  }
+});
+
+it("keeps focus in the slot when adding an input redraws the state as an object", async () => {
+  const onChange = vi.fn<(names: string[]) => void>();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  function Harness() {
+    const [names, setNames] = useState(["reference"]);
+    return (
+      <DecisionStateInputsEditor
+        names={names}
+        isDisabled={false}
+        isInvalid={false}
+        onChange={(next) => {
+          onChange(next);
+          setNames(next);
+        }}
+        onBlur={vi.fn()}
+      />
+    );
+  }
+  const slot = () =>
+    container.querySelector<HTMLInputElement>('input[aria-label="Add input"]')!;
+  try {
+    await act(async () =>
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "dark",
+            themeMode: "dark",
+            systemTheme: "dark",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <Harness />
+        </ThemeContext.Provider>
+      )
+    );
+    await act(async () => slot().focus());
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )!.set!.call(slot(), "output,");
+      slot().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith(["reference", "output"]);
+    expect(document.activeElement).toBe(slot());
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
   }
 });

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 import { Icon, Icons, Text } from "@phoenix/components";
@@ -12,6 +12,12 @@ import { useTheme } from "@phoenix/contexts";
 import { parseStateInputNames } from "./decisionUtils";
 
 /**
+ * The template editor's line-number gutter. The inputs have no line numbers
+ * (they are not free text) but start where the template's text starts.
+ */
+const TEMPLATE_GUTTER_WIDTH = "20px";
+
+/**
  * Laid out like the template editor beside it (font, padding, background and
  * height), so switching between Template and Inputs does not move the card.
  */
@@ -22,13 +28,18 @@ const surfaceCSS = css`
   line-height: 1.4;
   min-height: 75px;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-250);
+  padding-left: calc(
+    ${TEMPLATE_GUTTER_WIDTH} + var(--global-dimension-size-250)
+  );
   cursor: text;
   .decision-state-inputs__line {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--global-dimension-size-50);
-    min-height: 24px;
+    min-height: 22px;
+    /* Keep the space in ": " between a key and its pill. */
+    white-space: pre;
   }
   .decision-state-inputs__line--entry {
     padding-left: 2ch;
@@ -42,7 +53,6 @@ const surfaceCSS = css`
 const pillCSS = css`
   display: inline-flex;
   align-items: center;
-  gap: var(--global-dimension-size-25);
   padding: 0 var(--global-dimension-size-75);
   border-radius: var(--global-rounding-small);
   color: var(--decision-state-inputs-variable-color);
@@ -54,21 +64,25 @@ const pillCSS = css`
   .decision-state-inputs__remove {
     display: inline-flex;
     align-items: center;
-    padding: 0;
+    box-sizing: border-box;
+    padding: 0 0 0 var(--global-dimension-size-25);
     border: none;
     background: none;
     color: inherit;
     cursor: pointer;
-    opacity: 0;
     border-radius: var(--global-rounding-small);
     outline: none;
+    /* Takes no room until the pill is hovered or focused, so a pill at rest
+       is padded evenly around its name. */
+    max-width: 0;
+    overflow: hidden;
     &[data-focus-visible] {
-      opacity: 1;
+      max-width: none;
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     }
   }
-  &:hover .decision-state-inputs__remove:not([data-disabled]) {
-    opacity: 1;
+  &:hover .decision-state-inputs__remove {
+    max-width: none;
   }
 `;
 
@@ -95,6 +109,9 @@ const slotCSS = css`
 const footerCSS = css`
   display: block;
   padding: var(--global-dimension-size-50) var(--global-dimension-size-250);
+  padding-left: calc(
+    ${TEMPLATE_GUTTER_WIDTH} + var(--global-dimension-size-250)
+  );
   border-top: 1px solid var(--global-border-color-default);
 `;
 
@@ -128,19 +145,32 @@ export function DecisionStateInputsEditor({
   const tokenColors = pierreTokenColors[theme];
   const slotRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState("");
+  // Going between one input and several redraws the layout and remounts the
+  // slot, so an edit made from the keyboard puts focus back in it.
+  const refocusSlot = useRef(false);
+  useEffect(() => {
+    if (!refocusSlot.current) return;
+    refocusSlot.current = false;
+    slotRef.current?.focus();
+  }, [names]);
 
-  const addPending = (text: string) => {
+  const change = (next: string[], { refocus }: { refocus: boolean }) => {
+    refocusSlot.current = refocus;
+    onChange(next);
+  };
+  const addPending = (text: string, { refocus }: { refocus: boolean }) => {
     const added = parseStateInputNames(text).filter(
       (name) => !names.includes(name)
     );
     setPending("");
-    if (added.length > 0) onChange([...names, ...new Set(added)]);
+    if (added.length > 0) change([...names, ...new Set(added)], { refocus });
   };
-  const remove = (name: string) => {
-    onChange(names.filter((candidate) => candidate !== name));
-    // The removed pill held focus; keep the keyboard in the editor.
-    slotRef.current?.focus();
-  };
+  // The removed pill held focus; keep the keyboard in the editor.
+  const remove = (name: string) =>
+    change(
+      names.filter((candidate) => candidate !== name),
+      { refocus: true }
+    );
 
   const placeholder = names.length === 0 ? "+ add an input" : "+ input";
   const slot = (
@@ -157,7 +187,7 @@ export function DecisionStateInputsEditor({
       onChange={(event) => {
         const text = event.target.value;
         if (text.includes(",")) {
-          addPending(text);
+          addPending(text, { refocus: true });
         } else {
           setPending(text);
         }
@@ -165,7 +195,7 @@ export function DecisionStateInputsEditor({
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           event.preventDefault();
-          addPending(pending);
+          addPending(pending, { refocus: true });
         } else if (event.key === "Escape") {
           setPending("");
         } else if (
@@ -174,11 +204,11 @@ export function DecisionStateInputsEditor({
           names.length > 0
         ) {
           event.preventDefault();
-          onChange(names.slice(0, -1));
+          change(names.slice(0, -1), { refocus: true });
         }
       }}
       onBlur={() => {
-        addPending(pending);
+        addPending(pending, { refocus: false });
         onBlur();
       }}
     />
