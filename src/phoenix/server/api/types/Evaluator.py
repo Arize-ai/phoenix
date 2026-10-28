@@ -1,6 +1,6 @@
 import asyncio
 import zlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Literal, Optional, Sequence, Union
 
@@ -40,6 +40,11 @@ from phoenix.server.api.types.AnnotationConfig import (
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationLag,
+    to_gql_evaluation_lag,
+)
 from phoenix.server.api.types.EvaluatorDistribution import (
     EvaluatorDistribution,
     resolve_evaluator_distribution,
@@ -109,6 +114,7 @@ class EvaluationTarget(Enum):
 
 _DEGRADED_QUEUE_WAIT_MINUTES = int(DEGRADED_QUEUE_WAIT.total_seconds() // 60)
 _EVALUATION_LOAD_WINDOW_MINUTES = int(EVALUATION_LOAD_WINDOW.total_seconds() // 60)
+_DEFAULT_LAG_WINDOW = timedelta(hours=1)
 
 
 @strawberry.enum(
@@ -1574,6 +1580,21 @@ class ProjectEvaluator(Node):
             last_failed_at=counts.last_failed_at,
             last_error=counts.last_error,
         )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Lag of this evaluator's evaluations completed in the range, or in the last hour "
+            "without one; null if none completed. " + EVALUATION_ACTIVITY_RETENTION_NOTE
+        )
+    )
+    async def lag(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[EvaluationLag]:
+        now = datetime.now(timezone.utc)
+        end = (time_range.end if time_range else None) or now
+        start = (time_range.start if time_range else None) or end - _DEFAULT_LAG_WINDOW
+        lag = await info.context.data_loaders.project_evaluator_lags.load((self.id, start, end))
+        return to_gql_evaluation_lag(lag)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

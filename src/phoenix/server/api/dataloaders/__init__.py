@@ -73,6 +73,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_evaluation_queues import ProjectEvaluationQueueDataLoader
 from .project_evaluator_by_id import ProjectEvaluatorByIdDataLoader
 from .project_evaluator_evaluation_loads import ProjectEvaluatorEvaluationLoadsDataLoader
+from .project_evaluator_lags import ProjectEvaluatorLagsDataLoader
 from .project_evaluator_latest_outcomes import ProjectEvaluatorLatestOutcomesDataLoader
 from .project_evaluator_queues import ProjectEvaluatorQueuesDataLoader
 from .project_evaluator_run_counts import ProjectEvaluatorRunCountsDataLoader
@@ -253,6 +254,7 @@ class DataLoaders:
     project_evaluator_evaluation_loads: ProjectEvaluatorEvaluationLoadsDataLoader
     project_evaluator_latest_outcomes: ProjectEvaluatorLatestOutcomesDataLoader
     project_evaluator_queues: ProjectEvaluatorQueuesDataLoader
+    project_evaluator_lags: ProjectEvaluatorLagsDataLoader
     project_evaluator_run_counts: ProjectEvaluatorRunCountsDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_evaluator: ProjectsByEvaluatorDataLoader
@@ -454,6 +456,7 @@ def build_data_loaders(
         project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
         project_evaluator_latest_outcomes=ProjectEvaluatorLatestOutcomesDataLoader(db),
         project_evaluator_queues=ProjectEvaluatorQueuesDataLoader(db),
+        project_evaluator_lags=ProjectEvaluatorLagsDataLoader(db),
         project_evaluator_run_counts=ProjectEvaluatorRunCountsDataLoader(db),
         projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
