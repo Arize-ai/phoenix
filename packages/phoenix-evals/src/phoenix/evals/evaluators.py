@@ -508,11 +508,7 @@ class Evaluator(ABC):
 
 
 # --- LLM Evaluator base ---
-# Model backend used by an LLMEvaluator. Defaults to LLM so that existing custom
-# subclasses (written as `class MyEvaluator(LLMEvaluator)`, without a type argument)
-# keep seeing `self.llm` typed as `LLM`, preserving access to `generate_object` /
-# `generate_text`. Subclasses that accept other backends specialize explicitly, e.g.
-# `ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]])`.
+
 _ModelT = TypeVar("_ModelT", default=LLM)
 
 
