@@ -19,6 +19,7 @@ from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
 )
+from phoenix.server.api.redaction import REDACTED_VALUE, redact_arguments
 from phoenix.version import __version__
 
 logger = logging.getLogger(__name__)
@@ -65,28 +66,16 @@ def _server_resource() -> Resource:
     )
 
 
-# Resolvers whose arguments carry credentials, personal data or customer content.
-# Every other resolver's arguments are recorded on its span as Strawberry does by
-# default, so filters, ids and names stay available for debugging.
-_REDACTED_RESOLVERS: frozenset[tuple[str, str]] = frozenset(
+# Resolvers whose arguments are customer content through and through: prompts,
+# dataset examples, annotation text, conversations. Their arguments are blanked
+# whole. Credentials and personal data are marked field by field with
+# ``phoenix.server.api.redaction.Redacted`` instead, so every other resolver keeps
+# its arguments (filters, ids, names) on the span.
+_CONTENT_RESOLVERS: frozenset[tuple[str, str]] = frozenset(
     {
-        # Passwords, email addresses and usernames.
-        ("Mutation", "createUser"),
-        ("Mutation", "patchUser"),
-        ("Mutation", "patchViewer"),
-        # Provider API keys, secrets and sandbox environment variables.
-        ("Mutation", "createGenerativeModelCustomProvider"),
-        ("Mutation", "patchGenerativeModelCustomProvider"),
-        ("Mutation", "testGenerativeModelCustomProviderCredentials"),
-        ("Mutation", "upsertOrDeleteSecrets"),
-        ("Mutation", "createSandboxConfig"),
-        ("Mutation", "updateSandboxConfig"),
-        ("Mutation", "updateSandboxProvider"),
-        ("Mutation", "resumeExperiment"),
-        ("Mutation", "evaluatorPreviews"),
         ("Subscription", "chatCompletion"),
         ("Subscription", "chatCompletionOverDataset"),
-        # Prompt templates, dataset examples, annotation text and conversations.
+        ("Mutation", "evaluatorPreviews"),
         ("Mutation", "createChatPrompt"),
         ("Mutation", "createChatPromptVersion"),
         ("Mutation", "createDatasetLlmEvaluator"),
@@ -111,17 +100,14 @@ _REDACTED_RESOLVERS: frozenset[tuple[str, str]] = frozenset(
     }
 )
 
-_REDACTED = "[redacted]"
-
 
 def redact_sensitive_arguments(
     args: dict[str, Any], info: GraphQLResolveInfo[Any]
 ) -> dict[str, Any]:
-    """Strawberry ``arg_filter``: keep the argument names of a sensitive resolver but
-    not their values."""
-    if (info.parent_type.name, info.field_name) in _REDACTED_RESOLVERS:
-        return dict.fromkeys(args, _REDACTED)
-    return args
+    """Strawberry ``arg_filter`` for the span attributes of resolver arguments."""
+    if (info.parent_type.name, info.field_name) in _CONTENT_RESOLVERS:
+        return dict.fromkeys(args, REDACTED_VALUE)
+    return redact_arguments(args, info)
 
 
 def graphql_tracing_extension(tracer_provider: TracerProvider) -> Callable[[], SchemaExtension]:
