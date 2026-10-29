@@ -2808,46 +2808,6 @@ type EvaluationLag {
 """
 The online evaluation queue. Span, trace, and session evaluations of every project on the server share it and its limit. Rates are per minute over the last 60 minutes.
 """
-type EvaluationActivity {
-  evaluatedCount: Int!
-  failedCount: Int!
-  lag: EvaluationLag
-  cost: Float
-  groups: [EvaluationActivityGroup!]!
-  series: [EvaluationActivityBin!]!
-}
-
-type EvaluationActivityBin {
-  timestamp: DateTime!
-  groups: [EvaluationActivityBinGroup!]!
-}
-
-type EvaluationActivityBinGroup {
-  project: Project!
-  projectEvaluator: ProjectEvaluator
-  evaluatedCount: Int!
-  failedCount: Int!
-  queuedCount: Int!
-  lagP95Seconds: Float
-  cost: Float
-  queueSize: Int!
-}
-
-type EvaluationActivityGroup {
-  project: Project!
-  projectEvaluator: ProjectEvaluator
-  evaluatedCount: Int!
-  failedCount: Int!
-  lag: EvaluationLag
-  cost: Float
-}
-
-type EvaluationLag {
-  p50Seconds: Float!
-  p95Seconds: Float!
-  p99Seconds: Float!
-}
-
 type EvaluationQueue {
   status: EvaluationQueueStatus!
 
@@ -4705,7 +4665,6 @@ input PredicateQuestionInput {
 }
 
 type Project implements Node {
-  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
   """The Globally Unique ID of this object"""
   id: ID!
   name: String!
@@ -4993,7 +4952,6 @@ type ProjectEvaluationQueueTarget {
 }
 
 type ProjectEvaluator implements Node {
-  lag(timeRange: TimeRange): EvaluationLag
   """The Globally Unique ID of this object"""
   id: ID!
 
@@ -5919,8 +5877,6 @@ type PromptVersionTagMutationPayload {
 }
 
 type Query {
-  projectEvaluators(first: Int = 100, after: String = null, filter: ProjectEvaluatorFilter = null, projectId: ID = null): ProjectEvaluatorConnection!
-  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
   modelProviders: [GenerativeProvider!]!
   generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
   secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
