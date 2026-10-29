@@ -1,14 +1,24 @@
+import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from secrets import token_bytes, token_hex
+from threading import Event
 from typing import Any
 
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
+from pydantic import SecretStr
 from sqlalchemy import select
 from starlette.types import ASGIApp
 
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    compute_password_hash,
+    is_valid_password,
+)
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
@@ -19,6 +29,7 @@ from phoenix.db.facilitator import (
     _ensure_enums,
     _ensure_model_costs,
     _ensure_oauth2_clients,
+    _ensure_user_roles,
 )
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
@@ -67,6 +78,205 @@ class TestEnsureEnums:
             async with db() as session:
                 actual = await session.scalars(select(column))
             assert sorted(actual) == sorted(column.type.enums)
+
+
+class TestEnsureUserRoles:
+    async def test_applies_initial_password_to_existing_unchanged_default_admin(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            cli_client_id = await session.scalar(
+                select(models.OAuth2Client.id).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+            assert admin is not None
+            assert cli_client_id is not None
+            assert admin.reset_password is True
+            assert admin.password_salt is not None and admin.password_hash is not None
+            assert is_valid_password(
+                password=SecretStr(DEFAULT_ADMIN_PASSWORD),
+                salt=admin.password_salt,
+                password_hash=admin.password_hash,
+            )
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+            session.add(models.PasswordResetToken(user_id=admin.id, expires_at=expires_at))
+            # A session opened with the public password before the replacement.
+            refresh_token = models.RefreshToken(user_id=admin.id, expires_at=expires_at)
+            session.add(refresh_token)
+            await session.flush()
+            session.add(
+                models.AccessToken(
+                    user_id=admin.id,
+                    expires_at=expires_at,
+                    refresh_token_id=refresh_token.id,
+                )
+            )
+            session.add(models.ApiKey(user_id=admin.id, name="existing-key"))
+            # An OAuth2 grant and an unredeemed authorization code obtained the same way.
+            session.add(models.OAuth2Grant(user_id=admin.id, oauth2_client_id=cli_client_id))
+            session.add(
+                models.OAuth2AuthorizationCode(
+                    code_hash=token_hex(16),
+                    user_id=admin.id,
+                    oauth2_client_id=cli_client_id,
+                    redirect_uri=PHOENIX_CLI_OAUTH2_REDIRECT_URIS[0],
+                    code_challenge=token_hex(16),
+                    code_challenge_method="S256",
+                    expires_at=expires_at,
+                )
+            )
+
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "upgraded-initial-secret")
+        with caplog.at_level("INFO", logger="phoenix.db.facilitator"):
+            await _ensure_user_roles(db)
+        assert "Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD" in caplog.text
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            reset_token = await session.scalar(select(models.PasswordResetToken))
+            refresh_tokens = (await session.scalars(select(models.RefreshToken))).all()
+            access_tokens = (await session.scalars(select(models.AccessToken))).all()
+            api_key_names = (await session.scalars(select(models.ApiKey.name))).all()
+            authorization_codes = (
+                await session.scalars(select(models.OAuth2AuthorizationCode))
+            ).all()
+            grant_revoked_ats = (await session.scalars(select(models.OAuth2Grant.revoked_at))).all()
+        assert admin is not None
+        assert admin.reset_password is True
+        assert admin.password_salt is not None and admin.password_hash is not None
+        assert is_valid_password(
+            password=SecretStr("upgraded-initial-secret"),
+            salt=admin.password_salt,
+            password_hash=admin.password_hash,
+        )
+        assert reset_token is None
+        assert refresh_tokens == []
+        assert access_tokens == []
+        # A password reset leaves API keys in place, and so does the replacement.
+        assert api_key_names == ["existing-key"]
+        assert authorization_codes == []
+        assert len(grant_revoked_ats) == 1 and grant_revoked_ats[0] is not None
+
+        # Once customized, a subsequent change to PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
+        # does not overwrite the password.
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "different-secret")
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+        assert admin is not None
+        assert admin.password_salt is not None and admin.password_hash is not None
+        assert is_valid_password(
+            password=SecretStr("upgraded-initial-secret"),
+            salt=admin.password_salt,
+            password_hash=admin.password_hash,
+        )
+
+    @pytest.mark.parametrize("reset_password", [False, True])
+    async def test_preserves_concurrent_password_change_and_reset_token(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+        reset_password: bool,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "bootstrap-secret")
+
+        loop = asyncio.get_running_loop()
+        verified_default_password = asyncio.Event()
+        resume_bootstrap = Event()
+
+        def verify_and_pause(*, password: SecretStr, salt: bytes, password_hash: bytes) -> bool:
+            valid = is_valid_password(password=password, salt=salt, password_hash=password_hash)
+            loop.call_soon_threadsafe(verified_default_password.set)
+            assert resume_bootstrap.wait(timeout=10), "Bootstrap was not resumed"
+            return valid
+
+        monkeypatch.setattr("phoenix.db.facilitator.is_valid_password", verify_and_pause)
+        new_salt = token_bytes(32)
+        new_hash = compute_password_hash(password=SecretStr("operator-secret"), salt=new_salt)
+        bootstrap = asyncio.create_task(_ensure_user_roles(db))
+        try:
+            async with asyncio.timeout(10):
+                await verified_default_password.wait()
+                async with db() as session:
+                    admin = await session.scalar(
+                        select(models.LocalUser).where(
+                            models.LocalUser.email == DEFAULT_ADMIN_EMAIL
+                        )
+                    )
+                    assert admin is not None
+                    admin.password_salt = new_salt
+                    admin.password_hash = new_hash
+                    admin.reset_password = reset_password
+                    reset_token = models.PasswordResetToken(
+                        user_id=admin.id,
+                        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                    )
+                    session.add(reset_token)
+                    await session.flush()
+                    reset_token_id = reset_token.id
+        finally:
+            resume_bootstrap.set()
+            await asyncio.wait_for(bootstrap, timeout=10)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            assert admin is not None
+            assert admin.password_salt == new_salt
+            assert admin.password_hash == new_hash
+            assert admin.reset_password is reset_password
+            assert await session.get(models.PasswordResetToken, reset_token_id) is not None
+
+    async def test_does_not_overwrite_admin_after_password_reset(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            assert admin is not None
+            admin.reset_password = False
+            original_hash = admin.password_hash
+            original_salt = admin.password_salt
+
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "upgraded-initial-secret")
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+        assert admin is not None
+        assert admin.reset_password is False
+        assert admin.password_hash == original_hash
+        assert admin.password_salt == original_salt
 
 
 class TestEnsureOAuth2Clients:

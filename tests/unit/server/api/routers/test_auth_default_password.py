@@ -122,6 +122,41 @@ async def test_custom_initial_admin_password_opens_a_session(
     _assert_auth_cookies(response)
 
 
+async def test_custom_initial_admin_password_applies_to_existing_unchanged_default_admin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_auth(monkeypatch)
+    async with _auth_client(tmp_path) as client:
+        blocked = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert blocked.status_code == 403
+        stale_token = blocked.json()["password_reset_token"]
+
+    monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", _CUSTOM_INITIAL_PASSWORD)
+    async with _auth_client(tmp_path) as client:
+        default_rejected = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert default_rejected.status_code == 401
+        _assert_no_auth_cookies(default_rejected)
+
+        stale_reset = await client.post(
+            "/auth/password-reset",
+            json={"token": stale_token, "password": _NEW_PASSWORD},
+        )
+        assert stale_reset.status_code == 401
+
+        logged_in = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": _CUSTOM_INITIAL_PASSWORD},
+        )
+        assert logged_in.status_code == 204
+        _assert_auth_cookies(logged_in)
+
+
 async def test_default_admin_reset_rejects_public_password(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

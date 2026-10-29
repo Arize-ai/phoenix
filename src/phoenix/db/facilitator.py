@@ -10,17 +10,20 @@ from pathlib import Path
 from typing import Optional, Union
 
 import sqlalchemy as sa
+from pydantic import SecretStr
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.dml import ReturningDelete
 
 from phoenix import config
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
+    is_valid_password,
 )
 from phoenix.config import (
     LDAPConfig,
@@ -113,7 +116,15 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
     Ensure that the system and admin roles are present in the database. If they are not, they will
     be added. The system user will have the email "system@localhost" and the admin user will have
     the email "admin@localhost".
+
+    If the admin user already exists, still requires a password reset, and still has the default
+    password "admin", a non-default PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD replaces that password.
+    The replacement also deletes the admin user's password reset, access, and refresh tokens and
+    unredeemed OAuth2 authorization codes, and revokes the admin user's OAuth2 grants. A password
+    that has been changed from the default is never replaced.
     """
+    initial_password = get_env_default_admin_initial_password()
+    default_admin: Optional[models.LocalUser] = None
     async with db() as session:
         role_ids: dict[models.UserRoleName, int] = {
             name: id_
@@ -140,22 +151,89 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
                 password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
             )
             session.add(system_user)
-        if "ADMIN" not in existing_roles and (admin_role_id := role_ids.get("ADMIN")) is not None:
-            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password = get_env_default_admin_initial_password()
-            compute = partial(compute_password_hash, password=password, salt=salt)
-            loop = asyncio.get_running_loop()
-            hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.LocalUser(
-                user_role_id=admin_role_id,
-                username=DEFAULT_ADMIN_USERNAME,
-                email=DEFAULT_ADMIN_EMAIL,
-                password_salt=salt,
-                password_hash=hash_,
-                reset_password=True,
-            )
-            session.add(admin_user)
+        if (admin_role_id := role_ids.get("ADMIN")) is not None:
+            if "ADMIN" not in existing_roles:
+                salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+                compute = partial(compute_password_hash, password=initial_password, salt=salt)
+                loop = asyncio.get_running_loop()
+                hash_ = await loop.run_in_executor(None, compute)
+                admin_user = models.LocalUser(
+                    user_role_id=admin_role_id,
+                    username=DEFAULT_ADMIN_USERNAME,
+                    email=DEFAULT_ADMIN_EMAIL,
+                    password_salt=salt,
+                    password_hash=hash_,
+                    reset_password=True,
+                )
+                session.add(admin_user)
+            elif initial_password.get_secret_value() != DEFAULT_ADMIN_PASSWORD:
+                default_admin = await session.scalar(
+                    sa.select(models.LocalUser).where(
+                        models.LocalUser.user_role_id == admin_role_id,
+                        models.LocalUser.email == DEFAULT_ADMIN_EMAIL,
+                        models.LocalUser.reset_password.is_(True),
+                    )
+                )
         await session.flush()
+
+    if (
+        default_admin is None
+        or not (original_salt := default_admin.password_salt)
+        or not (original_hash := default_admin.password_hash)
+    ):
+        return
+    loop = asyncio.get_running_loop()
+    has_default_password = partial(
+        is_valid_password,
+        password=SecretStr(DEFAULT_ADMIN_PASSWORD),
+        salt=original_salt,
+        password_hash=original_hash,
+    )
+    if not await loop.run_in_executor(None, has_default_password):
+        return
+    salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+    compute = partial(compute_password_hash, password=initial_password, salt=salt)
+    hash_ = await loop.run_in_executor(None, compute)
+    async with db() as session:
+        # A live replica may change the account while bootstrap verifies and hashes passwords.
+        updated_id = await session.scalar(
+            sa.update(models.LocalUser)
+            .where(
+                models.LocalUser.id == default_admin.id,
+                models.LocalUser.user_role_id == admin_role_id,
+                models.LocalUser.email == DEFAULT_ADMIN_EMAIL,
+                models.LocalUser.reset_password.is_(True),
+                models.LocalUser.password_salt == original_salt,
+                models.LocalUser.password_hash == original_hash,
+            )
+            .values(password_salt=salt, password_hash=hash_)
+            .returning(models.LocalUser.id)
+        )
+        if updated_id is not None:
+            # The public password may have opened sessions before the replacement, so end them
+            # as a password reset does. An unredeemed authorization code could still be exchanged
+            # for new tokens, so delete it, and revoke the grants that the deleted refresh tokens
+            # belonged to. API keys are left in place, as a password reset leaves them.
+            for table in (
+                models.PasswordResetToken,
+                models.OAuth2AuthorizationCode,
+                models.AccessToken,
+                models.RefreshToken,
+            ):
+                await session.execute(sa.delete(table).where(table.user_id == updated_id))
+            await session.execute(
+                sa.update(models.OAuth2Grant)
+                .where(
+                    models.OAuth2Grant.user_id == updated_id,
+                    models.OAuth2Grant.revoked_at.is_(None),
+                )
+                .values(revoked_at=datetime.now(timezone.utc))
+            )
+    if updated_id is not None:
+        logger.info(
+            "Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD to the default admin account, "
+            "which still had the default password, and ended its existing sessions"
+        )
 
 
 PHOENIX_CLI_OAUTH2_CLIENT_ID = "phoenix-cli"

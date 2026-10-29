@@ -85,7 +85,7 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
 
-* **PHOENIX\_DEFAULT\_ADMIN\_INITIAL\_PASSWORD:** Sets the initial password for the built-in admin user (email `admin@localhost`) when that account is created on first startup. Defaults to `admin`. Changing this after the default admin already exists has no effect—update the password via the UI or an admin reset instead.
+* **PHOENIX\_DEFAULT\_ADMIN\_INITIAL\_PASSWORD:** Sets the initial password for the built-in admin user (email `admin@localhost`) when that account is created on first startup or while it still holds the unchanged default password `admin`. Defaults to `admin`. Changing this after the default admin password has already been customized has no effect—update the password via the UI or an admin reset instead.
 
 * **PHOENIX\_ENABLE\_STRONG\_PASSWORD\_POLICY:** Enables a stronger password policy. When set to `True`, passwords must meet the following requirements: at least 12 characters, at least one uppercase letter, at least one lowercase letter, at least one number, and at least one special character. Defaults to `False` (minimum 4 characters). Available since version 13.5.0.
 
