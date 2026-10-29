@@ -80,6 +80,7 @@ function TestedEvaluator({
                   description: "",
                   isBuiltin: false,
                   includeExplanation: true,
+                  inputDescriptions: {},
                   inputMapping: { literalMapping: {}, pathMapping: {} },
                 },
                 outputConfigs,

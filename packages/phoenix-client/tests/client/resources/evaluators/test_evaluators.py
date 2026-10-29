@@ -50,6 +50,11 @@ def _make_llm_definition(**overrides: object) -> v1.LLMEvaluatorDefinition:
                 "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
             }
         ],
+        "input_schema": {
+            "type": "object",
+            "properties": {"output": {"type": "string", "description": "The response to judge."}},
+            "required": ["output"],
+        },
     }
     definition.update(overrides)  # type: ignore[typeddict-item]
     return definition
@@ -67,6 +72,7 @@ def _make_code_definition(**overrides: object) -> v1.CodeEvaluatorDefinition:
         "output_configs": [SCORE],
         "current_version_id": VERSION_ID,
         "source_code": "def evaluate(output: str) -> float:\n    return 1.0\n",
+        "input_schema": {"type": "object", "properties": {"output": {}}, "required": ["output"]},
     }
     definition.update(overrides)  # type: ignore[typeddict-item]
     return definition

@@ -1,4 +1,5 @@
 import {
+  buildAttachCodeCreationMode,
   buildCopyCodeCreationMode,
   buildCopyLlmCreationMode,
   getEvaluatorInputSummaries,
@@ -15,10 +16,10 @@ const codeEvaluator = {
   kind: "CODE",
   codeInputSchema: {
     type: "object",
-    properties: { output: {} },
+    properties: { output: { description: "The final answer." } },
     required: ["output"],
   },
-  inputs: [{ name: "output" }],
+  inputs: [{ name: "output", description: "The final answer." }],
   language: "TYPESCRIPT",
   sourceCode: "function evaluate(output: string) { return output.length; }",
   sandboxConfig: { id: "SandboxConfig:1" },
@@ -44,8 +45,14 @@ const llmEvaluator = {
   name: "correctness",
   description: null,
   kind: "LLM",
-  llmInputSchema: null,
-  inputs: [],
+  llmInputSchema: {
+    type: "object",
+    properties: {
+      output: { type: "string", description: "The response to grade." },
+    },
+    required: ["output"],
+  },
+  inputs: [{ name: "output", description: "The response to grade." }],
   outputConfigs: [],
   promptVersion: {
     templateFormat: "MUSTACHE",
@@ -66,6 +73,31 @@ describe("buildCopyLlmCreationMode", () => {
     expect(copyName).toBe("correctness_copy_1");
     expect(validateIdentifier(copyName)).toBe(true);
   });
+
+  it("carries the input descriptions of the source evaluator", () => {
+    const built = buildCopyLlmCreationMode(llmEvaluator, []);
+    if (!built.ok) throw new Error("expected a copy");
+    expect(built.mode.initialState.inputDescriptions).toEqual({
+      output: "The response to grade.",
+    });
+  });
+
+  it("seeds no descriptions from an evaluator without a schema", () => {
+    const built = buildCopyLlmCreationMode(
+      { ...llmEvaluator, llmInputSchema: null },
+      []
+    );
+    if (!built.ok) throw new Error("expected a copy");
+    expect(built.mode.initialState.inputDescriptions).toEqual({});
+  });
+});
+
+describe("buildAttachCodeCreationMode", () => {
+  it("shows the evaluator's input descriptions to the attaching project", () => {
+    const mode = buildAttachCodeCreationMode(codeEvaluator);
+    if (mode.kind !== "code") throw new Error("expected an attach mode");
+    expect(mode.inputDescriptions).toEqual({ output: "The final answer." });
+  });
 });
 
 describe("buildCopyCodeCreationMode", () => {
@@ -84,6 +116,7 @@ describe("buildCopyCodeCreationMode", () => {
           pathMapping: { output: "output.value" },
           literalMapping: { threshold: 5 },
         },
+        inputDescriptions: { output: "The final answer." },
         outputConfigs: [
           {
             name: "length",

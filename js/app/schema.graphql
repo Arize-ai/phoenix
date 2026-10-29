@@ -1007,6 +1007,11 @@ input CreateCodeEvaluatorInput {
   description: String = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateCodeEvaluatorVersionInput {
@@ -1069,6 +1074,11 @@ input CreateDatasetLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateDatasetLabelInput {
@@ -1194,6 +1204,11 @@ input CreateProjectCodeEvaluatorInput {
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateProjectDecisionEvaluatorInput {
@@ -1242,6 +1257,11 @@ input CreateProjectLLMEvaluatorInput {
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateProjectSessionAnnotationInput {
@@ -4421,6 +4441,11 @@ input PatchCodeEvaluatorInput {
   sandboxConfigId: ID
   inputMapping: EvaluatorInputMappingInput
   outputConfigs: [AnnotationConfigInput!]
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 """
@@ -7212,6 +7237,11 @@ input UpdateDatasetLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 input UpdateModelMutationInput {
@@ -7252,6 +7282,11 @@ input UpdateProjectCodeEvaluatorInput {
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 input UpdateProjectDecisionEvaluatorInput {
@@ -7294,6 +7329,11 @@ input UpdateProjectLLMEvaluatorInput {
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 input UpdateSandboxConfigInput {

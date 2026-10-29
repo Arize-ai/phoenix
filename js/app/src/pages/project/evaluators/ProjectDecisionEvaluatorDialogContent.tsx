@@ -178,6 +178,7 @@ function ProjectDecisionEvaluatorLayout({
         <ProjectEvaluatorInputMappingDock
           recordKind={recordKind}
           evaluatorKind="decision"
+          canDescribeInputs={false}
         />
       }
       right={
