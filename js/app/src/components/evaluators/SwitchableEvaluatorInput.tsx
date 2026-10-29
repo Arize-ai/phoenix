@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import type {
@@ -120,6 +120,12 @@ export interface SwitchableEvaluatorInputProps<
    */
   hideLabel?: boolean;
   /**
+   * Rendered under the input, at the end of the description line, such as a
+   * link that edits what the input should hold. Shown with or without a
+   * description.
+   */
+  descriptionExtra?: ReactNode;
+  /**
    * Whether this field is required. When true, validation rules are added
    * and the label is marked with an asterisk.
    */
@@ -189,6 +195,17 @@ const inputContainerCSS = css`
   }
 `;
 
+const descriptionRowCSS = css`
+  display: flex;
+  // The link keeps to the end of the description's first line.
+  align-items: flex-start;
+  gap: var(--global-dimension-size-100);
+  .switchable-evaluator-input__description-extra {
+    margin-left: auto;
+    flex: none;
+  }
+`;
+
 const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
   { id: "path", label: "Path" },
   { id: "literal", label: "Text" },
@@ -208,6 +225,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   pathInputValue,
   onPathInputChange,
   hideLabel,
+  descriptionExtra,
   isRequired,
   allowsLiteral = true,
   renderPathInput,
@@ -337,16 +355,35 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     />
   );
 
-  if (!allowsLiteral) {
+  const renderDescription = () => {
+    if (!description && descriptionExtra == null) {
+      return null;
+    }
     return (
-      <div css={fieldBaseCSS} data-required={isRequired || undefined}>
-        {!hideLabel && <Label htmlFor={`${fieldName}-path`}>{label}</Label>}
-        {pathControl}
+      <div
+        className="switchable-evaluator-input__description-row"
+        css={descriptionRowCSS}
+      >
         {description && (
           <Text color="text-500" size="S">
             {description}
           </Text>
         )}
+        {descriptionExtra != null && (
+          <span className="switchable-evaluator-input__description-extra">
+            {descriptionExtra}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  if (!allowsLiteral) {
+    return (
+      <div css={fieldBaseCSS} data-required={isRequired || undefined}>
+        {!hideLabel && <Label htmlFor={`${fieldName}-path`}>{label}</Label>}
+        {pathControl}
+        {renderDescription()}
       </div>
     );
   }
@@ -404,11 +441,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           )}
         </div>
       </CompositeField>
-      {description && (
-        <Text color="text-500" size="S">
-          {description}
-        </Text>
-      )}
+      {renderDescription()}
     </div>
   );
 }

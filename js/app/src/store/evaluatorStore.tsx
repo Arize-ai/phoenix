@@ -51,6 +51,14 @@ export type EvaluatorStoreProps = {
     description: string;
     isBuiltin: boolean;
     includeExplanation: boolean;
+    /**
+     * What each input should hold, keyed by input name: a prompt variable or
+     * a code parameter. Saved as the descriptions of the evaluator's input
+     * schema. Kept for inputs the source no longer declares, so one that is
+     * removed and typed back keeps its text; the save sends only the declared
+     * ones.
+     */
+    inputDescriptions: Record<string, string>;
   };
   /**
    * Array of output configurations for multi-output evaluators.
@@ -76,6 +84,8 @@ export type EvaluatorStoreActions = {
   setEvaluatorName: (name: string) => void;
   /** Sets the description of the evaluator. */
   setEvaluatorDescription: (description: string) => void;
+  /** Sets what one input should hold; empty text removes the description. */
+  setInputDescription: (name: string, description: string) => void;
   /** Sets whether the evaluator should include an explanation in its output. */
   setIncludeExplanation: (includeExplanation: boolean) => void;
   /** Sets a single path mapping entry by key. */
@@ -359,6 +369,7 @@ export const DEFAULT_STORE_VALUES = {
       literalMapping: {},
       pathMapping: {},
     },
+    inputDescriptions: {},
     includeExplanation: true,
   },
   evaluatorMappingSource: {
@@ -464,6 +475,18 @@ export const createEvaluatorStore = (
               { evaluator: { ...get().evaluator, description } },
               undefined,
               "setEvaluatorDescription"
+            );
+          },
+          setInputDescription(name, description) {
+            const { [name]: _previous, ...rest } =
+              get().evaluator.inputDescriptions;
+            const inputDescriptions = description.trim()
+              ? { ...rest, [name]: description.trim() }
+              : rest;
+            set(
+              { evaluator: { ...get().evaluator, inputDescriptions } },
+              undefined,
+              "setInputDescription"
             );
           },
           setPathMapping(pathMapping) {

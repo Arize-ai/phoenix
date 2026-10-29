@@ -2801,6 +2801,13 @@ export interface components {
             current_version_id: string | null;
             /** Source Code */
             source_code: string | null;
+            /**
+             * Input Schema
+             * @description The parameters of the current version's evaluate function, with a description on each the author described. Null without a version.
+             */
+            input_schema: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
@@ -2852,6 +2859,13 @@ export interface components {
              * @description Outputs the new code produces. Omit to keep.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the parameters the new code still declares; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CodeEvaluatorVersionsResponseBody */
         CodeEvaluatorVersionsResponseBody: {
@@ -3031,6 +3045,13 @@ export interface components {
              * @description Outputs the code produces.
              */
             output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CreateDatasetEvaluatorRequest */
         CreateDatasetEvaluatorRequest: {
@@ -3236,6 +3257,13 @@ export interface components {
             prompt: components["schemas"]["LLMEvaluatorPromptInput"];
             /** Output Configs */
             output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CreateProjectEvaluatorRequest */
         CreateProjectEvaluatorRequest: {
@@ -4428,6 +4456,13 @@ export interface components {
             prompt: components["schemas"]["LLMEvaluatorPrompt"];
             /** Output Configs */
             output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description The variables of the prompt version the evaluator runs, with a description on each the author described. Null when that version cannot be resolved or its template cannot be parsed.
+             */
+            input_schema: {
+                [key: string]: unknown;
+            } | null;
         };
         /** LLMEvaluatorPrompt */
         LLMEvaluatorPrompt: {
@@ -5056,6 +5091,13 @@ export interface components {
             input_mapping?: components["schemas"]["InputMapping"];
             /** Output Configs */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** PatchDatasetEvaluatorRequest */
         PatchDatasetEvaluatorRequest: {
@@ -5103,6 +5145,13 @@ export interface components {
             prompt?: components["schemas"]["LLMEvaluatorPromptInput"];
             /** Output Configs */
             output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** PatchProjectEvaluatorRequest */
         PatchProjectEvaluatorRequest: {

@@ -59,6 +59,7 @@ describe("useEvaluatorMappingSourceBoundToRow", () => {
               description: "",
               isBuiltin: false,
               includeExplanation: false,
+              inputDescriptions: {},
               inputMapping: { pathMapping: {}, literalMapping: {} },
             },
           }}
