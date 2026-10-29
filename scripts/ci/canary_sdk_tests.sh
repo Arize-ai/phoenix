@@ -25,9 +25,9 @@ assert_helper_imports_without_sdk() {
 
 cd "$CLIENT_DIR"
 
-export VIRTUAL_ENV="$CLIENT_DIR/.venv-canary-$SDK"
+export VIRTUAL_ENV="$(mktemp -d)/venv"
 export PATH="$VIRTUAL_ENV/bin:$PATH"
-uv venv --quiet --clear "$VIRTUAL_ENV"
+uv venv --quiet "$VIRTUAL_ENV"
 
 uv pip install --strict -U --reinstall-package arize-phoenix-client .
 assert_helper_imports_without_sdk
