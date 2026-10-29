@@ -18,6 +18,7 @@ import {
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import {
+  buildInputSchemaInput,
   buildOutputConfigsInput,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
@@ -206,6 +207,10 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           language,
           sandboxConfigId: selectedSandboxConfigId,
           evaluatorInputMapping: state.evaluator.inputMapping,
+          inputSchema: buildInputSchemaInput({
+            variables,
+            inputDescriptions: state.evaluator.inputDescriptions,
+          }),
           samplingRate: scope.samplingRate,
           evaluationTarget: scope.targetType,
           description: state.evaluator.description.trim() || null,

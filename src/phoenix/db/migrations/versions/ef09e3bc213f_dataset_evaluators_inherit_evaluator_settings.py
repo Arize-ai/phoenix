@@ -17,14 +17,19 @@ value.
 - Existing description and output config values stay as stored, including
   values equal to their evaluator's settings. They may be intentional dataset
   settings, and this migration cannot distinguish them from copied values.
+- llm_evaluators and code_evaluators gain a nullable input_schema column: the
+  evaluator's inputs with a description on each the author described. NULL
+  means none were described, and the inputs are inferred from the prompt or
+  the code alone, so existing rows need no backfill.
 
-The downgrade stores JSON null for bindings whose output configs are SQL NULL
-and restores NOT NULL. Binding descriptions and non-null output configs are
-left as stored.
+The downgrade drops the input_schema columns. It stores JSON null for bindings
+whose output configs are SQL NULL and restores NOT NULL. Binding descriptions
+and non-null output configs are left as stored.
 """
 
 from typing import Any, Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
@@ -74,9 +79,15 @@ def upgrade() -> None:
         "UPDATE dataset_evaluators SET output_configs = NULL "
         f"WHERE {_is_empty_json_array('output_configs')}"
     )
+    op.add_column("llm_evaluators", sa.Column("input_schema", JSON_, nullable=True))
+    op.add_column("code_evaluators", sa.Column("input_schema", JSON_, nullable=True))
 
 
 def downgrade() -> None:
+    with op.batch_alter_table("code_evaluators") as batch_op:
+        batch_op.drop_column("input_schema")
+    with op.batch_alter_table("llm_evaluators") as batch_op:
+        batch_op.drop_column("input_schema")
     op.execute("UPDATE dataset_evaluators SET output_configs = 'null' WHERE output_configs IS NULL")
     with op.batch_alter_table("dataset_evaluators") as batch_op:
         batch_op.alter_column("output_configs", existing_type=JSON_, nullable=False)

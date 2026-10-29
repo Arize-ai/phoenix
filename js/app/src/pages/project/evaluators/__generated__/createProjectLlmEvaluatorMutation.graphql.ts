@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b487ea5afb635822f5bf6bafa75cf1cd>>
+ * @generated SignedSource<<0d7bd68c245f9022ec79430d9fa5fd44>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,7 @@ export type CreateProjectLLMEvaluatorInput = {
   evaluationTarget: EvaluationTarget;
   filterCondition?: string;
   inputMapping: EvaluatorInputMappingInput;
+  inputSchema?: any | null;
   name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   projectId: string;

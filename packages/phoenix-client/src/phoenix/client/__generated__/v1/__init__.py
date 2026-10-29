@@ -1925,6 +1925,7 @@ class PatchCodeEvaluatorRequest(TypedDict):
             ]
         ]
     ]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class PatchDatasetEvaluatorRequest(TypedDict):
@@ -1956,6 +1957,7 @@ class PatchLLMEvaluatorRequest(TypedDict):
     description: NotRequired[str]
     prompt: NotRequired[LLMEvaluatorPromptInput]
     output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class PatchPromptResponseBody(TypedDict):
@@ -2303,6 +2305,7 @@ class CodeEvaluatorDefinition(TypedDict):
     ]
     current_version_id: Optional[str]
     source_code: Optional[str]
+    input_schema: Optional[Mapping[str, Any]]
 
 
 class CodeEvaluatorVersionRequest(TypedDict):
@@ -2320,6 +2323,7 @@ class CodeEvaluatorVersionRequest(TypedDict):
             ]
         ]
     ]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class CompactAgentSessionRequestBody(TypedDict):
@@ -2351,6 +2355,7 @@ class CreateCodeEvaluatorRequest(TypedDict):
         ]
     ]
     description: NotRequired[str]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class CreateDatasetEvaluatorRequest(TypedDict):
@@ -2383,6 +2388,7 @@ class CreateLLMEvaluatorRequest(TypedDict):
     prompt: LLMEvaluatorPromptInput
     output_configs: Sequence[CategoricalAnnotationConfigData]
     description: NotRequired[str]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class CreateSpansRequestBody(TypedDict):
@@ -2473,6 +2479,7 @@ class LLMEvaluatorDefinition(TypedDict):
     description: Optional[str]
     prompt: LLMEvaluatorPrompt
     output_configs: Sequence[CategoricalAnnotationConfigData]
+    input_schema: Optional[Mapping[str, Any]]
 
 
 class LegacyAssistantMetadataUIMessage(TypedDict):

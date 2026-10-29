@@ -266,6 +266,15 @@ def _schema_info(
     return info
 
 
+def _with_input_schema_column(info: _TableSchemaInfo) -> _TableSchemaInfo:
+    """The table as the upgrade leaves it: one more nullable column."""
+    return {
+        **info,
+        "column_names": info["column_names"] | {"input_schema"},
+        "nullable_column_names": info["nullable_column_names"] | {"input_schema"},
+    }
+
+
 async def test_dataset_evaluators_inherit_evaluator_settings(
     _engine: AsyncEngine,
     _alembic_config: Config,
@@ -275,10 +284,20 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
     await _up(_engine, _alembic_config, _DOWN, _schema)
     seed = await _run_async(_engine, _seed)
 
-    def _snapshot(conn: Connection) -> tuple[_TableSchemaInfo, dict[int, _Binding]]:
-        return _schema_info(conn, _db_backend, _schema), _bindings(conn, _db_backend)
+    evaluator_tables = ("llm_evaluators", "code_evaluators")
 
-    schema_before, before = await _run_async(_engine, _snapshot)
+    def _snapshot(
+        conn: Connection,
+    ) -> tuple[_TableSchemaInfo, dict[int, _Binding], dict[str, _TableSchemaInfo]]:
+        return (
+            _schema_info(conn, _db_backend, _schema),
+            _bindings(conn, _db_backend),
+            {table: _schema_info(conn, _db_backend, _schema, table) for table in evaluator_tables},
+        )
+
+    schema_before, before, evaluator_tables_before = await _run_async(_engine, _snapshot)
+    for table in evaluator_tables:
+        assert "input_schema" not in evaluator_tables_before[table]["column_names"]
     assert "output_configs" not in schema_before["nullable_column_names"]
     assert before[seed.builtin_inherits].is_json_null
     for binding_id in (seed.code_empty, seed.builtin_empty):
@@ -316,6 +335,18 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
         ):
             assert after[binding_id] == before[binding_id]
         assert _child_row_counts(conn) == (1, 1)
+        # Both evaluator tables gain a nullable input_schema column, unset on existing rows,
+        # and nothing else about them changes.
+        for table in evaluator_tables:
+            assert _schema_info(conn, _db_backend, _schema, table) == _with_input_schema_column(
+                evaluator_tables_before[table]
+            )
+            assert (
+                conn.execute(
+                    text(f"SELECT count(*) FROM {table} WHERE input_schema IS NOT NULL")
+                ).scalar()
+                == 0
+            )
 
     await _run_async(_engine, _verify_upgraded)
 
@@ -335,6 +366,8 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
 
     def _verify_downgraded(conn: Connection) -> None:
         assert _schema_info(conn, _db_backend, _schema) == schema_before
+        for table in evaluator_tables:
+            assert _schema_info(conn, _db_backend, _schema, table) == evaluator_tables_before[table]
         after = _bindings(conn, _db_backend)
         # Overrides written after the upgrade survive the downgrade.
         assert after[seed.llm].output_configs == _NEW_OVERRIDE

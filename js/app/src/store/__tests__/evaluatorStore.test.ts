@@ -20,6 +20,7 @@ const createFreeformStore = (
       inputMapping: { literalMapping: {}, pathMapping: {} },
       isBuiltin: false,
       includeExplanation: false,
+      inputDescriptions: {},
     },
     outputConfigs: [
       {
@@ -194,5 +195,17 @@ describe("evaluatorStore bounds handlers", () => {
       threshold: 0.75,
       optimizationDirection: "NONE",
     });
+  });
+});
+
+describe("evaluatorStore input descriptions", () => {
+  it("sets, trims, and removes what an input should hold", () => {
+    const store = createFreeformStore();
+    store.getState().setInputDescription("output", "  The final answer.  ");
+    expect(store.getState().evaluator.inputDescriptions).toEqual({
+      output: "The final answer.",
+    });
+    store.getState().setInputDescription("output", "   ");
+    expect(store.getState().evaluator.inputDescriptions).toEqual({});
   });
 });

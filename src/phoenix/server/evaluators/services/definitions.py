@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -25,6 +25,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.evaluators.input_descriptions import (
+    apply_code_input_schema,
+    apply_llm_input_schema,
+)
 from phoenix.server.evaluators.services.management import (
     EVALUATOR_TYPENAME_BY_KIND,
     ensure_evaluator_prompt_label,
@@ -76,6 +80,7 @@ class PatchCodeEvaluatorInput:
     sandbox_config_id: Optional[GlobalID] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     output_configs: Optional[list[OutputConfigType]] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -87,6 +92,7 @@ class CreateCodeEvaluatorInput:
     input_mapping: InputMapping
     output_configs: list[OutputConfigType]
     description: Optional[str] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -98,6 +104,7 @@ class CreateCodeEvaluatorVersionInput:
     sandbox_config_id: Optional[GlobalID] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     output_configs: Optional[list[OutputConfigType]] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
     def changes_configuration(self) -> bool:
         return any(
@@ -107,6 +114,7 @@ class CreateCodeEvaluatorVersionInput:
                 self.sandbox_config_id,
                 self.input_mapping,
                 self.output_configs,
+                self.input_schema,
             )
         )
 
@@ -191,6 +199,16 @@ async def patch_code_evaluator(
                     input.output_configs,
                 )
 
+            if input.input_schema is not UNSET:
+                try:
+                    apply_code_input_schema(
+                        row,
+                        current_version.source_code if current_version is not None else "",
+                        input.input_schema,
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error))
+
             # The row is returned to resolvers after the session closes, so load the
             # server-generated updated_at now instead of leaving it expired.
             await session.flush()
@@ -236,6 +254,10 @@ async def create_code_evaluator(
                 input_mapping=input.input_mapping,
                 output_configs=cast(list[AnnotationConfigType], output_configs),
             )
+            try:
+                apply_code_input_schema(row, input.source_code, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
             session.add(row)
             await session.flush()
             session.add(
@@ -278,6 +300,7 @@ class CreateLLMEvaluatorInput:
     prompt_version_id: GlobalID
     output_configs: list[OutputConfigType]
     description: Optional[str] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 async def create_llm_evaluator(
@@ -304,6 +327,10 @@ async def create_llm_evaluator(
                 user_id=context.user_id,
                 prompt_id=version.prompt_id,
             )
+            try:
+                apply_llm_input_schema(evaluator, version, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, version.prompt_id)
@@ -508,6 +535,10 @@ async def create_code_evaluator_version(
                 row.input_mapping = input.input_mapping
             if input.output_configs is not UNSET and input.output_configs is not None:
                 row.output_configs = cast(list[AnnotationConfigType], input.output_configs)
+            try:
+                apply_code_input_schema(row, input.source_code, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
             was_created = current_version is None or not current_version.has_identical_content(
                 candidate
             )
@@ -535,10 +566,12 @@ async def update_llm_definition(
     name: Identifier,
     user_id: int | None,
     shared_evaluator_changed: bool = False,
+    input_schema: Any = UNSET,
 ) -> None:
     """Apply a definition edit. Without a prompt source the evaluator keeps running what it
     runs: its pinned version, or, for an evaluator without a pin, its prompt's newest version,
-    which stays unpinned."""
+    which stays unpinned. `input_schema` describes the prompt's variables; UNSET keeps the
+    stored descriptions for the variables the prompt still names, and None clears them."""
     base: Optional[models.PromptVersion] = None
     keeps_following_latest = prompt_source is None and evaluator.prompt_version_tag_id is None
     if isinstance(prompt_source, FromPromptVersion):
@@ -569,6 +602,11 @@ async def update_llm_definition(
         shared_evaluator_changed = True
         await ensure_evaluator_prompt_label(session, target_prompt_id)
         await release_evaluator_prompt_label(session, previous_prompt_id)
+    try:
+        if apply_llm_input_schema(evaluator, prompt_version, input_schema):
+            shared_evaluator_changed = True
+    except ValueError as error:
+        raise BadRequest(str(error))
     if evaluator.prompt_version_tag_id is None and not keeps_following_latest:
         evaluator.prompt_version_tag = models.PromptVersionTag(
             name=Identifier.model_validate(f"{name}-evaluator-{token_hex(4)}"),
@@ -601,6 +639,7 @@ class LLMEvaluatorPatch:
     description: Optional[str] = UNSET
     prompt_source: Optional[UpdatePromptSource] = None
     output_configs: Optional[list[OutputConfigType]] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 async def patch_llm_evaluator(
@@ -643,6 +682,7 @@ async def patch_llm_evaluator(
                 name=row.name,
                 user_id=context.user_id,
                 shared_evaluator_changed=True,
+                input_schema=patch.input_schema,
             )
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from secrets import token_hex
-from typing import Optional, TypedDict, cast
+from typing import Any, Optional, TypedDict, cast
 
 from pydantic import ValidationError
 from sqlalchemy import delete, select, update
@@ -24,6 +24,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.evaluators.input_descriptions import (
+    apply_code_input_schema,
+    apply_llm_input_schema,
+)
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
     require_output_configs,
@@ -80,6 +84,7 @@ class CreateProjectLLMEvaluatorInput:
     filter_condition: str = ""
     enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 class ProjectEvaluatorWriteValues(TypedDict, total=False):
@@ -105,6 +110,7 @@ class UpdateProjectLLMEvaluatorInput:
     enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -140,6 +146,7 @@ class CreateProjectCodeEvaluatorInput:
     filter_condition: str = ""
     enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
+    input_schema: Any = None  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -157,6 +164,7 @@ class UpdateProjectCodeEvaluatorInput:
     output_configs: Optional[list[OutputConfigType]] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
+    input_schema: Any = UNSET  # a JSON schema object, parsed by the service
 
 
 @dataclass(kw_only=True)
@@ -231,6 +239,10 @@ async def create_project_llm_evaluator(
                 user_id=user_id,
                 prompt=prompt,
             )
+            try:
+                apply_llm_input_schema(evaluator, prompt_version, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
             session.add(evaluator)
             await session.flush()
             await ensure_evaluator_prompt_label(session, prompt.id)
@@ -337,6 +349,7 @@ async def update_project_llm_evaluator(
                 name=name,
                 user_id=user_id,
                 shared_evaluator_changed=shared_evaluator_changed,
+                input_schema=input.input_schema,
             )
 
             binding_values = ProjectEvaluatorWriteValues(
@@ -584,6 +597,10 @@ async def create_project_code_evaluator(
                 input_mapping=input.evaluator_input_mapping,
                 output_configs=output_configs,
             )
+            try:
+                apply_code_input_schema(evaluator, input.source_code, input.input_schema)
+            except ValueError as error:
+                raise BadRequest(str(error))
             session.add(evaluator)
             await session.flush()
             session.add(
@@ -795,6 +812,28 @@ async def update_project_code_evaluator(
                 if current_version is None or not current_version.has_identical_content(candidate):
                     session.add(candidate)
                     shared_evaluator_changed = True
+
+            source_changed = input.source_code is not UNSET and input.source_code is not None
+            if source_changed or input.input_schema is not UNSET:
+                # Descriptions follow the parameters of the code the evaluator runs after
+                # this edit: the submitted source, or else the current version's.
+                if source_changed:
+                    assert input.source_code is not None
+                    described_source_code = input.source_code
+                else:
+                    latest = await code_evaluator_with_latest_version(session, evaluator.id)
+                    described_source_code = (
+                        latest[1].source_code
+                        if latest is not None and latest[1] is not None
+                        else ""
+                    )
+                try:
+                    if apply_code_input_schema(
+                        evaluator, described_source_code, input.input_schema
+                    ):
+                        shared_evaluator_changed = True
+                except ValueError as error:
+                    raise BadRequest(str(error))
 
             if shared_evaluator_changed:
                 evaluator.user_id = user_id

@@ -13,10 +13,13 @@ import {
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
+  buildInputSchemaInput,
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
+  getInputDescriptionsFromSchema,
   getOutputConfigValidationErrors,
   inferIncludeExplanationFromPrompt,
 } from "@phoenix/components/evaluators/utils";
@@ -154,6 +157,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
                 ...decisionEvaluatorFragment_evaluator @relay(mask: false)
               }
               ... on LLMEvaluator {
+                llmInputSchema: inputSchema
                 outputConfigs {
                   __typename
                   ... on CategoricalAnnotationConfig {
@@ -204,6 +208,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
                 }
               }
               ... on CodeEvaluator {
+                codeInputSchema: inputSchema
                 sourceCode
                 language
                 sandboxConfig {
@@ -390,6 +395,9 @@ function EditLlmProjectEvaluatorContent({
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
+  // The same names the mapping rows show, so an f-string `{reference.label}`
+  // sends its description under `reference`.
+  const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [isFilterValid, setIsFilterValid] = useState(true);
@@ -427,6 +435,9 @@ function EditLlmProjectEvaluatorContent({
       description: evaluator.evaluator.description ?? "",
       kind: "LLM" as const,
       inputMapping: evaluator.inputMapping as EvaluatorInputMapping,
+      inputDescriptions: getInputDescriptionsFromSchema(
+        evaluator.evaluator.llmInputSchema
+      ),
       includeExplanation: inferIncludeExplanationFromPrompt(
         evaluator.evaluator.promptVersion?.tools
       ),
@@ -472,6 +483,10 @@ function EditLlmProjectEvaluatorContent({
             ...llmInput,
             projectEvaluatorId: evaluator.id,
             inputMapping: state.evaluator.inputMapping,
+            inputSchema: buildInputSchemaInput({
+              variables,
+              inputDescriptions: state.evaluator.inputDescriptions,
+            }),
             samplingRate: scope.samplingRate,
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
@@ -600,6 +615,9 @@ function EditCodeProjectEvaluator({
   );
   const initialDescription = evaluator.evaluator.description ?? "";
   const initialOutputConfigsJson = JSON.stringify(loadedOutputConfigs);
+  const initialInputDescriptions = getInputDescriptionsFromSchema(
+    evaluator.evaluator.codeInputSchema
+  );
   const initialState: EvaluatorStoreProps = {
     evaluator: {
       id: evaluator.evaluator.id,
@@ -607,6 +625,7 @@ function EditCodeProjectEvaluator({
       name: evaluator.name,
       description: initialDescription,
       inputMapping: evaluator.inputMapping as EvaluatorInputMapping,
+      inputDescriptions: initialInputDescriptions,
       kind: "CODE",
       isBuiltin: false,
       includeExplanation: false,
@@ -672,6 +691,20 @@ function EditCodeProjectEvaluator({
               const sourceCodeChanged = sourceCode !== initialSourceCode;
               const sandboxConfigChanged =
                 sandboxConfigId !== initialSandboxConfigId;
+              // The update treats an omitted inputSchema as "keep", so it is
+              // sent only when a description of a declared parameter changed.
+              const inputSchema = buildInputSchemaInput({
+                variables,
+                inputDescriptions: state.evaluator.inputDescriptions,
+              });
+              const inputSchemaChanged =
+                JSON.stringify(inputSchema) !==
+                JSON.stringify(
+                  buildInputSchemaInput({
+                    variables,
+                    inputDescriptions: initialInputDescriptions,
+                  })
+                );
               const outputConfigErrors = getOutputConfigValidationErrors(
                 state.outputConfigs
               );
@@ -710,6 +743,7 @@ function EditCodeProjectEvaluator({
                     ...(inputMappingChanged
                       ? { inputMapping: state.evaluator.inputMapping }
                       : {}),
+                    ...(inputSchemaChanged ? { inputSchema } : {}),
                     samplingRate: scope.samplingRate,
                     evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
