@@ -3,6 +3,14 @@ name: Integration Docs
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    # Keep in sync with the inputs classify_changes.py routes on.
+    paths:
+      - "docs/phoenix/integrations/**"
+      - "docs/snippets/register-tracer-python.mdx"
+      - "scripts/testing/integration_docs/**"
+      - ".agents/skills/test-integration/**"
+      - ".github/workflows/integration-docs.yml"
+      - "Makefile"
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
@@ -257,6 +265,8 @@ jobs:
       - name: Comment on pull request
         if: github.event_name == 'pull_request'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          RUN_MODE: ${{ needs.classify.outputs.run_mode }}
         with:
           script: |
             const fs = require('fs');
@@ -268,6 +278,10 @@ jobs:
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             for (const comment of comments.filter(({ body }) => body?.includes(marker))) {
               await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+            }
+            // Nothing ran, so there is nothing to report; the stale report (if any) is removed above.
+            if (process.env.RUN_MODE === 'none') {
+              return;
             }
             await github.rest.issues.createComment({ owner, repo, issue_number, body });
       - name: Upload aggregate report
