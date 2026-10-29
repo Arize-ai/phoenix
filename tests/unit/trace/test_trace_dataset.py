@@ -294,6 +294,41 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path: Path) -> None:
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
 
 
+def test_trace_dataset_save_handles_documents_with_empty_metadata(
+    tmp_path: Path,
+) -> None:
+    traces_df = pd.DataFrame(
+        {
+            "name": ["retrieve"],
+            "span_kind": ["RETRIEVER"],
+            "parent_id": [None],
+            "start_time": [datetime.now()],
+            "end_time": [datetime.now()],
+            "status_code": ["OK"],
+            "status_message": [""],
+            "context.trace_id": ["trace-1"],
+            "context.span_id": ["span-1"],
+            "attributes.retrieval.documents": [
+                [
+                    {
+                        "document.id": "doc-1",
+                        "document.content": "hello",
+                        "document.metadata": {},
+                    }
+                ]
+            ],
+        }
+    )
+    ds = TraceDataset(traces_df)
+
+    dataset_id = ds.save(tmp_path)
+
+    read_ds = TraceDataset.load(dataset_id, tmp_path)
+    assert read_ds.dataframe["attributes.retrieval.documents"].tolist() == [
+        [{"document.id": "doc-1", "document.content": "hello"}]
+    ]
+
+
 def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(
     tmp_path: Path,
 ) -> None:

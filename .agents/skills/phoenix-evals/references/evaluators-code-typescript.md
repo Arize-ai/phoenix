@@ -13,6 +13,8 @@ const containsCitation = createEvaluator<{ output: string }>(
 );
 ```
 
+The wrapped function can return a number (becomes `score`), a string (becomes `label`), or an object; from an object, `score`, `label`, `explanation`, and `metadata` (a plain object) are kept and other keys are dropped.
+
 ## With Full Results (asExperimentEvaluator)
 
 ```typescript

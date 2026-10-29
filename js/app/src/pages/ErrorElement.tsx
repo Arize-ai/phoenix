@@ -83,7 +83,10 @@ export function ErrorElement() {
     >
       <section
         css={css`
-          width: 500px;
+          width: 100%;
+          max-width: 500px;
+          box-sizing: border-box;
+          padding: 0 var(--global-dimension-size-200);
           /* Add spacing on the bottom so it gets pushed down */
           margin-top: 200px;
           display: flex;

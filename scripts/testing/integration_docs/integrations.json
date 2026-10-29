@@ -1,0 +1,1884 @@
+{
+  "schema_version": 1,
+  "description": "Runnable Phoenix integration documentation checks. Add an entry only after its example and verifier are supported.",
+  "integrations": [
+    {
+      "id": "openai-python",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run OpenAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "openai-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "openai-go",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "anthropic-python",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Anthropic",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "anthropic-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "anthropic-go",
+      "document": "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Anthropic",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "ollama-python",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-javascript",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "ollama-go",
+      "document": "docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Ollama",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "services": [
+        {
+          "kind": "ollama",
+          "model": "llama3.2:1b"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ],
+        "attributes": {
+          "llm.model_name": "llama3.2:1b"
+        },
+        "timeout_seconds": 240
+      }
+    },
+    {
+      "id": "amazon-bedrock-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "strands-agents-python-lint",
+      "document": "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Strands Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cohere-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Cohere",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "together-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/together/together-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Together AI",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openrouter-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenRouter",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "orcarouter-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OrcaRouter",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "guardrails-python",
+      "document": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Guardrails",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "langchain-python",
+      "document": "docs/phoenix/integrations/python/langchain/langchain-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "run_section": "Run LangChain",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "openai-agents-typescript",
+      "document": "docs/phoenix/integrations/typescript/openai-agents.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "instructor-python",
+      "document": "docs/phoenix/integrations/python/instructor/instructor-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Instructor",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "llamaindex-python",
+      "document": "docs/phoenix/integrations/python/llamaindex/llamaindex-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run LlamaIndex",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "dspy-python",
+      "document": "docs/phoenix/integrations/python/dspy/dspy-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run DSPy",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "haystack-python",
+      "document": "docs/phoenix/integrations/python/haystack/haystack-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Haystack",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "langgraph-python",
+      "document": "docs/phoenix/integrations/python/langgraph/langgraph-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run LangGraph",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "agno-python",
+      "document": "docs/phoenix/integrations/python/agno/agno-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Agno",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "atomic-agents-python",
+      "document": "docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Atomic Agents",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.12"
+    },
+    {
+      "id": "autogen-agentchat-python",
+      "document": "docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run AutoGen AgentChat",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "autogen-python",
+      "document": "docs/phoenix/integrations/python/autogen/autogen-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Autogen",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "llamaindex-workflows-python",
+      "document": "docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run LlamaIndex Workflows",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "microsoft-agent-framework-python",
+      "document": "docs/phoenix/integrations/python/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Microsoft Agent Framework",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "filename": "instrumentation.py"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "microsoft-agent-framework-dotnet",
+      "document": "docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
+      "language": "dotnet",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Microsoft Agent Framework",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "dotnet",
+        "filename": "Program.cs"
+      },
+      "additional_sections": [
+        {
+          "section": "Add a tool",
+          "filename": "WeatherTools.cs",
+          "language": "dotnet"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "smolagents-python",
+      "document": "docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Create & Run an Agent",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "beeai-python",
+      "document": "docs/phoenix/integrations/python/beeai/beeai-tracing-python.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run BeeAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "crewai-python",
+      "document": "docs/phoenix/integrations/python/crewai/crewai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run CrewAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "AGENT",
+        "required_attributes": [
+          "input.value"
+        ],
+        "non_empty_attributes": [
+          "input.value"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "litellm-python",
+      "document": "docs/phoenix/integrations/llm-providers/litellm/litellm-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run LiteLLM",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "pydantic-ai-python",
+      "document": "docs/phoenix/integrations/python/pydantic/pydantic-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Basic Usage",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "portkey-python",
+      "document": "docs/phoenix/integrations/python/portkey/portkey-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Basic Usage with OpenAI",
+      "required_env": [
+        "OPENAI_API_KEY",
+        "PORTKEY_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "beeai-typescript",
+      "document": "docs/phoenix/integrations/typescript/beeai/beeai-tracing-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run BeeAI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "npm_install_flags": [
+        "--legacy-peer-deps"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "mastra-typescript",
+      "document": "docs/phoenix/integrations/typescript/mastra/mastra-tracing.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Create Agents and Tools",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "vercel-ai-sdk-typescript",
+      "document": "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js.mdx",
+      "language": "javascript",
+      "install_section": "Installation",
+      "setup_section": "Setup",
+      "run_section": "Run Vercel AI SDK",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "ag2-python",
+      "document": "docs/phoenix/integrations/python/ag2/ag2-tracing.mdx",
+      "language": "python",
+      "install_section": "Install AG2 Classic",
+      "setup_section": "Setup AG2 Classic",
+      "run_section": "Run AG2 Classic",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "openai-agents-python",
+      "document": "docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenAI Agents",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "langchain-typescript",
+      "document": "docs/phoenix/integrations/typescript/langchain/langchain-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run LangChain.js",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "mcp-python",
+      "document": "docs/phoenix/integrations/python/mcp-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run MCP Client",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "additional_sections": [
+        {
+          "section": "MCP Server",
+          "filename": "server.py",
+          "language": "python"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "mcp-typescript",
+      "document": "docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run MCP Client",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "additional_sections": [
+        {
+          "section": "MCP Server",
+          "filename": "server.js",
+          "language": "javascript"
+        }
+      ],
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-evals-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals.mdx",
+      "language": "python",
+      "install_section": "Using Amazon Bedrock with Phoenix Evals",
+      "setup_section": "Using Amazon Bedrock with Phoenix Evals",
+      "run_section": "Using Amazon Bedrock with Phoenix Evals",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-agents-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock Agents",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "amazon-bedrock-agent-runtime-javascript-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "claude-managed-agents-python-lint",
+      "document": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup tracing",
+      "run_section": "Run Claude Managed Agents",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "scalekit-javascript-lint",
+      "document": "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Setup",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript",
+        "filename": "instrumentation.ts",
+        "run_filename": "example.ts",
+        "code_block_index": "0",
+        "run_code_block_index": "2"
+      },
+      "additional_sections": [
+        {
+          "section": "Setup",
+          "filename": "traced-tools.ts",
+          "language": "javascript",
+          "code_block_index": "1"
+        }
+      ],
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "typesafe-python",
+      "document": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-python.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run TypeSafe AI",
+      "required_env": [
+        "TYPESAFE_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "DECISION",
+        "required_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ],
+        "non_empty_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ]
+      }
+    },
+    {
+      "id": "typesafe-typescript",
+      "document": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": [
+        "TYPESAFE_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "DECISION",
+        "required_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ],
+        "non_empty_attributes": [
+          "decision.provider",
+          "decision.model_name"
+        ]
+      }
+    },
+    {
+      "id": "langchain4j-java",
+      "document": "docs/phoenix/integrations/java/langchain4j/langchain4j-tracing.mdx",
+      "language": "java",
+      "install_section": "Prerequisites",
+      "setup_section": "Configuration for Phoenix Tracing",
+      "run_section": "Run LangChain4j",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "Main",
+        "java_files": [
+          {
+            "filename": "Main.java",
+            "sections": [
+              "Configuration for Phoenix Tracing",
+              "Run LangChain4j"
+            ],
+            "compose": "main"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "spring-ai-java",
+      "document": "docs/phoenix/integrations/java/springai/springai-tracing.mdx",
+      "language": "java",
+      "install_section": "Prerequisites",
+      "setup_section": "Configuration for Phoenix Tracing",
+      "run_section": "Run Spring AI",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "Main",
+        "java_files": [
+          {
+            "filename": "Main.java",
+            "sections": [
+              "Configuration for Phoenix Tracing",
+              "Run Spring AI"
+            ],
+            "compose": "main"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "java-annotation-openai",
+      "document": "docs/phoenix/integrations/java/annotation/annotation-tracing.mdx",
+      "language": "java",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run annotated code",
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "example.Main",
+        "java_files": [
+          {
+            "filename": "example/Main.java",
+            "section": "Setup"
+          },
+          {
+            "filename": "example/QAService.java",
+            "section": "Run annotated code"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM"
+      }
+    },
+    {
+      "id": "openlit-python-always-skip",
+      "document": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run OpenLIT",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cloudflare-ai-gateway-python-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
+      "language": "python",
+      "install_section": "Prerequisites",
+      "setup_section": "Set up tracing",
+      "run_section": "Link gateway spans to your app's traces",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "vllm-python-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run vLLM",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "temporal-python-always-skip",
+      "document": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Temporal",
+      "required_env": [],
+      "setup": {
+        "source": "section_code",
+        "language": "python"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "antigravity-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/antigravity.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "claude-code-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/claude-code.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "codex-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/codex.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "copilot-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/copilot.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "cursor-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/cursor.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "devin-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/devin.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "gemini-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/gemini.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "kiro-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/kiro.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "oh-my-pi-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/oh-my-pi.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "opencode-always-skip",
+      "document": "docs/phoenix/integrations/coding-agents/opencode.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "dify-always-skip",
+      "document": "docs/phoenix/integrations/platforms/dify/dify-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "flowise-always-skip",
+      "document": "docs/phoenix/integrations/platforms/flowise/flowise-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "langflow-always-skip",
+      "document": "docs/phoenix/integrations/platforms/langflow/langflow-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "prompt-flow-always-skip",
+      "document": "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "nemo-agent-always-skip",
+      "document": "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "truefoundry-always-skip",
+      "document": "docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openrouter-broadcast-always-skip",
+      "document": "docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "n8n-always-skip",
+      "document": "docs/phoenix/integrations/platforms/n8n/n8n-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "openwebui-always-skip",
+      "document": "docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "livekit-agents-always-skip",
+      "document": "docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx",
+      "language": "skip",
+      "install_section": "",
+      "run_section": "",
+      "required_env": [],
+      "setup": {
+        "source": "skip_only",
+        "language": "skip"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    }
+  ]
+}
