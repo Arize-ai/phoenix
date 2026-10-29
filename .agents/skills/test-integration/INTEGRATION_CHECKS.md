@@ -22,6 +22,8 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Enabled | Anthropic Python | `docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing.mdx` | Checks documented output and Phoenix spans. |
 | Enabled | Anthropic Javascript | `docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript.mdx` | Checks documented output and Phoenix spans. |
 | Enabled | Anthropic Go | `docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go.mdx` | Checks documented output and Phoenix spans. |
+| Enabled | Groq Python | `docs/phoenix/integrations/llm-providers/groq/groq-tracing.mdx` | Uses `GROQ_API_KEY`, checks output and an LLM span. |
+| Enabled | Mistral Python | `docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing.mdx` | Uses `MISTRAL_API_KEY`, checks output and an LLM span. |
 | Enabled | Claude Agent SDK Python | `docs/phoenix/integrations/python/claude-agent-sdk.mdx` | Uses `ANTHROPIC_API_KEY`, checks agent output and an AGENT span. |
 | Enabled | Claude Agent SDK TypeScript | `docs/phoenix/integrations/typescript/claude-agent-sdk.mdx` | Uses `ANTHROPIC_API_KEY`, checks agent output and an AGENT span. |
 | Enabled | Ollama Python | `docs/phoenix/integrations/llm-providers/ollama/ollama-tracing.mdx` | Checks documented output and Phoenix spans. |
