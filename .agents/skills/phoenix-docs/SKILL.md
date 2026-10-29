@@ -18,7 +18,9 @@ Each page has one type. Do not mix types. Link to other types instead.
 | Reference | Information | Describe the machinery: APIs, config, attributes. Neutral, complete, structured like the code. |
 | Explanation | Understanding | Why and how it fits. Context, design, trade-offs. No steps. |
 
-Before you write, identify the type. If content does not fit the type, move it.
+Before you write, identify the type with two questions: action or cognition? Study or work?
+Action + study = tutorial. Action + work = how-to. Cognition + work = reference. Cognition + study = explanation.
+If content does not fit the type, move it. Details: https://diataxis.fr/
 
 ## ASD-STE100 (technical content)
 
