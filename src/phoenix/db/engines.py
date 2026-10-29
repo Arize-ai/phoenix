@@ -343,6 +343,8 @@ def aio_sqlite_engine(
 
 
 def sqlite_migration_engine(url: URL, echo: bool = False) -> AsyncEngine:
+    if url.get_driver_name() != "aiosqlite":
+        url = url.set(drivername="sqlite+aiosqlite")
     engine = create_async_engine(
         url=url,
         json_serializer=_dumps,
