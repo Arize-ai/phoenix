@@ -32,6 +32,25 @@ The upgrade from v20.x to v21.0.0 changes the default bind address and how authe
   GitHub tokens) are then encrypted with a publicly known key: anyone with a copy of the database can decrypt
   them, and Settings → Secrets warns administrators. Set `PHOENIX_SECRET` to protect them.
 
+### Upgrade existing default-admin credentials with all replicas stopped
+
+For a persistent database that still has `admin@localhost` with the unchanged default password `admin`,
+set `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` to an unpredictable password before starting v21.
+Startup applies it only while that local admin account still requires reset and its stored password
+still matches `admin`. Customized credentials are preserved. For an account updated this way, its
+password-reset, access, and refresh tokens and its unredeemed OAuth2 authorization codes are deleted,
+and its OAuth2 grants are revoked, in the same transaction. This ends any session opened with the
+public password. API keys are kept, as they are on a password reset; review
+the admin account's API keys and revoke any you do not recognize. When the password is applied,
+startup logs `Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD to the default admin account`.
+
+**Stop all Phoenix replicas before this upgrade; do not use a rolling upgrade for this credential
+replacement.** A running replica can retain deleted tokens in its cache and keep accepting them.
+Stop the old processes, configure the initial password consistently on the replacement replicas,
+start v21, and confirm the log line above or verify login with the configured password before
+restoring external traffic. Existing customized accounts should continue using their current
+credentials; this variable is not a general password-rotation mechanism.
+
 ### `--host` is removed from `phoenix serve`
 
 The bind address comes only from `PHOENIX_HOST`.

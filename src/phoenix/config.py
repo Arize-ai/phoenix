@@ -461,8 +461,9 @@ and one special character. Defaults to false.
 """
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-Initial password for the default admin account; only used when creating the account.
-Defaults to 'admin', which requires a password reset before opening a session.
+Initial password for the default admin account; applied when creating the account or while it
+still holds the unchanged default password 'admin'. Defaults to 'admin', which requires a
+password reset before opening a session.
 """
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
