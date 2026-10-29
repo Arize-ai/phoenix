@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts";
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/utils/identifierUtils";
 
 installTestMatchMedia();
 
@@ -186,16 +187,25 @@ describe("SavePromptForm", () => {
     expect(getPromptNameInput(container).value).toBe("Existing prompt");
   });
 
-  it("clears the prompt name on deselect unless a new name was typed", async () => {
+  it("restores the prompt name when the selected prompt is sent again", async () => {
     await renderSavePromptForm(root);
 
     await act(async () => {
       getButton(container, "Select prompt").click();
     });
     await act(async () => {
-      getButton(container, "Clear prompt").click();
+      typeInto(getPromptNameInput(container), "Existing");
     });
-    expect(getPromptNameInput(container).value).toBe("");
+    // The ComboBox sends the selected key again to revert an edit, e.g. on Escape
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("Existing prompt");
+    expect(getButton(container, "Update Prompt")).toBeDefined();
+  });
+
+  it("keeps a typed name when the prompt is deselected", async () => {
+    await renderSavePromptForm(root);
 
     await act(async () => {
       getButton(container, "Select prompt").click();
@@ -207,6 +217,30 @@ describe("SavePromptForm", () => {
       getButton(container, "Clear prompt").click();
     });
     expect(getPromptNameInput(container).value).toBe("new-name");
+    expect(getButton(container, "Create Prompt")).toBeDefined();
+  });
+
+  it("waits for blur to flag a trailing dash in a new tag name", async () => {
+    await renderSavePromptForm(root);
+    const tagInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New tag name"]'
+    )!;
+
+    await act(async () => {
+      tagInput.focus();
+      typeInto(tagInput, "my ");
+    });
+    expect(tagInput.value).toBe("my-");
+    expect(container.textContent).not.toContain(
+      IDENTIFIER_ERROR_MESSAGES.leadingTrailing
+    );
+
+    await act(async () => {
+      tagInput.blur();
+    });
+    expect(container.textContent).toContain(
+      IDENTIFIER_ERROR_MESSAGES.leadingTrailing
+    );
   });
 });
 

@@ -21,6 +21,7 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { movePromptVersionTag } from "@phoenix/components/prompt/movePromptVersionTag";
@@ -141,7 +142,12 @@ export function NewPromptVersionDialog({
                     <TextField
                       isInvalid={invalid}
                       onChange={(value) =>
-                        onChange(replaceWhitespaceWithDashes(value))
+                        onChange(
+                          transformInputValue(
+                            value,
+                            replaceWhitespaceWithDashes
+                          )
+                        )
                       }
                       onBlur={onBlur}
                       name={name}

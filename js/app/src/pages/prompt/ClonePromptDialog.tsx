@@ -14,6 +14,7 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
@@ -156,7 +157,12 @@ export const ClonePromptDialog = ({
                         isDisabled={disabled}
                         value={value}
                         onChange={(value) =>
-                          onChange(replaceWhitespaceWithDashes(value))
+                          onChange(
+                            transformInputValue(
+                              value,
+                              replaceWhitespaceWithDashes
+                            )
+                          )
                         }
                         onBlur={onBlur}
                       >

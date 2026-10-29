@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
 import { FieldError, Input, Label } from "@phoenix/components";
-import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
+import {
+  TextField,
+  type TextFieldProps,
+  transformInputValue,
+} from "@phoenix/components/core/field";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -83,7 +87,6 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
-  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
   // Register with the evaluator store so the parent can trigger
@@ -119,22 +122,7 @@ export const EvaluatorNameInput = ({
         const displayedError = shouldShowError ? error.message : undefined;
 
         const handleChange = (value: string) => {
-          const input = inputRef.current;
-          const selectionStart = input?.selectionStart ?? value.length;
-
-          const transformed = transformIdentifierInput(value);
-
-          // Calculate new cursor position by transforming the text before cursor
-          const beforeCursor = value.slice(0, selectionStart);
-          const newCursorPosition =
-            transformIdentifierInput(beforeCursor).length;
-
-          field.onChange(transformed);
-
-          // Restore cursor position after React updates the DOM
-          requestAnimationFrame(() => {
-            input?.setSelectionRange(newCursorPosition, newCursorPosition);
-          });
+          field.onChange(transformInputValue(value, transformIdentifierInput));
         };
 
         const handleFocus = () => {
@@ -161,7 +149,7 @@ export const EvaluatorNameInput = ({
             {...props}
           >
             <Label>Name</Label>
-            <Input ref={inputRef} placeholder={placeholder} />
+            <Input placeholder={placeholder} />
             <FieldError>{displayedError}</FieldError>
           </TextField>
         );

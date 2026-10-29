@@ -16,6 +16,7 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
@@ -24,6 +25,7 @@ import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated_
 import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {
+  IDENTIFIER_ERROR_MESSAGES,
   replaceWhitespaceWithDashes,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
@@ -84,9 +86,9 @@ export function SavePromptForm({
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(
     defaultSelectedPromptId ?? null
   );
-  const selectedPrompt = prompts?.prompts?.edges?.find(
-    (edge) => edge?.prompt?.id === selectedPromptId
-  );
+  const findPrompt = (promptId: string | null) =>
+    prompts?.prompts?.edges?.find((edge) => edge?.prompt?.id === promptId);
+  const selectedPrompt = findPrompt(selectedPromptId);
   const [promptInputValue, setPromptInputValue] = useState<string>(
     selectedPrompt?.prompt?.name ?? ""
   );
@@ -169,7 +171,10 @@ export function SavePromptForm({
               onBlur={onBlur}
               inputValue={promptInputValue}
               onInputChange={(value) => {
-                const transformed = replaceWhitespaceWithDashes(value);
+                const transformed = transformInputValue(
+                  value,
+                  replaceWhitespaceWithDashes
+                );
                 setPromptInputValue(transformed);
                 onChange(transformed);
               }}
@@ -177,20 +182,13 @@ export function SavePromptForm({
               allowsCustomValue
               onChange={(promptId) => {
                 onChange(promptId);
-                setSelectedPromptId(
-                  typeof promptId === "string" ? promptId : null
-                );
-                // Sync the controlled inputValue with the selection by hand
-                const selectedName = prompts?.prompts?.edges?.find(
-                  (edge) => edge?.prompt?.id === promptId
-                )?.prompt?.name;
+                const id = typeof promptId === "string" ? promptId : null;
+                setSelectedPromptId(id);
+                // inputValue is controlled, so show the selected prompt's name
+                // by hand. A deselect comes from typing a new name, which stays
+                const selectedName = findPrompt(id)?.prompt?.name;
                 if (selectedName) {
                   setPromptInputValue(selectedName);
-                } else if (promptId == null && selectedPrompt) {
-                  const deselectedName = selectedPrompt.prompt.name;
-                  setPromptInputValue((current) =>
-                    current === deselectedName ? "" : current
-                  );
                 }
               }}
               promptId={selectedPromptId}
@@ -361,20 +359,32 @@ function NewTagInlineForm({
   onAdd: (tagName: string) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
+  // Typing a space leaves a trailing dash until the next word, so that error
+  // waits until the user leaves the field or tries to add the tag
+  const [showLeadingTrailingError, setShowLeadingTrailingError] =
+    useState(false);
 
+  // Whitespace is converted to dashes on input, so no trimming is needed here
   const error = useMemo(() => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return null;
-    const validationError = validateIdentifier(trimmed);
+    if (!inputValue) return null;
+    const validationError = validateIdentifier(inputValue);
     if (typeof validationError === "string") return validationError;
-    if (existingTags.includes(trimmed)) return "Tag already exists";
+    if (existingTags.includes(inputValue)) return "Tag already exists";
     return null;
   }, [inputValue, existingTags]);
+  const displayedError =
+    error === IDENTIFIER_ERROR_MESSAGES.leadingTrailing &&
+    !showLeadingTrailingError
+      ? null
+      : error;
 
   const handleAdd = useCallback(() => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || error) return;
-    onAdd(trimmed);
+    if (!inputValue) return;
+    if (error) {
+      setShowLeadingTrailingError(true);
+      return;
+    }
+    onAdd(inputValue);
     setInputValue("");
   }, [inputValue, error, onAdd]);
 
@@ -384,8 +394,14 @@ function NewTagInlineForm({
         size="S"
         aria-label="New tag name"
         value={inputValue}
-        onChange={(value) => setInputValue(replaceWhitespaceWithDashes(value))}
-        isInvalid={!!error}
+        onChange={(value) => {
+          setInputValue(
+            transformInputValue(value, replaceWhitespaceWithDashes)
+          );
+          setShowLeadingTrailingError(false);
+        }}
+        onBlur={() => setShowLeadingTrailingError(true)}
+        isInvalid={!!displayedError}
         css={css`
           flex: 1 1 auto;
         `}
@@ -397,13 +413,13 @@ function NewTagInlineForm({
         }}
       >
         <Input placeholder="New tag name" />
-        {error ? <FieldError>{error}</FieldError> : null}
+        {displayedError ? <FieldError>{displayedError}</FieldError> : null}
       </TextField>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={handleAdd}
-        isDisabled={!inputValue.trim() || !!error}
+        isDisabled={!inputValue || !!error}
       >
         Add
       </Button>
