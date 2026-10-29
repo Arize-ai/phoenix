@@ -485,7 +485,7 @@ function TopProjectsPanel({
   projectSeries: ReturnType<typeof useServerProjectSeries>;
 }) {
   const [metric, setMetric] = useState<TopProjectsMetric>("evaluations");
-  const { series, getKey } = projectSeries;
+  const { series, getKey, isFiltered } = projectSeries;
   const rows = useMemo(() => {
     const totals = new Map<string, number>();
     for (const group of activity.groups) {
@@ -501,8 +501,7 @@ function TopProjectsPanel({
       // A picked project shows even with nothing to rank.
       .filter(
         (entry) =>
-          entry.key !== OTHER_PROJECTS_KEY &&
-          (projectSeries.isFiltered || entry.value > 0)
+          entry.key !== OTHER_PROJECTS_KEY && (isFiltered || entry.value > 0)
       )
       .sort((a, b) => b.value - a.value);
     const other = series.find((entry) => entry.key === OTHER_PROJECTS_KEY);
@@ -510,7 +509,7 @@ function TopProjectsPanel({
     return other != null && otherValue > 0
       ? [...ranked, { ...other, value: otherValue }]
       : ranked;
-  }, [activity.groups, getKey, metric, series, projectSeries.isFiltered]);
+  }, [activity.groups, getKey, metric, series, isFiltered]);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const max = Math.max(...rows.map((row) => row.value), 0);
   const format = metric === "evaluations" ? intFormatter : costFormatter;
