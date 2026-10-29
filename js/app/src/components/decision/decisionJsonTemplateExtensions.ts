@@ -220,17 +220,27 @@ export function findJsonValueSelection({
   const tree = syntaxTree(state);
   let node: SyntaxNode | null = tree.resolveInner(from, 1);
   // A property name picks the property's value.
+  let propertyValue: SyntaxNode | null = null;
   for (
     let current: SyntaxNode | null = node;
     current;
     current = current.parent
   ) {
     if (current.name === "PropertyName" && current.to >= to) {
-      const property = current.parent;
-      const value = property?.lastChild;
-      if (value && JSON_VALUE_NODES.has(value.name)) node = value;
+      const value = current.parent?.lastChild;
+      if (value && JSON_VALUE_NODES.has(value.name)) propertyValue = value;
       break;
     }
+  }
+  if (propertyValue) {
+    return {
+      from: propertyValue.from,
+      to: propertyValue.to,
+      kind: "value",
+      nodeName: propertyValue.name,
+      source: state.doc.sliceString(propertyValue.from, propertyValue.to),
+      propertyName: getPropertyName({ node: propertyValue, state }),
+    };
   }
   while (
     node &&

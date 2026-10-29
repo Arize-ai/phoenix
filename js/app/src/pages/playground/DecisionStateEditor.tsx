@@ -15,6 +15,7 @@ import {
 } from "@phoenix/components";
 import { DecisionJsonTemplateEditor } from "@phoenix/components/decision/DecisionJsonTemplateEditor";
 import { findJsonValueSelection } from "@phoenix/components/decision/decisionJsonTemplateExtensions";
+import { getWholeTagPath } from "@phoenix/components/decision/decisionTemplateRendering";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -40,7 +41,7 @@ type MakeVariableTarget = {
   /** What replaces the selection, given the variable's name. */
   toReplacement: (name: string) => string;
   /** The variable's value: the selection, as the Variables pane holds it. */
-  value: unknown;
+  value: { text: string; isReadAsText: boolean };
   defaultName: string;
   /** Below the selection's end, relative to the editor wrapper. */
   top: number;
@@ -96,19 +97,24 @@ function getMakeVariableTarget({
   const { from, to } = state.selection.main;
   if (from === to) return null;
   const toTag = (name: string) => templateVariable({ name, templateFormat });
+  // A selection that already is one tag has nothing to make.
+  const isTag = (text: string) =>
+    getWholeTagPath({ templateFormat, text: text.trim() }) != null;
   if (mode === "text") {
+    if (isTag(state.doc.sliceString(from, to))) return null;
     const line = state.doc.lineAt(from);
     const label = getLabelBefore(state.doc.sliceString(line.from, from));
     return {
       from,
       to,
       toReplacement: toTag,
-      value: state.doc.sliceString(from, to),
+      value: toDecisionVariableText(state.doc.sliceString(from, to)),
       defaultName: getDefaultVariableName({ hint: label, existingNames }),
     };
   }
   const selection = findJsonValueSelection({ state, from, to });
   if (!selection) return null;
+  if (selection.kind === "text" && isTag(selection.source)) return null;
   const defaultName = getDefaultVariableName({
     hint: selection.propertyName,
     existingNames,
@@ -118,23 +124,28 @@ function getMakeVariableTarget({
       from: selection.from,
       to: selection.to,
       toReplacement: toTag,
-      value: selection.source,
+      value: toDecisionVariableText(selection.source),
       defaultName,
     };
   }
-  let value: unknown = selection.source;
+  let parsed: unknown = selection.source;
+  let isParsed = false;
   try {
-    value = JSON.parse(selection.source);
+    parsed = JSON.parse(selection.source);
+    isParsed = true;
   } catch {
     // A value being edited is kept as written.
   }
+  if (typeof parsed === "string" && isTag(parsed)) return null;
   return {
     from: selection.from,
     to: selection.to,
     // A hole is a JSON string that is exactly the tag.
     toReplacement: (name) => JSON.stringify(toTag(name)),
-    // Structured values keep their source as written; strings their text.
-    value: typeof value === "string" ? value : selection.source,
+    // A string is its text; anything else is its JSON.
+    value: isParsed
+      ? toDecisionVariableText(parsed)
+      : { text: selection.source, isReadAsText: false },
     defaultName,
   };
 }
@@ -302,9 +313,8 @@ export function DecisionStateEditor({
     });
     // A name already in use keeps its value; the selection now reads it.
     if (!existingNames.includes(name)) {
-      const { text, isReadAsText } = toDecisionVariableText(target.value);
-      setVariableValue(name, text);
-      setVariableReadAsText(name, isReadAsText);
+      setVariableValue(name, target.value.text);
+      setVariableReadAsText(name, target.value.isReadAsText);
     }
     setTarget(null);
     view.focus();
