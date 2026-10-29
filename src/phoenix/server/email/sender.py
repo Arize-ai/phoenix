@@ -192,9 +192,12 @@ def email_sender_from_env() -> Optional[EmailSender]:
     """Return an SMTP sender, or None when PHOENIX_SMTP_HOSTNAME is unset."""
     if not (mail_server := get_env_smtp_hostname()):
         return None
-    assert (mail_username := get_env_smtp_username()), "SMTP username is required"
-    assert (mail_password := get_env_smtp_password()), "SMTP password is required"
-    assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
+    if not (mail_username := get_env_smtp_username()):
+        raise ValueError("SMTP username is required")
+    if not (mail_password := get_env_smtp_password()):
+        raise ValueError("SMTP password is required")
+    if not (sender_email := get_env_smtp_mail_from()):
+        raise ValueError("SMTP mail_from is required")
     return SimpleEmailSender(
         smtp_server=mail_server,
         smtp_port=get_env_smtp_port(),
