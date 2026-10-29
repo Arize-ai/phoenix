@@ -173,11 +173,8 @@ def seed_online_decision_judge(
         name=ONLINE_JUDGE_NAME,
         metadata=metadata,
         version={
-            "inputs": [
-                {"name": name, "description": None, "jsonSchema": None}
-                for name in ("request", "response")
-            ],
-            "state": {"object": True},
+            "templateFormat": "MUSTACHE",
+            "state": {"json": {"request": "{{request}}", "response": "{{response}}"}},
             "questions": [
                 {
                     "predicate": {

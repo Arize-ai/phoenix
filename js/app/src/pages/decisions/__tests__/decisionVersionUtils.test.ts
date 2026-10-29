@@ -35,10 +35,10 @@ describe("decision definition comparison", () => {
       JSON.parse(
         decisionVersionToText({
           ...version,
-          state: { __typename: "DecisionObjectState", object: true },
+          state: { __typename: "DecisionJsonState", json: "{{state}}" },
         })
       ).state
-    ).toEqual({ object: true });
+    ).toEqual({ json: "{{state}}" });
   });
   it("includes question content, model, and provider routing changes", () => {
     for (const changed of [

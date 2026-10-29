@@ -1240,7 +1240,7 @@ async def test_failed_project_authoring_with_a_draft_version_leaves_nothing_behi
             )
         },
     )
-    assert result.errors and "Map the inputs" in result.errors[0].message
+    assert result.errors and "Map the variables" in result.errors[0].message
     async with db() as session:
         for model in (
             models.Decision,
@@ -1281,9 +1281,7 @@ async def test_project_evaluator_update_saves_binding_and_version_together(
                 "filterCondition": "num_spans > 1",
                 "enabled": False,
                 "evaluationDelaySeconds": 600,
-                "decisionVersion": version_input(
-                    inputs=[{"name": "answer"}], state={"input": "answer"}
-                ),
+                "decisionVersion": version_input(state={"json": "{{answer}}"}),
                 "inputMapping": {"pathMapping": {"answer": "output"}, "literalMapping": {}},
             }
         },
