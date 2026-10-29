@@ -2484,10 +2484,6 @@
       "destination": "/docs/phoenix/integrations/python/google-adk"
     },
     {
-      "source": "/docs/phoenix/learn",
-      "destination": "/docs/phoenix/cookbook"
-    },
-    {
       "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",
       "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
     },
