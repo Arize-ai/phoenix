@@ -42,7 +42,11 @@ const DECISION_STATUS_LABELS: Partial<Record<string, string>> = {
 /**
  * Status, uncertainty and provenance for a decision evaluator's annotation.
  */
-function DecisionDetails({ decision }: { decision: DecisionAnnotation }) {
+export function DecisionAnnotationDetails({
+  decision,
+}: {
+  decision: DecisionAnnotation;
+}) {
   const model = decision.resolvedModel ?? decision.requestedModel;
   const answer = decision.answer;
   return (
@@ -145,7 +149,7 @@ export function AnnotationDetailsContent({
             </Flex>
           ) : null}
         </View>
-        {decision ? <DecisionDetails decision={decision} /> : null}
+        {decision ? <DecisionAnnotationDetails decision={decision} /> : null}
         {annotation.explanation ? (
           <View paddingTop="size-50">
             <Flex direction="column">

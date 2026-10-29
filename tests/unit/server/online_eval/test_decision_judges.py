@@ -1,6 +1,7 @@
 """Decision judges run online like LLM judges: bound to a project, resolved, hydrated, and
 annotating spans with Phoenix's decision metadata."""
 
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any
 from unittest.mock import AsyncMock
@@ -31,8 +32,14 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.db.types.test_decision_evaluators import questions
 from tests.unit.graphql import AsyncGraphQLClient
 
-from ..._helpers import _add_project, _add_span, _add_trace
-from .test_consumer import _annotations, _cycle_to_completion, _get_unit
+from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from .test_consumer import (
+    _annotations,
+    _cycle_to_completion,
+    _get_unit,
+    _session_annotations,
+    _trace_annotations,
+)
 
 _POLYMORPHIC = with_polymorphic(
     models.Evaluator,
@@ -89,7 +96,12 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
         return judge.id
 
 
-async def _bind(db: DbSessionFactory, project_id: int, judge_id: int) -> int:
+async def _bind(
+    db: DbSessionFactory,
+    project_id: int,
+    judge_id: int,
+    evaluation_target: models.EvaluationTarget = "SPAN",
+) -> int:
     async with db() as session:
         binding = models.ProjectEvaluator(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
@@ -98,7 +110,7 @@ async def _bind(db: DbSessionFactory, project_id: int, judge_id: int) -> int:
             name=Identifier(f"judge-binding-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
-            evaluation_target="SPAN",
+            evaluation_target=evaluation_target,
         )
         session.add(binding)
         await session.flush()
@@ -177,6 +189,91 @@ async def test_a_judge_annotates_a_span_with_one_call_per_span(
     assert by_name[f"{name}.quality"].score == 1.5
     source = correct.metadata_["decision"]["source"]
     assert (source["evaluator_id"], source["project_evaluator_id"]) == (judge_id, binding_id)
+
+
+async def test_a_judge_annotates_a_trace(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "refund?"}, "output": {"value": "refunded"}},
+        )
+        project_id, trace_rowid = project.id, trace.id
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id, "TRACE")
+    async with db() as session:
+        session.add(
+            models.EvalTraceWorkUnit(
+                trace_rowid=trace_rowid,
+                project_evaluator_id=binding_id,
+                evaluated_through=datetime.now(timezone.utc),
+            )
+        )
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(
+        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="TRACE")
+    )
+
+    assert invoke.await_count == 1
+    assert invoke.call_args.args[0].state == "refunded"
+    by_name = {annotation.name: annotation for annotation in await _trace_annotations(db)}
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        assert binding is not None
+    correct = by_name[f"{binding.name.root}.correct"]
+    assert (correct.trace_rowid, correct.label, correct.score) == (trace_rowid, "true", 0.9)
+    assert correct.metadata_["decision"]["source"]["project_evaluator_id"] == binding_id
+
+
+async def test_a_judge_annotates_a_session(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "refund?"}, "output": {"value": "refunded"}},
+        )
+        project_id, project_session_rowid = project.id, project_session.id
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id, "SESSION")
+    async with db() as session:
+        session.add(
+            models.EvalSessionWorkUnit(
+                project_session_rowid=project_session_rowid,
+                project_evaluator_id=binding_id,
+                evaluated_through=datetime.now(timezone.utc),
+            )
+        )
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(
+        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
+    )
+
+    assert invoke.await_count == 1
+    assert invoke.call_args.args[0].state == "refunded"
+    by_name = {annotation.name: annotation for annotation in await _session_annotations(db)}
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        assert binding is not None
+    correct = by_name[f"{binding.name.root}.correct"]
+    assert (correct.project_session_id, correct.label, correct.score) == (
+        project_session_rowid,
+        "true",
+        0.9,
+    )
+    assert correct.metadata_["decision"]["source"]["project_evaluator_id"] == binding_id
 
 
 async def test_each_binding_of_a_judge_names_itself_as_the_source(

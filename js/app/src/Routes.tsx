@@ -80,7 +80,7 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
-  AttachCodeProjectEvaluatorPage,
+  AttachProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
   CopyCodeProjectEvaluatorPage,
@@ -109,6 +109,7 @@ import {
   LoggedOutPage,
   LoginPage,
   NewCodeProjectEvaluatorPage,
+  NewDecisionProjectEvaluatorPage,
   NewLlmFromTemplateProjectEvaluatorPage,
   NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
@@ -275,6 +276,17 @@ const projectEvaluatorCreationRoutes = (
       }}
     />
     <Route
+      path="new/decision"
+      element={<NewDecisionProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "New Project Decision Evaluator",
+          description:
+            "Author a new decision evaluator for a project, judged by a decision model that answers typed questions, from scratch or from a saved decision version.",
+        },
+      }}
+    />
+    <Route
       path="new/copy-llm/:evaluatorId"
       element={<CopyLlmProjectEvaluatorPage />}
       handle={{
@@ -298,12 +310,12 @@ const projectEvaluatorCreationRoutes = (
     />
     <Route
       path="new/attach/:evaluatorId"
-      element={<AttachCodeProjectEvaluatorPage />}
+      element={<AttachProjectEvaluatorPage />}
       handle={{
         agentRoute: {
-          label: "Attach Code Evaluator To Project",
+          label: "Attach Evaluator To Project",
           description:
-            "Attach an existing code evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+            "Attach an existing code or decision evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
         },
       }}
     />

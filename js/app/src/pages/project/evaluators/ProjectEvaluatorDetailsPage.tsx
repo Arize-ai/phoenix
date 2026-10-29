@@ -38,6 +38,7 @@ import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/
 import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/AnnotationConfigurationCard";
 import { CodeProjectEvaluatorConfigCards } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorConfigCards";
 import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
+import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
@@ -135,7 +136,8 @@ function ProjectEvaluatorDetailsPageContent({
   const evaluator = projectEvaluator.evaluator;
   const isLLMEvaluator = evaluator.kind === "LLM";
   const isCodeEvaluator = evaluator.kind === "CODE";
-  const canEdit = isLLMEvaluator || isCodeEvaluator;
+  const isDecisionEvaluator = evaluator.kind === "DECISION";
+  const canEdit = isLLMEvaluator || isCodeEvaluator || isDecisionEvaluator;
   const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
   const versionCount = isCodeEvaluator ? (evaluator.versionCount ?? 0) : 0;
 
@@ -213,6 +215,11 @@ function ProjectEvaluatorDetailsPageContent({
                     )}
                     {isCodeEvaluator && (
                       <CodeProjectEvaluatorDetails
+                        projectEvaluatorRef={projectEvaluator}
+                      />
+                    )}
+                    {isDecisionEvaluator && (
+                      <DecisionProjectEvaluatorDetails
                         projectEvaluatorRef={projectEvaluator}
                       />
                     )}

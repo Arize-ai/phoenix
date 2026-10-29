@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8e7d72246276e965520001be7ba63a33>>
+ * @generated SignedSource<<d9c08b39a5bd3fd414687e1b014d5882>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,10 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
+export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryGroup$data = {
   readonly summaryTraceAnnotationSummaries: ReadonlyArray<{
@@ -25,6 +28,48 @@ export type TraceAnnotationSummaryGroup$data = {
   readonly summaryTraceAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
+    readonly decision: {
+      readonly answer: {
+        readonly __typename: "ChoiceAnswer";
+        readonly choice: string;
+        readonly choiceProbabilities: ReadonlyArray<{
+          readonly probability: number;
+          readonly value: string;
+        }>;
+        readonly confidence: number;
+      } | {
+        readonly __typename: "PredicateAnswer";
+        readonly probability: number;
+      } | {
+        readonly __typename: "ScaleAnswer";
+        readonly confidence: number;
+        readonly expectedLevel: number;
+        readonly levelProbabilities: ReadonlyArray<{
+          readonly level: number;
+          readonly probability: number;
+        }>;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
+      } | null;
+      readonly modelProvider: GenerativeProviderKey | null;
+      readonly question: {
+        readonly choices: ReadonlyArray<{
+          readonly description: string | null;
+          readonly value: string;
+        }> | null;
+        readonly levels: ReadonlyArray<{
+          readonly description: string | null;
+          readonly label: string;
+        }> | null;
+        readonly name: string;
+        readonly type: DecisionAnnotationQuestionType;
+      } | null;
+      readonly requestedModel: string | null;
+      readonly resolvedModel: string | null;
+      readonly status: DecisionAnnotationStatus;
+    } | null;
     readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
@@ -69,6 +114,34 @@ v2 = {
   "args": null,
   "kind": "ScalarField",
   "name": "label",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
   "storageKey": null
 };
 return {
@@ -153,6 +226,178 @@ return {
             }
           ],
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DecisionAnnotation",
+          "kind": "LinkedField",
+          "name": "decision",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "status",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DecisionAnnotationQuestion",
+              "kind": "LinkedField",
+              "name": "question",
+              "plural": false,
+              "selections": [
+                (v1/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "type",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DecisionChoiceOption",
+                  "kind": "LinkedField",
+                  "name": "choices",
+                  "plural": true,
+                  "selections": [
+                    (v3/*:: as any*/),
+                    (v4/*:: as any*/)
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DecisionScaleLevel",
+                  "kind": "LinkedField",
+                  "name": "levels",
+                  "plural": true,
+                  "selections": [
+                    (v2/*:: as any*/),
+                    (v4/*:: as any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": null,
+              "kind": "LinkedField",
+              "name": "answer",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    (v5/*:: as any*/)
+                  ],
+                  "type": "PredicateAnswer",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "choice",
+                      "storageKey": null
+                    },
+                    (v6/*:: as any*/),
+                    {
+                      "alias": "choiceProbabilities",
+                      "args": null,
+                      "concreteType": "ChoiceProbability",
+                      "kind": "LinkedField",
+                      "name": "probabilities",
+                      "plural": true,
+                      "selections": [
+                        (v3/*:: as any*/),
+                        (v5/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "ChoiceAnswer",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "expectedLevel",
+                      "storageKey": null
+                    },
+                    (v6/*:: as any*/),
+                    {
+                      "alias": "levelProbabilities",
+                      "args": null,
+                      "concreteType": "LevelProbability",
+                      "kind": "LinkedField",
+                      "name": "probabilities",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "level",
+                          "storageKey": null
+                        },
+                        (v5/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "ScaleAnswer",
+                  "abstractKey": null
+                }
+              ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "requestedModel",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "resolvedModel",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "modelProvider",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
@@ -222,6 +467,6 @@ return {
 };
 })();
 
-(node as any).hash = "a56c33b5183d0bdf9f6002c9b58e3216";
+(node as any).hash = "bdc7524141adb3aaf2f0bc8e5138ed7a";
 
 export default node;

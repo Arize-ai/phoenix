@@ -19,7 +19,13 @@ from phoenix.db.types.annotation_configs import ContinuousOutputConfig, Optimiza
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.experimental.datagen.datasets import DatasetError
-from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
+from phoenix.experimental.datagen.evaluators import (
+    ONLINE_JUDGE_BINDINGS,
+    ONLINE_JUDGE_NAME,
+    ONLINE_JUDGE_PROJECT_NAME,
+    seed_dataset_decision_evaluators,
+    seed_online_decision_judge,
+)
 from phoenix.server.api.helpers.decision_clients import (
     DecisionResponse,
     PredicateAnswer,
@@ -41,9 +47,9 @@ async def _name_dataset(db: DbSessionFactory) -> Dataset:
     return cast(Dataset, SimpleNamespace(id=str(GlobalID("Dataset", "1")), name=_DATASET_NAME))
 
 
-def _seeder(
+def _forwarding_seeder(
     httpx_client: httpx2.AsyncClient,
-    dataset: Dataset,
+    run: Callable[[httpx.Client], list[tuple[str, str]]],
     writes: list[str],
     versions: list[dict[str, Any]] | None = None,
 ) -> Callable[[], list[tuple[str, str]]]:
@@ -75,9 +81,23 @@ def _seeder(
 
     def seed() -> list[tuple[str, str]]:
         with httpx.Client(base_url="http://test/", transport=httpx.MockTransport(forward)) as http:
-            return seed_dataset_decision_evaluators(http, [dataset])
+            return run(http)
 
     return seed
+
+
+def _seeder(
+    httpx_client: httpx2.AsyncClient,
+    dataset: Dataset,
+    writes: list[str],
+    versions: list[dict[str, Any]] | None = None,
+) -> Callable[[], list[tuple[str, str]]]:
+    return _forwarding_seeder(
+        httpx_client,
+        lambda http: seed_dataset_decision_evaluators(http, [dataset]),
+        writes,
+        versions,
+    )
 
 
 async def test_seed_reuses_judge_and_binding_and_repairs_drift(
@@ -203,6 +223,59 @@ async def test_seed_reuses_judge_and_binding_and_repairs_drift(
         assert binding is not None and binding.input_mapping == mapping
     assert await anyio.to_thread.run_sync(seed) == first
     assert len(writes) == 6
+
+
+async def test_seed_online_judge_binds_each_grain_disabled_once(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    writes: list[str] = []
+    seed = _forwarding_seeder(httpx_client, seed_online_decision_judge, writes)
+
+    first = await anyio.to_thread.run_sync(seed)
+    assert [name for name, _ in first] == [
+        f"{ONLINE_JUDGE_PROJECT_NAME}/{name}" for name in ONLINE_JUDGE_BINDINGS
+    ]
+    assert len(writes) == 6
+    async with db() as session:
+        evaluator = await session.scalar(select(models.DecisionEvaluator))
+        assert evaluator is not None
+        assert evaluator.name.root == ONLINE_JUDGE_NAME
+        assert evaluator.selected_version.model_provider.value == "TYPESAFE"
+        assert evaluator.selected_version.model_name == "jev-latest"
+        bindings = (
+            await session.scalars(
+                select(models.ProjectEvaluator)
+                .join(models.Project, models.ProjectEvaluator.project_id == models.Project.id)
+                .where(models.Project.name == ONLINE_JUDGE_PROJECT_NAME)
+            )
+        ).all()
+        assert {
+            binding.name.root: (
+                binding.evaluator_id,
+                binding.evaluation_target,
+                binding.input_mapping.path_mapping if binding.input_mapping else None,
+                binding.enabled,
+            )
+            for binding in bindings
+        } == {
+            name: (
+                evaluator.id,
+                settings["evaluation_target"],
+                settings["input_mapping"]["path_mapping"],
+                False,
+            )
+            for name, settings in ONLINE_JUDGE_BINDINGS.items()
+        }
+        for binding in bindings:
+            binding.enabled = True
+
+    assert await anyio.to_thread.run_sync(seed) == first
+    assert len(writes) == 6
+    async with db() as session:
+        assert all(
+            binding.enabled for binding in await session.scalars(select(models.ProjectEvaluator))
+        )
 
 
 async def test_other_datasets_do_not_receive_an_accuracy_judge() -> None:

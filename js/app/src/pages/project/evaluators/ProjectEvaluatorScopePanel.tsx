@@ -12,6 +12,7 @@ import type { ProjectEvaluatorScopePanelTraceCountQuery } from "@phoenix/pages/p
 import type { ProjectEvaluatorScopePanelTracesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelTracesQuery.graphql";
 import {
   makeTimeWindow,
+  type ProjectEvaluatorDecisionPreview,
   type ProjectEvaluatorInlineCode,
   ProjectEvaluatorTestBench,
   ProjectEvaluatorTestBenchFallback,
@@ -36,7 +37,10 @@ import {
   getTraceDetailsPath,
 } from "@phoenix/utils/urlUtils";
 
-export type { ProjectEvaluatorInlineCode } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
+export type {
+  ProjectEvaluatorDecisionPreview,
+  ProjectEvaluatorInlineCode,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 
 type MatchedCountLineProps = {
   projectId: string;
@@ -49,6 +53,7 @@ type RecordSourceProps = TestBenchHeaderProps & {
   filterCondition: string;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   requiredVariables?: string[];
 };
@@ -78,12 +83,14 @@ export const ProjectEvaluatorScopePanel = ({
   scope,
   codeEvaluatorId,
   inlineCode,
+  decision,
   requiredVariables,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
   requiredVariables?: string[];
 }) => {
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
@@ -114,6 +121,7 @@ export const ProjectEvaluatorScopePanel = ({
     filterCondition,
     codeEvaluatorId,
     inlineCode,
+    decision,
     requiredVariables,
   };
   return (
@@ -121,7 +129,7 @@ export const ProjectEvaluatorScopePanel = ({
       <Suspense
         fallback={<ProjectEvaluatorTestBenchFallback {...headerProps} />}
       >
-        {codeEvaluatorId || inlineCode ? (
+        {codeEvaluatorId || inlineCode || decision ? (
           <RecordSource {...sourceProps} />
         ) : (
           <LlmRecordSource RecordSource={RecordSource} {...sourceProps} />
