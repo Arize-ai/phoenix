@@ -38,6 +38,8 @@
 
 - [Choose what to evaluate](https://arize.com/docs/phoenix/learn/choose-evals): Match a Wonder Toys requirement to its evidence and choose code, an LLM judge, or human review
 
+- [Write checks for actions and outcomes](https://arize.com/docs/phoenix/learn/code-checks): Verify the stored result of the existing Wonder Toys purchase tool and test a code evaluator against deliberate mistakes
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config
