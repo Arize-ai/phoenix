@@ -163,7 +163,7 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt; the triage agents' procedure is in .agents/skills/
-environments/    the sandbox (uv, pnpm, limited networking)
+environments/    the sandbox (uv, tox, pnpm, limited networking)
 vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
