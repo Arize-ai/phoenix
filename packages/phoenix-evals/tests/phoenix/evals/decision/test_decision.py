@@ -55,8 +55,6 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     assert kwargs["model"] == "jev-latest"
     question = kwargs["questions"]["label"]
     assert question.criteria == {"correct": None, "incorrect": None}
-    # No instructions are sent: the task comes from the user-authored prompt (the state) and
-    # the single-choice constraint is carried by the Choice question type itself.
     assert question.instructions is None
 
 
