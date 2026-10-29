@@ -49,8 +49,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
 
         result: Dict[str, Any] = {"label": answer.choice, "metadata": metadata}
 
-        # Token usage is returned as a separate top-level key (not in metadata) so the traced
-        # method can put it on the DECISION span, instead of copying it onto every Score.
         usage = getattr(response, "usage", None)
         if usage is not None:
             result["usage"] = {
