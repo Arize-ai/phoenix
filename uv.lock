@@ -467,6 +467,7 @@ wheels = [
 [[package]]
 name = "arize-phoenix"
 source = { editable = "." }
+default-groups = ["dev", "sandbox"]
 dependencies = [
     { name = "aioitertools" },
     { name = "aiosqlite" },
@@ -593,10 +594,8 @@ dev = [
     { name = "boto3" },
     { name = "check-wheel-contents" },
     { name = "datamodel-code-generator" },
-    { name = "daytona-sdk" },
     { name = "debugpy" },
     { name = "deepdiff" },
-    { name = "e2b-code-interpreter" },
     { name = "faker" },
     { name = "freezegun" },
     { name = "google-genai" },
@@ -611,7 +610,6 @@ dev = [
     { name = "libcst" },
     { name = "litellm", marker = "python_full_version < '3.14'" },
     { name = "mcp" },
-    { name = "modal" },
     { name = "mypy" },
     { name = "mypy-boto3-bedrock-runtime" },
     { name = "mypy-protobuf" },
@@ -675,6 +673,11 @@ dev = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
+]
+sandbox = [
+    { name = "daytona-sdk" },
+    { name = "e2b-code-interpreter" },
+    { name = "modal" },
     { name = "vercel" },
     { name = "wasmtime" },
 ]
@@ -786,10 +789,8 @@ dev = [
     { name = "boto3" },
     { name = "check-wheel-contents" },
     { name = "datamodel-code-generator", specifier = "==0.72.2" },
-    { name = "daytona-sdk", specifier = ">=0.140.0" },
     { name = "debugpy" },
     { name = "deepdiff", specifier = "==8.6.2" },
-    { name = "e2b-code-interpreter", specifier = ">=0.0.12" },
     { name = "faker", specifier = ">=30.1.0" },
     { name = "freezegun" },
     { name = "google-genai", specifier = ">=1.0.0" },
@@ -804,7 +805,6 @@ dev = [
     { name = "libcst", specifier = ">=1.8.6" },
     { name = "litellm", marker = "python_full_version < '3.14'", specifier = ">=1.83.14,!=1.107.0" },
     { name = "mcp", specifier = ">=1.26.0" },
-    { name = "modal", specifier = ">=1.2.0" },
     { name = "mypy", specifier = "==2.4.0" },
     { name = "mypy-boto3-bedrock-runtime" },
     { name = "mypy-protobuf", specifier = ">=5.0.0" },
@@ -867,6 +867,11 @@ dev = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy", specifier = ">=8.3" },
+]
+sandbox = [
+    { name = "daytona-sdk", specifier = ">=0.140.0" },
+    { name = "e2b-code-interpreter", specifier = ">=0.0.12" },
+    { name = "modal", specifier = ">=1.2.0" },
     { name = "vercel", specifier = ">=0.5.8,<0.8" },
     { name = "wasmtime", specifier = ">=15.0" },
 ]
