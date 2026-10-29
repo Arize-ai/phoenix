@@ -12,6 +12,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.types import DbSessionFactory
 
 # Never reuse a label for a different key purpose.
+OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE = b"phoenix/oauth2-login-context/v1"
 REDACTION_KEY_PURPOSE = b"phoenix/redaction/v1"
 TOKEN_SIGNING_KEY_PURPOSE = b"phoenix/token-signing/v1"
 

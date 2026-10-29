@@ -85,8 +85,12 @@ present. Captured responses stay confidential without those inputs; database rea
 decrypt them when the secret is absent.
 
 SSO replaces signed state with random state matched against an HttpOnly cookie, retaining
-nonce and configured PKCE checks. An unsigned context cookie carries an absolute HTTP(S)
-origin and a return path checked to be relative after decoding. SSO needs no configured
+nonce and configured PKCE checks. A context cookie carries an absolute HTTP(S) origin, an
+optional relative return path, and an expiration timestamp, signed with a dedicated HKDF
+key over the state and payload so the context cannot be modified or reused across login
+attempts and `return_url` is not sent to the identity provider. Cookie-tossing from a
+sibling subdomain (login CSRF) remains out of scope because `__Host-` cookies require
+`Path=/` and `Secure`, which conflict with `PHOENIX_COOKIES_PATH`. SSO needs no configured
 secret.
 
 ## Initial admin ownership: deferred
