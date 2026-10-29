@@ -51,6 +51,12 @@ def _is_retryable_span_error(error: Exception) -> bool:
     return isinstance(error, DBAPIError) and get_sqlstate(error) in ("40P01", "40001")
 
 
+def _must_replay_span_batch(error: Exception) -> bool:
+    return _is_retryable_span_error(error) or (
+        isinstance(error, DBAPIError) and error.connection_invalidated
+    )
+
+
 def _span_error_locations(error: BaseException) -> str:
     """Describe traceback locations without messages, source text, or locals."""
     locations: list[str] = []
@@ -101,9 +107,7 @@ async def _save_span_costs(
         session.add_all(costs)
         await session.flush()
     except Exception as error:
-        if _is_retryable_span_error(error) or (
-            isinstance(error, DBAPIError) and error.connection_invalidated
-        ):
+        if _must_replay_span_batch(error):
             raise
         # As with spans, never continue on a connection whose rollback failed.
         await savepoint.rollback()
@@ -314,9 +318,7 @@ class BulkInserter:
                         phase = "insert_span"
                         result = await insert_span(session, span, project_name)
                     except Exception as error:
-                        if _is_retryable_span_error(error) or (
-                            isinstance(error, DBAPIError) and error.connection_invalidated
-                        ):
+                        if _must_replay_span_batch(error):
                             raise
                         # Cleanup failures escape to the outer transaction handler. Never
                         # continue on a connection whose savepoint rollback failed.
@@ -345,13 +347,23 @@ class BulkInserter:
                     if result.project_session_rowid is not None:
                         project_session_rowids.add(result.project_session_rowid)
                     inserted_spans.append(_InsertedSpan(span, result, cost))
+                phase = "advance_liveness"
+                savepoint = await session.begin_nested()
                 try:
-                    async with session.begin_nested():
-                        await advance_project_session_liveness(session, project_session_rowids)
-                        await advance_trace_liveness(session, trace_rowids)
-                except Exception as e:
+                    await advance_project_session_liveness(session, project_session_rowids)
+                    await advance_trace_liveness(session, trace_rowids)
+                except Exception as error:
+                    # A stale stamp lets the sweeper treat a session or trace that is still
+                    # receiving spans as quiet, so replay the batch rather than commit without it.
+                    if _must_replay_span_batch(error):
+                        raise
+                    await savepoint.rollback()
+                    if not session.is_active:
+                        raise
                     BULK_LOADER_EXCEPTIONS.inc()
-                    logger.exception(str(e))
+                    logger.exception(str(error))
+                else:
+                    await savepoint.commit()
                 # Costs commit with their spans, so a replayed batch replays its costs.
                 phase = "insert_costs"
                 await self._insert_span_costs(session, inserted_spans)
