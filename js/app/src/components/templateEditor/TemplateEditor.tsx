@@ -104,7 +104,6 @@ export const TemplateEditor = ({
   "aria-label": ariaLabel = "Prompt template",
   singleLine = false,
   onChange,
-  onCreateEditor,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
@@ -190,11 +189,10 @@ export const TemplateEditor = ({
       extensions={extensions}
       basicSetup={singleLine ? singleLineSetupOptions : basicSetupOptions}
       readOnly={readOnly}
-      {...props}
-      onCreateEditor={(editorView, state) => {
+      onCreateEditor={(editorView) => {
         editorViewRef.current = editorView;
-        onCreateEditor?.(editorView, state);
       }}
+      {...props}
       onChange={handleChange}
       value={value}
     />

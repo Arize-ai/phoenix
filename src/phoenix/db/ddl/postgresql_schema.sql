@@ -958,7 +958,7 @@ CREATE TABLE public.experiment_jobs (
     cooldown_until TIMESTAMP WITH TIME ZONE,
     max_concurrency INTEGER NOT NULL DEFAULT 10,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    decision_evaluator_snapshots JSON NOT NULL DEFAULT '[]'::jsonb,
+    decision_evaluator_snapshots JSON NOT NULL DEFAULT '[]'::json,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),
@@ -1370,6 +1370,7 @@ CREATE TABLE public.decision_versions (
     decision_id BIGINT NOT NULL,
     description VARCHAR,
     user_id BIGINT,
+    template_format VARCHAR NOT NULL,
     state JSON NOT NULL,
     questions JSONB NOT NULL,
     model_provider VARCHAR NOT NULL,
@@ -1377,7 +1378,6 @@ CREATE TABLE public.decision_versions (
     custom_provider_id BIGINT,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    template_format VARCHAR NOT NULL,
     CONSTRAINT pk_decision_versions PRIMARY KEY (id),
     CONSTRAINT uq_decision_versions_decision_id_id
         UNIQUE (decision_id, id),
