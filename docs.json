@@ -482,6 +482,12 @@
               "docs/phoenix/learn/read-agent-run",
               "docs/phoenix/learn/sessions"
             ]
+          },
+          {
+            "group": "Find failures",
+            "pages": [
+              "docs/phoenix/learn/find-failures"
+            ]
           }
         ]
       },

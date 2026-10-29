@@ -1,0 +1,100 @@
+---
+title: "Use traces and feedback"
+description: "Review shopping requests in Phoenix, record what went wrong, and choose a problem to investigate."
+---
+
+{/* video: TODO */}
+
+You've learned to inspect one request. Now you'll review several requests from [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, and check whether its answers meet the shopper's requirements. You'll finish with review notes you can use to choose a behavior to investigate.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-review-light-cc38a45f5d4b.svg" alt="Review runs, record observations, group related findings, and choose what to investigate." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-review-dark-2cb393354fc9.svg" alt="Review runs, record observations, group related findings, and choose what to investigate." />
+</Frame>
+
+## Before you start
+
+Keep Phoenix and Wonder Toys running from [Capture your first agent run](/docs/phoenix/learn/capture-first-run). Use the dinosaur request from that lesson as your first case.
+
+The examples below show recorded runs. Your answers may differ, so write notes about what your agent actually does.
+
+## Step 1: Try a range of requests
+
+In the Wonder Toys agent, select its logo to start a new chat before each request.
+
+<Frame caption="Select the highlighted logo in the top-left corner to start a new chat.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-new-chat-eb80450267da.png" alt="Wonder Toys app with an arrow and outline highlighting the logo in the top-left corner." />
+</Frame>
+
+Try these requests:
+
+```text
+Find dinosaur toys for a 6-year-old under $35. Recommend at most 3 options.
+```
+
+```text
+Find dinosaur toys for a 6-year-old under $1. Recommend at most 3 options.
+```
+
+Together with the earlier \$25 request, these give you different conditions to review. Check how the assistant handles both available products and a search that may have no suitable result.
+
+## Step 2: Find the requests in Phoenix
+
+Shopper feedback, such as a thumbs-down rating, can help you choose which requests to inspect. Your review notes then record what you found in those traces. Wonder Toys doesn't collect shopper ratings in this exercise, so you'll start with the requests you just ran.
+
+- Open **wonder-toys → Traces** and choose a time range that includes your requests.
+- Enter this [filter expression](/docs/phoenix/tracing/how-to-tracing/filter-expressions) in the filter bar and press **Enter**:
+
+```python
+'dinosaur' in input
+```
+
+The filter searches the request text. Open each matching run and select **Wonder Toys** at the top of the trace tree to read its **Input** and **Output**.
+
+<Frame caption="Filter the Traces table to find the shopping requests you want to review.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-traces-5f4891dcb64f.png" alt="Phoenix Traces table filtered to dinosaur requests, showing the shopper inputs and recorded answers" />
+</Frame>
+
+### Use feedback from your own app
+
+Phoenix stores ratings as **[annotations](/docs/phoenix/tracing/llm-traces/how-to-annotate-traces)**, which attach a label, score, or explanation to a span, trace, or session.
+
+- If your app saves ratings on spans, open your project's **Spans** tab.
+- For an annotation named `user_feedback` with the label `negative`, enter:
+
+  ```python
+  annotations['user_feedback'].label == 'negative'
+  ```
+
+- Use the name and label your app sends. Open a matching span and read the rating and any explanation under **Annotations**, then compare the answer with the request as described below.
+- Include some requests without negative feedback too, since shoppers may not report every problem.
+
+To collect ratings from your own app, follow [Capture feedback](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback).
+
+## Step 3: Compare each answer with the request
+
+For each answer, check:
+
+- **Budget:** Are the recommended prices below the shopper's limit?
+- **Suitability:** Do the products and listed age ranges match the request?
+- **No match:** If no suitable product was found, does the answer say so clearly?
+
+In one recorded run, the shopper asked for toys under \$25, but the assistant recommended a \$27.99 kit. The trace status was **OK** because the request completed successfully. That status doesn't tell you whether the recommendation was good.
+
+With the **Wonder Toys** span selected, choose **[Take notes](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui#adding-annotations)**, write what you observed, and select **Add Note**. For the recorded budget issue:
+
+> The shopper asked for toys under \$25. The answer recommended the \$27.99 Dinosaur Explorer Kit while acknowledging that it was over budget.
+
+<Frame caption="Save a specific observation on the span that contains the request and answer.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-note-ef388da8ae8d.png" alt="Wonder Toys root span with the shopper request and a review note describing the over-budget recommendation" />
+</Frame>
+
+Keep examples that meet the requirements too. They help you check later whether a fix changes behavior that already worked.
+
+## Step 4: Choose a problem to investigate
+
+Read your notes together and look for observations that describe the same problem. In our recorded examples, the agent recommended a more expensive toy after acknowledging the budget. That gives us a specific behavior to investigate: recommending products above the shopper's limit.
+
+Choose a problem based on its impact and how often it appears in the requests you reviewed. This small practice set doesn't tell you how common a problem is across all users. If your answers meet the requirements, keep them as passing cases rather than inventing a failure.
+
+Next, investigate and label a failed run to practice checking budget compliance. You can follow the same steps whether your requests passed or failed.

@@ -28,6 +28,10 @@
 - [Read model, retrieval, and tool steps](https://arize.com/docs/phoenix/learn/read-agent-run): Follow model calls and search results to explain how an agent produced its recommendation
 - [Follow a conversation with sessions](https://arize.com/docs/phoenix/learn/sessions): Review a conversation's traces together and compare follow-up answers with the messages the model received
 
+### Find failures
+
+- [Use traces and feedback](https://arize.com/docs/phoenix/learn/find-failures): Review Wonder Toys requests, save observations in Phoenix, and choose a problem to investigate
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config
