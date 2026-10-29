@@ -1171,8 +1171,7 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Decision Configuration",
-                    description:
-                      "Manage saved decision version tags and settings.",
+                    description: "Manage saved decision version tags.",
                   },
                 }}
               />
