@@ -29,6 +29,8 @@ DSPy uses LiteLLM under the hood to make some calls. By adding the OpenInference
 Now run invoke your compiled DSPy module. Your traces should appear inside of Phoenix.
 
 ```python expandable
+import dspy
+
 class BasicQA(dspy.Signature):
     """Answer questions with short factoid answers."""
 

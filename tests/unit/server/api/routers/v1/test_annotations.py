@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import insert, select
 
@@ -312,7 +312,7 @@ async def two_projects_with_annotations_for_query(db: DbSessionFactory) -> None:
 
 
 async def test_list_span_annotations_default_behavior(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -344,7 +344,7 @@ async def test_list_span_annotations_default_behavior(
 
 
 async def test_list_span_annotations_inclusion_filter(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -366,7 +366,7 @@ async def test_list_span_annotations_inclusion_filter(
 
 
 async def test_list_span_annotations_exclusion_filter(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -385,7 +385,7 @@ async def test_list_span_annotations_exclusion_filter(
 
 
 async def test_list_span_annotations_combined_filters(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -408,7 +408,7 @@ async def test_list_span_annotations_combined_filters(
 
 
 async def test_list_span_annotations_empty_result_when_all_excluded(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -477,7 +477,7 @@ async def test_list_span_annotations_empty_result_when_all_excluded(
 
 
 async def test_list_span_annotations_pagination_with_filters(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -576,7 +576,7 @@ async def test_list_span_annotations_pagination_with_filters(
 
 
 async def test_list_span_annotations_by_identifier_only(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     """Identifier-only happy path returns only the matching span annotation."""
@@ -592,7 +592,7 @@ async def test_list_span_annotations_by_identifier_only(
 
 
 async def test_list_trace_annotations_by_identifier_only(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -607,7 +607,7 @@ async def test_list_trace_annotations_by_identifier_only(
 
 
 async def test_list_session_annotations_by_identifier_only(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
@@ -626,7 +626,7 @@ async def test_list_session_annotations_by_identifier_only(
     ["span_annotations", "trace_annotations", "session_annotations"],
 )
 async def test_list_annotations_identifier_only_empty_returns_200(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
     endpoint: str,
 ) -> None:
@@ -645,7 +645,7 @@ async def test_list_annotations_identifier_only_empty_returns_200(
     ["span_annotations", "trace_annotations", "session_annotations"],
 )
 async def test_list_annotations_identifier_filter_is_project_scoped(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     two_projects_with_annotations_for_query: Any,
     endpoint: str,
 ) -> None:
@@ -667,7 +667,7 @@ async def test_list_annotations_identifier_filter_is_project_scoped(
 
 
 async def test_list_span_annotations_unknown_span_ids_only_still_404(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
     """D5: span_ids-only mode with no matching rows still 404s — preserves
@@ -793,7 +793,7 @@ async def _count(db: DbSessionFactory, model: Any, **filters: Any) -> int:
 
 
 async def test_delete_span_annotations_happy_path(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
@@ -817,7 +817,7 @@ async def test_delete_span_annotations_happy_path(
 
 
 async def test_delete_trace_annotations_happy_path(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
@@ -836,7 +836,7 @@ async def test_delete_trace_annotations_happy_path(
 
 
 async def test_delete_session_annotations_happy_path(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
@@ -855,7 +855,7 @@ async def test_delete_session_annotations_happy_path(
 
 
 async def test_delete_annotations_unknown_project_404(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.request(
         "DELETE",
@@ -866,7 +866,7 @@ async def test_delete_annotations_unknown_project_404(
 
 
 async def test_delete_annotations_without_bound_or_delete_all_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """The destructive-delete gate: a request that is neither time-bounded
     (both `start_time` and `end_time`) nor authorized via

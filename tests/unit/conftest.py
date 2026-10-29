@@ -23,7 +23,7 @@ from typing import (
 )
 
 import aiosqlite
-import httpx
+import httpx2
 import pytest
 import sqlalchemy
 import sqlean
@@ -976,13 +976,13 @@ async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
 @pytest.fixture
 def httpx_client(
     asgi_app: ASGIApp,
-) -> httpx.AsyncClient:
-    asgi_transport = httpx.ASGITransport(app=asgi_app)
-    return httpx.AsyncClient(transport=asgi_transport, base_url="http://test")
+) -> httpx2.AsyncClient:
+    asgi_transport = httpx2.ASGITransport(app=asgi_app)
+    return httpx2.AsyncClient(transport=asgi_transport, base_url="http://test")
 
 
 @pytest.fixture
-def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
+def gql_client(httpx_client: httpx2.AsyncClient) -> Iterator[AsyncGraphQLClient]:
     yield AsyncGraphQLClient(httpx_client)
 
 

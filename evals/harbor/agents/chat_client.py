@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-import httpx
+import httpx2
 from pydantic import BaseModel
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk
 
@@ -171,13 +171,13 @@ class AgentSessionChatClient:
         base_url: str,
         *,
         model: AgentModelSelection,
-        transport: httpx.AsyncBaseTransport | None = None,
+        transport: httpx2.AsyncBaseTransport | None = None,
         turn_timeout_seconds: float = 900.0,
     ) -> None:
-        self._http = httpx.AsyncClient(
+        self._http = httpx2.AsyncClient(
             base_url=base_url,
             transport=transport,
-            timeout=httpx.Timeout(turn_timeout_seconds, connect=30.0),
+            timeout=httpx2.Timeout(turn_timeout_seconds, connect=30.0),
         )
         self.model = model
 
@@ -348,7 +348,7 @@ def _root_finished(spans: list[dict[str, Any]], context: TurnTraceContext) -> bo
     return False
 
 
-def _raise_for_status(response: httpx.Response) -> None:
+def _raise_for_status(response: httpx2.Response) -> None:
     if response.status_code < 400:
         return
     try:

@@ -1,0 +1,326 @@
+{
+  "_comment_": "Classification and routing overrides for integration docs. Keep reasons descriptive; CI scopes changes by routing fields, not reason text.",
+  "always_skip": [
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/antigravity.mdx",
+      "reason": "Interactive coding-agent session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/claude-code.mdx",
+      "reason": "Requires an interactive Claude Code CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/codex.mdx",
+      "reason": "Requires an interactive Codex CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/copilot.mdx",
+      "reason": "Requires an interactive Copilot session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/cursor.mdx",
+      "reason": "Requires an interactive Cursor session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/devin.mdx",
+      "reason": "Requires a Devin-managed live session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/gemini.mdx",
+      "reason": "Requires an interactive Gemini CLI session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/kiro.mdx",
+      "reason": "Requires an interactive Kiro session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/oh-my-pi.mdx",
+      "reason": "Requires an interactive Oh My Pi terminal session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/coding-agents/opencode.mdx",
+      "reason": "Requires an interactive OpenCode session; no deterministic, self-contained run for CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing.mdx",
+      "reason": "Requires a Cloudflare AI Gateway account and configured gateway endpoint that CI cannot provision."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast.mdx",
+      "reason": "Documents dashboard-side OpenRouter broadcast configuration without a runnable app example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vllm/vllm-tracing.mdx",
+      "reason": "Requires a locally hosted vLLM server and model runtime that CI cannot provision reliably."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/dify/dify-tracing.mdx",
+      "reason": "Configuration is performed in the Dify UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/flowise/flowise-tracing.mdx",
+      "reason": "Configuration is performed in the Flowise UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/langflow/langflow-tracing.mdx",
+      "reason": "Configuration is performed in the Langflow UI; the page has no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/n8n/n8n-tracing.mdx",
+      "reason": "Requires a configured n8n server and workflow; CI cannot run the documented UI workflow deterministically."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/openwebui/openwebui-tracing.mdx",
+      "reason": "Requires a running Open WebUI deployment and collector; CI cannot provision the documented platform setup."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx",
+      "reason": "The page documents Prompt Flow configuration rather than a self-contained runnable CI example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/truefoundry/truefoundry-tracing.mdx",
+      "reason": "Requires TrueFoundry dashboard configuration; no self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
+      "reason": "The original guardrails-ai framework has been quarantined on PyPI and replaced by the guardrails-ai-sdk hosted-service client. This doc and openinference-instrumentation-guardrails target the original framework internals; rewrite the doc and add a matching instrumentor before enabling end-to-end checks."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/livekit-agents/livekit-agents-tracing.mdx",
+      "reason": "Requires a live LiveKit agent session and media traffic; CI cannot provision an interactive session."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing.mdx",
+      "reason": "The page relies on external configuration and workflow setup rather than a self-contained CI runnable example."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/openlit/openlit-tracing.mdx",
+      "reason": "AX-aligned policy: keep OpenLIT out of automated integration runs pending a separate compatibility review."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/temporal/temporal-tracing.mdx",
+      "reason": "Requires a running Temporal server and worker that CI does not provision."
+    }
+  ],
+  "lint_only": [
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx",
+      "reason": "AWS credentials are short-lived in CI; validate the example without making a Bedrock request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals.mdx",
+      "reason": "AWS credentials are short-lived in CI; validate the example without making a Bedrock request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx",
+      "reason": "Requires a provisioned Bedrock Agent that CI cannot create for each run."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js.mdx",
+      "reason": "Requires a deployed Bedrock Agent Runtime that CI cannot create for each run."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx",
+      "reason": "Routes through Bedrock and inherits its short-lived CI credential constraint."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx",
+      "reason": "No Cohere API key is provisioned for docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/together/together-tracing.mdx",
+      "reason": "Provider credits are unavailable for stable end-to-end CI runs."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing.mdx",
+      "reason": "Provider credits are unavailable for stable end-to-end CI runs."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing.mdx",
+      "reason": "No OrcaRouter API key is provisioned for docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
+      "reason": "Requires an Anthropic-managed OTEL destination that CI cannot provision."
+    },
+    {
+      "doc": "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing.mdx",
+      "reason": "Live execution requires a Scalekit development environment; validate the documented code without calling the service."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/restate/restate-tracing.mdx",
+      "reason": "Requires a running Restate service; validate the documented example without making a service request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/prismml/prismml-tracing.mdx",
+      "reason": "Requires a locally hosted PrismML server and model; validate the documented example without provisioning the model."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/pipecat/pipecat-tracing.mdx",
+      "reason": "The example defines a voice pipeline but requires a connected transport and client audio session; CI validates the code without starting an interactive session."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/bedrock-agentcore/bedrock-agentcore-tracing.mdx",
+      "reason": "Requires AWS Bedrock model access and an AgentCore deployment; CI validates the documented example without provisioning cloud resources."
+    },
+    {
+      "doc": "docs/phoenix/integrations/typescript/vercel/eve-tracing.mdx",
+      "reason": "Eve requires a Vercel runtime and provider gateway credentials; CI validates the tracing setup syntax without deploying it."
+    }
+  ],
+  "skip_if_missing_env": [
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/baseten/baseten-tracing.mdx",
+      "env_vars": [
+        "BASETEN_API_KEY",
+        "BASETEN_MODEL"
+      ],
+      "reason": "Baseten credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/cerebras/cerebras-tracing.mdx",
+      "env_vars": [
+        "CEREBRAS_API_KEY",
+        "CEREBRAS_MODEL"
+      ],
+      "reason": "Cerebras credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/deepseek/deepseek-tracing.mdx",
+      "env_vars": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "reason": "A DeepSeek API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/fireworks-ai/fireworks-ai-tracing.mdx",
+      "env_vars": [
+        "FIREWORKS_API_KEY",
+        "FIREWORKS_MODEL"
+      ],
+      "reason": "Fireworks credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing.mdx",
+      "env_vars": [
+        "NOVITA_API_KEY",
+        "NOVITA_MODEL"
+      ],
+      "reason": "Novita credentials and a model identifier are not provisioned in docs CI. The live example runs when both are configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/xai/xai-tracing.mdx",
+      "env_vars": [
+        "XAI_API_KEY"
+      ],
+      "reason": "An xAI API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/z-ai/z-ai-tracing.mdx",
+      "env_vars": [
+        "ZAI_API_KEY"
+      ],
+      "reason": "A Z.ai API key is not provisioned in docs CI. The live example runs when the key is configured."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing.mdx",
+      "env_vars": [
+        "GOOGLE_CLOUD_PROJECT"
+      ],
+      "reason": "Vertex AI tracing needs a configured Google Cloud project and Application Default Credentials."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals.mdx",
+      "env_vars": [
+        "GOOGLE_CLOUD_PROJECT"
+      ],
+      "reason": "Vertex AI evaluations need a configured Google Cloud project and Application Default Credentials."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/doubleword/doubleword-tracing.mdx",
+      "env_vars": [
+        "DOUBLEWORD_API_KEY"
+      ],
+      "reason": "A Doubleword API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/hugging-face-inference-providers/hugging-face-inference-providers-tracing.mdx",
+      "env_vars": [
+        "HF_TOKEN"
+      ],
+      "reason": "A Hugging Face token with Inference Providers access is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/gravitee/gravitee-tracing.mdx",
+      "env_vars": [
+        "GRAVITEE_BASE_URL",
+        "GRAVITEE_API_KEY"
+      ],
+      "reason": "A deployed Gravitee LLM Proxy and subscription key are not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/qwen/qwen-tracing.mdx",
+      "env_vars": [
+        "DASHSCOPE_API_KEY",
+        "QWEN_BASE_URL"
+      ],
+      "reason": "A Model Studio API key and endpoint are not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing.mdx",
+      "env_vars": [
+        "TRUEFOUNDRY_API_KEY"
+      ],
+      "reason": "A TrueFoundry gateway token is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/agentspec/agentspec-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/openllmetry/openllmetry-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/python/semantic-kernel/semantic-kernel-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "An OpenAI API key is not provisioned in docs CI."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-python.mdx",
+      "env_vars": [
+        "TYPESAFE_API_KEY"
+      ],
+      "reason": "The TYPESAFE_API_KEY secret is not provisioned for docs CI. Add it to run this live check."
+    },
+    {
+      "doc": "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript.mdx",
+      "env_vars": [
+        "TYPESAFE_API_KEY"
+      ],
+      "reason": "The TYPESAFE_API_KEY secret is not provisioned for docs CI. Add it to run this live check."
+    },
+    {
+      "doc": "docs/phoenix/integrations/dotnet/microsoft-agent-framework/microsoft-agent-framework-tracing.mdx",
+      "env_vars": [
+        "OPENAI_API_KEY"
+      ],
+      "reason": "The Microsoft Agent Framework C# example requires an OpenAI API key."
+    }
+  ]
+}

@@ -39,6 +39,12 @@ npm install --save @tanstack/ai-openai
 
 Register your tracer provider before the middleware is applied so that spans are emitted to the configured exporter.
 
+Set your OpenAI API key for the adapter:
+
+```bash
+export OPENAI_API_KEY="<your-openai-api-key>"
+```
+
 <Tabs>
 <Tab title="@arizeai/phoenix-otel">
 
@@ -46,8 +52,8 @@ Register your tracer provider before the middleware is applied so that spans are
 // instrumentation.ts
 import { register } from "@arizeai/phoenix-otel";
 
-register({
-  projectName: "my-tanstack-ai-app",
+export const provider = register({
+  projectName: process.env["PHOENIX_PROJECT_NAME"] ?? "my-tanstack-ai-app",
   endpoint:
     process.env["PHOENIX_COLLECTOR_ENDPOINT"] ??
     "http://localhost:6006/v1/traces",
@@ -132,7 +138,7 @@ const text = await chat({
 Tool calls are captured as `TOOL` spans nested under the corresponding `LLM` span. Here is a complete example using OpenAI and a single weather tool:
 
 ```typescript
-import "./instrumentation";
+import { provider } from "./instrumentation.js";
 
 import {
   chat,
@@ -164,6 +170,7 @@ const weatherTool = toolDefinition({
 async function main() {
   const tracer = trace.getTracer("tanstack-ai-example");
   const stream = chat({
+    threadId: "phoenix-docs-example",
     adapter: openaiText("gpt-4o-mini"),
     messages: [
       { role: "user", content: "What is the weather in Boston? Use the tool." },
@@ -175,6 +182,7 @@ async function main() {
 
   const text = await streamToText(stream);
   console.log(text);
+  await provider.shutdown();
 }
 
 main().catch((error) => {

@@ -2,7 +2,7 @@
 name = "arize-phoenix-evals"
 description = "LLM Evaluations"
 readme = "README.md"
-requires-python = ">=3.11, <3.15"
+requires-python = ">=3.11, <3.16"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,8 +19,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
-version = "3.9.4"
+version = "3.9.5"
 dependencies = [
   "pandas",
   "tqdm",
@@ -54,7 +55,7 @@ test = [
   # TODO: un-comment this when mistralai is un-quarantined on PyPI
   # "mistralai>=1.0.0",
   "nest_asyncio",
-  "pandas-stubs==2.0.3.230814",
+  "pandas-stubs",
   "types-tqdm",
 ]
 
