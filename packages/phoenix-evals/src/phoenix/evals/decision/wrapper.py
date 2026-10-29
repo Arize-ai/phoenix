@@ -53,7 +53,7 @@ class DecisionModel:
     """A decision model (e.g. TypeSafe's Jev) used as a classification judge.
 
     Unlike :class:`LLM`, a decision model only answers typed questions and cannot generate
-    free-form text. A classification is routed through a single ``choice`` question whose
+    free-form text. Classifications are routed through the ``choices`` API whose
     options are the labels, so the result carries a label and the label probabilities (as
     metadata) but no explanation.
 
