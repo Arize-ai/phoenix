@@ -38,7 +38,8 @@ async def load_deployment_seed(db: DbSessionFactory) -> bytes:
                 )
             )
             stored = await session.scalar(seed_stmt)
-    assert isinstance(stored, (bytes, memoryview)) and len(stored) == _SEED_LENGTH
+    if not isinstance(stored, (bytes, memoryview)) or len(stored) != _SEED_LENGTH:
+        raise RuntimeError("deployment seed is missing or has an unexpected length")
     return bytes(stored)
 
 

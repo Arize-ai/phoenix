@@ -30,6 +30,14 @@ async def test_load_deployment_seed_skips_insert_when_present(
     assert len(await load_deployment_seed(db)) == 32
 
 
+async def test_load_deployment_seed_rejects_unexpected_length(db: DbSessionFactory) -> None:
+    async with db() as session:
+        session.add(models.DeploymentSecret(id=1, seed=b"short"))
+
+    with pytest.raises(RuntimeError, match="deployment seed"):
+        await load_deployment_seed(db)
+
+
 async def test_load_deployment_seed_converges(db: DbSessionFactory) -> None:
     seeds = await asyncio.gather(*(load_deployment_seed(db) for _ in range(8)))
     assert len(set(seeds)) == 1
