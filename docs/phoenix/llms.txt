@@ -34,6 +34,10 @@
 - [Investigate and label a failed run](https://arize.com/docs/phoenix/learn/investigate-failure): Check the evidence behind a budget failure and apply consistent review labels to root spans
 - [Turn failures into representative cases](https://arize.com/docs/phoenix/learn/build-test-cases): Save reviewed shopping requests and expected behavior in a Phoenix dataset for future experiments
 
+### Design evaluations
+
+- [Choose what to evaluate](https://arize.com/docs/phoenix/learn/choose-evals): Match a Wonder Toys requirement to its evidence and choose code, an LLM judge, or human review
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

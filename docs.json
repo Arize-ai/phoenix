@@ -490,6 +490,12 @@
               "docs/phoenix/learn/investigate-failure",
               "docs/phoenix/learn/build-test-cases"
             ]
+          },
+          {
+            "group": "Design evaluations",
+            "pages": [
+              "docs/phoenix/learn/choose-evals"
+            ]
           }
         ]
       },
