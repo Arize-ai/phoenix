@@ -15,6 +15,18 @@ from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
 
+_TOOL_NAME = "extract_structured_data"
+# A forced `tool_choice` (`{"type": "tool"}` or `{"type": "any"}`) is rejected by some models and
+# can't be combined with extended thinking, so object generation leaves `tool_choice` on `auto`,
+# which every model accepts, and asks for the tool call in the system prompt instead, as Anthropic's
+# migration guide recommends:
+# https://platform.claude.com/docs/en/models/opus-5-5/migration-guide#forced-tool-use
+_TOOL_INSTRUCTION = f"Respond by calling the `{_TOOL_NAME}` tool."
+
+
+def _with_tool_instruction(system: str) -> str:
+    return f"{system}\n\n{_TOOL_INSTRUCTION}" if system else _TOOL_INSTRUCTION
+
 
 def identify_anthropic_client(client: Any) -> bool:
     if isinstance(client, AnthropicClientWrapper):
@@ -189,16 +201,13 @@ class AnthropicAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         messages, system = self._build_messages(prompt)
         tool_definition = self._schema_to_tool(schema)
-
-        # Add system message if present
-        if system:
-            kwargs["system"] = system
+        kwargs["system"] = _with_tool_instruction(system)
 
         response = self.client.messages.create(
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice={"type": "auto"},
             **kwargs,
         )
 
@@ -216,16 +225,13 @@ class AnthropicAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         messages, system = self._build_messages(prompt)
         tool_definition = self._schema_to_tool(schema)
-
-        # Add system message if present
-        if system:
-            kwargs["system"] = system
+        kwargs["system"] = _with_tool_instruction(system)
 
         response = await self.client.messages.create(
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice={"type": "auto"},
             **kwargs,
         )
 
@@ -239,7 +245,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         description = schema.get("description", "Respond in a format matching the provided schema")
 
         tool_definition = {
-            "name": "extract_structured_data",
+            "name": _TOOL_NAME,
             "description": description,
             "input_schema": schema,
         }
