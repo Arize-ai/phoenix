@@ -17,6 +17,17 @@
 - [Observe](https://arize.com/docs/phoenix/get-started/get-started-tracing): Trace a model call and send it to Phoenix, in Python or TypeScript
 - [Evaluate](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Build a dataset, write an LLM judge, and compare two prompt runs as experiments, in Python or TypeScript
 
+## Learn (Phoenix Academy)
+
+- [Welcome to Phoenix Academy](https://arize.com/docs/phoenix/learn): Learn how tracing, evaluation, and experiments support agent improvement with a shared shopping assistant example
+- [How teams improve an agent](https://arize.com/docs/phoenix/learn/improvement-loop): Understand the five stages of improving an agent, from inspecting behavior to testing and releasing changes
+
+### Understand behavior
+
+- [Capture your first agent run](https://arize.com/docs/phoenix/learn/capture-first-run): Run Wonder Toys locally and find the trace of a shopping request in Phoenix
+- [Read model, retrieval, and tool steps](https://arize.com/docs/phoenix/learn/read-agent-run): Follow model calls and search results to explain how an agent produced its recommendation
+- [Follow a conversation with sessions](https://arize.com/docs/phoenix/learn/sessions): Review a conversation's traces together and compare follow-up answers with the messages the model received
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

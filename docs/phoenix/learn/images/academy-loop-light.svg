@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="340" viewBox="0 0 1080 340" role="img" aria-labelledby="title desc">
+<title id="title">The agent improvement cycle</title><desc id="desc">Five connected stages, from understanding behavior to shipping a change. New failures become test cases.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#007d9d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect width="1080" height="340" rx="18" fill="#ffffff"/>
+<g font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+<text x="32" y="43" fill="#132d3e" font-size="25" font-weight="400" letter-spacing="0"><tspan x="32" dy="0">The agent improvement cycle</tspan></text>
+<rect x="32" y="85" width="184" height="139" rx="14" fill="#f5f9fc" stroke="#d4e0e8" stroke-width="1.5"/>
+<text x="49" y="111" fill="#007d9d" font-size="13" font-weight="400" letter-spacing="1.5" font-family="monospace"><tspan x="49" dy="0">01</tspan></text>
+<text x="49" y="144" fill="#132d3e" font-size="23" font-weight="400" letter-spacing="0"><tspan x="49" dy="0">Understand</tspan><tspan x="49" dy="31.05">behavior</tspan></text>
+<text x="49" y="204" fill="#50697a" font-size="14" font-weight="400" letter-spacing="0"><tspan x="49" dy="0">Traces and sessions</tspan></text>
+<path d="M220 155 H236" fill="none" stroke="#5b9fb2" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="240" y="85" width="184" height="139" rx="14" fill="#f5f9fc" stroke="#d4e0e8" stroke-width="1.5"/>
+<text x="257" y="111" fill="#007d9d" font-size="13" font-weight="400" letter-spacing="1.5" font-family="monospace"><tspan x="257" dy="0">02</tspan></text>
+<text x="257" y="144" fill="#132d3e" font-size="23" font-weight="400" letter-spacing="0"><tspan x="257" dy="0">Find</tspan><tspan x="257" dy="31.05">failures</tspan></text>
+<text x="257" y="204" fill="#50697a" font-size="14" font-weight="400" letter-spacing="0"><tspan x="257" dy="0">Evidence and labels</tspan></text>
+<path d="M428 155 H444" fill="none" stroke="#5b9fb2" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="448" y="85" width="184" height="139" rx="14" fill="#f5f9fc" stroke="#d4e0e8" stroke-width="1.5"/>
+<text x="465" y="111" fill="#007d9d" font-size="13" font-weight="400" letter-spacing="1.5" font-family="monospace"><tspan x="465" dy="0">03</tspan></text>
+<text x="465" y="144" fill="#132d3e" font-size="23" font-weight="400" letter-spacing="0"><tspan x="465" dy="0">Design</tspan><tspan x="465" dy="31.05">evaluations</tspan></text>
+<text x="465" y="204" fill="#50697a" font-size="14" font-weight="400" letter-spacing="0"><tspan x="465" dy="0">Cases and checks</tspan></text>
+<path d="M636 155 H652" fill="none" stroke="#5b9fb2" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="656" y="85" width="184" height="139" rx="14" fill="#f5f9fc" stroke="#d4e0e8" stroke-width="1.5"/>
+<text x="673" y="111" fill="#007d9d" font-size="13" font-weight="400" letter-spacing="1.5" font-family="monospace"><tspan x="673" dy="0">04</tspan></text>
+<text x="673" y="144" fill="#132d3e" font-size="23" font-weight="400" letter-spacing="0"><tspan x="673" dy="0">Test a</tspan><tspan x="673" dy="31.05">change</tspan></text>
+<text x="673" y="204" fill="#50697a" font-size="14" font-weight="400" letter-spacing="0"><tspan x="673" dy="0">Compare versions</tspan></text>
+<path d="M844 155 H860" fill="none" stroke="#5b9fb2" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="864" y="85" width="184" height="139" rx="14" fill="#f5f9fc" stroke="#d4e0e8" stroke-width="1.5"/>
+<text x="881" y="111" fill="#007d9d" font-size="13" font-weight="400" letter-spacing="1.5" font-family="monospace"><tspan x="881" dy="0">05</tspan></text>
+<text x="881" y="144" fill="#132d3e" font-size="23" font-weight="400" letter-spacing="0"><tspan x="881" dy="0">Ship and</tspan><tspan x="881" dy="31.05">repeat</tspan></text>
+<text x="881" y="204" fill="#50697a" font-size="14" font-weight="400" letter-spacing="0"><tspan x="881" dy="0">Release and monitor</tspan></text>
+<path d="M956 226 V279 Q956 294 941 294 H139 Q124 294 124 279 V229" fill="none" stroke="#5b9fb2" stroke-width="1.7" marker-end="url(#arrow)" stroke-dasharray="5 7"/>
+<rect x="347" y="274" width="389" height="37" rx="0" fill="#ffffff" stroke="#ffffff" stroke-width="1.5"/>
+<text x="371" y="298" fill="#50697a" font-size="19" font-weight="400" letter-spacing="0"><tspan x="371" dy="0">New failures become test cases</tspan></text>
+</g></svg>

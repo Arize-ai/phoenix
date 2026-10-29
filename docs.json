@@ -466,6 +466,26 @@
         ]
       },
       {
+        "tab": "Learn",
+        "pages": [
+          "docs/phoenix/learn",
+          {
+            "group": "Start here",
+            "pages": [
+              "docs/phoenix/learn/improvement-loop"
+            ]
+          },
+          {
+            "group": "Understand behavior",
+            "pages": [
+              "docs/phoenix/learn/capture-first-run",
+              "docs/phoenix/learn/read-agent-run",
+              "docs/phoenix/learn/sessions"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Integrations",
         "pages": [
           "docs/phoenix/integrations",

@@ -1,0 +1,36 @@
+---
+title: "Welcome to Phoenix Academy"
+sidebarTitle: "Phoenix Academy"
+description: "A practical guide to understanding and improving AI applications with Phoenix."
+---
+
+An AI agent might call the wrong tool or miss a step needed to complete a user's request. Changing a prompt to fix those failures can also affect other responses, so you need to test whether your changes help.
+
+That's where Phoenix Academy can help. You'll learn how to use tracing, evaluation, and experiments to understand agent behavior and test changes. We'll use Wonder Toys, a shopping assistant agent, to show how those changes affect quality, cost, and response time.
+
+## Meet Wonder Toys
+
+[Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) searches for toys, places demo orders, and checks order status. This one-minute walkthrough shows the assistant and a recorded request in Phoenix.
+
+<video src="/docs/phoenix/learn/videos/meet-wonder-toys.mp4" controls playsInline preload="metadata" width="100%" poster="/docs/phoenix/learn/videos/meet-wonder-toys-poster.png" aria-label="Meet Wonder Toys: a captioned walkthrough of the shopping assistant and its Phoenix trace" />
+
+## Your learning path
+
+The lessons follow the agent improvement cycle, from understanding a run to testing changes and checking behavior after release. You'll work with Wonder Toys throughout the learning path.
+
+<Frame>
+  <img className="block dark:hidden" src="/docs/phoenix/learn/images/academy-loop-light.svg" alt="The agent improvement cycle: understand behavior, find failures, design evaluations, test a change, ship and repeat" />
+  <img className="hidden dark:block" src="/docs/phoenix/learn/images/academy-loop-dark.svg" alt="The agent improvement cycle: understand behavior, find failures, design evaluations, test a change, ship and repeat" />
+</Frame>
+
+The learning path is organized into five stages. Each stage focuses on a different part of improving an agent:
+
+- [Understand behavior](/docs/phoenix/learn/capture-first-run) by inspecting the steps behind a request and following a conversation.
+- Find failures by reviewing traces and feedback to identify recurring problems.
+- Design evaluations that check the behavior you need and give you results you can trust.
+- Test a change against the same cases to see what improves and what gets worse.
+- Ship and repeat by reviewing the evidence before release and checking new runs afterward.
+
+You can follow the lessons in order or choose the stage relevant to your work. Each page explains the concepts and decisions, with links to setup and implementation details.
+
+Start with [How teams improve an agent](/docs/phoenix/learn/improvement-loop) to see how the stages fit together.

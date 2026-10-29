@@ -1,0 +1,104 @@
+---
+title: "Capture your first agent run"
+description: "Run Wonder Toys locally and find the trace of your first shopping request in Phoenix."
+---
+
+{/* video: TODO */}
+
+You'll run [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, and find its first request in Phoenix. Phoenix records the request as a **trace**, showing the steps behind the assistant's answer.
+
+Wonder Toys already has tracing set up. The optional section below explains how to add tracing to your own app.
+
+## Before you start
+
+You'll need:
+
+- Git and Node.js 22 installed.
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) to run the Python services.
+- An [Anthropic API key](https://console.anthropic.com/). Requests use this key and incur model API charges.
+
+Keep 2 terminals open for the setup below.
+
+## Step 1: Start Phoenix
+
+If Phoenix is already running at `http://localhost:6006`, skip to Step 2. Otherwise, run in the first terminal:
+
+```bash
+uvx --python 3.11 arize-phoenix serve
+```
+
+Open `http://localhost:6006` in your browser. The [local Phoenix setup guide](/docs/phoenix/self-hosting/deployment-options/terminal) has more details.
+
+<Accordion title="Add tracing to your own app (optional)">
+  For an app without tracing, keep Phoenix running and run this command from your app's root directory:
+
+  ```bash
+  npx -y @arizeai/phoenix-cli setup
+  ```
+
+  Follow the prompts to choose an installed coding agent, such as Claude Code or Codex. The agent adds tracing to your code, and the CLI checks that a trace reaches Phoenix.
+</Accordion>
+
+## Step 2: Set up Wonder Toys
+
+In the second terminal, clone the repository and install the app's frontend dependencies:
+
+```bash
+git clone https://github.com/Arize-ai/project-rosetta-stone.git
+cd project-rosetta-stone/phoenix/langchain-py
+npm install
+cp env.example .env.local
+```
+
+In `phoenix/langchain-py`, set `.env.local` to these values, replacing `your-anthropic-api-key` with your key:
+
+```dotenv
+ANTHROPIC_API_KEY=your-anthropic-api-key
+BACKEND_SECRET=academy-local-demo
+BACKEND_URL=http://localhost:8001
+CHROMA_URL=http://localhost:8000
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_PROJECT_NAME=wonder-toys
+```
+
+`PHOENIX_COLLECTOR_ENDPOINT` connects the app to your local Phoenix instance. The **wonder-toys** project appears after the app sends its first trace.
+
+Start the app from the same directory:
+
+```bash
+UV_PYTHON=3.11 npm run dev
+```
+
+The first launch installs Python dependencies and downloads the product-search model.
+
+- Once startup finishes, open `http://localhost:3000` to chat with Wonder Toys.
+- Keep both terminals running.
+
+## Step 3: Send a shopping request
+
+In the Wonder Toys chat, send:
+
+```text
+Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.
+```
+
+Wait for the reply, then find the trace in Phoenix to inspect what happened.
+
+## Step 4: Find your request in Phoenix
+
+- In Phoenix, open **wonder-toys → Traces** and select the most recent **Wonder Toys** run.
+- Select **Wonder Toys** at the top of the trace tree to check your request in **Input** and the reply in **Output**.
+
+<Frame caption="The request and reply appear beside the tree of model calls and product searches.">
+  <img src="/docs/phoenix/learn/images/wonder-toys-first-trace.png" alt="Phoenix trace showing the Wonder Toys request and reply beside the tree of model calls and product searches" />
+</Frame>
+
+## Step 5: Identify the model and search steps
+
+Each step in the trace is a **span**. Expand the tree to find a `ChatAnthropic` model call and a `search-products` tool call, then select each to inspect its input and output. Your products and number of calls may differ from the screenshot.
+
+You've captured your first run when you can find the request, reply, and both kinds of span.
+
+## Continue with the same run
+
+Keep the chat open. Next, [read the model, retrieval, and tool steps](/docs/phoenix/learn/read-agent-run) to understand how the agent reached its recommendation.
