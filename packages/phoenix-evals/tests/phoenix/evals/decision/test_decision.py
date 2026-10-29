@@ -110,11 +110,9 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     )
     [score] = evaluator.evaluate({"question": "asdf"})
 
-    # The score map from the tuple still maps the chosen label to its score.
     assert score.label == "valid"
     assert score.score == 1
 
-    # The descriptions from the tuple reach Jev as the choice criteria.
     _, kwargs = client.system_one.call_args
     question = kwargs["questions"]["label"]
     assert question.criteria == {
@@ -133,14 +131,12 @@ def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypa
         llm=DecisionModel(provider="typesafe", model="jev-latest"),
         prompt_template="is this correct: {text}",
         choices=["correct", "incorrect"],
-        timeout=30,  # an extra invocation parameter the user passes through the evaluator
+        timeout=30, 
     )
     evaluator.evaluate({"text": "2 + 2 = 4"})
 
     _, kwargs = client.system_one.call_args
-    # Real SDK options are forwarded...
     assert kwargs["timeout"] == 30
-    # ...but the evaluator-only params the SDK doesn't accept are dropped at the facade.
     assert "include_explanation" not in kwargs
     assert "method" not in kwargs
 
@@ -230,7 +226,6 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     result = decision.generate_classification("is this valid?", ["valid", "invalid"], tracer=tracer)
 
-    # usage is popped onto the span, not returned in the result.
     assert "usage" not in result
 
     [span] = exporter.get_finished_spans()
@@ -253,7 +248,6 @@ def test_usage_is_not_copied_onto_the_score(monkeypatch):
     client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
     _patch_clients(monkeypatch, sync_client=client)
 
-    # Through the evaluator: confidence reaches the score, usage does not.
     evaluator = ClassificationEvaluator(
         name="isValid",
         llm=DecisionModel(provider="typesafe", model="jev-latest"),
