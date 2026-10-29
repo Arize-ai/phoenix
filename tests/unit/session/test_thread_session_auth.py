@@ -30,7 +30,7 @@ from phoenix.config import (
     get_env_refresh_token_expiry,
 )
 from phoenix.db import models
-from phoenix.server.email.sender import SimpleEmailSender
+from phoenix.server.email.sender import SimpleEmailSender, email_sender_from_env
 from phoenix.session.session import ThreadSession, launch_app
 from tests.unit.conftest import (
     patch_dml_event_handler,
@@ -265,3 +265,18 @@ def test_launch_app_prints_auth_notice(
             session_module._session_working_dir = None
             working_dir.cleanup()
     assert ("Authentication is enabled" in capsys.readouterr().out) is expected
+
+
+def test_email_sender_from_env_validates_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_SMTP_HOSTNAME, "smtp.example.com")
+    monkeypatch.delenv(ENV_PHOENIX_SMTP_USERNAME, raising=False)
+    monkeypatch.setenv(ENV_PHOENIX_SMTP_PASSWORD, "secret")
+    with pytest.raises(ValueError, match="SMTP username is required"):
+        email_sender_from_env()
+
+    monkeypatch.setenv(ENV_PHOENIX_SMTP_USERNAME, "user")
+    monkeypatch.delenv(ENV_PHOENIX_SMTP_PASSWORD, raising=False)
+    with pytest.raises(ValueError, match="SMTP password is required"):
+        email_sender_from_env()
