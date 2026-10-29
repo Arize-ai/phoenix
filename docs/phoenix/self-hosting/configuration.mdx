@@ -31,7 +31,7 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_GRPC\_PORT:** The port to run the gRPC OTLP trace collector. Defaults to 4317.
 
-* **PHOENIX\_HOST:** The host to run the phoenix server. Defaults to 0.0.0.0
+* **PHOENIX\_HOST:** The bind address for the Phoenix HTTP, gRPC, and Prometheus listeners. Defaults to `127.0.0.1` (`::` in the Docker image and Helm chart). When `PHOENIX_ENABLE_AUTH` is unset, non-loopback addresses enable authentication automatically.
 
 * **PHOENIX\_HOST\_ROOT\_PATH:** The root path prefix for your application. If provided, allows Phoenix to run behind a reverse proxy at the specified subpath. See an example [here](https://github.com/Arize-ai/phoenix/tree/main/examples/reverse-proxy).
 
