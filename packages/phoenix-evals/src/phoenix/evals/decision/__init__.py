@@ -1,4 +1,4 @@
-from .wrapper import DecisionModel, show_decision_provider_availability
+from .decision import DecisionModel, show_decision_provider_availability
 
 __all__ = [
     "DecisionModel",
