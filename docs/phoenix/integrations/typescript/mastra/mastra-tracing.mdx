@@ -65,7 +65,7 @@ export const mastra = new Mastra({
   the OTLP path itself: handed a bare server URL such as `http://localhost:6006`, every span
   goes to the wrong path, Mastra's batching exporter swallows the delivery error, and traces
   simply never appear. Phoenix's own tools accept the suffixed value, stripping the path when
-  they need a base URL (see [environment variables](/docs/phoenix/environments)).
+  they need a base URL (see [environment variables](/docs/phoenix/sdk-api-reference#environment-variables)).
 
   One exception to keep in mind: `arize-phoenix-otel` (Python) defaults to OTLP/gRPC for
   self-hosted servers and does not strip the path, so if a Python service reads this same

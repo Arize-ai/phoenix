@@ -1,73 +1,4 @@
----
-title: "Environments"
----
-
-The Phoenix app can be run in various environments such as Colab and SageMaker notebooks, as well as be served via the terminal or a docker container.
-
-<Columns cols={2}>
-  <Card title="From the Terminal" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/96785dbd-image.jpeg" href="/docs/phoenix/environments#terminal">
-    Run Phoenix via the CLI on your local machine
-  </Card>
-  <Card title="As a Container" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/09a1b0fb-image.jpeg" href="/docs/phoenix/self-hosting">
-    Self-host your own Phoenix
-  </Card>
-  <Card title="In a Notebook" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bac66bfa-image.jpeg" href="/docs/phoenix/environments#notebooks">
-    Run Phoenix in the notebook as you run experiments
-  </Card>
-</Columns>
-
-<Check>
-If you are set up, see the [Quickstart](/docs/phoenix/get-started) to start using Phoenix in your preferred environment.
-
-</Check>
-
-### Remote deployments
-
-Any Phoenix instance that isn't running on the same machine as your app — a container, a Kubernetes deployment, or a managed host — is reached the same way: point `PHOENIX_COLLECTOR_ENDPOINT` at its hostname, and supply an API key if it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled.
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-phoenix.example.com"
-
-# Only if the deployment has authentication enabled
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-```
-
-### Container
-
-See [Self-Hosting](/docs/phoenix/self-hosting).
-
-### Notebooks
-
-To start phoenix in a notebook environment, run:
-
-```python
-import phoenix as px
-
-session = px.launch_app()
-```
-
-This will start a local Phoenix server. You can initialize the phoenix server with various kinds of data (traces, inferences).
-
-<Info>
-By default, Phoenix does not persist your data when run in a notebook.
-
-</Info>
-
-### Terminal
-
-If you want to start a phoenix server to collect traces, you can also run phoenix directly from the command line:
-
-```sh
-phoenix serve
-```
-
-This will start the phoenix server on port 6006. If you are running your instrumented notebook or application on the same machine, traces should automatically be exported to `http://127.0.0.1:6006` so no additional configuration is needed. However if the server is running remotely, you will have to modify the environment variable `PHOENIX_COLLECTOR_ENDPOINT` to point to that machine (e.g. `http://<my-remote-machine>:<port>`)
-
-## Configuration & environment variables
-
-Phoenix reads its connection settings from environment variables. Two endpoint variables exist — one per concern, usually holding the same URL:
+Phoenix's SDKs, the `px` CLI, and MCP read their connection settings from environment variables. Two endpoint variables exist — one per concern, usually holding the same URL:
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
@@ -76,11 +7,20 @@ Phoenix reads its connection settings from environment variables. Two endpoint v
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
+Any Phoenix instance that isn't running on the same machine as your app — a container, a Kubernetes deployment, or a managed host — is reached the same way: point `PHOENIX_COLLECTOR_ENDPOINT` at its hostname, and supply an API key if it has authentication enabled. That one variable covers tracing, the clients, and the `px` CLI.
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
+
+# Only if the deployment has authentication enabled
+PHOENIX_API_KEY="your-api-key"
+```
+
 **If you set only one, set `PHOENIX_COLLECTOR_ENDPOINT`.** It configures tracing, and the clients and the `px` CLI use it for API access too — so one value covers everything. `PHOENIX_ENDPOINT` is the canonical setting for those client surfaces, and it wins when both are set, but you rarely need it on its own.
 
 The fallback does not run both ways in every SDK. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` everywhere, but Python trace export does not yet read `PHOENIX_ENDPOINT`, so setting **only** `PHOENIX_ENDPOINT` can leave Python trace export pointed at `http://localhost:6006`.
 
-Set both — to the same value in the usual case where one Phoenix serves both concerns, which is what `px setup` writes into `.env.phoenix`, or to different values when trace ingest and API access genuinely live at different URLs.
+Set `PHOENIX_ENDPOINT` as well only when trace ingest and API access live at different URLs.
 
 `PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the variables above.
 
@@ -105,7 +45,7 @@ os.environ["PHOENIX_PROJECT"] = "my-app"   # canonical
 # PHOENIX_PROJECT_NAME is accepted as an alias for the same value
 ```
 
-### Credential file discovery (`.env.phoenix`)
+### The `.env.phoenix` file
 
 Instead of exporting variables in every shell, you can drop `PHOENIX_`-prefixed settings into a `.env.phoenix` file. The Phoenix SDKs and CLI auto-discover it: starting from the current working directory they walk **up** toward the filesystem root and load the first `.env.phoenix` they find (dotenv format).
 
@@ -127,5 +67,3 @@ A few rules worth knowing:
 - **The filename is `.env.phoenix`**, not `.env`.
 - **Add it to your ignore rules** before storing credentials in it — the Phoenix repository already git-ignores `.env.phoenix`.
 - **Opt out** by setting `PHOENIX_DISCOVER_CONFIG=false` (also accepts `0`, `no`, `off`), which disables file discovery entirely.
-
-

@@ -7,7 +7,6 @@
 - [Main page](https://arize.com/docs/phoenix): Install Phoenix and choose a deployment option
 - [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
 - [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
-- [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
 - [PXI Agent](https://arize.com/docs/phoenix/pxi): Hand investigations to Phoenix Intelligence, the built-in AI agent that inspects traces, iterates prompts, and runs experiments
 - [PXI Advanced](https://arize.com/docs/phoenix/pxi-advanced): PXI's skills, conversations, terminal client, permissions, model providers, and configuration
 
@@ -534,23 +533,12 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 ## Resources
 
 - [General FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions about Phoenix features, pricing, and compatibility
-- [Contribute](https://arize.com/docs/phoenix/resources/contribute-to-phoenix): Open-source contribution guide
 - [Arize Phoenix or Arize AX](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Compare open-source Phoenix with the commercial Arize AX platform and decide which fits your team
 - [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Use the supported AX guide and migration skill to migrate supported Phoenix traces, datasets, experiments, and evaluation results
 
 - [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison): Compare Phoenix and Braintrust across tracing, evaluation, and licensing
-- [Can I add other users to my Phoenix Instance?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance): Enable authentication and invite teammates to a Phoenix deployment
-- [Can I persist data in a notebook?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook): Keep notebook traces across restarts with `use_temp_dir=False` or a database URL
-- [Can I run Phoenix on Sagemaker?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker): Serve Phoenix from a SageMaker notebook through jupyter-server-proxy
-- [Can I use Azure OpenAI?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai): Configure Azure OpenAI deployments for tracing, evals, and the Playground
-- [Can I use gRPC for trace collection?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection): Send spans over gRPC on port 4317 in Phoenix 4.0+
-- [Can I use Phoenix locally from a remote Jupyter instance?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance): Reach a locally running Phoenix from a remote notebook via port forwarding
-- [How can I configure the backend to send the data to the phoenix UI in another container?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container): Point an app container's collector endpoint at a separate Phoenix container
-- [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable): Fix `NOT_PARSABLE` scores caused by `max_tokens` truncation or malformed JSON
 - [Langfuse alternative? Arize Phoenix vs Langfuse: Key differences](https://arize.com/docs/phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences): Compare Phoenix and Langfuse across tracing, evals, and self-hosting
 - [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](https://arize.com/docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith): Compare Phoenix and LangSmith across observability, evaluation, and open-source features
-- [What is my Phoenix Endpoint?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint): Find the collector endpoint and base URL to point your SDK at
-- [What is the difference between GRPC and HTTP?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http): Choose between the gRPC and HTTP OTLP transports for span export
 
 ## SDK & API Reference
 
