@@ -43,7 +43,7 @@ const isDisabled = !hasPermission || isSubmitting;
 
 ## Functions
 
-- Functions with 2+ parameters should use object destructuring over positional args — this makes call sites readable and resilient to reordering.
+- Functions with 2+ parameters must take a single destructured object — this makes call sites readable and resilient to reordering. Callbacks whose signature is fixed by a library or the DOM are exempt.
 - Object parameters should be documented with JSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
 - Behavior should be built from composition (functions and hooks), not inheritance.
 - Transforms should prefer functional purity over mutation — use `map` not `reduce` for element-wise transforms, return new objects instead of mutating.
