@@ -21,7 +21,8 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Variable names MUST be descriptive — short names like `x` or `cv` MUST NOT be used. Use names like `num_experiments` or `current_version`
 - Variable names SHOULD use prefixes to denote the type — e.g. `num_records` rather than `records`
 - Functions MUST be named with precise action verbs — e.g. `list_sessions()` rather than `sessions()`
-- Keyword or object arguments SHOULD be preferred over positional arguments for clarity — e.g. `({ numerator, denominator }) => quotient` rather than `(x, y) => z`
+- TypeScript functions with two or more parameters MUST take a single destructured object parameter, including test helpers — e.g. `transformInputValue({ value, transform })` rather than `transformInputValue(value, transform)`. Callbacks whose signature a library or the DOM fixes (event handlers, `sort` comparators) are exempt
+- Python functions SHOULD take keyword arguments over positional ones for clarity — e.g. `divide(*, numerator, denominator)` rather than `divide(x, y)`
 - Composition SHOULD be preferred over inheritance
 - All functions MUST have type annotations — lean on the type system to catch bugs at compile time, not runtime
 - Path aliases or absolute imports SHOULD be used — deep relative import chains are NOT RECOMMENDED

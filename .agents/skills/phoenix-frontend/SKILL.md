@@ -22,6 +22,10 @@ Read the relevant file(s) based on the task:
 | `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
 | `references/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 
+## TypeScript
+
+For any TypeScript change in `js/app/`, including helpers and tests, also apply the `phoenix-typescript` skill (naming, function signatures, types).
+
 ## Storybook
 
 For any change to `js/app/stories/` or `js/app/.storybook/` — including stories that accompany a component change — use the `phoenix-storybook` skill.
