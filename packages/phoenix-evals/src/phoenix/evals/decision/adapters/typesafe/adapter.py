@@ -42,7 +42,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
             "probabilities": answer.probabilities,
             "model_id": response.model,
         }
-        # Confidence is provider-reported; include it only when the provider gives one.
         confidence = getattr(answer, "confidence", None)
         if confidence is not None:
             metadata["confidence"] = confidence
