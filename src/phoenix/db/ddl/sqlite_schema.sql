@@ -905,7 +905,7 @@ CREATE TABLE experiment_jobs (
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    decision_evaluator_snapshots JSONB DEFAULT '[]' NOT NULL,
+    decision_evaluator_snapshots JSON DEFAULT '[]' NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
     CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
@@ -1286,16 +1286,18 @@ CREATE TABLE decision_versions (
     decision_id INTEGER NOT NULL,
     description VARCHAR,
     user_id INTEGER,
-    inputs JSONB NOT NULL,
-    state JSONB NOT NULL,
+    state JSON NOT NULL,
     questions JSONB NOT NULL,
     model_provider VARCHAR NOT NULL,
     model_name VARCHAR NOT NULL,
     custom_provider_id INTEGER,
     metadata JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    template_format VARCHAR NOT NULL,
     CONSTRAINT pk_decision_versions PRIMARY KEY (id),
     CONSTRAINT uq_decision_versions_decision_id_id UNIQUE (decision_id, id),
+    CONSTRAINT "ck_decision_versions_`template_format`"
+        CHECK (template_format IN ('F_STRING', 'MUSTACHE', 'NONE')),
     CONSTRAINT fk_decision_versions_custom_provider_id_generative_model_custom_providers
         FOREIGN KEY (custom_provider_id)
         REFERENCES generative_model_custom_providers (id)
@@ -1383,18 +1385,17 @@ CREATE INDEX ix_decision_evaluators_decision_version_tag_id ON decision_evaluato
 -- --------------------------------
 CREATE TABLE experiment_decision_tasks (
     id INTEGER NOT NULL,
-    type VARCHAR DEFAULT 'DECISION' NOT NULL
-        CONSTRAINT "ck_experiment_decision_tasks_`valid_type`"
-        CHECK (type = 'DECISION'),
+    type VARCHAR DEFAULT 'DECISION' NOT NULL,
     model_provider VARCHAR NOT NULL,
     model_name VARCHAR NOT NULL,
     custom_provider_id INTEGER,
     base_url VARCHAR,
-    config JSONB NOT NULL,
+    config JSON NOT NULL,
     decision_version_id INTEGER,
     CONSTRAINT pk_experiment_decision_tasks PRIMARY KEY (id),
     CONSTRAINT "ck_experiment_decision_tasks_`custom_provider_or_base_url`"
         CHECK (NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)),
+    CONSTRAINT "ck_experiment_decision_tasks_`valid_type`" CHECK (type = 'DECISION'),
     CONSTRAINT fk_experiment_decision_tasks_custom_provider_id_generative_model_custom_providers
         FOREIGN KEY (custom_provider_id)
         REFERENCES generative_model_custom_providers (id)
