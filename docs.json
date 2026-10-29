@@ -432,16 +432,6 @@
                 "group": "Frequently Asked Questions",
                 "pages": [
                   "docs/phoenix/resources/frequently-asked-questions",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
-                  "docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http",
-                  "docs/phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection",
-                  "docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable",
                   "docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison",
                   "docs/phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences",
                   "docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith"
@@ -2359,7 +2349,7 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-my-phoenix-endpoint",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+      "destination": "/docs/phoenix/sdk-api-reference#environment-variables"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
@@ -2375,39 +2365,39 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance"
+      "destination": "/docs/phoenix/self-hosting/features/authentication"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-use-azure-openai",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai"
+      "destination": "/docs/phoenix/integrations/llm-providers/openai"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance"
+      "destination": "/docs/phoenix/self-hosting"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container"
+      "destination": "/docs/phoenix/self-hosting/configuration#client-connection-settings"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-run-phoenix-on-sagemaker",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker"
+      "destination": "/docs/phoenix/self-hosting"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-persist-data-in-a-notebook",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook"
+      "destination": "/docs/phoenix/self-hosting"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-the-difference-between-grpc-and-http",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http"
+      "destination": "/docs/phoenix/self-hosting/configuration#ports"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-use-grpc-for-trace-collection",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection"
+      "destination": "/docs/phoenix/self-hosting/configuration#ports"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/how-do-i-resolve-phoenix-evals-showing-not_parsable",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable"
+      "destination": "/docs/phoenix/evaluation/how-to-evals/configuring-the-llm"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/langfuse-alternatives",
@@ -2420,6 +2410,46 @@
     {
       "source": "/docs/phoenix/learn/resources/faqs/braintrust-open-source-alternative-llm-evaluation-platform-comparison",
       "destination": "/docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
+      "destination": "/docs/phoenix/sdk-api-reference#environment-variables"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
+      "destination": "/docs/phoenix/self-hosting/features/authentication"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
+      "destination": "/docs/phoenix/self-hosting/configuration#client-connection-settings"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http",
+      "destination": "/docs/phoenix/self-hosting/configuration#ports"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection",
+      "destination": "/docs/phoenix/self-hosting/configuration#ports"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable",
+      "destination": "/docs/phoenix/evaluation/how-to-evals/configuring-the-llm"
     },
     {
       "source": "/docs/phoenix/environments",
@@ -2475,7 +2505,7 @@
     },
     {
       "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+      "destination": "/docs/phoenix/sdk-api-reference#environment-variables"
     },
     {
       "source": "/docs/phoenix/quickstart",
