@@ -4,10 +4,14 @@ import { useRelayEnvironment } from "react-relay";
 import type { Disposable } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
 
+import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import type { DirectChatMessage } from "@phoenix/pages/chat/useDirectChat";
-import type { PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import type {
+  ChatCompletionInput,
+  PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
+} from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import PlaygroundOutputSubscription from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { getChatCompletionInput } from "@phoenix/pages/playground/playgroundUtils";
 import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
@@ -26,6 +30,52 @@ function formatToolCalls(toolCalls: ToolCall[]): string {
         `**Tool call** \`${toolCall.name}\`\n\n\`\`\`json\n${toolCall.arguments}\n\`\`\``
     )
     .join("\n\n");
+}
+
+/**
+ * Builds the chat completion input for a turn. The prompt's own messages are
+ * formatted here so the server receives no template options and never runs
+ * the conversation, which is free text, through the template formatter.
+ */
+export function buildPromptPlaygroundChatInput(
+  baseInput: ChatCompletionInput,
+  history: DirectChatMessage[]
+): ChatCompletionInput {
+  const { template, promptVersion } = baseInput;
+  const formatText =
+    template != null
+      ? (text: string) =>
+          getTemplateFormatUtils(template.format).format({
+            text,
+            variables: template.variables ?? {},
+          })
+      : (text: string) => text;
+  return {
+    ...baseInput,
+    template: null,
+    promptVersion: {
+      ...promptVersion,
+      template: {
+        ...promptVersion.template,
+        messages: [
+          ...promptVersion.template.messages.map((message) => ({
+            ...message,
+            content: message.content.map((part) =>
+              part.text != null
+                ? { text: { text: formatText(part.text.text) } }
+                : part
+            ),
+          })),
+          ...history.map((message) => ({
+            role: message.role === "user" ? ("USER" as const) : ("AI" as const),
+            content: [{ text: { text: message.content } }],
+          })),
+        ],
+      },
+    },
+    repetitions: 1,
+    streamModelOutput: true,
+  };
 }
 
 /**
@@ -66,25 +116,7 @@ export function usePromptPlaygroundChat({
       instanceId,
       credentials,
     });
-    const input = {
-      ...baseInput,
-      promptVersion: {
-        ...baseInput.promptVersion,
-        template: {
-          ...baseInput.promptVersion.template,
-          messages: [
-            ...baseInput.promptVersion.template.messages,
-            ...history.map((message) => ({
-              role:
-                message.role === "user" ? ("USER" as const) : ("AI" as const),
-              content: [{ text: { text: message.content } }],
-            })),
-          ],
-        },
-      },
-      repetitions: 1,
-      streamModelOutput: true,
-    };
+    const input = buildPromptPlaygroundChatInput(baseInput, history);
     const assistantId = generateUUID();
     let text = "";
     const toolCalls: ToolCall[] = [];
