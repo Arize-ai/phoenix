@@ -108,19 +108,15 @@ async def apply_manifest_if_newer(
     Applies the manifest if it is newer than the one last applied, and records it as applied.
 
     Creates and updates built-in models and their token prices to match the manifest, and
-    soft-deletes built-in models that are no longer in it unless span costs reference them
-    (or a model in the manifest takes over their name_pattern and provider). Models whose
-    entries were skipped as invalid are left as they are.
+    soft-deletes built-in models that are no longer in it. Historical span costs keep
+    pointing at the soft-deleted rows. Models whose entries were skipped as invalid are
+    left as they are.
     Everything happens in one transaction, committed before this returns.
 
     Returns:
         What was applied, or None if the manifest wasn't newer.
     """
     entries = _dedupe_entries(manifest)
-    incoming_patterns = {
-        (manifest_model.name_pattern, _provider(manifest_model))
-        for manifest_model in entries.values()
-    }
     payload = ModelCostManifestVersion(generated_at=manifest.generated_at).model_dump(mode="json")
     async with db() as session:
         if db.dialect is SupportedSQLDialect.POSTGRESQL:
@@ -131,22 +127,12 @@ async def apply_manifest_if_newer(
             return None
 
         built_in_models = await _get_built_in_models(session)
-        # A model that was renamed upstream keeps its name_pattern and provider, so its old row
-        # must go before the new one is inserted, or the two collide on the unique index. It
-        # goes even if span costs reference it; they keep pointing at the old row. Any other
-        # model missing from the manifest goes only if nothing references it, and one whose
-        # entry was skipped as invalid stays as it is.
-        colliding: list[int] = []
-        unmatched: list[int] = []
-        for name, model in built_in_models.items():
-            if name in entries:
-                continue
-            if (model.name_pattern, model.provider) in incoming_patterns:
-                colliding.append(model.id)
-            elif name not in manifest.skipped_model_names:
-                unmatched.append(model.id)
-        num_removed = await _soft_delete_models(session, colliding)
-        num_removed += await _soft_delete_models(session, unmatched, unless_referenced=True)
+        removed_ids = [
+            model.id
+            for name, model in built_in_models.items()
+            if name not in entries and name not in manifest.skipped_model_names
+        ]
+        num_removed = await _soft_delete_models(session, removed_ids)
         num_added, num_updated = await _upsert_models(session, entries, built_in_models)
 
         await session.execute(
@@ -244,11 +230,8 @@ async def _upsert_models(
             model.token_prices.remove(token_price)
             token_prices_changed = True
 
-        if is_existing_model and token_prices_changed:
-            # Changing only token prices doesn't touch the model row, but the
-            # GenerativeModelStore polls on the model's updated_at.
-            model.updated_at = datetime.now(timezone.utc)
         if is_existing_model and (changed or token_prices_changed):
+            model.updated_at = datetime.now(timezone.utc)
             num_updated += 1
 
     await session.flush()
@@ -258,20 +241,15 @@ async def _upsert_models(
 async def _soft_delete_models(
     session: AsyncSession,
     ids: list[int],
-    *,
-    unless_referenced: bool = False,
 ) -> int:
-    """Soft-deletes the given models, except those that span costs reference if asked to."""
     if not ids:
         return 0
     stmt = (
         sa.update(models.GenerativeModel)
-        .values(deleted_at=sa.func.now())
+        .values(deleted_at=datetime.now(timezone.utc))
         .where(models.GenerativeModel.id.in_(ids))
         .execution_options(synchronize_session=False)
     )
-    if unless_referenced:
-        stmt = stmt.where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
     result = await session.execute(stmt)
     return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
