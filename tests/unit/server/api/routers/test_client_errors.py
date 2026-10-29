@@ -9,6 +9,7 @@ import httpx2
 import pytest
 
 import phoenix.server.api.routers.client_errors as client_errors_module
+from phoenix.server.api.routers.client_errors import route_path
 from phoenix.server.rate_limiters import TokenBucket
 
 REPORT: dict[str, Any] = {
@@ -46,6 +47,23 @@ class TestReportClientError:
             assert getattr(record, f"error.{field_name}") == REPORT[field_name]
         for key, value in REPORT["attributes"].items():
             assert getattr(record, f"error.attributes.{key}") == value
+
+    async def test_url_is_logged_as_the_route_only(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        url = "https://phoenix.example.com/projects/UHJvamVjdDox/spans?filter=name+%3D%3D+%27secret%27#top"
+        with caplog.at_level(logging.ERROR, logger="phoenix.client_errors"):
+            response = await httpx_client.post("client_errors", json={**REPORT, "url": url})
+        assert response.status_code == 204, response.text
+
+        (record,) = _error_records(caplog)
+        assert (
+            record.getMessage()
+            == f"Client error at /projects/UHJvamVjdDox/spans: {REPORT['message']}"
+        )
+        assert getattr(record, "error.url") == "/projects/UHJvamVjdDox/spans"
 
     async def test_message_alone_is_enough(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.post("client_errors", json={"message": "boom"})
@@ -96,3 +114,21 @@ class TestReportClientError:
             (await httpx_client.post("client_errors", json=REPORT)).status_code for _ in range(3)
         ]
         assert statuses == [204, 204, 429]
+
+
+@pytest.mark.parametrize(
+    "url,root_path,expected",
+    [
+        pytest.param(None, "", None, id="absent"),
+        pytest.param("/projects/abc/spans", "", "/projects/abc/spans", id="route-unchanged"),
+        pytest.param("/projects/abc/spans?filter=x", "", "/projects/abc/spans", id="query-dropped"),
+        pytest.param(
+            "https://phoenix.example.com/projects/abc#top", "", "/projects/abc", id="origin-dropped"
+        ),
+        pytest.param("/s/acme/projects/abc", "/s/acme", "/projects/abc", id="root-path-dropped"),
+        pytest.param("/s/acme", "/s/acme", "/", id="root-path-alone"),
+        pytest.param("/s/acme-corp/projects", "/s/acme", "/s/acme-corp/projects", id="prefix-only"),
+    ],
+)
+def test_route_path(url: str | None, root_path: str, expected: str | None) -> None:
+    assert route_path(url, root_path=root_path) == expected
