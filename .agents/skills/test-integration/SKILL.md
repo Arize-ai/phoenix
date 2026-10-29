@@ -40,14 +40,20 @@ declared model. Ollama checks do not require a provider API key.
 
 ## CI behavior
 
+- The workflow's `paths` filter starts it only for integration docs, the
+  routed shared snippet, and harness files. Keep it a superset of
+  `classify_changes.py` routing.
 - Pull requests classify changed files. Enabled integration docs run only when
   changed; shared snippets are routed to the docs that consume them.
-- Changes to the runner, routing config, workflow, skill scripts, or Makefile
-  run the full enabled set. Inventory-only edits do not trigger checks.
+- Changes to the runner, routing config, workflow, or skill scripts run the
+  full enabled set. Markdown-only edits (this skill, the inventory, the README)
+  do not trigger checks.
 - Monday's scheduled workflow and manual dispatch run all enabled docs. A
   manual `docs` input accepts space-separated paths from `integrations.json`.
 - Selected docs are distributed deterministically across a matrix of shards;
   shard reports are merged into one artifact, job summary, and PR comment.
+  No-op runs post nothing; the comment is edited in place on later pushes and
+  skipped on fork PRs.
 - Each invocation uses a unique Phoenix project, so shards do not contend for
   shared project state.
 - Local services are declared per integration in `integrations.json` and

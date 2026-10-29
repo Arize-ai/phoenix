@@ -15,7 +15,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 CONFIG = ROOT / "scripts/testing/integration_docs/integrations.json"
-INVENTORY = ".agents/skills/test-integration/INTEGRATION_CHECKS.md"
 SKIP_CONFIG = ".agents/skills/test-integration/scripts/skip_config.json"
 SHARD_LIMIT = 12
 SHARED_DOC_SCOPES = {
@@ -25,7 +24,6 @@ SHARED_DOC_SCOPES = {
     }
 }
 FULL_RUN_FILES = {
-    "Makefile",
     "scripts/testing/integration_docs/run.py",
     "scripts/testing/integration_docs/classify_changes.py",
     "scripts/testing/integration_docs/aggregate.py",
@@ -130,20 +128,19 @@ def classify() -> tuple[str, list[str], str]:
     changed = changed_files()
     generic_harness_paths = (
         "scripts/testing/integration_docs/",
-        ".agents/skills/test-integration/",
+        ".agents/skills/test-integration/scripts/",
         ".github/workflows/integration-docs.yml",
     )
     if any(
         path in FULL_RUN_FILES
         or (
             path.startswith(generic_harness_paths)
-            and path != INVENTORY
             and path != SKIP_CONFIG
-            and not path.endswith(".pyc")
+            and not path.endswith((".md", ".pyc"))
         )
         for path in changed
     ):
-        return "all", docs, "integration harness, configuration, workflow, or Makefile changed"
+        return "all", docs, "integration harness, configuration, or workflow changed"
     if SKIP_CONFIG in changed:
         routes = changed_skip_routes()
         if routes is None:
