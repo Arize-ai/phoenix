@@ -47,7 +47,6 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
         },
     }
     assert "explanation" not in result
-    # usage is popped onto the DECISION span, not returned in the result
     assert "usage" not in result
 
     client.system_one.assert_called_once()
