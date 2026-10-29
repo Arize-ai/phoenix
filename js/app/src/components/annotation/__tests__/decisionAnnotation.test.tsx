@@ -72,10 +72,24 @@ const scale = (
 });
 
 describe("decision annotation helpers", () => {
-  it("lists a choice's probabilities in the question's order", () => {
-    expect(decisionProbabilities(answered)).toEqual([
-      { key: "a", name: "a", probability: 0.9 },
-      { key: "b", name: "b", probability: 0.1 },
+  it("lists a choice's probabilities most likely first, without 0% options", () => {
+    expect(
+      decisionProbabilities({
+        ...answered,
+        answer: {
+          __typename: "ChoiceAnswer",
+          choice: "b",
+          confidence: 0.9,
+          choiceProbabilities: [
+            { value: "a", probability: 0.096 },
+            { value: "b", probability: 0.9 },
+            { value: "c", probability: 0.004 },
+          ],
+        },
+      })
+    ).toEqual([
+      { key: "b", name: "b", probability: 0.9 },
+      { key: "a", name: "a", probability: 0.096 },
     ]);
   });
   it("names scale levels by label, then description, then number", () => {

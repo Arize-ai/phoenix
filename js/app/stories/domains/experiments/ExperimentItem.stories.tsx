@@ -24,18 +24,21 @@ const mockExperiment: Experiment = {
   id: "exp-1",
   name: "GPT-4 SQL Generator",
   repetitions: 1,
+  job: null,
 };
 
 const mockExperimentWithRepetitions: Experiment = {
   id: "exp-2",
   name: "Claude-3 Sonnet Multi-Run",
   repetitions: 3,
+  job: null,
 };
 
 const mockLongNameExperiment: Experiment = {
   id: "exp-3",
   name: "Very Long Experiment Name That Should Be Truncated Properly in the UI",
   repetitions: 1,
+  job: null,
 };
 
 type ExperimentRepetition = {

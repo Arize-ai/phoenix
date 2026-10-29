@@ -21,6 +21,7 @@ import type {
 import {
   type SavedDecisionVersion,
   savedDecisionVersionToDraft,
+  toSavedDecisionQuestions,
 } from "./savedDecisionUtils";
 
 const decisionVersionQuery = graphql`
@@ -102,45 +103,10 @@ export function toSavedDecisionVersion(
               ? version.state.text
               : "",
         };
-  const questions = version.questions.flatMap(
-    (question): SavedDecisionVersion["questions"][number][] => {
-      switch (question.__typename) {
-        case "DecisionPredicateQuestion":
-          return [
-            {
-              kind: "predicate",
-              name: question.name,
-              instructions: question.instructions,
-              criteria: question.criteria ?? null,
-            },
-          ];
-        case "DecisionChoiceQuestion":
-          return [
-            {
-              kind: "choice",
-              name: question.name,
-              instructions: question.instructions,
-              choices: question.choices,
-            },
-          ];
-        case "DecisionScaleQuestion":
-          return [
-            {
-              kind: "scale",
-              name: question.name,
-              instructions: question.instructions,
-              levels: question.levels,
-            },
-          ];
-        default:
-          return [];
-      }
-    }
-  );
   return {
     templateFormat: toTemplateFormat(version.templateFormat),
     state,
-    questions,
+    questions: toSavedDecisionQuestions(version.questions),
   };
 }
 

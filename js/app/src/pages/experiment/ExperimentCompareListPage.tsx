@@ -62,6 +62,11 @@ import {
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  formatDecisionAnswers,
+  getDecisionRunAnswers,
+  getDecisionTaskQuestions,
+} from "@phoenix/components/experiment/decisionRunOutput";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import type {
   AppTableFeatures,
@@ -75,6 +80,8 @@ import type { ExperimentComparePageQueriesCompareListQuery as ExperimentCompareP
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import { DecisionAnswerList } from "@phoenix/pages/playground/DecisionResult";
+import type { NormalizedDecisionAnswer } from "@phoenix/pages/playground/decisionUtils";
 import { isObject } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
@@ -214,6 +221,7 @@ export function ExperimentCompareListPage({
                       annotationName
                       meanScore
                     }
+                    ...decisionRunOutput_experiment @relay(mask: false)
                   }
                 }
               }
@@ -395,6 +403,17 @@ export function ExperimentCompareListPage({
     );
   }, [annotationConfigs]);
 
+  const decisionQuestionsByExperimentId = useMemo(
+    () =>
+      new Map(
+        experiments.map((experiment) => [
+          experiment.id,
+          getDecisionTaskQuestions(experiment.job?.taskConfig),
+        ])
+      ),
+    [experiments]
+  );
+
   const datasetId = aggregateData?.dataset.id;
   const baseExperiment = experiments[0];
   const compareExperimentIds = useMemo(
@@ -487,8 +506,21 @@ export function ExperimentCompareListPage({
           referenceOutput: example.revision.referenceOutput,
           outputs: {
             baseExperimentValue: baseExperimentRun.output,
+            baseExperimentAnswers: getDecisionRunAnswers({
+              questions:
+                decisionQuestionsByExperimentId.get(baseExperiment?.id) ?? null,
+              output: baseExperimentRun.output,
+            }),
             compareExperimentValues: compareExperimentRuns.map(
               (run) => run?.output
+            ),
+            compareExperimentAnswers: repeatedRunGroups.map((group) =>
+              getDecisionRunAnswers({
+                questions:
+                  decisionQuestionsByExperimentId.get(group.experimentId) ??
+                  null,
+                output: group.runs[0]?.output,
+              })
             ),
           },
           tokens: {
@@ -520,7 +552,14 @@ export function ExperimentCompareListPage({
         return tableData;
       }) ?? []
     );
-  }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
+  }, [
+    data,
+    annotationSummaries,
+    baseExperiment?.id,
+    compareExperimentIds,
+    decisionQuestionsByExperimentId,
+    experimentIds,
+  ]);
 
   type TableRow = (typeof tableData)[number];
   const columnHelper = useMemo(
@@ -664,18 +703,13 @@ export function ExperimentCompareListPage({
                 >
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
                 </span>
-                <ContentPreviewTooltip content={value.baseExperimentValue}>
-                  <TextOverflow>
-                    <Text size="S" fontFamily="mono">
-                      {isObject(value.baseExperimentValue)
-                        ? JSON.stringify(value.baseExperimentValue)
-                        : String(value.baseExperimentValue)}
-                    </Text>
-                  </TextOverflow>
-                </ContentPreviewTooltip>
+                <ExperimentOutputPreview
+                  value={value.baseExperimentValue}
+                  decisionAnswers={value.baseExperimentAnswers}
+                />
               </Flex>
             </li>
-            {value.compareExperimentValues.map((value, index) => (
+            {value.compareExperimentValues.map((compareValue, index) => (
               <li key={index}>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <span
@@ -688,16 +722,11 @@ export function ExperimentCompareListPage({
                       shape="circle"
                     />
                   </span>
-                  {value ? (
-                    <ContentPreviewTooltip content={value}>
-                      <TextOverflow>
-                        <Text size="S" fontFamily="mono">
-                          {isObject(value)
-                            ? JSON.stringify(value)
-                            : String(value)}
-                        </Text>
-                      </TextOverflow>
-                    </ContentPreviewTooltip>
+                  {compareValue ? (
+                    <ExperimentOutputPreview
+                      value={compareValue}
+                      decisionAnswers={value.compareExperimentAnswers[index]}
+                    />
                   ) : (
                     <Text size="S" fontFamily="mono" color="gray-500">
                       not run
@@ -1567,11 +1596,45 @@ const calculateAverage = (
   return total === null || runCount === 0 ? null : total / runCount;
 };
 
+/** A run's output on one line, with the full output on hover. */
+function ExperimentOutputPreview({
+  value,
+  decisionAnswers,
+}: {
+  value: unknown;
+  decisionAnswers: NormalizedDecisionAnswer[] | null | undefined;
+}) {
+  if (decisionAnswers) {
+    return (
+      <ContentPreviewTooltip
+        content={value}
+        preview={<DecisionAnswerList answers={decisionAnswers} />}
+      >
+        <TextOverflow>
+          <Text size="S">{formatDecisionAnswers(decisionAnswers)}</Text>
+        </TextOverflow>
+      </ContentPreviewTooltip>
+    );
+  }
+  return (
+    <ContentPreviewTooltip content={value}>
+      <TextOverflow>
+        <Text size="S" fontFamily="mono">
+          {isObject(value) ? JSON.stringify(value) : String(value)}
+        </Text>
+      </TextOverflow>
+    </ContentPreviewTooltip>
+  );
+}
+
 function ContentPreviewTooltip({
   content,
+  preview,
   children,
 }: {
   content: unknown;
+  /** Shown instead of the content, when the content has a richer view. */
+  preview?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1590,13 +1653,14 @@ function ContentPreviewTooltip({
           overflow-y: auto;
         `}
       >
-        {isObject(content) ? (
-          <JSONText json={content} disableTitle space={2} />
-        ) : (
-          <Text size="S" fontFamily="mono">
-            {String(content)}
-          </Text>
-        )}
+        {preview ??
+          (isObject(content) ? (
+            <JSONText json={content} disableTitle space={2} />
+          ) : (
+            <Text size="S" fontFamily="mono">
+              {String(content)}
+            </Text>
+          ))}
       </RichTooltip>
     </TooltipTrigger>
   );

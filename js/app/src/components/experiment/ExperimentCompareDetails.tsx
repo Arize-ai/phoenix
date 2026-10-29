@@ -28,6 +28,8 @@ import {
   Popover,
   PopoverArrow,
   ProgressBar,
+  SegmentedControl,
+  SegmentedControlItem,
   SelectChevronUpDownIcon,
   Text,
   Tooltip,
@@ -46,6 +48,10 @@ import { JSONBlock } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  getDecisionRunAnswers,
+  getDecisionTaskQuestions,
+} from "@phoenix/components/experiment/decisionRunOutput";
 import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
@@ -65,6 +71,8 @@ import {
 } from "@phoenix/contexts/ExperimentCompareContext";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { DecisionAnswerList } from "@phoenix/pages/playground/DecisionResult";
+import type { NormalizedDecisionAnswer } from "@phoenix/pages/playground/decisionUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -82,6 +90,8 @@ export type ExperimentCompareDetailsProps = {
 };
 
 type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type DecisionOutputView = "answers" | "json";
 
 const SIDEBAR_PANEL_DEFAULT_SIZE = 25;
 const SIDEBAR_PANEL_DEFAULT_SIZE_STRING = `${SIDEBAR_PANEL_DEFAULT_SIZE}%`;
@@ -162,6 +172,7 @@ export function ExperimentCompareDetails({
                   id
                   name
                   repetitions
+                  ...decisionRunOutput_experiment @relay(mask: false)
                 }
               }
             }
@@ -889,10 +900,12 @@ const experimentItemCSS = css`
 
 function ExperimentItemHeader({
   children,
+  actions,
   onTraceClick,
   copyText,
 }: {
   children: React.ReactNode;
+  actions?: React.ReactNode;
   onTraceClick?: () => void;
   copyText?: string;
 }) {
@@ -906,7 +919,8 @@ function ExperimentItemHeader({
             padding-left: var(--global-dimension-size-100);
           `}
         >
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {actions}
             {onTraceClick && (
               <TooltipTrigger>
                 <IconButton
@@ -971,6 +985,52 @@ function ExperimentItemAnnotations({
   );
 }
 
+function DecisionOutputViewToggle({
+  outputView,
+  onOutputViewChange,
+}: {
+  outputView: DecisionOutputView;
+  onOutputViewChange: (outputView: DecisionOutputView) => void;
+}) {
+  return (
+    <SegmentedControl
+      aria-label="Output view"
+      size="S"
+      selectedKey={outputView}
+      onSelectionChange={(key) =>
+        onOutputViewChange(key === "json" ? "json" : "answers")
+      }
+    >
+      <SegmentedControlItem id="answers">Answers</SegmentedControlItem>
+      <SegmentedControlItem id="json">JSON</SegmentedControlItem>
+    </SegmentedControl>
+  );
+}
+
+/** A decision run's answers, or null for errored runs and other tasks. */
+function useDecisionRunAnswers({
+  experiment,
+  experimentRun,
+}: {
+  experiment: Experiment;
+  experimentRun?: ExperimentRun;
+}) {
+  const decisionQuestions = useMemo(
+    () => getDecisionTaskQuestions(experiment?.job?.taskConfig),
+    [experiment]
+  );
+  return useMemo(
+    () =>
+      experimentRun?.error
+        ? null
+        : getDecisionRunAnswers({
+            questions: decisionQuestions,
+            output: experimentRun?.output,
+          }),
+    [decisionQuestions, experimentRun]
+  );
+}
+
 /**
  * Shows a single experiment's output and annotations
  */
@@ -999,6 +1059,12 @@ export function ExperimentItem({
     [experimentRepetition]
   );
 
+  const decisionAnswers = useDecisionRunAnswers({
+    experiment,
+    experimentRun: experimentRepetition.experimentRun,
+  });
+  const [outputView, setOutputView] = useState<DecisionOutputView>("answers");
+
   const traceId = experimentRepetition?.experimentRun?.trace?.traceId;
   const projectId = experimentRepetition?.experimentRun?.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
@@ -1018,6 +1084,14 @@ export function ExperimentItem({
         <ExperimentItemHeader
           onTraceClick={handleTraceClick}
           copyText={copyText}
+          actions={
+            decisionAnswers ? (
+              <DecisionOutputViewToggle
+                outputView={outputView}
+                onOutputViewChange={setOutputView}
+              />
+            ) : null
+          }
         >
           <span
             css={css`
@@ -1062,6 +1136,8 @@ export function ExperimentItem({
               ) : (
                 <FullSizeExperimentOutputContent
                   value={experimentRepetition.experimentRun.output}
+                  decisionAnswers={decisionAnswers}
+                  showRawOutput={outputView === "json"}
                 />
               )}
             </View>
@@ -1122,7 +1198,16 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 /**
  * Wrapper to make ExperimentOutputContent fill available vertical and horizontal space
  */
-function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
+function FullSizeExperimentOutputContent({
+  value,
+  decisionAnswers,
+  showRawOutput = false,
+}: {
+  value: unknown;
+  /** A decision run's answers, drawn instead of the raw output. */
+  decisionAnswers?: readonly NormalizedDecisionAnswer[] | null;
+  showRawOutput?: boolean;
+}) {
   return (
     <div
       css={css`
@@ -1138,7 +1223,11 @@ function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
         }
       `}
     >
-      <ExperimentOutputContent value={value} />
+      {decisionAnswers && !showRawOutput ? (
+        <DecisionAnswerList answers={decisionAnswers} />
+      ) : (
+        <ExperimentOutputContent value={value} />
+      )}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import type {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { rankChoiceProbabilities } from "@phoenix/utils/decisionProbabilityUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundDecisionOutputMutation$data } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
@@ -1609,7 +1610,7 @@ function normalizeChoiceAnswer({
       if (probability != null) probabilities.push({ value, probability });
     }
   }
-  // Keep the author's option order when we know it.
+  // Equally likely options keep the author's order when we know it.
   if (question?.type === "choice") {
     const orderByValue = new Map(
       question.choices.map((option, index) => [option.value.trim(), index])
@@ -1620,12 +1621,17 @@ function normalizeChoiceAnswer({
       (left, right) => orderOf(left.value) - orderOf(right.value)
     );
   }
+  const choice = answer.choice == null ? null : String(answer.choice);
   return {
     kind: "choice",
     name,
-    choice: answer.choice == null ? null : String(answer.choice),
+    choice,
     confidence: toFiniteNumber(answer.confidence),
-    probabilities,
+    probabilities: rankChoiceProbabilities({
+      probabilities,
+      getValue: (entry) => entry.value,
+      chosen: choice,
+    }),
   };
 }
 
@@ -1773,6 +1779,43 @@ function readAnswersByName(answers: unknown): Record<string, unknown> {
   return isStringKeyedObject(answers) ? answers : {};
 }
 
+/**
+ * Answers in display shape, in the order of the questions asked, then any
+ * answers to questions not in that list.
+ * @param params.answers - answers keyed by question name, or OpenAI's named list
+ * @param params.questions - the questions asked, for order, option order and labels
+ */
+export function normalizeDecisionAnswers({
+  answers,
+  questions,
+}: {
+  answers: unknown;
+  questions?: readonly DecisionQuestionDraft[];
+}): NormalizedDecisionAnswer[] {
+  const questionsByName = new Map(
+    (questions ?? []).map(
+      (question) => [question.name.trim(), question] as const
+    )
+  );
+  const rawAnswers = readAnswersByName(answers);
+  const names = new Set<string>([
+    ...questionsByName.keys(),
+    ...Object.keys(rawAnswers),
+  ]);
+  const normalized: NormalizedDecisionAnswer[] = [];
+  for (const name of names) {
+    if (!(name in rawAnswers)) continue;
+    normalized.push(
+      normalizeDecisionAnswer({
+        name,
+        answer: rawAnswers[name],
+        question: questionsByName.get(name),
+      })
+    );
+  }
+  return normalized;
+}
+
 export type NormalizedDecisionResult = {
   model: string | null;
   answers: NormalizedDecisionAnswer[];
@@ -1792,29 +1835,10 @@ export function normalizeDecisionResult({
   result: unknown;
   draft?: DecisionPromptDraft | null;
 }): NormalizedDecisionResult {
-  const questionsByName = new Map(
-    (draft?.questions ?? []).map(
-      (question) => [question.name.trim(), question] as const
-    )
-  );
-  const rawAnswers = readAnswersByName(
-    isStringKeyedObject(result) ? result.answers : undefined
-  );
-  const names = new Set<string>([
-    ...(draft?.questions.map((question) => question.name.trim()) ?? []),
-    ...Object.keys(rawAnswers),
-  ]);
-  const answers: NormalizedDecisionAnswer[] = [];
-  for (const name of names) {
-    if (!(name in rawAnswers)) continue;
-    answers.push(
-      normalizeDecisionAnswer({
-        name,
-        answer: rawAnswers[name],
-        question: questionsByName.get(name),
-      })
-    );
-  }
+  const answers = normalizeDecisionAnswers({
+    answers: isStringKeyedObject(result) ? result.answers : undefined,
+    questions: draft?.questions,
+  });
   const usage =
     isStringKeyedObject(result) && isStringKeyedObject(result.usage)
       ? result.usage

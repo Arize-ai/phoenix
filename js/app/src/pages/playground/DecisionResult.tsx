@@ -118,7 +118,7 @@ function DistributionRow({
 }
 
 /** The level index closest to the expected level, or null without a value or levels. */
-function getNearestLevelIndex({
+export function getNearestLevelIndex({
   expectedLevel,
   levelIndices,
 }: {
@@ -298,6 +298,32 @@ export function AnswerMeta({
   );
 }
 
+/** Each answer's question name, distribution and meta line. */
+export function DecisionAnswerList({
+  answers,
+}: {
+  answers: readonly NormalizedDecisionAnswer[];
+}) {
+  return (
+    <ul css={answerListCSS} aria-label="Decision answers">
+      {answers.map((answer) => (
+        <li key={answer.name}>
+          <Flex direction="column" gap="size-75">
+            <Text weight="heavy" css={wrapAnywhereCSS}>
+              {answer.name}
+            </Text>
+            <span data-testid={`answer-${answer.name}`} hidden>
+              {getAnswerValue(answer)}
+            </span>
+            <DecisionAnswerView answer={answer} />
+            <AnswerMeta answer={answer} />
+          </Flex>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function parseOutput(output: string): unknown {
   try {
     return JSON.parse(output);
@@ -323,22 +349,7 @@ export function DecisionResult({
   });
   return (
     <Flex direction="column" gap="size-200">
-      <ul css={answerListCSS} aria-label="Decision answers">
-        {result.answers.map((answer) => (
-          <li key={answer.name}>
-            <Flex direction="column" gap="size-75">
-              <Text weight="heavy" css={wrapAnywhereCSS}>
-                {answer.name}
-              </Text>
-              <span data-testid={`answer-${answer.name}`} hidden>
-                {getAnswerValue(answer)}
-              </span>
-              <DecisionAnswerView answer={answer} />
-              <AnswerMeta answer={answer} />
-            </Flex>
-          </li>
-        ))}
-      </ul>
+      <DecisionAnswerList answers={result.answers} />
       {showUsage ? (
         <Text size="XS" color="text-700" css={tabularNumbersCSS}>
           {formatUsage({ model: result.model, usage: result.usage })}

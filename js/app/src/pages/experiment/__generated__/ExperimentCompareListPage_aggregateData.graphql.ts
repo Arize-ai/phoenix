@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4122a8b6e140744bdc12a6097e4a8fe5>>
+ * @generated SignedSource<<9ae920de17a5413fb6e46b52e1d2a1f8>>
  * @lightSyntaxTransform
  */
 
@@ -72,6 +72,44 @@ export type ExperimentCompareListPage_aggregateData$data = {
             readonly id: string;
           };
           readonly id: string;
+          readonly job: {
+            readonly taskConfig: {
+              readonly __typename: "DecisionTaskConfig";
+              readonly questions: ReadonlyArray<{
+                readonly __typename: "DecisionChoiceQuestion";
+                readonly choices: ReadonlyArray<{
+                  readonly description: string | null;
+                  readonly value: string;
+                }>;
+                readonly instructions: string;
+                readonly name: string;
+              } | {
+                readonly __typename: "DecisionPredicateQuestion";
+                readonly criteria: {
+                  readonly false: string | null;
+                  readonly true: string | null;
+                } | null;
+                readonly instructions: string;
+                readonly name: string;
+              } | {
+                readonly __typename: "DecisionScaleQuestion";
+                readonly instructions: string;
+                readonly levels: ReadonlyArray<{
+                  readonly description: string | null;
+                  readonly label: string;
+                }>;
+                readonly name: string;
+              } | {
+                // This will never be '%other', but we need some
+                // value in case none of the concrete values match.
+                readonly __typename: "%other";
+              }>;
+            } | {
+              // This will never be '%other', but we need some
+              // value in case none of the concrete values match.
+              readonly __typename: "%other";
+            } | null;
+          } | null;
           readonly repetitions: number;
           readonly runCount: number;
         };
@@ -110,24 +148,52 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "__typename",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "name",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "lowerBound",
+  "name": "instructions",
   "storageKey": null
 },
 v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -316,6 +382,132 @@ return {
                             }
                           ],
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "ExperimentJob",
+                          "kind": "LinkedField",
+                          "name": "job",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "taskConfig",
+                              "plural": false,
+                              "selections": [
+                                (v3/*:: as any*/),
+                                {
+                                  "kind": "InlineFragment",
+                                  "selections": [
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "concreteType": null,
+                                      "kind": "LinkedField",
+                                      "name": "questions",
+                                      "plural": true,
+                                      "selections": [
+                                        (v3/*:: as any*/),
+                                        {
+                                          "kind": "InlineFragment",
+                                          "selections": [
+                                            (v4/*:: as any*/),
+                                            (v5/*:: as any*/),
+                                            {
+                                              "alias": null,
+                                              "args": null,
+                                              "concreteType": "DecisionPredicateCriteria",
+                                              "kind": "LinkedField",
+                                              "name": "criteria",
+                                              "plural": false,
+                                              "selections": [
+                                                {
+                                                  "alias": null,
+                                                  "args": null,
+                                                  "kind": "ScalarField",
+                                                  "name": "true",
+                                                  "storageKey": null
+                                                },
+                                                {
+                                                  "alias": null,
+                                                  "args": null,
+                                                  "kind": "ScalarField",
+                                                  "name": "false",
+                                                  "storageKey": null
+                                                }
+                                              ],
+                                              "storageKey": null
+                                            }
+                                          ],
+                                          "type": "DecisionPredicateQuestion",
+                                          "abstractKey": null
+                                        },
+                                        {
+                                          "kind": "InlineFragment",
+                                          "selections": [
+                                            (v4/*:: as any*/),
+                                            (v5/*:: as any*/),
+                                            {
+                                              "alias": null,
+                                              "args": null,
+                                              "concreteType": "DecisionChoiceOption",
+                                              "kind": "LinkedField",
+                                              "name": "choices",
+                                              "plural": true,
+                                              "selections": [
+                                                {
+                                                  "alias": null,
+                                                  "args": null,
+                                                  "kind": "ScalarField",
+                                                  "name": "value",
+                                                  "storageKey": null
+                                                },
+                                                (v6/*:: as any*/)
+                                              ],
+                                              "storageKey": null
+                                            }
+                                          ],
+                                          "type": "DecisionChoiceQuestion",
+                                          "abstractKey": null
+                                        },
+                                        {
+                                          "kind": "InlineFragment",
+                                          "selections": [
+                                            (v4/*:: as any*/),
+                                            (v5/*:: as any*/),
+                                            {
+                                              "alias": null,
+                                              "args": null,
+                                              "concreteType": "DecisionScaleLevel",
+                                              "kind": "LinkedField",
+                                              "name": "levels",
+                                              "plural": true,
+                                              "selections": [
+                                                (v7/*:: as any*/),
+                                                (v6/*:: as any*/)
+                                              ],
+                                              "storageKey": null
+                                            }
+                                          ],
+                                          "type": "DecisionScaleQuestion",
+                                          "abstractKey": null
+                                        }
+                                      ],
+                                      "storageKey": null
+                                    }
+                                  ],
+                                  "type": "DecisionTaskConfig",
+                                  "abstractKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -356,7 +548,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v3/*:: as any*/),
+                        (v4/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -383,18 +575,12 @@ return {
                           "name": "outputConfigs",
                           "plural": true,
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "__typename",
-                              "storageKey": null
-                            },
+                            (v3/*:: as any*/),
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v3/*:: as any*/),
                                 (v4/*:: as any*/),
+                                (v8/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -403,13 +589,7 @@ return {
                                   "name": "values",
                                   "plural": true,
                                   "selections": [
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "label",
-                                      "storageKey": null
-                                    },
+                                    (v7/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -427,10 +607,10 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v3/*:: as any*/),
                                 (v4/*:: as any*/),
-                                (v5/*:: as any*/),
-                                (v6/*:: as any*/)
+                                (v8/*:: as any*/),
+                                (v9/*:: as any*/),
+                                (v10/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -438,8 +618,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v3/*:: as any*/),
                                 (v4/*:: as any*/),
+                                (v8/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -447,8 +627,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v5/*:: as any*/),
-                                (v6/*:: as any*/)
+                                (v9/*:: as any*/),
+                                (v10/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -478,6 +658,6 @@ return {
 };
 })();
 
-(node as any).hash = "2f599c361edddf25885c1e1c6421cd3f";
+(node as any).hash = "518ea72e7b204e7babee1273be2567f8";
 
 export default node;
