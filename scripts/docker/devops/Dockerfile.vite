@@ -77,6 +77,8 @@ WORKDIR /phoenix
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
+# Bind all IPv4 and IPv6 interfaces (dual-stack) for HTTP, gRPC, and Prometheus.
+ENV PHOENIX_HOST=::
 
 # Expose ports
 EXPOSE 6006 4317 9090

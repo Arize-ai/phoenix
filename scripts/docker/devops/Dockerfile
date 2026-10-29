@@ -118,6 +118,8 @@ COPY --from=backend-builder /phoenix/.venv/bin/monty /usr/local/bin/monty
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
+# Bind all IPv4 and IPv6 interfaces (dual-stack) for HTTP, gRPC, and Prometheus.
+ENV PHOENIX_HOST=::
 
 # Create VS Code configuration for debugging
 RUN mkdir -p /phoenix/env/phoenix/.vscode
