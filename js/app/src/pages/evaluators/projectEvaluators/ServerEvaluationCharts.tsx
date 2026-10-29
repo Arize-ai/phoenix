@@ -184,11 +184,7 @@ export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
       flex="none"
     >
       <ChartPanelStrip chartCount={3}>
-        <ChartPanel
-          title="Queue size"
-          subtitle="Evaluations queued or running, by project"
-          fillHeight
-        >
+        <ChartPanel title="Queue size by project" fillHeight>
           <QueueSizeChart
             activity={activity}
             projectSeries={projectSeries}
@@ -196,11 +192,7 @@ export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
             xAxisProps={xAxisProps}
           />
         </ChartPanel>
-        <ChartPanel
-          title="Queued vs completed"
-          subtitle="Evaluations entering and leaving the queue"
-          fillHeight
-        >
+        <ChartPanel title="Queued vs completed" fillHeight>
           <QueuedVsCompletedChart activity={activity} xAxisProps={xAxisProps} />
         </ChartPanel>
         <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
@@ -442,11 +434,12 @@ function TopProjectsPanel({
     }
     const ranked = series
       .map((entry) => ({ ...entry, value: totals.get(entry.key) ?? 0 }))
-      .filter((entry) => entry.key !== OTHER_PROJECTS_KEY)
+      .filter((entry) => entry.key !== OTHER_PROJECTS_KEY && entry.value > 0)
       .sort((a, b) => b.value - a.value);
     const other = series.find((entry) => entry.key === OTHER_PROJECTS_KEY);
-    return other != null
-      ? [...ranked, { ...other, value: totals.get(other.key) ?? 0 }]
+    const otherValue = other != null ? (totals.get(other.key) ?? 0) : 0;
+    return other != null && otherValue > 0
+      ? [...ranked, { ...other, value: otherValue }]
       : ranked;
   }, [activity.groups, getKey, metric, series]);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
@@ -455,11 +448,6 @@ function TopProjectsPanel({
   return (
     <ChartPanel
       title="Top projects"
-      subtitle={
-        metric === "evaluations"
-          ? "Evaluations completed, by project"
-          : "Estimated LLM cost of evaluations, by project"
-      }
       fillHeight
       actions={
         <ToggleButtonGroup

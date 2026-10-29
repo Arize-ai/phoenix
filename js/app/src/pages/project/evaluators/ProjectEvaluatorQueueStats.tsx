@@ -459,7 +459,7 @@ function QueueLagStat({
               Queued to result, last hour
             </Text>
             <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-              {`Longest wait now: ${projectOldestQueuedAt != null ? formatElapsedShort(projectOldestQueuedAt) : "none"}`}
+              {`Longest wait: ${projectOldestQueuedAt != null ? formatElapsedShort(projectOldestQueuedAt) : "none"}`}
             </Text>
           </>
         }

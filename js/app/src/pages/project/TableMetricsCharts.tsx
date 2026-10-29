@@ -60,6 +60,9 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
               projectId={projectId}
               timeRange={timeRange}
               onTimeRangeSelected={setCustomTimeRange}
+              // Evaluator chart titles say what they show; their descriptions
+              // stay in the picker.
+              subtitle={view === "evaluators" ? "" : undefined}
               fillHeight
             />
           ))}

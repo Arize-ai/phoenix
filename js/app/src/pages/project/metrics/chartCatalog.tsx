@@ -199,14 +199,14 @@ const CHART_DEFINITIONS: Record<
     Component: EvaluationsByEvaluatorTimeSeries,
   },
   evaluation_lag_by_evaluator: {
-    name: "Evaluation lag by evaluator",
-    description: "95th percentile time from queued to result",
+    name: "Lag p95 by evaluator",
+    description: "Time from queued to result",
     chartType: "line",
     Component: EvaluationLagByEvaluatorTimeSeries,
   },
   cost_by_evaluator: {
     name: "Cost by evaluator",
-    description: "Estimated cost in USD and share of the total",
+    description: "Estimated cost and share of total",
     chartType: "barHorizontal",
     Component: CostByEvaluator,
   },
@@ -218,13 +218,13 @@ const CHART_DEFINITIONS: Record<
   },
   cost_over_time_by_evaluator: {
     name: "Cost over time by evaluator",
-    description: "Estimated cost in USD",
+    description: "Estimated cost per interval",
     chartType: "bar",
     Component: CostOverTimeByEvaluatorTimeSeries,
   },
   evaluation_queue_size: {
     name: "Queue size",
-    description: "Queued evaluations at the end of each interval",
+    description: "Queued or running evaluations",
     chartType: "line",
     Component: EvaluationQueueSizeTimeSeries,
   },

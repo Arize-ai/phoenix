@@ -331,7 +331,7 @@ function EvaluatorTimeSeriesChart({
                   strokeDasharray="4 4"
                   ifOverflow="extendDomain"
                   label={{
-                    value: `Degraded after ${formatLag(DEGRADED_LAG_SECONDS)}`,
+                    value: formatLag(DEGRADED_LAG_SECONDS),
                     position: "insideTopRight",
                     fill: semanticColors.warning,
                     fontSize: 12,

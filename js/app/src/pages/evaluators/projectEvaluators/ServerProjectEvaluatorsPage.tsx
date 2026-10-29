@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useState } from "react";
+import type { SortingState } from "@tanstack/react-table";
+import { Suspense, useCallback, useRef, useState } from "react";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
@@ -11,7 +12,10 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
 import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationQueueStrip";
-import { ServerProjectEvaluatorsTable } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
+import {
+  QUEUE_SHARE_SORTING,
+  ServerProjectEvaluatorsTable,
+} from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 const pageCSS = css`
@@ -45,6 +49,14 @@ function ServerProjectEvaluatorsPageContent() {
   // the table refetch at once instead of on their next poll.
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "queue", desc: true },
+  ]);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const showQueueDrivers = useCallback(() => {
+    setSorting(QUEUE_SHARE_SORTING);
+    tableScrollRef.current?.scrollTo({ top: 0 });
+  }, []);
   return (
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
@@ -54,6 +66,7 @@ function ServerProjectEvaluatorsPageContent() {
         <ServerEvaluationQueueStrip
           refreshKey={refreshKey}
           onQueueCleared={refresh}
+          onShowQueueDrivers={showQueueDrivers}
         />
         <Suspense fallback={<ChartPanelStripSkeleton />}>
           <ServerEvaluationCharts fetchKey={refreshKey} />
@@ -61,18 +74,20 @@ function ServerProjectEvaluatorsPageContent() {
         <View padding="size-100" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
             <DebouncedSearch
-              aria-label="Search by evaluator or project name"
-              placeholder="Search by evaluator or project name"
+              aria-label="Search evaluators or projects"
+              placeholder="Search evaluators or projects"
               defaultValue={filter}
               onChange={setFilter}
             />
           </Flex>
         </View>
-        <div css={tableScrollCSS}>
+        <div css={tableScrollCSS} ref={tableScrollRef}>
           <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <ServerProjectEvaluatorsTable
               filter={filter}
               fetchKey={refreshKey}
+              sorting={sorting}
+              onSortingChange={setSorting}
             />
           </Suspense>
         </div>
