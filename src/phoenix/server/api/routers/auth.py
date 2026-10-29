@@ -51,7 +51,6 @@ from phoenix.server.types import (
     AccessTokenClaims,
     PasswordResetToken,
     PasswordResetTokenClaims,
-    PasswordResetTokenId,
     RefreshTokenClaims,
     TokenStore,
     UserId,
@@ -165,12 +164,7 @@ async def _login(request: Request) -> Response:
         user = await session.scalar(
             select(models.User)
             .where(func.lower(models.User.email) == email)
-            .options(
-                joinedload(models.User.role),
-                joinedload(models.User.password_reset_token).load_only(
-                    models.PasswordResetToken.id
-                ),
-            )
+            .options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -271,11 +265,9 @@ async def _refresh_tokens(request: Request) -> Response:
 
 
 async def _issue_password_reset_token(request: Request, user: models.User) -> PasswordResetToken:
-    """Revoke any existing reset token for the user and issue a new one."""
+    """Replace any existing reset token for the user and issue a new one."""
     assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if user.password_reset_token:
-        await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
     password_reset_token_claims = PasswordResetTokenClaims(
         subject=UserId(user.id),
         issued_at=datetime.now(timezone.utc),
@@ -301,11 +293,7 @@ async def _initiate_password_reset(request: Request) -> Response:
         raise SMTP_UNAVAILABLE
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(models.User)
-            .where(func.lower(models.User.email) == email)
-            .options(
-                joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
-            )
+            select(models.User).where(func.lower(models.User.email) == email)
         )
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information

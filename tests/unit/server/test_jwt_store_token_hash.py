@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import contextlib
 import hashlib
@@ -37,6 +38,7 @@ from phoenix.server.types import (
     ApiKeyClaims,
     ApiKeyId,
     DbSessionFactory,
+    PasswordResetTokenClaims,
     RefreshTokenAttributes,
     RefreshTokenClaims,
     TokenId,
@@ -260,6 +262,26 @@ class TestDerivedSigningKey:
     async def test_deeply_nested_payload_is_rejected(self, db: DbSessionFactory) -> None:
         payload = b"[" * 2000 + b"]" * 2000
         assert await _derived_store(db).read(_sign_bytes(_derived_key(), payload)) is None
+
+    async def test_concurrent_password_reset_tokens_leave_one_valid_token(
+        self, db: DbSessionFactory
+    ) -> None:
+        store = _derived_store(db)
+        user_id = await _create_user(db)
+        now = datetime.now(timezone.utc)
+        claims = PasswordResetTokenClaims(
+            subject=user_id,
+            issued_at=now,
+            expiration_time=now + timedelta(minutes=10),
+        )
+        issued = await asyncio.gather(
+            *(store.create_password_reset_token(claims) for _ in range(4))
+        )
+        valid = [token for token, _ in issued if await store.read(token) is not None]
+        replica = _derived_store(db)
+        replica_valid = [token for token, _ in issued if await replica.read(token) is not None]
+        assert len(valid) == 1
+        assert replica_valid == valid
 
 
 class TestConfiguredSecret:
