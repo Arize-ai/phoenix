@@ -1,12 +1,12 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { Heading } from "react-aria-components";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Alert,
   Button,
-  Card,
   Counter,
   DialogTrigger,
   Flex,
@@ -21,56 +21,48 @@ import {
   TabList,
   Tabs,
   Text,
-  Token,
   View,
   ViewportModal,
   ViewportModalOverlay,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { JSONBlock } from "@phoenix/components/code";
-import { tableCSS } from "@phoenix/components/table/styles";
-import { UserDisplay } from "@phoenix/components/user/UserDisplay";
-import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
-import type { DecisionPage_versions$key } from "./__generated__/DecisionPage_versions.graphql";
 import type { DecisionPageQuery } from "./__generated__/DecisionPageQuery.graphql";
-import type { DecisionPageVersionsQuery } from "./__generated__/DecisionPageVersionsQuery.graphql";
 import { CloneDecisionDialog } from "./CloneDecisionDialog";
-import {
-  DeleteDecisionButton,
-  DeleteDecisionTagButton,
-  EditDecisionButton,
-} from "./DecisionActions";
 import { DecisionLabelConfigButton } from "./DecisionLabelConfigButton";
 import { DecisionLabels } from "./DecisionLabels";
+import { DecisionLatestVersionsList } from "./DecisionLatestVersionsList";
 import { DecisionVersionDetails } from "./DecisionVersionDetails";
+import { DecisionVersionsList } from "./DecisionVersionsList";
+import { DecisionVersionTagsConfigCard } from "./DecisionVersionTagsConfigCard";
+import { EditDecisionButton } from "./EditDecisionButton";
 
+// The same shell as PromptLayout: the tabs fill the page and each tab's
+// panes scroll on their own.
 const mainCSS = css`
   flex: 1 1 auto;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   .tabs {
     flex: 1 1 auto;
-    min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
     div[role="tablist"] {
       flex: none;
     }
     .tabs__pane-container {
       flex: 1 1 auto;
-      min-height: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       div[role="tabpanel"]:not([hidden]) {
         flex: 1 1 auto;
-        min-height: 0;
         display: flex;
-        overflow: auto;
+        flex-direction: column;
+        overflow: hidden;
       }
     }
   }
@@ -138,17 +130,9 @@ function DecisionDetails({
               description
               decisionVersionId
             }
-            # The version numbers the tag table shows; tags carry only ids.
-            taggedVersionNumbers: versions(first: 100) {
-              edges {
-                node {
-                  id
-                  sequenceNumber
-                }
-              }
-            }
             ...DecisionLabels
-            ...DecisionPage_versions
+            ...DecisionLatestVersionsList_decision
+            ...DecisionVersionsList_versions
             version(versionId: $versionId) {
               id
               ...DecisionVersionDetails_version
@@ -170,24 +154,19 @@ function DecisionDetails({
       </View>
     );
   const version = decision.version;
-  const tagNames = decision.versionTags.map((tag) => tag.name);
-  const versionNumberById = new Map(
-    decision.taggedVersionNumbers.edges.map(({ node }) => [
-      node.id,
-      node.sequenceNumber,
-    ])
-  );
-  const versionDetails = version ? (
-    <DecisionVersionDetails
-      versionRef={version}
-      decisionId={decision.id}
-      tagNames={tagNames}
-      onRefresh={onRefresh}
-      isOverview={selectedTab === "decision"}
-    />
-  ) : (
-    <Alert variant="warning">This version could not be found.</Alert>
-  );
+  const decisionTagNames = decision.versionTags.map((tag) => tag.name);
+  const versionDetails = (isOverview: boolean) =>
+    version ? (
+      <DecisionVersionDetails
+        versionRef={version}
+        decisionId={decision.id}
+        decisionTagNames={decisionTagNames}
+        onRefresh={onRefresh}
+        isOverview={isOverview}
+      />
+    ) : (
+      <Alert variant="warning">This version could not be found.</Alert>
+    );
   return (
     <main css={mainCSS}>
       <PageHeader
@@ -203,10 +182,13 @@ function DecisionDetails({
           ) : undefined
         }
         extra={
-          <Flex gap="size-100" alignItems="center">
+          <Flex direction="row" gap="size-100" justifyContent="end">
             <CanModify>
               <DialogTrigger>
-                <Button leadingVisual={<Icon svg={<Icons.GitBranch />} />}>
+                <Button
+                  size="M"
+                  leadingVisual={<Icon svg={<Icons.GitBranch />} />}
+                >
                   Clone
                 </Button>
                 <ViewportModalOverlay>
@@ -224,7 +206,9 @@ function DecisionDetails({
             <LinkButton
               variant="primary"
               leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              to={`/playground?${new URLSearchParams({ decisionId: decision.id, ...(version ? { decisionVersionId: version.id } : {}) })}`}
+              to={`/playground?decisionId=${encodeURIComponent(decision.id)}`}
+              size="M"
+              aria-label="Open this Decision in Playground"
             >
               Playground
             </LinkButton>
@@ -247,38 +231,61 @@ function DecisionDetails({
           <Tab id="config">Config</Tab>
         </TabList>
         <LazyTabPanel id="decision">
-          <div
-            css={css`
-              display: flex;
-              flex: 1 1 auto;
-              min-width: 0;
-              @media (max-width: 1000px) {
-                flex-direction: column;
-              }
-            `}
-          >
-            <div
-              css={css`
-                flex: 1 1 auto;
-                min-width: 0;
-                padding: var(--global-dimension-size-200);
-                overflow: auto;
-              `}
+          <Flex direction="row" height="100%">
+            <View
+              height="100%"
+              overflow="auto"
+              width="100%"
+              data-testid="scroll-container"
             >
-              {versionDetails}
-            </div>
-            <aside
-              css={css`
-                flex: 0 0 400px;
-                border-left: 1px solid var(--global-border-color-default);
-                padding: var(--global-dimension-size-200);
-                overflow: auto;
-              `}
+              <View padding="size-200">{versionDetails(true)}</View>
+            </View>
+            <View
+              flex="none"
+              width={400}
+              height="100%"
+              borderStartColor="default"
+              borderStartWidth="thin"
             >
-              <Flex direction="column" gap="size-200">
-                <Card
-                  title="Description"
-                  extra={
+              <View padding="size-200" overflow="auto" height="100%">
+                <Flex
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Heading level={3}>Description</Heading>
+                  <CanModify>
+                    <EditDecisionButton
+                      decisionId={decision.id}
+                      description={decision.description}
+                      metadata={decision.metadata}
+                      onSaved={onRefresh}
+                    />
+                  </CanModify>
+                </Flex>
+                <Text color={decision.description ? "text-900" : "text-700"}>
+                  {decision.description || "No Description"}
+                </Text>
+                <section>
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Heading level={3}>Labels</Heading>
+                    <CanModify>
+                      <DecisionLabelConfigButton decisionId={decision.id} />
+                    </CanModify>
+                  </Flex>
+                  <DecisionLabels decision={decision} />
+                </section>
+                <section>
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Heading level={3}>Metadata</Heading>
                     <CanModify>
                       <EditDecisionButton
                         decisionId={decision.id}
@@ -287,265 +294,66 @@ function DecisionDetails({
                         onSaved={onRefresh}
                       />
                     </CanModify>
-                  }
-                >
-                  <View padding="size-200">
-                    <Text>{decision.description || "No description"}</Text>
-                  </View>
-                </Card>
-                <Card
-                  title="Labels"
-                  extra={
-                    <CanModify>
-                      <DecisionLabelConfigButton decisionId={decision.id} />
-                    </CanModify>
-                  }
-                >
-                  <View padding="size-200">
-                    <DecisionLabels decision={decision} />
-                  </View>
-                </Card>
-                <Card title="Metadata">
+                  </Flex>
                   <JSONBlock
-                    value={JSON.stringify(decision.metadata, null, 2)}
+                    value={
+                      decision.metadata
+                        ? JSON.stringify(decision.metadata, null, 2)
+                        : "{}"
+                    }
                   />
-                </Card>
-                <Card title="Latest versions">
-                  <DecisionVersions
-                    query={decision}
-                    selectedVersionId={version?.id ?? null}
-                    decisionId={decision.id}
-                    isOverview
-                  />
-                </Card>
-              </Flex>
-            </aside>
-          </div>
+                </section>
+                <section>
+                  <Heading level={3}>Latest Versions</Heading>
+                  <DecisionLatestVersionsList decisionRef={decision} />
+                </section>
+              </View>
+            </View>
+          </Flex>
         </LazyTabPanel>
         <LazyTabPanel id="versions">
-          <div
-            css={css`
-              display: flex;
-              flex: 1 1 auto;
-              min-width: 0;
-              @media (max-width: 800px) {
-                flex-direction: column;
-              }
-            `}
-          >
-            <aside
-              css={css`
-                flex: 0 0 400px;
-                border-right: 1px solid var(--global-border-color-default);
-                overflow: auto;
-              `}
-            >
-              <DecisionVersions
-                query={decision}
-                selectedVersionId={version?.id ?? null}
+          <View height="100%">
+            <Flex direction="row" height="100%">
+              <DecisionVersionsList
+                decisionRef={decision}
                 decisionId={decision.id}
+                selectedVersionId={version?.id ?? null}
               />
-            </aside>
-            <div
-              css={css`
-                flex: 1 1 auto;
-                min-width: 0;
-                overflow: auto;
-                padding: var(--global-dimension-size-200);
-              `}
-            >
-              {versionDetails}
-            </div>
-          </div>
-        </LazyTabPanel>
-        <LazyTabPanel id="config">
-          <View padding="size-200" width="100%">
-            <Flex
-              direction="column"
-              gap="size-200"
-              maxWidth={900}
-              marginStart="auto"
-              marginEnd="auto"
-            >
-              <Card title="Version tags">
-                <table css={tableCSS} aria-label="Decision version tags">
-                  <thead>
-                    <tr>
-                      <th scope="col">Tag</th>
-                      <th scope="col">Version</th>
-                      <th scope="col">Description</th>
-                      <th scope="col">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {decision.versionTags.map((tag) => (
-                      <tr key={tag.id}>
-                        <td>
-                          <TagVersionLabel>{tag.name}</TagVersionLabel>
-                        </td>
-                        <td>
-                          <Link
-                            to={`/prompts/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
-                          >
-                            {versionNumberById.has(tag.decisionVersionId)
-                              ? `Version ${versionNumberById.get(tag.decisionVersionId)}`
-                              : tag.decisionVersionId}
-                          </Link>
-                        </td>
-                        <td>{tag.description || "—"}</td>
-                        <td>
-                          <CanModify>
-                            <DeleteDecisionTagButton
-                              tagId={tag.id}
-                              name={tag.name}
-                              onDeleted={onRefresh}
-                            />
-                          </CanModify>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {decision.versionTags.length === 0 ? (
-                  <View padding="size-200">
-                    <Text color="text-700">
-                      No version tags. Select a version to add a tag.
-                    </Text>
-                  </View>
-                ) : null}
-              </Card>
-              <Card title="Decision settings">
-                <View padding="size-200">
-                  <Flex justifyContent="space-between" gap="size-100">
-                    <LinkButton to="/settings/prompts">
-                      Manage decision labels
-                    </LinkButton>
-                    <CanModify>
-                      <DeleteDecisionButton
-                        decisionId={decision.id}
-                        name={decision.name}
-                        onDeleted={() => navigate("/prompts/decisions")}
-                      />
-                    </CanModify>
-                  </Flex>
+              <View width="100%" overflow="auto" elementType="section">
+                <View padding="size-200" width="100%" overflow="auto">
+                  {versionDetails(false)}
                 </View>
-              </Card>
+              </View>
             </Flex>
           </View>
         </LazyTabPanel>
+        <LazyTabPanel id="config">
+          <Flex direction="row" height="100%">
+            <View
+              height="100%"
+              overflow="auto"
+              width="100%"
+              data-testid="scroll-container"
+            >
+              <View padding="size-200">
+                <Flex
+                  direction="column"
+                  gap="size-200"
+                  marginStart="auto"
+                  marginEnd="auto"
+                  maxWidth={900}
+                >
+                  <DecisionVersionTagsConfigCard
+                    decisionId={decision.id}
+                    versionTags={decision.versionTags}
+                    onDeleted={onRefresh}
+                  />
+                </Flex>
+              </View>
+            </View>
+          </Flex>
+        </LazyTabPanel>
       </Tabs>
     </main>
-  );
-}
-
-function DecisionVersions({
-  query,
-  selectedVersionId,
-  decisionId,
-  isOverview = false,
-}: {
-  query: DecisionPage_versions$key;
-  selectedVersionId: string | null;
-  decisionId: string;
-  isOverview?: boolean;
-}) {
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    DecisionPageVersionsQuery,
-    DecisionPage_versions$key
-  >(
-    graphql`
-      fragment DecisionPage_versions on Decision
-      @refetchable(queryName: "DecisionPageVersionsQuery")
-      @argumentDefinitions(
-        first: { type: "Int", defaultValue: 20 }
-        after: { type: "String" }
-      ) {
-        versions(first: $first, after: $after)
-          @connection(key: "DecisionPage_versions") {
-          edges {
-            node {
-              id
-              sequenceNumber
-              createdAt
-              description
-              modelName
-              user {
-                username
-                profilePictureUrl
-              }
-              tags {
-                id
-                name
-              }
-            }
-          }
-        }
-      }
-    `,
-    query
-  );
-  const versions = isOverview
-    ? data.versions.edges.slice(0, 5)
-    : data.versions.edges;
-  return (
-    <Flex direction="column">
-      {versions.map(({ node: version }) => (
-        <View
-          key={version.id}
-          padding="size-200"
-          borderBottomWidth="thin"
-          borderColor="default"
-          backgroundColor={
-            version.id === selectedVersionId && !isOverview
-              ? "gray-100"
-              : undefined
-          }
-        >
-          <Flex direction="column" gap="size-100">
-            <Flex justifyContent="space-between" gap="size-100">
-              <Link
-                to={`/prompts/decisions/${decisionId}/versions/${version.id}`}
-                aria-current={
-                  version.id === selectedVersionId && !isOverview
-                    ? "page"
-                    : undefined
-                }
-              >
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <Token color="var(--global-color-blue-900)">
-                    {version.sequenceNumber}
-                  </Token>
-                  <span>{version.id}</span>
-                </Flex>
-              </Link>
-              <Text color="text-700">
-                {new Date(version.createdAt).toLocaleDateString()}
-              </Text>
-            </Flex>
-            {version.description ? <Text>{version.description}</Text> : null}
-            <Text color="text-700">{version.modelName}</Text>
-            <UserDisplay user={version.user} />
-            <Flex gap="size-100" wrap>
-              {version.tags.map((tag) => (
-                <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
-              ))}
-            </Flex>
-          </Flex>
-        </View>
-      ))}
-      {isOverview ? (
-        <View padding="size-200">
-          <Link to={`/prompts/decisions/${decisionId}/versions`}>
-            View all versions
-          </Link>
-        </View>
-      ) : hasNext ? (
-        <View padding="size-200">
-          <Button onPress={() => loadNext(20)} isDisabled={isLoadingNext}>
-            {isLoadingNext ? "Loading…" : "Load more versions"}
-          </Button>
-        </View>
-      ) : null}
-    </Flex>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0f144edb435c6cc0ea32dc53d72f37c>>
+ * @generated SignedSource<<860350c00c14a5f181291ccc85707707>>
  * @lightSyntaxTransform
  */
 
@@ -10,8 +10,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DecisionVersionDetails_version$data = {
-  readonly createdAt: string;
-  readonly description: string | null;
   readonly id: string;
   readonly metadata: any;
   readonly previousVersion: {
@@ -22,10 +20,6 @@ export type DecisionVersionDetails_version$data = {
     readonly id: string;
     readonly name: string;
   }>;
-  readonly user: {
-    readonly profilePictureUrl: string | null;
-    readonly username: string;
-  } | null;
   readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionDetails_definition">;
   readonly " $fragmentType": "DecisionVersionDetails_version";
 };
@@ -58,46 +52,7 @@ return {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "createdAt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
       "name": "metadata",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "User",
-      "kind": "LinkedField",
-      "name": "user",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "username",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "profilePictureUrl",
-          "storageKey": null
-        }
-      ],
       "storageKey": null
     },
     {
@@ -139,6 +94,6 @@ return {
 };
 })();
 
-(node as any).hash = "ba3e8075ad8ceb87e96c03f458369923";
+(node as any).hash = "42e56ebf0cb6426763633492ecd844ea";
 
 export default node;
