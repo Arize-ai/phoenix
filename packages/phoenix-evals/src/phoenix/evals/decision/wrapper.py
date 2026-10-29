@@ -174,12 +174,7 @@ class DecisionModel:
 
     @staticmethod
     def _record_usage_on_span(result: Dict[str, Any]) -> None:
-        """Move per-call telemetry from the result onto the current DECISION span.
-
-        ``@trace`` makes its span current while the method runs, so this pops ``usage`` off the
-        result (keeping it out of ``Score.metadata``) and sets the response model name and token
-        counts on the span, where they show up once per call in the trace.
-        """
+        """Moves usage and the response model from the result onto the current span."""
         usage = result.pop("usage", None) or {}
         span = trace_api.get_current_span()
         attributes = {
