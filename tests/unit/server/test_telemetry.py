@@ -1,3 +1,4 @@
+import pytest
 import strawberry
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -48,8 +49,8 @@ class TestGraphQLTracingExtension:
     @strawberry.type
     class Query:
         @strawberry.field
-        def user(self, email: str) -> str:
-            return email
+        def spans(self, filter_condition: str) -> str:
+            return filter_condition
 
     @strawberry.type
     class Mutation:
@@ -57,51 +58,59 @@ class TestGraphQLTracingExtension:
         def create_user(self, input: "TestGraphQLTracingExtension.CreateUserInput") -> str:
             return input.email
 
-    async def test_spans_carry_no_document_or_arguments(self) -> None:
-        exporter = InMemorySpanExporter()
+        @strawberry.mutation
+        def create_project(self, name: str) -> str:
+            return name
+
+    @pytest.fixture
+    def exporter(self) -> InMemorySpanExporter:
+        return InMemorySpanExporter()
+
+    @pytest.fixture
+    def schema(self, exporter: InMemorySpanExporter) -> strawberry.Schema:
         tracer_provider = TracerProvider()
         tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
-        schema = strawberry.Schema(
+        return strawberry.Schema(
             query=self.Query,
             mutation=self.Mutation,
             extensions=[graphql_tracing_extension(tracer_provider)],
         )
-        document = """
-            mutation CreateUser($input: CreateUserInput!) { createUser(input: $input) }
-        """
+
+    async def test_sensitive_resolver_arguments_are_redacted(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        document = "mutation CreateUser($input: CreateUserInput!) { createUser(input: $input) }"
         variables = {"input": {"email": "alice@example.com", "password": "hunter2"}}
 
         result = await schema.execute(document, variable_values=variables)
 
         assert result.errors is None
-        spans = exporter.get_finished_spans()
-        assert {span.name for span in spans} >= {
-            "GraphQL Query: CreateUser",
-            "GraphQL Resolving: createUser",
-        }
-        for span in spans:
-            attributes = dict(span.attributes or {})
-            assert "query" not in attributes
-            assert not any(key.startswith("graphql.param.") for key in attributes)
-            assert "alice@example.com" not in str(attributes)
-            assert "hunter2" not in str(attributes)
-        (resolver_span,) = [span for span in spans if span.name == "GraphQL Resolving: createUser"]
-        assert dict(resolver_span.attributes or {}) == {
+        spans = {span.name: dict(span.attributes or {}) for span in exporter.get_finished_spans()}
+        assert spans["GraphQL Resolving: createUser"] == {
             "component": "graphql",
             "graphql.parentType": "Mutation",
             "graphql.path": "createUser",
+            "graphql.param.input": "[redacted]",
         }
+        assert spans["GraphQL Query: CreateUser"]["query"] == document
+        for attributes in spans.values():
+            assert "alice@example.com" not in str(attributes)
+            assert "hunter2" not in str(attributes)
 
-    async def test_anonymous_operation_is_named_after_parsing(self) -> None:
-        exporter = InMemorySpanExporter()
-        tracer_provider = TracerProvider()
-        tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
-        schema = strawberry.Schema(
-            query=self.Query, extensions=[graphql_tracing_extension(tracer_provider)]
+    async def test_other_resolver_arguments_are_recorded(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        result = await schema.execute(
+            'mutation CreateProject { createProject(name: "demo") }',
         )
-
-        result = await schema.execute('query LookUp { user(email: "a@b.c") }')
-
         assert result.errors is None
-        names = {span.name for span in exporter.get_finished_spans()}
-        assert "GraphQL Query: LookUp" in names
+        result = await schema.execute(
+            "query Spans { spans(filterCondition: \"span_kind == 'LLM'\") }",
+        )
+        assert result.errors is None
+
+        spans = {span.name: dict(span.attributes or {}) for span in exporter.get_finished_spans()}
+        assert spans["GraphQL Resolving: createProject"]["graphql.param.name"] == "demo"
+        assert spans["GraphQL Resolving: spans"]["graphql.param.filterCondition"] == (
+            "span_kind == 'LLM'"
+        )
