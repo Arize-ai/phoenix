@@ -736,7 +736,7 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get -yqq install postgresql-14
       - name: Sync dependencies
-        run: uv sync --frozen --all-packages --no-group sandbox
+        run: uv sync --frozen --all-packages
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
@@ -804,7 +804,7 @@ jobs:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
       - name: Sync dependencies
-        run: uv sync --frozen --no-group sandbox
+        run: uv sync --frozen
       # Return the next major version in response headers so all client methods
       # work; otherwise, some may be version-gated. Avoids importing phoenix
       # (which triggers heavy deps like pandas/numpy).
