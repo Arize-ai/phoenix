@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8940535ecbb7bf7a1ee973f2bafcb39f>>
+ * @generated SignedSource<<54506e71f72a2a5610fc9c23a4b4302e>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,6 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
@@ -54,12 +53,6 @@ export type experimentRehydrationQuery$data = {
           };
           readonly id: string;
         } | null;
-        readonly inputValuesPath: string;
-        readonly inputs: ReadonlyArray<{
-          readonly description: string | null;
-          readonly jsonSchema: any | null;
-          readonly name: string;
-        }>;
         readonly modelName: string;
         readonly modelProvider: GenerativeProviderKey;
         readonly questions: ReadonlyArray<{
@@ -92,20 +85,18 @@ export type experimentRehydrationQuery$data = {
           readonly __typename: "%other";
         }>;
         readonly state: {
-          readonly __typename: "DecisionInputState";
-          readonly input: string;
-        } | {
-          readonly __typename: "DecisionObjectState";
-          readonly object: boolean;
+          readonly __typename: "DecisionJsonState";
+          readonly json: any;
         } | {
           readonly __typename: "DecisionTextState";
-          readonly template: string;
-          readonly templateFormat: DecisionTemplateFormat;
+          readonly text: string;
         } | {
           // This will never be '%other', but we need some
           // value in case none of the concrete values match.
           readonly __typename: "%other";
         };
+        readonly templateFormat: PromptTemplateFormat;
+        readonly templateVariablesPath: string;
       } | {
         readonly __typename: "PromptTaskConfig";
         readonly connection: {
@@ -387,7 +378,7 @@ v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "templateVariablesPath",
   "storageKey": null
 },
 v16 = {
@@ -397,27 +388,37 @@ v16 = {
   "name": "templateFormat",
   "storageKey": null
 },
-v17 = {
+v17 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "text",
+    "storageKey": null
+  }
+],
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "instructions",
   "storageKey": null
 },
-v18 = {
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     (v9/*:: as any*/),
     (v10/*:: as any*/),
     (v11/*:: as any*/),
     (v14/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "inputValuesPath",
-      "storageKey": null
-    },
+    (v15/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -440,26 +441,7 @@ v18 = {
       ],
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DecisionInputDefinition",
-      "kind": "LinkedField",
-      "name": "inputs",
-      "plural": true,
-      "selections": [
-        (v12/*:: as any*/),
-        (v15/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "jsonSchema",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
+    (v16/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -471,45 +453,22 @@ v18 = {
         (v8/*:: as any*/),
         {
           "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "object",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionObjectState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "input",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionInputState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "template",
-              "storageKey": null
-            },
-            (v16/*:: as any*/)
-          ],
+          "selections": (v17/*:: as any*/),
           "type": "DecisionTextState",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "json",
+              "storageKey": null
+            }
+          ],
+          "type": "DecisionJsonState",
           "abstractKey": null
         }
       ],
@@ -528,7 +487,7 @@ v18 = {
           "kind": "InlineFragment",
           "selections": [
             (v12/*:: as any*/),
-            (v17/*:: as any*/),
+            (v18/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -562,7 +521,7 @@ v18 = {
           "kind": "InlineFragment",
           "selections": [
             (v12/*:: as any*/),
-            (v17/*:: as any*/),
+            (v18/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -578,7 +537,7 @@ v18 = {
                   "name": "value",
                   "storageKey": null
                 },
-                (v15/*:: as any*/)
+                (v19/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -590,7 +549,7 @@ v18 = {
           "kind": "InlineFragment",
           "selections": [
             (v12/*:: as any*/),
-            (v17/*:: as any*/),
+            (v18/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -606,7 +565,7 @@ v18 = {
                   "name": "label",
                   "storageKey": null
                 },
-                (v15/*:: as any*/)
+                (v19/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -621,21 +580,21 @@ v18 = {
   "type": "DecisionTaskConfig",
   "abstractKey": null
 },
-v19 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "templateType",
   "storageKey": null
 },
-v20 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v21 = {
+v23 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -681,15 +640,7 @@ v21 = {
                       "kind": "LinkedField",
                       "name": "text",
                       "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "text",
-                          "storageKey": null
-                        }
-                      ],
+                      "selections": (v17/*:: as any*/),
                       "storageKey": null
                     }
                   ],
@@ -707,7 +658,7 @@ v21 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v20/*:: as any*/),
+                        (v22/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -745,7 +696,7 @@ v21 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v20/*:: as any*/),
+                        (v22/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -773,14 +724,14 @@ v21 = {
   ],
   "storageKey": null
 },
-v22 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v23 = {
+v25 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptTools",
@@ -809,7 +760,7 @@ v23 = {
               "plural": false,
               "selections": [
                 (v12/*:: as any*/),
-                (v15/*:: as any*/),
+                (v19/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -817,7 +768,7 @@ v23 = {
                   "name": "parameters",
                   "storageKey": null
                 },
-                (v22/*:: as any*/)
+                (v24/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -877,7 +828,7 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponseFormatJSONSchema",
@@ -894,7 +845,7 @@ v24 = {
       "plural": false,
       "selections": [
         (v12/*:: as any*/),
-        (v15/*:: as any*/),
+        (v19/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -902,52 +853,52 @@ v24 = {
           "name": "schema",
           "storageKey": null
         },
-        (v22/*:: as any*/)
+        (v24/*:: as any*/)
       ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v25 = {
+v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v26 = {
+v28 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v27 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v28 = {
+v30 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v29 = {
+v31 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v30 = {
+v32 = {
   "kind": "InlineFragment",
   "selections": [
-    (v25/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -962,9 +913,9 @@ v30 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v26/*:: as any*/),
-    (v27/*:: as any*/),
     (v28/*:: as any*/),
+    (v29/*:: as any*/),
+    (v30/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -986,19 +937,19 @@ v30 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v29/*:: as any*/)
+    (v31/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
 },
-v31 = {
+v33 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v32 = {
+v34 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -1008,9 +959,9 @@ v32 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v25/*:: as any*/),
-    (v28/*:: as any*/),
-    (v31/*:: as any*/),
+    (v27/*:: as any*/),
+    (v30/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1090,15 +1041,15 @@ v32 = {
       ],
       "storageKey": null
     },
-    (v29/*:: as any*/)
+    (v31/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
 },
-v33 = {
+v35 = {
   "kind": "InlineFragment",
   "selections": [
-    (v25/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1106,10 +1057,10 @@ v33 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
-    (v31/*:: as any*/),
-    (v27/*:: as any*/),
-    (v26/*:: as any*/),
+    (v33/*:: as any*/),
+    (v29/*:: as any*/),
     (v28/*:: as any*/),
+    (v30/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1153,7 +1104,7 @@ v33 = {
   "type": "PromptGoogleInvocationParameters",
   "abstractKey": null
 },
-v34 = {
+v36 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -1163,24 +1114,24 @@ v34 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v25/*:: as any*/),
-    (v28/*:: as any*/),
-    (v31/*:: as any*/)
+    (v27/*:: as any*/),
+    (v30/*:: as any*/),
+    (v33/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
 },
-v35 = {
+v37 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "openaiApiType",
   "storageKey": null
 },
-v36 = [
+v38 = [
   (v11/*:: as any*/)
 ],
-v37 = {
+v39 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -1193,7 +1144,7 @@ v37 = {
       "kind": "InlineFragment",
       "selections": [
         (v11/*:: as any*/),
-        (v35/*:: as any*/)
+        (v37/*:: as any*/)
       ],
       "type": "OpenAIConnectionConfig",
       "abstractKey": null
@@ -1208,14 +1159,14 @@ v37 = {
           "name": "azureEndpoint",
           "storageKey": null
         },
-        (v35/*:: as any*/)
+        (v37/*:: as any*/)
       ],
       "type": "AzureOpenAIConnectionConfig",
       "abstractKey": null
     },
     {
       "kind": "InlineFragment",
-      "selections": (v36/*:: as any*/),
+      "selections": (v38/*:: as any*/),
       "type": "AnthropicConnectionConfig",
       "abstractKey": null
     },
@@ -1242,14 +1193,14 @@ v37 = {
     },
     {
       "kind": "InlineFragment",
-      "selections": (v36/*:: as any*/),
+      "selections": (v38/*:: as any*/),
       "type": "GoogleGenAIConnectionConfig",
       "abstractKey": null
     }
   ],
   "storageKey": null
 },
-v38 = {
+v40 = {
   "alias": null,
   "args": null,
   "concreteType": "PlaygroundConfig",
@@ -1257,13 +1208,7 @@ v38 = {
   "name": "playgroundConfig",
   "plural": false,
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "templateVariablesPath",
-      "storageKey": null
-    },
+    (v15/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -1274,7 +1219,7 @@ v38 = {
   ],
   "storageKey": null
 },
-v39 = {
+v41 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -1320,7 +1265,7 @@ return {
                     "plural": false,
                     "selections": [
                       (v8/*:: as any*/),
-                      (v18/*:: as any*/),
+                      (v20/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -1332,11 +1277,11 @@ return {
                             "name": "prompt",
                             "plural": false,
                             "selections": [
-                              (v19/*:: as any*/),
-                              (v16/*:: as any*/),
                               (v21/*:: as any*/),
+                              (v16/*:: as any*/),
                               (v23/*:: as any*/),
-                              (v24/*:: as any*/),
+                              (v25/*:: as any*/),
+                              (v26/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1350,10 +1295,10 @@ return {
                                     "name": "PromptInvocationParametersReadableFragment",
                                     "selections": [
                                       (v8/*:: as any*/),
-                                      (v30/*:: as any*/),
                                       (v32/*:: as any*/),
-                                      (v33/*:: as any*/),
-                                      (v34/*:: as any*/)
+                                      (v34/*:: as any*/),
+                                      (v35/*:: as any*/),
+                                      (v36/*:: as any*/)
                                     ],
                                     "args": null,
                                     "argumentDefinitions": []
@@ -1366,10 +1311,10 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v37/*:: as any*/),
+                          (v39/*:: as any*/),
                           (v14/*:: as any*/),
-                          (v38/*:: as any*/),
-                          (v39/*:: as any*/)
+                          (v40/*:: as any*/),
+                          (v41/*:: as any*/)
                         ],
                         "type": "PromptTaskConfig",
                         "abstractKey": null
@@ -1430,7 +1375,7 @@ return {
                     "plural": false,
                     "selections": [
                       (v8/*:: as any*/),
-                      (v18/*:: as any*/),
+                      (v20/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -1442,11 +1387,11 @@ return {
                             "name": "prompt",
                             "plural": false,
                             "selections": [
-                              (v19/*:: as any*/),
-                              (v16/*:: as any*/),
                               (v21/*:: as any*/),
+                              (v16/*:: as any*/),
                               (v23/*:: as any*/),
-                              (v24/*:: as any*/),
+                              (v25/*:: as any*/),
+                              (v26/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1460,10 +1405,10 @@ return {
                                     "kind": "TypeDiscriminator",
                                     "abstractKey": "__isPromptInvocationParameters"
                                   },
-                                  (v30/*:: as any*/),
                                   (v32/*:: as any*/),
-                                  (v33/*:: as any*/),
-                                  (v34/*:: as any*/)
+                                  (v34/*:: as any*/),
+                                  (v35/*:: as any*/),
+                                  (v36/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -1472,10 +1417,10 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v37/*:: as any*/),
+                          (v39/*:: as any*/),
                           (v14/*:: as any*/),
-                          (v38/*:: as any*/),
-                          (v39/*:: as any*/)
+                          (v40/*:: as any*/),
+                          (v41/*:: as any*/)
                         ],
                         "type": "PromptTaskConfig",
                         "abstractKey": null
@@ -1504,16 +1449,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "39b23af1b8c7b2f9d931105824c35181",
+    "cacheID": "f8057a9596d03b68c9ee5f94d7e25e72",
     "id": null,
     "metadata": {},
     "name": "experimentRehydrationQuery",
     "operationKind": "query",
-    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      datasetSplits {\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          __typename\n          ... on DecisionTaskConfig {\n            modelProvider\n            modelName\n            baseUrl\n            customProvider {\n              id\n              name\n            }\n            inputValuesPath\n            decisionVersion {\n              id\n              decision {\n                id\n                name\n              }\n            }\n            inputs {\n              name\n              description\n              jsonSchema\n            }\n            state {\n              __typename\n              ... on DecisionObjectState {\n                object\n              }\n              ... on DecisionInputState {\n                input\n              }\n              ... on DecisionTextState {\n                template\n                templateFormat\n              }\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n                instructions\n                criteria {\n                  true\n                  false\n                }\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                instructions\n                choices {\n                  value\n                  description\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                instructions\n                levels {\n                  label\n                  description\n                }\n              }\n            }\n          }\n          ... on PromptTaskConfig {\n            prompt {\n              templateType\n              templateFormat\n              template {\n                __typename\n                ... on PromptChatTemplate {\n                  messages {\n                    role\n                    content {\n                      __typename\n                      ... on TextContentPart {\n                        text {\n                          text\n                        }\n                      }\n                      ... on ToolCallContentPart {\n                        toolCall {\n                          toolCallId\n                          toolCall {\n                            name\n                            arguments\n                          }\n                        }\n                      }\n                      ... on ToolResultContentPart {\n                        toolResult {\n                          toolCallId\n                          result\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n              tools {\n                tools {\n                  __typename\n                  ... on PromptToolFunction {\n                    function {\n                      name\n                      description\n                      parameters\n                      strict\n                    }\n                  }\n                  ... on PromptToolRaw {\n                    raw\n                  }\n                }\n                toolChoice {\n                  type\n                  functionName\n                }\n                disableParallelToolCalls\n              }\n              responseFormat {\n                jsonSchema {\n                  name\n                  description\n                  schema\n                  strict\n                }\n              }\n              invocationParameters {\n                __typename\n                ...PromptInvocationParametersReadableFragment\n              }\n              modelProvider\n              modelName\n            }\n            connection {\n              __typename\n              ... on OpenAIConnectionConfig {\n                baseUrl\n                openaiApiType\n              }\n              ... on AzureOpenAIConnectionConfig {\n                azureEndpoint\n                openaiApiType\n              }\n              ... on AnthropicConnectionConfig {\n                baseUrl\n              }\n              ... on AWSBedrockConnectionConfig {\n                regionName\n                endpointUrl\n              }\n              ... on GoogleGenAIConnectionConfig {\n                baseUrl\n              }\n            }\n            customProvider {\n              id\n              name\n            }\n            playgroundConfig {\n              templateVariablesPath\n              appendedMessagesPath\n            }\n            streamModelOutput\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
+    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      datasetSplits {\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          __typename\n          ... on DecisionTaskConfig {\n            modelProvider\n            modelName\n            baseUrl\n            customProvider {\n              id\n              name\n            }\n            templateVariablesPath\n            decisionVersion {\n              id\n              decision {\n                id\n                name\n              }\n            }\n            templateFormat\n            state {\n              __typename\n              ... on DecisionTextState {\n                text\n              }\n              ... on DecisionJsonState {\n                json\n              }\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n                instructions\n                criteria {\n                  true\n                  false\n                }\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                instructions\n                choices {\n                  value\n                  description\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                instructions\n                levels {\n                  label\n                  description\n                }\n              }\n            }\n          }\n          ... on PromptTaskConfig {\n            prompt {\n              templateType\n              templateFormat\n              template {\n                __typename\n                ... on PromptChatTemplate {\n                  messages {\n                    role\n                    content {\n                      __typename\n                      ... on TextContentPart {\n                        text {\n                          text\n                        }\n                      }\n                      ... on ToolCallContentPart {\n                        toolCall {\n                          toolCallId\n                          toolCall {\n                            name\n                            arguments\n                          }\n                        }\n                      }\n                      ... on ToolResultContentPart {\n                        toolResult {\n                          toolCallId\n                          result\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n              tools {\n                tools {\n                  __typename\n                  ... on PromptToolFunction {\n                    function {\n                      name\n                      description\n                      parameters\n                      strict\n                    }\n                  }\n                  ... on PromptToolRaw {\n                    raw\n                  }\n                }\n                toolChoice {\n                  type\n                  functionName\n                }\n                disableParallelToolCalls\n              }\n              responseFormat {\n                jsonSchema {\n                  name\n                  description\n                  schema\n                  strict\n                }\n              }\n              invocationParameters {\n                __typename\n                ...PromptInvocationParametersReadableFragment\n              }\n              modelProvider\n              modelName\n            }\n            connection {\n              __typename\n              ... on OpenAIConnectionConfig {\n                baseUrl\n                openaiApiType\n              }\n              ... on AzureOpenAIConnectionConfig {\n                azureEndpoint\n                openaiApiType\n              }\n              ... on AnthropicConnectionConfig {\n                baseUrl\n              }\n              ... on AWSBedrockConnectionConfig {\n                regionName\n                endpointUrl\n              }\n              ... on GoogleGenAIConnectionConfig {\n                baseUrl\n              }\n            }\n            customProvider {\n              id\n              name\n            }\n            playgroundConfig {\n              templateVariablesPath\n              appendedMessagesPath\n            }\n            streamModelOutput\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "43de1255c7389b52f7e36b4deb06b88a";
+(node as any).hash = "fc8b4b665572e50c4eb84c77e27ab3da";
 
 export default node;

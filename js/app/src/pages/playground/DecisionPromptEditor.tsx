@@ -12,14 +12,11 @@ import {
   Icons,
   SegmentedControl,
   SegmentedControlItem,
+  ToggleButton,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import {
-  TemplateEditor,
-  TemplateEditorWrap,
-} from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -33,26 +30,22 @@ import type {
 } from "@phoenix/store/playground/types";
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
-import { DecisionStateInputsEditor } from "./DecisionStateInputsEditor";
-import {
-  getDecisionInputPreviews,
-  getExampleInputNames,
-} from "./decisionStateInputsHints";
+import { DecisionStateEditor } from "./DecisionStateEditor";
+import { DecisionStatePreview } from "./DecisionStatePreview";
 import {
   createDecisionDraft,
   createDecisionQuestion,
   decisionFieldId,
-  describeDecisionInputsState,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
   switchDecisionStateMode,
-  toStructuredInputValue,
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
+import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 
 function isStateMode(value: unknown): value is DecisionStateDraft["mode"] {
-  return value === "template" || value === "inputs";
+  return value === "text" || value === "json";
 }
 
 const questionListCSS = css`
@@ -67,8 +60,8 @@ const questionListCSS = css`
 const FOOTER_MIN_HEIGHT = 32;
 
 /**
- * Template or Inputs, the way an AI message picks between text and tool
- * calls: each mode keeps its own content.
+ * Text or JSON, the way an AI message picks between text and tool calls:
+ * each mode keeps its own content.
  */
 function DecisionStateModeRadioGroup({
   mode,
@@ -90,49 +83,21 @@ function DecisionStateModeRadioGroup({
       }}
     >
       <TooltipTrigger delay={0}>
-        <SegmentedControlItem id="template">Template</SegmentedControlItem>
+        <SegmentedControlItem id="text">Text</SegmentedControlItem>
         <Tooltip placement="top">
           <TooltipArrow />
-          Write the state as a template over the inputs
+          Send the state as text, a template over the variables
         </Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={0}>
-        <SegmentedControlItem id="inputs">Inputs</SegmentedControlItem>
+        <SegmentedControlItem id="json">JSON</SegmentedControlItem>
         <Tooltip placement="top">
           <TooltipArrow />
-          Send the inputs themselves as the state
+          Send the state as JSON; a string that is one variable sends its value
         </Tooltip>
       </TooltipTrigger>
     </SegmentedControl>
   );
-}
-
-/**
- * What the Inputs state shows beside its inputs and offers to add. Over a
- * dataset: the input names its first examples have, and each input's value
- * in the first example. Otherwise: the values typed in the Inputs panel.
- */
-function useDecisionStateInputsHints(names: readonly string[]) {
-  const datasetId = usePlaygroundContext((state) => state.datasetId);
-  const exampleVariables = usePlaygroundContext((state) =>
-    state.datasetId != null
-      ? state.stateByDatasetId[state.datasetId]?.exampleVariables
-      : undefined
-  );
-  const variables = usePlaygroundContext(
-    (state) => state.input.variablesValueCache
-  );
-  // Over a dataset, nothing is shown until its examples have loaded.
-  const examples = datasetId != null ? (exampleVariables ?? []) : undefined;
-  return {
-    previews: getDecisionInputPreviews({
-      names,
-      exampleVariables: examples,
-      variables,
-      toSentValue: toStructuredInputValue,
-    }),
-    suggestions: examples ? getExampleInputNames(examples) : [],
-  };
 }
 
 /**
@@ -187,12 +152,10 @@ export function DecisionPromptEditor({
     updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
   const { state } = request;
   const updateState = (next: DecisionStateDraft) => update({ state: next });
-  const inputsHints = useDecisionStateInputsHints(state.inputNames);
-  // What Copy copies and the collapsed card shows: the state as sent.
-  const stateSummary =
-    state.mode === "inputs"
-      ? describeDecisionInputsState(state)
-      : state.template;
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const { variableKeys } = useDerivedPlaygroundVariables();
+  // What Copy copies and the collapsed card shows: the template as written.
+  const stateSummary = state.mode === "json" ? state.json : state.text;
   const updateQuestion = (
     questionId: string,
     patch: Partial<DecisionQuestionDraft>
@@ -245,6 +208,14 @@ export function DecisionPromptEditor({
                 )
               }
             />
+            <ToggleButton
+              size="S"
+              isSelected={isPreviewing}
+              onChange={setIsPreviewing}
+              leadingVisual={<Icon svg={<Icons.Eye />} />}
+            >
+              Preview
+            </ToggleButton>
             <CopyToClipboardButton
               text={stateSummary}
               aria-label="Copy state"
@@ -257,39 +228,24 @@ export function DecisionPromptEditor({
             {errors.state}
           </Alert>
         ) : null}
-        {state.mode === "inputs" ? (
-          <DecisionStateInputsEditor
-            names={state.inputNames}
-            inputsShape={state.inputsShape}
-            isDisabled={isRunning}
-            isInvalid={!!errors.state}
-            // A loaded input sent alone stays so only until the inputs are
-            // edited; the playground itself only builds objects.
-            onChange={(inputNames) =>
-              updateState({ ...state, inputNames, inputsShape: "object" })
-            }
-            onWrap={() => updateState({ ...state, inputsShape: "object" })}
-            onBlur={() => touch(decisionFieldId.state())}
-            previews={inputsHints.previews}
-            suggestions={inputsHints.suggestions}
+        <DecisionStateEditor
+          // Loading replaces the draft and its id; typing must keep the
+          // editor mounted.
+          editorKey={`${instanceId}-${decisionPromptId}`}
+          state={state}
+          templateFormat={templateFormat}
+          isDisabled={isRunning}
+          availablePaths={availablePaths}
+          existingNames={variableKeys}
+          onChange={updateState}
+          onBlur={() => touch(decisionFieldId.state())}
+        />
+        {isPreviewing ? (
+          <DecisionStatePreview
+            draft={request}
+            templateFormat={templateFormat}
           />
-        ) : (
-          <TemplateEditorWrap readOnly={isRunning}>
-            <TemplateEditor
-              // Loading replaces the draft and its id, and switching modes
-              // seeds the template; typing must keep the editor mounted.
-              key={`template-${instanceId}-${decisionPromptId}-${templateFormat}`}
-              aria-label="Decision state"
-              templateFormat={templateFormat}
-              defaultValue={state.template}
-              placeholder="The evidence the questions are asked about"
-              onChange={(template) => updateState({ ...state, template })}
-              onBlur={() => touch(decisionFieldId.state())}
-              readOnly={isRunning}
-              availablePaths={availablePaths}
-            />
-          </TemplateEditorWrap>
-        )}
+        ) : null}
       </Card>
 
       {errors.questions ? (
@@ -300,6 +256,8 @@ export function DecisionPromptEditor({
           <li key={question.id}>
             <DecisionQuestionEditor
               question={question}
+              templateFormat={templateFormat}
+              availablePaths={availablePaths}
               index={index}
               errors={errors.byQuestionId[question.id]}
               isDisabled={isRunning}

@@ -11,7 +11,6 @@ import {
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
   EvaluatorDetailList,
-  EvaluatorDetailRow,
   EvaluatorInputMappingDetails,
 } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
@@ -129,13 +128,14 @@ export function DecisionProjectEvaluatorDetails({
               }
               modelName
               modelProvider
+              templateFormat
               state {
                 __typename
                 ... on DecisionTextState {
-                  template
+                  text
                 }
-                ... on DecisionInputState {
-                  input
+                ... on DecisionJsonState {
+                  json
                 }
               }
               questions {
@@ -203,26 +203,20 @@ export function DecisionProjectEvaluatorDetails({
         }
       >
         <EvaluatorDetailList>
-          {state.__typename === "DecisionTextState" ? (
+          {state.__typename !== "%other" ? (
             <ListItem>
               <Flex direction="column" gap="size-100">
                 <Text size="S" color="text-700">
                   State
                 </Text>
-                <pre css={templateCSS}>{state.template}</pre>
+                <pre css={templateCSS}>
+                  {state.__typename === "DecisionTextState"
+                    ? state.text
+                    : JSON.stringify(state.json, null, 2)}
+                </pre>
               </Flex>
             </ListItem>
-          ) : (
-            <EvaluatorDetailRow label="State">
-              {state.__typename === "DecisionInputState" ? (
-                <Text size="S" fontFamily="mono">
-                  {state.input}
-                </Text>
-              ) : (
-                "Inputs as JSON"
-              )}
-            </EvaluatorDetailRow>
-          )}
+          ) : null}
           {version.questions.map((question) => {
             if (question.__typename === "%other") {
               return null;

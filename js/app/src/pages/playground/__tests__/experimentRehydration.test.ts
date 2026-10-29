@@ -24,10 +24,10 @@ const taskConfig: DecisionTaskConfig = {
   modelName: "jev-pinned",
   customProvider: { id: "provider-1", name: "My endpoint" },
   baseUrl: null,
-  inputValuesPath: "metadata.inputs",
+  templateVariablesPath: "metadata.inputs",
   decisionVersion: null,
-  inputs: [{ name: "ticket", description: null, jsonSchema: null }],
-  state: { __typename: "DecisionObjectState", object: true },
+  templateFormat: "MUSTACHE",
+  state: { __typename: "DecisionJsonState", json: { ticket: "{{ticket}}" } },
   questions: [
     {
       __typename: "DecisionPredicateQuestion",
@@ -53,7 +53,10 @@ it("restores a decision's frozen definition, connection, and dataset settings", 
       customProvider: taskConfig.customProvider,
     },
     decisionPrompt: {
-      state: { mode: "inputs", inputNames: ["ticket"] },
+      state: {
+        mode: "json",
+        json: JSON.stringify({ ticket: "{{ticket}}" }, null, 2),
+      },
       questions: [
         {
           type: "predicate",
@@ -76,11 +79,8 @@ it("restores f-string text and a built-in provider's endpoint", () => {
       ...taskConfig,
       customProvider: null,
       baseUrl: "http://localhost:11434/v1",
-      state: {
-        __typename: "DecisionTextState",
-        template: "Ticket: {ticket}",
-        templateFormat: "F_STRING",
-      },
+      templateFormat: "F_STRING",
+      state: { __typename: "DecisionTextState", text: "Ticket: {ticket}" },
     },
     maxConcurrency: 1,
     datasetId: null,
@@ -90,7 +90,7 @@ it("restores f-string text and a built-in provider's endpoint", () => {
   expect(result.playgroundProps.instances?.[0]).toMatchObject({
     model: { baseUrl: "http://localhost:11434/v1", customProvider: null },
     decisionPrompt: {
-      state: { mode: "template", template: "Ticket: {ticket}" },
+      state: { mode: "text", text: "Ticket: {ticket}" },
     },
   });
   expect(result.stateByDatasetId).toEqual({});
@@ -105,7 +105,7 @@ it("fetches a fixed-question decision experiment", async () => {
         datasetEvaluators: { edges: [{ node: { id: "judge-1" } }] },
         taskConfig: {
           ...taskConfig,
-          state: { __typename: "DecisionInputState", input: "ticket" },
+          state: { __typename: "DecisionJsonState", json: "{{ticket}}" },
           questions: [
             {
               __typename: "DecisionChoiceQuestion",
@@ -134,7 +134,7 @@ it("fetches a fixed-question decision experiment", async () => {
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
     task: { type: "decision" },
     decisionPrompt: {
-      state: { mode: "inputs", inputNames: ["ticket"] },
+      state: { mode: "json", json: '"{{ticket}}"' },
       questions: [
         { type: "choice", name: "team", instructions: "Which team?" },
         { type: "scale", name: "severity", instructions: "Severity?" },

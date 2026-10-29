@@ -69,6 +69,7 @@ describe("DecisionQuestionEditor scale levels", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <DecisionQuestionEditor
             question={question}
+            templateFormat="MUSTACHE"
             index={0}
             errors={undefined}
             isDisabled={false}
@@ -90,13 +91,13 @@ describe("DecisionQuestionEditor scale levels", () => {
     expect(field("Level 1 description").value).toBe("Blocks the user");
   });
 
-  it("edits criteria as plain text, since question text is sent as written", () => {
+  it("edits criteria as templates in the playground's format", () => {
     render(vi.fn());
     expect(field("Level 0 description").dataset.templateFormat).toBe(
-      TemplateFormats.NONE
+      TemplateFormats.Mustache
     );
     expect(field("Level 1 description").dataset.templateFormat).toBe(
-      TemplateFormats.NONE
+      TemplateFormats.Mustache
     );
   });
 

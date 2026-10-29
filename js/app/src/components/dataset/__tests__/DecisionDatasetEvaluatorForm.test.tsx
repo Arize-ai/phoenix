@@ -95,8 +95,8 @@ vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
             instanceId: 1,
             request: {
               state: createDecisionStateDraft({
-                mode: "inputs",
-                inputNames: ["answer"],
+                mode: "json",
+                json: '{"answer": "{{answer}}"}',
               }),
               questions: [
                 createDecisionQuestion({
@@ -229,8 +229,8 @@ describe("Decision dataset evaluator authoring", () => {
             },
             decisionPrompt: {
               state: createDecisionStateDraft({
-                mode: "inputs",
-                inputNames: ["answer"],
+                mode: "json",
+                json: '{"answer": "{{answer}}"}',
               }),
               questions: [
                 createDecisionQuestion({

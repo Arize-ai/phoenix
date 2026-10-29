@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<26c9fa30b8bc41822e3b2d7b4f20c642>>
+ * @generated SignedSource<<bb6477a3540ab8e121a8d15b53201dfc>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,6 @@ export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "X
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type Language = "PYTHON" | "TYPESCRIPT";
@@ -83,34 +82,19 @@ export type InlineDecisionEvaluatorInput = {
 export type DecisionVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   metadata?: any | null;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
-};
-export type DecisionInputDefinitionInput = {
-  description?: string | null;
-  jsonSchema?: any | null;
-  name: string;
+  templateFormat: PromptTemplateFormat;
 };
 export type DecisionStateInput = {
-  input?: never;
-  object: boolean;
-  text?: never;
+  json?: never;
+  text: string;
 } | {
-  input?: never;
-  object?: never;
-  text: TextStateInput;
-} | {
-  input: string;
-  object?: never;
+  json: any;
   text?: never;
-};
-export type TextStateInput = {
-  template: string;
-  templateFormat: DecisionTemplateFormat;
 };
 export type DecisionQuestionInput = {
   choice?: never;

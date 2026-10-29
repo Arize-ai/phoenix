@@ -51,7 +51,7 @@ type Props = {
 
 function createDatasetDecisionDraft(): DecisionPromptDraft {
   return {
-    state: createDecisionStateDraft({ template: "{{output}}" }),
+    state: createDecisionStateDraft({ text: "{{output}}" }),
     questions: [
       createDecisionQuestion({
         type: "predicate",

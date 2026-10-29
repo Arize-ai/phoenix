@@ -124,16 +124,16 @@ describe("normalized decision prompts", () => {
       instanceId: 1,
       request: {
         ...draft,
-        state: createDecisionStateDraft({ template: "Typed {{ticket}}" }),
+        state: createDecisionStateDraft({ text: "Typed {{ticket}}" }),
       },
     });
     const after = store.getState();
 
     expect(after.instances).toBe(before.instances);
     expect(after.instances[0]).toBe(before.instances[0]);
-    expect(
-      selectPlaygroundInstanceDecisionPrompt(1)(after)?.state.template
-    ).toBe("Typed {{ticket}}");
+    expect(selectPlaygroundInstanceDecisionPrompt(1)(after)?.state.text).toBe(
+      "Typed {{ticket}}"
+    );
     expect(Object.keys(after.allInstanceDecisionPrompts)).toEqual(
       Object.keys(otherRequests)
     );
@@ -171,7 +171,7 @@ describe("normalized decision prompts", () => {
       instanceId: copyId,
       request: {
         ...draft,
-        state: createDecisionStateDraft({ template: "Only the copy" }),
+        state: createDecisionStateDraft({ text: "Only the copy" }),
       },
     });
     expect(
@@ -186,7 +186,7 @@ describe("normalized decision prompts", () => {
       instanceId: 1,
       request: {
         ...draft,
-        state: createDecisionStateDraft({ template: "Edited after the run" }),
+        state: createDecisionStateDraft({ text: "Edited after the run" }),
       },
     });
 
@@ -199,13 +199,13 @@ describe("normalized decision prompts", () => {
       instanceId: 1,
       request: {
         ...draft,
-        state: createDecisionStateDraft({ template: "Unsaved" }),
+        state: createDecisionStateDraft({ text: "Unsaved" }),
       },
     });
     const previousId = store.getState().instances[0].decisionPromptId;
     const loaded = {
       ...draft,
-      state: createDecisionStateDraft({ template: "Saved {{ticket}}" }),
+      state: createDecisionStateDraft({ text: "Saved {{ticket}}" }),
     };
 
     store.getState().loadInstance({

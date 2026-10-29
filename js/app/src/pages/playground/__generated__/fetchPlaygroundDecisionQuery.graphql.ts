@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c38eb895ac5170e928022a61ea2b760>>
+ * @generated SignedSource<<034c8e3879cdd12a93e13ae104f7a8d8>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type fetchPlaygroundDecisionQuery$variables = {
   decisionId: string;
   tagName?: string | null;
@@ -25,11 +25,6 @@ export type fetchPlaygroundDecisionQuery$data = {
         readonly name: string;
       } | null;
       readonly id: string;
-      readonly inputs: ReadonlyArray<{
-        readonly description: string | null;
-        readonly jsonSchema: any | null;
-        readonly name: string;
-      }>;
       readonly modelName: string;
       readonly modelProvider: GenerativeProviderKey;
       readonly questions: ReadonlyArray<{
@@ -62,20 +57,17 @@ export type fetchPlaygroundDecisionQuery$data = {
         readonly __typename: "%other";
       }>;
       readonly state: {
-        readonly __typename: "DecisionInputState";
-        readonly input: string;
-      } | {
-        readonly __typename: "DecisionObjectState";
-        readonly object: boolean;
+        readonly __typename: "DecisionJsonState";
+        readonly json: any;
       } | {
         readonly __typename: "DecisionTextState";
-        readonly template: string;
-        readonly templateFormat: DecisionTemplateFormat;
+        readonly text: string;
       } | {
         // This will never be '%other', but we need some
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       };
+      readonly templateFormat: PromptTemplateFormat;
     } | null;
   };
 };
@@ -125,21 +117,21 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "__typename",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "instructions",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "instructions",
+  "name": "description",
   "storageKey": null
 },
 v9 = {
@@ -192,21 +184,8 @@ v9 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "DecisionInputDefinition",
-      "kind": "LinkedField",
-      "name": "inputs",
-      "plural": true,
-      "selections": [
-        (v5/*:: as any*/),
-        (v6/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "jsonSchema",
-          "storageKey": null
-        }
-      ],
+      "kind": "ScalarField",
+      "name": "templateFormat",
       "storageKey": null
     },
     {
@@ -217,7 +196,7 @@ v9 = {
       "name": "state",
       "plural": false,
       "selections": [
-        (v7/*:: as any*/),
+        (v6/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -225,46 +204,25 @@ v9 = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "object",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionObjectState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "input",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionInputState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "template",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "templateFormat",
+              "name": "text",
               "storageKey": null
             }
           ],
           "type": "DecisionTextState",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "json",
+              "storageKey": null
+            }
+          ],
+          "type": "DecisionJsonState",
           "abstractKey": null
         }
       ],
@@ -278,12 +236,12 @@ v9 = {
       "name": "questions",
       "plural": true,
       "selections": [
-        (v7/*:: as any*/),
+        (v6/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
             (v5/*:: as any*/),
-            (v8/*:: as any*/),
+            (v7/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -317,7 +275,7 @@ v9 = {
           "kind": "InlineFragment",
           "selections": [
             (v5/*:: as any*/),
-            (v8/*:: as any*/),
+            (v7/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -333,7 +291,7 @@ v9 = {
                   "name": "value",
                   "storageKey": null
                 },
-                (v6/*:: as any*/)
+                (v8/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -345,7 +303,7 @@ v9 = {
           "kind": "InlineFragment",
           "selections": [
             (v5/*:: as any*/),
-            (v8/*:: as any*/),
+            (v7/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -361,7 +319,7 @@ v9 = {
                   "name": "label",
                   "storageKey": null
                 },
-                (v6/*:: as any*/)
+                (v8/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -429,7 +387,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*:: as any*/),
+          (v6/*:: as any*/),
           (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
@@ -446,16 +404,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "249eff8337d7b8c6ea49c599fcc58c36",
+    "cacheID": "1d0ccce2a1f0cb687417ca47266e6d20",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundDecisionQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        inputs {\n          name\n          description\n          jsonSchema\n        }\n        state {\n          __typename\n          ... on DecisionObjectState {\n            object\n          }\n          ... on DecisionInputState {\n            input\n          }\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        templateFormat\n        state {\n          __typename\n          ... on DecisionTextState {\n            text\n          }\n          ... on DecisionJsonState {\n            json\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3b80f28a8160ab94dc3aa3defdcd5a67";
+(node as any).hash = "ff84fa911560ffb1a1c71f402a17992e";
 
 export default node;

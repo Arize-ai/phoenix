@@ -68,7 +68,7 @@ type DialogProps = ScopeProps & {
 function createProjectDecisionDraft(): DecisionPromptDraft {
   return {
     state: createDecisionStateDraft({
-      template: "Request:\n{{input}}\n\nResponse:\n{{output}}",
+      text: "Request:\n{{input}}\n\nResponse:\n{{output}}",
     }),
     questions: [
       createDecisionQuestion({

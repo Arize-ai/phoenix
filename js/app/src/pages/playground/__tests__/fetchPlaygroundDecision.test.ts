@@ -18,7 +18,6 @@ import type { FetchedDecisionVersion } from "../fetchPlaygroundDecision";
 import {
   fetchDecisionVersion,
   fetchPlaygroundDecisionAsInstance,
-  getDecisionTemplateFormat,
   toDecisionInstance,
   toSavedDecisionVersion,
 } from "../fetchPlaygroundDecision";
@@ -26,11 +25,8 @@ import {
 const fetched: FetchedDecisionVersion = {
   decision: { id: "D1", name: "triage", versionId: "DV1" },
   version: {
-    state: {
-      kind: "text",
-      template: "Ticket: {{ticket}}",
-      templateFormat: "MUSTACHE",
-    },
+    templateFormat: "MUSTACHE",
+    state: { kind: "text", text: "Ticket: {{ticket}}" },
     questions: [
       {
         kind: "choice",
@@ -61,7 +57,7 @@ describe("toDecisionInstance", () => {
       tag: "prod",
     });
     expect(instance.decisionPrompt).toMatchObject({
-      state: { mode: "template", template: "Ticket: {{ticket}}" },
+      state: { mode: "text", text: "Ticket: {{ticket}}" },
     });
     expect(instance.model).toMatchObject({
       provider: "OLLAMA",
@@ -131,31 +127,26 @@ describe("toDecisionInstance", () => {
   });
 });
 
-describe("getDecisionTemplateFormat", () => {
-  it("is the format a text state is written in, and none for an input state", () => {
-    expect(getDecisionTemplateFormat(fetched)).toBe("MUSTACHE");
-    expect(
-      getDecisionTemplateFormat({
-        version: {
-          ...fetched.version,
-          state: { kind: "text", template: "{a}", templateFormat: "F_STRING" },
-        },
-      })
-    ).toBe("F_STRING");
-    expect(
-      getDecisionTemplateFormat({
-        version: { ...fetched.version, state: { kind: "input", input: "a" } },
-      })
-    ).toBeNull();
-  });
-});
-
 describe("toSavedDecisionVersion and fetchPlaygroundDecisionAsInstance", () => {
-  it("converts object, input, and text states and all question kinds", () => {
+  it("converts JSON and text states, the template format and all question kinds", () => {
     expect(
       toSavedDecisionVersion({
-        inputs: [{ name: "ticket" }, { name: "customer" }],
-        state: { __typename: "DecisionObjectState", object: true },
+        templateFormat: "MUSTACHE",
+        state: { __typename: "DecisionTextState", text: "{{ticket}}" },
+        questions: [],
+      })
+    ).toEqual({
+      templateFormat: "MUSTACHE",
+      state: { kind: "text", text: "{{ticket}}" },
+      questions: [],
+    });
+    expect(
+      toSavedDecisionVersion({
+        templateFormat: "F_STRING",
+        state: {
+          __typename: "DecisionJsonState",
+          json: { ticket: "{ticket}", n: 1 },
+        },
         questions: [
           {
             __typename: "DecisionPredicateQuestion",
@@ -181,7 +172,8 @@ describe("toSavedDecisionVersion and fetchPlaygroundDecisionAsInstance", () => {
         ],
       })
     ).toEqual({
-      state: { kind: "object", inputs: ["ticket", "customer"] },
+      templateFormat: "F_STRING",
+      state: { kind: "json", json: { ticket: "{ticket}", n: 1 } },
       questions: [
         {
           kind: "predicate",
@@ -228,12 +220,8 @@ describe("toSavedDecisionVersion and fetchPlaygroundDecisionAsInstance", () => {
           modelProvider: "TYPESAFE",
           modelName: "jev-latest",
           customProvider: null,
-          inputs: [{ name: "ticket" }],
-          state: {
-            __typename: "DecisionTextState",
-            template: "Ticket: {ticket}",
-            templateFormat: "F_STRING",
-          },
+          templateFormat: "F_STRING",
+          state: { __typename: "DecisionTextState", text: "Ticket: {ticket}" },
           questions: [
             {
               __typename: "DecisionPredicateQuestion",
@@ -254,7 +242,7 @@ describe("toSavedDecisionVersion and fetchPlaygroundDecisionAsInstance", () => {
     expect(loaded?.instance).toMatchObject({
       decision: { id: "D1", name: "triage", versionId: "DV1", tag: "prod" },
       decisionPrompt: {
-        state: { mode: "template", template: "Ticket: {ticket}" },
+        state: { mode: "text", text: "Ticket: {ticket}" },
       },
     });
   });

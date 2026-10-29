@@ -24,10 +24,7 @@ import type {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground/types";
 
-import {
-  getDecisionDatasetBlockedReason,
-  getDecisionValidationError,
-} from "./decisionUtils";
+import { getDecisionValidationError } from "./decisionUtils";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
@@ -73,21 +70,10 @@ export function PlaygroundRunButton() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
   // An invalid decision prompt is refused with its first problem as the
-  // reason, since the error may sit in a collapsed card. Over a dataset, a
-  // decision the examples can't fill is refused the same way.
-  const blockedReason = usePlaygroundContext((state) => {
-    const instancesWithDecisionPrompts =
-      getPlaygroundInstancesWithDecisionPrompts(state);
-    return (
-      getInvalidDecisionReason(instancesWithDecisionPrompts) ??
-      (state.datasetId != null
-        ? getDecisionDatasetBlockedReason({
-            instances: instancesWithDecisionPrompts,
-            templateFormat: state.templateFormat,
-          })
-        : null)
-    );
-  });
+  // reason, since the error may sit in a collapsed card.
+  const blockedReason = usePlaygroundContext((state) =>
+    getInvalidDecisionReason(getPlaygroundInstancesWithDecisionPrompts(state))
+  );
 
   const isJudgingRole = usePlaygroundContext(
     (state) => getPlaygroundMode(state.instances) === "evaluator"

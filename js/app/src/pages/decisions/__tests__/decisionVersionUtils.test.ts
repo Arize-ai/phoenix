@@ -5,8 +5,8 @@ import {
 
 describe("decision definition comparison", () => {
   const version: DecisionVersionDefinition = {
-    inputs: [{ name: "ticket" }],
-    state: { __typename: "DecisionInputState", input: "ticket" },
+    templateFormat: "MUSTACHE",
+    state: { __typename: "DecisionJsonState", json: "{{ticket}}" },
     questions: [
       {
         __typename: "DecisionPredicateQuestion",

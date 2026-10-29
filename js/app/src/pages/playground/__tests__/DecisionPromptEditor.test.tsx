@@ -31,7 +31,7 @@ installTestStorage();
 it("reloads an uncontrolled state editor on load, while typing keeps it mounted", async () => {
   const draft = {
     ...createDecisionDraft(),
-    state: createDecisionStateDraft({ template: "First {{ticket}}" }),
+    state: createDecisionStateDraft({ text: "First {{ticket}}" }),
   };
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
@@ -68,7 +68,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
         instanceId: 1,
         request: {
           ...draft,
-          state: createDecisionStateDraft({ template: "Typed {{ticket}}" }),
+          state: createDecisionStateDraft({ text: "Typed {{ticket}}" }),
         },
       })
     );
@@ -82,7 +82,7 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
           ...createDecisionTaskInstance(),
           decisionPrompt: {
             ...draft,
-            state: createDecisionStateDraft({ template: "Second {{ticket}}" }),
+            state: createDecisionStateDraft({ text: "Second {{ticket}}" }),
           },
         },
       })
@@ -98,13 +98,85 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   }
 });
 
-it("switches between Template and Inputs, keeping each, and says what the inputs send", async () => {
+function renderEditor(store: ReturnType<typeof createPlaygroundStore>) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const render = () =>
+    act(async () =>
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            themeMode: "light",
+            systemTheme: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <PlaygroundContext.Provider value={store}>
+            <DecisionPromptEditor playgroundInstanceId={1} />
+          </PlaygroundContext.Provider>
+        </ThemeContext.Provider>
+      )
+    );
+  const cleanup = async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  };
+  const button = (label: string) =>
+    Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent === label
+    );
+  return { container, render, cleanup, button };
+}
+
+it("switches between Text and JSON, keeping each and seeding an empty JSON with holes", async () => {
+  const draft = {
+    ...createDecisionDraft(),
+    state: createDecisionStateDraft({ text: "Ticket {{ticket}} from {{who}}" }),
+  };
+  const store = createPlaygroundStore({
+    modelConfigByProvider: {},
+    instances: [
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
+    ],
+  });
+  const readState = () =>
+    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
+  const { container, render, cleanup } = renderEditor(store);
+  const modeButton = (label: string) =>
+    Array.from(
+      container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="State mode"] button'
+      )
+    ).find((candidate) => candidate.textContent === label);
+  try {
+    await render();
+    expect(
+      Array.from(
+        container.querySelectorAll('[aria-label="State mode"] button')
+      ).map((candidate) => candidate.textContent)
+    ).toEqual(["Text", "JSON"]);
+    await act(async () => modeButton("JSON")?.click());
+    expect(readState()).toEqual({
+      mode: "json",
+      text: "Ticket {{ticket}} from {{who}}",
+      json: JSON.stringify({ ticket: "{{ticket}}", who: "{{who}}" }, null, 2),
+    });
+    await act(async () => modeButton("Text")?.click());
+    expect(readState()?.mode).toBe("text");
+    expect(readState()?.text).toBe("Ticket {{ticket}} from {{who}}");
+  } finally {
+    await cleanup();
+  }
+});
+
+it("previews the state sent for the typed variables, or why it can't be sent", async () => {
   const draft = {
     ...createDecisionDraft(),
     state: createDecisionStateDraft({
-      mode: "inputs",
-      inputNames: ["state"],
-      inputsShape: "value",
+      mode: "json",
+      json: '{"customer": "{{customer}}", "n": "{{n}}", "note": "since {{since}}"}',
     }),
   };
   const store = createPlaygroundStore({
@@ -112,186 +184,27 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     instances: [
       { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
     ],
-    input: { variablesValueCache: { state: '{"ticket":"Refund"}' } },
+    input: {
+      variablesValueCache: { customer: '{"tier": "gold"}', n: "3" },
+      variablesReadAsText: {},
+    },
   });
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  const readState = () =>
-    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
-  const modeButton = (label: string) =>
-    Array.from(
-      container.querySelectorAll<HTMLButtonElement>(
-        '[aria-label="State mode"] button'
-      )
-    ).find((button) => button.textContent === label);
+  const { container, render, cleanup, button } = renderEditor(store);
+  const previewText = () =>
+    container.querySelector('[aria-label="State preview"]')?.textContent;
   try {
-    await act(async () =>
-      root.render(
-        <ThemeContext.Provider
-          value={{
-            theme: "light",
-            themeMode: "light",
-            systemTheme: "light",
-            setThemeMode: vi.fn(),
-          }}
-        >
-          <PlaygroundContext.Provider value={store}>
-            <DecisionPromptEditor playgroundInstanceId={1} />
-          </PlaygroundContext.Provider>
-        </ThemeContext.Provider>
-      )
-    );
-    // The drawn state, without the (hidden) Enter key hint or the Wrap link.
-    const inputsEditor = () =>
-      container
-        .querySelector('[aria-label="State inputs"]')
-        ?.textContent?.replace("↵", "")
-        .replace("Wrap in an object", "");
-    // Only two modes: the JSON, Value and Object modes are gone.
-    expect(
-      Array.from(
-        container.querySelectorAll('[aria-label="State mode"] button')
-      ).map((button) => button.textContent)
-    ).toEqual(["Template", "Inputs"]);
-    // One input sent alone is drawn as the input alone, with the value typed
-    // in the Inputs panel beside it as it is sent.
-    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
-    expect(
-      container.querySelector('[aria-label="Remove state"]')
-    ).not.toBeNull();
-
-    // An empty template starts from the inputs.
-    await act(async () => modeButton("Template")?.click());
-    expect(readState()).toEqual({
-      mode: "template",
-      template: "{{state}}",
-      inputNames: ["state"],
-      inputsShape: "value",
-    });
-    expect(
-      container.querySelector<HTMLInputElement>(
-        'input[aria-label="Decision state"]'
-      )?.value
-    ).toBe("{{state}}");
-
-    // Back to Inputs keeps the names; several are sent as one object.
-    await act(async () => modeButton("Inputs")?.click());
-    expect(readState()?.inputNames).toEqual(["state"]);
-    await act(async () =>
-      store.getState().updateDecisionPrompt({
-        instanceId: 1,
-        request: {
-          ...draft,
-          state: createDecisionStateDraft({
-            mode: "inputs",
-            inputNames: ["state", "plan"],
-          }),
-        },
-      })
-    );
-    // An input with no typed value has no preview.
-    expect(inputsEditor()).toBe(
-      '{"state": state,// {"ticket":"Refund"}"plan": plan}'
-    );
-
-    // Removing an input back to one keeps the object.
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
-        ?.click()
-    );
-    expect(readState()).toMatchObject({
-      inputNames: ["state"],
-      inputsShape: "object",
-    });
-    expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
+    await render();
+    await act(async () => button("Preview")?.click());
+    expect(previewText()).toContain("Missing variables: since");
+    await act(async () => store.getState().setVariableValue("since", "2019"));
+    expect(previewText()).toContain("as JSON");
+    // A JSON block renders the object the call sends, types kept.
+    expect(previewText()).toContain('"tier": "gold"');
+    expect(previewText()).toContain('"n": 3');
+    expect(previewText()).toContain('"note": "since 2019"');
+    await act(async () => store.getState().setVariableReadAsText("n", true));
+    expect(previewText()).toContain('"n": "3"');
   } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
-
-it("keeps a loaded input sent alone only until it is wrapped or the inputs are edited", async () => {
-  const valueDraft = () => ({
-    ...createDecisionDraft(),
-    state: createDecisionStateDraft({
-      mode: "inputs",
-      inputNames: ["state"],
-      inputsShape: "value",
-    }),
-  });
-  const store = createPlaygroundStore({
-    modelConfigByProvider: {},
-    instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: valueDraft() },
-    ],
-  });
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  const readState = () =>
-    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
-  const button = (label: string) =>
-    Array.from(container.querySelectorAll("button")).find(
-      (candidate) => candidate.textContent === label
-    );
-  const load = () =>
-    act(async () =>
-      store
-        .getState()
-        .updateDecisionPrompt({ instanceId: 1, request: valueDraft() })
-    );
-  try {
-    await act(async () =>
-      root.render(
-        <ThemeContext.Provider
-          value={{
-            theme: "light",
-            themeMode: "light",
-            systemTheme: "light",
-            setThemeMode: vi.fn(),
-          }}
-        >
-          <PlaygroundContext.Provider value={store}>
-            <DecisionPromptEditor playgroundInstanceId={1} />
-          </PlaygroundContext.Provider>
-        </ThemeContext.Provider>
-      )
-    );
-    // Wrapping is one way: there is no control to send the value alone again.
-    await act(async () => button("Wrap in an object")?.click());
-    expect(readState()?.inputsShape).toBe("object");
-    expect(button("Wrap in an object")).toBeUndefined();
-
-    // Editing the inputs wraps too, and removing back to one stays wrapped.
-    await load();
-    expect(readState()?.inputsShape).toBe("value");
-    const slot = container.querySelector<HTMLInputElement>(
-      'input[aria-label="Add input"]'
-    )!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value"
-      )!.set!.call(slot, "plan,");
-      slot.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    expect(readState()).toMatchObject({
-      inputNames: ["state", "plan"],
-      inputsShape: "object",
-    });
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
-        ?.click()
-    );
-    expect(readState()).toMatchObject({
-      inputNames: ["state"],
-      inputsShape: "object",
-    });
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
+    await cleanup();
   }
 });

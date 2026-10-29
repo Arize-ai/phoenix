@@ -1,23 +1,23 @@
 import { fetchQuery, graphql } from "react-relay";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import {
+  isTemplateFormat,
+  type TemplateFormat,
+} from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
-  DecisionInputDeclaration,
   PlaygroundInstance,
   PlaygroundInstanceDecision,
 } from "@phoenix/store/playground";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
   fetchPlaygroundDecisionQuery,
   fetchPlaygroundDecisionQuery$data,
 } from "./__generated__/fetchPlaygroundDecisionQuery.graphql";
-import { stateTemplateVariables } from "./decisionUtils";
 import {
   type SavedDecisionVersion,
   savedDecisionVersionToDraft,
@@ -41,22 +41,14 @@ const decisionVersionQuery = graphql`
             id
             name
           }
-          inputs {
-            name
-            description
-            jsonSchema
-          }
+          templateFormat
           state {
             __typename
-            ... on DecisionObjectState {
-              object
-            }
-            ... on DecisionInputState {
-              input
-            }
             ... on DecisionTextState {
-              template
-              templateFormat
+              text
+            }
+            ... on DecisionJsonState {
+              json
             }
           }
           questions {
@@ -98,54 +90,18 @@ type FetchedVersion = NonNullable<
 
 /** A fetched version or frozen experiment task in the shape the draft conversion reads. */
 export function toSavedDecisionVersion(
-  version: Pick<FetchedVersion, "state" | "questions"> & {
-    readonly inputs: ReadonlyArray<{
-      readonly name: string;
-      readonly description?: string | null;
-      readonly jsonSchema?: unknown;
-    }>;
-  }
+  version: Pick<FetchedVersion, "templateFormat" | "state" | "questions">
 ): SavedDecisionVersion {
   const state: SavedDecisionVersion["state"] =
-    version.state.__typename === "DecisionInputState"
-      ? { kind: "input", input: version.state.input }
-      : version.state.__typename === "DecisionTextState"
-        ? {
-            kind: "text",
-            template: version.state.template,
-            templateFormat: version.state.templateFormat,
-          }
-        : {
-            kind: "object",
-            inputs: version.inputs.map((input) => input.name),
-          };
-  const normalizedInputs: DecisionInputDeclaration[] = version.inputs.map(
-    (input) => ({
-      name: input.name,
-      ...(input.description != null ? { description: input.description } : {}),
-      ...(isStringKeyedObject(input.jsonSchema)
-        ? { jsonSchema: input.jsonSchema }
-        : {}),
-    })
-  );
-  const impliedNames = new Set(
-    state.kind === "input"
-      ? [state.input]
-      : state.kind === "object"
-        ? state.inputs
-        : stateTemplateVariables(
-            state.template,
-            state.templateFormat === "F_STRING"
-              ? TemplateFormats.FString
-              : TemplateFormats.Mustache
-          )
-  );
-  const hasExplicitInputs = normalizedInputs.some(
-    (input) =>
-      input.description != null ||
-      input.jsonSchema != null ||
-      !impliedNames.has(input.name)
-  );
+    version.state.__typename === "DecisionJsonState"
+      ? { kind: "json", json: version.state.json }
+      : {
+          kind: "text",
+          text:
+            version.state.__typename === "DecisionTextState"
+              ? version.state.text
+              : "",
+        };
   const questions = version.questions.flatMap(
     (question): SavedDecisionVersion["questions"][number][] => {
       switch (question.__typename) {
@@ -182,7 +138,7 @@ export function toSavedDecisionVersion(
     }
   );
   return {
-    ...(hasExplicitInputs ? { inputs: normalizedInputs } : {}),
+    templateFormat: toTemplateFormat(version.templateFormat),
     state,
     questions,
   };
@@ -236,22 +192,9 @@ export async function fetchDecisionVersion({
   };
 }
 
-/**
- * The template format a version's state is written in, or null when it has
- * none (an input state reads the same in either).
- */
-export function getDecisionTemplateFormat(
-  fetched: Pick<FetchedDecisionVersion, "version">
-): TemplateFormat | null {
-  const { state } = fetched.version;
-
-  if (state.kind !== "text") {
-    return null;
-  }
-
-  return state.templateFormat === "F_STRING"
-    ? TemplateFormats.FString
-    : TemplateFormats.Mustache;
+/** A template format from the server; formats this app doesn't know read as Mustache. */
+function toTemplateFormat(format: string): TemplateFormat {
+  return isTemplateFormat(format) ? format : TemplateFormats.Mustache;
 }
 
 /**
@@ -337,10 +280,7 @@ export async function fetchPlaygroundDecisionAsInstance({
     return null;
   }
 
-  const format =
-    templateFormat ??
-    getDecisionTemplateFormat(fetched) ??
-    TemplateFormats.Mustache;
+  const format = templateFormat ?? fetched.version.templateFormat;
 
   return {
     instance: toDecisionInstance({

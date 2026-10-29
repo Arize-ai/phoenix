@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6a46a0e00cf46afc8f0ce6fcdedcd66>>
+ * @generated SignedSource<<c17c72ef48035f6d0c38f06564c2a863>>
  * @lightSyntaxTransform
  */
 
@@ -85,13 +85,13 @@ v9 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
-  "type": "Float"
+  "type": "JSON"
 },
 v10 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
-  "type": "JSON"
+  "type": "Float"
 };
 return {
   "fragment": {
@@ -319,6 +319,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "templateFormat",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
                             "name": "state",
@@ -332,7 +339,7 @@ return {
                                     "alias": null,
                                     "args": null,
                                     "kind": "ScalarField",
-                                    "name": "template",
+                                    "name": "text",
                                     "storageKey": null
                                   }
                                 ],
@@ -346,11 +353,11 @@ return {
                                     "alias": null,
                                     "args": null,
                                     "kind": "ScalarField",
-                                    "name": "input",
+                                    "name": "json",
                                     "storageKey": null
                                   }
                                 ],
-                                "type": "DecisionInputState",
+                                "type": "DecisionJsonState",
                                 "abstractKey": null
                               }
                             ],
@@ -480,7 +487,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fbcc2b13fe56b4760912d65612ccc1bd",
+    "cacheID": "778467d1d57e1c600bee6a1f488c7075",
     "id": null,
     "metadata": {
       "relayTestingSelectionTypeInfo": {
@@ -585,8 +592,18 @@ return {
           "type": "DecisionState"
         },
         "projectEvaluator.evaluator.decisionVersion.state.__typename": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.state.input": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.state.template": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.state.json": (v9/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.state.text": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.templateFormat": {
+          "enumValues": [
+            "MUSTACHE",
+            "F_STRING",
+            "NONE"
+          ],
+          "nullable": false,
+          "plural": false,
+          "type": "PromptTemplateFormat"
+        },
         "projectEvaluator.evaluator.id": (v7/*:: as any*/),
         "projectEvaluator.evaluator.scoringPolicy": {
           "enumValues": null,
@@ -625,8 +642,8 @@ return {
           "type": "DecisionChoiceScore"
         },
         "projectEvaluator.evaluator.scoringPolicy.questions.scores.choice": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.scoringPolicy.questions.scores.score": (v9/*:: as any*/),
-        "projectEvaluator.evaluator.scoringPolicy.questions.threshold": (v9/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.scores.score": (v10/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.threshold": (v10/*:: as any*/),
         "projectEvaluator.id": (v7/*:: as any*/),
         "projectEvaluator.inputMapping": {
           "enumValues": null,
@@ -634,13 +651,13 @@ return {
           "plural": false,
           "type": "EvaluatorInputMapping"
         },
-        "projectEvaluator.inputMapping.literalMapping": (v10/*:: as any*/),
-        "projectEvaluator.inputMapping.pathMapping": (v10/*:: as any*/)
+        "projectEvaluator.inputMapping.literalMapping": (v9/*:: as any*/),
+        "projectEvaluator.inputMapping.pathMapping": (v9/*:: as any*/)
       }
     },
     "name": "DecisionProjectEvaluatorDetailsTestQuery",
     "operationKind": "query",
-    "text": "query DecisionProjectEvaluatorDetailsTestQuery {\n  projectEvaluator: node(id: \"test-project-evaluator-id\") {\n    __typename\n    ... on ProjectEvaluator {\n      ...DecisionProjectEvaluatorDetails_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment DecisionProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n        state {\n          __typename\n          ... on DecisionTextState {\n            template\n          }\n          ... on DecisionInputState {\n            input\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query DecisionProjectEvaluatorDetailsTestQuery {\n  projectEvaluator: node(id: \"test-project-evaluator-id\") {\n    __typename\n    ... on ProjectEvaluator {\n      ...DecisionProjectEvaluatorDetails_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment DecisionProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n        templateFormat\n        state {\n          __typename\n          ... on DecisionTextState {\n            text\n          }\n          ... on DecisionJsonState {\n            json\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

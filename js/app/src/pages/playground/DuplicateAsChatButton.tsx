@@ -48,13 +48,8 @@ export function DuplicateAsChatButton({
   );
 
   const duplicateAsChat = () => {
-    const {
-      instances,
-      templateFormat,
-      duplicateInstance,
-      updateInstance,
-      addMessage,
-    } = store.getState();
+    const { instances, duplicateInstance, updateInstance, addMessage } =
+      store.getState();
     const source = instances.find((candidate) => candidate.id === instanceId);
     const decisionPrompt = selectPlaygroundInstanceDecisionPrompt(instanceId)(
       store.getState()
@@ -64,7 +59,6 @@ export function DuplicateAsChatButton({
     if (copyId == null) return;
     const { messages, responseFormat } = buildChatFromDecisionDraft({
       draft: decisionPrompt,
-      templateFormat,
     });
     const provider = defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
     const chatModel = source.llmModel ?? {

@@ -278,7 +278,7 @@ describe("getExperimentsOverDatasetInput", () => {
       instanceId: decisionId,
       request: {
         ...createDecisionDraft(),
-        state: createDecisionStateDraft({ template: "{{ticket}}" }),
+        state: createDecisionStateDraft({ text: "{{ticket}}" }),
       },
     });
     store.playgroundStore.getState().updateInstance({
@@ -307,7 +307,9 @@ describe("getExperimentsOverDatasetInput", () => {
     expect(input.tasks[1].decision).toMatchObject({
       modelName: "tev1:0.8b-mxfp8",
       decisionVersionId: "DV1",
-      inputValuesPath: "input",
+      templateVariablesPath: "input",
+      templateFormat: "MUSTACHE",
+      state: { text: "{{ticket}}" },
     });
   });
 
