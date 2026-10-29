@@ -233,7 +233,7 @@ class TestApplyManifestSync:
                 "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",
                 "token_prices": [
                     {
-                        "base_rate": 0.000005,
+                        "base_rate": 0.0,
                         "is_prompt": True,
                         "token_type": "input",
                     },
@@ -278,7 +278,7 @@ class TestApplyManifestSync:
 
         actual_prices_2 = _extract_token_prices(model2)
         expected_prices_2 = {
-            ("input", True): 0.000005,
+            ("input", True): 0.0,
             ("output", False): 0.000010,
         }
         assert actual_prices_2 == expected_prices_2, (

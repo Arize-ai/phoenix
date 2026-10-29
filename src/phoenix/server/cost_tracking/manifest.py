@@ -92,12 +92,9 @@ class ManifestModel(_ManifestBaseModel):
     @model_validator(mode="after")
     def _check_unique_token_prices(self) -> "ManifestModel":
         # Two prices for the same token type and direction would violate the database's unique
-        # constraint and roll back the whole apply. Zero prices are not stored, so they can't
-        # collide.
+        # constraint and roll back the whole apply.
         seen: set[tuple[str, bool]] = set()
         for token_price in self.token_prices:
-            if not token_price.base_rate:
-                continue
             key = (token_price.token_type, token_price.is_prompt)
             if key in seen:
                 raise ValueError(

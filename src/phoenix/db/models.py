@@ -3017,7 +3017,7 @@ class SpanCost(HasId):
 
     def append_detail(self, detail: "SpanCostDetail") -> None:
         self.span_cost_details.append(detail)
-        if cost := detail.cost:
+        if (cost := detail.cost) is not None:
             if detail.is_prompt:
                 self.prompt_cost = (self.prompt_cost or 0) + cost
             else:

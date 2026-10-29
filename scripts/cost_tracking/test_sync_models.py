@@ -9,6 +9,7 @@ from sync_models import (
     ModelSource,
     TokenPrice,
     _dump_models,
+    extract_litellm_entries,
     next_generated_at,
     serialize_manifest,
     update_manifest,
@@ -81,3 +82,36 @@ def test_serialized_header_comes_before_models() -> None:
         '{\n  "schema_version": 1,\n  "generated_at": "2026-10-01T00:00:00Z",\n'
         f'  "models_sha256": "{manifest.models_sha256}",\n  "models": ['
     )
+
+
+def test_extract_litellm_entries_preserves_zero_input_rate() -> None:
+    entries = extract_litellm_entries(
+        {
+            "perplexity/sonar-small-online": {
+                "input_cost_per_token": 0,
+                "output_cost_per_token": 2.8e-7,
+            },
+            "zai/glm-5": {
+                "input_cost_per_token": 1e-6,
+                "output_cost_per_token": 3.2e-6,
+                "cache_read_input_token_cost": 2e-7,
+                "cache_creation_input_token_cost": 0,
+            },
+        }
+    )
+    by_name = {
+        entry.name: {(tp.token_type, tp.is_prompt): tp.base_rate for tp in entry.token_prices}
+        for entry in entries
+    }
+    assert by_name == {
+        "perplexity/sonar-small-online": {
+            ("input", True): 0.0,
+            ("output", False): 2.8e-7,
+        },
+        "zai/glm-5": {
+            ("input", True): 1e-6,
+            ("output", False): 3.2e-6,
+            ("cache_read", True): 2e-7,
+            ("cache_write", True): 0.0,
+        },
+    }
