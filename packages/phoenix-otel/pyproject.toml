@@ -38,6 +38,20 @@ dependencies = [
 test = [
 ]
 
+[dependency-groups]
+# Test and type-check tooling for CI (`uv sync --package arize-phoenix-otel`).
+# Dependency groups are never published with the wheel.
+dev = [
+  "mypy==2.4.0",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-timeout",
+  "pytest-xdist",
+  "uvloop; platform_system != 'Windows'",
+]
+
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"

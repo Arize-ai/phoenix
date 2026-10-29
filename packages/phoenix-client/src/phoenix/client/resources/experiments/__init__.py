@@ -266,7 +266,7 @@ def _get_tracer_bundle(
 
     tracer_provider.add_span_processor(span_processor)
     return _TracerBundle(
-        tracer=OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()),
+        tracer=cast(Tracer, OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig())),
         resource=resource,
         provider=tracer_provider,
     )
@@ -276,7 +276,7 @@ def _get_noop_tracer_bundle() -> _TracerBundle:
     resource = Resource({})
     provider = NoOpTracerProvider()
     return _TracerBundle(
-        tracer=OITracer(provider.get_tracer("no-op"), config=TraceConfig()),
+        tracer=cast(Tracer, OITracer(provider.get_tracer("no-op"), config=TraceConfig())),
         resource=resource,
         provider=provider,
     )

@@ -49,6 +49,29 @@ harbor = [
   "harbor>=0.21.0; python_version >= '3.12' and python_version < '3.15'",  # transitive dep fastuuid lacks cp315 wheels and fails to build on 3.15 (pyo3 0.26)
 ]
 
+[dependency-groups]
+# Test and type-check tooling for CI (`uv sync --package arize-phoenix-client`).
+# Dependency groups are never published with the wheel.
+dev = [
+  "anthropic>=1,<2",
+  "deepdiff==8.6.2",
+  "google-genai>=2.17.0",
+  "harbor>=0.21.0; python_version >= '3.12' and python_version < '3.15'",
+  "mypy==2.4.0",
+  "nest-asyncio",
+  "openai>=1.62.0",
+  "pandas",
+  "pandas-stubs",
+  "pyright[nodejs]",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-timeout",
+  "pytest-xdist",
+  "uvloop; platform_system != 'Windows'",
+]
+
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
 
