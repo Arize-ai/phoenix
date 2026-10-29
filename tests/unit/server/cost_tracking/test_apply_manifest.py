@@ -18,6 +18,7 @@ from phoenix.server.cost_tracking.apply_manifest import (
     apply_manifest_if_newer,
     get_applied_manifest_version,
 )
+from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.server.cost_tracking.manifest import (
     SUPPORTED_SCHEMA_VERSION,
     ModelCostManifest,
@@ -627,12 +628,29 @@ class TestApplyManifestIfNewer:
         assert await _apply(db, _manifest("model-a", day=1))
         assert await _active_built_in_prices(db) == {"model-a": 1e-6}
 
-    async def test_model_with_span_costs_is_not_soft_deleted(self, db: DbSessionFactory) -> None:
+    async def test_removed_model_with_span_costs_is_soft_deleted_and_does_not_shadow_replacement(
+        self, db: DbSessionFactory
+    ) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("used-model", "unused-model", day=1))
-        await _add_span_cost(db, "used-model")
-        assert await _apply(db, _manifest(day=2))
-        assert await _active_built_in_prices(db) == {"used-model": 1e-6}
+        used_id = await _add_span_cost(db, "used-model")
+        replacement = {
+            **_manifest_model("replacement-model", input_rate=3e-6),
+            "name_pattern": r"(?i)^(used-model|replacement-model)$",
+        }
+        assert await _apply(db, _manifest_of([replacement], day=2))
+        assert await _active_built_in_prices(db) == {"replacement-model": 3e-6}
+        assert await _get_deleted_model_names(db) == {"used-model", "unused-model"}
+        async with db() as session:
+            old_model = await session.get(models.GenerativeModel, used_id)
+            assert old_model is not None and old_model.deleted_at is not None
+            assert await session.scalar(select(models.SpanCost.model_id)) == used_id
+        lookup = CostModelLookup((await _get_models(db, is_built_in=True)).values())
+        matched = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "used-model"}},
+        )
+        assert matched is not None and matched.name == "replacement-model"
 
     async def test_renamed_model_with_span_costs_replaces_its_old_row(
         self,
