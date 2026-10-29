@@ -5,6 +5,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
@@ -16,7 +17,7 @@ class PatchAnnotationInput:
     annotator_kind: Optional[AnnotatorKind] = UNSET
     label: Optional[str] = UNSET
     score: Optional[float] = UNSET
-    explanation: Optional[str] = UNSET
+    explanation: Redacted[Optional[str]] = UNSET
     metadata: Optional[JSON] = UNSET
     identifier: Optional[str] = UNSET
     source: Optional[AnnotationSource] = UNSET

@@ -3697,7 +3697,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         yield transcript_persisted_chunk
                 except Exception as exc:
                     stream_error = exc
-                    logger.exception("Agent chat stream failed for session %s", session_id)
+                    logger.error(
+                        "Agent chat stream failed for session %s (%s)",
+                        session_id,
+                        type(exc).__name__,
+                    )
                     yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
                 except (asyncio.CancelledError, GeneratorExit) as exc:
                     # A client disconnect (e.g., the UI stop button, a CLI interrupt,

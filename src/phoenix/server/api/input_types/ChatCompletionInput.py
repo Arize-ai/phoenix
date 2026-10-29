@@ -8,6 +8,7 @@ from strawberry.scalars import JSON
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.input_types.ConnectionConfigInput import ConnectionConfigInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.redaction import Redacted
 
 from .PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from .PromptTemplateOptions import PromptTemplateOptions
@@ -18,7 +19,7 @@ from .PromptVersionInput import ChatPromptVersionInput
 class ChatCompletionInput:
     prompt_version: ChatPromptVersionInput
     connection_config: Optional[ConnectionConfigInput] = None
-    headers: Optional[JSON] = None
+    headers: Redacted[Optional[JSON]] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
@@ -32,7 +33,7 @@ class ChatCompletionOverDatasetInput:
     prompt_version_id: GlobalID | None = None
     prompt_version: ChatPromptVersionInput
     connection_config: Optional[ConnectionConfigInput] = None
-    headers: Optional[JSON] = None
+    headers: Redacted[Optional[JSON]] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     repetitions: int
     dataset_id: GlobalID

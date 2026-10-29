@@ -333,7 +333,7 @@ async def _ensure_admins(
         return_exceptions=True,
     ):
         if isinstance(exc, Exception):
-            logger.error(f"Failed to send welcome email: {exc}")
+            logger.error("Failed to send welcome email (%s)", type(exc).__name__)
 
 
 _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
