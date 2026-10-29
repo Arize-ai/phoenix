@@ -1151,8 +1151,8 @@ async def test_invalid_span_does_not_block_valid_neighbors(
 
 
 @pytest.mark.parametrize("existing_trace", [False, True], ids=["new-trace", "existing-trace"])
-@pytest.mark.parametrize("field", ["name", "json_value", "project_name"])
-async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
+@pytest.mark.parametrize("field", ["name", "json_value", "json_key", "project_name", "session_id"])
+async def test_nul_span_is_repaired_or_isolated_without_changing_sqlite_behavior(
     db: DbSessionFactory,
     caplog: pytest.LogCaptureFixture,
     existing_trace: bool,
@@ -1180,6 +1180,10 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
         invalid = replace(invalid, name=value)
     elif field == "json_value":
         attributes["input"] = value
+    elif field == "json_key":
+        attributes[value] = "value"
+    elif field == "session_id":
+        attributes["session"] = {"id": value}
     else:
         project_name = value
     invalid = replace(invalid, attributes=attributes)
@@ -1187,11 +1191,14 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
     inserter._spans[1] = (invalid, project_name)
     await inserter._insert_spans(3)
 
-    rejected = db.dialect.name_literal == "postgresql" and not (
-        field == "project_name" and existing_trace
+    # On PostgreSQL, NUL in descriptive values is replaced, while a JSON key or an
+    # identifier that would be stored rejects the span. SQLite stores NUL as is.
+    postgresql = db.dialect.name_literal == "postgresql"
+    rejected = postgresql and (
+        field == "json_key" or (field in ("project_name", "session_id") and not existing_trace)
     )
     if rejected:
-        assert f"sqlstate={'22P05' if field == 'json_value' else '22021'}" in caplog.text
+        assert f"sqlstate={'22P05' if field == 'json_key' else '22021'}" in caplog.text
     assert not inserter._span_batch and not inserter._spans and not inserter.is_full
     assert inserter._span_retry_attempts == 0
     async with db() as session:
@@ -1227,7 +1234,13 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
                 assert saved["root"].cumulative_llm_token_count_prompt == 0
         else:
             stored = saved["invalid"]
-            assert stored.name == invalid.name and stored.attributes == invalid.attributes
+            repaired = "contains\ufffdnul" if postgresql else value
+            assert stored.name == (repaired if field == "name" else invalid.name)
+            assert stored.attributes == {
+                **invalid.attributes,
+                **({"input": repaired} if field == "json_value" else {}),
+                **({"session": {"id": repaired}} if field == "session_id" else {}),
+            }
             trace = await session.get(models.Trace, stored.trace_rowid)
             assert trace is not None
             project = await session.get(models.Project, trace.project_rowid)

@@ -1,4 +1,5 @@
-from dataclasses import asdict
+from collections.abc import Mapping
+from dataclasses import asdict, replace
 from datetime import datetime
 from typing import Any, NamedTuple, Optional, TypeVar, Union
 
@@ -10,7 +11,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, random_project_gradient
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanEvent, SpanKind, SpanStatusCode
 
 
 class SpanInsertionEvent(NamedTuple):
@@ -122,15 +123,71 @@ async def _get_or_create(
     raise RuntimeError(f"{table.__tablename__} record disappeared during creation: {key}")
 
 
-# TODO: Preserve spans by replacing NUL with U+FFFD in descriptive values, rejecting
-# affected identifiers and JSON keys. Share repaired inputs with costs and direct tracer
-# writers without mutating caller-owned attributes or events.
+_NUL = "\x00"
+
+
+def _replace_nul(value: Any) -> Any:
+    """
+    Replace NUL with U+FFFD in string values, copying only the containers that change.
+    Keys are left as they are: merging two keys would change the data, so PostgreSQL
+    rejects the span instead.
+    """
+    if isinstance(value, str):
+        return value.replace(_NUL, "\ufffd") if _NUL in value else value
+    if isinstance(value, Mapping):
+        items = {}
+        changed = False
+        for key, item in value.items():
+            items[key] = repaired = _replace_nul(item)
+            changed = changed or repaired is not item
+        return items if changed else value
+    if isinstance(value, (list, tuple)):
+        elements = [_replace_nul(item) for item in value]
+        return elements if any(e is not v for e, v in zip(elements, value)) else value
+    return value
+
+
+def _replace_event_nul(event: SpanEvent) -> SpanEvent:
+    name = _replace_nul(event.name)
+    attributes = _replace_nul(event.attributes)
+    if name is event.name and attributes is event.attributes:
+        return event
+    # Not dataclasses.replace: subclasses such as SpanException have their own __init__.
+    return SpanEvent(name=name, timestamp=event.timestamp, attributes=attributes)
+
+
+def _replace_descriptive_nul(span: Span) -> Span:
+    """
+    PostgreSQL rejects NUL in text and jsonb values, so descriptive values get U+FFFD
+    instead. Identifiers are left as they are, so PostgreSQL still rejects a span whose
+    identifiers it would store. The caller's span is not mutated.
+    """
+    name = _replace_nul(span.name)
+    status_message = _replace_nul(span.status_message)
+    attributes = _replace_nul(span.attributes)
+    events = [_replace_event_nul(event) for event in span.events]
+    if (
+        name is span.name
+        and status_message is span.status_message
+        and attributes is span.attributes
+        and all(e is v for e, v in zip(events, span.events))
+    ):
+        return span
+    return replace(
+        span, name=name, status_message=status_message, attributes=attributes, events=events
+    )
+
+
 async def insert_span(
     session: AsyncSession,
     span: Span,
     project_name: str,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+    # Read before the repair, since the session id is an identifier.
+    session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        span = _replace_descriptive_nul(span)
 
     trace_id = span.context.trace_id
     trace = await _fetch_row(
@@ -158,7 +215,6 @@ async def insert_span(
     # The existing trace's memberships win, including after a project transfer.
     trace = await _extend_time_range(session, models.Trace, trace, span.start_time, span.end_time)
 
-    session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
     assert isinstance(session_id, str)
 
