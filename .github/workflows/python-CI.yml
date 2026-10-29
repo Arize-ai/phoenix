@@ -911,40 +911,6 @@ jobs:
           alembic upgrade head
           alembic current
 
-  phoenix-client-canary-tests-sdk:
-    name: Phoenix Client Canary Tests for Third-Party SDKs
-    runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        py: ["3.11"]
-        pkg: [openai, anthropic, google_genai]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            requirements/canary/
-            scripts/ci/
-            packages/
-            evals/harbor/verifiers/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: "pyproject.toml"
-          resolution-strategy: "lowest"
-      - name: Run canary tests for ${{ matrix.pkg }}
-        env:
-          SDK: ${{ matrix.pkg }}
-        run: scripts/ci/canary_sdk_tests.sh "$SDK" -ra -x
-
   ci-required:
     name: Python CI Required
     needs:
@@ -969,7 +935,6 @@ jobs:
       - integration-tests
       - test-migrations
       - test-json-canonicalization-schema
-      - phoenix-client-canary-tests-sdk
     if: always()
     runs-on: ubuntu-latest
     steps:

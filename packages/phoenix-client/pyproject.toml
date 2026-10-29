@@ -121,7 +121,6 @@ strict = true
 exclude = [
   "dist/",
   "examples",
-  "tests/canary",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
@@ -147,7 +146,6 @@ reportUnusedFunction = false
 exclude = [
   "dist/",
   "examples",
-  "tests/canary/",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
   "**/.venv",
