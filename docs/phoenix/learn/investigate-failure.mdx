@@ -1,0 +1,112 @@
+---
+title: "Investigate and label a failed run"
+description: "Use trace evidence to explain a failed requirement, then label similar requests consistently."
+---
+
+{/* video: TODO */}
+
+Your review notes describe how the agent handled each request. Now you'll inspect the evidence behind a [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) answer and label whether it met the shopper's budget. You'll use the same criteria to review other runs.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-label-light-fd27378b4dbb.svg" alt="Inspect evidence, define review criteria, and apply a label." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-label-dark-093c9c04d81f.svg" alt="Inspect evidence, define review criteria, and apply a label." />
+</Frame>
+
+## Before you start
+
+Open a request you noted in [Use traces and feedback](/docs/phoenix/learn/find-failures). The example below uses the recorded \$25 request, where Wonder Toys recommended a \$27.99 kit. If your run stayed within budget, follow the same checks and label it according to your evidence.
+
+## Work with PXI (optional)
+
+[PXI](/docs/phoenix/pxi) (pronounced "pixie") is the AI assistant built into Phoenix. You can ask it to carry out all four steps below: inspect the trace, define review criteria, configure the annotation, and save a label with an explanation. For each step, follow the UI instructions or use the **Ask PXI** prompt.
+
+To try it, follow the [PXI setup guide](/docs/phoenix/pxi#get-started), then open PXI with **⌘I** on macOS or **Ctrl+I** on Windows and Linux while viewing the trace.
+
+<Frame caption="The Wonder Toys trace is open on the left, with PXI in the panel on the right.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/investigate-pxi-overview-be6dffb2f857.png" alt="Phoenix in light mode with the Wonder Toys trace open beside the PXI assistant panel" />
+</Frame>
+
+- Review PXI's criteria and explanations against the trace before accepting them. PXI is in beta; keep **Manual Approval** enabled so you can review proposed changes before they're saved.
+
+- Continue in the same PXI chat as you move through the steps. If you define the criteria yourself, share them with PXI before asking it to label a request.
+
+## Step 1: Check what the agent knew
+
+Read the request and answer on the top-level **Wonder Toys** span, then inspect the steps behind the recommendation:
+
+- Select `search-products` and check the returned product prices in **Output**.
+- Select the following `ChatAnthropic` call and find those results in **Input**.
+- Compare them with the recommendation in **Output**.
+
+In the recorded run, the search returned the kit's \$27.99 price, and that price reached the final model call. The model still recommended the kit while noting that it exceeded the budget.
+
+<Frame caption="The model received the product's price before it made the recommendation.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-search-results.png" alt="Model input containing the search result for the Dinosaur Explorer Kit priced at 27.99" />
+</Frame>
+
+The evidence rules out a missing price in this run. It points to how the model selected and presented its recommendations, but it doesn't yet show which change will fix the problem. If a needed step or value is missing from your trace, record that gap instead of guessing.
+
+<Accordion title="Ask PXI to inspect the trace">
+  > Compare the shopper's budget with the search results and final recommendation. Cite the steps that support your explanation, and identify anything the trace doesn't establish. Keep the answer brief, and don't change any data.
+
+  <Frame caption="PXI summarizes its investigation of the recorded run and links to the supporting spans.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/investigate-pxi-6bdc8d27d34d.png" alt="PXI's summary comparing the shopper's 25 dollar budget with the 27.99 dollar recommendation, with links to the search and model spans" />
+  </Frame>
+</Accordion>
+
+## Step 2: Define the behavior you want to label
+
+An [**annotation**](/docs/phoenix/tracing/concepts-tracing/annotations-concepts) stores your assessment alongside the run. Start with one question that your notes support. For this example: did the recommendation respect the shopper's budget?
+
+Use `budget_compliance` with these labels:
+
+- **pass:** Recommended products are below the limit, or the agent explains that no match was found without recommending a more expensive product.
+- **fail:** The agent recommends a product at or above the limit without the shopper agreeing to change it.
+
+These are the review criteria for this exercise. A budget label doesn't assess age suitability or whether the products match the requested topic. Record those separately if your notes show a problem. Leave uncertain cases unlabeled and explain what needs checking.
+
+<Accordion title="Ask PXI to define the criteria">
+  > Draft pass/fail criteria for `budget_compliance`: recommended products must be below the shopper's limit unless they agree to change it. A no-match answer can pass without recommending a more expensive product. Assess other requirements separately and leave uncertain cases unlabeled.
+</Accordion>
+
+## Step 3: Configure the annotation in Phoenix
+
+- Open **Settings → Annotations → New Configuration**. Name the annotation `budget_compliance` and choose **Categorical**.
+- Add `pass` with score `1` and `fail` with score `0`. Keep **Maximize** selected, then choose **Create Annotation Config**.
+- Return to **wonder-toys → Config** and enable it under **Annotation Configs**.
+
+<Frame caption="Define the same labels for everyone reviewing this requirement.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/investigate-budget-config-9f4d29139845.png" alt="Phoenix annotation configuration with budget_compliance and pass and fail labels" />
+</Frame>
+
+See [Annotating in the UI](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui) for more about annotation configuration.
+
+<Accordion title="Ask PXI to configure the annotation">
+  > Configure `budget_compliance` on this trace's project with `pass = 1`, `fail = 0`, and Maximize. Check for an existing configuration first, and show me any changes for approval.
+</Accordion>
+
+## Step 4: Label the request and explain the decision
+
+- Return to the trace and select the top-level **Wonder Toys** span.
+- Choose **Annotate this span**, select `budget_compliance`, and apply the label supported by your review.
+- Add an explanation that cites the request and the relevant price.
+
+For the recorded \$25 request, the label is `fail`: the final model received the \$27.99 price and still recommended the kit. Apply the same criteria to your other requests, including the ones that stayed within budget.
+
+<Frame caption="This example review was added by an AI assistant and is marked LLM. An annotation you add in the UI is recorded as a human review.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/investigate-budget-label-e285d022920c.png" alt="Wonder Toys span with a budget_compliance fail annotation and an explanation citing the 25 dollar limit and 27.99 dollar recommendation" />
+</Frame>
+
+<Accordion title="Ask PXI to label this request">
+  > Apply our budget criteria to this request. Propose a label and explanation citing the evidence. After approval, save a `budget_compliance` annotation on the top-level Wonder Toys span with annotator kind `LLM`. Preserve existing reviews and leave uncertain cases unlabeled.
+</Accordion>
+
+To find these labels again, open **wonder-toys → Spans** and enter:
+
+```python
+parent_span is None and annotations['budget_compliance'].label == 'fail'
+```
+
+The first condition selects top-level spans; the second selects the label you added. The notes and labels are attached to these spans, so use the **Spans** filter here.
+
+Next, turn the reviewed runs into test cases so you can check a proposed change against the same requests.

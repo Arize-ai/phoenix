@@ -486,7 +486,8 @@
           {
             "group": "Find failures",
             "pages": [
-              "docs/phoenix/learn/find-failures"
+              "docs/phoenix/learn/find-failures",
+              "docs/phoenix/learn/investigate-failure"
             ]
           }
         ]
