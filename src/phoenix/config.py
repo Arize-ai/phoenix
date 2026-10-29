@@ -3397,15 +3397,22 @@ def get_env_grpc_port() -> int:
 
 
 def canonicalize_host(host: str) -> str:
-    """Strip whitespace and brackets from IP literals, compress IPv6, and expand
-    IPv4 abbreviations accepted by ``inet_aton``.
+    """Strip whitespace and brackets from IP literals, compress IPv6, unwrap
+    IPv4-mapped IPv6 addresses to IPv4, and expand IPv4 abbreviations accepted by
+    ``inet_aton``.
 
     Preserve hostnames. Listeners compare against and bind the result directly, so
     every spelling of an address must canonicalize to one string, such as ``::``.
     """
     host = host.strip()
     try:
-        return str(ipaddress.ip_address(host.strip("[]")))
+        address = ipaddress.ip_address(host.strip("[]"))
+        if (
+            isinstance(address, ipaddress.IPv6Address)
+            and (mapped := address.ipv4_mapped) is not None
+        ):
+            return str(mapped)
+        return str(address)
     except ValueError:
         pass
     try:
