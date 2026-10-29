@@ -15,6 +15,7 @@ from ...prompts import (
 )
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -325,13 +326,13 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = self._litellm.completion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
@@ -383,13 +384,13 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Async generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = await self._litellm.acompletion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
@@ -408,6 +409,17 @@ class LiteLLMAdapter(BaseLLMAdapter):
     def model_name(self) -> str:
         """Return the LiteLLM model name."""
         return cast(str, self.client.model_string)
+
+    def _tool_calling_messages_and_choice(
+        self, prompt: PromptLike
+    ) -> tuple[list[dict[str, Any]], Any]:
+        messages = self._build_messages(prompt)
+        if self.client.provider != "anthropic":
+            return messages, {"type": "function", "function": {"name": TOOL_NAME}}
+        # Some Claude models reject a forced tool_choice (see TOOL_INSTRUCTION), so ask for the
+        # call in a system message instead. LiteLLM gathers every system message, in order, into
+        # Anthropic's system blocks, so this one follows any system prompt the caller wrote.
+        return [*messages, {"role": "system", "content": TOOL_INSTRUCTION}], "auto"
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -428,7 +440,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         tool_definition = {
             "type": "function",
             "function": {
-                "name": "extract_structured_data",
+                "name": TOOL_NAME,
                 "description": description,
                 "parameters": schema,
             },

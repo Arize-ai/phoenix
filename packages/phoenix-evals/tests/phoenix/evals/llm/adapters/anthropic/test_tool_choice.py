@@ -86,3 +86,21 @@ async def test_async_appends_the_tool_instruction_to_the_prompt_system_message()
     assert await adapter.async_generate_object(prompt, _SCHEMA) == {"label": "a"}
     assert requests[0]["tool_choice"] == {"type": "auto"}
     assert requests[0]["system"] == f"Be strict.\n\n{_INSTRUCTION}"
+
+
+def test_appends_the_tool_instruction_to_a_system_kwarg() -> None:
+    requests: List[Dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(json.loads(request.content))
+        return _respond(requests[-1])
+
+    client = anthropic.Anthropic(
+        api_key="test",
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler)),
+        max_retries=0,
+    )
+    adapter = AnthropicAdapter(client=client, model="claude-test")
+
+    assert adapter.generate_object("q", _SCHEMA, system="Be strict.") == {"label": "a"}
+    assert requests[0]["system"] == f"Be strict.\n\n{_INSTRUCTION}"

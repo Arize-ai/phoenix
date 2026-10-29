@@ -11,21 +11,16 @@ from ...prompts import (
 )
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
 
-_TOOL_NAME = "extract_structured_data"
-# A forced `tool_choice` (`{"type": "tool"}` or `{"type": "any"}`) is rejected by some models and
-# can't be combined with extended thinking, so object generation leaves `tool_choice` on `auto`,
-# which every model accepts, and asks for the tool call in the system prompt instead, as Anthropic's
-# migration guide recommends:
-# https://platform.claude.com/docs/en/models/opus-5-5/migration-guide#forced-tool-use
-_TOOL_INSTRUCTION = f"Respond by calling the `{_TOOL_NAME}` tool."
 
-
-def _with_tool_instruction(system: str) -> str:
-    return f"{system}\n\n{_TOOL_INSTRUCTION}" if system else _TOOL_INSTRUCTION
+def _with_tool_instruction(system: Any) -> Any:
+    if isinstance(system, list):
+        return [*system, {"type": "text", "text": TOOL_INSTRUCTION}]
+    return f"{system}\n\n{TOOL_INSTRUCTION}" if system else TOOL_INSTRUCTION
 
 
 def identify_anthropic_client(client: Any) -> bool:
@@ -199,17 +194,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages, system = self._build_messages(prompt)
-        tool_definition = self._schema_to_tool(schema)
-        kwargs["system"] = _with_tool_instruction(system)
-
-        response = self.client.messages.create(
-            model=self.model,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice={"type": "auto"},
-            **kwargs,
-        )
+        response = self.client.messages.create(**self._tool_calling_params(prompt, schema, kwargs))
 
         for content_block in response.content:
             if hasattr(content_block, "type") and content_block.type == "tool_use":
@@ -223,16 +208,8 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages, system = self._build_messages(prompt)
-        tool_definition = self._schema_to_tool(schema)
-        kwargs["system"] = _with_tool_instruction(system)
-
         response = await self.client.messages.create(
-            model=self.model,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice={"type": "auto"},
-            **kwargs,
+            **self._tool_calling_params(prompt, schema, kwargs)
         )
 
         for content_block in response.content:
@@ -241,11 +218,25 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         raise ValueError("No tool use in response")
 
+    def _tool_calling_params(
+        self, prompt: PromptLike, schema: Dict[str, Any], kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        messages, system = self._build_messages(prompt)
+        return {
+            "tool_choice": {"type": "auto"},
+            **kwargs,
+            "model": self.model,
+            "messages": messages,
+            "tools": [self._schema_to_tool(schema)],
+            # A system message in the prompt takes precedence over a `system` kwarg.
+            "system": _with_tool_instruction(system or kwargs.get("system")),
+        }
+
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
 
         tool_definition = {
-            "name": _TOOL_NAME,
+            "name": TOOL_NAME,
             "description": description,
             "input_schema": schema,
         }
