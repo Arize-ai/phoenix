@@ -220,8 +220,7 @@ async def _upsert_models(
         }
         token_prices_changed = False
         for manifest_token_price in manifest_model.token_prices:
-            if not (base_rate := manifest_token_price.base_rate):
-                continue
+            base_rate = manifest_token_price.base_rate
             customization = TokenPriceCustomizationParser.parse(manifest_token_price.customization)
             key = _TokenTypeKey(manifest_token_price.token_type, manifest_token_price.is_prompt)
             if not (token_price := existing_token_prices.pop(key, None)):

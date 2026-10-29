@@ -224,6 +224,13 @@ def _is_positive_number(value: Any) -> bool:
         return False
 
 
+def _is_non_negative_number(value: Any) -> bool:
+    try:
+        return float(value) >= 0
+    except (TypeError, ValueError):
+        return False
+
+
 def next_generated_at(
     previous: ModelCostManifest,
     updated: ModelCostManifest,
@@ -263,7 +270,10 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         # Both an input and an output rate are required for pricing.
-        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
+        if (
+            _is_non_negative_number(model_info.get("input_cost_per_token"))
+            and _output_rate_field(model_info) is not None
+        ):
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -280,11 +290,11 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
 
         token_prices: list[TokenPrice] = []
 
-        if input_cost := float(model_info.get("input_cost_per_token", 0)):
+        if _is_non_negative_number(raw_input_cost := model_info.get("input_cost_per_token")):
             token_prices.append(
                 TokenPrice(
                     token_type="input",
-                    base_rate=input_cost,
+                    base_rate=float(raw_input_cost),
                     is_prompt=True,
                     customization=_tier_customization(model_info, "input_cost_per_token"),
                 )
@@ -310,11 +320,13 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
-        if cache_creation_cost := float(model_info.get("cache_creation_input_token_cost", 0)):
+        if _is_non_negative_number(
+            raw_cache_creation_cost := model_info.get("cache_creation_input_token_cost")
+        ):
             token_prices.append(
                 TokenPrice(
                     token_type="cache_write",
-                    base_rate=cache_creation_cost,
+                    base_rate=float(raw_cache_creation_cost),
                     is_prompt=True,
                     customization=_tier_customization(
                         model_info, "cache_creation_input_token_cost"
