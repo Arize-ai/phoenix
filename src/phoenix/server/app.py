@@ -96,7 +96,7 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
-from phoenix.server.api.redaction import redact_arguments
+from phoenix.server.api.redaction import RedactingOpenTelemetryExtension
 from phoenix.server.api.routers import (
     AgentSessionConflict,
     agent_session_conflict_handler,
@@ -1054,17 +1054,11 @@ def create_app(
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
         tracer_provider = initialize_opentelemetry_tracer_provider()
         # Bound to this provider rather than the global one, which in a notebook
         # could be the provider OpenInference is using.
         graphql_schema_extensions.append(
-            partial(
-                OpenTelemetryExtension,
-                tracer_provider=tracer_provider,
-                arg_filter=redact_arguments,
-            )
+            partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
         )
     logger_provider = None
     if server_log_export_is_enabled():
