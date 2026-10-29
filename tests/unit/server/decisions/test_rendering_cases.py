@@ -1,6 +1,6 @@
 """The server runs every decision rendering vector.
 
-The vectors in ``tests/fixtures/decisions/rendering_cases.json`` are kept as data so a client
+The vectors in ``rendering_cases.json`` beside this file are kept as data so a client
 that renders decisions itself can run the same cases.
 """
 
@@ -16,7 +16,7 @@ from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.decisions.rendering import decision_variables, render_decision
 from phoenix.server.decisions.validation import validate_template
 
-_CASES_PATH = Path(__file__).parents[3] / "fixtures" / "decisions" / "rendering_cases.json"
+_CASES_PATH = Path(__file__).parent / "rendering_cases.json"
 _CASES: list[dict[str, Any]] = json.loads(_CASES_PATH.read_text())["cases"]
 _STATE = TypeAdapter(DecisionState)
 _QUESTIONS = TypeAdapter(list[DecisionQuestion])

@@ -16,7 +16,7 @@ first-appearance order, under the version's template format. Rendering fills the
 5. The state must come out as non-empty text, an object, or a list.
 6. Each templated question field renders by rule 2; instructions cannot render empty.
 
-The vectors in ``tests/fixtures/decisions/rendering_cases.json`` pin them, as data a client
+The vectors in ``tests/unit/server/decisions/rendering_cases.json`` pin them, as data a client
 that renders decisions itself can run too.
 """
 
