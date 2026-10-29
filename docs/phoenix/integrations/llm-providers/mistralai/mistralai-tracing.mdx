@@ -28,7 +28,7 @@ export MISTRAL_API_KEY=[your_key_here]
 ```python
 import os
 
-from mistralai import Mistral
+from mistralai.client import Mistral
 from mistralai.models import UserMessage
 
 api_key = os.environ["MISTRAL_API_KEY"]
