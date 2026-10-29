@@ -5,6 +5,10 @@ from ...registries import register_provider
 from ...types import BaseDecisionAdapter
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
+_CLASSIFICATION_INSTRUCTIONS = (
+    "Read the prompt in the state and answer it by selecting exactly one of the choices."
+)
+
 
 @register_provider(
     provider="typesafe",
@@ -30,7 +34,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
-        return {"label": Choice(criteria=criteria)}
+        return {"label": Choice(instructions=_CLASSIFICATION_INSTRUCTIONS, criteria=criteria)}
 
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:

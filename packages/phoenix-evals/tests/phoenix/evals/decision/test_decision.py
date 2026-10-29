@@ -55,7 +55,9 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     assert kwargs["model"] == "jev-latest"
     question = kwargs["questions"]["label"]
     assert question.criteria == {"correct": None, "incorrect": None}
-    assert question.instructions is None
+    assert question.instructions == (
+        "Read the prompt in the state and answer it by selecting exactly one of the choices."
+    )
 
 
 async def test_async_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
@@ -131,7 +133,7 @@ def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypa
         llm=DecisionModel(provider="typesafe", model="jev-latest"),
         prompt_template="is this correct: {text}",
         choices=["correct", "incorrect"],
-        timeout=30, 
+        timeout=30,
     )
     evaluator.evaluate({"text": "2 + 2 = 4"})
 
