@@ -1,4 +1,3 @@
-import isEqual from "lodash/isEqual";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -1617,32 +1616,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }
       );
     },
-    setExampleVariables: ({
-      exampleVariables,
-      datasetId,
-    }: {
-      exampleVariables: unknown[];
-      datasetId: string;
-    }) => {
-      // The examples table recomputes these whenever its rows change; the
-      // first examples rarely do, and a new array would re-render every
-      // decision editor that reads them.
-      const current = get().stateByDatasetId[datasetId]?.exampleVariables;
-      if (current && isEqual(current, exampleVariables)) return;
-      set(
-        {
-          stateByDatasetId: {
-            ...get().stateByDatasetId,
-            [datasetId]: {
-              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
-              exampleVariables,
-            },
-          },
-        },
-        false,
-        { type: "setExampleVariables" }
-      );
-    },
     updateInstanceModelInvocationParameters: ({
       instanceId,
       invocationParameters,
@@ -2156,17 +2129,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     persist(devtools(playgroundStore, { name: "playgroundStore" }), {
       name: PLAYGROUND_STORAGE_KEY,
       partialize: (state) => {
-        // Exclude availablePaths and exampleVariables from persistence -
-        // they're computed at runtime
+        // Exclude availablePaths from persistence - it's computed at runtime
         const filteredState: typeof state.stateByDatasetId = {};
         for (const [datasetId, datasetState] of Object.entries(
           state.stateByDatasetId
         )) {
-          const {
-            availablePaths: _paths,
-            exampleVariables: _examples,
-            ...rest
-          } = datasetState;
+          const { availablePaths: _, ...rest } = datasetState;
           filteredState[datasetId] = rest;
         }
         return {

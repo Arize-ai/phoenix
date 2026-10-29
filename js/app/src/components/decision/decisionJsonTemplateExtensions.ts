@@ -19,7 +19,7 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { isBareWholeTag } from "./decisionTemplates";
 
 /** The class of a variable tag in a JSON template. */
-export const DECISION_TAG_CLASS = "cm-decision-tag";
+const DECISION_TAG_CLASS = "cm-decision-tag";
 
 function getTemplateParser(templateFormat: TemplateFormat): LRParser | null {
   switch (templateFormat) {

@@ -41,7 +41,7 @@ const F_STRING_WHOLE_TAG = /^\{([^{}!:]+)\}$/;
  * `{{ customer.tier }}` or `{items[0]}`; null for any other string. In a
  * JSON template such a string becomes the value itself, JSON type kept.
  */
-export function getWholeTagPath({
+function getWholeTagPath({
   templateFormat,
   text,
 }: {

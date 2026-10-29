@@ -12,7 +12,7 @@ import { decisionJsonTemplateExtensions } from "./decisionJsonTemplateExtensions
 
 type DecisionJsonTemplateEditorProps = Pick<
   ReactCodeMirrorProps,
-  "onCreateEditor" | "onUpdate" | "onBlur" | "placeholder" | "height"
+  "placeholder"
 > & {
   /** The template as first shown; remount (with `key`) to show another. */
   defaultValue: string;

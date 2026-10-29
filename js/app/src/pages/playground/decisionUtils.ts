@@ -561,7 +561,7 @@ export function maskUntouchedErrors({
  * The state template a draft sends. Throws when a JSON state isn't valid
  * JSON; {@link validateDecisionDraft} reports that first.
  */
-export function toDecisionStateTemplate({
+function toDecisionStateTemplate({
   state,
   templateFormat,
 }: {
@@ -585,7 +585,7 @@ function optionalText(text: string): string | null {
 }
 
 /** The questions as templates, in the stored shape the rendering rules read. */
-export function toDecisionQuestionTemplates(
+function toDecisionQuestionTemplates(
   questions: readonly DecisionQuestionDraft[]
 ): DecisionQuestionTemplate[] {
   return questions.map((question): DecisionQuestionTemplate => {
@@ -734,7 +734,7 @@ function getQuestionTemplates(
 }
 
 /** The variables the state's active mode uses, in first-appearance order. */
-export function getStateVariables({
+function getStateVariables({
   state,
   templateFormat,
 }: {
