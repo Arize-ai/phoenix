@@ -8,26 +8,29 @@ import { toStructuredInputValue } from "../decisionUtils";
 
 describe("formatInputPreview", () => {
   it("prints a value as one line of JSON", () => {
-    expect(formatInputPreview("Paris")).toEqual({
+    expect(formatInputPreview({ value: "Paris" })).toEqual({
       text: '"Paris"',
       full: "Paris",
     });
-    expect(formatInputPreview({ capital: "Paris" })).toEqual({
+    expect(formatInputPreview({ value: { capital: "Paris" } })).toEqual({
       text: '{"capital":"Paris"}',
       full: '{\n  "capital": "Paris"\n}',
     });
-    expect(formatInputPreview(2).text).toBe("2");
-    expect(formatInputPreview(null).text).toBe("null");
+    expect(formatInputPreview({ value: 2 }).text).toBe("2");
+    expect(formatInputPreview({ value: null }).text).toBe("null");
   });
 
   it("collapses line breaks and runs of whitespace", () => {
-    expect(formatInputPreview("first line\n\n  second\tline").text).toBe(
-      '"first line second line"'
-    );
+    expect(
+      formatInputPreview({ value: "first line\n\n  second\tline" }).text
+    ).toBe('"first line second line"');
   });
 
   it("cuts long values with an ellipsis", () => {
-    const { text, full } = formatInputPreview("a".repeat(100), 20);
+    const { text, full } = formatInputPreview({
+      value: "a".repeat(100),
+      maxChars: 20,
+    });
     expect(text).toHaveLength(20);
     expect(text.endsWith("…")).toBe(true);
     expect(full).toBe("a".repeat(100));
@@ -42,23 +45,29 @@ describe("scopeExampleVariables", () => {
   };
 
   it("reads under the template variables path", () => {
-    expect(scopeExampleVariables(example, "input")).toEqual({
+    expect(
+      scopeExampleVariables({ example, templateVariablesPath: "input" })
+    ).toEqual({
       question: "q",
     });
-    expect(scopeExampleVariables(example, "reference")).toEqual({
+    expect(
+      scopeExampleVariables({ example, templateVariablesPath: "reference" })
+    ).toEqual({
       answer: "a",
     });
   });
 
   it("is the whole example context without a path", () => {
-    expect(scopeExampleVariables(example, null)).toEqual({
+    expect(
+      scopeExampleVariables({ example, templateVariablesPath: null })
+    ).toEqual({
       input: { question: "q" },
       reference: { answer: "a" },
       metadata: { source: "s" },
     });
-    expect(scopeExampleVariables(example, "")).toEqual(
-      scopeExampleVariables(example, null)
-    );
+    expect(
+      scopeExampleVariables({ example, templateVariablesPath: "" })
+    ).toEqual(scopeExampleVariables({ example, templateVariablesPath: null }));
   });
 });
 
@@ -82,12 +91,16 @@ describe("getExampleInputNames", () => {
     ];
     expect(
       getExampleInputNames(
-        examples.map((example) => scopeExampleVariables(example, "input"))
+        examples.map((example) =>
+          scopeExampleVariables({ example, templateVariablesPath: "input" })
+        )
       )
     ).toEqual(["ticket", "customer"]);
     expect(
       getExampleInputNames(
-        examples.map((example) => scopeExampleVariables(example, null))
+        examples.map((example) =>
+          scopeExampleVariables({ example, templateVariablesPath: null })
+        )
       )
     ).toEqual(["input", "reference", "metadata"]);
   });

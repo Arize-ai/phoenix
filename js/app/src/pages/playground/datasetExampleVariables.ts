@@ -29,10 +29,13 @@ export function toTemplateVariablesContext(example: DatasetExampleFields): {
  * context scoped to the template variables path, or the whole context when
  * the path is empty.
  */
-export function scopeExampleVariables(
-  example: DatasetExampleFields,
-  templateVariablesPath: string | null | undefined
-): unknown {
+export function scopeExampleVariables({
+  example,
+  templateVariablesPath,
+}: {
+  example: DatasetExampleFields;
+  templateVariablesPath: string | null | undefined;
+}): unknown {
   const context = toTemplateVariablesContext(example);
   return templateVariablesPath
     ? getValueAtPath(context, templateVariablesPath)

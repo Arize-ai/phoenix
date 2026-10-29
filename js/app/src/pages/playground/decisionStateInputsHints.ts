@@ -20,10 +20,13 @@ export type DecisionInputPreview =
  * A value as one short line of JSON: strings quoted, line breaks and runs of
  * whitespace collapsed, cut with an ellipsis past `maxChars`.
  */
-export function formatInputPreview(
-  value: unknown,
-  maxChars = INPUT_PREVIEW_MAX_CHARS
-): { text: string; full: string } {
+export function formatInputPreview({
+  value,
+  maxChars = INPUT_PREVIEW_MAX_CHARS,
+}: {
+  value: unknown;
+  maxChars?: number;
+}): { text: string; full: string } {
   const json = JSON.stringify(value) ?? String(value);
   const text = json
     .replace(/\\[nrt]/g, " ")
@@ -89,7 +92,11 @@ export function getDecisionInputPreviews({
     for (const name of names) {
       previews[name] =
         isNamedFields(first) && Object.hasOwn(first, name)
-          ? { kind: "value", source, ...formatInputPreview(first[name]) }
+          ? {
+              kind: "value",
+              source,
+              ...formatInputPreview({ value: first[name] }),
+            }
           : { kind: "missing", source };
     }
     return previews;
@@ -99,7 +106,7 @@ export function getDecisionInputPreviews({
     if (value == null || value === "") continue;
     previews[name] = {
       kind: "value",
-      ...formatInputPreview(toSentValue(value)),
+      ...formatInputPreview({ value: toSentValue(value) }),
     };
   }
   return previews;

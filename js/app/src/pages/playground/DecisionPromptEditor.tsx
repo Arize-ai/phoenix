@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   Alert,
@@ -122,19 +122,17 @@ function useDecisionStateInputsHints(names: readonly string[]) {
   const variables = usePlaygroundContext(
     (state) => state.input.variablesValueCache
   );
-  return useMemo(() => {
-    // Over a dataset, nothing is shown until its examples have loaded.
-    const examples = datasetId != null ? (exampleVariables ?? []) : undefined;
-    return {
-      previews: getDecisionInputPreviews({
-        names,
-        exampleVariables: examples,
-        variables,
-        toSentValue: toStructuredInputValue,
-      }),
-      suggestions: examples ? getExampleInputNames(examples) : [],
-    };
-  }, [datasetId, exampleVariables, names, variables]);
+  // Over a dataset, nothing is shown until its examples have loaded.
+  const examples = datasetId != null ? (exampleVariables ?? []) : undefined;
+  return {
+    previews: getDecisionInputPreviews({
+      names,
+      exampleVariables: examples,
+      variables,
+      toSentValue: toStructuredInputValue,
+    }),
+    suggestions: examples ? getExampleInputNames(examples) : [],
+  };
 }
 
 /**

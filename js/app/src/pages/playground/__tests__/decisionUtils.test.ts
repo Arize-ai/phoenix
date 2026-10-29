@@ -1078,7 +1078,10 @@ describe("switching the state mode", () => {
       inputNames: ["reference", "output"],
     });
     expect(
-      inputNamesToTemplate(inputsState("ticket"), TemplateFormats.FString)
+      inputNamesToTemplate({
+        state: inputsState("ticket"),
+        templateFormat: TemplateFormats.FString,
+      })
     ).toBe("ticket: {ticket}");
   });
 

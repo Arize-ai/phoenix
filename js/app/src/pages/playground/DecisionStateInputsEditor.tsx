@@ -19,6 +19,7 @@ import {
   pierreTokenColors,
 } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
+import { classNames } from "@phoenix/utils/classNames";
 
 import type { DecisionInputPreview } from "./decisionStateInputsHints";
 import { parseStateInputNames } from "./decisionUtils";
@@ -380,13 +381,11 @@ export function DecisionStateInputsEditor({
     );
   };
   const lineClassName = (name: string) =>
-    [
+    classNames(
       "decision-state-inputs__line",
       "decision-state-inputs__line--entry",
-      previews?.[name] ? "decision-state-inputs__line--previewed" : null,
-    ]
-      .filter(Boolean)
-      .join(" ");
+      previews?.[name] && "decision-state-inputs__line--previewed"
+    );
   const punctuation = (text: string) => (
     <span style={{ color: tokenColors.punctuation }}>{text}</span>
   );

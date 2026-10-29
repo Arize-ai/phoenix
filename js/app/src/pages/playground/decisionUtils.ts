@@ -164,7 +164,13 @@ export function describeDecisionInputsState(
 }
 
 /** `name` as a template variable in `templateFormat`; empty when it has none. */
-function templateVariable(name: string, templateFormat: TemplateFormat) {
+function templateVariable({
+  name,
+  templateFormat,
+}: {
+  name: string;
+  templateFormat: TemplateFormat;
+}) {
   switch (templateFormat) {
     case TemplateFormats.Mustache:
       return `{{${name}}}`;
@@ -178,13 +184,16 @@ function templateVariable(name: string, templateFormat: TemplateFormat) {
 }
 
 /** A template over an `inputs` state: one `name: variable` line per input. */
-export function inputNamesToTemplate(
-  state: Pick<DecisionStateDraft, "inputNames">,
-  templateFormat: TemplateFormat
-): string {
+export function inputNamesToTemplate({
+  state,
+  templateFormat,
+}: {
+  state: Pick<DecisionStateDraft, "inputNames">;
+  templateFormat: TemplateFormat;
+}): string {
   return state.inputNames
     .map((name) =>
-      `${name}: ${templateVariable(name, templateFormat)}`.trimEnd()
+      `${name}: ${templateVariable({ name, templateFormat })}`.trimEnd()
     )
     .join("\n");
 }
@@ -211,7 +220,7 @@ export function switchDecisionStateMode({
       state.inputNames.length === 0 ||
       templateFormat === TemplateFormats.NONE
         ? state.template
-        : inputNamesToTemplate(state, templateFormat);
+        : inputNamesToTemplate({ state, templateFormat });
     return { ...state, mode, template };
   }
   const inputNames =
@@ -586,7 +595,7 @@ export function buildSystemOneRequest({
   const { state: stateDraft } = draft;
   const state: unknown =
     stateDraft.mode === "inputs"
-      ? inputsStateValue(stateDraft, variables)
+      ? structuredInputValuesOf({ names: stateDraft.inputNames, variables })
       : formatText(stateDraft.template);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
@@ -635,21 +644,16 @@ export function toInputValueText(value: unknown): string {
 }
 
 /** Each input's value for an `inputs` state, structured where it is JSON. */
-export function structuredInputValuesOf(
-  names: readonly string[],
-  variables: Record<string, string | undefined> | undefined
-): Record<string, unknown> {
+export function structuredInputValuesOf({
+  names,
+  variables,
+}: {
+  names: readonly string[];
+  variables: Record<string, string | undefined> | undefined;
+}): Record<string, unknown> {
   return Object.fromEntries(
     names.map((name) => [name, toStructuredInputValue(variables?.[name])])
   );
-}
-
-/** The state an `inputs` draft sends: one object keyed by input name. */
-function inputsStateValue(
-  state: DecisionStateDraft,
-  variables: Record<string, string | undefined> | undefined
-): unknown {
-  return structuredInputValuesOf(state.inputNames, variables);
 }
 
 /**
@@ -871,10 +875,10 @@ function toStateInput({
     const definition = inputsStateDefinition(draft);
     return {
       ...definition,
-      inputValues: structuredInputValuesOf(
-        definition.inputs.map((input) => input.name),
-        variables
-      ),
+      inputValues: structuredInputValuesOf({
+        names: definition.inputs.map((input) => input.name),
+        variables,
+      }),
     };
   }
   const { template } = draft.state;
@@ -1574,7 +1578,7 @@ function chatStateContent({
   templateFormat: TemplateFormat;
 }): string {
   return draft.state.mode === "inputs"
-    ? inputNamesToTemplate(draft.state, templateFormat)
+    ? inputNamesToTemplate({ state: draft.state, templateFormat })
     : draft.state.template;
 }
 

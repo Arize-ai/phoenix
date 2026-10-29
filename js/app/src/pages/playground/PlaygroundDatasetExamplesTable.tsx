@@ -217,10 +217,10 @@ function getPossibleVariablesForPath({
 }): string[] {
   // TODO: dynamically parse all valid root-level paths from the dataset example
   // instead of hardcoding these known keys
-  const targetObject = scopeExampleVariables(
-    datasetExample,
-    templateVariablesPath
-  );
+  const targetObject = scopeExampleVariables({
+    example: datasetExample,
+    templateVariablesPath,
+  });
   if (isStringKeyedObject(targetObject)) {
     return Object.keys(targetObject);
   }
@@ -301,7 +301,10 @@ function EmptyExampleOutput({
 }) {
   // Get the target object based on the template variables path
   const targetObject = useMemo((): Record<string, unknown> => {
-    const value = scopeExampleVariables(datasetExample, templateVariablesPath);
+    const value = scopeExampleVariables({
+      example: datasetExample,
+      templateVariablesPath,
+    });
     return isStringKeyedObject(value) ? value : {};
   }, [datasetExample, templateVariablesPath]);
 
@@ -1580,7 +1583,9 @@ export function PlaygroundDatasetExamplesTable({
       setExampleVariables({
         exampleVariables: tableData
           .slice(0, MAX_EXAMPLES_FOR_PATH_EXTRACTION)
-          .map((row) => scopeExampleVariables(row, templateVariablesPath)),
+          .map((row) =>
+            scopeExampleVariables({ example: row, templateVariablesPath })
+          ),
         datasetId,
       });
     } else {
