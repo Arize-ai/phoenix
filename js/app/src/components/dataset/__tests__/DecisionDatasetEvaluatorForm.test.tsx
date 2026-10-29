@@ -4,6 +4,7 @@ import type * as ReactRelay from "react-relay";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   EvaluatorStoreProvider,
@@ -16,7 +17,6 @@ import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
 
 import { DecisionDatasetEvaluatorForm } from "../DecisionDatasetEvaluatorForm";
-import type { DecisionEvaluatorData } from "../decisionDatasetEvaluatorUtils";
 
 const { commit, notifySuccess, loadVersion } = vi.hoisted(() => ({
   commit: vi.fn(),

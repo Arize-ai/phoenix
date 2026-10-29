@@ -32,6 +32,9 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
             username
             profilePictureUrl
           }
+          decision {
+            ...decisionAnnotation_decision @relay(mask: false)
+          }
         }
         summarySpanAnnotationSummaries: spanAnnotationSummaries(
           filter: { exclude: { names: ["note"] } }

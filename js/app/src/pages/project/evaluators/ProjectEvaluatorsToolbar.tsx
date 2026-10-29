@@ -17,7 +17,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
   { id: "meanScore", label: "mean score" },
-  { id: "prompt", label: "prompt" },
+  { id: "prompt", label: "prompt / decision" },
   { id: "model", label: "model" },
   { id: "cost", label: "total cost" },
   { id: "averageCost", label: "avg cost / run" },

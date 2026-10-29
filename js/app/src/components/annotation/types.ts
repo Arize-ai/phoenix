@@ -16,7 +16,7 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   metadata?: Record<string, unknown>;
-  /** A decision evaluator's typed result, for experiment-run annotations */
+  /** A decision evaluator's typed result */
   decision?: DecisionAnnotation | null;
   annotatorKind?: string;
   createdAt?: string;

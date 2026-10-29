@@ -1,3 +1,4 @@
+import type { DecisionAnnotation } from "@phoenix/components/annotation/decisionAnnotation";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -10,6 +11,7 @@ export type RecordedRunResult = {
     readonly label: string | null;
     readonly score: number | null;
     readonly explanation: string | null;
+    readonly decision?: DecisionAnnotation | null;
   } | null;
   readonly error: string | null;
 };
