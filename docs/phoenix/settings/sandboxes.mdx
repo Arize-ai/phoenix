@@ -13,7 +13,9 @@ The **Settings → Sandboxes** page is where administrators pick which sandbox p
 - **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout and, for hosted providers, environment variables, optional internet access, and any dependencies that should be pre-installed.
 
 <Note>
-Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
+When authentication is enabled, users with the **Member** role can view this page, but only **Admins** can manage providers, credentials, and configurations. Users with the **Viewer** role cannot access this page.
+
+When authentication is disabled, users can view and manage sandbox settings.
 </Note>
 
 ## Local vs. hosted sandboxes

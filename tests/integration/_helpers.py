@@ -45,13 +45,13 @@ from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 from urllib.request import urlopen
 
 import bs4
-import httpx
+import httpx2
 import jwt
 import pytest
 import smtpdfix
 from fastapi import FastAPI
 from fastapi.routing import APIRoute, _IncludedRouter
-from httpx import Headers, HTTPStatusError
+from httpx2 import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
@@ -632,7 +632,7 @@ class _DefaultAdminTokens(ABC):
         return False
 
 
-class _LogResponse(httpx.Response):
+class _LogResponse(httpx2.Response):
     def __init__(self, info: BytesIO, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._info = info
@@ -652,11 +652,11 @@ _TEST_NAME: ContextVar[str] = ContextVar("test_name", default="")
 _HTTPX_OP_IDX: ContextVar[int] = ContextVar("httpx_operation_index", default=0)
 
 
-class _LogTransport(httpx.BaseTransport):
-    def __init__(self, transport: httpx.BaseTransport) -> None:
+class _LogTransport(httpx2.BaseTransport):
+    def __init__(self, transport: httpx2.BaseTransport) -> None:
         self._transport = transport
 
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
+    def handle_request(self, request: httpx2.Request) -> httpx2.Response:
         info = BytesIO()
         info.write(f"{'-' * 50}\n".encode())
         if test_name := _TEST_NAME.get():
@@ -692,8 +692,8 @@ def _httpx_client(
     auth: Optional[_SecurityArtifact] = None,
     headers: Optional[_Headers] = None,
     cookies: Optional[dict[str, Any]] = None,
-    transport: Optional[httpx.BaseTransport] = None,
-) -> httpx.Client:
+    transport: Optional[httpx2.BaseTransport] = None,
+) -> httpx2.Client:
     if isinstance(auth, _AccessToken):
         cookies = {**(cookies or {}), PHOENIX_ACCESS_TOKEN_COOKIE_NAME: auth}
     elif isinstance(auth, _RefreshToken):
@@ -723,12 +723,12 @@ def _httpx_client(
         assert_never(auth)
     ssl_context = _get_ssl_context(app.env)
     # Having no timeout is useful when stepping through the debugger on the server side.
-    return httpx.Client(
+    return httpx2.Client(
         timeout=None,
         headers=headers,
         cookies=cookies,
         base_url=app.base_url,
-        transport=_LogTransport(transport or httpx.HTTPTransport(verify=ssl_context or False)),
+        transport=_LogTransport(transport or httpx2.HTTPTransport(verify=ssl_context or False)),
     )
 
 
@@ -1179,7 +1179,7 @@ def _reset_password(
 
 
 def _json(
-    resp: httpx.Response,
+    resp: httpx2.Response,
 ) -> dict[str, Any]:
     resp.raise_for_status()
     assert (resp_dict := cast(dict[str, Any], resp.json()))
@@ -2475,7 +2475,7 @@ _ensure_endpoint_coverage_is_exhaustive()
 
 
 async def _parse_apollo_multipart_response(
-    response: httpx.Response,
+    response: httpx2.Response,
 ) -> AsyncIterator[dict[str, Any]]:
     """Parse Apollo multipart subscription response.
 

@@ -14,7 +14,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
@@ -36,7 +36,7 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def tracer(tracer_provider: TracerProvider) -> Tracer:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
     return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
@@ -81,7 +81,7 @@ def make_ctx() -> Callable[..., RunContext[None]]:
 async def test_call_tool_emits_tool_span(
     add_toolset: FunctionToolset[None],
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapped_toolset = OpenInferenceToolsetWrapper(add_toolset, tracer=tracer)
@@ -134,7 +134,7 @@ async def test_call_tool_emits_tool_span(
 async def test_call_tool_records_exception_when_tool_raises(
     raising_toolset: FunctionToolset[None],
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapped_toolset = OpenInferenceToolsetWrapper(raising_toolset, tracer=tracer)

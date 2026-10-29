@@ -93,6 +93,10 @@ If you want to reference root-level fields directly (for example `{input.questio
 
 You can use template variables like `{input.question}` and `{output.response}` in your prompt.
 
+### Naming the Experiment
+
+The **settings button** (gear icon) in the experiment toolbar also has optional **Name** and **Description** fields for the next experiment you run. Leave **Name** empty to use the generated default. To rename or re-describe an experiment after it runs, open its action menu in the dataset's experiments table and choose **Edit**.
+
 ## Appending Conversation History
 
 <video controls autoPlay={false} loop={false} width="100%">
@@ -168,7 +172,7 @@ If you simply run an LLM in the playground using the free form inputs (e.g. not 
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/eecaa209-image.jpeg" />
 </Frame>
 
-If however you run a prompt over dataset examples, the outputs and spans from your playground runs will be captured as an experiment. Each experiment will be named according to the prompt you ran the experiment over.
+If however you run a prompt over dataset examples, the outputs and spans from your playground runs will be captured as an experiment. Unless you [name the experiment](#naming-the-experiment), it is named `playground-experiment`, or `playground-experiment prompt:<prompt name>` when the playground has a saved prompt loaded.
 
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />

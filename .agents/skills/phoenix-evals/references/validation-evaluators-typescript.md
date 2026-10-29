@@ -1,7 +1,7 @@
 # Validating Evaluators (TypeScript)
 
 Validate an LLM evaluator against human-labeled examples before deploying it.
-Target: **>80% TPR and >80% TNR**.
+Target: **>80% accuracy, >70% TPR and >70% TNR**.
 
 Roles are inverted compared to a normal task experiment:
 
@@ -91,8 +91,8 @@ console.log(`TPR: ${tpr.toFixed(1)}%  TNR: ${tnr.toFixed(1)}%  Accuracy: ${((tp 
 
 | Metric | Target | Low value means |
 |---|---|---|
-| TPR (sensitivity) | >80% | Misses real failures (false negatives) |
-| TNR (specificity) | >80% | Flags good outputs (false positives) |
+| TPR (sensitivity) | >70% | Misses real failures (false negatives) |
+| TNR (specificity) | >70% | Flags good outputs (false positives) |
 | Accuracy | >80% | General weakness |
 
 **Golden dataset rules:** ~50/50 balance · include edge cases · human-labeled only · never mutate (append new versions) · 20–50 examples is enough.

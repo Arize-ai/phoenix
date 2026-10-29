@@ -1,17 +1,16 @@
 -r ci.txt
 asyncpg
 grpcio
-litellm>=1.83.14; python_version < '3.14'
+litellm>=1.83.14,!=1.107.0; python_version < '3.14'
 aioboto3
 # Note: OpenTelemetry packages must use versions released on the same date to ensure compatibility
 opentelemetry-exporter-otlp==1.45.0
-opentelemetry-instrumentation-fastapi==0.66b0
 opentelemetry-instrumentation-grpc==0.66b0
 opentelemetry-instrumentation-sqlalchemy==0.66b0
 opentelemetry-proto==1.45.0
 opentelemetry-sdk==1.45.0
 opentelemetry-semantic-conventions==0.66b0
-pandas-stubs==2.0.3.230814
+pandas-stubs
 pandas>=1.0
 prometheus_client
 psycopg[binary,pool]
@@ -19,7 +18,6 @@ py-grpc-prometheus
 pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.52.0
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
-strawberry-graphql[opentelemetry]==0.327.0
 tenacity
 types-aiobotocore-bedrock-runtime
 types-aiobotocore-rds
@@ -34,6 +32,4 @@ types-setuptools
 types-tabulate
 types-tqdm
 types-ldap3
-arize
 types-PyYAML
-arize>=8.1.0

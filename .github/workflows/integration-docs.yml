@@ -1,0 +1,283 @@
+name: Integration Docs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      docs:
+        description: Optional space-separated enabled document paths to run
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify integration docs
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      run_mode: ${{ steps.classify.outputs.run_mode }}
+      runnable_docs: ${{ steps.classify.outputs.runnable_docs }}
+      shard_list: ${{ steps.classify.outputs.shard_list }}
+      shard_total: ${{ steps.classify.outputs.shard_total }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Classify change set
+        id: classify
+        env:
+          INPUT_DOCS: ${{ inputs.docs }}
+        run: python scripts/testing/integration_docs/classify_changes.py
+
+  check-shard:
+    name: Integration docs shard ${{ matrix.shard }}
+    needs: classify
+    if: needs.classify.outputs.run_mode != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.classify.outputs.shard_list) }}
+    env:
+      OPENAI_API_KEY: ${{ secrets.DOCS_OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.DOCS_GEMINI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.DOCS_GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26"
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Set up Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+        with:
+          gradle-version: "8.14.3"
+      - name: Install Phoenix
+        run: uv sync --frozen
+      - name: Prepare selected docs and local services
+        shell: bash
+        env:
+          RUNNABLE_DOCS: ${{ needs.classify.outputs.runnable_docs }}
+          SHARD: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
+          REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          python -c 'import json, os; from pathlib import Path; Path(os.environ["REPORT_DIR"] + "/docs.json").write_text(json.dumps(json.loads(os.environ["RUNNABLE_DOCS"])))'
+          python scripts/testing/integration_docs/prepare_services.py \
+            --docs-file "${REPORT_DIR}/docs.json" \
+            --shard "${SHARD}/${SHARD_TOTAL}"
+      - name: Start authenticated Phoenix and create an API key
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          PHOENIX_ENDPOINT: http://127.0.0.1:6006
+          RUNNER_TEMP: ${{ runner.temp }}
+        with:
+          script: |
+            const crypto = require('crypto');
+            const fs = require('fs');
+            const { spawn } = require('child_process');
+
+            const endpoint = process.env.PHOENIX_ENDPOINT;
+            const phoenixSecret = crypto.randomBytes(32).toString('hex');
+            const adminSecret = crypto.randomBytes(32).toString('hex');
+            core.setSecret(phoenixSecret);
+            core.setSecret(adminSecret);
+
+            const logFd = fs.openSync(`${process.env.RUNNER_TEMP}/phoenix.log`, 'a');
+            const server = spawn('uv', ['run', 'phoenix', 'serve', '--host', '127.0.0.1', '--port', '6006'], {
+              cwd: process.env.GITHUB_WORKSPACE,
+              detached: true,
+              env: {
+                ...process.env,
+                PHOENIX_ENABLE_AUTH: 'true',
+                PHOENIX_SECRET: phoenixSecret,
+                PHOENIX_ADMIN_SECRET: adminSecret,
+              },
+              stdio: ['ignore', logFd, logFd],
+            });
+            fs.closeSync(logFd);
+            if (!server.pid) {
+              throw new Error('Could not start Phoenix.');
+            }
+            server.unref();
+            core.exportVariable('PHOENIX_SERVER_PID', String(server.pid));
+            core.exportVariable('PHOENIX_ENABLE_AUTH', 'true');
+            core.exportVariable('PHOENIX_SECRET', phoenixSecret);
+            core.exportVariable('PHOENIX_ADMIN_SECRET', adminSecret);
+            core.exportVariable('PHOENIX_ENDPOINT', endpoint);
+
+            let ready = false;
+            for (let attempt = 0; attempt < 60; attempt++) {
+              if (server.exitCode !== null) {
+                throw new Error('Phoenix exited before becoming ready.');
+              }
+              try {
+                const response = await fetch(`${endpoint}/healthz`, { signal: AbortSignal.timeout(2000) });
+                if (response.ok) {
+                  ready = true;
+                  break;
+                }
+              } catch {}
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+            if (!ready) {
+              throw new Error('Phoenix did not become ready within 120 seconds.');
+            }
+
+            const response = await fetch(`${endpoint}/v1/system/api_keys`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${adminSecret}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                data: {
+                  name: 'integration-docs-harness',
+                  description: 'Ephemeral key for the integration docs CI run',
+                  expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                },
+              }),
+            });
+            if (!response.ok) {
+              throw new Error(`Could not create the Phoenix API key (HTTP ${response.status}).`);
+            }
+            const payload = await response.json();
+            const apiKey = payload?.data?.key;
+            if (typeof apiKey !== 'string' || apiKey.length === 0) {
+              throw new Error('Phoenix API key response did not include a key.');
+            }
+            core.setSecret(apiKey);
+            core.exportVariable('PHOENIX_API_KEY', apiKey);
+      - name: Run this shard
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ needs.classify.outputs.shard_total }}
+          REPORT_DIR: ci-results/integration-docs/shard-${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          make test-integration-docs INTEGRATION_DOCS_ARGS="--docs-file ${REPORT_DIR}/docs.json --shard ${SHARD}/${SHARD_TOTAL} --output-dir ${REPORT_DIR}"
+      - name: Upload shard report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: integration-docs-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: ci-results/integration-docs/shard-${{ matrix.shard }}/integration-docs.*
+          if-no-files-found: warn
+      - name: Stop Phoenix
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${PHOENIX_SERVER_PID:-}" ]]; then
+            kill -- "-${PHOENIX_SERVER_PID}" 2>/dev/null || true
+          fi
+
+  aggregate:
+    name: Aggregate integration docs results
+    if: always() && needs.classify.result == 'success'
+    needs: [classify, check-shard]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Download shard reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: integration-docs-shard-*-attempt-${{ github.run_attempt }}
+          path: ci-results/integration-docs/shards
+          merge-multiple: false
+      - name: Build aggregate report
+        env:
+          RUN_MODE: ${{ needs.classify.outputs.run_mode }}
+          CLASSIFICATION_REASON: ${{ needs.classify.outputs.reason }}
+          SHARD_RESULT: ${{ needs.check-shard.result }}
+        run: >-
+          python scripts/testing/integration_docs/aggregate.py
+          --reports ci-results/integration-docs/shards
+          --output-dir ci-results/integration-docs
+          --run-mode "${RUN_MODE}"
+          --reason "${CLASSIFICATION_REASON}"
+          --shard-result "${SHARD_RESULT}"
+      - name: Add aggregate report to job summary
+        if: always()
+        run: cat ci-results/integration-docs/integration-docs.md >> "${GITHUB_STEP_SUMMARY}"
+      - name: Comment on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- phoenix-integration-docs-report -->';
+            const report = fs.readFileSync('ci-results/integration-docs/integration-docs.md', 'utf8');
+            const body = `${marker}\n${report}\n\nWorkflow: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            for (const comment of comments.filter(({ body }) => body?.includes(marker))) {
+              await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+      - name: Upload aggregate report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: integration-docs-report-attempt-${{ github.run_attempt }}
+          path: ci-results/integration-docs/integration-docs.*
+          if-no-files-found: warn

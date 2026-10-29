@@ -1,10 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, Table } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode, RefObject } from "react";
 import React, {
@@ -20,7 +16,6 @@ import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {
-  Alert,
   Empty,
   ExpandableContent,
   Flex,
@@ -35,6 +30,7 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
+import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
@@ -57,7 +53,11 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { PrettyText } from "@phoenix/components/utility/PrettyText";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { usePrettyText } from "@phoenix/hooks/usePrettyText";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -66,6 +66,7 @@ import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -73,6 +74,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { useExperimentCompareDeltasViewSetting } from "./experimentCompareDeltasViewSetting";
 import {
   ExperimentCompareChartSelector,
   useExperimentCompareChartsViewSetting,
@@ -144,6 +146,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentSelection } = props;
   const { baseExperimentId, compareExperimentIds } = experimentSelection;
   const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
+  const deltasViewSetting = useExperimentCompareDeltasViewSetting(datasetId);
+  const areDeltasVisible = deltasViewSetting.isEnabled;
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -449,6 +453,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       (experimentId, experimentIndex) => ({
         header: () => {
           const experiment = experimentInfoById[experimentId];
+          const isBaseColumn = experimentIndex === 0;
+          const deltaBaseExperiment =
+            areDeltasVisible && !isBaseColumn ? baseExperiment : undefined;
           const name = experiment?.name || "unknown-experiment";
           const metadata = experiment?.metadata;
           const projectId = experiment?.project?.id;
@@ -491,6 +498,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   <ExperimentCostAndLatencySummary
                     executionState="complete"
                     experiment={experiment}
+                    baseExperiment={deltaBaseExperiment}
                   />
                 )}
               </div>
@@ -498,6 +506,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 executionState="complete"
                 annotationConfigs={annotationConfigs}
                 annotationSummaries={experiment?.annotationSummaries ?? []}
+                baseAnnotationSummaries={
+                  deltaBaseExperiment?.annotationSummaries ?? undefined
+                }
               />
             </Flex>
           );
@@ -513,6 +524,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             return null;
           }
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
+          const baseRepeatedRunGroup =
+            areDeltasVisible && experimentIndex !== 0
+              ? (row.original.repeatedRunGroupsByExperimentId[
+                  baseExperimentId
+                ] ?? null)
+              : undefined;
 
           return (
             <ExperimentRunOutputCell
@@ -521,6 +538,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
+              baseRepeatedRunGroup={baseRepeatedRunGroup}
               onOpenTraceDetails={openTraceDetails}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
@@ -533,6 +551,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     );
   }, [
     annotationConfigs,
+    areDeltasVisible,
+    baseExperiment,
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
@@ -545,10 +565,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns: columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
+    // rows keep the order they are given in
+    manualSorting: true,
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
@@ -559,23 +581,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = table.getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return colSizes;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   const rows = table.getRowModel().rows;
 
@@ -645,7 +660,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               datasetId={datasetId}
               experimentSelection={experimentSelection}
             />
-            <TableViewSettingsButton settings={[chartsViewSetting]} />
+            <TableViewSettingsButton
+              settings={[chartsViewSetting, deltasViewSetting]}
+            />
           </Flex>
         </View>
         <div
@@ -725,7 +742,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </thead>
             {isEmpty ? (
               <TableEmpty />
-            ) : table.getState().columnSizingInfo.isResizingColumn ? (
+            ) : table.state.columnResizing.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
               <MemoizedTableBody
                 table={table}
@@ -819,7 +836,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<T extends RowData>({
   table,
   tableContainerRef,
   estimatedRowHeight,
@@ -828,7 +845,6 @@ function TableBody<T>({
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
 }) {
-  "use no memo";
   const rows = table.getRowModel().rows;
   // eslint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
@@ -904,13 +920,19 @@ const outputContentCSS = css`
   padding: var(--global-dimension-size-200);
 `;
 
-function ExperimentRunOutput(
+export function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
     onOpenTraceDetails: (details: SelectedTraceDetails) => void;
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
     height: number;
+    /**
+     * The base experiment's run group for the same example, to show deltas
+     * against. Omitted on the base column and when deltas are hidden; `null`
+     * when the base has no group for the example.
+     */
+    baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   }
 ) {
   const {
@@ -920,6 +942,8 @@ function ExperimentRunOutput(
     onOpenTraceDetails,
     height,
     annotationConfigs,
+    repetitionNumber,
+    baseRepeatedRunGroup,
   } = props;
 
   if (error) {
@@ -928,6 +952,11 @@ function ExperimentRunOutput(
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
+  const baseRun = baseRepeatedRunGroup?.runs.find(
+    (run) => run.repetitionNumber === repetitionNumber
+  );
+  const baseAnnotationsList =
+    baseRun?.annotations?.edges.map((edge) => edge.annotation) ?? undefined;
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
@@ -941,6 +970,9 @@ function ExperimentRunOutput(
         annotationSummaries={props.annotationSummaries}
         annotationConfigs={annotationConfigs}
         numRepetitions={props.numRepetitions}
+        showDeltas={baseRepeatedRunGroup !== undefined}
+        baseAnnotations={baseAnnotationsList}
+        baseAnnotationSummaries={baseRepeatedRunGroup?.annotationSummaries}
         onTraceClick={({ traceId, projectId, annotationName }) => {
           onOpenTraceDetails({
             traceId,
@@ -955,11 +987,36 @@ function ExperimentRunOutput(
 }
 
 function RunError({ error, height }: { error: string; height: number }) {
+  const { text, textType } = usePrettyText(error);
+  const preserveOriginalJSON =
+    textType === "json" && !isWhitespaceOnlyReformat(error, text);
+
   return (
     <Flex direction="column" height="100%">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <Alert variant="danger">{error}</Alert>
+          <Flex direction="row" gap="size-100" alignItems="start">
+            <Icon
+              svg={<Icons.AlertCircle />}
+              color="danger"
+              role="img"
+              aria-label="Error"
+              css={css`
+                flex-shrink: 0;
+                /* Match the top padding of CodeMirror's first line. */
+                margin-top: ${textType === "json"
+                  ? "var(--global-dimension-size-50)"
+                  : "0"};
+              `}
+            />
+            <View flex="1" minWidth={0}>
+              {textType === "json" ? (
+                <PlainJSONBlock value={preserveOriginalJSON ? error : text} />
+              ) : (
+                <PrettyText>{error}</PrettyText>
+              )}
+            </View>
+          </Flex>
         </div>
       </ExpandableContent>
     </Flex>
@@ -969,6 +1026,7 @@ function RunError({ error, height }: { error: string; height: number }) {
 function ExperimentRunOutputCell({
   experimentRepetitionCount,
   repeatedRunGroup,
+  baseRepeatedRunGroup,
   onOpenTraceDetails,
   rowIndex,
   setSelectedExampleIndex,
@@ -978,6 +1036,12 @@ function ExperimentRunOutputCell({
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
+  /**
+   * The base experiment's run group for the same example, to show deltas
+   * against. Omitted on the base column and when deltas are hidden; `null`
+   * when the base has no group for the example.
+   */
+  baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   onOpenTraceDetails: (details: SelectedTraceDetails) => void;
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
@@ -1066,7 +1130,12 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runControls}>
-        <ExperimentRepeatedRunGroupMetadata fragmentRef={repeatedRunGroup} />
+        <ExperimentRepeatedRunGroupMetadata
+          fragmentRef={repeatedRunGroup}
+          baseFragmentRef={baseRepeatedRunGroup}
+          runCount={repeatedRunGroup.runs.length}
+          baseRunCount={baseRepeatedRunGroup?.runs.length ?? 0}
+        />
       </CellTop>
       {run ? (
         <ExperimentRunOutput
@@ -1076,6 +1145,7 @@ function ExperimentRunOutputCell({
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
           height={height}
+          baseRepeatedRunGroup={baseRepeatedRunGroup}
         />
       ) : (
         <PaddedCell>

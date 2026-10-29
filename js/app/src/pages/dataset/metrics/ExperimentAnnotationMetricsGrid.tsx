@@ -2,12 +2,13 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
-import { Loading } from "@phoenix/components";
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsInputPoint,
   AnnotationMetricsViewMenu,
   ChartPanel,
+  ChartPanelSkeleton,
+  ChartSkeleton,
   getDefaultAnnotationMetricsView,
   normalizeAnnotationMetrics,
   type TimeSeriesChartType,
@@ -58,13 +59,40 @@ export function ExperimentAnnotationMetricsGrid({
   return (
     <div css={annotationGridCSS} data-testid="experiment-annotation-grid">
       <ErrorBoundary>
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<ExperimentAnnotationMetricsPanelsSkeleton />}>
           <ExperimentAnnotationMetricsPanels datasetId={datasetId} />
         </Suspense>
       </ErrorBoundary>
       {/* Share this grid so trailing half-width charts fill an odd final row. */}
       {children}
     </div>
+  );
+}
+
+/**
+ * The annotation metrics grid while the page loads, holding the trailing
+ * charts' panels as well as the annotations'.
+ */
+export function ExperimentAnnotationMetricsGridSkeleton() {
+  return (
+    <div css={annotationGridCSS}>
+      <ExperimentAnnotationMetricsPanelsSkeleton />
+      <ChartPanelSkeleton />
+      <ChartPanelSkeleton />
+    </div>
+  );
+}
+
+/**
+ * One row of panel skeletons while the annotation names load; how many panels
+ * follow is not known until they arrive.
+ */
+function ExperimentAnnotationMetricsPanelsSkeleton() {
+  return (
+    <>
+      <ChartPanelSkeleton />
+      <ChartPanelSkeleton />
+    </>
   );
 }
 
@@ -161,7 +189,7 @@ export function ExperimentAnnotationMetricPanel({
       <Suspense
         fallback={
           <ChartPanel title={annotationName} fillHeight={fillHeight}>
-            <Loading />
+            <ChartSkeleton />
           </ChartPanel>
         }
       >

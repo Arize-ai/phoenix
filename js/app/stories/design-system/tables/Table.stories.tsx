@@ -1,17 +1,12 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type {
-  ColumnDef,
   ColumnSizingState,
+  RowData,
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 
@@ -41,6 +36,8 @@ import {
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 // Mock data types
 type Person = {
@@ -232,7 +229,7 @@ const mockProducts: Product[] = [
 ];
 
 // Base Table Component
-function BaseTable<T>({
+function BaseTable<T extends RowData>({
   columns,
   data,
   enableResizing = true,
@@ -249,7 +246,8 @@ function BaseTable<T>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-  const table = useReactTable<T>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data,
     state: {
@@ -271,32 +269,17 @@ function BaseTable<T>({
         return next;
       });
     },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;
 
   // Performance optimization for column sizing
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = table.getAllColumns().length;
-
-  const columnSizeVars = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs - dependencies are necessary for column resizing
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   const body = hasContent ? (
     <tbody>

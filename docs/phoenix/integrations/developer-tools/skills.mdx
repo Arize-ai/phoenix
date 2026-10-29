@@ -1,0 +1,58 @@
+---
+title: "Skills"
+description: Teach your coding agent Phoenix's conventions for the CLI, tracing, and evals, so it gets them right the first time.
+---
+
+A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with `px` or writing an evaluator. Phoenix ships five, in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills).
+
+## Install
+
+```bash
+npx -y @arizeai/phoenix-cli setup skills
+```
+
+Installs all five into your agent's skills directory, such as `.claude/skills/`. To pick specific ones, `npx skills add Arize-ai/phoenix --skill <name>`.
+
+The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) installs `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them updated. `setup skills` is a one-time copy; rerun it to pick up changes.
+
+## What your agent can do with them
+
+<CardGroup cols={2}>
+  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-cli/SKILL.md">
+    Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
+  </Card>
+  <Card title="phoenix-error-analysis" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-error-analysis/SKILL.md">
+    Read sampled traces, write free-form notes, then group them into a failure taxonomy that picks eval targets and fix priorities.
+  </Card>
+  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-evals/SKILL.md">
+    Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
+  </Card>
+  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-tracing/SKILL.md">
+    Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
+  </Card>
+  <Card title="phoenix-harbor" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-harbor/SKILL.md">
+    Configure Harbor agent evaluations and interpret their Phoenix experiments, scores, and ATIF traces.
+  </Card>
+</CardGroup>
+
+Example prompt, with `phoenix-error-analysis` installed:
+
+```text
+Review the last 50 traces in my support-agent project and tell me what categories of failures we have
+```
+
+## Learn more
+
+- [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) installs skills alongside the CLI and MCP server.
+- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) is what the `phoenix-cli` skill teaches an agent to use.
+- [Agent Skills specification](https://agentskills.io/specification) is the format these follow.
+
+## Add your own skills
+
+Set `PHOENIX_SKILLS_PATHS` on the Phoenix server to one or more directories of your own [Agent Skills](https://agentskills.io/specification); the MCP server serves them alongside the built-in ones:
+
+```bash
+PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
+```
+
+Each skill is a directory named after the `name` in its `SKILL.md` frontmatter, which also needs a `description`.

@@ -21,6 +21,7 @@ describe("experimentCompareChartsStore", () => {
     useExperimentCompareChartsStore.setState({
       metricChartKeysByDatasetId: {},
       areMetricChartsVisibleByDatasetId: {},
+      areDeltasVisibleByDatasetId: {},
     });
   });
 
@@ -38,6 +39,7 @@ describe("experimentCompareChartsStore", () => {
           "dataset-2": ["annotation:quality", "error_rate"],
         },
         areMetricChartsVisibleByDatasetId: {},
+        areDeltasVisibleByDatasetId: {},
       }
     );
   });
@@ -93,5 +95,32 @@ describe("experimentCompareChartsStore", () => {
       useExperimentCompareChartsStore.getState()
         .areMetricChartsVisibleByDatasetId
     ).toEqual({ "dataset-1": true, "dataset-3": false });
+  });
+
+  it("persists each dataset's delta visibility separately", () => {
+    const { setAreDeltasVisible } = useExperimentCompareChartsStore.getState();
+    setAreDeltasVisible({ datasetId: "dataset-1", isVisible: false });
+    setAreDeltasVisible({ datasetId: "dataset-2", isVisible: true });
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").state
+        .areDeltasVisibleByDatasetId
+    ).toEqual({ "dataset-1": false, "dataset-2": true });
+  });
+
+  it("drops persisted delta visibility entries that are not booleans", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          metricChartKeysByDatasetId: {},
+          areDeltasVisibleByDatasetId: { "dataset-1": false, "dataset-2": 1 },
+        },
+        version: 0,
+      })
+    );
+    await useExperimentCompareChartsStore.persist.rehydrate();
+    expect(
+      useExperimentCompareChartsStore.getState().areDeltasVisibleByDatasetId
+    ).toEqual({ "dataset-1": false });
   });
 });

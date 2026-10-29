@@ -168,6 +168,8 @@ Windows snapshots are used to create [Windows sandboxes](./sandboxes.md#vm-sandb
 
 Create a GPU snapshot. GPU snapshots are used to create [GPU sandboxes](./sandboxes.md#gpu-sandboxes).
 
+GPU snapshots on shared regions belong to the [Earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested `regionId`, and reports `earth` in the snapshot `regionIds`. GPU snapshots on dedicated and custom regions keep their real region ID.
+
 1. Go to [Daytona Snapshots ↗](https://app.daytona.io/dashboard/snapshots)
 2. Click <Button>Create Snapshot</Button>
 3. Enter the snapshot **`name`** and **`image`**

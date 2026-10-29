@@ -1116,10 +1116,8 @@ class TestDefaultApiTypeRouting:
             "gpt-4.1-mini",
             "gpt-4.1-nano",
             "gpt-4o",
-            "chatgpt-4o-latest",
             "gpt-4o-mini",
             "gpt-4-turbo",
-            "gpt-4-turbo-preview",
             "gpt-4",
             "gpt-3.5-turbo",
         }
@@ -1302,12 +1300,17 @@ def _identity_decrypt(value: bytes) -> bytes:
 
 class TestMiniMaxProvider:
     def test_registry_includes_target_models(self) -> None:
+        assert PLAYGROUND_CLIENT_REGISTRY.list_models(GenerativeProviderKey.MINIMAX) == [
+            "MiniMax-M3.1-Flash",
+            "MiniMax-M3",
+        ]
+
+    @pytest.mark.parametrize(
+        "model_name", ["MiniMax-M3.1-Flash", "MiniMax-M3", "MiniMax-M2.7", "custom-model"]
+    )
+    def test_registry_preserves_custom_model_support(self, model_name: str) -> None:
         assert (
-            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M3")
-            is MiniMaxClient
-        )
-        assert (
-            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M2.7")
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, model_name)
             is MiniMaxClient
         )
 
@@ -1318,12 +1321,14 @@ class TestMiniMaxProvider:
             ("https://api.minimaxi.com/v1", "https://api.minimaxi.com/v1/"),
         ],
     )
+    @pytest.mark.parametrize("model_name", ["MiniMax-M3.1-Flash", "MiniMax-M3"])
     async def test_builtin_client_uses_configured_endpoint(
         self,
         db: DbSessionFactory,
         monkeypatch: pytest.MonkeyPatch,
         configured_base_url: str | None,
         expected_base_url: str,
+        model_name: str,
     ) -> None:
         monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
         if configured_base_url is None:
@@ -1333,7 +1338,7 @@ class TestMiniMaxProvider:
         async with db() as session:
             client = await _get_builtin_provider_client(
                 ModelProvider.MINIMAX,
-                "MiniMax-M3",
+                model_name,
                 None,
                 None,
                 session,

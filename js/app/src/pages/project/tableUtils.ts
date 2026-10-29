@@ -1,4 +1,6 @@
-import type { ColumnDef, ColumnSort } from "@tanstack/react-table";
+import type { ColumnSort, RowData } from "@tanstack/react-table";
+
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 
 import type {
   ProjectSessionSort,
@@ -18,7 +20,7 @@ export const TRACE_ANNOTATIONS_COLUMN_LABEL = "trace annotations";
 export const ANNOTATION_COLUMN_SIZING = {
   size: 250,
   minSize: 150,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",

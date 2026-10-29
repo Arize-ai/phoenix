@@ -42,6 +42,9 @@ takes a single glob; bracket patterns like `0[125]-*` match nothing.
 
 Baseline (Sep 2026, skill 3.5.0, 3 runs): mean Δ +0.25 across the six fire cases, 0.00 on the
 negatives, with-plugin arm at or near 1.0 everywhere. Full run costs about $17.
+This predates removing the pasted `px …` commands from the case prompts and the reworded
+`phoenix-cli` skill description, so it is likely stale; re-measure with a 3-run pass and
+update it (and the `min_delta` in `.github/workflows/plugin-evals.yml`) before relying on it.
 
 ## Grader conventions
 

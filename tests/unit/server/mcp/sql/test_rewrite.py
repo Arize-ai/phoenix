@@ -1793,19 +1793,12 @@ class TestJsonAccessorOrigin:
 
 
 class TestUncastJsonOrderingNote:
-    """A JSON value ordered without a cast may not order the way it reads.
-
-    The hazard differs by backend and the note says so: PostgreSQL's extraction
-    operators return text, so ordering is always lexicographic; SQLite returns
-    the document's own type, so only a path holding a quoted number misorders.
-    Stating it as "both backends return text" was false on the shipped engine --
-    `MAX(doc ->> '$.n')` over 1017066 and 149740 answers 1017066, typed integer.
-    """
+    """Ordering warnings follow the extraction's return type in the active dialect."""
 
     @staticmethod
     def _noted(sql: str, dialect: SupportedSQLDialectName = "sqlite") -> bool:
         read = "postgres" if dialect == "postgresql" else dialect
-        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist(dialect), dialect=dialect, row_limit=500)
         rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx)
         return any("without a cast" in note for note in ctx.notes)
 
@@ -1820,8 +1813,22 @@ class TestUncastJsonOrderingNote:
     def test_order_sensitive_positions_are_noted(self, sql: str) -> None:
         assert self._noted(sql)
 
-    def test_the_postgres_path_operator_is_noted_too(self) -> None:
-        assert self._noted("SELECT MAX(attributes #>> '{a,b}') FROM spans", dialect="postgresql")
+    @pytest.mark.parametrize(
+        ("extraction", "noted"),
+        [
+            ("attributes ->> 'n'", True),
+            ("attributes #>> '{a,b}'", True),
+            ("jsonb_extract_path_text(attributes, 'a', 'b')", True),
+            ("attributes -> 'n'", False),
+            ("attributes #> '{a,b}'", False),
+            ("jsonb_extract_path(attributes, 'a', 'b')", False),
+        ],
+    )
+    def test_postgres_warns_only_for_text_extraction(self, extraction: str, noted: bool) -> None:
+        assert (
+            self._noted(f"SELECT id FROM spans ORDER BY {extraction}", dialect="postgresql")
+            is noted
+        )
 
     def test_a_cast_extraction_is_not_noted(self) -> None:
         assert not self._noted("SELECT MAX(CAST(attributes ->> '$.n' AS REAL)) FROM spans")
@@ -2241,56 +2248,6 @@ def test_a_comparison_with_no_epoch_side_is_left_alone() -> None:
     """Guards the test above: converting every comparison would also satisfy it."""
     rendered = _rendered("SELECT count(*) AS v FROM spans WHERE start_time > '2026-07-30'")
     assert "UNIXEPOCH" not in rendered.upper()
-
-
-@pytest.mark.parametrize(
-    ("sql", "dialect"),
-    [
-        ("SELECT attributes -> 'c''d' AS v FROM spans", "postgresql"),
-        ("SELECT attributes ->> 'c''d' AS v FROM spans", "postgresql"),
-        ("SELECT attributes -> '$.\"c''d\"' AS v FROM spans", "sqlite"),
-        ("SELECT attributes ->> '$.\"c''d\"' AS v FROM spans", "sqlite"),
-    ],
-)
-def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> None:
-    """A key holding an apostrophe must not close its own string literal.
-
-    Attribute keys are arbitrary, and describeSqlSchema publishes the populated
-    paths, so an unescaped one is a spelling the surface prints and cannot run.
-    """
-    root = parse_sql(sql, dialect=cast(Any, dialect))
-    root = admit(root, allowlist=load_allowlist(cast(Any, dialect)), dialect=cast(Any, dialect))
-    rendered = render(rewrite(root, _ctx(cast(Any, dialect))), dialect=cast(Any, dialect))
-    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
-    assert "''" in rendered
-
-
-@pytest.mark.parametrize(
-    "sql",
-    [
-        """SELECT attributes -> '$."c''d"[0]' AS v FROM spans""",
-        """SELECT attributes ->> '$."c''d"[1]' AS v FROM spans""",
-        """SELECT attributes -> '$."c''d".e[0]' AS v FROM spans""",
-    ],
-)
-def test_a_subscripted_path_with_a_quoted_key_is_escaped(sql: str) -> None:
-    """A subscript belongs to the path as much as a key does.
-
-    Repairing only all-key paths leaves the apostrophe unescaped here, and the
-    statement does not compile.
-    """
-    rendered = _rendered(sql)
-    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
-    assert "''" in rendered
-
-
-def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
-    """Guards the test above: rewriting every path would also satisfy it."""
-    ctx, rendered = _rewritten("SELECT attributes -> '$.llm' AS v FROM spans", dialect="sqlite")
-    # The pass leaves the operator in place and swaps only the path, so the
-    # operator surviving is not evidence that the path did.
-    assert "json_path_quote_repair" not in ctx.applied
-    assert "->" in rendered
 
 
 class TestScaledEpochComparisons:

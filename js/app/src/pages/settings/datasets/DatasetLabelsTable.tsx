@@ -1,9 +1,4 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -12,6 +7,7 @@ import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 import type { DatasetLabelsTableFragment$key } from "./__generated__/DatasetLabelsTableFragment.graphql";
 import { DeleteDatasetLabelButton } from "./DeleteDatasetLabelButton";
@@ -21,7 +17,6 @@ export function DatasetLabelsTable({
 }: {
   query: DatasetLabelsTableFragment$key;
 }) {
-  "use no memo";
   const data = useFragment<DatasetLabelsTableFragment$key>(
     graphql`
       fragment DatasetLabelsTableFragment on Query
@@ -47,8 +42,8 @@ export function DatasetLabelsTable({
     [data.datasetLabels.edges]
   );
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useTable({
+    features: appTableFeatures,
     columns: [
       {
         header: "label",
@@ -79,8 +74,6 @@ export function DatasetLabelsTable({
       },
     ],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;

@@ -1,10 +1,14 @@
 import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
+import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
-import { ColumnSelector, orderColumns } from "@phoenix/components/table";
+import {
+  ColumnSelector,
+  orderColumns,
+  TableSkeleton,
+} from "@phoenix/components/table";
 import {
   DatasetsTableProvider,
   useDatasetsTableContext,
@@ -36,7 +40,7 @@ const REFRESH_ON = ["datasets", "datasetLabels"] as const;
 
 export function DatasetsPage() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
       <DatasetsTableProvider>
         <DatasetsPageContent />
       </DatasetsTableProvider>
