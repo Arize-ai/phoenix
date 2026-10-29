@@ -1,9 +1,11 @@
 import { graphql } from "react-relay";
 
 import {
-  rankChoiceProbabilities,
-  rankPredicateProbabilities,
-} from "@phoenix/utils/decisionProbabilityUtils";
+  type OptionProbability,
+  rankOptions,
+  rankPredicateOptions,
+  type RankedOptions,
+} from "@phoenix/components/decision/decisionAnswers";
 
 import type { decisionAnnotation_annotation$data } from "./__generated__/decisionAnnotation_annotation.graphql";
 
@@ -111,32 +113,44 @@ export function describeScaleLevel(
  */
 export function decisionProbabilities(
   decision: DecisionAnnotation
-): DecisionProbability[] {
+): RankedOptions<DecisionProbability> {
   const answer = decision.answer;
+  const toProbability = ({ value, probability }: OptionProbability) => ({
+    key: value,
+    name: value,
+    probability,
+  });
   if (answer?.__typename === "PredicateAnswer") {
-    return rankPredicateProbabilities(answer.probability).map(
-      ({ value, probability }) => ({ key: value, name: value, probability })
-    );
+    const ranked = rankPredicateOptions(answer.probability);
+    return {
+      probabilities: ranked.probabilities.map(toProbability),
+      omittedOptionCount: ranked.omittedOptionCount,
+    };
   }
   if (answer?.__typename === "ChoiceAnswer") {
-    return rankChoiceProbabilities({
-      probabilities: answer.choiceProbabilities,
-      getValue: (entry) => entry.value,
+    const ranked = rankOptions({
+      options: answer.choiceProbabilities,
       chosen: answer.choice,
-    }).map(({ value, probability }) => ({
-      key: value,
-      name: value,
-      probability,
-    }));
+      optionValues: decision.question?.choices?.map((choice) => choice.value),
+    });
+    return {
+      probabilities: ranked.probabilities.map(toProbability),
+      omittedOptionCount: ranked.omittedOptionCount,
+    };
   }
   if (answer?.__typename === "ScaleAnswer") {
-    return answer.levelProbabilities.map(({ level, probability }) => ({
-      key: String(level),
-      ...describeScaleLevel(level, decision.question?.levels),
-      probability,
-    }));
+    return {
+      probabilities: answer.levelProbabilities.map(
+        ({ level, probability }) => ({
+          key: String(level),
+          ...describeScaleLevel(level, decision.question?.levels),
+          probability,
+        })
+      ),
+      omittedOptionCount: 0,
+    };
   }
-  return [];
+  return { probabilities: [], omittedOptionCount: 0 };
 }
 
 export function isRefusedDecisionAnnotation(annotation: {

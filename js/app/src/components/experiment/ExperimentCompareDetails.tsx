@@ -47,6 +47,8 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
+import type { NormalizedDecisionAnswer } from "@phoenix/components/decision/decisionAnswers";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import {
   getDecisionRunAnswers,
@@ -71,8 +73,6 @@ import {
 } from "@phoenix/contexts/ExperimentCompareContext";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
-import { DecisionAnswerList } from "@phoenix/pages/playground/DecisionResult";
-import type { NormalizedDecisionAnswer } from "@phoenix/pages/playground/decisionUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 

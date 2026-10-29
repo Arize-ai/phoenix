@@ -61,9 +61,13 @@ import {
 } from "@phoenix/components/core/tooltip";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { useExperimentColors } from "@phoenix/components/experiment";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
 import {
   formatDecisionAnswers,
+  type NormalizedDecisionAnswer,
+} from "@phoenix/components/decision/decisionAnswers";
+import { useExperimentColors } from "@phoenix/components/experiment";
+import {
   getDecisionRunAnswers,
   getDecisionTaskQuestions,
 } from "@phoenix/components/experiment/decisionRunOutput";
@@ -80,8 +84,6 @@ import type { ExperimentComparePageQueriesCompareListQuery as ExperimentCompareP
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
-import { DecisionAnswerList } from "@phoenix/pages/playground/DecisionResult";
-import type { NormalizedDecisionAnswer } from "@phoenix/pages/playground/decisionUtils";
 import { isObject } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {

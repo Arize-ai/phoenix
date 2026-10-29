@@ -87,10 +87,13 @@ describe("decision annotation helpers", () => {
           ],
         },
       })
-    ).toEqual([
-      { key: "b", name: "b", probability: 0.9 },
-      { key: "a", name: "a", probability: 0.096 },
-    ]);
+    ).toEqual({
+      probabilities: [
+        { key: "b", name: "b", probability: 0.9 },
+        { key: "a", name: "a", probability: 0.096 },
+      ],
+      omittedOptionCount: 1,
+    });
   });
   it("lists a yes/no answer's options like a choice's", () => {
     expect(
@@ -98,10 +101,13 @@ describe("decision annotation helpers", () => {
         ...answered,
         answer: { __typename: "PredicateAnswer", probability: 0.3 },
       })
-    ).toEqual([
-      { key: "False", name: "False", probability: 0.7 },
-      { key: "True", name: "True", probability: 0.3 },
-    ]);
+    ).toEqual({
+      probabilities: [
+        { key: "False", name: "False", probability: 0.7 },
+        { key: "True", name: "True", probability: 0.3 },
+      ],
+      omittedOptionCount: 0,
+    });
   });
   it("names scale levels by label, then description, then number", () => {
     const levels = [
@@ -194,6 +200,21 @@ describe("decision annotation rendering", () => {
     expect(text).toContain("confidence");
     expect(text).toContain("p(b)");
     expect(text).toContain("gpt-x");
+  });
+  it("notes the choice options it leaves out", () => {
+    const text = details({
+      ...answered,
+      question: {
+        ...answered.question!,
+        choices: [
+          { value: "a", description: null },
+          { value: "b", description: null },
+          { value: "c", description: null },
+        ],
+      },
+    });
+    expect(text).toContain("+1 option at 0%");
+    expect(details(answered)).not.toContain("at 0%");
   });
   it("names scale probabilities by the levels the judge asked", () => {
     const text = details(

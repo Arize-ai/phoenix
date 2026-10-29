@@ -1,13 +1,9 @@
 import { graphql } from "react-relay";
 
 import {
-  formatPercent,
-  getNearestLevelIndex,
-} from "@phoenix/pages/playground/DecisionResult";
-import {
   type NormalizedDecisionAnswer,
   normalizeDecisionAnswers,
-} from "@phoenix/pages/playground/decisionUtils";
+} from "@phoenix/components/decision/decisionAnswers";
 import {
   type FetchedDecisionQuestion,
   toDraftQuestion,
@@ -15,7 +11,6 @@ import {
 } from "@phoenix/pages/playground/savedDecisionUtils";
 import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
-import { rankPredicateProbabilities } from "@phoenix/utils/decisionProbabilityUtils";
 
 /**
  * The questions a decision experiment asked. Spread it unmasked
@@ -118,50 +113,4 @@ export function getDecisionRunAnswers({
   }
   const answers = normalizeDecisionAnswers({ answers: parsed, questions });
   return answers.every((answer) => answer.kind !== "unknown") ? answers : null;
-}
-
-function formatOptions(
-  options: readonly { value: string; probability: number }[]
-): string {
-  return options
-    .map((entry) => `${entry.value} ${formatPercent(entry.probability)}`)
-    .join(", ");
-}
-
-function formatDecisionAnswer(answer: NormalizedDecisionAnswer): string {
-  switch (answer.kind) {
-    case "predicate":
-      return answer.probability == null
-        ? "–"
-        : formatOptions(rankPredicateProbabilities(answer.probability));
-    case "choice":
-      return answer.probabilities.length > 0
-        ? formatOptions(answer.probabilities)
-        : (answer.choice ?? "–");
-    case "scale": {
-      if (answer.expectedLevel == null) return "–";
-      const nearestIndex = getNearestLevelIndex({
-        expectedLevel: answer.expectedLevel,
-        levelIndices: answer.levels.map((level) => level.index),
-      });
-      const nearest = answer.levels.find(
-        (level) => level.index === nearestIndex
-      );
-      const expected = answer.expectedLevel.toFixed(2);
-      return nearest ? `${nearest.label} (${expected})` : expected;
-    }
-    case "refusal":
-      return "Refused";
-    default:
-      return "–";
-  }
-}
-
-/** Every answer on one line, for a single-line cell. */
-export function formatDecisionAnswers(
-  answers: readonly NormalizedDecisionAnswer[]
-): string {
-  return answers
-    .map((answer) => `${answer.name}: ${formatDecisionAnswer(answer)}`)
-    .join(" · ");
 }

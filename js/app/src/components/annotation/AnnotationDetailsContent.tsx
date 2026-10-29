@@ -1,7 +1,10 @@
+import { css } from "@emotion/react";
+
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { formatOmittedOptions } from "@phoenix/components/decision/decisionAnswers";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationScoreText } from "./AnnotationScoreText";
@@ -10,6 +13,10 @@ import {
   decisionProbabilities,
 } from "./decisionAnnotation";
 import type { Annotation } from "./types";
+
+const omittedOptionsCSS = css`
+  opacity: 0.6;
+`;
 
 function DecisionRow({
   name,
@@ -49,6 +56,7 @@ export function DecisionAnnotationDetails({
 }) {
   const model = decision.resolvedModel ?? decision.requestedModel;
   const answer = decision.answer;
+  const { probabilities, omittedOptionCount } = decisionProbabilities(decision);
   return (
     <View paddingTop="size-50" data-testid="decision-details">
       <Flex direction="column">
@@ -75,16 +83,19 @@ export function DecisionAnnotationDetails({
             value={floatFormatter(answer.confidence)}
           />
         ) : null}
-        {decisionProbabilities(decision).map(
-          ({ key, name, title, probability }) => (
-            <DecisionRow
-              key={key}
-              name={`p(${name})`}
-              title={title}
-              value={floatFormatter(probability)}
-            />
-          )
-        )}
+        {probabilities.map(({ key, name, title, probability }) => (
+          <DecisionRow
+            key={key}
+            name={`p(${name})`}
+            title={title}
+            value={floatFormatter(probability)}
+          />
+        ))}
+        {omittedOptionCount > 0 ? (
+          <Text color="inherit" css={omittedOptionsCSS}>
+            {formatOmittedOptions(omittedOptionCount)}
+          </Text>
+        ) : null}
         {model ? <DecisionRow name="model" value={model} /> : null}
         {decision.modelProvider ? (
           <DecisionRow name="provider" value={decision.modelProvider} />

@@ -32,6 +32,7 @@ import {
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -67,7 +68,6 @@ import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/exp
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
-import { DecisionAnswerList } from "@phoenix/pages/playground/DecisionResult";
 import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import {
   datasetEvaluatorsToAnnotationConfigs,

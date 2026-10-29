@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { formatDecisionAnswers } from "@phoenix/components/decision/decisionAnswers";
+
 import {
-  formatDecisionAnswers,
   getDecisionRunAnswers,
   getDecisionTaskQuestions,
 } from "../decisionRunOutput";
@@ -74,6 +75,7 @@ describe("getDecisionRunAnswers", () => {
         "groceries",
         "shopping",
       ]);
+      expect(category.omittedOptionCount).toBe(1);
     }
   });
 
@@ -83,7 +85,19 @@ describe("getDecisionRunAnswers", () => {
         questions: decisionQuestions,
         output: JSON.stringify({ is_recurring: output.is_recurring }),
       })
-    ).toEqual([{ kind: "predicate", name: "is_recurring", probability: 0.1 }]);
+    ).toEqual([
+      {
+        kind: "predicate",
+        name: "is_recurring",
+        probability: 0.1,
+        choice: "False",
+        probabilities: [
+          { value: "False", probability: 0.9 },
+          { value: "True", probability: 0.1 },
+        ],
+        omittedOptionCount: 0,
+      },
+    ]);
   });
 
   it("keeps refused questions beside answered ones", () => {
@@ -158,7 +172,7 @@ describe("formatDecisionAnswers", () => {
 
   it("puts every answer on one line, every non-negligible option included", () => {
     expect(formatDecisionAnswers(answers)).toBe(
-      "is_recurring: False 90%, True 10% · category: groceries 80%, shopping 20% · urgency: Refused"
+      "is_recurring: False 90%, True 10% · category: groceries 80%, shopping 20%, +1 option at 0% · urgency: Refused"
     );
   });
 
