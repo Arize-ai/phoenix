@@ -205,7 +205,7 @@ async def _login(request: Request) -> Response:
 
 
 async def _logout(request: Request) -> Response:
-    """Log out user by revoking tokens and clearing cookies."""
+    """Log out of every browser session by revoking its tokens, and clear the cookies."""
     token_store: TokenStore = request.app.state.get_token_store()
     user_id = None
     if isinstance(user := request.user, PhoenixUser):
@@ -219,7 +219,8 @@ async def _logout(request: Request) -> Response:
     ):
         user_id = subject
     if user_id:
-        await token_store.log_out(user_id)
+        # Signing out of the browser leaves OAuth2 clients, such as the CLI, signed in.
+        await token_store.log_out_of_browsers(user_id)
     redirect_path = "/logout" if get_env_disable_basic_auth() else "/login"
     redirect_url = prepend_root_path(request.scope, redirect_path)
     response = Response(status_code=302, headers={"Location": redirect_url})

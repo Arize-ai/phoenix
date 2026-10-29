@@ -1613,7 +1613,7 @@ export interface paths {
         };
         /**
          * Logout
-         * @description Log out user by revoking tokens and clearing cookies.
+         * @description Log out of every browser session by revoking its tokens, and clear the cookies.
          */
         get: operations["_logout_auth_logout_get"];
         put?: never;
