@@ -27,9 +27,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
         from typesafe_sdk import Choice
 
-        # When labels is a dict it maps each label to its description; pass those
-        # descriptions straight to Jev as the choice criteria. A list carries no
-        # descriptions, so each is None.
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
