@@ -129,7 +129,7 @@ class TestDegradeOnConnectFailure:
         toolset: GitHubMCPToolset[Any] = GitHubMCPToolset(_config())
 
         async def raise_transport_error(self: Any, ctx: Any) -> Any:
-            raise httpx.ConnectError(f"listing failed, headers: Bearer {_TOKEN}")
+            raise httpx2.ConnectError(f"listing failed, headers: Bearer {_TOKEN}")
 
         monkeypatch.setattr(MCPToolset, "get_tools", raise_transport_error)
         assert await toolset.get_tools(Mock()) == {}
