@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a1b343b8fe9592f7f0a51b69d411933>>
+ * @generated SignedSource<<3f278bca192af8561280d060dac56cd8>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,7 @@ export type TagPromptVersionButtonSetTagMutation$data = {
   readonly setPromptVersionTag: {
     readonly promptVersionTag: {
       readonly id: string;
+      readonly promptVersionId: string;
     } | null;
     readonly query: {
       readonly prompt: {
@@ -70,7 +71,14 @@ v3 = {
   "name": "promptVersionTag",
   "plural": false,
   "selections": [
-    (v2/*:: as any*/)
+    (v2/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "promptVersionId",
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
@@ -290,16 +298,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2a6568430ea3041967db43f24ba1e828",
+    "cacheID": "3dadae7e32530e86e1c67ac8682b9a27",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n    }\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionTagsConfig_data\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
+    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    promptVersionTag {\n      id\n      promptVersionId\n    }\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionTagsConfig_data\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "789d130891fe7c812b8990fdbd4bd58a";
+(node as any).hash = "f3398de74bff1bb13684b50ace8ebb04";
 
 export default node;

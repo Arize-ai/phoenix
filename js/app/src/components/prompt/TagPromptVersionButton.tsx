@@ -198,6 +198,7 @@ function TagList({
         setPromptVersionTag(input: $input) {
           promptVersionTag {
             id
+            promptVersionId
           }
           query {
             prompt: node(id: $promptId) {
@@ -231,11 +232,13 @@ function TagList({
   const commitMoveTag = ({
     tagName,
     targetVersionId,
+    previousVersionId,
     description,
     onCompleted,
   }: {
     tagName: string;
     targetVersionId: string;
+    previousVersionId?: string;
     description?: string;
     onCompleted: () => void;
   }) => {
@@ -247,6 +250,14 @@ function TagList({
       updater: (store, response) => {
         const tagId = response?.setPromptVersionTag.promptVersionTag?.id;
         if (tagId) {
+          if (previousVersionId) {
+            removePromptVersionTag({
+              store,
+              promptId,
+              versionId: previousVersionId,
+              tagId,
+            });
+          }
           movePromptVersionTag({
             store,
             promptId,
@@ -298,6 +309,7 @@ function TagList({
       commitMoveTag({
         tagName,
         targetVersionId: restoreVersionId,
+        previousVersionId: tag.promptVersionId,
         onCompleted: () => {
           const sequenceNumber =
             sequenceNumberByVersionId.get(restoreVersionId);
@@ -329,6 +341,7 @@ function TagList({
       {allVersionTagsWithDefaults.map((tagName: string) => {
         const tag = tagsByName.get(tagName);
         const isTagSet = tag?.promptVersionId === versionId;
+        const canUnset = restoreTargets[tagName] !== undefined;
         const otherVersionSequenceNumber =
           tag && !isTagSet
             ? sequenceNumberByVersionId.get(tag.promptVersionId)
@@ -350,7 +363,7 @@ function TagList({
                 <Checkbox
                   name={tagName}
                   isSelected={isTagSet}
-                  isDisabled={isCommitting}
+                  isDisabled={isCommitting || (isTagSet && !canUnset)}
                   onChange={(isSelected) => {
                     if (isSelected) {
                       setTag(tagName);
