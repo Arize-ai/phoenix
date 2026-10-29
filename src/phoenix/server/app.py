@@ -8,7 +8,7 @@ import os
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -96,6 +96,7 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.redaction import redact_arguments
 from phoenix.server.api.routers import (
     AgentSessionConflict,
     agent_session_conflict_handler,
@@ -165,7 +166,6 @@ from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import (
-    graphql_tracing_extension,
     initialize_opentelemetry_logger_provider,
     initialize_opentelemetry_tracer_provider,
 )
@@ -1054,8 +1054,18 @@ def create_app(
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():
+        from strawberry.extensions.tracing import OpenTelemetryExtension
+
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        graphql_schema_extensions.append(graphql_tracing_extension(tracer_provider))
+        # Bound to this provider rather than the global one, which in a notebook
+        # could be the provider OpenInference is using.
+        graphql_schema_extensions.append(
+            partial(
+                OpenTelemetryExtension,
+                tracer_provider=tracer_provider,
+                arg_filter=redact_arguments,
+            )
+        )
     logger_provider = None
     if server_log_export_is_enabled():
         logger_provider = initialize_opentelemetry_logger_provider()

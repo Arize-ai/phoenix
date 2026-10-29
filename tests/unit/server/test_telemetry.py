@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Optional
 
 import pytest
@@ -6,11 +7,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.semconv.resource import ResourceAttributes
+from strawberry.extensions.tracing import OpenTelemetryExtension
 
-from phoenix.server.api.redaction import Redacted
+from phoenix.server.api.redaction import Redacted, redact_arguments
 from phoenix.server.telemetry import (
     _server_resource,
-    graphql_tracing_extension,
     normalize_http_log_collector_endpoint,
     normalize_http_trace_collector_endpoint,
 )
@@ -76,10 +77,6 @@ class TestGraphQLTracingExtension:
         def create_project(self, name: str) -> str:
             return name
 
-        @strawberry.mutation
-        def create_span_annotations(self, input: list[str]) -> str:
-            return ",".join(input)
-
     @pytest.fixture
     def exporter(self) -> InMemorySpanExporter:
         return InMemorySpanExporter()
@@ -91,7 +88,13 @@ class TestGraphQLTracingExtension:
         return strawberry.Schema(
             query=self.Query,
             mutation=self.Mutation,
-            extensions=[graphql_tracing_extension(tracer_provider)],
+            extensions=[
+                partial(
+                    OpenTelemetryExtension,
+                    tracer_provider=tracer_provider,
+                    arg_filter=redact_arguments,
+                )
+            ],
         )
 
     @staticmethod
@@ -132,18 +135,6 @@ class TestGraphQLTracingExtension:
         }
         for secret in ("alice@example.com", "hunter2", "sk-live-123"):
             assert all(secret not in str(attributes) for attributes in spans.values())
-
-    async def test_content_resolver_arguments_are_blanked_whole(
-        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
-    ) -> None:
-        result = await schema.execute(
-            'mutation Annotate { createSpanAnnotations(input: ["looks wrong to me"]) }'
-        )
-        assert result.errors is None
-        spans = self._spans(exporter)
-        assert spans["GraphQL Resolving: createSpanAnnotations"]["graphql.param.input"] == (
-            "[redacted]"
-        )
 
     async def test_other_resolver_arguments_are_recorded(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter
@@ -203,3 +194,11 @@ def test_phoenix_schema_marks_user_and_credential_fields() -> None:
     redacted = redact_arguments(args, info)  # type: ignore[arg-type]
     assert "sk-live-123" not in str(redacted)
     assert redacted["input"]["name"] == "my-openai"
+
+    info = SimpleNamespace(parent_type=mutation, field_name="createSpanNotes")
+    args: dict[str, Any] = {
+        "input": [{"span": {"id": "U3Bhbjox"}, "note": "customer said their SSN is ..."}]
+    }
+    assert redact_arguments(args, info) == {  # type: ignore[arg-type]
+        "input": [{"span": {"id": "U3Bhbjox"}, "note": "[redacted]"}]
+    }
