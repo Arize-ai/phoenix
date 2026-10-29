@@ -6,6 +6,7 @@ import {
 import {
   datasetEvaluatorsToAnnotationConfigs,
   datasetEvaluatorToAnnotationConfigs,
+  getAnnotationConfigsWithResults,
   getDecisionAnnotationName,
   type DatasetEvaluatorForConfig,
 } from "../datasetEvaluatorUtils";
@@ -256,5 +257,67 @@ describe("getDecisionAnnotationName", () => {
         questionCount: 2,
       })
     ).toBe("judge.q");
+  });
+});
+
+describe("getAnnotationConfigsWithResults", () => {
+  const annotationConfigs = datasetEvaluatorsToAnnotationConfigs([
+    {
+      name: "category_matches",
+      outputConfigs: [
+        {
+          __typename: "CategoricalAnnotationConfig",
+          name: "category_matches",
+          values: [{ label: "true", score: 1 }],
+        },
+      ],
+    },
+    {
+      kind: "DECISION",
+      name: "category_matches_decision",
+      outputConfigs: [
+        { __typename: "ContinuousAnnotationConfig", name: "matches" },
+      ],
+    },
+  ]);
+
+  it("drops configs without results", () => {
+    const configs = getAnnotationConfigsWithResults({
+      annotationConfigs,
+      annotationNames: ["category_matches_decision"],
+    });
+    expect(configs.map((config) => config.name)).toEqual([
+      "category_matches_decision",
+    ]);
+    expect(configs[0].annotationType).toBe("CONTINUOUS");
+  });
+
+  it("keeps config order and appends unconfigured names as freeform, sorted", () => {
+    const configs = getAnnotationConfigsWithResults({
+      annotationConfigs,
+      annotationNames: [
+        "sdk_eval",
+        "category_matches_decision",
+        "category_matches",
+        "another_sdk_eval",
+        "sdk_eval",
+      ],
+    });
+    expect(configs.map((config) => config.name)).toEqual([
+      "category_matches",
+      "category_matches_decision",
+      "another_sdk_eval",
+      "sdk_eval",
+    ]);
+    expect(configs[3].annotationType).toBe("FREEFORM");
+  });
+
+  it("returns nothing when no annotations have results", () => {
+    expect(
+      getAnnotationConfigsWithResults({
+        annotationConfigs,
+        annotationNames: [],
+      })
+    ).toEqual([]);
   });
 });
