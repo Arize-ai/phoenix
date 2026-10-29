@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, Token, View } from "@phoenix/components";
 import { DecisionJsonTemplateEditor } from "@phoenix/components/decision/DecisionJsonTemplateEditor";
+import { toJsonTemplateText } from "@phoenix/components/decision/decisionTemplates";
 import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import {
   TemplateEditor,
@@ -113,7 +114,10 @@ export function DecisionDefinition({
                   <DecisionJsonTemplateEditor
                     readOnly
                     aria-label="State template"
-                    defaultValue={JSON.stringify(state.json, null, 2)}
+                    defaultValue={toJsonTemplateText({
+                      template: state.json,
+                      templateFormat,
+                    })}
                     templateFormat={templateFormat}
                   />
                 ) : (

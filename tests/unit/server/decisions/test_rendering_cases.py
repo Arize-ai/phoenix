@@ -1,7 +1,7 @@
-"""The server runs every shared decision rendering vector.
+"""The server runs every decision rendering vector.
 
-The vectors in ``tests/fixtures/decisions/rendering_cases.json`` are also read by the Python
-client, the TypeScript client and the playground, so the four implementations agree.
+The vectors in ``tests/fixtures/decisions/rendering_cases.json`` are kept as data so a client
+that renders decisions itself can run the same cases.
 """
 
 import json

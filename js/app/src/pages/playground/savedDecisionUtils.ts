@@ -1,3 +1,4 @@
+import { toJsonTemplateText } from "@phoenix/components/decision/decisionTemplates";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   DecisionQuestionDraft,
@@ -118,21 +119,25 @@ export function savedDecisionVersionToDraft({
     );
   }
   return {
-    state: toDraftState(version.state),
+    state: toDraftState({ state: version.state, templateFormat }),
     questions: version.questions.map(toDraftQuestion),
   };
 }
 
-function toDraftState(
-  state: SavedDecisionVersion["state"]
-): DecisionStateDraft {
+function toDraftState({
+  state,
+  templateFormat,
+}: {
+  state: SavedDecisionVersion["state"];
+  templateFormat: TemplateFormat;
+}): DecisionStateDraft {
   switch (state.kind) {
     case "text":
       return createDecisionStateDraft({ mode: "text", text: state.text });
     case "json":
       return createDecisionStateDraft({
         mode: "json",
-        json: JSON.stringify(state.json, null, 2),
+        json: toJsonTemplateText({ template: state.json, templateFormat }),
       });
     default:
       return assertUnreachable(state);

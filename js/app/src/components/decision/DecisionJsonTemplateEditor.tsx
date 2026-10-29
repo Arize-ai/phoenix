@@ -8,7 +8,7 @@ import {
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useTheme } from "@phoenix/contexts";
 
-import { decisionJsonTemplateHighlighting } from "./decisionJsonTemplateExtensions";
+import { decisionJsonTemplateExtensions } from "./decisionJsonTemplateExtensions";
 
 type DecisionJsonTemplateEditorProps = Pick<
   ReactCodeMirrorProps,
@@ -25,7 +25,7 @@ type DecisionJsonTemplateEditorProps = Pick<
 /**
  * A JSON editor for a decision's JSON state template: the JSON is linted,
  * and the variable tags in its strings are highlighted under the template
- * format, a string that is exactly one tag drawn as a typed hole.
+ * format. A state that is one bare tag, `{{state}}`, is the whole value.
  *
  * Uncontrolled, like the template editor: what is typed stays the value so
  * the cursor stays put; remount it to show another template.
@@ -46,7 +46,7 @@ export function DecisionJsonTemplateEditor({
     onChangeRef.current = onChange;
   });
   const { theme } = useTheme();
-  const extensions = decisionJsonTemplateHighlighting({
+  const extensions = decisionJsonTemplateExtensions({
     templateFormat,
     variableColor: pierreTemplateVariableColor[theme],
   });
@@ -56,7 +56,7 @@ export function DecisionJsonTemplateEditor({
       aria-label={ariaLabel}
       value={readOnly ? defaultValue : value}
       readOnly={readOnly}
-      optionalLint
+      lint={false}
       extensions={extensions}
       basicSetup={{
         lineNumbers: true,

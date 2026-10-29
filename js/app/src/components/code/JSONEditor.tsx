@@ -40,6 +40,11 @@ export type JSONEditorProps = Omit<
    * If true, will not lint the content if it is empty
    */
   optionalLint?: boolean;
+  /**
+   * If false, the editor's own JSON linter is off, for an editor that brings
+   * its own in `extensions`
+   */
+  lint?: boolean;
 };
 
 export function JSONEditor(props: JSONEditorProps) {
@@ -47,6 +52,7 @@ export function JSONEditor(props: JSONEditorProps) {
   const {
     jsonSchema,
     optionalLint,
+    lint = true,
     basicSetup,
     "aria-label": ariaLabel,
     extensions: extraExtensions,
@@ -56,7 +62,8 @@ export function JSONEditor(props: JSONEditorProps) {
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
   // If optionalLint is true, we only lint when there is content to allow for empty json values
-  const shouldLint = !optionalLint || (contentLength && contentLength > 0);
+  const shouldLint =
+    lint && (!optionalLint || (contentLength && contentLength > 0));
   const extensions = useMemo(() => {
     const baseExtensions: Extension[] = [
       json(),

@@ -1,7 +1,7 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 
-import { buildDecisionInput, previewDecision } from "../decisionUtils";
+import { buildDecisionInput } from "../decisionUtils";
 import { transformSpanAttributesToPlaygroundInstance } from "../playgroundUtils";
 import { basePlaygroundSpan } from "./fixtures";
 
@@ -113,12 +113,13 @@ describe("decision span replay", () => {
       name: "urgent",
       type: "predicate",
     });
-    const preview = previewDecision({
-      draft: playgroundInstance.decisionPrompt!,
-      templateFormat: templateFormat!,
-      variables: {},
-    });
-    expect(preview.ok && preview.rendered.state).toBe('{"ticket": "{{raw}}"}');
+    expect(
+      buildDecisionInput({
+        draft: playgroundInstance.decisionPrompt!,
+        templateFormat: templateFormat!,
+        variables: {},
+      }).state
+    ).toEqual({ text: '{"ticket": "{{raw}}"}' });
   });
 
   it("replays an object state with a __proto__ key and an array state exactly", () => {
@@ -137,15 +138,6 @@ describe("decision span replay", () => {
       '[{"role": "user", "content": "hi"}]',
     ]) {
       const { playgroundInstance, templateFormat } = replay(state);
-      const preview = previewDecision({
-        draft: playgroundInstance.decisionPrompt!,
-        templateFormat: templateFormat!,
-        variables: {},
-      });
-      expect(preview.ok).toBe(true);
-      expect(JSON.stringify(preview.ok && preview.rendered.state)).toBe(
-        JSON.stringify(JSON.parse(state))
-      );
       const input = buildDecisionInput({
         draft: playgroundInstance.decisionPrompt!,
         templateFormat: templateFormat!,

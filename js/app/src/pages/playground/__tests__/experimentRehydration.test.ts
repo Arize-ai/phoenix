@@ -134,7 +134,7 @@ it("fetches a fixed-question decision experiment", async () => {
   expect(result?.playgroundProps.instances?.[0]).toMatchObject({
     task: { type: "decision" },
     decisionPrompt: {
-      state: { mode: "json", json: '"{{ticket}}"' },
+      state: { mode: "json", json: "{{ticket}}" },
       questions: [
         { type: "choice", name: "team", instructions: "Which team?" },
         { type: "scale", name: "severity", instructions: "Severity?" },

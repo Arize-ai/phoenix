@@ -11,8 +11,8 @@ import { useTheme } from "@phoenix/contexts";
 
 /** How a decision reads this variable, shown beside its name. */
 export type VariableDecisionReading = {
-  /** The JSON type the value is sent as, `text`, or `missing` when empty. */
-  type: string;
+  /** The JSON type the value is sent as, or `text`; null when empty. */
+  type: string | null;
   /** Whether the value parses as JSON, so reading it as text is a choice. */
   isJson: boolean;
   isReadAsText: boolean;
@@ -84,13 +84,14 @@ export const VariableEditor = ({
       {decisionReading ? (
         <div css={labelRowCSS}>
           <Label>{label}</Label>
-          <Badge
-            size="S"
-            variant={decisionReading.type === "missing" ? "warning" : "default"}
-            aria-label={`Decisions read ${label} as ${decisionReading.type}`}
-          >
-            {decisionReading.type}
-          </Badge>
+          {decisionReading.type != null ? (
+            <Badge
+              size="S"
+              aria-label={`Decisions read ${label} as ${decisionReading.type}`}
+            >
+              {decisionReading.type}
+            </Badge>
+          ) : null}
           <Flex flex="1 1 auto" justifyContent="end">
             {decisionReading.isJson ? (
               <Switch

@@ -5,11 +5,10 @@ import { z } from "zod";
 import {
   type DecisionQuestionTemplate,
   type DecisionStateTemplate,
-  getTemplateVariableNames,
-  type RenderedDecision,
-  renderDecision,
-} from "@phoenix/components/decision/decisionTemplateRendering";
+  isBareWholeTag,
+} from "@phoenix/components/decision/decisionTemplates";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
   CanonicalResponseFormat,
@@ -154,32 +153,6 @@ const VARIABLE_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function isValidVariableName(name: string): boolean {
   return VARIABLE_NAME_PATTERN.test(name);
-}
-
-/**
- * A variable name from a hint such as a property key, made valid (other
- * characters become `_`) and unique among `existingNames` (`name_2`, ...);
- * `value` when there is no usable hint.
- */
-export function getDefaultVariableName({
-  hint,
-  existingNames,
-}: {
-  hint: string | null | undefined;
-  existingNames: readonly string[];
-}): string {
-  const cleaned = (hint ?? "")
-    .replace(/[^A-Za-z0-9_]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  const base = !cleaned
-    ? "value"
-    : /^[0-9]/.test(cleaned)
-      ? `_${cleaned}`
-      : cleaned;
-  if (!existingNames.includes(base)) return base;
-  let suffix = 2;
-  while (existingNames.includes(`${base}_${suffix}`)) suffix += 1;
-  return `${base}_${suffix}`;
 }
 
 /**
@@ -375,8 +348,16 @@ function getQuestionErrors({
 }
 
 /** Why a JSON state template can't be sent, or null when it can. */
-function getJsonStateError(json: string): string | undefined {
+function getJsonStateError({
+  json,
+  templateFormat,
+}: {
+  json: string;
+  templateFormat: TemplateFormat;
+}): string | undefined {
   if (!json.trim()) return STATE_REQUIRED_ERROR;
+  // One bare tag, `{{state}}`, is the whole state.
+  if (isBareWholeTag({ templateFormat, json })) return undefined;
   let value: unknown;
   try {
     value = JSON.parse(json);
@@ -391,17 +372,29 @@ function getJsonStateError(json: string): string | undefined {
     : "A JSON state must be an object, a list, or a string";
 }
 
-function getStateError(draft: DecisionPromptDraft): string | undefined {
+function getStateError({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionPromptDraft;
+  templateFormat: TemplateFormat;
+}): string | undefined {
   const { state } = draft;
-  if (state.mode === "json") return getJsonStateError(state.json);
+  if (state.mode === "json") {
+    return getJsonStateError({ json: state.json, templateFormat });
+  }
   return state.text.trim() ? undefined : STATE_REQUIRED_ERROR;
 }
 
-export function validateDecisionDraft(
-  draft: DecisionPromptDraft
-): DecisionDraftErrors {
+export function validateDecisionDraft({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionPromptDraft;
+  templateFormat: TemplateFormat;
+}): DecisionDraftErrors {
   const errors: DecisionDraftErrors = { byQuestionId: {} };
-  const stateError = getStateError(draft);
+  const stateError = getStateError({ draft, templateFormat });
   if (stateError) errors.state = stateError;
   if (draft.questions.length === 0) {
     errors.questions = "Add at least one question";
@@ -427,10 +420,14 @@ export function hasDecisionErrors(errors: DecisionDraftErrors): boolean {
 }
 
 /** The first problem, for the Run button and tests. */
-export function getDecisionValidationError(
-  draft: DecisionPromptDraft
-): string | null {
-  const errors = validateDecisionDraft(draft);
+export function getDecisionValidationError({
+  draft,
+  templateFormat,
+}: {
+  draft: DecisionPromptDraft;
+  templateFormat: TemplateFormat;
+}): string | null {
+  const errors = validateDecisionDraft({ draft, templateFormat });
   if (errors.state) return errors.state;
   if (errors.questions) return errors.questions;
   for (const question of draft.questions) {
@@ -580,10 +577,18 @@ export function maskUntouchedErrors({
  * The state template a draft sends. Throws when a JSON state isn't valid
  * JSON; {@link validateDecisionDraft} reports that first.
  */
-export function toDecisionStateTemplate(
-  state: DecisionStateDraft
-): DecisionStateTemplate {
+export function toDecisionStateTemplate({
+  state,
+  templateFormat,
+}: {
+  state: DecisionStateDraft;
+  templateFormat: TemplateFormat;
+}): DecisionStateTemplate {
   if (state.mode === "text") return { type: "text", template: state.text };
+  // A bare tag is stored as the string that is the tag, which reads the same.
+  if (isBareWholeTag({ templateFormat, json: state.json })) {
+    return { type: "json", template: state.json.trim() };
+  }
   try {
     return { type: "json", template: JSON.parse(state.json) };
   } catch {
@@ -646,7 +651,14 @@ export function toDecisionQuestionTemplates(
  * JSON; JSON being edited is read with the editor's error-tolerant parser,
  * so the variables don't flicker away while a comma is missing.
  */
-export function getJsonTemplateStringLeaves(json: string): string[] {
+export function getJsonTemplateStringLeaves({
+  json,
+  templateFormat,
+}: {
+  json: string;
+  templateFormat: TemplateFormat;
+}): string[] {
+  if (isBareWholeTag({ templateFormat, json })) return [json.trim()];
   try {
     return collectStringLeaves(JSON.parse(json));
   } catch {
@@ -684,27 +696,29 @@ function collectVariables({
   templates: readonly string[];
   templateFormat: TemplateFormat;
 }): string[] {
+  const { extractVariables } = getTemplateFormatUtils(templateFormat);
   const names = new Set<string>();
   for (const template of templates) {
-    try {
-      for (const name of getTemplateVariableNames({
-        templateFormat,
-        template,
-      })) {
-        names.add(name);
-      }
-    } catch {
-      // A template being edited; the preview and the run report it.
+    for (const variable of extractVariables(template)) {
+      // A path such as `{ticket.id}` or `{items[0]}` names its root, as the
+      // server reads it; a conversion or format spec is not part of it.
+      names.add(variable.match(/^[^.[!:]+/)?.[0]?.trim() ?? variable);
     }
   }
   return [...names];
 }
 
 /** The state's templates: the text, or each string leaf of the JSON. */
-function getStateTemplates(state: DecisionStateDraft): string[] {
+function getStateTemplates({
+  state,
+  templateFormat,
+}: {
+  state: DecisionStateDraft;
+  templateFormat: TemplateFormat;
+}): string[] {
   return state.mode === "text"
     ? [state.text]
-    : getJsonTemplateStringLeaves(state.json);
+    : getJsonTemplateStringLeaves({ json: state.json, templateFormat });
 }
 
 /** The templated prose of the questions; names, choice values and level labels are not templates. */
@@ -744,7 +758,7 @@ export function getStateVariables({
   templateFormat: TemplateFormat;
 }): string[] {
   return collectVariables({
-    templates: getStateTemplates(state),
+    templates: getStateTemplates({ state, templateFormat }),
     templateFormat,
   });
 }
@@ -766,7 +780,7 @@ export function extractDecisionVariables({
   if (!draft || templateFormat === TemplateFormats.NONE) return [];
   return collectVariables({
     templates: [
-      ...getStateTemplates(draft.state),
+      ...getStateTemplates({ state: draft.state, templateFormat }),
       ...getQuestionTemplates(draft.questions),
     ],
     templateFormat,
@@ -851,25 +865,6 @@ export function toDecisionVariableValues({
       return reading.kind === "value" ? [[name, reading.value]] : [];
     })
   );
-}
-
-/**
- * A value as the Variables pane holds it, so {@link readDecisionVariable}
- * reads back the same value: text as written, flagged to be read as text
- * when it would parse as JSON; anything else as JSON.
- */
-export function toDecisionVariableText(value: unknown): {
-  text: string;
-  isReadAsText: boolean;
-} {
-  if (typeof value !== "string") {
-    return { text: JSON.stringify(value, null, 2), isReadAsText: false };
-  }
-  const reading = readDecisionVariable({ text: value });
-  return {
-    text: value,
-    isReadAsText: reading.kind === "value" && reading.type !== "text",
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -971,9 +966,9 @@ export function buildDecisionTaskDefinition({
   draft: DecisionPromptDraft;
   templateFormat: TemplateFormat;
 }): DecisionTaskDefinition {
-  const validationError = getDecisionValidationError(draft);
+  const validationError = getDecisionValidationError({ draft, templateFormat });
   if (validationError) throw new Error(validationError);
-  const state = toDecisionStateTemplate(draft.state);
+  const state = toDecisionStateTemplate({ state: draft.state, templateFormat });
   return {
     templateFormat,
     state:
@@ -1033,41 +1028,6 @@ export function buildDecisionInput({
     ...buildDecisionTaskDefinition({ draft, templateFormat }),
     variables,
   };
-}
-
-/**
- * The state and questions a draft sends for these variables, rendered by the
- * same rules as the server, or the reason it can't be rendered.
- */
-export function previewDecision({
-  draft,
-  templateFormat,
-  variables,
-}: {
-  draft: DecisionPromptDraft;
-  templateFormat: TemplateFormat;
-  variables: Record<string, unknown>;
-}): { ok: true; rendered: RenderedDecision } | { ok: false; error: string } {
-  try {
-    const stateError = getStateError(draft);
-    if (stateError && stateError !== STATE_REQUIRED_ERROR) {
-      return { ok: false, error: stateError };
-    }
-    return {
-      ok: true,
-      rendered: renderDecision({
-        templateFormat,
-        state: toDecisionStateTemplate(draft.state),
-        questions: toDecisionQuestionTemplates(draft.questions),
-        variables,
-      }),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1271,7 +1231,10 @@ export function getImportedTemplateFormat(
   draft: DecisionPromptDraft
 ): TemplateFormat {
   const templates = [
-    ...getStateTemplates(draft.state),
+    ...getStateTemplates({
+      state: draft.state,
+      templateFormat: TemplateFormats.Mustache,
+    }),
     ...getQuestionTemplates(draft.questions),
   ];
   return templates.some(hasMustacheTags)

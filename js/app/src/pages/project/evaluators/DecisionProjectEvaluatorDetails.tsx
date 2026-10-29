@@ -4,6 +4,7 @@ import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Card, Flex, ListItem, Text } from "@phoenix/components";
+import { toJsonTemplateText } from "@phoenix/components/decision/decisionTemplates";
 import { describeQuestionScoring } from "@phoenix/components/evaluators/decision/DecisionEvaluatorSummary";
 import {
   getQuestionScoringName,
@@ -212,7 +213,10 @@ export function DecisionProjectEvaluatorDetails({
                 <pre css={templateCSS}>
                   {state.__typename === "DecisionTextState"
                     ? state.text
-                    : JSON.stringify(state.json, null, 2)}
+                    : toJsonTemplateText({
+                        template: state.json,
+                        templateFormat: version.templateFormat,
+                      })}
                 </pre>
               </Flex>
             </ListItem>

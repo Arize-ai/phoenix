@@ -20,7 +20,7 @@ function toDecisionReading({
 }): VariableDecisionReading {
   const reading = readDecisionVariable({ text, isReadAsText });
   return reading.kind === "missing"
-    ? { type: "missing", isJson: false, isReadAsText, onReadAsTextChange }
+    ? { type: null, isJson: false, isReadAsText, onReadAsTextChange }
     : {
         type: reading.type,
         isJson: reading.isJson,

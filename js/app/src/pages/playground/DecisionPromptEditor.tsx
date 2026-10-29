@@ -12,7 +12,6 @@ import {
   Icons,
   SegmentedControl,
   SegmentedControlItem,
-  ToggleButton,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -31,7 +30,6 @@ import type {
 
 import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import { DecisionStateEditor } from "./DecisionStateEditor";
-import { DecisionStatePreview } from "./DecisionStatePreview";
 import {
   createDecisionDraft,
   createDecisionQuestion,
@@ -42,7 +40,6 @@ import {
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
-import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 
 function isStateMode(value: unknown): value is DecisionStateDraft["mode"] {
   return value === "text" || value === "json";
@@ -143,7 +140,7 @@ export function DecisionPromptEditor({
       previous.has(fieldId) ? previous : new Set(previous).add(fieldId)
     );
   const errors = maskUntouchedErrors({
-    errors: validateDecisionDraft(request),
+    errors: validateDecisionDraft({ draft: request, templateFormat }),
     touched: touchedFields,
   });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
@@ -152,8 +149,9 @@ export function DecisionPromptEditor({
     updateDecisionPrompt({ instanceId, request: { ...request, ...patch } });
   const { state } = request;
   const updateState = (next: DecisionStateDraft) => update({ state: next });
-  const [isPreviewing, setIsPreviewing] = useState(false);
-  const { variableKeys } = useDerivedPlaygroundVariables();
+  // The state's error waits until focus leaves the editor, so typing
+  // doesn't flash a banner; the editor marks invalid JSON as it is typed.
+  const [isStateFocused, setIsStateFocused] = useState(false);
   // What Copy copies and the collapsed card shows: the template as written.
   const stateSummary = state.mode === "json" ? state.json : state.text;
   const updateQuestion = (
@@ -208,14 +206,6 @@ export function DecisionPromptEditor({
                 )
               }
             />
-            <ToggleButton
-              size="S"
-              isSelected={isPreviewing}
-              onChange={setIsPreviewing}
-              leadingVisual={<Icon svg={<Icons.Eye />} />}
-            >
-              Preview
-            </ToggleButton>
             <CopyToClipboardButton
               text={stateSummary}
               aria-label="Copy state"
@@ -223,7 +213,7 @@ export function DecisionPromptEditor({
           </Flex>
         }
       >
-        {errors.state ? (
+        {errors.state && !isStateFocused ? (
           <Alert variant="danger" banner>
             {errors.state}
           </Alert>
@@ -236,16 +226,12 @@ export function DecisionPromptEditor({
           templateFormat={templateFormat}
           isDisabled={isRunning}
           availablePaths={availablePaths}
-          existingNames={variableKeys}
           onChange={updateState}
-          onBlur={() => touch(decisionFieldId.state())}
+          onFocusChange={(isFocused) => {
+            setIsStateFocused(isFocused);
+            if (!isFocused) touch(decisionFieldId.state());
+          }}
         />
-        {isPreviewing ? (
-          <DecisionStatePreview
-            draft={request}
-            templateFormat={templateFormat}
-          />
-        ) : null}
       </Card>
 
       {errors.questions ? (

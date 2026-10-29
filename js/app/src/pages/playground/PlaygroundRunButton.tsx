@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import {
@@ -38,11 +39,15 @@ function getInstanceLabel(index: number): string {
 }
 
 /** The first reason a decision instance cannot run, or null when all can. */
-function getInvalidDecisionReason(
+function getInvalidDecisionReason({
+  instances,
+  templateFormat,
+}: {
   instances: readonly (Pick<PlaygroundNormalizedInstance, "model" | "task"> & {
     decisionPrompt: DecisionPromptDraft | null | undefined;
-  })[]
-): string | null {
+  })[];
+  templateFormat: TemplateFormat;
+}): string | null {
   for (const [index, instance] of instances.entries()) {
     if (!isDecisionInstance(instance)) continue;
     const label = getInstanceLabel(index);
@@ -50,7 +55,10 @@ function getInvalidDecisionReason(
       return `Instance ${label}: pick a decision model.`;
     }
     const problem = instance.decisionPrompt
-      ? getDecisionValidationError(instance.decisionPrompt)
+      ? getDecisionValidationError({
+          draft: instance.decisionPrompt,
+          templateFormat,
+        })
       : "no decision prompt";
     if (problem) return `Instance ${label}: ${problem}`;
   }
@@ -72,7 +80,10 @@ export function PlaygroundRunButton() {
   // An invalid decision prompt is refused with its first problem as the
   // reason, since the error may sit in a collapsed card.
   const blockedReason = usePlaygroundContext((state) =>
-    getInvalidDecisionReason(getPlaygroundInstancesWithDecisionPrompts(state))
+    getInvalidDecisionReason({
+      instances: getPlaygroundInstancesWithDecisionPrompts(state),
+      templateFormat: state.templateFormat,
+    })
   );
 
   const isJudgingRole = usePlaygroundContext(

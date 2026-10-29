@@ -1,4 +1,5 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
 import type { PlaygroundInstance } from "@phoenix/store/playground/types";
 
@@ -17,7 +18,6 @@ import {
   extractDecisionVariables,
   getChatForDecisionToPrompt,
   getDecisionValidationError,
-  getDefaultVariableName,
   getExampleVariableNames,
   getImportedTemplateFormat,
   getJsonTemplateStringLeaves,
@@ -25,12 +25,10 @@ import {
   normalizeDecisionAnswer,
   normalizeDecisionResult,
   parseDecisionImport,
-  previewDecision,
   readDecisionVariable,
   switchDecisionStateMode,
   toDecisionJsonSchema,
   toDecisionOutput,
-  toDecisionVariableText,
   toDecisionVariableValues,
   toJsonTemplateOfVariables,
   validateDecisionDraft,
@@ -46,7 +44,12 @@ const jsonState = (json: string) =>
 describe("decision prompt draft", () => {
   it("builds a valid Choice example", () => {
     const draft = createDecisionDraft();
-    expect(getDecisionValidationError(draft)).toBeNull();
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBeNull();
     const input = buildDecisionInput({
       draft,
       templateFormat: TemplateFormats.Mustache,
@@ -70,7 +73,10 @@ describe("decision prompt draft", () => {
     draft.state = templateState("   ");
     draft.questions[0].name = "";
     draft.questions[0].choices[1].value = "billing";
-    const errors = validateDecisionDraft(draft);
+    const errors = validateDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
     expect(errors.state).toBe("State cannot be empty");
     const questionErrors = errors.byQuestionId[draft.questions[0].id];
     expect(questionErrors?.name).toBe("Required");
@@ -88,13 +94,19 @@ describe("decision prompt draft", () => {
       levels: [createScaleLevel({ label: "Low" }), createScaleLevel()],
     });
     draft.questions.push(score);
-    const errors = validateDecisionDraft(draft);
+    const errors = validateDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
     expect(errors.byQuestionId[score.id]).toEqual({
       levelLabels: { [score.levels[1].id]: "Required" },
     });
-    expect(getDecisionValidationError(draft)).toBe(
-      "severity: every level needs a label"
-    );
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBe("severity: every level needs a label");
   });
 
   it("holds back empty required fields until the user has left them", () => {
@@ -104,7 +116,10 @@ describe("decision prompt draft", () => {
     draft.questions[0].instructions = "";
     const [choice] = draft.questions;
     choice.choices[0].value = "";
-    const errors = validateDecisionDraft(draft);
+    const errors = validateDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
     const untouched = maskUntouchedErrors({ errors, touched: new Set() });
     expect(untouched.state).toBeUndefined();
     expect(untouched.byQuestionId[choice.id]).toBeUndefined();
@@ -122,7 +137,12 @@ describe("decision prompt draft", () => {
       choiceOptions: { [choice.choices[0].id]: "Required" },
     });
     // Run still refuses the request while anything is hidden.
-    expect(getDecisionValidationError(draft)).not.toBeNull();
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).not.toBeNull();
   });
 
   it("shows duplicate and count errors without waiting", () => {
@@ -131,7 +151,10 @@ describe("decision prompt draft", () => {
     choice.choices[1].value = "billing";
     draft.questions.push({ ...choice, id: "copy" });
     const masked = maskUntouchedErrors({
-      errors: validateDecisionDraft(draft),
+      errors: validateDecisionDraft({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      }),
       touched: new Set(),
     });
     expect(masked.byQuestionId.copy?.name).toBe("Duplicate name");
@@ -140,7 +163,10 @@ describe("decision prompt draft", () => {
     });
     expect(
       maskUntouchedErrors({
-        errors: validateDecisionDraft({ ...draft, questions: [] }),
+        errors: validateDecisionDraft({
+          draft: { ...draft, questions: [] },
+          templateFormat: TemplateFormats.Mustache,
+        }),
         touched: new Set(),
       }).questions
     ).toBe("Add at least one question");
@@ -155,7 +181,12 @@ describe("decision prompt draft", () => {
         instructions: "?",
       })
     );
-    expect(getDecisionValidationError(draft)).toBe("At most 255 questions");
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBe("At most 255 questions");
   });
 });
 
@@ -533,8 +564,14 @@ describe("getChatForDecisionToPrompt", () => {
 describe("state validation", () => {
   it("requires a JSON state to be an object, a list or a non-empty string", () => {
     const base = createDecisionDraft();
-    const errorFor = (json: string) =>
-      validateDecisionDraft({ ...base, state: jsonState(json) }).state;
+    const errorFor = (
+      json: string,
+      templateFormat: TemplateFormat = TemplateFormats.Mustache
+    ) =>
+      validateDecisionDraft({
+        draft: { ...base, state: jsonState(json) },
+        templateFormat,
+      }).state;
     expect(errorFor("")).toBe("State cannot be empty");
     expect(errorFor('{"a": ')).toBe("The state is not valid JSON");
     expect(errorFor("3")).toBe(
@@ -546,6 +583,12 @@ describe("state validation", () => {
     expect(errorFor('"  "')).toBe("State cannot be empty");
     expect(errorFor('"{{state}}"')).toBeUndefined();
     expect(errorFor("[1]")).toBeUndefined();
+    // One bare tag is the whole state, under a format that reads it.
+    expect(errorFor(" {{state}}\n")).toBeUndefined();
+    expect(errorFor("{state}", TemplateFormats.FString)).toBeUndefined();
+    expect(errorFor("{{state}}", TemplateFormats.NONE)).toBe(
+      "The state is not valid JSON"
+    );
   });
 });
 
@@ -584,7 +627,10 @@ describe("decision variables", () => {
 
   it("keep their names while the JSON is being edited", () => {
     expect(
-      getJsonTemplateStringLeaves('{"a": "{{x}}", "b": ["{{y}}", ')
+      getJsonTemplateStringLeaves({
+        json: '{"a": "{{x}}", "b": ["{{y}}", ',
+        templateFormat: TemplateFormats.Mustache,
+      })
     ).toEqual(["{{x}}", "{{y}}"]);
     expect(
       extractDecisionVariables({
@@ -595,6 +641,24 @@ describe("decision variables", () => {
         templateFormat: TemplateFormats.FString,
       })
     ).toEqual(["x"]);
+  });
+
+  it("read a bare tag as the whole state, and F-String paths by their root", () => {
+    expect(
+      extractDecisionVariables({
+        draft: { ...createDecisionDraft(), state: jsonState("{{state}}") },
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toContain("state");
+    expect(
+      extractDecisionVariables({
+        draft: {
+          ...createDecisionDraft(),
+          state: templateState("{ticket[id]} {customer.tier} {open:>3}"),
+        },
+        templateFormat: TemplateFormats.FString,
+      }).slice(0, 3)
+    ).toEqual(["ticket", "customer", "open"]);
   });
 });
 
@@ -652,38 +716,9 @@ describe("variable values", () => {
       })
     ).toEqual({ a: 1, c: "two", d: "4" });
   });
-
-  it("are written so they read back as the same value", () => {
-    for (const value of ["text", "42", '{"a"}', { a: [1] }, 3, null, "true"]) {
-      const { text, isReadAsText } = toDecisionVariableText(value);
-      const reading = readDecisionVariable({ text, isReadAsText });
-      expect(reading.kind === "value" && reading.value).toEqual(value);
-    }
-  });
 });
 
-describe("making a variable", () => {
-  it("names it after the hint, valid and unique", () => {
-    expect(getDefaultVariableName({ hint: "ticket", existingNames: [] })).toBe(
-      "ticket"
-    );
-    expect(
-      getDefaultVariableName({
-        hint: "ticket",
-        existingNames: ["ticket", "ticket_2"],
-      })
-    ).toBe("ticket_3");
-    expect(
-      getDefaultVariableName({ hint: "open tickets!", existingNames: [] })
-    ).toBe("open_tickets");
-    expect(getDefaultVariableName({ hint: "2fa", existingNames: [] })).toBe(
-      "_2fa"
-    );
-    expect(getDefaultVariableName({ hint: null, existingNames: [] })).toBe(
-      "value"
-    );
-  });
-
+describe("building the state from a dataset", () => {
   it("builds a JSON state of holes from dataset keys, skipping invalid names", () => {
     const names = getExampleVariableNames([
       { ticket: "a", "two words": 1 },
@@ -778,46 +813,15 @@ describe("runDecision input", () => {
       })
     ).toThrow("The state is not valid JSON");
   });
-});
 
-describe("previewDecision", () => {
-  it("renders the state as the server will, typed holes and all", () => {
-    const preview = previewDecision({
-      draft: {
-        ...createDecisionDraft(),
-        state: jsonState(
-          '{"customer": "{{customer}}", "open": "{{open}}", "summary": "Since {{since}}"}'
-        ),
-      },
-      templateFormat: TemplateFormats.Mustache,
-      variables: { customer: { name: "Zoë" }, open: 3, since: 2019 },
-    });
-    expect(preview).toEqual({
-      ok: true,
-      rendered: expect.objectContaining({
-        state: { customer: { name: "Zoë" }, open: 3, summary: "Since 2019" },
-      }),
-    });
-  });
-
-  it("names a missing variable and an invalid JSON state", () => {
+  it("sends a bare tag as the JSON string that is the tag", () => {
     expect(
-      previewDecision({
-        draft: {
-          ...createDecisionDraft(),
-          state: templateState("{{a}} {{b}}"),
-        },
+      buildDecisionInput({
+        draft: { ...createDecisionDraft(), state: jsonState(" {{state}}\n") },
         templateFormat: TemplateFormats.Mustache,
-        variables: { a: 1 },
-      })
-    ).toEqual({ ok: false, error: "Missing variables: b" });
-    expect(
-      previewDecision({
-        draft: { ...createDecisionDraft(), state: jsonState("{") },
-        templateFormat: TemplateFormats.Mustache,
-        variables: {},
-      })
-    ).toEqual({ ok: false, error: "The state is not valid JSON" });
+        variables: { state: { a: 1 } },
+      }).state
+    ).toEqual({ json: "{{state}}" });
   });
 });
 
