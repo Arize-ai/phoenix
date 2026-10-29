@@ -30,9 +30,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
-        # No instructions are passed: the task lives in the user-authored prompt (the ``state``),
-        # and the single-choice constraint is already carried
-        # by the ``Choice`` question type and its criteria.
         return {"label": Choice(criteria=criteria)}
 
     @staticmethod
