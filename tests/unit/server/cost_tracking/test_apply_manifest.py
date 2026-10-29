@@ -353,10 +353,20 @@ class TestApplyManifestSync:
                 "name_pattern": r"(?i)^(audio-model)$",
                 "token_prices": [
                     {
+                        "base_rate": 0.000001,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },
+                    {
+                        "base_rate": 0.000002,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },
+                    {
                         "base_rate": 0.000008,
                         "is_prompt": True,
                         "token_type": "audio",
-                    },  # Audio-only pricing
+                    },
                     {
                         "base_rate": 0.000008,
                         "is_prompt": False,
@@ -406,6 +416,8 @@ class TestApplyManifestSync:
         audio_model = built_in_models["audio-model"]
         actual_prices_audio = _extract_token_prices(audio_model)
         expected_prices_audio = {
+            ("input", True): 0.000001,
+            ("output", False): 0.000002,
             ("audio", True): 0.000008,
             ("audio", False): 0.000008,
         }

@@ -173,6 +173,26 @@ def test_rejected_manifest_does_not_warn_about_entries(caplog: pytest.LogCapture
             "'bad'",
             id="duplicate-token-price",
         ),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[
+                    {"base_rate": 1e-6, "is_prompt": True, "token_type": "cache_read"},
+                ],
+            ),
+            "'bad'",
+            id="missing-prompt-input-fallback",
+        ),
+        pytest.param(
+            _model(
+                "bad",
+                token_prices=[
+                    {"base_rate": 1e-6, "is_prompt": False, "token_type": "reasoning"},
+                ],
+            ),
+            "'bad'",
+            id="missing-completion-output-fallback",
+        ),
         pytest.param("not an object", "at index 1", id="not-an-object"),
     ],
 )

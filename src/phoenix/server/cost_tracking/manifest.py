@@ -91,8 +91,6 @@ class ManifestModel(_ManifestBaseModel):
 
     @model_validator(mode="after")
     def _check_unique_token_prices(self) -> "ManifestModel":
-        # Two prices for the same token type and direction would violate the database's unique
-        # constraint and roll back the whole apply.
         seen: set[tuple[str, bool]] = set()
         for token_price in self.token_prices:
             key = (token_price.token_type, token_price.is_prompt)
@@ -101,6 +99,10 @@ class ManifestModel(_ManifestBaseModel):
                     f"duplicate token price for token_type '{key[0]}' with is_prompt={key[1]}"
                 )
             seen.add(key)
+        if any(is_prompt for _, is_prompt in seen) and ("input", True) not in seen:
+            raise ValueError("Token prices for prompt must include an 'input' token type")
+        if any(not is_prompt for _, is_prompt in seen) and ("output", False) not in seen:
+            raise ValueError("Token prices for completion must include an 'output' token type")
         return self
 
 
