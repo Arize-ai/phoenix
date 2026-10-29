@@ -116,7 +116,8 @@ async def apply_manifest_if_newer(
     Returns:
         What was applied, or None if the manifest wasn't newer.
     """
-    entries = _dedupe_entries(manifest)
+    # parse_manifest has already skipped duplicate names and name_pattern/provider pairs.
+    entries = {manifest_model.name: manifest_model for manifest_model in manifest.models}
     payload = ModelCostManifestVersion(generated_at=manifest.generated_at).model_dump(mode="json")
     async with db() as session:
         if db.dialect is SupportedSQLDialect.POSTGRESQL:
@@ -127,10 +128,27 @@ async def apply_manifest_if_newer(
             return None
 
         built_in_models = await _get_built_in_models(session)
+        # A model whose entry was skipped as invalid keeps its row, name_pattern, and provider,
+        # so an entry claiming them is skipped too, or both would be active under
+        # ix_generative_models_match_criteria. The skipped entry's own row is then soft-deleted
+        # like any model missing from the manifest, which frees its name_pattern and provider.
+        preserved_names = manifest.skipped_model_names & built_in_models.keys()
+        preserved_patterns = {
+            (built_in_models[name].name_pattern, built_in_models[name].provider)
+            for name in preserved_names
+        }
+        for name, manifest_model in list(entries.items()):
+            if (manifest_model.name_pattern, _provider(manifest_model)) in preserved_patterns:
+                logger.warning(
+                    f"Skipping model '{name}' whose name_pattern/provider collides with a "
+                    "skipped model"
+                )
+                del entries[name]
+
         removed_ids = [
             model.id
             for name, model in built_in_models.items()
-            if name not in entries and name not in manifest.skipped_model_names
+            if name not in entries and name not in preserved_names
         ]
         num_removed = await _soft_delete_models(session, removed_ids)
         num_added, num_updated = await _upsert_models(session, entries, built_in_models)
@@ -146,26 +164,6 @@ async def apply_manifest_if_newer(
             )
         )
     return AppliedManifest(manifest.generated_at, num_added, num_updated, num_removed)
-
-
-def _dedupe_entries(manifest: ModelCostManifest) -> dict[str, ManifestModel]:
-    """Maps names to entries, skipping entries whose name or pattern and provider repeat."""
-    entries: dict[str, ManifestModel] = {}
-    seen_patterns: set[tuple[re.Pattern[str], str]] = set()
-    for manifest_model in manifest.models:
-        name = manifest_model.name
-        if name in entries:
-            logger.warning(f"Skipping model '{name}' with duplicate name in manifest")
-            continue
-        key = (manifest_model.name_pattern, _provider(manifest_model))
-        if key in seen_patterns:
-            logger.warning(
-                f"Skipping model '{name}' with duplicate name_pattern/provider combination"
-            )
-            continue
-        seen_patterns.add(key)
-        entries[name] = manifest_model
-    return entries
 
 
 def _provider(manifest_model: ManifestModel) -> str:

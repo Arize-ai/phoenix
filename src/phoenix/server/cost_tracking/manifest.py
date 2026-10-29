@@ -60,6 +60,12 @@ def _strip_non_empty(value: str) -> str:
     return value
 
 
+def _strip_optional(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 def _compile_regex(value: Any) -> Any:
     if not isinstance(value, str):
         return value
@@ -85,7 +91,7 @@ class ManifestTokenPrice(_ManifestBaseModel):
 class ManifestModel(_ManifestBaseModel):
     name: Annotated[str, AfterValidator(_strip_non_empty)]
     name_pattern: Annotated[re.Pattern[str], BeforeValidator(_compile_regex)]
-    provider: Optional[str] = None
+    provider: Annotated[Optional[str], AfterValidator(_strip_optional)] = None
     source: Optional[str] = None
     token_prices: list[ManifestTokenPrice]
 
@@ -157,10 +163,12 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
         raise ManifestError(f"Invalid model cost manifest: {_summarize(error)}") from error
 
     models: list[ManifestModel] = []
+    seen_names: set[str] = set()
+    seen_patterns: set[tuple[re.Pattern[str], Optional[str]]] = set()
     skipped_names: set[str] = set()
     for index, model_data in enumerate(raw_models):
         try:
-            models.append(ManifestModel.model_validate(model_data))
+            model = ManifestModel.model_validate(model_data)
         except ValidationError as error:
             name = model_data.get("name") if isinstance(model_data, dict) else None
             if isinstance(name, str) and name.strip():
@@ -169,7 +177,22 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
             else:
                 label = f"at index {index}"
             logger.warning(f"Skipping model {label} in model cost manifest: {_summarize(error)}")
-    skipped_names -= {model.name for model in models}
+            continue
+        if model.name in seen_names:
+            logger.warning(f"Skipping model '{model.name}' in model cost manifest: duplicate name")
+            continue
+        pattern_key = (model.name_pattern, model.provider)
+        if pattern_key in seen_patterns:
+            logger.warning(
+                f"Skipping model '{model.name}' in model cost manifest: "
+                "duplicate name_pattern/provider combination"
+            )
+            skipped_names.add(model.name)
+            continue
+        seen_names.add(model.name)
+        seen_patterns.add(pattern_key)
+        models.append(model)
+    skipped_names -= seen_names
     return manifest.model_copy(
         update={"models": models, "skipped_model_names": frozenset(skipped_names)}
     )
