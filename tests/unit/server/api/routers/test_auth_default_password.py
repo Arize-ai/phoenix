@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -218,3 +219,32 @@ async def test_default_admin_reset_rejects_public_password(
         )
         assert logged_in.status_code == 204
         _assert_auth_cookies(logged_in)
+
+
+async def test_concurrent_default_admin_logins_replace_reset_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_auth(monkeypatch)
+    async with _auth_client(tmp_path) as client:
+        responses = await asyncio.gather(
+            *(
+                client.post(
+                    "/auth/login",
+                    json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+                )
+                for _ in range(4)
+            )
+        )
+        assert [r.status_code for r in responses] == [403, 403, 403, 403]
+        tokens = [r.json()["password_reset_token"] for r in responses]
+        assert len(set(tokens)) == 4
+        statuses = [
+            (
+                await client.post(
+                    "/auth/password-reset",
+                    json={"token": token, "password": _NEW_PASSWORD},
+                )
+            ).status_code
+            for token in tokens
+        ]
+        assert sorted(statuses) == [204, 401, 401, 401]

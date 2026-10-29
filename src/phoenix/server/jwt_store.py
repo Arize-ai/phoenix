@@ -536,6 +536,34 @@ class _PasswordResetTokenStore(
     _token_id = PasswordResetTokenId
     _token = PasswordResetToken
 
+    async def create(
+        self, claim: PasswordResetTokenClaims
+    ) -> tuple[PasswordResetToken, PasswordResetTokenId]:
+        record = self._to_db(claim)
+        async with self._db() as session:
+            # Lock the user because the first reset token has no row to lock.
+            await session.execute(
+                select(models.User.id).where(models.User.id == record.user_id).with_for_update()
+            )
+            replaced_ids = [
+                self._token_id(id_)
+                async for id_ in await session.stream_scalars(
+                    delete(self._table)
+                    .where(self._table.user_id == record.user_id)
+                    .returning(self._table.id)
+                )
+            ]
+            session.add(record)
+            await session.flush()
+            token_id = self._token_id(record.id)
+            claim = replace(claim, token_id=token_id)
+            encoded = self._encode(claim)
+            record.token_hash = compute_token_hash(encoded)
+            for replaced_id in replaced_ids:
+                await self.evict(replaced_id)
+            self._claims.put(token_id, claim, record.token_hash)
+        return self._token(encoded), token_id
+
     def _from_db(
         self,
         record: models.PasswordResetToken,
