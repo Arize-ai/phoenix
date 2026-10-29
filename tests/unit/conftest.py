@@ -108,10 +108,6 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "seeded_sandbox_configs: seed the default sandbox configs during app startup",
-    )
-    config.addinivalue_line(
-        "markers",
         "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
         "rounds instead of the memoized ones",
     )
@@ -255,28 +251,6 @@ def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.Monkey
         return None
 
     monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
-
-
-@pytest.fixture(autouse=True)
-def _stub_sandbox_default_config_seeding(
-    request: FixtureRequest, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """App startup seeds a default sandbox config for every backend whose SDK is
-    importable, so the rows a test sees would depend on which sandbox extras are
-    installed. Stubbed suite-wide; tests that want the defaults opt in with
-    ``@pytest.mark.seeded_sandbox_configs``."""
-    if request.node.get_closest_marker("seeded_sandbox_configs"):
-        return
-
-    async def _providers_only(db: DbSessionFactory) -> None:
-        from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-        from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
-
-        async with db() as session:
-            await sync_languages(session)
-            await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
-
-    monkeypatch.setattr("phoenix.db.facilitator._ensure_sandbox_providers", _providers_only)
 
 
 _DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key
