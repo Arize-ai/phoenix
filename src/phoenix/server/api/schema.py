@@ -37,13 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 class PhoenixSchema(strawberry.Schema):
-    """A schema whose error log records carry no request contents.
-
-    Strawberry logs every error as ``str(error)``, which embeds the message and an
-    excerpt of the request document, and does so before the extensions rewrite the
-    errors for the client. Expected errors are user feedback and echo what the
-    user sent, so they are not logged at all. The rest are logged with the
-    operation and position only; the traceback of a resolver fault is kept.
+    """Strawberry logs each error as ``str(error)``, which embeds the message and an
+    excerpt of the request document, and does so before the extensions mask it for
+    the client. Expected errors echo what the user sent, so they are not logged at
+    all; the rest are logged by operation and position only.
     """
 
     def process_errors(
