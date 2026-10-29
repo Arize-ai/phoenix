@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6850ff58275ae6de54e95098e6923f7>>
+ * @generated SignedSource<<d710a27d39d31bfb2f059be7a0e10726>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type UpdateProjectLLMEvaluatorInput = {
   evaluationTarget: EvaluationTarget;
   filterCondition: string;
   inputMapping: EvaluatorInputMappingInput;
+  inputSchema?: any | null;
   name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   projectEvaluatorId: string;
