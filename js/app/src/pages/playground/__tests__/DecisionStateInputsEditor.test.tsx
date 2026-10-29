@@ -11,6 +11,7 @@ async function renderEditor(
   props: Partial<ComponentProps<typeof DecisionStateInputsEditor>> = {}
 ) {
   const onChange = vi.fn<(names: string[]) => void>();
+  const onWrap = vi.fn<() => void>();
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -26,9 +27,11 @@ async function renderEditor(
       >
         <DecisionStateInputsEditor
           names={names}
+          inputsShape="object"
           isDisabled={false}
           isInvalid={false}
           onChange={onChange}
+          onWrap={onWrap}
           onBlur={vi.fn()}
           {...props}
         />
@@ -55,15 +58,23 @@ async function renderEditor(
     await act(async () => root.unmount());
     container.remove();
   };
-  // The drawn state, without the (hidden) Enter key hint.
+  // The drawn state, without the (hidden) Enter key hint or the Wrap link.
   const stateText = () =>
     container
       .querySelector('[aria-label="State inputs"]')
-      ?.textContent?.replace("↵", "");
-  return { container, slot, onChange, type, press, cleanup, stateText };
+      ?.textContent?.replace("↵", "")
+      .replace("Wrap in an object", "");
+  return { container, slot, onChange, onWrap, type, press, cleanup, stateText };
 }
 
-it("draws the inputs as an object keyed by name, even just one", async () => {
+it("draws one input sent alone as the input, and an object keyed by name", async () => {
+  const one = await renderEditor(["ticket"], { inputsShape: "value" });
+  try {
+    expect(one.stateText()).toBe("ticket");
+    expect(one.slot.placeholder).toBe("+ input");
+  } finally {
+    await one.cleanup();
+  }
   const wrapped = await renderEditor(["ticket"]);
   try {
     expect(wrapped.stateText()).toBe('{"ticket": ticket}');
@@ -131,22 +142,24 @@ it("removes one input from its pill", async () => {
   }
 });
 
-it("keeps focus in the slot when adding the first input redraws the state as an object", async () => {
+it("keeps focus in the slot when adding an input redraws the state as an object", async () => {
   const onChange = vi.fn<(names: string[]) => void>();
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   function Harness() {
-    const [names, setNames] = useState<string[]>([]);
+    const [names, setNames] = useState(["reference"]);
     return (
       <DecisionStateInputsEditor
         names={names}
+        inputsShape="value"
         isDisabled={false}
         isInvalid={false}
         onChange={(next) => {
           onChange(next);
           setNames(next);
         }}
+        onWrap={vi.fn()}
         onBlur={vi.fn()}
       />
     );
@@ -173,11 +186,10 @@ it("keeps focus in the slot when adding the first input redraws the state as an 
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         "value"
-      )!.set!.call(slot(), "reference,");
+      )!.set!.call(slot(), "output,");
       slot().dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(onChange).toHaveBeenLastCalledWith(["reference"]);
-    expect(container.textContent).toContain('"reference"');
+    expect(onChange).toHaveBeenLastCalledWith(["reference", "output"]);
     expect(document.activeElement).toBe(slot());
   } finally {
     await act(async () => root.unmount());
@@ -219,18 +231,17 @@ it("prints each input's value beside its pill as a comment", async () => {
   }
 });
 
-it("prints a single input's value on its line inside the object", async () => {
+it("prints the single input's value on the same line as its pill", async () => {
   const editor = await renderEditor(["ticket"], {
+    inputsShape: "value",
     previews: { ticket: { kind: "value", text: '"Refund"', full: "Refund" } },
   });
   try {
-    const lines = [
-      ...editor.container.querySelectorAll(".decision-state-inputs__line"),
-    ];
-    const ticketLine = lines.find((line) =>
-      line.textContent?.startsWith('"ticket": ')
+    const lines = editor.container.querySelectorAll(
+      ".decision-state-inputs__line"
     );
-    expect(ticketLine?.textContent).toContain('// "Refund"');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].textContent).toContain('// "Refund"');
   } finally {
     await editor.cleanup();
   }
@@ -345,5 +356,24 @@ it("adds a typed name along with the dataset's when Add all is pressed", async (
     ]);
   } finally {
     await editor.cleanup();
+  }
+});
+
+it("offers to wrap an input sent alone in an object, and only then", async () => {
+  const alone = await renderEditor(["state"], { inputsShape: "value" });
+  try {
+    const wrap = Array.from(alone.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Wrap in an object"
+    );
+    await act(async () => wrap?.click());
+    expect(alone.onWrap).toHaveBeenCalledTimes(1);
+  } finally {
+    await alone.cleanup();
+  }
+  const wrapped = await renderEditor(["state"]);
+  try {
+    expect(wrapped.container.textContent).not.toContain("Wrap in an object");
+  } finally {
+    await wrapped.cleanup();
   }
 });

@@ -260,9 +260,15 @@ export function DecisionPromptEditor({
         {state.mode === "inputs" ? (
           <DecisionStateInputsEditor
             names={state.inputNames}
+            inputsShape={state.inputsShape}
             isDisabled={isRunning}
             isInvalid={!!errors.state}
-            onChange={(inputNames) => updateState({ ...state, inputNames })}
+            // A loaded input sent alone stays so only until the inputs are
+            // edited; the playground itself only builds objects.
+            onChange={(inputNames) =>
+              updateState({ ...state, inputNames, inputsShape: "object" })
+            }
+            onWrap={() => updateState({ ...state, inputsShape: "object" })}
             onBlur={() => touch(decisionFieldId.state())}
             previews={inputsHints.previews}
             suggestions={inputsHints.suggestions}

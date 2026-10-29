@@ -153,10 +153,10 @@ function toDraftState({
 }): DecisionStateDraft {
   switch (state.kind) {
     case "input":
-      // The playground no longer sends one input alone; it opens wrapped.
       return createDecisionStateDraft({
         mode: "inputs",
         inputNames: [state.input],
+        inputsShape: "value",
       });
     case "text": {
       const format = TEMPLATE_FORMAT_NAMES[state.templateFormat];
@@ -168,9 +168,11 @@ function toDraftState({
       return createDecisionStateDraft({ template: state.template });
     }
     case "object":
+      // An object keeps its shape with one input as with several.
       return createDecisionStateDraft({
         mode: "inputs",
         inputNames: [...state.inputs],
+        inputsShape: "object",
       });
     default:
       return assertUnreachable(state);

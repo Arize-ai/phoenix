@@ -139,7 +139,10 @@ export function createDecisionQuestion({
   };
 }
 
-/** A state draft; a mode not given is a template, a field not given is empty. */
+/**
+ * A state draft; a mode not given is a template, a field not given is empty,
+ * and inputs are sent as an object unless loaded as one value sent alone.
+ */
 export function createDecisionStateDraft(
   overrides: Partial<DecisionStateDraft> = {}
 ): DecisionStateDraft {
@@ -147,8 +150,28 @@ export function createDecisionStateDraft(
     mode: "template",
     template: "",
     inputNames: [],
+    inputsShape: "object",
     ...overrides,
   };
+}
+
+/**
+ * What an `inputs` state sends, decided in one place: one input's value alone
+ * (`value`), or one object keyed by the input names (`object`). The stored
+ * shape counts only with exactly one input; several are always an object.
+ */
+export type DecisionInputsStateShape =
+  | { shape: "value"; name: string }
+  | { shape: "object"; names: readonly string[] };
+
+export function getDecisionInputsStateShape(
+  state: Pick<DecisionStateDraft, "inputNames" | "inputsShape">
+): DecisionInputsStateShape {
+  const names = state.inputNames;
+  if (names.length === 1 && state.inputsShape === "value") {
+    return { shape: "value", name: names[0] };
+  }
+  return { shape: "object", names };
 }
 
 /**
@@ -156,11 +179,12 @@ export function createDecisionStateDraft(
  * what the collapsed card shows and Copy copies.
  */
 export function describeDecisionInputsState(
-  state: Pick<DecisionStateDraft, "inputNames">
+  state: Pick<DecisionStateDraft, "inputNames" | "inputsShape">
 ): string {
-  const names = state.inputNames;
-  if (names.length === 0) return "";
-  return `{ ${names.map((name) => `${JSON.stringify(name)}: <${name}>`).join(", ")} }`;
+  const resolved = getDecisionInputsStateShape(state);
+  if (resolved.shape === "value") return `<${resolved.name}>`;
+  if (resolved.names.length === 0) return "";
+  return `{ ${resolved.names.map((name) => `${JSON.stringify(name)}: <${name}>`).join(", ")} }`;
 }
 
 /** `name` as a template variable in `templateFormat`; empty when it has none. */
@@ -183,15 +207,24 @@ function templateVariable({
   }
 }
 
-/** A template over an `inputs` state: one `name: variable` line per input. */
+/**
+ * A template over an `inputs` state: one input sent alone is its variable
+ * alone; an object is one `name: variable` line per input.
+ */
 export function inputNamesToTemplate({
   state,
   templateFormat,
 }: {
-  state: Pick<DecisionStateDraft, "inputNames">;
+  state: Pick<DecisionStateDraft, "inputNames" | "inputsShape">;
   templateFormat: TemplateFormat;
 }): string {
-  return state.inputNames
+  const resolved = getDecisionInputsStateShape(state);
+  if (resolved.shape === "value") {
+    return (
+      templateVariable({ name: resolved.name, templateFormat }) || resolved.name
+    );
+  }
+  return resolved.names
     .map((name) =>
       `${name}: ${templateVariable({ name, templateFormat })}`.trimEnd()
     )
@@ -595,7 +628,7 @@ export function buildSystemOneRequest({
   const { state: stateDraft } = draft;
   const state: unknown =
     stateDraft.mode === "inputs"
-      ? structuredInputValuesOf({ names: stateDraft.inputNames, variables })
+      ? inputsStateValue({ state: stateDraft, variables })
       : formatText(stateDraft.template);
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
@@ -654,6 +687,23 @@ export function structuredInputValuesOf({
   return Object.fromEntries(
     names.map((name) => [name, toStructuredInputValue(variables?.[name])])
   );
+}
+
+/**
+ * The state an `inputs` draft sends: one input's value alone, or one object
+ * keyed by name; see {@link getDecisionInputsStateShape}.
+ */
+function inputsStateValue({
+  state,
+  variables,
+}: {
+  state: DecisionStateDraft;
+  variables: Record<string, string | undefined> | undefined;
+}): unknown {
+  const resolved = getDecisionInputsStateShape(state);
+  return resolved.shape === "value"
+    ? toStructuredInputValue(variables?.[resolved.name])
+    : structuredInputValuesOf({ names: resolved.names, variables });
 }
 
 /**
@@ -848,13 +898,30 @@ function toInputDeclarations(
   });
 }
 
-/** The inputs and state of an `inputs` draft: one object keyed by name. */
+/**
+ * The input names an `inputs` draft declares. An object is exactly its
+ * inputs; one value sent alone keeps the other inputs it was saved with.
+ */
+function inputsStateInputNames(draft: DecisionPromptDraft): string[] {
+  const resolved = getDecisionInputsStateShape(draft.state);
+  return resolved.shape === "value"
+    ? withAdditionalInputNames([resolved.name], draft)
+    : [...resolved.names];
+}
+
+/**
+ * The inputs and state of an `inputs` draft: one input's value passed
+ * through unchanged, or one object keyed by name; see
+ * {@link getDecisionInputsStateShape}.
+ */
 function inputsStateDefinition(
   draft: DecisionPromptDraft
 ): Pick<DecisionTaskDefinition, "inputs" | "state"> {
+  const resolved = getDecisionInputsStateShape(draft.state);
   return {
-    inputs: toInputDeclarations(draft.state.inputNames, draft.inputs),
-    state: { object: true },
+    inputs: toInputDeclarations(inputsStateInputNames(draft), draft.inputs),
+    state:
+      resolved.shape === "value" ? { input: resolved.name } : { object: true },
   };
 }
 
@@ -1268,16 +1335,19 @@ export type DecisionImportResult = {
 };
 
 /**
- * The one input an imported state that isn't keyed by name is put under: an
- * array, a scalar, or an empty object.
+ * The one input an imported state that an `inputs` state can't build from
+ * named inputs is sent through: an array, a scalar, an empty object, or an
+ * object with a `__proto__` key.
  */
 const IMPORTED_STATE_INPUT = "state";
 
 /**
- * The state draft for an imported state. Text is a template. An object with
- * keys is an `inputs` state, one input per key, with the values to fill
- * them. Anything else (an array, a number or other scalar, `{}`) is one input
- * named `state`, sent as `{"state": ...}`.
+ * The state draft for an imported state, sending the model exactly what was
+ * imported. Text is a template. An object with keys is an `inputs` state
+ * sent as an object, one input per key, with the values to fill them.
+ * Anything else (an array, a number or other scalar, `{}`, or an object with
+ * a `__proto__` key) can't be built from named inputs, so it is one input
+ * named `state`, sent alone.
  */
 function toStateDraft(state: unknown): {
   state: DecisionStateDraft;
@@ -1289,12 +1359,16 @@ function toStateDraft(state: unknown): {
   if (
     isStringKeyedObject(state) &&
     !Array.isArray(state) &&
-    Object.keys(state).length > 0
+    Object.keys(state).length > 0 &&
+    // Input values are looked up by name, and `__proto__` would read the
+    // prototype; such a state is sent whole through one input instead.
+    !Object.hasOwn(state, "__proto__")
   ) {
     return {
       state: createDecisionStateDraft({
         mode: "inputs",
         inputNames: Object.keys(state),
+        inputsShape: "object",
       }),
       inputValues: Object.fromEntries(
         Object.entries(state).map(([name, value]) => [
@@ -1308,6 +1382,7 @@ function toStateDraft(state: unknown): {
     state: createDecisionStateDraft({
       mode: "inputs",
       inputNames: [IMPORTED_STATE_INPUT],
+      inputsShape: "value",
     }),
     inputValues: { [IMPORTED_STATE_INPUT]: toInputValueText(state) },
   };
@@ -1438,7 +1513,12 @@ export function parseDecisionImport(text: string): DecisionImportResult {
   }
   return {
     model: parsed.data.model ?? null,
-    ...toDraftFromSystemOne(parsed.data),
+    // The schema checks the state's shape, but rebuilding a record drops an
+    // own `__proto__` key; send the state exactly as it was written.
+    ...toDraftFromSystemOne({
+      ...parsed.data,
+      state: json.state as SystemOneBody["state"],
+    }),
   };
 }
 
@@ -1664,7 +1744,7 @@ export function extractDecisionVariables({
 }): string[] {
   if (!draft) return [];
   if (draft.state.mode === "inputs") {
-    return Array.from(new Set(draft.state.inputNames)).filter(
+    return Array.from(new Set(inputsStateInputNames(draft))).filter(
       (name) => name.trim() !== ""
     );
   }

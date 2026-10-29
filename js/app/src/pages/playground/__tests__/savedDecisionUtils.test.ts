@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
-import type { DecisionPromptDraft } from "@phoenix/store/playground/types";
+import type {
+  DecisionPromptDraft,
+  DecisionStateDraft,
+} from "@phoenix/store/playground/types";
 
 import {
   buildDecisionInput,
@@ -25,7 +28,10 @@ const mustache = TemplateFormats.Mustache;
 const fString = TemplateFormats.FString;
 
 /** A draft over this template, or over these inputs when given a list. */
-function makeDraft(state: string | string[]): DecisionPromptDraft {
+function makeDraft(
+  state: string | string[],
+  inputsShape: DecisionStateDraft["inputsShape"] = "object"
+): DecisionPromptDraft {
   return {
     state:
       typeof state === "string"
@@ -33,6 +39,7 @@ function makeDraft(state: string | string[]): DecisionPromptDraft {
         : createDecisionStateDraft({
             mode: "inputs",
             inputNames: state,
+            inputsShape,
           }),
     questions: [
       createDecisionQuestion({
@@ -146,7 +153,16 @@ describe("toDecisionVersionInput", () => {
     expect(input.questions).toHaveLength(3);
   });
 
-  it("saves one input as an object keyed by its name", () => {
+  it("saves one input sent alone as that input, and one wrapped as an object", () => {
+    expect(
+      toDecisionVersionInput({
+        instance: makeInstance(makeDraft(["ticket"], "value")),
+        templateFormat: fString,
+      })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }],
+      state: { input: "ticket" },
+    });
     expect(
       toDecisionVersionInput({
         instance: makeInstance(makeDraft(["ticket"])),
@@ -274,32 +290,21 @@ describe("savedDecisionVersionToDraft", () => {
     });
   });
 
-  it("loads a saved input state as an inputs draft, re-saved as an object, in any template format", () => {
+  it("round-trips an input state in any template format, including NONE", () => {
     for (const format of [mustache, fString, TemplateFormats.NONE] as const) {
-      const loaded = savedDecisionVersionToDraft({
-        version: {
-          inputs: [{ name: "ticket" }],
-          state: { kind: "input", input: "ticket" },
-          questions: [],
-        },
-        templateFormat: format,
-      });
-
-      expect(loaded.state).toEqual(
-        createDecisionStateDraft({ mode: "inputs", inputNames: ["ticket"] })
-      );
-      expect(
+      const draft = makeDraft(["ticket"], "value");
+      const saved = toSavedVersion(
         toDecisionVersionInput({
-          instance: makeInstance({
-            ...loaded,
-            questions: makeDraft(["ticket"]).questions,
-          }),
+          instance: makeInstance(draft),
           templateFormat: format,
         })
-      ).toMatchObject({
-        inputs: [{ name: "ticket" }],
-        state: { object: true },
-      });
+      );
+
+      expect(saved.state).toEqual({ kind: "input", input: "ticket" });
+      expect(
+        savedDecisionVersionToDraft({ version: saved, templateFormat: format })
+          .state
+      ).toEqual(draft.state);
     }
   });
 
@@ -338,7 +343,7 @@ describe("savedDecisionVersionToDraft", () => {
     expect(resaved.inputs).toEqual(version.inputs);
   });
 
-  it("sends a loaded input state as an object of exactly that input, keeping its declaration", () => {
+  it("preserves additional declarations for input states in saves and ad-hoc runs", () => {
     const version: SavedDecisionVersion = {
       inputs: [
         { name: "ticket", description: "Ticket" },
@@ -363,81 +368,88 @@ describe("savedDecisionVersionToDraft", () => {
         draft: loaded,
         templateFormat: TemplateFormats.NONE,
       })
-    ).toEqual(["ticket"]);
+    ).toEqual(["ticket", "policy"]);
     expect(
       buildDecisionInput({
         draft: loaded,
         templateFormat: TemplateFormats.NONE,
         variables: { ticket: "Refund", policy: "Support policy" },
       })
-    ).toEqual(
-      expect.objectContaining({
-        inputs: [version.inputs![0]],
-        state: { object: true },
-        inputValues: { ticket: "Refund" },
-      })
-    );
+    ).toMatchObject({
+      inputs: version.inputs,
+      state: { input: "ticket" },
+      inputValues: { ticket: "Refund", policy: "Support policy" },
+    });
     expect(
       toDecisionVersionInput({
         instance: makeInstance(loaded),
         templateFormat: TemplateFormats.NONE,
-      })
-    ).toMatchObject({ inputs: [version.inputs![0]], state: { object: true } });
-  });
-
-  it("removes obsolete inferred inputs after editing a loaded text state", () => {
-    const version: SavedDecisionVersion = {
-      inputs: [
-        {
-          name: "ticket",
-          description: "Ticket",
-          jsonSchema: { type: "string" },
-        },
-        { name: "policy", description: "Explicit declaration" },
-      ],
-      state: {
-        kind: "text",
-        template: "{{ticket}}",
-        templateFormat: "MUSTACHE",
-      },
-      questions: [
-        {
-          kind: "predicate",
-          name: "urgent",
-          instructions: "Urgent?",
-          criteria: null,
-        },
-      ],
-    };
-    const loaded = savedDecisionVersionToDraft({
-      version,
-      templateFormat: mustache,
-    });
-    const edited = {
-      ...loaded,
-      state: { ...loaded.state, template: "{{message}}" },
-    };
-    const expectedInputs = [{ name: "message" }, version.inputs![1]];
-    expect(
-      extractDecisionVariables({ draft: edited, templateFormat: mustache })
-    ).toEqual(["message", "policy"]);
-    expect(
-      buildDecisionInput({ draft: edited, templateFormat: mustache }).inputs
-    ).toEqual(expectedInputs);
-    expect(
-      toDecisionVersionInput({
-        instance: makeInstance(edited),
-        templateFormat: mustache,
-      }).inputs
-    ).toEqual(expectedInputs);
-    // Metadata remains available if the user restores the original reference.
-    expect(
-      toDecisionVersionInput({
-        instance: makeInstance(loaded),
-        templateFormat: mustache,
       }).inputs
     ).toEqual(version.inputs);
   });
+
+  it.each(["text", "input"] as const)(
+    "removes obsolete inferred inputs after editing a loaded %s state",
+    (kind) => {
+      const version: SavedDecisionVersion = {
+        inputs: [
+          {
+            name: "ticket",
+            description: "Ticket",
+            jsonSchema: { type: "string" },
+          },
+          { name: "policy", description: "Explicit declaration" },
+        ],
+        state:
+          kind === "text"
+            ? {
+                kind: "text",
+                template: "{{ticket}}",
+                templateFormat: "MUSTACHE",
+              }
+            : { kind: "input", input: "ticket" },
+        questions: [
+          {
+            kind: "predicate",
+            name: "urgent",
+            instructions: "Urgent?",
+            criteria: null,
+          },
+        ],
+      };
+      const loaded = savedDecisionVersionToDraft({
+        version,
+        templateFormat: mustache,
+      });
+      const edited = {
+        ...loaded,
+        state:
+          kind === "text"
+            ? { ...loaded.state, template: "{{message}}" }
+            : { ...loaded.state, inputNames: ["message"] },
+      };
+      const expectedInputs = [{ name: "message" }, version.inputs![1]];
+      expect(
+        extractDecisionVariables({ draft: edited, templateFormat: mustache })
+      ).toEqual(["message", "policy"]);
+      expect(
+        buildDecisionInput({ draft: edited, templateFormat: mustache }).inputs
+      ).toEqual(expectedInputs);
+      expect(
+        toDecisionVersionInput({
+          instance: makeInstance(edited),
+          templateFormat: mustache,
+        }).inputs
+      ).toEqual(expectedInputs);
+      // Metadata remains available if the user restores the original reference.
+      expect(
+        toDecisionVersionInput({
+          instance: makeInstance(loaded),
+          templateFormat: mustache,
+        }).inputs
+      ).toEqual(version.inputs);
+    }
+  );
 
   it("reads a predicate without criteria and a choice without descriptions", () => {
     const loaded = savedDecisionVersionToDraft({
@@ -517,6 +529,7 @@ describe("savedDecisionVersionToDraft", () => {
     expect(loaded.state).toMatchObject({
       mode: "inputs",
       inputNames: ["answer"],
+      inputsShape: "object",
     });
     expect(
       toDecisionVersionInput({

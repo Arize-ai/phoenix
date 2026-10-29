@@ -169,13 +169,22 @@ export type DecisionStateDraft = {
   /**
    * `template`: the state is a template over the inputs, as a prompt message
    * is. `inputs`: the state is the inputs themselves, as one object keyed by
-   * name.
+   * name, or one input's value alone.
    */
   mode: "template" | "inputs";
   /** The template, in the playground's template format. */
   template: string;
   /** The inputs that make up an `inputs` state, in order. */
   inputNames: string[];
+  /**
+   * What an `inputs` state with exactly one input sends: `object` wraps it as
+   * `{name: value}`, `value` sends the value alone (the server's `input`
+   * state). The playground only builds objects; `value` comes only from
+   * loading, importing or replaying a request that sent one value alone, so
+   * it is sent exactly as it was. Editing the inputs, or wrapping, makes it
+   * `object` for good.
+   */
+  inputsShape: "object" | "value";
 };
 
 export type PlaygroundInput = {

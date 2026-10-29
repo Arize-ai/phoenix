@@ -104,6 +104,7 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     state: createDecisionStateDraft({
       mode: "inputs",
       inputNames: ["state"],
+      inputsShape: "value",
     }),
   };
   const store = createPlaygroundStore({
@@ -141,20 +142,21 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         </ThemeContext.Provider>
       )
     );
-    // The drawn state, without the (hidden) Enter key hint.
+    // The drawn state, without the (hidden) Enter key hint or the Wrap link.
     const inputsEditor = () =>
       container
         .querySelector('[aria-label="State inputs"]')
-        ?.textContent?.replace("↵", "");
+        ?.textContent?.replace("↵", "")
+        .replace("Wrap in an object", "");
     // Only two modes: the JSON, Value and Object modes are gone.
     expect(
       Array.from(
         container.querySelectorAll('[aria-label="State mode"] button')
       ).map((button) => button.textContent)
     ).toEqual(["Template", "Inputs"]);
-    // One input is drawn as an object keyed by its name, with the value typed
+    // One input sent alone is drawn as the input alone, with the value typed
     // in the Inputs panel beside it as it is sent.
-    expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
+    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
     expect(
       container.querySelector('[aria-label="Remove state"]')
     ).not.toBeNull();
@@ -163,16 +165,17 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     await act(async () => modeButton("Template")?.click());
     expect(readState()).toEqual({
       mode: "template",
-      template: "state: {{state}}",
+      template: "{{state}}",
       inputNames: ["state"],
+      inputsShape: "value",
     });
     expect(
       container.querySelector<HTMLInputElement>(
         'input[aria-label="Decision state"]'
       )?.value
-    ).toBe("state: {{state}}");
+    ).toBe("{{state}}");
 
-    // Back to Inputs keeps the names; several are sent as one object too.
+    // Back to Inputs keeps the names; several are sent as one object.
     await act(async () => modeButton("Inputs")?.click());
     expect(readState()?.inputNames).toEqual(["state"]);
     await act(async () =>
@@ -198,8 +201,95 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
         ?.click()
     );
-    expect(readState()).toMatchObject({ inputNames: ["state"] });
+    expect(readState()).toMatchObject({
+      inputNames: ["state"],
+      inputsShape: "object",
+    });
     expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("keeps a loaded input sent alone only until it is wrapped or the inputs are edited", async () => {
+  const valueDraft = () => ({
+    ...createDecisionDraft(),
+    state: createDecisionStateDraft({
+      mode: "inputs",
+      inputNames: ["state"],
+      inputsShape: "value",
+    }),
+  });
+  const store = createPlaygroundStore({
+    modelConfigByProvider: {},
+    instances: [
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: valueDraft() },
+    ],
+  });
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const readState = () =>
+    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
+  const button = (label: string) =>
+    Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent === label
+    );
+  const load = () =>
+    act(async () =>
+      store
+        .getState()
+        .updateDecisionPrompt({ instanceId: 1, request: valueDraft() })
+    );
+  try {
+    await act(async () =>
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            themeMode: "light",
+            systemTheme: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <PlaygroundContext.Provider value={store}>
+            <DecisionPromptEditor playgroundInstanceId={1} />
+          </PlaygroundContext.Provider>
+        </ThemeContext.Provider>
+      )
+    );
+    // Wrapping is one way: there is no control to send the value alone again.
+    await act(async () => button("Wrap in an object")?.click());
+    expect(readState()?.inputsShape).toBe("object");
+    expect(button("Wrap in an object")).toBeUndefined();
+
+    // Editing the inputs wraps too, and removing back to one stays wrapped.
+    await load();
+    expect(readState()?.inputsShape).toBe("value");
+    const slot = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Add input"]'
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )!.set!.call(slot, "plan,");
+      slot.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(readState()).toMatchObject({
+      inputNames: ["state", "plan"],
+      inputsShape: "object",
+    });
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
+        ?.click()
+    );
+    expect(readState()).toMatchObject({
+      inputNames: ["state"],
+      inputsShape: "object",
+    });
   } finally {
     await act(async () => root.unmount());
     container.remove();

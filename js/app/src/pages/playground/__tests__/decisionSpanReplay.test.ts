@@ -62,6 +62,7 @@ describe("decision span replay", () => {
     expect(playgroundInstance.decisionPrompt?.state).toMatchObject({
       mode: "inputs",
       inputNames: ["complaint"],
+      inputsShape: "object",
     });
     expect(playgroundInput).toEqual({
       variablesValueCache: { complaint: "I was charged twice." },
