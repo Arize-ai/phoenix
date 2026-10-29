@@ -1,19 +1,10 @@
 import type { ReactNode } from "react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type { Blocker, Location } from "react-router";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { Blocker } from "react-router";
 import { useBlocker } from "react-router";
 
 type UnsavedChangesGuard = {
   hasUnsavedChanges: boolean;
-  scope?: string;
 };
 
 type UnsavedChangesRegistry = {
@@ -34,22 +25,6 @@ const UNBLOCKED: Blocker = {
   location: undefined,
 };
 
-function isWithinScope(pathname: string, scope: string) {
-  const prefix = scope.endsWith("/") ? scope.slice(0, -1) : scope;
-  return pathname === prefix || pathname.startsWith(`${prefix}/`);
-}
-
-function leavesGuard(
-  guard: UnsavedChangesGuard,
-  currentLocation: Location,
-  nextLocation: Location
-) {
-  if (guard.scope != null) {
-    return !isWithinScope(nextLocation.pathname, guard.scope);
-  }
-  return currentLocation.pathname !== nextLocation.pathname;
-}
-
 /**
  * Owns the router's only navigation blocker. React Router consults just the
  * most recently registered `useBlocker`, so editors that guard unsaved work at
@@ -63,7 +38,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     for (const [key, guard] of guardsRef.current) {
       if (
         guard.hasUnsavedChanges &&
-        leavesGuard(guard, currentLocation, nextLocation)
+        currentLocation.pathname !== nextLocation.pathname
       ) {
         setBlockingKey(key);
         return true;
@@ -71,16 +46,16 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     }
     return false;
   });
-  const register = useCallback((key: symbol, guard: UnsavedChangesGuard) => {
-    guardsRef.current.set(key, guard);
-  }, []);
-  const unregister = useCallback((key: symbol) => {
-    guardsRef.current.delete(key);
-  }, []);
-  const registry = useMemo<UnsavedChangesRegistry>(
-    () => ({ register, unregister, blocker, blockingKey }),
-    [register, unregister, blocker, blockingKey]
-  );
+  const registry: UnsavedChangesRegistry = {
+    register: (key, guard) => {
+      guardsRef.current.set(key, guard);
+    },
+    unregister: (key) => {
+      guardsRef.current.delete(key);
+    },
+    blocker,
+    blockingKey,
+  };
   return (
     <UnsavedChangesContext.Provider value={registry}>
       {children}
@@ -90,25 +65,19 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
 
 /**
  * Guards unsaved work against navigation. In-app navigation that leaves the
- * guard's scope is blocked and surfaced through the returned blocker, which
- * drives a confirmation dialog; a reload or closed tab is confirmed by the
- * browser unless `confirmUnload` is false.
- *
- * Without a `scope`, any change of pathname leaves it and changes to the query
- * string alone pass through. With one, navigation stays within it while the
- * next pathname is the scope or below it, so an editor that outlives its
- * child routes (a page header above tabs) is not interrupted by them.
+ * current pathname is blocked and surfaced through the returned blocker, which
+ * drives a confirmation dialog; changes to the query string alone pass
+ * through. A reload or closed tab is confirmed by the browser unless
+ * `confirmUnload` is false.
  *
  * Only the guard that blocked a navigation receives the blocked state, so
  * each caller can render its own dialog without a second one opening.
  */
 export function useUnsavedChangesBlocker({
   hasUnsavedChanges,
-  scope,
   confirmUnload = true,
 }: {
   hasUnsavedChanges: boolean;
-  scope?: string;
   confirmUnload?: boolean;
 }): Blocker {
   const registry = useContext(UnsavedChangesContext);
@@ -120,8 +89,8 @@ export function useUnsavedChangesBlocker({
   const { register, unregister } = registry;
   const [key] = useState(() => Symbol("unsaved-changes-guard"));
   useEffect(() => {
-    register(key, { hasUnsavedChanges, scope });
-  }, [register, key, hasUnsavedChanges, scope]);
+    register(key, { hasUnsavedChanges });
+  }, [register, key, hasUnsavedChanges]);
   useEffect(() => () => unregister(key), [unregister, key]);
   useEffect(() => {
     if (!hasUnsavedChanges || !confirmUnload) {

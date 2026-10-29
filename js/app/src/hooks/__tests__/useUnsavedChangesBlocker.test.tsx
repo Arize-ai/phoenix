@@ -28,15 +28,12 @@ afterEach(() => {
 function Guard({
   name,
   hasUnsavedChanges,
-  scope,
 }: {
   name: string;
   hasUnsavedChanges: boolean;
-  scope?: string;
 }) {
   const blocker = useUnsavedChangesBlocker({
     hasUnsavedChanges,
-    scope,
     confirmUnload: false,
   });
   return <output data-guard={name}>{blocker.state}</output>;
@@ -78,27 +75,7 @@ function blockerState(name: string) {
 }
 
 describe("useUnsavedChangesBlocker", () => {
-  it("lets navigation within its scope through", async () => {
-    const router = renderGuards(
-      <Guard name="header" hasUnsavedChanges scope="/datasets/1" />,
-      "/datasets/1/experiments"
-    );
-    await navigate(router, "/datasets/1/examples");
-    expect(router.state.location.pathname).toBe("/datasets/1/examples");
-    expect(blockerState("header")).toBe("unblocked");
-  });
-
-  it("blocks navigation that leaves its scope", async () => {
-    const router = renderGuards(
-      <Guard name="header" hasUnsavedChanges scope="/datasets/1" />,
-      "/datasets/1/experiments"
-    );
-    await navigate(router, "/datasets/10");
-    expect(router.state.location.pathname).toBe("/datasets/1/experiments");
-    expect(blockerState("header")).toBe("blocked");
-  });
-
-  it("blocks any pathname change without a scope", async () => {
+  it("blocks pathname changes and lets query changes through", async () => {
     const router = renderGuards(
       <Guard name="table" hasUnsavedChanges />,
       "/datasets/1/examples"
@@ -112,7 +89,7 @@ describe("useUnsavedChangesBlocker", () => {
   it("honors every guard and hands the block to the one that objected", async () => {
     const router = renderGuards(
       <>
-        <Guard name="header" hasUnsavedChanges scope="/datasets/1" />
+        <Guard name="header" hasUnsavedChanges />
         <Guard name="table" hasUnsavedChanges={false} />
       </>,
       "/datasets/1/examples"
