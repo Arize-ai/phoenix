@@ -69,6 +69,18 @@ For the budget issue, your plan should state:
 - **Evaluator:** An LLM judge using the same pass/fail criteria as your review.
 - **Validation:** Compare the judge's decisions with independently reviewed answers, including correct no-match responses.
 
+<Accordion title="Ask PXI to review your evaluation plan (optional)">
+  Open your dataset in Phoenix, then open [PXI](/docs/phoenix/pxi#get-started). Paste your evaluation plan and pass/fail rules, then ask:
+
+  > Review this evaluation plan against the dataset and its source runs. Identify missing evidence, unclear criteria, and cases I should include when validating the evaluator. Keep your suggestions brief and explain why each matters. Only review the plan; don't create or change data.
+
+  <Frame caption="PXI's summary after reviewing the examples and clarifying its suggestions.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-eval-plan-pxi-fee18f39fcca.png" alt="PXI reviews the budget evaluation plan and suggests using actual answers from source spans, testing the price boundary, and adding a correct no-match case." />
+  </Frame>
+
+  Review PXI's suggestions against your examples before changing the plan.
+</Accordion>
+
 ## Next: Build the evaluators
 
 The next 2 lessons cover code and LLM evaluators. Start with a code evaluator for a saved order to compare the shopper's confirmed cart with the order the application saved. Then build an LLM judge for the budget requirement, where you need to interpret the agent's answer.
