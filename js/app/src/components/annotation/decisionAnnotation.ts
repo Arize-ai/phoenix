@@ -1,6 +1,9 @@
 import { graphql } from "react-relay";
 
-import { rankChoiceProbabilities } from "@phoenix/utils/decisionProbabilityUtils";
+import {
+  rankChoiceProbabilities,
+  rankPredicateProbabilities,
+} from "@phoenix/utils/decisionProbabilityUtils";
 
 import type { decisionAnnotation_annotation$data } from "./__generated__/decisionAnnotation_annotation.graphql";
 
@@ -103,13 +106,18 @@ export function describeScaleLevel(
 }
 
 /**
- * A choice's probabilities, most likely first and without options that round
- * to 0%, or a scale's probabilities in level order.
+ * A yes/no or choice answer's options, most likely first and without options
+ * that round to 0%, or a scale's probabilities in level order.
  */
 export function decisionProbabilities(
   decision: DecisionAnnotation
 ): DecisionProbability[] {
   const answer = decision.answer;
+  if (answer?.__typename === "PredicateAnswer") {
+    return rankPredicateProbabilities(answer.probability).map(
+      ({ value, probability }) => ({ key: value, name: value, probability })
+    );
+  }
   if (answer?.__typename === "ChoiceAnswer") {
     return rankChoiceProbabilities({
       probabilities: answer.choiceProbabilities,

@@ -158,7 +158,7 @@ describe("formatDecisionAnswers", () => {
 
   it("puts every answer on one line, every non-negligible option included", () => {
     expect(formatDecisionAnswers(answers)).toBe(
-      "is_recurring: False 90% · category: groceries 80%, shopping 20% · urgency: Refused"
+      "is_recurring: False 90%, True 10% · category: groceries 80%, shopping 20% · urgency: Refused"
     );
   });
 

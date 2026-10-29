@@ -21,3 +21,22 @@ export function rankChoiceProbabilities<T extends { probability: number }>({
     )
     .sort((left, right) => right.probability - left.probability);
 }
+
+/**
+ * A yes/no answer as its two options, ranked like a choice's: the likelier
+ * first, without an option that would display as 0%.
+ * @param probability - the probability of true
+ */
+export function rankPredicateProbabilities(probability: number): {
+  value: "True" | "False";
+  probability: number;
+}[] {
+  return rankChoiceProbabilities({
+    probabilities: [
+      { value: "True", probability },
+      { value: "False", probability: 1 - probability },
+    ],
+    getValue: (entry) => entry.value,
+    chosen: probability >= 0.5 ? "True" : "False",
+  });
+}

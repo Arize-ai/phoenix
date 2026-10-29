@@ -92,6 +92,17 @@ describe("decision annotation helpers", () => {
       { key: "a", name: "a", probability: 0.096 },
     ]);
   });
+  it("lists a yes/no answer's options like a choice's", () => {
+    expect(
+      decisionProbabilities({
+        ...answered,
+        answer: { __typename: "PredicateAnswer", probability: 0.3 },
+      })
+    ).toEqual([
+      { key: "False", name: "False", probability: 0.7 },
+      { key: "True", name: "True", probability: 0.3 },
+    ]);
+  });
   it("names scale levels by label, then description, then number", () => {
     const levels = [
       { label: "low", description: "Minor issue" },

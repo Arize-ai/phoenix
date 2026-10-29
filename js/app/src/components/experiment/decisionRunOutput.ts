@@ -15,6 +15,7 @@ import {
 } from "@phoenix/pages/playground/savedDecisionUtils";
 import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { rankPredicateProbabilities } from "@phoenix/utils/decisionProbabilityUtils";
 
 /**
  * The questions a decision experiment asked. Spread it unmasked
@@ -119,21 +120,23 @@ export function getDecisionRunAnswers({
   return answers.every((answer) => answer.kind !== "unknown") ? answers : null;
 }
 
+function formatOptions(
+  options: readonly { value: string; probability: number }[]
+): string {
+  return options
+    .map((entry) => `${entry.value} ${formatPercent(entry.probability)}`)
+    .join(", ");
+}
+
 function formatDecisionAnswer(answer: NormalizedDecisionAnswer): string {
   switch (answer.kind) {
-    case "predicate": {
-      if (answer.probability == null) return "–";
-      const isTrue = answer.probability >= 0.5;
-      const probability = isTrue ? answer.probability : 1 - answer.probability;
-      return `${isTrue ? "True" : "False"} ${formatPercent(probability)}`;
-    }
+    case "predicate":
+      return answer.probability == null
+        ? "–"
+        : formatOptions(rankPredicateProbabilities(answer.probability));
     case "choice":
       return answer.probabilities.length > 0
-        ? answer.probabilities
-            .map(
-              (entry) => `${entry.value} ${formatPercent(entry.probability)}`
-            )
-            .join(", ")
+        ? formatOptions(answer.probabilities)
         : (answer.choice ?? "–");
     case "scale": {
       if (answer.expectedLevel == null) return "–";

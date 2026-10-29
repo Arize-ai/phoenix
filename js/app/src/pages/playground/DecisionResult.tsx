@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
 import type { DecisionPromptDraft } from "@phoenix/store/playground/types";
+import { rankPredicateProbabilities } from "@phoenix/utils/decisionProbabilityUtils";
 
 import {
   type NormalizedDecisionAnswer,
@@ -186,23 +187,25 @@ export function DecisionAnswerView({
       );
     }
     case "predicate": {
-      // The bar shows how likely the shown answer is, so "False" reads with
-      // P(false), not the P(true) the model returns.
-      const isTrue = answer.probability == null || answer.probability >= 0.5;
-      const label =
-        answer.probability == null ? "–" : isTrue ? "True" : "False";
+      if (answer.probability == null) {
+        return (
+          <Text size="S" weight="heavy">
+            –
+          </Text>
+        );
+      }
+      const options = rankPredicateProbabilities(answer.probability);
       return (
-        <div css={distributionCSS} aria-label={`${answer.name} probability`}>
-          <DistributionRow
-            label={label}
-            value={
-              answer.probability == null || isTrue
-                ? answer.probability
-                : 1 - answer.probability
-            }
-            isChosen
-            barLabel={`${answer.name} probability of ${isTrue ? "true" : "false"}`}
-          />
+        <div css={distributionCSS} aria-label={`${answer.name} probabilities`}>
+          {options.map((entry, index) => (
+            <DistributionRow
+              key={entry.value}
+              label={entry.value}
+              value={entry.probability}
+              isChosen={index === 0}
+              barLabel={`${answer.name} probability of ${entry.value.toLowerCase()}`}
+            />
+          ))}
         </div>
       );
     }
@@ -309,7 +312,12 @@ export function DecisionAnswerList({
       {answers.map((answer) => (
         <li key={answer.name}>
           <Flex direction="column" gap="size-75">
-            <Text weight="heavy" css={wrapAnywhereCSS}>
+            <Text
+              size="S"
+              color="text-700"
+              fontFamily="mono"
+              css={wrapAnywhereCSS}
+            >
               {answer.name}
             </Text>
             <span data-testid={`answer-${answer.name}`} hidden>
