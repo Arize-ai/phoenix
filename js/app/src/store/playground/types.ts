@@ -169,19 +169,13 @@ export type DecisionStateDraft = {
   /**
    * `template`: the state is a template over the inputs, as a prompt message
    * is. `inputs`: the state is the inputs themselves, as one object keyed by
-   * name, or one input's value alone.
+   * name.
    */
   mode: "template" | "inputs";
   /** The template, in the playground's template format. */
   template: string;
   /** The inputs that make up an `inputs` state, in order. */
   inputNames: string[];
-  /**
-   * What an `inputs` state with exactly one input sends: `object` wraps it as
-   * `{name: value}`, `value` sends the value alone. Several inputs are always
-   * one object; the choice is kept so removing inputs back to one restores it.
-   */
-  inputsShape: "object" | "value";
 };
 
 export type PlaygroundInput = {

@@ -29,7 +29,6 @@ import {
   toDecisionJsonSchema,
   toDecisionOutput,
   describeDecisionInputsState,
-  getDecisionInputsStateShape,
   toInputValueText,
   toStructuredInputValue,
   validateDecisionDraft,
@@ -42,14 +41,6 @@ const templateState = (template: string) =>
 /** An `inputs` state over these names, sent as an object. */
 const inputsState = (...inputNames: string[]) =>
   createDecisionStateDraft({ mode: "inputs", inputNames });
-
-/** An `inputs` state sending one input's value alone. */
-const valueState = (inputName: string) =>
-  createDecisionStateDraft({
-    mode: "inputs",
-    inputNames: [inputName],
-    inputsShape: "value",
-  });
 
 describe("decision prompt draft", () => {
   it("builds a valid Choice example", () => {
@@ -68,16 +59,10 @@ describe("decision prompt draft", () => {
   });
 
   it("preserves structured input values rather than turning them into text", () => {
-    const draft = { ...createDecisionDraft(), state: valueState("events") };
+    const draft = { ...createDecisionDraft(), state: inputsState("events") };
     expect(
       buildSystemOneRequest({
         draft,
-        variables: { events: '["refund"]' },
-      }).state
-    ).toEqual(["refund"]);
-    expect(
-      buildSystemOneRequest({
-        draft: { ...draft, state: inputsState("events") },
         variables: { events: '["refund"]' },
       }).state
     ).toEqual({ events: ["refund"] });
@@ -487,13 +472,13 @@ describe("request import", () => {
         questions: [{ type: "predicate", name: "urgent", instructions: "?" }],
       })
     );
-    expect(imported.draft.state).toEqual(valueState("state"));
+    expect(imported.draft.state).toEqual(inputsState("state"));
     expect(
       buildSystemOneRequest({
         draft: imported.draft,
         variables: imported.inputValues,
       }).state
-    ).toEqual(["refund", "chargeback"]);
+    ).toEqual({ state: ["refund", "chargeback"] });
   });
 
   it.each([
@@ -861,10 +846,10 @@ describe("runDecision input", () => {
     ).toBe('Input "a" is listed twice');
   });
 
-  it("sends one input's value alone as that input, unchanged, in both ad-hoc and dataset runs", () => {
+  it("sends one input as an object keyed by its name, in both ad-hoc and dataset runs", () => {
     const draft = {
       ...createDecisionDraft(),
-      state: valueState("ticket"),
+      state: inputsState("ticket"),
     };
     expect(
       buildDecisionInput({
@@ -874,7 +859,7 @@ describe("runDecision input", () => {
       })
     ).toMatchObject({
       inputs: [{ name: "ticket" }],
-      state: { input: "ticket" },
+      state: { object: true },
       inputValues: { ticket: "Refund" },
     });
     expect(
@@ -884,7 +869,7 @@ describe("runDecision input", () => {
       })
     ).toMatchObject({
       inputs: [{ name: "ticket" }],
-      state: { input: "ticket" },
+      state: { object: true },
     });
     expect(
       extractDecisionVariables({
@@ -897,7 +882,7 @@ describe("runDecision input", () => {
         draft,
         variables: { ticket: '{"subject":"Refund"}' },
       }).state
-    ).toEqual({ subject: "Refund" });
+    ).toEqual({ ticket: { subject: "Refund" } });
   });
 
   it("builds one @oneOf input per question with literal question text", () => {
@@ -1054,27 +1039,9 @@ describe("buildDecisionConnection", () => {
   });
 });
 
-describe("inputs state shape", () => {
-  it("sends one input alone only when asked, and several always as an object", () => {
-    expect(getDecisionInputsStateShape(inputsState("ticket"))).toEqual({
-      shape: "object",
-      names: ["ticket"],
-    });
-    expect(getDecisionInputsStateShape(valueState("ticket"))).toEqual({
-      shape: "value",
-      name: "ticket",
-    });
-    expect(
-      getDecisionInputsStateShape({
-        ...valueState("ticket"),
-        inputNames: ["ticket", "plan"],
-      })
-    ).toEqual({ shape: "object", names: ["ticket", "plan"] });
-  });
-
+describe("inputs state", () => {
   it("describes the state as sent, for Copy and the collapsed card", () => {
     expect(describeDecisionInputsState(inputsState())).toBe("");
-    expect(describeDecisionInputsState(valueState("ticket"))).toBe("<ticket>");
     expect(describeDecisionInputsState(inputsState("ticket"))).toBe(
       '{ "ticket": <ticket> }'
     );
@@ -1109,11 +1076,7 @@ describe("switching the state mode", () => {
       mode: "template",
       template: "reference: {{reference}}\noutput: {{output}}",
       inputNames: ["reference", "output"],
-      inputsShape: "object",
     });
-    expect(
-      inputNamesToTemplate(valueState("ticket"), TemplateFormats.FString)
-    ).toBe("{ticket}");
     expect(
       inputNamesToTemplate(inputsState("ticket"), TemplateFormats.FString)
     ).toBe("ticket: {ticket}");
@@ -1188,17 +1151,17 @@ describe("structured input values", () => {
 describe("decision tasks over a dataset", () => {
   const mustache = TemplateFormats.Mustache;
 
-  it("passes one input sent alone through as that input", () => {
+  it("sends one input as an object keyed by its name", () => {
     const draft = {
       ...createDecisionDraft(),
-      state: valueState("state"),
+      state: inputsState("state"),
     };
     const definition = buildDecisionTaskDefinition({
       draft,
       templateFormat: mustache,
     });
     expect(definition.inputs).toEqual([{ name: "state" }]);
-    expect(definition.state).toEqual({ input: "state" });
+    expect(definition.state).toEqual({ object: true });
     expect(definition.questions[0]).toMatchObject({
       choice: { name: "department" },
     });
@@ -1292,7 +1255,7 @@ describe("decision tasks over a dataset", () => {
   it("does not treat JSON braces in an input value as f-string variables", () => {
     const draft = {
       ...createDecisionDraft(),
-      state: valueState("nested"),
+      state: inputsState("nested"),
     };
     expect(
       extractDecisionVariables({
@@ -1308,7 +1271,7 @@ describe("decision tasks over a dataset", () => {
       })
     ).toMatchObject({
       inputs: [{ name: "nested" }],
-      state: { input: "nested" },
+      state: { object: true },
       inputValues: { nested: { id: 1 } },
     });
   });

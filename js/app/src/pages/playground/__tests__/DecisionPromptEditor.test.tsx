@@ -104,7 +104,6 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     state: createDecisionStateDraft({
       mode: "inputs",
       inputNames: ["state"],
-      inputsShape: "value",
     }),
   };
   const store = createPlaygroundStore({
@@ -153,9 +152,9 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         container.querySelectorAll('[aria-label="State mode"] button')
       ).map((button) => button.textContent)
     ).toEqual(["Template", "Inputs"]);
-    // One input sent alone is drawn as the input alone, with the value typed
+    // One input is drawn as an object keyed by its name, with the value typed
     // in the Inputs panel beside it as it is sent.
-    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
+    expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
     expect(
       container.querySelector('[aria-label="Remove state"]')
     ).not.toBeNull();
@@ -164,17 +163,16 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     await act(async () => modeButton("Template")?.click());
     expect(readState()).toEqual({
       mode: "template",
-      template: "{{state}}",
+      template: "state: {{state}}",
       inputNames: ["state"],
-      inputsShape: "value",
     });
     expect(
       container.querySelector<HTMLInputElement>(
         'input[aria-label="Decision state"]'
       )?.value
-    ).toBe("{{state}}");
+    ).toBe("state: {{state}}");
 
-    // Back to Inputs keeps the names; several are sent as one object.
+    // Back to Inputs keeps the names; several are sent as one object too.
     await act(async () => modeButton("Inputs")?.click());
     expect(readState()?.inputNames).toEqual(["state"]);
     await act(async () =>
@@ -200,10 +198,7 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
         ?.click()
     );
-    expect(readState()).toMatchObject({
-      inputNames: ["state"],
-      inputsShape: "object",
-    });
+    expect(readState()).toMatchObject({ inputNames: ["state"] });
     expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
   } finally {
     await act(async () => root.unmount());

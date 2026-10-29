@@ -262,7 +262,6 @@ export function DecisionPromptEditor({
         {state.mode === "inputs" ? (
           <DecisionStateInputsEditor
             names={state.inputNames}
-            inputsShape={state.inputsShape}
             isDisabled={isRunning}
             isInvalid={!!errors.state}
             onChange={(inputNames) => updateState({ ...state, inputNames })}

@@ -19,13 +19,9 @@ import {
   pierreTokenColors,
 } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
-import type { DecisionStateDraft } from "@phoenix/store/playground/types";
 
 import type { DecisionInputPreview } from "./decisionStateInputsHints";
-import {
-  getDecisionInputsStateShape,
-  parseStateInputNames,
-} from "./decisionUtils";
+import { parseStateInputNames } from "./decisionUtils";
 
 /**
  * The template editor's line-number gutter. The inputs have no line numbers
@@ -192,18 +188,15 @@ const suggestionsPopoverCSS = css`
   }
 `;
 
-type InputsShape = DecisionStateDraft["inputsShape"];
-
 /**
  * The inputs an `inputs` state is made of, drawn as the state it sends: an
- * object keyed by name, or one input's value alone. Each input is a
+ * object keyed by name. Each input is a
  * variable pill, followed by a preview of its value as a code comment; names
  * typed into the slot are added on Enter, a comma, or leaving it. Over a
  * dataset the slot suggests the names its examples have.
  */
 export function DecisionStateInputsEditor({
   names,
-  inputsShape,
   isDisabled,
   isInvalid,
   onChange,
@@ -212,7 +205,6 @@ export function DecisionStateInputsEditor({
   suggestions = [],
 }: {
   names: readonly string[];
-  inputsShape: InputsShape;
   isDisabled: boolean;
   isInvalid: boolean;
   onChange: (names: string[]) => void;
@@ -226,7 +218,7 @@ export function DecisionStateInputsEditor({
   const tokenColors = pierreTokenColors[theme];
   const slotRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState("");
-  // Going between one input and several redraws the layout and remounts the
+  // Going between no inputs and some redraws the layout and remounts the
   // slot, so an edit made from the keyboard puts focus back in it.
   const refocusSlot = useRef(false);
   useEffect(() => {
@@ -387,10 +379,10 @@ export function DecisionStateInputsEditor({
       </span>
     );
   };
-  const lineClassName = (name: string, entry: boolean) =>
+  const lineClassName = (name: string) =>
     [
       "decision-state-inputs__line",
-      entry ? "decision-state-inputs__line--entry" : null,
+      "decision-state-inputs__line--entry",
       previews?.[name] ? "decision-state-inputs__line--previewed" : null,
     ]
       .filter(Boolean)
@@ -398,10 +390,6 @@ export function DecisionStateInputsEditor({
   const punctuation = (text: string) => (
     <span style={{ color: tokenColors.punctuation }}>{text}</span>
   );
-  const isObject =
-    names.length > 0 &&
-    getDecisionInputsStateShape({ inputNames: [...names], inputsShape })
-      .shape === "object";
   const canAddAll = names.length === 0 && remaining.length > 0 && !isDisabled;
   // Adds the dataset's names after anything typed but not yet added. Taking
   // focus from the slot would add the typed name first and, with an input
@@ -435,11 +423,11 @@ export function DecisionStateInputsEditor({
         if (event.target === event.currentTarget) slotRef.current?.focus();
       }}
     >
-      {isObject ? (
+      {names.length > 0 ? (
         <>
           <div className="decision-state-inputs__line">{punctuation("{")}</div>
           {names.map((name, index) => (
-            <div key={name} className={lineClassName(name, true)}>
+            <div key={name} className={lineClassName(name)}>
               <span style={{ color: tokenColors.key }}>
                 {JSON.stringify(name)}
               </span>
@@ -463,15 +451,7 @@ export function DecisionStateInputsEditor({
           <div className="decision-state-inputs__line">{punctuation("}")}</div>
         </>
       ) : (
-        <div
-          className={
-            names.length === 1
-              ? lineClassName(names[0], false)
-              : "decision-state-inputs__line"
-          }
-        >
-          {names.length === 1 ? pill(names[0]) : null}
-          {names.length === 1 ? comment(names[0]) : null}
+        <div className="decision-state-inputs__line">
           {slot}
           {enterHint}
           {canAddAll ? (
