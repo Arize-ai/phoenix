@@ -134,6 +134,9 @@ function ProjectEvaluatorMenuItems({
   const codeEvaluators = evaluators.filter(
     (evaluator) => evaluator.__typename === "CodeEvaluator"
   );
+  const decisionEvaluators = evaluators.filter(
+    (evaluator) => evaluator.__typename === "DecisionEvaluator"
+  );
   const hasMoreEvaluators = data.evaluators.pageInfo.hasNextPage;
   return (
     <>
@@ -144,6 +147,8 @@ function ProjectEvaluatorMenuItems({
             navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(creationPaths.newCode);
+          } else if (action === "createDecisionEvaluator") {
+            navigate(creationPaths.newDecision);
           }
         }}
       >
@@ -188,7 +193,7 @@ function ProjectEvaluatorMenuItems({
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
-              navigate(creationPaths.attachCode(evaluatorId))
+              navigate(creationPaths.attach(evaluatorId))
             }
           />
           <EvaluatorSubmenu
@@ -197,6 +202,23 @@ function ProjectEvaluatorMenuItems({
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
               navigate(creationPaths.copyCode(evaluatorId))
+            }
+          />
+        </MenuSection>
+        <MenuSection>
+          <MenuSectionTitle title="Decision evaluator" />
+          <MenuItem
+            leadingContent={<Icon svg={<Icons.Plus />} />}
+            id="createDecisionEvaluator"
+          >
+            Create new decision evaluator
+          </MenuItem>
+          <EvaluatorSubmenu
+            label="Use existing decision evaluator"
+            icon={<Icons.Split />}
+            evaluators={decisionEvaluators}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.attach(evaluatorId))
             }
           />
         </MenuSection>

@@ -55,6 +55,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
@@ -171,6 +172,17 @@ const readRow = (
               name
             }
             promptVersion {
+              modelName
+              modelProvider
+            }
+          }
+          ... on DecisionEvaluator {
+            decisionVersion {
+              id
+              decisionId
+              decision {
+                name
+              }
               modelName
               modelProvider
             }
@@ -566,10 +578,14 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "prompt",
-        header: "prompt",
+        header: "prompt / decision",
         size: 180,
         cell: ({ row }) => {
-          const { prompt, promptVersionTag } = row.original.evaluator;
+          const { prompt, promptVersionTag, decisionVersion } =
+            row.original.evaluator;
+          if (decisionVersion) {
+            return <DecisionCell decisionVersion={decisionVersion} />;
+          }
           if (!prompt) {
             return <Text color="text-700">--</Text>;
           }
@@ -586,11 +602,13 @@ export function ProjectEvaluatorsTable({
         header: "model",
         size: 180,
         cell: ({ row }) => {
-          const promptVersion = row.original.evaluator.promptVersion;
-          if (!promptVersion) {
+          const modelVersion =
+            row.original.evaluator.promptVersion ??
+            row.original.evaluator.decisionVersion;
+          if (!modelVersion) {
             return <Text color="text-700">--</Text>;
           }
-          const { modelName, modelProvider } = promptVersion;
+          const { modelName, modelProvider } = modelVersion;
           const providerIsValid = isModelProvider(modelProvider);
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -709,7 +727,8 @@ export function ProjectEvaluatorsTable({
             justifyContent="end"
             width="100%"
           >
-            {row.original.evaluator.kind !== "BUILTIN" ? (
+            {row.original.evaluator.kind !== "BUILTIN" &&
+            row.original.evaluator.kind !== "DECISION" ? (
               <StopPropagation>
                 <LinkButton
                   leadingVisual={<Icon svg={<Icons.PlayCircle />} />}

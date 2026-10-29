@@ -204,7 +204,8 @@ async def create_project_evaluator(
             project_id = GlobalID("Project", str(project.id))
         row = await project_bindings.add_project_evaluator(
             evaluator_service_context(request),
-            project_bindings.AddProjectCodeEvaluatorInput(
+            parse_global_id(body.evaluator_id),
+            project_bindings.ProjectBindingSettings(
                 project_id=project_id,
                 name=body.name,
                 evaluation_target=body.evaluation_target,
@@ -213,7 +214,6 @@ async def create_project_evaluator(
                 enabled=body.enabled,
                 input_mapping=body.input_mapping,
                 evaluation_delay_seconds=body.evaluation_delay_seconds,
-                evaluator_id=parse_global_id(body.evaluator_id),
             ),
         )
         return ProjectEvaluatorResponseBody(

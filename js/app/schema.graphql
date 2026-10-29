@@ -1177,6 +1177,28 @@ input CreateProjectCodeEvaluatorInput {
   evaluationDelaySeconds: Int = null
 }
 
+input CreateProjectDecisionEvaluatorInput {
+  projectId: ID!
+  evaluatorId: ID = null
+  decisionId: ID = null
+  evaluatorName: Identifier = null
+  decisionVersionId: ID = null
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int = null
+}
+
 input CreateProjectInput {
   name: String!
   description: String
@@ -4183,6 +4205,16 @@ type Mutation {
   deleteDecisionEvaluator(input: DeleteDecisionEvaluatorInput!): DeleteDecisionEvaluatorPayload!
   createDatasetDecisionEvaluator(input: CreateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetDecisionEvaluator(input: UpdateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+
+  """
+  Create a decision project evaluator from an existing decision evaluator, a saved decision version, or a new one. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  createProjectDecisionEvaluator(input: CreateProjectDecisionEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update a decision project evaluator. Its decision version, scoring policy, and description belong to the underlying evaluator and apply to every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  updateProjectDecisionEvaluator(input: UpdateProjectDecisionEvaluatorInput!): ProjectEvaluatorMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -7167,6 +7199,27 @@ input UpdateProjectCodeEvaluatorInput {
   Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
   """
   inputMapping: EvaluatorInputMappingInput
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int
+}
+
+input UpdateProjectDecisionEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  decisionVersionId: ID
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput
+  samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean
 
   """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.

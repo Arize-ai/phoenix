@@ -1,16 +1,12 @@
 import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import {
-  ConnectionHandler,
-  graphql,
-  useMutation,
-  useRelayEnvironment,
-} from "react-relay";
+import { graphql, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -32,10 +28,13 @@ import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import {
+  AttachProjectDecisionEvaluatorDialogContent,
+  CreateProjectDecisionEvaluatorDialogContent,
+} from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
+import {
   ProjectEvaluatorInputMappingDock,
   ProjectLlmEvaluatorFormSections,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
@@ -49,6 +48,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
@@ -99,6 +99,8 @@ type SeededCodeEvaluatorInitialState = {
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
+  | { kind: "newDecision" }
+  | { kind: "attachDecision"; evaluator: DecisionEvaluatorData }
   | {
       kind: "copyLlm";
       initialState: CopiedLlmEvaluatorInitialState;
@@ -132,6 +134,12 @@ function getProjectEvaluatorCreationTitle(
   }
   if (creationMode.kind === "newCode") {
     return "Create new code evaluator";
+  }
+  if (creationMode.kind === "newDecision") {
+    return "Create new decision evaluator";
+  }
+  if (creationMode.kind === "attachDecision") {
+    return `Attach decision evaluator “${creationMode.evaluator.name}”`;
   }
   if (creationMode.kind === "copyLlm") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
@@ -229,6 +237,28 @@ const CreateProjectEvaluatorDialog = ({
 
   // oxlint-disable-next-line complexity
   const initialState = (() => {
+    if (
+      creationMode.kind === "newDecision" ||
+      creationMode.kind === "attachDecision"
+    ) {
+      return {
+        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        evaluator: {
+          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          globalName:
+            creationMode.kind === "attachDecision"
+              ? creationMode.evaluator.name
+              : "",
+          description: "",
+          inputMapping: { pathMapping: {}, literalMapping: {} },
+          kind: "DECISION",
+        },
+        outputConfigs: [],
+        evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+          toEvaluatorRecordKind(scope.targetType)
+        ),
+      } satisfies EvaluatorStoreProps;
+    }
     if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
       const copiedState =
         creationMode.kind === "copyCode" ? creationMode.initialState : null;
@@ -313,7 +343,27 @@ const CreateProjectEvaluatorDialog = ({
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {creationMode.kind === "newCode" || creationMode.kind === "copyCode" ? (
+      {creationMode.kind === "newDecision" ? (
+        <CreateProjectDecisionEvaluatorDialogContent
+          title={title}
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={setScope}
+          onSuccess={finishCreation}
+          registerDirtyCheck={registerDirtyCheck}
+        />
+      ) : creationMode.kind === "attachDecision" ? (
+        <AttachProjectDecisionEvaluatorDialogContent
+          title={title}
+          projectId={projectId}
+          evaluator={creationMode.evaluator}
+          scope={scope}
+          onScopeChange={setScope}
+          onSuccess={finishCreation}
+          registerDirtyCheck={registerDirtyCheck}
+        />
+      ) : creationMode.kind === "newCode" ||
+        creationMode.kind === "copyCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
           title={title}
           projectId={projectId}
@@ -414,34 +464,41 @@ function AttachCodeProjectEvaluatorDialog({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const store = useEvaluatorStoreInstance();
-  const environment = useRelayEnvironment();
-  const { timeRangeISOStrings } = useTimeRange();
-  const [error, setError] = useState<string>();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
   });
   trackStoreForDirtyCheck(store);
-  const [addCodeEvaluator, isAddingCodeEvaluator] =
-    useMutation<CreateProjectEvaluatorSlideoverAddCodeMutation>(graphql`
-      mutation CreateProjectEvaluatorSlideoverAddCodeMutation(
-        $input: AddProjectCodeEvaluatorInput!
-      ) {
-        addProjectCodeEvaluator(input: $input) {
-          evaluator {
-            id
-            name
-            evaluationTarget
-            filterCondition
-            samplingRate
-            enabled
+  const {
+    attach,
+    isAttaching: isAddingCodeEvaluator,
+    error,
+  } = useAttachProjectEvaluator<CreateProjectEvaluatorSlideoverAddCodeMutation>(
+    {
+      mutation: graphql`
+        mutation CreateProjectEvaluatorSlideoverAddCodeMutation(
+          $input: AddProjectCodeEvaluatorInput!
+        ) {
+          addProjectCodeEvaluator(input: $input) {
             evaluator {
-              kind
+              id
+              name
+              evaluationTarget
+              filterCondition
+              samplingRate
+              enabled
+              evaluator {
+                kind
+              }
             }
           }
         }
-      }
-    `);
+      `,
+      projectId,
+      evaluatorId: creationMode.evaluatorId,
+      onSuccess,
+    }
+  );
   return (
     <ProjectCodeEvaluatorDialogContent
       title={title}
@@ -454,64 +511,28 @@ function AttachCodeProjectEvaluatorDialog({
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
-      onSubmit={() => {
-        setError(undefined);
-        addCodeEvaluator({
-          variables: {
-            input: {
-              projectId,
-              evaluatorId: creationMode.evaluatorId,
-              name: creationMode.name,
-              samplingRate: scope.samplingRate,
-              evaluationTarget: scope.targetType,
-              filterCondition: scope.filterCondition,
-              ...toEvaluationDelayInput(scope),
-              enabled: true,
-              // Left as it was, the project keeps reading through the
-              // evaluator's own mapping, and follows it if that changes.
-              inputMapping: isSameInputMapping(
-                store.getState().evaluator.inputMapping,
-                creationMode.inputMapping
-              )
-                ? null
-                : store.getState().evaluator.inputMapping,
-            },
+      onSubmit={() =>
+        attach({
+          input: {
+            projectId,
+            evaluatorId: creationMode.evaluatorId,
+            name: creationMode.name,
+            samplingRate: scope.samplingRate,
+            evaluationTarget: scope.targetType,
+            filterCondition: scope.filterCondition,
+            ...toEvaluationDelayInput(scope),
+            enabled: true,
+            // Left as it was, the project keeps reading through the
+            // evaluator's own mapping, and follows it if that changes.
+            inputMapping: isSameInputMapping(
+              store.getState().evaluator.inputMapping,
+              creationMode.inputMapping
+            )
+              ? null
+              : store.getState().evaluator.inputMapping,
           },
-          onCompleted: (_response, errors) => {
-            if (errors?.length) {
-              setError(errors.map(({ message }) => message).join("\n"));
-              return;
-            }
-            environment.commitUpdate((relayStore) => {
-              const galleryConnection = ConnectionHandler.getConnection(
-                relayStore.getRoot(),
-                PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
-                { excludeProjectId: projectId }
-              );
-              if (galleryConnection) {
-                ConnectionHandler.deleteNode(
-                  galleryConnection,
-                  creationMode.evaluatorId
-                );
-              }
-            });
-            void refetchProjectEvaluators({
-              environment,
-              projectId,
-              timeRange: timeRangeISOStrings,
-            })
-              .then(onSuccess)
-              .catch((refetchError: unknown) =>
-                setError(
-                  refetchError instanceof Error
-                    ? refetchError.message
-                    : "Unable to refresh project evaluators"
-                )
-              );
-          },
-          onError: (mutationError) => setError(mutationError.message),
-        });
-      }}
+        })
+      }
     />
   );
 }

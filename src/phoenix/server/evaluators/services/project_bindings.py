@@ -108,9 +108,8 @@ class UpdateProjectLLMEvaluatorInput:
 
 
 @dataclass(kw_only=True)
-class AddProjectCodeEvaluatorInput:
+class ProjectBindingSettings:
     project_id: GlobalID
-    evaluator_id: GlobalID
     name: Identifier
     sampling_rate: float
     evaluation_target: models.EvaluationTarget
@@ -118,6 +117,11 @@ class AddProjectCodeEvaluatorInput:
     filter_condition: str = ""
     enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
+
+
+@dataclass(kw_only=True)
+class AddProjectCodeEvaluatorInput(ProjectBindingSettings):
+    evaluator_id: GlobalID
 
 
 @dataclass(kw_only=True)
@@ -370,73 +374,93 @@ async def add_project_code_evaluator(
         raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
     if evaluator_kind != "CODE":
         raise BadRequest("Evaluator must be a CODE evaluator")
-    return await add_project_evaluator(context, input)
+    return await add_project_evaluator(context, input.evaluator_id, input)
 
 
 async def add_project_evaluator(
-    context: EvaluatorServiceContext, input: AddProjectCodeEvaluatorInput
+    context: EvaluatorServiceContext, evaluator_id: GlobalID, settings: ProjectBindingSettings
 ) -> models.ProjectEvaluator:
     """Bind an existing LLM, code, or decision evaluator to a project.
 
     The evaluator row is locked so a concurrent definition delete sees the binding. A name the
     project already uses is refused with AlreadyExists naming the binding that holds it.
     """
-    project_id = _decode_project_id(input.project_id)
     try:
-        evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
+        evaluator_rowid, evaluator_kind = parse_evaluator_id(evaluator_id)
     except ValueError as error:
-        raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
+        raise BadRequest(f"Invalid evaluator id: {evaluator_id}. {error}")
     if evaluator_kind not in ("LLM", "CODE", "DECISION"):
         raise BadRequest("Projects run LLM, code, and decision evaluators")
-    try:
-        name = Identifier.model_validate(input.name)
-    except ValidationError as error:
-        raise BadRequest(str(error))
-    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
-    validate_project_evaluator_sampling_rate(input.sampling_rate)
-    evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
-        input.evaluation_delay_seconds, input.evaluation_target
-    )
+    project_id = check_project_binding(settings)
     evaluator_model = EVALUATOR_MODEL_BY_KIND[evaluator_kind]
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
-                session, project_id, input.project_id
+                session, project_id, settings.project_id
             )
-            evaluator = await session.get(evaluator_model, evaluator_id, with_for_update=True)
+            evaluator = await session.get(evaluator_model, evaluator_rowid, with_for_update=True)
             if evaluator is None:
                 if evaluator_kind == "CODE":
-                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
-                raise NotFound(f"Evaluator not found: {input.evaluator_id}")
+                    raise NotFound(f"Code evaluator with id {evaluator_id} not found")
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
             if isinstance(evaluator, models.LLMEvaluator) and (
                 await resolve_evaluator_prompt_version(session, evaluator) is None
             ):
-                raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
-            if isinstance(evaluator, models.DecisionEvaluator):
-                _validate_decision_project_mapping(evaluator.selected_version, input.input_mapping)
-            project_evaluator = models.ProjectEvaluator(
-                project_id=project_id,
-                evaluator_id=evaluator_id,
-                trace_project=get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                ),
-                name=name,
-                filter_condition=input.filter_condition,
-                sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target,
-                input_mapping=input.input_mapping,
-                evaluation_delay_seconds=evaluation_delay_seconds,
-                enabled=input.enabled,
-            )
-            session.add(project_evaluator)
-            await session.flush()
+                raise NotFound(f"Prompt version not found for evaluator {evaluator_id}")
+            project_evaluator = await bind_project_evaluator(session, project, evaluator, settings)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-        raise await _project_binding_name_taken(context, project_id, name) from error
+        raise await project_binding_name_taken(context, project_id, settings.name) from error
     return project_evaluator
 
 
-def _validate_decision_project_mapping(
+def check_project_binding(settings: ProjectBindingSettings) -> int:
+    """Refuse settings that are invalid whatever the database holds; returns the project's id."""
+    project_id = _decode_project_id(settings.project_id)
+    try:
+        Identifier.model_validate(settings.name)
+    except ValidationError as error:
+        raise BadRequest(str(error))
+    validate_project_evaluator_filter(settings.filter_condition, settings.evaluation_target)
+    validate_project_evaluator_sampling_rate(settings.sampling_rate)
+    materialize_project_evaluator_evaluation_delay(
+        settings.evaluation_delay_seconds, settings.evaluation_target
+    )
+    return project_id
+
+
+async def bind_project_evaluator(
+    session: AsyncSession,
+    project: models.Project,
+    evaluator: models.Evaluator,
+    settings: ProjectBindingSettings,
+) -> models.ProjectEvaluator:
+    """Bind an evaluator to a project with its own trace project, after check_project_binding."""
+    if isinstance(evaluator, models.DecisionEvaluator):
+        validate_decision_project_mapping(evaluator.selected_version, settings.input_mapping)
+    name = Identifier.model_validate(settings.name)
+    project_evaluator = models.ProjectEvaluator(
+        project_id=project.id,
+        evaluator_id=evaluator.id,
+        trace_project=get_trace_project_for_project_evaluator(
+            project_name=project.name,
+            project_evaluator_name=name.root,
+        ),
+        name=name,
+        filter_condition=settings.filter_condition,
+        sampling_rate=settings.sampling_rate,
+        evaluation_target=settings.evaluation_target,
+        input_mapping=settings.input_mapping,
+        evaluation_delay_seconds=materialize_project_evaluator_evaluation_delay(
+            settings.evaluation_delay_seconds, settings.evaluation_target
+        ),
+        enabled=settings.enabled,
+    )
+    session.add(project_evaluator)
+    await session.flush()
+    return project_evaluator
+
+
+def validate_decision_project_mapping(
     version: models.DecisionVersion, input_mapping: Optional[InputMapping]
 ) -> None:
     """A judge's inputs must all be fillable from the span, trace, or session it judges."""
@@ -455,7 +479,7 @@ def _decode_project_id(project_id: GlobalID) -> int:
         raise BadRequest(f"Invalid project id: {project_id}")
 
 
-async def _project_binding_name_taken(
+async def project_binding_name_taken(
     context: EvaluatorServiceContext, project_id: int, name: Identifier
 ) -> Conflict:
     async with context.db() as session:
@@ -1007,39 +1031,43 @@ async def patch_project_evaluator(
             if row is None:
                 raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
             project_rowid = row.project_id
-            target = row.evaluation_target
-            values = ProjectEvaluatorWriteValues()
-            if patch.name is not UNSET:
-                values["name"] = Identifier.model_validate(patch.name)
-            if patch.sampling_rate is not UNSET:
-                assert patch.sampling_rate is not None
-                validate_project_evaluator_sampling_rate(patch.sampling_rate)
-                values["sampling_rate"] = patch.sampling_rate
-            if patch.filter_condition is not UNSET:
-                assert patch.filter_condition is not None
-                validate_project_evaluator_filter(patch.filter_condition, target)
-                values["filter_condition"] = patch.filter_condition
-            if patch.enabled is not UNSET:
-                assert patch.enabled is not None
-                values["enabled"] = patch.enabled
-            if patch.input_mapping is not UNSET:
-                if (
-                    decision := await session.get(models.DecisionEvaluator, row.evaluator_id)
-                ) is not None:
-                    _validate_decision_project_mapping(
-                        decision.selected_version, patch.input_mapping
-                    )
-                values["input_mapping"] = patch.input_mapping
-            if patch.evaluation_delay_seconds is not UNSET:
-                values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(
-                    patch.evaluation_delay_seconds, target
-                )
-            if values:
-                row = await write_project_evaluator(session, row.id, values)
+            row = await apply_project_evaluator_patch(session, row, patch)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:
-            raise await _project_binding_name_taken(context, project_rowid, patch.name) from error
+            raise await project_binding_name_taken(context, project_rowid, patch.name) from error
         raise Conflict(
             "A project evaluator with this name already exists for this project"
         ) from error
+    return row
+
+
+async def apply_project_evaluator_patch(
+    session: AsyncSession, row: models.ProjectEvaluator, patch: ProjectEvaluatorPatch
+) -> models.ProjectEvaluator:
+    """Write binding settings to a binding loaded in this session."""
+    target = row.evaluation_target
+    values = ProjectEvaluatorWriteValues()
+    if patch.name is not UNSET:
+        values["name"] = Identifier.model_validate(patch.name)
+    if patch.sampling_rate is not UNSET:
+        assert patch.sampling_rate is not None
+        validate_project_evaluator_sampling_rate(patch.sampling_rate)
+        values["sampling_rate"] = patch.sampling_rate
+    if patch.filter_condition is not UNSET:
+        assert patch.filter_condition is not None
+        validate_project_evaluator_filter(patch.filter_condition, target)
+        values["filter_condition"] = patch.filter_condition
+    if patch.enabled is not UNSET:
+        assert patch.enabled is not None
+        values["enabled"] = patch.enabled
+    if patch.input_mapping is not UNSET:
+        if (decision := await session.get(models.DecisionEvaluator, row.evaluator_id)) is not None:
+            validate_decision_project_mapping(decision.selected_version, patch.input_mapping)
+        values["input_mapping"] = patch.input_mapping
+    if patch.evaluation_delay_seconds is not UNSET:
+        values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(
+            patch.evaluation_delay_seconds, target
+        )
+    if values:
+        row = await write_project_evaluator(session, row.id, values)
     return row

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0786dd9a1ffc017be47e6c1b2640740e>>
+ * @generated SignedSource<<89b1efd8a11a6f32c201d900f5b4955a>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
@@ -26,6 +27,15 @@ export type ProjectEvaluatorsTable_row$data = {
   };
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
+    readonly decisionVersion?: {
+      readonly decision: {
+        readonly name: string;
+      };
+      readonly decisionId: string;
+      readonly id: string;
+      readonly modelName: string;
+      readonly modelProvider: GenerativeProviderKey;
+    };
     readonly id: string;
     readonly kind: EvaluatorKind;
     readonly language?: Language;
@@ -87,6 +97,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "41650685b08cc176bd207dec6312da7c";
+(node as any).hash = "9a44c49bfc5fa715fad3956f0a59e248";
 
 export default node;
