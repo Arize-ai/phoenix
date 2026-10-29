@@ -1855,7 +1855,7 @@ class ExperimentRunAnnotation(HasId):
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
     )
     name: Mapped[str]
-    annotator_kind: Mapped[str] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
         CheckConstraint(
             "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
             name="valid_annotator_kind",
