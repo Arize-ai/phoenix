@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 300
     permissions:
       contents: read
-      issues: write # comment on the issue and remove the `factory` label
+      issues: write # report a failed dispatch; the app posts every other comment
       pull-requests: read
       checks: read
       statuses: read
@@ -58,8 +58,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install the Anthropic SDK
-        run: pip install --quiet "anthropic==1.12.1"
+      - name: Install the Anthropic SDK and PyJWT
+        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
 
       # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
@@ -71,11 +71,12 @@ jobs:
         id: start
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          # Mounted as the session's github_repository token. Code in the sandbox can use it
-          # for the whole session, so it must belong to a non-admin machine account, scoped
-          # to this repo with Contents, Issues and Pull requests read/write and no Workflows access.
-          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
-          FACTORY_LOGIN: ${{ vars.FACTORY_LOGIN }}
+          # The factory's GitHub App. dispatch.py mints installation tokens limited to this repo
+          # with Contents, Issues and Pull requests write, mounts them in the session and keeps
+          # the GitHub vault's credentials current. The private key never enters the session.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           LANE: ${{ inputs.lane }}
           REQUESTED_BY: ${{ github.event.sender.login }}
         run: |
@@ -87,14 +88,17 @@ jobs:
         if: steps.start.outputs.started == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
-          # Marks the PR ready for review: a GITHUB_TOKEN event would not start the review workflow.
-          FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+          # Re-mints the session's token before it expires, and marks the PR ready for review as
+          # the app: a GITHUB_TOKEN event would not start the review workflow.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           LANE: ${{ steps.start.outputs.lane }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
         run: python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE"
 
-      # The watch step reports its own failures on the issue.
+      # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
+      # it still lands when the failure is the app's credentials.
       - name: Report a failed dispatch
         if: failure() && steps.start.outcome != 'success'
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "🏭 The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          gh issue comment "$ISSUE_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

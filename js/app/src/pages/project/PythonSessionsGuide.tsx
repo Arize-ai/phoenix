@@ -29,7 +29,7 @@ def assistant(
   # This is not strictly necessary, but it helps to correlate the spans to the same session
   with using_session(session_id):
    response = client.chat.completions.create(
-       model="gpt-3.5-turbo",
+       model="gpt-5.6-terra",
        messages=[{"role": "system", "content": "You are a helpful assistant."}] + messages,
    ).choices[0].message
 

@@ -354,6 +354,28 @@ class TestToChatMessagesAndKwargs:
         assert kwargs.get("system") == "You are a pirate."
         assert messages == [{"role": "user", "content": "Hello a pirate."}]
 
+    def test_developer_message_is_treated_as_system(self) -> None:
+        pv = v1.PromptVersionData(
+            template={
+                "type": "chat",
+                "messages": [
+                    {"role": "developer", "content": "You are {{ persona }}."},
+                    {"role": "user", "content": "Hello {{ persona }}."},
+                ],
+            },
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="ANTHROPIC",
+            model_name="claude-3-5-sonnet-20241022",
+            invocation_parameters={
+                "type": "anthropic",
+                "anthropic": {"max_tokens": 100},
+            },
+        )
+        messages, kwargs = to_chat_messages_and_kwargs(pv, variables={"persona": "a pirate"})
+        assert kwargs.get("system") == "You are a pirate."
+        assert messages == [{"role": "user", "content": "Hello a pirate."}]
+
     def test_multiple_str_system_messages_format_variables(self) -> None:
         pv = v1.PromptVersionData(
             template={

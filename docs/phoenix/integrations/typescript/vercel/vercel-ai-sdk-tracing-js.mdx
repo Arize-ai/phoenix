@@ -18,7 +18,7 @@ AI SDK v7 telemetry requires Node.js 22 or newer.
 ## Installation
 
 ```bash
-npm i --save ai @ai-sdk/otel @arizeai/phoenix-otel
+npm i --save ai @ai-sdk/openai @ai-sdk/otel @arizeai/phoenix-otel
 ```
 
 <Warning>
@@ -38,7 +38,7 @@ import { registerTelemetry } from "ai";
 // Handles all the OpenTelemetry setup and exports spans to Phoenix.
 // Reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the environment.
 export const provider = register({
-  projectName: "my-ai-sdk-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME || "my-ai-sdk-app",
 });
 
 // Point the AI SDK's telemetry at OpenTelemetry. headers: false keeps
@@ -50,9 +50,12 @@ Import this file before the rest of your program executes, e.g. `node --import .
 
 Once the telemetry integration is registered, AI SDK calls are traced by default; no per-call configuration is required. Use the `telemetry` option for per-call metadata such as `functionId`, or to opt out with `isEnabled: false`.
 
+## Run Vercel AI SDK
+
 ```typescript
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { provider } from "./instrumentation.js";
 
 const result = await generateText({
   model: openai("gpt-4o"),
@@ -60,6 +63,8 @@ const result = await generateText({
   // Optional per-call metadata:
   telemetry: { functionId: "story-agent" },
 });
+console.log(result.text);
+await provider.shutdown();
 ```
 
 This applies to agents as well: a `ToolLoopAgent` run is traced end to end, with the agent, each LLM step, and every tool call captured as spans in a single trace. See the [AI SDK agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/ai-sdk-agent) for a complete runnable project.

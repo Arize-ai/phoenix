@@ -29,7 +29,7 @@ Agno is a lightweight, high-performance Python framework for building AI agents 
 ## Install
 
 ```bash
-pip install openinference-instrumentation-agno agno
+pip install openinference-instrumentation-agno 'agno[openai]'
 ```
 
 ## Setup
@@ -41,16 +41,13 @@ pip install openinference-instrumentation-agno agno
 ```python
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.tools.duckduckgo import DuckDuckGoTools
-
 agent = Agent(
     model=OpenAIChat(id="gpt-4o-mini"),
-    tools=[DuckDuckGoTools()],
     markdown=True,
-    debug_mode=True,
 )
 
-agent.run("What is currently trending on Twitter?")
+response = agent.run("Say hello in one short sentence.")
+print(response.content)
 ```
 
 ## Observe

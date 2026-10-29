@@ -3,99 +3,97 @@ import { useId } from "react";
 
 import { Text } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
-import { AnnotationLabelConsensusText } from "@phoenix/components/annotation/AnnotationLabelConsensusText";
 import { sortAnnotationSummariesForTriage } from "@phoenix/components/annotation/annotationSummaryUtils";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { AnnotationSummaryValue } from "@phoenix/components/annotation/AnnotationSummaryValue";
 import {
   type AnnotationOptimizationConfig,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation/optimizationUtils";
 import type { AnnotationSummary } from "@phoenix/components/annotation/types";
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
+import { classNames } from "@phoenix/utils/classNames";
 
-const tableCSS = css`
-  width: 100%;
-  border-collapse: collapse;
-  border-spacing: 0;
+const annotationsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
 
-  th,
-  td {
-    padding: 0;
-    vertical-align: middle;
-  }
-  thead th {
-    font-weight: normal;
-    text-align: right;
-    padding-bottom: var(--global-dimension-size-100);
-    vertical-align: baseline;
-  }
-  thead th:not(:first-of-type) {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .span-preview-annotations-table__title {
+  .span-preview-annotations__title {
     display: flex;
     align-items: baseline;
     gap: var(--global-dimension-size-100);
     white-space: nowrap;
   }
-  tbody tr.span-preview-annotation:not(:first-of-type) > * {
-    padding-top: var(--global-dimension-size-100);
+  .span-preview-annotations__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
-  .span-preview-annotation__name {
-    width: 100%;
-    max-width: 0;
-    text-align: left;
-    font-weight: normal;
-  }
-  .span-preview-annotation__name-label {
+  .span-preview-annotation {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-100);
     min-width: 0;
   }
-  .span-preview-annotation__name-text {
-    ${truncateSingleCSS}
-    min-width: 0;
+  /* A tinted value's chip height, so untinted rows keep the same pitch */
+  .span-preview-annotations__list--tinted .span-preview-annotation {
+    min-height: calc(
+      var(--global-line-height-s) + 2 * var(--global-dimension-size-25)
+    );
   }
-  .span-preview-annotation__label,
-  .span-preview-annotation__score {
-    padding-left: var(--global-dimension-size-100);
-    text-align: right;
-    white-space: nowrap;
+  .span-preview-annotation__name {
+    ${truncateSingleCSS}
+    flex: 1 1 auto;
+    min-width: 4ch;
+  }
+  .span-preview-annotation__count {
+    flex: none;
   }
   .span-preview-annotation__value {
-    ${truncateSingleCSS}
-    display: inline-block;
-    max-width: 16ch;
-    vertical-align: middle;
-  }
-  /* Matches the tinted chip's inset so the column's values end at one edge */
-  .span-preview-annotation__score
-    .span-preview-annotation__value:not(:has([data-direction])) {
-    padding-inline: var(--global-dimension-size-100);
+    flex: 0 1 auto;
+    max-width: 60%;
+    white-space: nowrap;
   }
 `;
 
 export type SpanPreviewAnnotationsProps = {
   summaries: readonly AnnotationSummary[] | null | undefined;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
+  /**
+   * The section's heading.
+   * @default "Annotations"
+   */
+  title?: string;
+  /**
+   * Rows to show before the rest are counted in a "+N more" line. A preview
+   * closes when the pointer leaves its row, so it can't scroll. Shows every
+   * row when left out.
+   */
+  maxRows?: number;
+  /**
+   * Whether to show "x of y unfavorable" by the heading. Unfavorable means
+   * past the optimization pivot, which defaults to the bounds' midpoint.
+   * @default true
+   */
+  showUnfavorableCount?: boolean;
 };
 
-const UNRECORDED = (
-  <Text size="S" color="text-300">
-    --
-  </Text>
-);
-
 /**
- * One row per annotation name: how far its labels agree and its mean score.
- * Explanations are left out because they belong to single annotations and
- * do not aggregate.
+ * One row per annotation name: its combined label and mean score, tinted by
+ * its optimization config, unfavorable first, with how many are unfavorable
+ * by the heading. Explanations are left out
+ * because they belong to single annotations and do not aggregate. Renders
+ * nothing without summaries.
  */
 export function SpanPreviewAnnotations({
   summaries,
   annotationConfigsByName,
+  title = "Annotations",
+  maxRows,
+  showUnfavorableCount = true,
 }: SpanPreviewAnnotationsProps) {
   const headingId = useId();
   if (!summaries?.length) {
@@ -114,80 +112,68 @@ export function SpanPreviewAnnotations({
   const unfavorableCount = rows.filter(
     (row) => (row.optimizationValue ?? 0) < 0
   ).length;
+  const shownRows = maxRows == null ? rows : rows.slice(0, maxRows);
+  const hiddenCount = rows.length - shownRows.length;
+  const hasTintedValue = shownRows.some(
+    ({ summary, optimizationValue }) =>
+      optimizationValue != null &&
+      typeof summary.meanScore === "number" &&
+      !Number.isNaN(summary.meanScore)
+  );
   return (
-    // The card pads its sections, and a collapsed-border table ignores padding
-    <div className="span-preview__annotations">
-      <table
-        className="span-preview-annotations-table"
-        css={tableCSS}
-        aria-labelledby={headingId}
+    <section
+      className="span-preview-annotations"
+      css={annotationsCSS}
+      aria-labelledby={headingId}
+    >
+      <div className="span-preview-annotations__title">
+        <Text id={headingId} size="S" weight="heavy">
+          {title}
+        </Text>
+        {showUnfavorableCount && unfavorableCount > 0 ? (
+          <Text size="XS" color="danger">
+            {`${unfavorableCount} of ${rows.length} unfavorable`}
+          </Text>
+        ) : null}
+      </div>
+      <ul
+        className={classNames(
+          "span-preview-annotations__list",
+          hasTintedValue && "span-preview-annotations__list--tinted"
+        )}
       >
-        <thead>
-          <tr>
-            <th scope="col" className="span-preview-annotation__name">
-              <span className="span-preview-annotations-table__title">
-                <Text id={headingId} size="S" weight="heavy">
-                  Annotations
-                </Text>
-                {unfavorableCount > 0 ? (
-                  <Text size="XS" color="danger">
-                    {`${unfavorableCount} of ${rows.length} unfavorable`}
-                  </Text>
-                ) : null}
-              </span>
-            </th>
-            <th scope="col">
-              <Text size="XS" color="text-500">
-                Label
+        {shownRows.map(({ summary, optimizationValue }) => (
+          <li key={summary.name} className="span-preview-annotation">
+            <AnnotationColorSwatch annotationName={summary.name} />
+            <Text
+              size="S"
+              className="span-preview-annotation__name"
+              title={summary.name}
+            >
+              {summary.name}
+            </Text>
+            {summary.count != null && summary.count > 1 ? (
+              <Text
+                size="XS"
+                color="text-500"
+                className="span-preview-annotation__count"
+              >
+                {`×${summary.count}`}
               </Text>
-            </th>
-            <th scope="col">
-              <Text size="XS" color="text-500">
-                Score
-              </Text>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ summary, optimizationValue }) => (
-            <tr key={summary.name} className="span-preview-annotation">
-              <th scope="row" className="span-preview-annotation__name">
-                <span className="span-preview-annotation__name-label">
-                  <AnnotationColorSwatch annotationName={summary.name} />
-                  <Text
-                    size="S"
-                    className="span-preview-annotation__name-text"
-                    title={summary.name}
-                  >
-                    {summary.name}
-                  </Text>
-                  {summary.count != null && summary.count > 1 ? (
-                    <Text size="XS" color="text-500">
-                      {`×${summary.count}`}
-                    </Text>
-                  ) : null}
-                </span>
-              </th>
-              <td className="span-preview-annotation__label">
-                <AnnotationLabelConsensusText
-                  summary={summary}
-                  fallback={UNRECORDED}
-                  className="span-preview-annotation__value"
-                />
-              </td>
-              <td className="span-preview-annotation__score">
-                <MeanScore
-                  value={summary.meanScore}
-                  optimizationValue={optimizationValue}
-                  fallback={UNRECORDED}
-                  size="S"
-                  className="span-preview-annotation__value"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            ) : null}
+            <AnnotationSummaryValue
+              summary={summary}
+              optimizationValue={optimizationValue}
+              className="span-preview-annotation__value"
+            />
+          </li>
+        ))}
+      </ul>
+      {hiddenCount > 0 ? (
+        <Text size="XS" color="text-500">
+          {`+${hiddenCount} more`}
+        </Text>
+      ) : null}
+    </section>
   );
 }
