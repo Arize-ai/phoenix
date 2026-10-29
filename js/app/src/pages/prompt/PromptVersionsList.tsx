@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useResolvedPath } from "react-router";
+import { useLocation, useResolvedPath } from "react-router";
 
 import { Timeline, View } from "@phoenix/components";
 
@@ -36,6 +36,7 @@ export const PromptVersionsList = ({
   itemActive,
 }: PromptVersionsListProps) => {
   const basePath = useResolvedPath(".").pathname;
+  const { search } = useLocation();
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment(
     graphql`
       fragment PromptVersionsList__main on Prompt
@@ -82,12 +83,12 @@ export const PromptVersionsList = ({
         css={promptVersionsListScrollCSS}
         onScroll={(event) => fetchMoreOnBottomReached(event.currentTarget)}
       >
-        <Timeline>
+        <Timeline isTruncated={hasNext}>
           {data.pagedVersions.edges.map(({ version }) => (
             <PromptVersionTimelineItem
               key={version.id}
               promptVersion={version}
-              to={`${basePath}/${version.id}`}
+              to={`${basePath}/${version.id}${search}`}
               isCurrent={itemActive?.(version)}
             />
           ))}

@@ -136,6 +136,11 @@ function EditPromptDescriptionDialog({
           <DialogHeader>
             <DialogTitle>Edit prompt</DialogTitle>
           </DialogHeader>
+          {error ? (
+            <Alert variant="danger" banner>
+              {error}
+            </Alert>
+          ) : null}
           <Form
             onSubmit={handleSubmit(({ description }) => {
               setError(null);
@@ -164,7 +169,6 @@ function EditPromptDescriptionDialog({
           >
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
-                {error && <Alert variant="danger">{error}</Alert>}
                 <Controller
                   name="description"
                   control={control}
