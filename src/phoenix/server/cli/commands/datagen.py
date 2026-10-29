@@ -143,7 +143,10 @@ def _seed_sources(
 ) -> list[Dataset]:
     from phoenix.experimental.datagen.datasets import seed_datasets
     from phoenix.experimental.datagen.decisions import seed_workflow_decisions
-    from phoenix.experimental.datagen.evaluators import seed_dataset_decision_evaluators
+    from phoenix.experimental.datagen.evaluators import (
+        seed_dataset_decision_evaluators,
+        seed_online_decision_judge,
+    )
 
     datasets = (
         seed_datasets(client)  # type: ignore[arg-type]
@@ -154,6 +157,8 @@ def _seed_sources(
         print(f"Seeded decision {name} (version {version_id})", file=stream)
     for name, binding_id in seed_dataset_decision_evaluators(http, datasets):
         print(f"Seeded dataset evaluator {name} ({binding_id})", file=stream)
+    for name, binding_id in seed_online_decision_judge(http):
+        print(f"Seeded project evaluator {name} ({binding_id})", file=stream)
     return datasets
 
 

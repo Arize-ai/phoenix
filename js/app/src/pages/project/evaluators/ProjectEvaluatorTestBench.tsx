@@ -40,6 +40,7 @@ import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type {
   InlineCodeEvaluatorInput,
+  InlineDecisionEvaluatorInput,
   InlineLLMEvaluatorInput,
   ProjectEvaluatorTestBenchPreviewMutation,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestBenchPreviewMutation.graphql";
@@ -76,6 +77,11 @@ export type ProjectEvaluatorInlineCode = {
   sourceCode: string;
   sandboxConfigId: string | null;
 };
+
+export type ProjectEvaluatorDecisionPreview =
+  | { decisionEvaluatorId: string }
+  | { definition: Omit<InlineDecisionEvaluatorInput, "name"> }
+  | { blocker: string };
 
 /**
  * Labels read inside the sentence "12 spans matched in the …", so they are
@@ -140,6 +146,7 @@ export function ProjectEvaluatorTestBench({
   onLoadMore,
   codeEvaluatorId,
   inlineCode,
+  decision,
   playgroundStore,
   requiredVariables,
   ...headerProps
@@ -151,6 +158,7 @@ export function ProjectEvaluatorTestBench({
   onLoadMore: () => void;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   requiredVariables?: string[];
 }) {
@@ -171,6 +179,7 @@ export function ProjectEvaluatorTestBench({
     useEvaluatorPreviewRuns({
       codeEvaluatorId,
       inlineCode,
+      decision,
       playgroundStore,
     });
   const declaredVariables = useEvaluatorInputVariables();
@@ -492,7 +501,9 @@ const benchCSS = css`
 type PreviewEvaluatorInput =
   | { codeEvaluatorId: string }
   | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
-  | { inlineLlmEvaluator: InlineLLMEvaluatorInput };
+  | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
+  | { decisionEvaluatorId: string }
+  | { inlineDecisionEvaluator: InlineDecisionEvaluatorInput };
 
 /**
  * Stands in for the evaluator's name until the author types one. The name
@@ -524,11 +535,13 @@ function withPreviewName(
 function buildPreviewEvaluator({
   codeEvaluatorId,
   inlineCode,
+  decision,
   playgroundStore,
   state,
 }: {
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   state: Pick<EvaluatorStore, "evaluator" | "outputConfigs">;
 }): PreviewEvaluatorInput | null {
@@ -536,6 +549,15 @@ function buildPreviewEvaluator({
     return { codeEvaluatorId };
   }
   const { name, outputConfigs } = withPreviewName(state);
+  if (decision) {
+    if ("decisionEvaluatorId" in decision) {
+      return { decisionEvaluatorId: decision.decisionEvaluatorId };
+    }
+    if ("definition" in decision) {
+      return { inlineDecisionEvaluator: { ...decision.definition, name } };
+    }
+    return null;
+  }
   if (inlineCode) {
     return {
       inlineCodeEvaluator: {
@@ -585,10 +607,12 @@ const subscribeToNothing = () => () => {};
 function useEvaluatorPreviewRuns({
   codeEvaluatorId,
   inlineCode,
+  decision,
   playgroundStore,
 }: {
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
 }) {
   // The fingerprint reads the playground store at render, which the compiler
@@ -607,6 +631,7 @@ function useEvaluatorPreviewRuns({
           results {
             evaluatorName
             annotation {
+              ...decisionAnnotation_annotation @relay(mask: false)
               name
               label
               score
@@ -633,6 +658,7 @@ function useEvaluatorPreviewRuns({
     buildPreviewEvaluator({
       codeEvaluatorId,
       inlineCode,
+      decision,
       playgroundStore,
       state: definitionState,
     }),
@@ -641,21 +667,25 @@ function useEvaluatorPreviewRuns({
   // Checked with the stand-in name in place: a blank name is not what stops
   // a test, only a configuration that would fail on the server.
   const outputConfigErrors =
-    codeEvaluatorId != null || inlineCode != null
+    codeEvaluatorId != null || inlineCode != null || decision != null
       ? []
       : getOutputConfigValidationErrors(
           withPreviewName(definitionState).outputConfigs
         );
-  const isRunnable = outputConfigErrors.length === 0;
+  const decisionBlocker =
+    decision != null && "blocker" in decision ? decision.blocker : null;
+  const isRunnable = outputConfigErrors.length === 0 && decisionBlocker == null;
   const runBlocker = isRunnable
     ? null
-    : "Fix the evaluator's annotation configuration to test";
+    : (decisionBlocker ??
+      "Fix the evaluator's annotation configuration to test");
 
   const runOnRow = (row: RecordedRunRow) => {
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
       inlineCode,
+      decision,
       playgroundStore,
       state,
     });
