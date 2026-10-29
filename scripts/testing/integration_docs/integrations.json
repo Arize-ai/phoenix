@@ -2115,6 +2115,25 @@
       "verification": {
         "kind": "phoenix_spans"
       }
+    },
+    {
+      "id": "qdrant-python-lint",
+      "document": "docs/phoenix/integrations/vector-databases/qdrant.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Full Script",
+      "run_section": "Full Script",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "filename": "qdrant_trace.py"
+      },
+      "output": {
+        "require_non_empty": false
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     }
   ]
 }

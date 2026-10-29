@@ -170,6 +170,10 @@
     {
       "doc": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js.mdx",
       "reason": "AWS credentials are short-lived in CI; validate the example without making a Bedrock request."
+    },
+    {
+      "doc": "docs/phoenix/integrations/vector-databases/qdrant.mdx",
+      "reason": "Requires a provisioned Qdrant Cloud cluster with Cloud Inference and credentials; CI validates the documented script without creating cloud resources."
     }
   ],
   "skip_if_missing_env": [

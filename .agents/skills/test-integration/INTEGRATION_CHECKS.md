@@ -29,6 +29,7 @@ This is a human-maintained onboarding checklist. CI discovers runnable docs from
 | Enabled | Ollama Go | `docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk.mdx` | Checks documented output and Phoenix spans. |
 | Lint-only | Amazon Bedrock Python Lint | `docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Lint-only | Amazon Bedrock JavaScript Lint | `docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js.mdx` | Matches AX policy for short-lived AWS credentials; installs dependencies and syntax-checks the example. |
+| Lint-only | Qdrant Python | `docs/phoenix/integrations/vector-databases/qdrant.mdx` | Installs dependencies and syntax-checks the example; CI does not provision Qdrant Cloud. |
 | Lint-only | Strands Agents Python Lint | `docs/phoenix/integrations/python/strands-agents/strands-agents-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Lint-only | Cohere Python Lint | `docs/phoenix/integrations/llm-providers/cohere/cohere-tracing.mdx` | Installs dependencies and syntax-checks the example. |
 | Lint-only | Together Python Lint | `docs/phoenix/integrations/llm-providers/together/together-tracing.mdx` | Installs dependencies and syntax-checks the example. |
