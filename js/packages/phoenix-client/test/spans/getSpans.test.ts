@@ -351,6 +351,30 @@ describe("getSpans", () => {
       ]);
     });
 
+    it.each([
+      ['"hello"'],
+      ['""'],
+      [' "hello" '],
+      ['"line\\nbreak"'],
+      ["NaN"],
+      ["-Infinity"],
+    ])(
+      "should quote %j so the server decodes the original string",
+      async (value) => {
+        const captured = captureGetSpansRequest();
+
+        await getSpans({
+          client: createTestClient(),
+          project: { projectName: "test-project" },
+          attributes: { "input.value": value },
+        });
+
+        expect(captured.query?.getAll("attribute")).toEqual([
+          `input.value:${JSON.stringify(value)}`,
+        ]);
+      }
+    );
+
     it("should quote empty string values", async () => {
       const captured = captureGetSpansRequest();
 
