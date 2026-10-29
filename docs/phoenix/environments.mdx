@@ -87,11 +87,11 @@ Set both — to the same value in the usual case where one Phoenix serves both c
 <Warning>
 Keep `PHOENIX_ENDPOINT` a **base URL**. The `px` CLI and the API clients append their own request paths to it.
 
-`PHOENIX_COLLECTOR_ENDPOINT` takes the shape the exporter reading it needs. `register()` derives the OTLP target from a base URL — the TypeScript SDK appends `/v1/traces` (OTLP/HTTP), while the Python SDK infers the transport, using OTLP/gRPC on port `4317` for self-hosted servers unless you pass `protocol="http/protobuf"`; a gRPC endpoint is just `host:port`.
+`PHOENIX_COLLECTOR_ENDPOINT` takes the shape the exporter reading it needs. `register()` derives the OTLP target from a base URL — the TypeScript SDK appends `/v1/traces` (OTLP/HTTP), while the Python SDK infers the transport, using OTLP/gRPC on port `4317` for a self-hosted base URL with no path unless you pass `protocol="http/protobuf"`; a gRPC endpoint is just `host:port`.
 
 Exporters that POST to exactly the URL they are given — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — need the *full* OTLP/HTTP URL. Set `PHOENIX_COLLECTOR_ENDPOINT` to the `/v1/traces`-suffixed form, or build that URL in code where the exporter is constructed, the way the Mastra examples do (`` `${PHOENIX_COLLECTOR_ENDPOINT}/v1/traces` ``). The `px` CLI and the API clients strip the suffix when inferring their base URL from it.
 
-With Python's `register()`, pair a suffixed value with `protocol="http/protobuf"`. Left to infer, the Python SDK rewrites the port to the gRPC port `4317` and keeps the `/v1/traces` path, and no spans arrive.
+Python's `register()` exports to a value with a path, such as the `/v1/traces`-suffixed form or a Phoenix served under a path prefix, over OTLP/HTTP.
 </Warning>
 
 ### Choosing a project
