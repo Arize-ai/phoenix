@@ -251,6 +251,7 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
+        hide_parameters=True,
         async_creator=sqlite_connection_factory(database, mode="ro"),
         pool_size=_READ_POOL_SIZE,
         max_overflow=_READ_MAX_OVERFLOW,
@@ -309,6 +310,7 @@ def aio_sqlite_engine(
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
+        hide_parameters=True,
         # rwc, not rw. Connections are lazy, so this engine can open before the
         # migration engine has created the file, and `rw` against a database
         # that does not exist yet fails.
@@ -338,6 +340,7 @@ def aio_sqlite_engine(
         migration_engine = create_async_engine(
             url=url,
             json_serializer=_dumps,
+            hide_parameters=True,
             # rwc: the migration engine is the only one that creates the file.
             async_creator=sqlite_connection_factory(database, mode="rwc"),
             poolclass=NullPool,
@@ -431,6 +434,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -443,6 +447,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -452,6 +457,7 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -474,6 +480,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     elif use_aws:
@@ -484,6 +491,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     else:
@@ -492,6 +500,7 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     migrate_in_thread(migration_engine, log_migrations=log_migrations)

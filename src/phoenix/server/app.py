@@ -8,7 +8,7 @@ import os
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -96,6 +96,7 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.redaction import RedactingOpenTelemetryExtension
 from phoenix.server.api.routers import (
     AgentSessionConflict,
     agent_session_conflict_handler,
@@ -1054,22 +1055,11 @@ def create_app(
 
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        from opentelemetry.trace import TracerProvider
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
-        if TYPE_CHECKING:
-            # Type-check the class before monkey-patching its private attribute.
-            assert OpenTelemetryExtension._tracer
-
-        class _OpenTelemetryExtension(OpenTelemetryExtension):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                super().__init__(*args, **kwargs)
-                # Monkey-patch its private tracer to eliminate usage of the global
-                # TracerProvider, which in a notebook setting could be the one
-                # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
-
-        graphql_schema_extensions.append(_OpenTelemetryExtension)
+        # Bound to this provider rather than the global one, which in a notebook
+        # could be the provider OpenInference is using.
+        graphql_schema_extensions.append(
+            partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
+        )
     logger_provider = None
     if server_log_export_is_enabled():
         logger_provider = initialize_opentelemetry_logger_provider()
