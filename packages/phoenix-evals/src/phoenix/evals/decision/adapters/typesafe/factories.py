@@ -7,8 +7,7 @@ def create_typesafe_client(model: str, is_async: bool, **kwargs: Any) -> Any:
     except ImportError:
         raise ImportError("typesafe-sdk package not installed. Run: pip install typesafe-sdk")
 
-    # Turn the SDK's own retries off so they don't stack on top of the RateLimiter the
-    # DecisionModel facade wraps calls in (mirrors max_retries=0 in the other factories).
+    # Turn the SDK's own retries off so they don't stack on top of the RateLimiter.
     retry = RetryPolicy(max_retries=0)
 
     client: Union[AsyncTypeSafeClient, TypeSafeClient]
