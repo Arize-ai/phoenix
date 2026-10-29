@@ -1,15 +1,31 @@
 """Marks GraphQL arguments and input fields whose values must not reach span attributes."""
 
+from collections.abc import Generator
 from typing import Annotated, Any, TypeVar
 
 import strawberry
 from graphql import (
+    ArgumentNode,
+    DocumentNode,
     GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLList,
     GraphQLNonNull,
     GraphQLResolveInfo,
+    GraphQLSchema,
+    ObjectFieldNode,
+    StringValueNode,
+    TypeInfo,
+    TypeInfoVisitor,
+    VariableNode,
+    Visitor,
+    get_named_type,
+    print_ast,
+    visit,
 )
+from opentelemetry.trace import SpanKind
+from strawberry.extensions import LifecycleStep
+from strawberry.extensions.tracing import OpenTelemetryExtension
 from strawberry.types.arguments import StrawberryArgument, StrawberryArgumentAnnotation
 from strawberry.types.field import StrawberryField
 from typing_extensions import get_args, get_origin
@@ -51,6 +67,75 @@ def redact_arguments(args: dict[str, Any], info: GraphQLResolveInfo[Any]) -> dic
         else:
             _redact_value(value, graphql_argument.type)
     return args
+
+
+def redact_document(document: DocumentNode, schema: GraphQLSchema) -> str:
+    """Print the document with every literal bound to a ``Redacted`` argument or input
+    field replaced by ``"[redacted]"``. Variables are left as written: their values are
+    not part of the document."""
+    type_info = TypeInfo(schema)
+    return print_ast(visit(document, TypeInfoVisitor(type_info, _RedactLiterals(type_info))))
+
+
+class _RedactLiterals(Visitor):
+    def __init__(self, type_info: TypeInfo) -> None:
+        super().__init__()
+        self._type_info = type_info
+
+    def enter_argument(self, node: ArgumentNode, *_: Any) -> ArgumentNode | None:
+        graphql_argument = self._type_info.get_argument()
+        if graphql_argument is None or isinstance(node.value, VariableNode):
+            return None
+        argument = (graphql_argument.extensions or {}).get("strawberry-definition")
+        if isinstance(argument, StrawberryArgument) and argument.metadata.get(_REDACTED_KEY):
+            return ArgumentNode(name=node.name, value=StringValueNode(value=REDACTED_VALUE))
+        return None
+
+    def enter_object_field(self, node: ObjectFieldNode, *_: Any) -> ObjectFieldNode | None:
+        parent = get_named_type(self._type_info.get_parent_input_type())
+        if not isinstance(parent, GraphQLInputObjectType) or isinstance(node.value, VariableNode):
+            return None
+        graphql_field = parent.fields.get(node.name.value)
+        if graphql_field is None:
+            return None
+        field = (graphql_field.extensions or {}).get("strawberry-definition")
+        if isinstance(field, StrawberryField) and _is_redacted_field(field):
+            return ObjectFieldNode(name=node.name, value=StringValueNode(value=REDACTED_VALUE))
+        return None
+
+
+class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
+    """Strawberry's OpenTelemetry extension with ``Redacted`` values blanked.
+
+    Resolver arguments go through ``redact_arguments``. The operation span records the
+    parsed document with its ``Redacted`` literals blanked rather than the raw request
+    text, so an inlined password is not exported either. A request that fails to parse
+    records no document.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs.setdefault("arg_filter", redact_arguments)
+        super().__init__(**kwargs)
+
+    def on_operation(self) -> Generator[None, None, None]:
+        self._operation_name = self.execution_context.operation_name
+        span = self._tracer.start_span(
+            _operation_span_name(self._operation_name), kind=SpanKind.SERVER
+        )
+        span.set_attribute("component", "graphql")
+        self._span_holder[LifecycleStep.OPERATION] = span
+        yield
+        if not self._operation_name and self.execution_context.operation_name:
+            span.update_name(_operation_span_name(self.execution_context.operation_name))
+        if (document := self.execution_context.graphql_document) is not None:
+            span.set_attribute(
+                "query", redact_document(document, self.execution_context.schema._schema)
+            )
+        span.end()
+
+
+def _operation_span_name(operation_name: str | None) -> str:
+    return f"GraphQL Query: {operation_name}" if operation_name else "GraphQL Query"
 
 
 def _redact_value(value: Any, type_: GraphQLInputType) -> None:
@@ -102,4 +187,10 @@ def _is_redacted(annotation: object) -> bool:
     )
 
 
-__all__ = ["REDACTED_VALUE", "Redacted", "redact_arguments"]
+__all__ = [
+    "REDACTED_VALUE",
+    "Redacted",
+    "RedactingOpenTelemetryExtension",
+    "redact_arguments",
+    "redact_document",
+]

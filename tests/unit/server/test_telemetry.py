@@ -3,13 +3,13 @@ from typing import Any, Optional
 
 import pytest
 import strawberry
+from graphql import parse, print_ast
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.semconv.resource import ResourceAttributes
-from strawberry.extensions.tracing import OpenTelemetryExtension
 
-from phoenix.server.api.redaction import Redacted, redact_arguments
+from phoenix.server.api.redaction import Redacted, RedactingOpenTelemetryExtension
 from phoenix.server.telemetry import (
     _server_resource,
     normalize_http_log_collector_endpoint,
@@ -88,13 +88,7 @@ class TestGraphQLTracingExtension:
         return strawberry.Schema(
             query=self.Query,
             mutation=self.Mutation,
-            extensions=[
-                partial(
-                    OpenTelemetryExtension,
-                    tracer_provider=tracer_provider,
-                    arg_filter=redact_arguments,
-                )
-            ],
+            extensions=[partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)],
         )
 
     @staticmethod
@@ -122,7 +116,7 @@ class TestGraphQLTracingExtension:
 
         assert result.errors is None
         spans = self._spans(exporter)
-        assert spans["GraphQL Query: CreateUser"]["query"] == document
+        assert spans["GraphQL Query: CreateUser"]["query"] == print_ast(parse(document))
         assert spans["GraphQL Resolving: createUser"] == {
             "component": "graphql",
             "graphql.parentType": "Mutation",
@@ -135,6 +129,35 @@ class TestGraphQLTracingExtension:
         }
         for secret in ("alice@example.com", "hunter2", "sk-live-123"):
             assert all(secret not in str(attributes) for attributes in spans.values())
+
+    async def test_inlined_literals_are_redacted_in_the_recorded_document(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        document = (
+            'mutation CreateUser { createUser(note: "reset by alice@example.com", input: {'
+            'email: "alice@example.com", role: "ADMIN", password: "hunter2", '
+            'credentials: [{name: "OPENAI_API_KEY", value: "sk-live-123"}]}) }'
+        )
+
+        result = await schema.execute(document)
+
+        assert result.errors is None
+        query = self._spans(exporter)["GraphQL Query: CreateUser"]["query"]
+        assert query.count('"[redacted]"') == 4
+        assert 'role: "ADMIN"' in query
+        assert 'name: "OPENAI_API_KEY"' in query
+        for secret in ("alice@example.com", "hunter2", "sk-live-123"):
+            assert secret not in query
+
+    async def test_unparseable_request_records_no_document(
+        self, schema: strawberry.Schema, exporter: InMemorySpanExporter
+    ) -> None:
+        result = await schema.execute('mutation { createUser(input: {email: "alice@example.com" ')
+
+        assert result.errors
+        spans = self._spans(exporter)
+        assert "query" not in spans["GraphQL Query"]
+        assert all("alice@example.com" not in str(attributes) for attributes in spans.values())
 
     async def test_other_resolver_arguments_are_recorded(
         self, schema: strawberry.Schema, exporter: InMemorySpanExporter
