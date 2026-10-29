@@ -47,20 +47,25 @@ def _make_adapter(
     return adapter, completion_mock, acompletion_mock
 
 
-def test_asks_anthropic_for_the_tool_call_after_the_system_prompt(
+def test_asks_anthropic_for_the_tool_call_at_the_end_of_the_system_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     adapter, completion_mock, _ = _make_adapter(monkeypatch, provider="anthropic")
-    prompt = [{"role": "system", "content": "Be strict."}, {"role": "user", "content": "q"}]
+    system = {"role": "system", "content": "Be strict."}
+    user = {"role": "user", "content": "q"}
 
-    result = adapter.generate_object(prompt, _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
+    result = adapter.generate_object(
+        [system, user], _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING
+    )
 
     assert result == {"label": "a"}
     request: Dict[str, Any] = completion_mock.call_args.kwargs
-    assert request["messages"] == [*prompt, {"role": "system", "content": _INSTRUCTION}]
+    assert request["messages"] == [system, {"role": "system", "content": _INSTRUCTION}, user]
 
 
-async def test_async_asks_anthropic_for_the_tool_call(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_async_asks_anthropic_for_the_tool_call_without_a_system_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     adapter, _, acompletion_mock = _make_adapter(monkeypatch, provider="anthropic")
 
     result = await adapter.async_generate_object(
@@ -68,10 +73,10 @@ async def test_async_asks_anthropic_for_the_tool_call(monkeypatch: pytest.Monkey
     )
 
     assert result == {"label": "a"}
-    assert acompletion_mock.call_args.kwargs["messages"][-1] == {
-        "role": "system",
-        "content": _INSTRUCTION,
-    }
+    assert acompletion_mock.call_args.kwargs["messages"] == [
+        {"role": "system", "content": _INSTRUCTION},
+        {"role": "user", "content": "q"},
+    ]
 
 
 def test_other_providers_still_force_the_tool(monkeypatch: pytest.MonkeyPatch) -> None:

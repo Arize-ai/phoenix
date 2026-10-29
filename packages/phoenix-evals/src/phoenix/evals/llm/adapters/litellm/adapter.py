@@ -417,9 +417,20 @@ class LiteLLMAdapter(BaseLLMAdapter):
         if self.client.provider != "anthropic":
             return messages, {"type": "function", "function": {"name": TOOL_NAME}}
         # Some Claude models reject a forced tool_choice (see TOOL_INSTRUCTION), so ask for the
-        # call in a system message instead. LiteLLM gathers every system message, in order, into
-        # Anthropic's system blocks, so this one follows any system prompt the caller wrote.
-        return [*messages, {"role": "system", "content": TOOL_INSTRUCTION}], "auto"
+        # call in the system prompt instead. LiteLLM only hoists the leading run of system
+        # messages (developer messages become system ones) into Anthropic's system prompt; a later
+        # one stays in the conversation, so the instruction goes at the end of that leading run.
+        system_roles = (MessageRole.SYSTEM.value, MessageRole.DEVELOPER.value)
+        system_count = next(
+            (
+                index
+                for index, message in enumerate(messages)
+                if message["role"] not in system_roles
+            ),
+            len(messages),
+        )
+        instruction = {"role": MessageRole.SYSTEM.value, "content": TOOL_INSTRUCTION}
+        return [*messages[:system_count], instruction, *messages[system_count:]], "auto"
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
