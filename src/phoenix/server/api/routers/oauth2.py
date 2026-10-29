@@ -1,16 +1,18 @@
 """OAuth2 relying party: Phoenix logs users in via an external IdP."""
 
 import base64
+import hashlib
+import hmac
 import html
 import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from os import getenv
 from random import randrange
 from typing import Any, Optional, TypedDict
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 import jmespath
 from authlib.common.security import generate_token
@@ -120,27 +122,35 @@ async def login(
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
     assert isinstance(nonce := authorization_url_data.get("nonce"), str)
+    assert isinstance(key := getattr(request.app.state, "oauth2_login_context_key", None), bytes)
+    max_age = timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES)
     response = RedirectResponse(url=authorization_url, status_code=302)
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        max_age=max_age,
     )
     response = set_oauth2_login_context_cookie(
         response=response,
-        login_context=_encode_oauth2_login_context(origin_url=origin_url, return_url=return_url),
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        login_context=_encode_oauth2_login_context(
+            key=key,
+            state=state,
+            origin_url=origin_url,
+            return_url=return_url,
+            expires_at=datetime.now(timezone.utc) + max_age,
+        ),
+        max_age=max_age,
     )
     response = set_oauth2_nonce_cookie(
         response=response,
         nonce=nonce,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        max_age=max_age,
     )
     if code_verifier := authorization_url_data.get("code_verifier"):
         response = set_oauth2_code_verifier_cookie(
             response=response,
             code_verifier=code_verifier,
-            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+            max_age=max_age,
         )
     return response
 
@@ -226,14 +236,22 @@ async def create_tokens(
         logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="auth_failed")
     # RFC 6749 §10.12: CSRF protection - validate state parameter
-    if state != stored_state:
+    if (
+        not state.isascii()
+        or not stored_state.isascii()
+        or not hmac.compare_digest(state, stored_state)
+    ):
         return _redirect_to_login(request=request, error="invalid_state")
     try:
-        login_context = _parse_oauth2_login_context(stored_login_context)
+        login_context = _parse_oauth2_login_context(
+            stored_login_context,
+            key=getattr(request.app.state, "oauth2_login_context_key", None),
+            state=state,
+        )
     except ValueError:
         return _redirect_to_login(request=request, error="invalid_state")
     if (return_url := login_context.get("return_url")) is not None and not _is_relative_url(
-        unquote(return_url)
+        return_url
     ):
         return _redirect_to_login(request=request, error="unsafe_return_url")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
@@ -967,31 +985,78 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
 
 class _OAuth2LoginContext(TypedDict):
     origin_url: str
+    exp: int
     return_url: NotRequired[str]
 
 
-def _encode_oauth2_login_context(*, origin_url: str, return_url: Optional[str]) -> str:
-    payload: dict[str, str] = {"origin_url": origin_url}
+def _sign_oauth2_login_context(*, key: bytes, state: str, encoded_payload: str) -> str:
+    # Covering state binds the cookie to one login attempt; "." cannot appear in base64url.
+    mac = hmac.new(key, f"{state}.{encoded_payload}".encode("utf-8"), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
+
+
+def _encode_oauth2_login_context(
+    *,
+    key: bytes,
+    state: str,
+    origin_url: str,
+    return_url: Optional[str],
+    expires_at: Optional[datetime] = None,
+) -> str:
+    if expires_at is None:
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES
+        )
+    payload: dict[str, Any] = {
+        "origin_url": origin_url,
+        "exp": int(expires_at.timestamp()),
+    }
     if return_url is not None:
         payload["return_url"] = return_url
     raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    encoded_payload = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    signature = _sign_oauth2_login_context(key=key, state=state, encoded_payload=encoded_payload)
+    return f"{encoded_payload}.{signature}"
 
 
 _MAX_OAUTH2_LOGIN_CONTEXT_LENGTH = 4096
 
 
-def _parse_oauth2_login_context(value: Optional[str]) -> _OAuth2LoginContext:
-    """Decode the login-context cookie. Raises ValueError when it is missing or malformed."""
-    if not value or len(value) > _MAX_OAUTH2_LOGIN_CONTEXT_LENGTH:
+def _parse_oauth2_login_context(
+    value: Optional[str],
+    *,
+    key: Optional[bytes],
+    state: str,
+    now: Optional[datetime] = None,
+) -> _OAuth2LoginContext:
+    """Verify and decode the login-context cookie."""
+    if (
+        not value
+        or len(value) > _MAX_OAUTH2_LOGIN_CONTEXT_LENGTH
+        or not value.isascii()
+        or not key
+        or not state
+        or not state.isascii()
+    ):
+        raise ValueError("Invalid OAuth2 login context.")
+    encoded_payload, sep, signature = value.partition(".")
+    if not sep or not encoded_payload or not signature or "." in signature:
+        raise ValueError("Invalid OAuth2 login context.")
+    expected_signature = _sign_oauth2_login_context(
+        key=key, state=state, encoded_payload=encoded_payload
+    )
+    if not hmac.compare_digest(signature, expected_signature):
         raise ValueError("Invalid OAuth2 login context.")
     try:
-        padded = value + "=" * (-len(value) % 4)
+        padded = encoded_payload + "=" * (-len(encoded_payload) % 4)
         payload = json.loads(base64.urlsafe_b64decode(padded))
     except (ValueError, UnicodeDecodeError, RecursionError):
         raise ValueError("Invalid OAuth2 login context.") from None
     if not _is_oauth2_login_context(payload):
         raise ValueError("Invalid OAuth2 login context.")
+    current_time = now or datetime.now(timezone.utc)
+    if payload["exp"] <= int(current_time.timestamp()):
+        raise ValueError("Expired OAuth2 login context.")
     return payload
 
 
@@ -1008,7 +1073,12 @@ def _is_oauth2_login_context(payload: Any) -> TypeGuard[_OAuth2LoginContext]:
     if not isinstance(payload, dict):
         return False
     keys = set(payload.keys())
-    if "origin_url" not in keys or not keys.issubset({"origin_url", "return_url"}):
+    if not {"origin_url", "exp"}.issubset(keys) or not keys.issubset(
+        {"origin_url", "exp", "return_url"}
+    ):
+        return False
+    exp = payload["exp"]
+    if not isinstance(exp, int) or isinstance(exp, bool):
         return False
     origin_url = payload["origin_url"]
     if (
@@ -1033,8 +1103,10 @@ def _encodes_as_utf8(value: str) -> bool:
 
 def _is_relative_url(url: str) -> bool:
     """
-    Determines whether the URL is relative.
+    Determines whether the URL is a relative path on this origin.
     """
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in url):
+        return False
     return bool(_RELATIVE_URL_PATTERN.match(url))
 
 
@@ -1045,4 +1117,4 @@ def _with_random_suffix(string: str) -> str:
     return f"{string}-{randrange(10_000, 100_000)}"
 
 
-_RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")
+_RELATIVE_URL_PATTERN = re.compile(r"^/(?:\Z|[?#]|\w)")

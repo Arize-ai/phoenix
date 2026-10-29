@@ -132,6 +132,7 @@ from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.model_cost_manifest_fetcher import ModelCostManifestFetcher
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.deployment_secret import (
+    OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
     REDACTION_KEY_PURPOSE,
     TOKEN_SIGNING_KEY_PURPOSE,
     derive_deployment_key,
@@ -687,12 +688,18 @@ def _lifespan(
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         seed = await load_deployment_seed(db)
+        effective_secret = secret or SecretStr("")
         app.state.redactor = Redactor(
             derive_deployment_key(
                 seed=seed,
-                secret=secret or SecretStr(""),
+                secret=effective_secret,
                 purpose=REDACTION_KEY_PURPOSE,
             )
+        )
+        app.state.oauth2_login_context_key = derive_deployment_key(
+            seed=seed,
+            secret=effective_secret,
+            purpose=OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
         )
         if isinstance(token_store, JwtStore):
             if secret:

@@ -8,7 +8,9 @@ from sqlalchemy import func, select
 
 from phoenix.db import models
 from phoenix.server.deployment_secret import (
+    OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
     REDACTION_KEY_PURPOSE,
+    TOKEN_SIGNING_KEY_PURPOSE,
     derive_deployment_key,
     load_deployment_seed,
 )
@@ -43,7 +45,19 @@ def test_derive_deployment_key_separates_inputs() -> None:
     secret = SecretStr("secret")
     key = derive_deployment_key(seed=seed, secret=secret, purpose=REDACTION_KEY_PURPOSE)
     assert key == derive_deployment_key(seed=seed, secret=secret, purpose=REDACTION_KEY_PURPOSE)
-    assert key != derive_deployment_key(seed=seed, secret=secret, purpose=b"phoenix/other/v1")
+    assert (
+        len(
+            {
+                derive_deployment_key(seed=seed, secret=secret, purpose=purpose)
+                for purpose in (
+                    OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
+                    REDACTION_KEY_PURPOSE,
+                    TOKEN_SIGNING_KEY_PURPOSE,
+                )
+            }
+        )
+        == 3
+    )
     assert key != derive_deployment_key(
         seed=b"\x02" * 32, secret=secret, purpose=REDACTION_KEY_PURPOSE
     )
