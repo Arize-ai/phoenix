@@ -17,6 +17,12 @@ SDK_REQ="$REPO_ROOT/requirements/canary/sdk/$SDK.txt"
 HELPERS="src/phoenix/client/helpers/sdk"
 TESTS="tests/canary/sdk"
 
+assert_helper_imports_without_sdk() {
+  uv pip uninstall -r "$SDK_REQ"
+  uv pip list -v
+  python -c "import phoenix.client.helpers.sdk.$SDK.$MOD"
+}
+
 cd "$CLIENT_DIR"
 
 export VIRTUAL_ENV="$CLIENT_DIR/.venv-canary-$SDK"
@@ -24,10 +30,7 @@ export PATH="$VIRTUAL_ENV/bin:$PATH"
 uv venv --quiet "$VIRTUAL_ENV"
 
 uv pip install --strict -U --reinstall-package arize-phoenix-client .
-# The helper module must import without the SDK installed.
-uv pip uninstall -r "$SDK_REQ"
-uv pip list -v
-python -c "import phoenix.client.helpers.sdk.$SDK.$MOD"
+assert_helper_imports_without_sdk
 
 uv pip install --strict -U -r "$SDK_REQ"
 uv pip list -v

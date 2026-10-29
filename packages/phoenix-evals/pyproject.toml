@@ -62,8 +62,6 @@ test = [
 ]
 
 [dependency-groups]
-# Test and type-check tooling for CI (`uv sync --package arize-phoenix-evals`).
-# Dependency groups are never published with the wheel.
 dev = [
   "google-genai>=1.0.0",
   "mypy==2.4.0",

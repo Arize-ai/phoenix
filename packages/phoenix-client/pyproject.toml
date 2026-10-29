@@ -50,8 +50,6 @@ harbor = [
 ]
 
 [dependency-groups]
-# Test and type-check tooling for CI (`uv sync --package arize-phoenix-client`).
-# Dependency groups are never published with the wheel.
 dev = [
   "anthropic>=1,<2",
   "deepdiff==8.6.2",

@@ -76,11 +76,9 @@ from tests.unit.vcr import CustomVCR
 
 
 def pytest_configure(config: Config) -> None:
-    # freeze_time() reads every attribute of every loaded module to find datetime
-    # objects to patch. The daytona SDK resolves attributes lazily by importing
-    # submodules, whose pydantic models then build their schemas against the
-    # already-patched FakeDatetime and fail, leaving the patch half-applied for
-    # the rest of the worker.
+    # freeze_time() touches every attribute of every loaded module; daytona_sdk
+    # answers by importing submodules whose pydantic models then fail to build
+    # against FakeDatetime, and the exception leaves the patch half-applied.
     freezegun.configure(extend_ignore_list=["daytona_sdk", "daytona_api_client"])
     config.addinivalue_line(
         "markers",

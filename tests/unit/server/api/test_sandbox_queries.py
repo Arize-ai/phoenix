@@ -107,8 +107,6 @@ async def test_sandbox_providers_returns_nested_configs(
         SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
     )
     assert provider_result["enabled"] is True
-    # App startup seeds a default config for each locally runnable backend, so the
-    # fixture's config is not necessarily the only one.
     fixture_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
     seeded_names = {
         str(default_sandbox_config_name(provider.backend_type, language))

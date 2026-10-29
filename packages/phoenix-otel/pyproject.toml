@@ -39,8 +39,6 @@ test = [
 ]
 
 [dependency-groups]
-# Test and type-check tooling for CI (`uv sync --package arize-phoenix-otel`).
-# Dependency groups are never published with the wheel.
 dev = [
   "mypy==2.4.0",
   "pytest",
