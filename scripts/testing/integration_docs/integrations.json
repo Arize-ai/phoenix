@@ -2039,6 +2039,82 @@
         ]
       },
       "python_version": "3.11"
+    },
+    {
+      "id": "claude-agent-sdk-python",
+      "document": "docs/phoenix/integrations/python/claude-agent-sdk.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Claude Agent SDK",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "AGENT",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "claude-agent-sdk-typescript",
+      "document": "docs/phoenix/integrations/typescript/claude-agent-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "AGENT",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "amazon-bedrock-javascript-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock",
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": false
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
     }
   ]
 }
