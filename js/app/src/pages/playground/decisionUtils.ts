@@ -156,22 +156,6 @@ export function isValidVariableName(name: string): boolean {
 }
 
 /**
- * The keys a decision could read from these examples' variables: each
- * example's top-level keys, in the order first seen. An array's indexes are
- * not keys.
- */
-export function getExampleVariableNames(
-  exampleVariables: readonly unknown[]
-): string[] {
-  const names = new Set<string>();
-  for (const variables of exampleVariables) {
-    if (!isStringKeyedObject(variables) || Array.isArray(variables)) continue;
-    for (const name of Object.keys(variables)) names.add(name);
-  }
-  return [...names];
-}
-
-/**
  * A JSON template of one property per name, each a whole-tag hole for the
  * variable of the same name: `{"ticket": "{{ticket}}"}`. Names that aren't
  * valid variable names are skipped.

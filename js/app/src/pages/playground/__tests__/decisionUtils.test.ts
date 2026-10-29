@@ -18,7 +18,6 @@ import {
   extractDecisionVariables,
   getChatForDecisionToPrompt,
   getDecisionValidationError,
-  getExampleVariableNames,
   getImportedTemplateFormat,
   getJsonTemplateStringLeaves,
   maskUntouchedErrors,
@@ -718,18 +717,12 @@ describe("variable values", () => {
   });
 });
 
-describe("building the state from a dataset", () => {
-  it("builds a JSON state of holes from dataset keys, skipping invalid names", () => {
-    const names = getExampleVariableNames([
-      { ticket: "a", "two words": 1 },
-      { since: 2019, ticket: "b" },
-      ["not", "keys"],
-    ]);
-    expect(names).toEqual(["ticket", "two words", "since"]);
+describe("a JSON state of variables", () => {
+  it("has one variable per name, skipping names that aren't valid", () => {
     expect(
       JSON.parse(
         toJsonTemplateOfVariables({
-          names,
+          names: ["ticket", "two words", "since"],
           templateFormat: TemplateFormats.FString,
         })
       )
