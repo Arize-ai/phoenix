@@ -115,11 +115,8 @@ def seed_dataset_decision_evaluators(
             name=_EVALUATOR_NAME,
             metadata={"datagen": True, "dataset_name": dataset.name},
             version={
-                "inputs": [
-                    {"name": name, "description": None, "jsonSchema": None}
-                    for name in ("reference", "output")
-                ],
-                "state": {"object": True},
+                "templateFormat": "MUSTACHE",
+                "state": {"json": {"reference": "{{reference}}", "output": "{{output}}"}},
                 "questions": [
                     {
                         "predicate": {

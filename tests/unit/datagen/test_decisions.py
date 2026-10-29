@@ -56,7 +56,7 @@ def _saved_version(version: dict[str, Any], version_id: str) -> dict[str, Any]:
     saved = deepcopy(version)
     saved.update(id=version_id, customProvider=None)
     saved.pop("customProviderId")
-    saved["state"] = {"__typename": "DecisionInputState", "input": "state"}
+    saved["state"] = {"__typename": "DecisionJsonState", "json": "{{state}}"}
     type_names = {
         "predicate": "DecisionPredicateQuestion",
         "choice": "DecisionChoiceQuestion",
@@ -77,8 +77,9 @@ def test_native_questions_preserve_workflow_criteria_and_zero_based_scores() -> 
         questions,
         source_metadata={"source_revision": "pinned", "unrelated": "omit"},
     )
-    assert version["state"] == {"input": "state"}
-    assert version["inputs"][0]["name"] == "state"
+    assert version["templateFormat"] == "MUSTACHE"
+    assert version["state"] == {"json": "{{state}}"}
+    assert "inputs" not in version
     assert version["modelProvider"] == "TYPESAFE"
     assert version["modelName"] == "jev-latest"
     choice, predicate, *scales = version["questions"]
