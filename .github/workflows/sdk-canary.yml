@@ -1,0 +1,123 @@
+name: SDK Canary Tests
+
+# Daily: run the phoenix-client canary tests against the latest release of each third-party
+# SDK. PR CI installs from uv.lock, so this is the only place an upstream SDK release is
+# tested before the weekly dependency upgrade. A failure files (or updates) a bug issue per
+# SDK, labeled `factory` as the factory's GitHub App so factory-dispatch.yml picks it up, and
+# posts the issue links to Slack.
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+    inputs:
+      dispatch:
+        description: Add the factory label to the issues this run files
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: Canary (${{ matrix.pkg }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [openai, anthropic, google_genai]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/canary/
+            scripts/ci/
+            packages/
+            evals/harbor/verifiers/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Run canary tests for ${{ matrix.pkg }}
+        env:
+          SDK: ${{ matrix.pkg }}
+        run: scripts/ci/canary_sdk_tests.sh "$SDK" -ra -x
+
+  report:
+    name: File issues for failed canaries
+    needs: canary
+    if: always() && contains(needs.canary.result, 'failure')
+    runs-on: ubuntu-latest
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Find the SDKs whose canary failed
+        id: failed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          sdks=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[] | select(.conclusion == "failure") | .name | capture("^Canary \\((?<sdk>[a-z_]+)\\)$").sdk')
+          echo "sdks<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$sdks" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+      # A `factory` label applied with GITHUB_TOKEN would not start factory-dispatch.yml.
+      - name: Mint a token for the factory's GitHub App
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-issues: write
+      - name: File or update one issue per SDK
+        id: issues
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          SDKS: ${{ steps.failed.outputs.sdks }}
+          # Set the SDK_CANARY_DISPATCH repository variable to 'false' to pause dispatch from
+          # the schedule; a manual run follows its own input.
+          DISPATCH: ${{ github.event_name == 'schedule' && vars.SDK_CANARY_DISPATCH != 'false' || inputs.dispatch == true }}
+        run: |
+          links=()
+          for sdk in $SDKS; do
+            title="[bug] phoenix-client canary tests fail against the latest $sdk SDK"
+            number=$(gh issue list --state open --label bug --search "in:title \"$title\"" \
+              --json number,title --jq --arg t "$title" '.[] | select(.title == $t) | .number' | head -1)
+            if [ -n "$number" ]; then
+              gh issue comment "$number" --body "Still failing against the latest release: $RUN_URL"
+            else
+              cat > body.md <<BODY
+          The daily canary run of \`packages/phoenix-client/tests/canary/sdk/$sdk\` fails against the latest \`$sdk\` release on PyPI: $RUN_URL
+
+          PR CI installs the version pinned in \`uv.lock\`, so this does not break \`main\`; it means the next dependency upgrade will, or that the client's \`$sdk\` helpers need updating for the new release.
+
+          Reproduce locally:
+
+          \`\`\`bash
+          scripts/ci/canary_sdk_tests.sh $sdk -ra -x
+          \`\`\`
+          BODY
+              number=$(gh issue create --label bug --title "$title" --body-file body.md | grep -o '[0-9]*$')
+              if [ "$DISPATCH" = "true" ]; then
+                gh issue edit "$number" --add-label factory
+              fi
+            fi
+            links+=("<https://github.com/$GH_REPO/issues/$number|#$number> ($sdk)")
+          done
+          echo "links=${links[*]}" >> "$GITHUB_OUTPUT"
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "phoenix-client canary tests failed against the latest SDK release: ${{ steps.issues.outputs.links }}\n${{ env.RUN_URL }}"
+            }
