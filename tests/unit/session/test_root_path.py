@@ -1,11 +1,15 @@
+import socket
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import httpx2
 import pandas as pd
 import pytest
+from fastapi import FastAPI
 
 import phoenix.session.session as session_module
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.thread_server import ThreadServer
 from phoenix.session.session import launch_app
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.span_evaluations import (
@@ -162,3 +166,25 @@ def test_default_host(
         monkeypatch.setenv("PHOENIX_HOST", env_host)
     nb_env = session_module.NotebookEnvironment(notebook_env)
     assert session_module._default_host(host, nb_env) == expected
+
+
+def test_thread_server_dual_stack_binds_ipv4_when_host_is_ipv6_unspecified() -> None:
+    app = FastAPI()
+
+    @app.get("/healthz")
+    def _healthz() -> dict[str, str]:
+        return {"status": "ok"}
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = int(sock.getsockname()[1])
+
+    server = ThreadServer(app=app, host="::", port=port, root_path="")
+    assert server.config.host is None
+    generator = server.run_in_thread()
+    next(generator)
+    try:
+        response = httpx2.get(f"http://127.0.0.1:{port}/healthz", timeout=5)
+        assert response.status_code == 200
+    finally:
+        generator.close()
