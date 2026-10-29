@@ -71,7 +71,7 @@ sequenceDiagram
     dispatch->>github: comment why, remove the label
   else admitted
     dispatch->>session: create with the lane agent, repo mount and rubric
-    session->>session: bootstrap, reproduce or analyze, implement, area review
+    session->>session: bootstrap, reproduce or analyze, probe end to end, implement, probe again, area review
     session->>github: push factory/issue-N, open a draft PR, post the assessment
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
@@ -97,7 +97,7 @@ Each part does one job, so it can be changed and tested on its own:
 | Issue triage | `claude-issue-triage.yml` labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
 | `factory-candidates.yml` | After each triage run, dispatches up to 3 candidates the factory hasn't run on whose author has write access. Other candidates wait for a maintainer to add `factory` |
 | `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
-| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
+| Lane coordinator | Runs `bootstrap.sh`, delegates, runs one end-to-end probe against a server it starts before and after the change, implements the change, opens the draft PR with both probe outputs in its End to end section, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
 | `bug-reproducer` | Writes a test that fails for the reported reason before any fix exists, or reports `NEEDS_BROWSER` with the cause when only a browser or running server can show it |
 | `feature-analyst` | Runs a probe showing `main` lacks the behavior, then plans slices, or returns `NEEDS_DECISION` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
@@ -167,7 +167,7 @@ environments/    the sandbox (uv, tox, pnpm, limited networking)
 vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
-bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
+bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a PostgreSQL instance, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports the review it posts
