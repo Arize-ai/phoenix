@@ -32,8 +32,6 @@ jobs:
       contents: read
     env:
       GH_REPO: ${{ github.repository }}
-      FACTORY_DATADOG_SITE: ${{ vars.FACTORY_DATADOG_SITE }}
-      FACTORY_DATADOG_QUERY: ${{ vars.FACTORY_DATADOG_QUERY }}
       FACTORY_DATADOG_TOKEN: ${{ secrets.FACTORY_DATADOG_TOKEN }}
       FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
       FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
@@ -62,10 +60,6 @@ jobs:
           DISPATCH: ${{ github.event_name == 'schedule' && vars.FACTORY_CLOUD_LOG_SCAN_DISPATCH != 'false' || inputs.dispatch == true }}
           DRY_RUN: ${{ inputs.dry_run == true }}
         run: |
-          if [ -z "$FACTORY_DATADOG_QUERY" ]; then
-            echo "FACTORY_DATADOG_QUERY is not set; see Log scan in factory/README.md."
-            exit 1
-          fi
           ARGS=(--repo "$GH_REPO" --source cloud --hours "$HOURS")
           [ "$DISPATCH" = "true" ] || ARGS+=(--no-dispatch)
           [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
