@@ -64,9 +64,9 @@ jobs:
             echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
           fi
 
-      # PyPI's simple index trails the upload by a minute or two, and tox.ini
-      # resolves the workspace siblings from PyPI (`--no-sources`), so a PR opened
-      # too early cannot resolve. Require two hits: the CDN purge reaches nodes
+      # PyPI's simple index trails the upload by a minute or two, and `uv lock`
+      # must resolve the new version from PyPI, so a PR opened too early cannot
+      # resolve. Require two hits: the CDN purge reaches nodes
       # unevenly, so one lucky response proves nothing.
       - name: Wait for version to be resolvable on PyPI
         if: steps.check-update.outputs.needs_update == 'true'
