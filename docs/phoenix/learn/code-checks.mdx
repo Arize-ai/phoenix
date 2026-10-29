@@ -131,4 +131,16 @@ You should see `11 passed`. If a test fails, use its expected and actual results
 
 This evaluator checks the saved products and quantities. To evaluate the full purchase, you'd also need checks for the shopper's consent, shipping address, and final response.
 
+<Accordion title="Ask PXI to review your code evaluator (optional)">
+  Open [PXI](/docs/phoenix/pxi#get-started) and paste the contents of `order_checks.py`, including the helper function. Then ask:
+
+  > Review this evaluator for missing checks. Suggest test cases for incorrect orders, equivalent carts, and invalid inputs. Explain what each case checks. Keep the review brief. Only review the pasted code; don't create or change data.
+
+  <Frame caption="PXI summarizes suggested test cases after reviewing the pasted evaluator.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-code-check-pxi-f1b2f8b5be71.png" alt="PXI suggests tests for incorrect orders, equivalent carts, and invalid inputs, distinguishing an invalid saved order from a broken reference." />
+  </Frame>
+
+  Compare PXI's suggestions with your existing tests, then add any useful cases locally and rerun Step 5. PXI can review the code you paste; run the local commands yourself to test it against the purchase tool.
+</Accordion>
+
 You now have a check for saved products and quantities, with tests showing which mistakes it catches. Next, write and validate an LLM judge to check budget compliance in the agent's written recommendations.
