@@ -10,9 +10,9 @@ import {
   ComboBoxItem,
   Icon,
   Icons,
+  KeyboardToken,
   ListBox,
   Popover,
-  Text,
 } from "@phoenix/components";
 import {
   pierreTemplateVariableColor,
@@ -77,6 +77,11 @@ const surfaceCSS = css`
     text-overflow: ellipsis;
     padding-left: 2ch;
     color: var(--decision-state-inputs-comment-color);
+  }
+  .decision-state-inputs__enter-hint {
+    display: inline-flex;
+    margin-left: var(--global-dimension-size-100);
+    font-family: var(--global-font-family-sans);
   }
   .decision-state-inputs__comment-source {
     opacity: 0.7;
@@ -178,65 +183,14 @@ const suggestionsPopoverCSS = css`
   }
 `;
 
-const footerCSS = css`
-  display: flex;
-  align-items: baseline;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-250);
-  padding-left: calc(
-    ${TEMPLATE_GUTTER_WIDTH} + var(--global-dimension-size-250)
-  );
-  border-top: 1px solid var(--global-border-color-default);
-  .decision-state-inputs__link {
-    font: inherit;
-    font-size: var(--global-font-size-xs);
-    color: var(--global-text-color-700);
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    border-radius: var(--global-rounding-small);
-    outline: none;
-    &[data-hovered] {
-      color: var(--global-text-color-900);
-      text-decoration: underline;
-    }
-    &[data-focus-visible] {
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    }
-  }
-`;
-
 type InputsShape = DecisionStateDraft["inputsShape"];
-
-/** The sentence under the inputs saying what the state will be. */
-export function describeInputsState({
-  names,
-  inputsShape,
-}: {
-  names: readonly string[];
-  inputsShape: InputsShape;
-}): string | null {
-  if (names.length === 0) return null;
-  const resolved = getDecisionInputsStateShape({
-    inputNames: [...names],
-    inputsShape,
-  });
-  if (resolved.shape === "value") {
-    return `Sends the value of ${resolved.name} as-is`;
-  }
-  return names.length === 1
-    ? `Sends an object with ${names[0]}`
-    : `Sends an object of ${names.length} inputs`;
-}
 
 /**
  * The inputs an `inputs` state is made of, drawn as the state it sends: an
  * object keyed by name, or one input's value alone. Each input is a
  * variable pill, followed by a preview of its value as a code comment; names
  * typed into the slot are added on Enter, a comma, or leaving it. Over a
- * dataset the slot suggests the names its examples have. With one input the
- * footer switches between sending it as an object and as its value alone.
+ * dataset the slot suggests the names its examples have.
  */
 export function DecisionStateInputsEditor({
   names,
@@ -244,7 +198,6 @@ export function DecisionStateInputsEditor({
   isDisabled,
   isInvalid,
   onChange,
-  onShapeChange,
   onBlur,
   previews,
   suggestions = [],
@@ -254,7 +207,6 @@ export function DecisionStateInputsEditor({
   isDisabled: boolean;
   isInvalid: boolean;
   onChange: (names: string[]) => void;
-  onShapeChange: (inputsShape: InputsShape) => void;
   onBlur: () => void;
   /** A value to show beside each input, keyed by input name. */
   previews?: Readonly<Record<string, DecisionInputPreview>>;
@@ -370,6 +322,13 @@ export function DecisionStateInputsEditor({
         onChange={(event) => onTextChange(event.target.value)}
       />
     );
+  // Typed names are only added on Enter (or a comma, or leaving the slot).
+  const enterHint =
+    pending.trim() !== "" && !isDisabled ? (
+      <span className="decision-state-inputs__enter-hint" aria-hidden>
+        <KeyboardToken>↵</KeyboardToken>
+      </span>
+    ) : null;
   const pill = (name: string) => (
     <span css={pillCSS} className="decision-state-inputs__pill">
       {name}
@@ -427,7 +386,6 @@ export function DecisionStateInputsEditor({
   const punctuation = (text: string) => (
     <span style={{ color: tokenColors.punctuation }}>{text}</span>
   );
-  const description = describeInputsState({ names, inputsShape });
   const isObject =
     names.length > 0 &&
     getDecisionInputsStateShape({ inputNames: [...names], inputsShape })
@@ -447,97 +405,74 @@ export function DecisionStateInputsEditor({
   };
 
   return (
-    <div>
-      <div
-        role="group"
-        aria-label="State inputs"
-        css={surfaceCSS}
-        className="decision-state-inputs"
-        data-disabled={isDisabled || undefined}
-        style={
-          {
-            "--decision-state-inputs-variable-color":
-              pierreTemplateVariableColor[theme],
-            "--decision-state-inputs-comment-color": tokenColors.comment,
-          } as React.CSSProperties
-        }
-        onClick={(event) => {
-          // A click on empty space lands in the slot, as it would in an editor.
-          if (event.target === event.currentTarget) slotRef.current?.focus();
-        }}
-      >
-        {isObject ? (
-          <>
-            <div className="decision-state-inputs__line">
-              {punctuation("{")}
-            </div>
-            {names.map((name, index) => (
-              <div key={name} className={lineClassName(name, true)}>
-                <span style={{ color: tokenColors.key }}>
-                  {JSON.stringify(name)}
+    <div
+      role="group"
+      aria-label="State inputs"
+      css={surfaceCSS}
+      className="decision-state-inputs"
+      data-disabled={isDisabled || undefined}
+      style={
+        {
+          "--decision-state-inputs-variable-color":
+            pierreTemplateVariableColor[theme],
+          "--decision-state-inputs-comment-color": tokenColors.comment,
+        } as React.CSSProperties
+      }
+      onClick={(event) => {
+        // A click on empty space lands in the slot, as it would in an editor.
+        if (event.target === event.currentTarget) slotRef.current?.focus();
+      }}
+    >
+      {isObject ? (
+        <>
+          <div className="decision-state-inputs__line">{punctuation("{")}</div>
+          {names.map((name, index) => (
+            <div key={name} className={lineClassName(name, true)}>
+              <span style={{ color: tokenColors.key }}>
+                {JSON.stringify(name)}
+              </span>
+              {punctuation(": ")}
+              {pill(name)}
+              {index < names.length - 1 ? (
+                <span
+                  className="decision-state-inputs__comma"
+                  style={{ color: tokenColors.punctuation }}
+                >
+                  ,
                 </span>
-                {punctuation(": ")}
-                {pill(name)}
-                {index < names.length - 1 ? (
-                  <span
-                    className="decision-state-inputs__comma"
-                    style={{ color: tokenColors.punctuation }}
-                  >
-                    ,
-                  </span>
-                ) : null}
-                {comment(name)}
-              </div>
-            ))}
-            <div className="decision-state-inputs__line decision-state-inputs__line--entry">
-              {slot}
+              ) : null}
+              {comment(name)}
             </div>
-            <div className="decision-state-inputs__line">
-              {punctuation("}")}
-            </div>
-          </>
-        ) : (
-          <div
-            className={
-              names.length === 1
-                ? lineClassName(names[0], false)
-                : "decision-state-inputs__line"
-            }
-          >
-            {names.length === 1 ? pill(names[0]) : null}
-            {names.length === 1 ? comment(names[0]) : null}
+          ))}
+          <div className="decision-state-inputs__line decision-state-inputs__line--entry">
             {slot}
-            {canAddAll ? (
-              <AriaButton
-                className="decision-state-inputs__link decision-state-inputs__add-all"
-                preventFocusOnPress
-                onPress={addAll}
-              >
-                {`Add all ${remaining.length} input${remaining.length === 1 ? "" : "s"} from the dataset`}
-              </AriaButton>
-            ) : null}
+            {enterHint}
           </div>
-        )}
-      </div>
-      {description ? (
-        <div css={footerCSS} className="decision-state-inputs__footer">
-          <Text size="XS" color="text-700">
-            {description}
-          </Text>
-          {names.length === 1 && !isDisabled ? (
+          <div className="decision-state-inputs__line">{punctuation("}")}</div>
+        </>
+      ) : (
+        <div
+          className={
+            names.length === 1
+              ? lineClassName(names[0], false)
+              : "decision-state-inputs__line"
+          }
+        >
+          {names.length === 1 ? pill(names[0]) : null}
+          {names.length === 1 ? comment(names[0]) : null}
+          {slot}
+          {enterHint}
+          {canAddAll ? (
             <AriaButton
-              className="decision-state-inputs__link"
-              onPress={() =>
-                onShapeChange(inputsShape === "value" ? "object" : "value")
-              }
+              className="decision-state-inputs__link decision-state-inputs__add-all"
+              preventFocusOnPress
+              onPress={addAll}
             >
-              {inputsShape === "value"
-                ? "Wrap in an object"
-                : "Send the value alone"}
+              {`Add all ${remaining.length} input${remaining.length === 1 ? "" : "s"} from the dataset`}
             </AriaButton>
           ) : null}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

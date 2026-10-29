@@ -4,17 +4,13 @@ import { createRoot } from "react-dom/client";
 
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 
-import {
-  DecisionStateInputsEditor,
-  describeInputsState,
-} from "../DecisionStateInputsEditor";
+import { DecisionStateInputsEditor } from "../DecisionStateInputsEditor";
 
 async function renderEditor(
   names: string[],
   props: Partial<ComponentProps<typeof DecisionStateInputsEditor>> = {}
 ) {
   const onChange = vi.fn<(names: string[]) => void>();
-  const onShapeChange = vi.fn<(shape: "object" | "value") => void>();
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -34,7 +30,6 @@ async function renderEditor(
           isDisabled={false}
           isInvalid={false}
           onChange={onChange}
-          onShapeChange={onShapeChange}
           onBlur={vi.fn()}
           {...props}
         />
@@ -61,24 +56,8 @@ async function renderEditor(
     await act(async () => root.unmount());
     container.remove();
   };
-  return { container, slot, onChange, onShapeChange, type, press, cleanup };
+  return { container, slot, onChange, type, press, cleanup };
 }
-
-it("describes what the inputs send", () => {
-  expect(describeInputsState({ names: [], inputsShape: "object" })).toBeNull();
-  expect(describeInputsState({ names: ["ticket"], inputsShape: "value" })).toBe(
-    "Sends the value of ticket as-is"
-  );
-  expect(
-    describeInputsState({ names: ["ticket"], inputsShape: "object" })
-  ).toBe("Sends an object with ticket");
-  expect(
-    describeInputsState({
-      names: ["reference", "output"],
-      inputsShape: "value",
-    })
-  ).toBe("Sends an object of 2 inputs");
-});
 
 it("draws one input sent alone as the input, and an object keyed by name", async () => {
   const one = await renderEditor(["ticket"], { inputsShape: "value" });
@@ -178,7 +157,6 @@ it("keeps focus in the slot when adding an input redraws the state as an object"
           onChange(next);
           setNames(next);
         }}
-        onShapeChange={vi.fn()}
         onBlur={vi.fn()}
       />
     );
@@ -323,36 +301,31 @@ it("offers no add-all once an input is added", async () => {
   }
 });
 
-it("switches one input between an object and its value alone from the footer", async () => {
-  const wrapped = await renderEditor(["ticket"]);
+it("shows the Enter key beside the slot while a name is typed", async () => {
+  const editor = await renderEditor(["ticket"]);
+  const hint = () =>
+    editor.container.querySelector(".decision-state-inputs__enter-hint");
   try {
-    const button = Array.from(
-      wrapped.container.querySelectorAll("button")
-    ).find((candidate) => candidate.textContent === "Send the value alone");
-    await act(async () => button?.click());
-    expect(wrapped.onShapeChange).toHaveBeenCalledWith("value");
+    expect(hint()).toBeNull();
+    await editor.type("customer");
+    expect(hint()?.textContent).toBe("↵");
+    await editor.press("Enter");
+    expect(editor.onChange).toHaveBeenLastCalledWith(["ticket", "customer"]);
+    expect(hint()).toBeNull();
   } finally {
-    await wrapped.cleanup();
+    await editor.cleanup();
   }
-  const alone = await renderEditor(["ticket"], { inputsShape: "value" });
+});
+
+it("has no footer", async () => {
+  const editor = await renderEditor(["ticket"]);
   try {
-    expect(alone.container.textContent).toContain(
-      "Sends the value of ticket as-is"
-    );
-    const button = Array.from(alone.container.querySelectorAll("button")).find(
-      (candidate) => candidate.textContent === "Wrap in an object"
-    );
-    await act(async () => button?.click());
-    expect(alone.onShapeChange).toHaveBeenCalledWith("object");
+    expect(
+      editor.container.querySelector(".decision-state-inputs__footer")
+    ).toBeNull();
+    expect(editor.container.textContent).not.toContain("Sends");
   } finally {
-    await alone.cleanup();
-  }
-  // Several inputs are always an object, so there is nothing to switch.
-  const several = await renderEditor(["reference", "output"]);
-  try {
-    expect(several.container.textContent).not.toContain("value alone");
-  } finally {
-    await several.cleanup();
+    await editor.cleanup();
   }
 });
 

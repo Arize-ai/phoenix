@@ -153,7 +153,6 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     // One input sent alone is drawn as the input alone, with the value typed
     // in the Inputs panel beside it as it is sent.
     expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
-    expect(container.textContent).toContain("Sends the value of state as-is");
     expect(
       container.querySelector('[aria-label="Remove state"]')
     ).not.toBeNull();
@@ -191,10 +190,8 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
     expect(inputsEditor()).toBe(
       '{"state": state,// {"ticket":"Refund"}"plan": plan}'
     );
-    expect(container.textContent).toContain("Sends an object of 2 inputs");
 
-    // Removing an input back to one keeps the object; the footer offers
-    // sending the value alone, and back.
+    // Removing an input back to one keeps the object.
     await act(async () =>
       container
         .querySelector<HTMLButtonElement>('[aria-label="Remove plan"]')
@@ -205,15 +202,6 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
       inputsShape: "object",
     });
     expect(inputsEditor()).toBe('{"state": state// {"ticket":"Refund"}}');
-    const footerButton = (label: string) =>
-      Array.from(container.querySelectorAll("button")).find(
-        (button) => button.textContent === label
-      );
-    await act(async () => footerButton("Send the value alone")?.click());
-    expect(readState()?.inputsShape).toBe("value");
-    expect(inputsEditor()).toBe('state// {"ticket":"Refund"}');
-    await act(async () => footerButton("Wrap in an object")?.click());
-    expect(readState()?.inputsShape).toBe("object");
   } finally {
     await act(async () => root.unmount());
     container.remove();

@@ -266,9 +266,6 @@ export function DecisionPromptEditor({
             isDisabled={isRunning}
             isInvalid={!!errors.state}
             onChange={(inputNames) => updateState({ ...state, inputNames })}
-            onShapeChange={(inputsShape) =>
-              updateState({ ...state, inputsShape })
-            }
             onBlur={() => touch(decisionFieldId.state())}
             previews={inputsHints.previews}
             suggestions={inputsHints.suggestions}
