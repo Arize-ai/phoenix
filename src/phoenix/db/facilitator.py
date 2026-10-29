@@ -539,8 +539,15 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
     Phoenix, unless the database already has a manifest at least as new (for example, one
     fetched since the last upgrade).
     """
-    manifest = parse_manifest(_COST_MODEL_MANIFEST.read_bytes())
-    if applied := await apply_manifest_if_newer(db, manifest):
+    # Prices are estimates, so a failure here must not stop the server from starting. The
+    # prices already in the database stay in use, and the next startup or fetch tries again.
+    try:
+        manifest = parse_manifest(_COST_MODEL_MANIFEST.read_bytes())
+        applied = await apply_manifest_if_newer(db, manifest)
+    except Exception:
+        logger.warning("Failed to apply the bundled model cost manifest at startup", exc_info=True)
+        return
+    if applied:
         logger.info(f"Applied the model cost manifest bundled with Phoenix, {applied}")
 
 
