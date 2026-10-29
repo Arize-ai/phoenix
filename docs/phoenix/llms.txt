@@ -32,6 +32,7 @@
 
 - [Use traces and feedback](https://arize.com/docs/phoenix/learn/find-failures): Review Wonder Toys requests, save observations in Phoenix, and choose a problem to investigate
 - [Investigate and label a failed run](https://arize.com/docs/phoenix/learn/investigate-failure): Check the evidence behind a budget failure and apply consistent review labels to root spans
+- [Turn failures into representative cases](https://arize.com/docs/phoenix/learn/build-test-cases): Save reviewed shopping requests and expected behavior in a Phoenix dataset for future experiments
 
 ## Tracing
 

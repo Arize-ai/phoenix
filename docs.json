@@ -487,7 +487,8 @@
             "group": "Find failures",
             "pages": [
               "docs/phoenix/learn/find-failures",
-              "docs/phoenix/learn/investigate-failure"
+              "docs/phoenix/learn/investigate-failure",
+              "docs/phoenix/learn/build-test-cases"
             ]
           }
         ]
