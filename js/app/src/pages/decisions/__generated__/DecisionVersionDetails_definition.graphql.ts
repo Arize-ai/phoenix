@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<383905cb1f56ec697b2e2a5d4bbaf6c8>>
+ * @generated SignedSource<<c9fa7f3c1ee8eada2f8d8052f4e5eeb9>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,6 @@ export type DecisionVersionDetails_definition$data = {
   } | null;
   readonly inputs: ReadonlyArray<{
     readonly description: string | null;
-    readonly jsonSchema: any | null;
     readonly name: string;
   }>;
   readonly modelName: string;
@@ -118,14 +117,7 @@ return {
       "plural": true,
       "selections": [
         (v0/*:: as any*/),
-        (v1/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "jsonSchema",
-          "storageKey": null
-        }
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     },
@@ -331,6 +323,6 @@ return {
 };
 })();
 
-(node as any).hash = "66edbb9f7680328ed9e164c2bac1af3e";
+(node as any).hash = "14fa85e1f6cc0b614b255f3c370b8ebe";
 
 export default node;
