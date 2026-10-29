@@ -29,7 +29,6 @@ export MISTRAL_API_KEY=[your_key_here]
 import os
 
 from mistralai.client import Mistral
-from mistralai.models import UserMessage
 
 api_key = os.environ["MISTRAL_API_KEY"]
 model = "mistral-small-latest"
@@ -38,7 +37,7 @@ client = Mistral(api_key=api_key)
 
 chat_response = client.chat.complete(
     model=model,
-    messages=[UserMessage(content="What is the best French cheese?")],
+    messages=[{"role": "user", "content": "What is the best French cheese?"}],
 )
 print(chat_response.choices[0].message.content)
 ```
