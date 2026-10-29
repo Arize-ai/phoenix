@@ -1,6 +1,6 @@
 """Run with ``make test-sync-models``, as CI does; it lives outside tests/ beside the script."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sync_models import (
     LiteLLMPricingEntry,
@@ -61,6 +61,14 @@ def test_generated_at_is_unchanged_when_models_are_unchanged() -> None:
 def test_generated_at_is_bumped_when_models_changed() -> None:
     after = _sync(_manifest(1e-6), 2e-6)
     assert after.generated_at == NOW.replace(microsecond=0)
+
+
+def test_generated_at_advances_when_now_is_not_later() -> None:
+    previous = _manifest(1e-6)
+    changed = _manifest(2e-6)
+    assert next_generated_at(previous, changed, now=PREVIOUS) == PREVIOUS + timedelta(seconds=1)
+    earlier = PREVIOUS - timedelta(seconds=30)
+    assert next_generated_at(previous, changed, now=earlier) == PREVIOUS + timedelta(seconds=1)
 
 
 def test_generated_at_is_set_when_missing() -> None:

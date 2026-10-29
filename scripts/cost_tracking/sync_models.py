@@ -2,7 +2,7 @@ import argparse
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Annotated, Any, Literal, Optional
 from urllib.request import urlopen
@@ -247,7 +247,11 @@ def next_generated_at(
         and _dump_models(previous) == _dump_models(updated)
     ):
         return previous.generated_at
-    return (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    candidate = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    # Applied only when generated_at is strictly later than the previous stamp.
+    if previous.generated_at is not None and candidate <= previous.generated_at:
+        candidate = previous.generated_at + timedelta(seconds=1)
+    return candidate
 
 
 def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
