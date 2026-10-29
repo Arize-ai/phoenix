@@ -19,13 +19,13 @@ In the screenshots, Wonder Toys recommends a toy that costs more than \$25. Your
 - Under **Info** on the right, read the shopper's message in **Input**.
 
 <Frame caption="The selected model call shows the shopper's request under Input.">
-  <img src="/docs/phoenix/learn/images/wonder-toys-model-input.png" alt="Phoenix trace with the first ChatAnthropic row selected on the left and the Info tab showing Input and the shopper's dinosaur toy request on the right" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-input.png" alt="Phoenix trace with the first ChatAnthropic row selected on the left and the Info tab showing Input and the shopper's dinosaur toy request on the right" />
 </Frame>
 
 Then scroll to **Output** and find `search-products`. In this example, the model asks the tool for dinosaur toys for age 6.
 
 <Frame caption="The model's search request appears under Output.">
-  <img src="/docs/phoenix/learn/images/wonder-toys-model-search-call.png" alt="First model call output showing search-products with query dinosaur toys and min_age and max_age both set to 6" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-search-call.png" alt="First model call output showing search-products with query dinosaur toys and min_age and max_age both set to 6" />
 </Frame>
 
 - If you don't see `search-products`, check the next `ChatAnthropic` span.
@@ -39,7 +39,7 @@ Then scroll to **Output** and find `search-products`. In this example, the model
 In this example, the tool returned a Dinosaur Explorer Kit priced at \$27.99. Fetching product records like these is called **retrieval**.
 
 <Frame caption="The tool's Output shows the products returned by the search.">
-  <img src="/docs/phoenix/learn/images/wonder-toys-search-span.png" alt="Phoenix search-products span showing the dinosaur query, age filters, and returned Dinosaur Explorer Kit priced at 27.99" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-search-span.png" alt="Phoenix search-products span showing the dinosaur query, age filters, and returned Dinosaur Explorer Kit priced at 27.99" />
 </Frame>
 
 Next, check whether the model received these results.
@@ -49,13 +49,13 @@ Next, check whether the model received these results.
 Select the next `ChatAnthropic` model call and find `tool: search-products` under **Input**. In this example, that message contains the kit's \$27.99 price.
 
 <Frame caption="The search results are included in the next model call's Input.">
-  <img src="/docs/phoenix/learn/images/wonder-toys-model-search-results.png" alt="Tool message in the final model call's input showing the Dinosaur Explorer Kit and its price of 27.99" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-search-results.png" alt="Tool message in the final model call's input showing the Dinosaur Explorer Kit and its price of 27.99" />
 </Frame>
 
 Scroll to **Output** and check the recommendation against the product details and the shopper's requirements. Here, the model recommended the kit while noting that it was over budget.
 
 <Frame caption="The answer recommends the kit at $27.99 and notes that it is over budget.">
-  <img src="/docs/phoenix/learn/images/wonder-toys-model-recommendation.png" alt="Final model call output recommending the Dinosaur Explorer Kit at 27.99 and noting that it is over budget" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-recommendation.png" alt="Final model call output recommending the Dinosaur Explorer Kit at 27.99 and noting that it is over budget" />
 </Frame>
 
 - If there are more searches, repeat this comparison until you reach the final answer.
