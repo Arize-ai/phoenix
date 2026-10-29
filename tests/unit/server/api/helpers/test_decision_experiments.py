@@ -20,12 +20,12 @@ from phoenix.server.api.helpers.decision_experiments import (
 )
 
 
-def task_config(**state: Any) -> DecisionTaskConfig:
+def task_config(template_format: str = "MUSTACHE", **state: Any) -> DecisionTaskConfig:
     """Each example supplies state for the task's fixed questions."""
     return DecisionTaskConfig.model_validate(
         {
-            "inputs": [{"name": "state"}],
-            "state": state or {"type": "input", "name": "state"},
+            "template_format": template_format,
+            "state": state or {"type": "json", "template": "{{state}}"},
             "questions": [
                 {
                     "type": "predicate",
@@ -60,7 +60,7 @@ def test_a_structured_state_is_sent_unchanged() -> None:
 
 def test_a_text_state_can_still_render_a_template() -> None:
     request = ask(
-        task_config(type="text", template="Passage: {{state}}", template_format="MUSTACHE"),
+        task_config(type="text", template="Passage: {{state}}"),
         {"state": "The Nile is long."},
     )
     assert request.state == "Passage: The Nile is long."
@@ -75,12 +75,12 @@ TEAM = {
 
 
 def test_the_task_questions_are_asked_of_every_example() -> None:
-    """Input values are read by input name, as a prompt reads template variables, and
-    other fields of the example are ignored."""
+    """Variables are read by name, as a prompt reads template variables, and other fields
+    of the example are ignored."""
     config = DecisionTaskConfig.model_validate(
         {
-            "inputs": [{"name": "ticket"}],
-            "state": {"type": "text", "template": "{{ticket}}", "template_format": "MUSTACHE"},
+            "template_format": "MUSTACHE",
+            "state": {"type": "text", "template": "{{ticket}}"},
             "questions": [TEAM],
         }
     )
@@ -89,13 +89,16 @@ def test_the_task_questions_are_asked_of_every_example() -> None:
     assert isinstance(request.questions[0], ChoiceQuestion)
 
 
-def test_an_empty_path_reads_input_values_from_the_whole_context() -> None:
+def test_an_empty_path_reads_variables_from_the_whole_context() -> None:
     config = DecisionTaskConfig.model_validate(
         {
-            "inputs": [{"name": "input"}, {"name": "metadata"}],
-            "state": {"type": "object"},
+            "template_format": "MUSTACHE",
+            "state": {
+                "type": "json",
+                "template": {"input": "{{input}}", "metadata": "{{metadata}}"},
+            },
             "questions": [TEAM],
-            "input_values_path": "",
+            "template_variables_path": "",
         }
     )
     request = ask(config, {"ticket": "Refund me"}, metadata={"tier": "pro"})
@@ -105,7 +108,7 @@ def test_an_empty_path_reads_input_values_from_the_whole_context() -> None:
 @pytest.mark.parametrize(
     ("example", "message"),
     [
-        pytest.param({}, "Missing inputs: state", id="missing-state"),
+        pytest.param({}, "Missing variables: state", id="missing-state"),
         pytest.param({"state": ""}, "empty", id="empty-state"),
     ],
 )
@@ -114,19 +117,36 @@ def test_an_example_that_cannot_be_asked_says_why(example: Any, message: str) ->
         ask(task_config(), example)
 
 
-def test_a_missing_input_values_path_says_so() -> None:
-    config = task_config().model_copy(update={"input_values_path": "input.nope.deeper"})
-    with pytest.raises(ValueError, match=r"^Input values: ") as excinfo:
+def test_a_missing_template_variables_path_says_so() -> None:
+    config = task_config().model_copy(update={"template_variables_path": "input.nope.deeper"})
+    with pytest.raises(ValueError, match=r"^Template variables: ") as excinfo:
         ask(config, {"state": "x"})
     assert "nope" in str(excinfo.value)
     assert isinstance(excinfo.value.__cause__, (KeyError, TypeError))
 
 
-def test_input_values_that_are_not_an_object_say_so() -> None:
+def test_template_variables_that_are_not_an_object_say_so() -> None:
     config = task_config()
-    config = config.model_copy(update={"input_values_path": "input.state"})
+    config = config.model_copy(update={"template_variables_path": "input.state"})
     with pytest.raises(ValueError, match="are not an object"):
         ask(config, {"state": "x"})
+
+
+def test_example_values_keep_their_types_and_fill_question_templates() -> None:
+    config = DecisionTaskConfig.model_validate(
+        {
+            "template_format": "MUSTACHE",
+            "state": {"type": "json", "template": {"count": "{{count}}", "ok": "{{ok}}"}},
+            "questions": [
+                {"type": "predicate", "name": "decision", "instructions": "Over {{limit}}?"}
+            ],
+        }
+    )
+    request = ask(config, {"count": 3, "ok": False, "limit": 2, "unused": None})
+    assert request.state == {"count": 3, "ok": False}
+    assert request.questions[0].instructions == "Over 2?"
+    # The task's own questions stay templates.
+    assert config.questions[0].instructions == "Over {{limit}}?"
 
 
 def test_the_run_output_keeps_full_answers_by_question_name() -> None:

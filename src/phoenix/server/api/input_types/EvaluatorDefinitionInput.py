@@ -125,7 +125,7 @@ class InlineDecisionEvaluatorInput:
             type="inline_decision_evaluator",
             name=self.name,
             description=self.description,
-            inputs=version.inputs,
+            template_format=version.template_format,
             state=version.state,
             questions=version.questions,
             model_provider=version.model_provider,

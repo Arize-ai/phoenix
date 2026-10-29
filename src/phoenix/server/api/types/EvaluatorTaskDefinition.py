@@ -19,10 +19,8 @@ from phoenix.db.types.decision_evaluators import derive_decision_output_configs
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DecisionDefinition import (
-    DecisionInputDefinition,
     DecisionQuestion,
     DecisionState,
-    to_gql_decision_input,
     to_gql_decision_question,
     to_gql_decision_state,
 )
@@ -43,6 +41,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_prompt_chat_template_from_orm,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.decisions.rendering import decision_variables
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
@@ -218,9 +217,12 @@ class InlineDecisionEvaluatorDefinition:
 
     name: str
     description: Optional[str]
-    inputs: list[DecisionInputDefinition]
+    template_format: PromptTemplateFormat
     state: DecisionState
     questions: list[DecisionQuestion]
+    variables: list[str] = strawberry.field(
+        description="The variables the state and questions use, in first-appearance order."
+    )
     model_provider: GenerativeProviderKey
     model_name: str
     custom_provider_id: Optional[GlobalID]
@@ -235,9 +237,10 @@ class InlineDecisionEvaluatorDefinition:
         return cls(
             name=obj.name,
             description=obj.description,
-            inputs=[to_gql_decision_input(value) for value in obj.inputs],
+            template_format=obj.template_format,
             state=to_gql_decision_state(obj.state),
             questions=[to_gql_decision_question(value) for value in obj.questions],
+            variables=decision_variables(obj.template_format, obj.state, obj.questions),
             model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
             model_name=obj.model_name,
             custom_provider_id=_global_id("GenerativeModelCustomProvider", obj.custom_provider_id),

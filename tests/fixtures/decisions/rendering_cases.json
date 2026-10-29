@@ -1,0 +1,472 @@
+{
+  "description": "Shared rendering vectors for decision state templates. The server (tests/unit/server/decisions/test_rendering_cases.py), the Python client, the TypeScript client and the playground run every case. A case gives a template_format, a stored state ({type: text, template: string} | {type: json, template: any JSON}), stored questions and the call's variables. derived_variables, when present, is the decision's variables in first-appearance order. Exactly one of expected ({state, questions}) or error (a substring of the error message) is present. Structured values inside text render as JSON with ', ' and ': ' separators and non-ASCII characters kept, as Python's json.dumps(value, ensure_ascii=False) writes them.",
+  "cases": [
+    {
+      "name": "text mustache",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "Ticket: {{ticket}}" },
+      "questions": [],
+      "variables": { "ticket": "Late refund <b>&" },
+      "derived_variables": ["ticket"],
+      "expected": { "state": "Ticket: Late refund <b>&", "questions": [] }
+    },
+    {
+      "name": "text f-string",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "Ticket: {ticket}" },
+      "questions": [],
+      "variables": { "ticket": "Late refund" },
+      "derived_variables": ["ticket"],
+      "expected": { "state": "Ticket: Late refund", "questions": [] }
+    },
+    {
+      "name": "text f-string double braces are literal",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "{{literal}} {x}" },
+      "questions": [],
+      "variables": { "x": 1 },
+      "derived_variables": ["x"],
+      "expected": { "state": "{literal} 1", "questions": [] }
+    },
+    {
+      "name": "text mustache structured value renders as JSON",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "Customer: {{customer}}" },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold", "years": 3, "name": "Zoë" } },
+      "derived_variables": ["customer"],
+      "expected": {
+        "state": "Customer: {\"tier\": \"gold\", \"years\": 3, \"name\": \"Zoë\"}",
+        "questions": []
+      }
+    },
+    {
+      "name": "text f-string structured value renders as JSON",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "Items: {items}" },
+      "questions": [],
+      "variables": { "items": [1, "a", null, true] },
+      "derived_variables": ["items"],
+      "expected": { "state": "Items: [1, \"a\", null, true]", "questions": [] }
+    },
+    {
+      "name": "text mustache scalars",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "{{n}} {{f}} {{b}} {{z}}" },
+      "questions": [],
+      "variables": { "n": 3, "f": 2.5, "b": true, "z": null },
+      "derived_variables": ["n", "f", "b", "z"],
+      "expected": { "state": "3 2.5 true null", "questions": [] }
+    },
+    {
+      "name": "text mustache dotted path",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "Tier: {{customer.tier}}; zip: {{customer.zip}}." },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold" } },
+      "derived_variables": ["customer"],
+      "expected": { "state": "Tier: gold; zip: .", "questions": [] }
+    },
+    {
+      "name": "text f-string paths",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "{customer.tier} / {items[1]}" },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold" }, "items": ["a", "b"] },
+      "derived_variables": ["customer", "items"],
+      "expected": { "state": "gold / b", "questions": [] }
+    },
+    {
+      "name": "text f-string path to a missing field",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "{customer.zip}" },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold" } },
+      "derived_variables": ["customer"],
+      "error": "Can't render the state"
+    },
+    {
+      "name": "text mustache section",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "Items:\n{{#items}}- {{name}}\n{{/items}}" },
+      "questions": [],
+      "variables": { "items": [{ "name": "a" }, { "name": "b" }] },
+      "derived_variables": ["items"],
+      "expected": { "state": "Items:\n- a\n- b\n", "questions": [] }
+    },
+    {
+      "name": "text mustache inverted section",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "Items: {{^items}}none{{/items}}" },
+      "questions": [],
+      "variables": { "items": [] },
+      "derived_variables": ["items"],
+      "expected": { "state": "Items: none", "questions": [] }
+    },
+    {
+      "name": "json whole-tag leaves keep every JSON type",
+      "template_format": "MUSTACHE",
+      "state": {
+        "type": "json",
+        "template": {
+          "object": "{{o}}",
+          "array": "{{a}}",
+          "string": "{{s}}",
+          "integer": "{{i}}",
+          "float": "{{f}}",
+          "boolean": "{{t}}",
+          "null": "{{n}}"
+        }
+      },
+      "questions": [],
+      "variables": {
+        "o": { "k": 1 },
+        "a": [1, "two"],
+        "s": "text",
+        "i": 3,
+        "f": 2.5,
+        "t": false,
+        "n": null
+      },
+      "derived_variables": ["o", "a", "s", "i", "f", "t", "n"],
+      "expected": {
+        "state": {
+          "object": { "k": 1 },
+          "array": [1, "two"],
+          "string": "text",
+          "integer": 3,
+          "float": 2.5,
+          "boolean": false,
+          "null": null
+        },
+        "questions": []
+      }
+    },
+    {
+      "name": "json whole tag allows inner whitespace",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": { "n": "{{  n }}" } },
+      "questions": [],
+      "variables": { "n": 7 },
+      "derived_variables": ["n"],
+      "expected": { "state": { "n": 7 }, "questions": [] }
+    },
+    {
+      "name": "json whole-tag dotted paths",
+      "template_format": "MUSTACHE",
+      "state": {
+        "type": "json",
+        "template": { "tier": "{{customer.tier}}", "address": "{{customer.address}}" }
+      },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold", "address": { "city": "Paris" } } },
+      "derived_variables": ["customer"],
+      "expected": {
+        "state": { "tier": "gold", "address": { "city": "Paris" } },
+        "questions": []
+      }
+    },
+    {
+      "name": "json whole-tag path to a missing field",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": { "zip": "{{customer.zip}}" } },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold" } },
+      "derived_variables": ["customer"],
+      "error": "The state reads a missing field: customer.zip"
+    },
+    {
+      "name": "json f-string whole tags",
+      "template_format": "F_STRING",
+      "state": {
+        "type": "json",
+        "template": { "customer": "{customer}", "first": "{items[0]}", "tier": "{customer.tier}" }
+      },
+      "questions": [],
+      "variables": { "customer": { "tier": "gold" }, "items": [{ "id": 1 }] },
+      "derived_variables": ["customer", "items"],
+      "expected": {
+        "state": { "customer": { "tier": "gold" }, "first": { "id": 1 }, "tier": "gold" },
+        "questions": []
+      }
+    },
+    {
+      "name": "json f-string double braces are not a tag",
+      "template_format": "F_STRING",
+      "state": { "type": "json", "template": { "literal": "{{x}}", "x": "{x}" } },
+      "questions": [],
+      "variables": { "x": 1 },
+      "derived_variables": ["x"],
+      "expected": { "state": { "literal": "{x}", "x": 1 }, "questions": [] }
+    },
+    {
+      "name": "json embedded tags render as text",
+      "template_format": "MUSTACHE",
+      "state": {
+        "type": "json",
+        "template": {
+          "since": "Customer since {{since}}",
+          "tags": "Tags: {{tags}}",
+          "two": "{{a}}{{b}}",
+          "triple": "{{{o}}}"
+        }
+      },
+      "questions": [],
+      "variables": { "since": 2019, "tags": ["a", "b"], "a": "x", "b": "y", "o": { "k": 1 } },
+      "derived_variables": ["since", "tags", "a", "b", "o"],
+      "expected": {
+        "state": {
+          "since": "Customer since 2019",
+          "tags": "Tags: [\"a\", \"b\"]",
+          "two": "xy",
+          "triple": "{\"k\": 1}"
+        },
+        "questions": []
+      }
+    },
+    {
+      "name": "json non-string values pass through",
+      "template_format": "MUSTACHE",
+      "state": {
+        "type": "json",
+        "template": { "n": 1, "f": 0.5, "b": true, "z": null, "nested": [[1, "{{x}}"], { "y": false }] }
+      },
+      "questions": [],
+      "variables": { "x": { "deep": true } },
+      "derived_variables": ["x"],
+      "expected": {
+        "state": { "n": 1, "f": 0.5, "b": true, "z": null, "nested": [[1, { "deep": true }], { "y": false }] },
+        "questions": []
+      }
+    },
+    {
+      "name": "json object keys stay literal",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": { "{{key}}": "{{value}}" } },
+      "questions": [],
+      "variables": { "key": "k", "value": "v" },
+      "derived_variables": ["value"],
+      "expected": { "state": { "{{key}}": "v" }, "questions": [] }
+    },
+    {
+      "name": "root whole tag with a string",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": "{{state}}" },
+      "questions": [],
+      "variables": { "state": "The customer wants a refund." },
+      "derived_variables": ["state"],
+      "expected": { "state": "The customer wants a refund.", "questions": [] }
+    },
+    {
+      "name": "root whole tag with an object",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": "{{state}}" },
+      "questions": [],
+      "variables": { "state": { "ticket": "Late refund", "tier": "gold" } },
+      "derived_variables": ["state"],
+      "expected": { "state": { "ticket": "Late refund", "tier": "gold" }, "questions": [] }
+    },
+    {
+      "name": "root whole tag with an array",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": "{{state}}" },
+      "questions": [],
+      "variables": { "state": [{ "role": "user", "content": "hi" }] },
+      "derived_variables": ["state"],
+      "expected": { "state": [{ "role": "user", "content": "hi" }], "questions": [] }
+    },
+    {
+      "name": "root whole tag with a number",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": "{{state}}" },
+      "questions": [],
+      "variables": { "state": 5 },
+      "derived_variables": ["state"],
+      "error": "State must be text, a JSON object, or a list"
+    },
+    {
+      "name": "root whole tag with null",
+      "template_format": "F_STRING",
+      "state": { "type": "json", "template": "{state}" },
+      "questions": [],
+      "variables": { "state": null },
+      "derived_variables": ["state"],
+      "error": "State must be text, a JSON object, or a list"
+    },
+    {
+      "name": "root whole tag with an empty string",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": "{{state}}" },
+      "questions": [],
+      "variables": { "state": "" },
+      "derived_variables": ["state"],
+      "error": "State cannot be empty"
+    },
+    {
+      "name": "text that renders blank",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "{{x}}" },
+      "questions": [],
+      "variables": { "x": "  " },
+      "derived_variables": ["x"],
+      "error": "State cannot be empty"
+    },
+    {
+      "name": "none format sends text literally",
+      "template_format": "NONE",
+      "state": { "type": "text", "template": "Hello {{name}} and {name}" },
+      "questions": [{ "type": "predicate", "name": "ok", "instructions": "Is {{name}} ok?" }],
+      "variables": {},
+      "derived_variables": [],
+      "expected": {
+        "state": "Hello {{name}} and {name}",
+        "questions": [{ "type": "predicate", "name": "ok", "instructions": "Is {{name}} ok?" }]
+      }
+    },
+    {
+      "name": "none format sends json literally",
+      "template_format": "NONE",
+      "state": { "type": "json", "template": { "a": "{{a}}", "b": "{b}", "n": 1 } },
+      "questions": [],
+      "variables": { "a": "ignored" },
+      "derived_variables": [],
+      "expected": { "state": { "a": "{{a}}", "b": "{b}", "n": 1 }, "questions": [] }
+    },
+    {
+      "name": "missing variable",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "{{a}} {{b}}" },
+      "questions": [],
+      "variables": { "a": 1 },
+      "derived_variables": ["a", "b"],
+      "error": "Missing variables: b"
+    },
+    {
+      "name": "missing variable used only by a question",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "A ticket" },
+      "questions": [{ "type": "predicate", "name": "ok", "instructions": "Is {{who}} ok?" }],
+      "variables": {},
+      "derived_variables": ["who"],
+      "error": "Missing variables: who"
+    },
+    {
+      "name": "extra variables are ignored",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": { "ticket": "{{ticket}}" } },
+      "questions": [],
+      "variables": { "ticket": "Late refund", "unused": { "a": 1 } },
+      "derived_variables": ["ticket"],
+      "expected": { "state": { "ticket": "Late refund" }, "questions": [] }
+    },
+    {
+      "name": "variables in first-appearance order across state and questions",
+      "template_format": "MUSTACHE",
+      "state": { "type": "json", "template": { "b": "{{b}}", "a": "{{a}} and {{b.c}}" } },
+      "questions": [
+        { "type": "predicate", "name": "ok", "instructions": "{{c}} {{a}}", "criteria": { "true": "{{d}}" } }
+      ],
+      "variables": { "a": 1, "b": { "c": 2 }, "c": 3, "d": 4 },
+      "derived_variables": ["b", "a", "c", "d"],
+      "expected": {
+        "state": { "b": { "c": 2 }, "a": "1 and 2" },
+        "questions": [
+          { "type": "predicate", "name": "ok", "instructions": "3 1", "criteria": { "true": "4" } }
+        ]
+      }
+    },
+    {
+      "name": "question prose fields are templated, identifiers are not",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "{{ticket}}" },
+      "questions": [
+        {
+          "type": "predicate",
+          "name": "refund_{{x}}",
+          "instructions": "Should {{customer.name}} get a refund?",
+          "criteria": { "true": "Policy {{policy}} allows it.", "false": "It does not." }
+        },
+        {
+          "type": "choice",
+          "name": "route",
+          "instructions": "Where does this go for a {{customer.tier}} customer?",
+          "choices": [
+            { "value": "{{team}}", "description": "The {{team}} queue." },
+            { "value": "billing", "description": null }
+          ]
+        },
+        {
+          "type": "scale",
+          "name": "urgency",
+          "instructions": "How urgent is it?",
+          "levels": [
+            { "label": "{{low}}", "description": "Within {{days}} days." },
+            { "label": "high" }
+          ]
+        }
+      ],
+      "variables": {
+        "ticket": "Late refund",
+        "customer": { "name": "Ana", "tier": "gold" },
+        "policy": "R-7",
+        "team": "support",
+        "days": 5
+      },
+      "derived_variables": ["ticket", "customer", "policy", "team", "days"],
+      "expected": {
+        "state": "Late refund",
+        "questions": [
+          {
+            "type": "predicate",
+            "name": "refund_{{x}}",
+            "instructions": "Should Ana get a refund?",
+            "criteria": { "true": "Policy R-7 allows it.", "false": "It does not." }
+          },
+          {
+            "type": "choice",
+            "name": "route",
+            "instructions": "Where does this go for a gold customer?",
+            "choices": [
+              { "value": "{{team}}", "description": "The support queue." },
+              { "value": "billing", "description": null }
+            ]
+          },
+          {
+            "type": "scale",
+            "name": "urgency",
+            "instructions": "How urgent is it?",
+            "levels": [
+              { "label": "{{low}}", "description": "Within 5 days." },
+              { "label": "high" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "question instructions that render empty",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "A ticket" },
+      "questions": [{ "type": "predicate", "name": "ok", "instructions": "{{why}}" }],
+      "variables": { "why": "" },
+      "derived_variables": ["why"],
+      "error": "Instructions for ok cannot be empty"
+    },
+    {
+      "name": "invalid mustache template",
+      "template_format": "MUSTACHE",
+      "state": { "type": "text", "template": "{{#items}}unclosed" },
+      "questions": [],
+      "variables": { "items": [] },
+      "error": "Invalid template in the state"
+    },
+    {
+      "name": "invalid f-string template",
+      "template_format": "F_STRING",
+      "state": { "type": "text", "template": "Ticket: {ticket" },
+      "questions": [],
+      "variables": { "ticket": "x" },
+      "error": "Invalid template in the state"
+    }
+  ]
+}
