@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from secrets import token_bytes, token_hex
@@ -24,6 +25,8 @@ from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
     PHOENIX_CLI_OAUTH2_CLIENT_ID,
     PHOENIX_CLI_OAUTH2_REDIRECT_URIS,
+    USER_FEEDBACK_ANNOTATION_NAME,
+    Facilitator,
     _ensure_admins,
     _ensure_default_project_trace_retention_policy,
     _ensure_enums,
@@ -563,6 +566,43 @@ class TestEnsureModelCosts:
         async with db() as session:
             marker = await get_applied_manifest_version(session)
         assert marker is not None and marker.generated_at == _manifest_date(3)
+
+    @pytest.mark.seeded_model_costs
+    async def test_pricing_failure_is_non_fatal_while_other_steps_raise(
+        self,
+        tmp_path: Path,
+        monkeypatch: MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db import facilitator
+
+        broken = tmp_path / "broken.json"
+        broken.write_text("not json")
+        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", broken)
+
+        with caplog.at_level(logging.WARNING, logger=facilitator.__name__):
+            await Facilitator(db=db)()
+        assert any(
+            "Failed to apply the bundled model cost manifest" in r.message for r in caplog.records
+        )
+        # Steps after _ensure_model_costs still ran.
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.AnnotationConfig.id).where(
+                        models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME
+                    )
+                )
+                is not None
+            )
+
+        async def _fail_enums(_: DbSessionFactory) -> None:
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(facilitator, "_ensure_enums", _fail_enums)
+        with pytest.raises(RuntimeError, match="db down"):
+            await Facilitator(db=db)()
 
 
 async def _count_built_in_models(db: DbSessionFactory) -> int:
