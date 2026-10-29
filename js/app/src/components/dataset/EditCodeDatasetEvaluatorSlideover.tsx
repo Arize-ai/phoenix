@@ -355,6 +355,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       kind: "CODE",
       isBuiltin: false,
       includeExplanation: false,
+      inputDescriptions: {},
     },
     datasetEvaluator: {
       id: datasetEvaluatorId,

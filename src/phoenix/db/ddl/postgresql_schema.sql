@@ -1971,6 +1971,7 @@ CREATE TABLE public.llm_evaluators (
     prompt_version_tag_id BIGINT,
     output_configs JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    input_schema JSONB,
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'LLM'::text)),
     CONSTRAINT fk_llm_evaluators_kind_evaluators
@@ -2120,6 +2121,7 @@ CREATE TABLE public.code_evaluators (
     input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
     sandbox_config_id BIGINT,
+    input_schema JSONB,
     CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_code_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'CODE'::text)),
     CONSTRAINT fk_code_evaluators_kind_evaluators

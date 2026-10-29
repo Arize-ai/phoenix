@@ -111,10 +111,13 @@ export const ProjectEvaluatorInputMappingDock = ({
   recordKind,
   requiredVariables,
   evaluatorKind,
+  canDescribeInputs,
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
   evaluatorKind: "prompt" | "code" | "decision";
+  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
+  canDescribeInputs?: boolean;
 }) => {
   const variables = useEvaluatorInputVariables();
   const unboundVariables = useUnboundRequiredVariables({
@@ -167,6 +170,7 @@ export const ProjectEvaluatorInputMappingDock = ({
                 key={recordKind}
                 recordKind={recordKind}
                 requiredVariables={requiredVariables}
+                canDescribeInputs={canDescribeInputs}
                 emptyState={
                   <CompactEmptyState
                     icon={<Icon svg={<Icons.Plus />} />}

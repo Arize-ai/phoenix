@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bacacdf2d47bf1f1c51f250bf9c27e5c>>
+ * @generated SignedSource<<a28e47dc519452ad6cbbd460e25b3411>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type CreateProjectCodeEvaluatorInput = {
   evaluatorInputMapping: EvaluatorInputMappingInput;
   filterCondition?: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  inputSchema?: any | null;
   language: Language;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
