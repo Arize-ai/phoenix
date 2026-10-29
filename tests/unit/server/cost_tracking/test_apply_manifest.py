@@ -726,6 +726,88 @@ class TestApplyManifestIfNewer:
         assert await _active_built_in_prices(db) == {"model-b": 1e-6}
         assert await _get_deleted_model_names(db) == {"model-a"}
 
+    async def test_pattern_reassignment_and_swap_between_active_models(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+        initial_ids = {name: m.id for name, m in (await _get_models(db, is_built_in=True)).items()}
+
+        # Pattern transfer: active model-a moves to a new pattern while new model-c takes
+        # model-a's previous pattern.
+        moved_a = {
+            **_manifest_model("model-a", input_rate=3e-6),
+            "name_pattern": r"(?i)^(model-a-v2)$",
+        }
+        taking_c = {
+            **_manifest_model("model-c", input_rate=4e-6),
+            "name_pattern": r"(?i)^(model-a)$",
+        }
+        assert await _apply(
+            db, _manifest_of([moved_a, _manifest_model("model-b"), taking_c], day=2)
+        )
+        models_day2 = await _get_models(db, is_built_in=True)
+        assert {name: m.name_pattern.pattern for name, m in models_day2.items()} == {
+            "model-a": r"(?i)^(model-a-v2)$",
+            "model-b": r"(?i)^(model-b)$",
+            "model-c": r"(?i)^(model-a)$",
+        }
+
+        # True two-model swap: model-a and model-b exchange patterns while keeping their rows.
+        swapped_a = {
+            **_manifest_model("model-a", input_rate=5e-6),
+            "name_pattern": r"(?i)^(model-b)$",
+        }
+        swapped_b = {
+            **_manifest_model("model-b", input_rate=6e-6),
+            "name_pattern": r"(?i)^(model-a-v2)$",
+        }
+        assert await _apply(db, _manifest_of([swapped_a, swapped_b, taking_c], day=3))
+        models_day3 = await _get_models(db, is_built_in=True)
+        assert models_day3["model-a"].id == initial_ids["model-a"]
+        assert models_day3["model-b"].id == initial_ids["model-b"]
+        assert {name: m.name_pattern.pattern for name, m in models_day3.items()} == {
+            "model-a": r"(?i)^(model-b)$",
+            "model-b": r"(?i)^(model-a-v2)$",
+            "model-c": r"(?i)^(model-a)$",
+        }
+
+    async def test_failed_apply_rolls_back_and_preserves_prior_pricing(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+
+        def _boom(_: Any) -> Any:
+            raise RuntimeError("boom")
+
+        swapped_a = {
+            **_manifest_model("model-a", input_rate=5e-6),
+            "name_pattern": r"(?i)^(model-b)$",
+        }
+        with monkeypatch.context() as mp:
+            mp.setattr(
+                "phoenix.server.cost_tracking.apply_manifest.TokenPriceCustomizationParser.parse",
+                _boom,
+            )
+            with pytest.raises(RuntimeError, match="boom"):
+                await _apply(db, _manifest_of([swapped_a], day=2))
+
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 1e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker == ModelCostManifestVersion(generated_at=_manifest_date(1))
+        lookup = CostModelLookup((await _get_models(db, is_built_in=True)).values())
+        for name in ("model-a", "model-b"):
+            matched = lookup.find_model(
+                start_time=datetime.now(timezone.utc),
+                attributes={"llm": {"model_name": name}},
+            )
+            assert matched is not None and matched.name == name
+
     async def test_unchanged_manifest_does_not_touch_models(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", "model-b", day=1))

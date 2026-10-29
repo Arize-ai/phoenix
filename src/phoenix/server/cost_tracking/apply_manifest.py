@@ -10,6 +10,7 @@ rolls back prices fetched since. The rows themselves are the cache: nothing else
 import logging
 import re
 from datetime import datetime, timezone
+from secrets import token_hex
 from typing import NamedTuple, Optional
 
 import sqlalchemy as sa
@@ -176,6 +177,27 @@ async def _upsert_models(
     built_in_models: dict[str, models.GenerativeModel],
 ) -> tuple[int, int]:
     """Returns the number of models added and the number of existing models changed."""
+    incoming_patterns = {
+        (manifest_model.name_pattern, _provider(manifest_model))
+        for manifest_model in entries.values()
+    }
+    reassigned_names: set[str] = set()
+    for name, manifest_model in entries.items():
+        if (model := built_in_models.get(name)) is None:
+            continue
+        old_key = (model.name_pattern, model.provider)
+        new_key = (manifest_model.name_pattern, _provider(manifest_model))
+        if old_key != new_key and old_key in incoming_patterns:
+            # Another entry takes over this model's name_pattern and provider, possibly in a
+            # swap. The partial unique index ix_generative_models_match_criteria cannot be
+            # deferred, so move this model to a placeholder pattern and flush first; the loop
+            # below then sets its new pattern. The placeholder never matches a real model name
+            # and is never committed.
+            model.name_pattern = re.compile(f"^__phoenix_reassigned_{model.id}_{token_hex(8)}__$")
+            reassigned_names.add(name)
+    if reassigned_names:
+        await session.flush()
+
     num_added = num_updated = 0
     for name, manifest_model in entries.items():
         pattern = manifest_model.name_pattern
@@ -193,7 +215,11 @@ async def _upsert_models(
             num_added += 1
             changed = False
         else:
-            changed = model.provider != provider or model.name_pattern != pattern
+            changed = (
+                name in reassigned_names
+                or model.provider != provider
+                or model.name_pattern != pattern
+            )
             model.provider = provider
             model.name_pattern = pattern
 
