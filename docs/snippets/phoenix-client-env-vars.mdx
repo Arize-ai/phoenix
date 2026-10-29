@@ -7,11 +7,10 @@ Phoenix's SDKs, the `px` CLI, and MCP read their connection settings from enviro
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
-Any Phoenix instance that isn't running on the same machine as your app — a container, a Kubernetes deployment, or a managed host — is reached the same way: point the endpoint variables at its hostname, and supply an API key if it has authentication enabled.
+Any Phoenix instance that isn't running on the same machine as your app — a container, a Kubernetes deployment, or a managed host — is reached the same way: point `PHOENIX_COLLECTOR_ENDPOINT` at its hostname, and supply an API key if it has authentication enabled. That one variable covers tracing, the clients, and the `px` CLI.
 
 ```bash
 PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
-PHOENIX_ENDPOINT="https://your-phoenix.example.com"
 
 # Only if the deployment has authentication enabled
 PHOENIX_API_KEY="your-api-key"
@@ -21,7 +20,7 @@ PHOENIX_API_KEY="your-api-key"
 
 The fallback does not run both ways in every SDK. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` everywhere, but Python trace export does not yet read `PHOENIX_ENDPOINT`, so setting **only** `PHOENIX_ENDPOINT` can leave Python trace export pointed at `http://localhost:6006`.
 
-Set both — to the same value in the usual case where one Phoenix serves both concerns, which is what `px setup` writes into `.env.phoenix`, or to different values when trace ingest and API access genuinely live at different URLs.
+Set `PHOENIX_ENDPOINT` as well only when trace ingest and API access live at different URLs.
 
 `PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the variables above.
 
