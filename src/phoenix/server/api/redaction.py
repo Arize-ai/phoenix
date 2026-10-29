@@ -7,6 +7,8 @@ import strawberry
 from graphql import (
     ArgumentNode,
     DocumentNode,
+    GraphQLArgument,
+    GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLList,
@@ -36,8 +38,8 @@ REDACTED_VALUE = "[redacted]"
 T = TypeVar("T")
 
 Redacted = Annotated[T, strawberry.argument(metadata={_REDACTED_KEY: True})]
-"""Marks a resolver argument or input field that carries a credential, personal data
-or customer content. The GraphQL type is unchanged; the value is blanked on spans.
+"""A resolver argument or input field whose value is blanked on spans; the GraphQL type
+stays ``T``.
 
     @strawberry.input
     class CreateUserInput:
@@ -47,11 +49,8 @@ or customer content. The GraphQL type is unchanged; the value is blanked on span
 
 
 def redact_arguments(args: dict[str, Any], info: GraphQLResolveInfo[Any]) -> dict[str, Any]:
-    """Strawberry ``arg_filter`` that blanks every ``Redacted`` argument and input field.
-
-    ``args`` is keyed by GraphQL argument name and is the deep copy Strawberry hands to
-    the filter, so nested input objects are modified in place.
-    """
+    """Strawberry ``arg_filter``. ``args`` is the deep copy Strawberry makes for the
+    filter, so nested input objects are blanked in place."""
     graphql_field = info.parent_type.fields.get(info.field_name)
     if graphql_field is None:
         return args
@@ -59,20 +58,15 @@ def redact_arguments(args: dict[str, Any], info: GraphQLResolveInfo[Any]) -> dic
         graphql_argument = graphql_field.args.get(name)
         if graphql_argument is None:
             continue
-        argument = (graphql_argument.extensions or {}).get("strawberry-definition")
-        if not isinstance(argument, StrawberryArgument):
-            continue
-        if argument.metadata.get(_REDACTED_KEY):
+        if _is_redacted_argument(graphql_argument):
             args[name] = REDACTED_VALUE
         else:
-            _redact_value(value, graphql_argument.type)
+            _redact_input_object(value, graphql_argument.type)
     return args
 
 
 def redact_document(document: DocumentNode, schema: GraphQLSchema) -> str:
-    """Print the document with every literal bound to a ``Redacted`` argument or input
-    field replaced by ``"[redacted]"``. Variables are left as written: their values are
-    not part of the document."""
+    """Variables are left as written: their values are not part of the document."""
     type_info = TypeInfo(schema)
     return print_ast(visit(document, TypeInfoVisitor(type_info, _RedactLiterals(type_info))))
 
@@ -84,11 +78,12 @@ class _RedactLiterals(Visitor):
 
     def enter_argument(self, node: ArgumentNode, *_: Any) -> ArgumentNode | None:
         graphql_argument = self._type_info.get_argument()
-        if graphql_argument is None or isinstance(node.value, VariableNode):
-            return None
-        argument = (graphql_argument.extensions or {}).get("strawberry-definition")
-        if isinstance(argument, StrawberryArgument) and argument.metadata.get(_REDACTED_KEY):
-            return ArgumentNode(name=node.name, value=StringValueNode(value=REDACTED_VALUE))
+        if (
+            graphql_argument is not None
+            and not isinstance(node.value, VariableNode)
+            and _is_redacted_argument(graphql_argument)
+        ):
+            return ArgumentNode(name=node.name, value=_REDACTED_LITERAL)
         return None
 
     def enter_object_field(self, node: ObjectFieldNode, *_: Any) -> ObjectFieldNode | None:
@@ -96,21 +91,19 @@ class _RedactLiterals(Visitor):
         if not isinstance(parent, GraphQLInputObjectType) or isinstance(node.value, VariableNode):
             return None
         graphql_field = parent.fields.get(node.name.value)
-        if graphql_field is None:
-            return None
-        field = (graphql_field.extensions or {}).get("strawberry-definition")
-        if isinstance(field, StrawberryField) and _is_redacted_field(field):
-            return ObjectFieldNode(name=node.name, value=StringValueNode(value=REDACTED_VALUE))
+        if graphql_field is not None and _is_redacted_input_field(graphql_field):
+            return ObjectFieldNode(name=node.name, value=_REDACTED_LITERAL)
         return None
+
+
+_REDACTED_LITERAL = StringValueNode(value=REDACTED_VALUE)
 
 
 class RedactingOpenTelemetryExtension(OpenTelemetryExtension):
     """Strawberry's OpenTelemetry extension with ``Redacted`` values blanked.
 
-    Resolver arguments go through ``redact_arguments``. The operation span records the
-    parsed document with its ``Redacted`` literals blanked rather than the raw request
-    text, so an inlined password is not exported either. A request that fails to parse
-    records no document.
+    ``on_operation`` is reimplemented rather than wrapped: the parent records the raw
+    request text before parsing, and a span attribute cannot be removed once set.
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -138,53 +131,42 @@ def _operation_span_name(operation_name: str | None) -> str:
     return f"GraphQL Query: {operation_name}" if operation_name else "GraphQL Query"
 
 
-def _redact_value(value: Any, type_: GraphQLInputType) -> None:
-    """Blank the ``Redacted`` fields of an input object, recursing through lists and
-    nested inputs. graphql-core coerces input objects to dicts keyed by GraphQL field
-    name; dataclass instances are handled too in case coercion already converted them.
-    """
-    if value is None or value is strawberry.UNSET:
-        return
-    if isinstance(type_, (GraphQLNonNull, GraphQLList)):
-        if isinstance(type_, GraphQLList) and isinstance(value, list):
+def _redact_input_object(value: Any, type_: GraphQLInputType) -> None:
+    if isinstance(type_, GraphQLNonNull):
+        _redact_input_object(value, type_.of_type)
+    elif isinstance(type_, GraphQLList):
+        if isinstance(value, list):
             for item in value:
-                _redact_value(item, type_.of_type)
-        elif isinstance(type_, GraphQLNonNull):
-            _redact_value(value, type_.of_type)
-        return
-    if not isinstance(type_, GraphQLInputObjectType):
-        return
-    for name, graphql_field in type_.fields.items():
-        field = (graphql_field.extensions or {}).get("strawberry-definition")
-        if not isinstance(field, StrawberryField):
-            continue
-        redacted = _is_redacted_field(field)
-        if isinstance(value, dict):
+                _redact_input_object(item, type_.of_type)
+    elif isinstance(type_, GraphQLInputObjectType) and isinstance(value, dict):
+        for name, graphql_field in type_.fields.items():
             if name not in value:
                 continue
-            if redacted:
+            if _is_redacted_input_field(graphql_field):
                 value[name] = REDACTED_VALUE
             else:
-                _redact_value(value[name], graphql_field.type)
-        elif hasattr(value, field.python_name):
-            if redacted:
-                setattr(value, field.python_name, REDACTED_VALUE)
-            else:
-                _redact_value(getattr(value, field.python_name), graphql_field.type)
+                _redact_input_object(value[name], graphql_field.type)
 
 
-def _is_redacted_field(field: StrawberryField) -> bool:
-    annotation = field.type_annotation
-    return annotation is not None and _is_redacted(annotation.evaluate())
+def _is_redacted_argument(graphql_argument: GraphQLArgument) -> bool:
+    argument = _strawberry_definition(graphql_argument)
+    return isinstance(argument, StrawberryArgument) and bool(argument.metadata.get(_REDACTED_KEY))
 
 
-def _is_redacted(annotation: object) -> bool:
-    if get_origin(annotation) is not Annotated:
+def _is_redacted_input_field(graphql_field: GraphQLInputField) -> bool:
+    field = _strawberry_definition(graphql_field)
+    if not isinstance(field, StrawberryField) or field.type_annotation is None:
         return False
-    return any(
+    annotation = field.type_annotation.evaluate()
+    return get_origin(annotation) is Annotated and any(
         isinstance(item, StrawberryArgumentAnnotation) and bool(item.metadata.get(_REDACTED_KEY))
         for item in get_args(annotation)[1:]
     )
+
+
+def _strawberry_definition(graphql_node: GraphQLArgument | GraphQLInputField) -> object:
+    """Strawberry attaches its own definition to every graphql-core argument and field."""
+    return (graphql_node.extensions or {}).get("strawberry-definition")
 
 
 __all__ = [
