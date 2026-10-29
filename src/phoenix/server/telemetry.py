@@ -1,17 +1,12 @@
 import logging
 import os
-from functools import partial
-from typing import Any, Callable
 
-from graphql import GraphQLResolveInfo
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.resource import ResourceAttributes
-from strawberry.extensions import SchemaExtension
-from strawberry.extensions.tracing import OpenTelemetryExtension
 
 from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
@@ -19,7 +14,6 @@ from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
 )
-from phoenix.server.api.redaction import REDACTED_VALUE, redact_arguments
 from phoenix.version import __version__
 
 logger = logging.getLogger(__name__)
@@ -63,60 +57,6 @@ def _server_resource() -> Resource:
             ResourceAttributes.SERVICE_NAME: _SERVICE_NAME,
             ResourceAttributes.SERVICE_VERSION: __version__,
         }
-    )
-
-
-# Resolvers whose arguments are customer content through and through: prompts,
-# dataset examples, annotation text, conversations. Their arguments are blanked
-# whole. Credentials and personal data are marked field by field with
-# ``phoenix.server.api.redaction.Redacted`` instead, so every other resolver keeps
-# its arguments (filters, ids, names) on the span.
-_CONTENT_RESOLVERS: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("Subscription", "chatCompletion"),
-        ("Subscription", "chatCompletionOverDataset"),
-        ("Mutation", "evaluatorPreviews"),
-        ("Mutation", "createChatPrompt"),
-        ("Mutation", "createChatPromptVersion"),
-        ("Mutation", "createDatasetLlmEvaluator"),
-        ("Mutation", "updateDatasetLlmEvaluator"),
-        ("Mutation", "addExamplesToDataset"),
-        ("Mutation", "patchDatasetExamples"),
-        ("Mutation", "createDatasetSplitWithExamples"),
-        ("Mutation", "createSpanAnnotations"),
-        ("Mutation", "createSpanNotes"),
-        ("Mutation", "patchSpanAnnotations"),
-        ("Mutation", "createTraceAnnotations"),
-        ("Mutation", "createTraceNotes"),
-        ("Mutation", "patchTraceAnnotations"),
-        ("Mutation", "createDocumentAnnotations"),
-        ("Mutation", "patchDocumentAnnotations"),
-        ("Mutation", "createProjectSessionAnnotations"),
-        ("Mutation", "createProjectSessionNotes"),
-        ("Mutation", "updateProjectSessionAnnotations"),
-        ("Mutation", "createAgentSession"),
-        ("Mutation", "branchAgentSession"),
-        ("Mutation", "patchAgentSession"),
-    }
-)
-
-
-def redact_sensitive_arguments(
-    args: dict[str, Any], info: GraphQLResolveInfo[Any]
-) -> dict[str, Any]:
-    """Strawberry ``arg_filter`` for the span attributes of resolver arguments."""
-    if (info.parent_type.name, info.field_name) in _CONTENT_RESOLVERS:
-        return dict.fromkeys(args, REDACTED_VALUE)
-    return redact_arguments(args, info)
-
-
-def graphql_tracing_extension(tracer_provider: TracerProvider) -> Callable[[], SchemaExtension]:
-    """An extension factory bound to this provider rather than the global one, which in
-    a notebook could be the provider OpenInference is using."""
-    return partial(
-        OpenTelemetryExtension,
-        tracer_provider=tracer_provider,
-        arg_filter=redact_sensitive_arguments,
     )
 
 
