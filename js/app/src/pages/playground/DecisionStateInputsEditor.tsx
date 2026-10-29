@@ -78,10 +78,19 @@ const surfaceCSS = css`
     padding-left: 2ch;
     color: var(--decision-state-inputs-comment-color);
   }
+  /* Always laid out, so showing it moves nothing: it keeps its width when
+     hidden, and has no height of its own, so the key (taller than a line)
+     overflows evenly instead of growing the line. */
   .decision-state-inputs__enter-hint {
     display: inline-flex;
+    align-items: center;
+    height: 0;
     margin-left: var(--global-dimension-size-100);
     font-family: var(--global-font-family-sans);
+    visibility: hidden;
+    &[data-visible] {
+      visibility: visible;
+    }
   }
   .decision-state-inputs__comment-source {
     opacity: 0.7;
@@ -323,12 +332,15 @@ export function DecisionStateInputsEditor({
       />
     );
   // Typed names are only added on Enter (or a comma, or leaving the slot).
-  const enterHint =
-    pending.trim() !== "" && !isDisabled ? (
-      <span className="decision-state-inputs__enter-hint" aria-hidden>
-        <KeyboardToken>↵</KeyboardToken>
-      </span>
-    ) : null;
+  const enterHint = isDisabled ? null : (
+    <span
+      className="decision-state-inputs__enter-hint"
+      data-visible={pending.trim() !== "" || undefined}
+      aria-hidden
+    >
+      <KeyboardToken>↵</KeyboardToken>
+    </span>
+  );
   const pill = (name: string) => (
     <span css={pillCSS} className="decision-state-inputs__pill">
       {name}

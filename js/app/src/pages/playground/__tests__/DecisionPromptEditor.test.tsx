@@ -142,8 +142,11 @@ it("switches between Template and Inputs, keeping each, and says what the inputs
         </ThemeContext.Provider>
       )
     );
+    // The drawn state, without the (hidden) Enter key hint.
     const inputsEditor = () =>
-      container.querySelector('[aria-label="State inputs"]')?.textContent;
+      container
+        .querySelector('[aria-label="State inputs"]')
+        ?.textContent?.replace("↵", "");
     // Only two modes: the JSON, Value and Object modes are gone.
     expect(
       Array.from(

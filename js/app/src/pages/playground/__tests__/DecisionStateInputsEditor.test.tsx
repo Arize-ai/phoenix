@@ -56,34 +56,33 @@ async function renderEditor(
     await act(async () => root.unmount());
     container.remove();
   };
-  return { container, slot, onChange, type, press, cleanup };
+  // The drawn state, without the (hidden) Enter key hint.
+  const stateText = () =>
+    container
+      .querySelector('[aria-label="State inputs"]')
+      ?.textContent?.replace("↵", "");
+  return { container, slot, onChange, type, press, cleanup, stateText };
 }
 
 it("draws one input sent alone as the input, and an object keyed by name", async () => {
   const one = await renderEditor(["ticket"], { inputsShape: "value" });
   try {
-    expect(
-      one.container.querySelector('[aria-label="State inputs"]')?.textContent
-    ).toBe("ticket");
+    expect(one.stateText()).toBe("ticket");
     expect(one.slot.placeholder).toBe("+ input");
   } finally {
     await one.cleanup();
   }
   const wrapped = await renderEditor(["ticket"]);
   try {
-    expect(
-      wrapped.container.querySelector('[aria-label="State inputs"]')
-        ?.textContent
-    ).toBe('{"ticket": ticket}');
+    expect(wrapped.stateText()).toBe('{"ticket": ticket}');
   } finally {
     await wrapped.cleanup();
   }
   const several = await renderEditor(["reference", "output"]);
   try {
-    expect(
-      several.container.querySelector('[aria-label="State inputs"]')
-        ?.textContent
-    ).toBe('{"reference": reference,"output": output}');
+    expect(several.stateText()).toBe(
+      '{"reference": reference,"output": output}'
+    );
   } finally {
     await several.cleanup();
   }
@@ -303,15 +302,17 @@ it("offers no add-all once an input is added", async () => {
 
 it("shows the Enter key beside the slot while a name is typed", async () => {
   const editor = await renderEditor(["ticket"]);
+  // The hint is always laid out, so showing it does not shift the line.
   const hint = () =>
     editor.container.querySelector(".decision-state-inputs__enter-hint");
   try {
-    expect(hint()).toBeNull();
-    await editor.type("customer");
     expect(hint()?.textContent).toBe("↵");
+    expect(hint()?.hasAttribute("data-visible")).toBe(false);
+    await editor.type("customer");
+    expect(hint()?.hasAttribute("data-visible")).toBe(true);
     await editor.press("Enter");
     expect(editor.onChange).toHaveBeenLastCalledWith(["ticket", "customer"]);
-    expect(hint()).toBeNull();
+    expect(hint()?.hasAttribute("data-visible")).toBe(false);
   } finally {
     await editor.cleanup();
   }
