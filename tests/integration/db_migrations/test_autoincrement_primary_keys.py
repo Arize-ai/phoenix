@@ -169,6 +169,8 @@ async def test_prompt_versions_autoincrement_at_head(
         ("132d988c5bef", "eaf1907ae453", "refresh_tokens"),
         ("132d988c5bef", "eaf1907ae453", "access_tokens"),
         ("132d988c5bef", "eaf1907ae453", "api_keys"),
+        ("52e79887a7e3", "45c1d8813138", "api_keys"),
+        ("52e79887a7e3", "45c1d8813138", "password_reset_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "api_keys"),
         ("ac59da3e4035", "52e79887a7e3", "access_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "refresh_tokens"),
