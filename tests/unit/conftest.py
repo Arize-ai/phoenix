@@ -23,6 +23,7 @@ from typing import (
 )
 
 import aiosqlite
+import freezegun
 import httpx2
 import pytest
 import sqlalchemy
@@ -75,6 +76,12 @@ from tests.unit.vcr import CustomVCR
 
 
 def pytest_configure(config: Config) -> None:
+    # freeze_time() reads every attribute of every loaded module to find datetime
+    # objects to patch. The daytona SDK resolves attributes lazily by importing
+    # submodules, whose pydantic models then build their schemas against the
+    # already-patched FakeDatetime and fail, leaving the patch half-applied for
+    # the rest of the worker.
+    freezegun.configure(extend_ignore_list=["daytona_sdk", "daytona_api_client"])
     config.addinivalue_line(
         "markers",
         "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
