@@ -50,6 +50,7 @@ from phoenix.db.types.trace_retention import (
 from phoenix.server.cost_tracking.apply_manifest import apply_manifest_if_newer
 from phoenix.server.cost_tracking.manifest import BUNDLED_MANIFEST_PATH, parse_manifest
 from phoenix.server.email.types import WelcomeEmailSender
+from phoenix.server.jwt_store import end_sessions
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -211,24 +212,15 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
         )
         if updated_id is not None:
             # The public password may have opened sessions before the replacement, so end them
-            # as a password reset does. An unredeemed authorization code could still be exchanged
-            # for new tokens, so delete it, and revoke the grants that the deleted refresh tokens
-            # belonged to. API keys are left in place, as a password reset leaves them.
-            for table in (
-                models.PasswordResetToken,
-                models.OAuth2AuthorizationCode,
-                models.AccessToken,
-                models.RefreshToken,
-            ):
-                await session.execute(sa.delete(table).where(table.user_id == updated_id))
+            # as a password reset does. A pending reset token would let its holder set the
+            # password, so delete it as well. The token store has not started yet, so no cached
+            # token needs evicting.
             await session.execute(
-                sa.update(models.OAuth2Grant)
-                .where(
-                    models.OAuth2Grant.user_id == updated_id,
-                    models.OAuth2Grant.revoked_at.is_(None),
+                sa.delete(models.PasswordResetToken).where(
+                    models.PasswordResetToken.user_id == updated_id
                 )
-                .values(revoked_at=datetime.now(timezone.utc))
             )
+            await end_sessions(session, updated_id)
     if updated_id is not None:
         logger.info(
             "Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD to the default admin account, "

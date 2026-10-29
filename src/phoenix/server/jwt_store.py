@@ -12,6 +12,7 @@ from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 from sqlalchemy import Select, delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.auth import (
     JWT_ALGORITHM,
@@ -46,6 +47,94 @@ from phoenix.server.types import (
     TokenId,
     UserId,
 )
+
+
+async def end_sessions(
+    session: AsyncSession, user_id: int
+) -> tuple[list[AccessTokenId], list[RefreshTokenId]]:
+    """End every session the user has, in the caller's transaction.
+
+    A session is anything that grants access because the user signed in: access and refresh
+    tokens, unredeemed OAuth2 authorization codes, which could otherwise be exchanged for new
+    tokens, and OAuth2 grants, which are revoked rather than deleted so that the record of
+    authorized clients is kept. API keys and password reset tokens are left in place: an API key
+    is a credential the user manages separately, and a password reset token does not grant
+    access by itself.
+
+    Returns the ids of the deleted access and refresh tokens, for callers that cache them.
+    """
+    await session.execute(
+        delete(models.OAuth2AuthorizationCode).where(
+            models.OAuth2AuthorizationCode.user_id == user_id
+        )
+    )
+    await session.execute(
+        update(models.OAuth2Grant)
+        .where(models.OAuth2Grant.user_id == user_id, models.OAuth2Grant.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    # Delete access tokens before refresh tokens. Deleting a refresh token cascades to its access
+    # tokens in the database, and RETURNING would then not report their ids for eviction.
+    access_token_ids = [
+        AccessTokenId(id_)
+        async for id_ in await session.stream_scalars(
+            delete(models.AccessToken)
+            .where(models.AccessToken.user_id == user_id)
+            .returning(models.AccessToken.id)
+        )
+    ]
+    refresh_token_ids = [
+        RefreshTokenId(id_)
+        async for id_ in await session.stream_scalars(
+            delete(models.RefreshToken)
+            .where(models.RefreshToken.user_id == user_id)
+            .returning(models.RefreshToken.id)
+        )
+    ]
+    return access_token_ids, refresh_token_ids
+
+
+async def end_browser_sessions(
+    session: AsyncSession, user_id: int
+) -> tuple[list[AccessTokenId], list[RefreshTokenId]]:
+    """End the user's browser sessions, in the caller's transaction, and nothing else.
+
+    A browser session is a refresh token issued by signing in to Phoenix, which has no OAuth2
+    grant, together with the access tokens issued from it. OAuth2 grants, such as a CLI or MCP
+    client's, and their tokens are left in place; they end when they expire, when they are
+    revoked, or when end_sessions runs.
+
+    Returns the ids of the deleted access and refresh tokens, for callers that cache them.
+    """
+    browser_refresh_token_ids = (
+        select(models.RefreshToken.id)
+        .where(
+            models.RefreshToken.user_id == user_id,
+            models.RefreshToken.oauth2_grant_id.is_(None),
+        )
+        .scalar_subquery()
+    )
+    # Delete access tokens before refresh tokens, for the reason given in end_sessions.
+    access_token_ids = [
+        AccessTokenId(id_)
+        async for id_ in await session.stream_scalars(
+            delete(models.AccessToken)
+            .where(models.AccessToken.refresh_token_id.in_(browser_refresh_token_ids))
+            .returning(models.AccessToken.id)
+        )
+    ]
+    refresh_token_ids = [
+        RefreshTokenId(id_)
+        async for id_ in await session.stream_scalars(
+            delete(models.RefreshToken)
+            .where(
+                models.RefreshToken.user_id == user_id,
+                models.RefreshToken.oauth2_grant_id.is_(None),
+            )
+            .returning(models.RefreshToken.id)
+        )
+    ]
+    return access_token_ids, refresh_token_ids
 
 
 def _scopes_tuple(scopes: Optional[list[str]]) -> Optional[tuple[str, ...]]:
@@ -253,11 +342,15 @@ class JwtStore:
 
     async def log_out(self, user_id: UserId) -> None:
         async with self._db() as session:
-            for cls in (AccessTokenId, RefreshTokenId):
-                table = cls.table
-                stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
-                async for id_ in await session.stream_scalars(stmt):
-                    await self._evict(cls(id_))
+            access_token_ids, refresh_token_ids = await end_sessions(session, int(user_id))
+        for token_id in (*access_token_ids, *refresh_token_ids):
+            await self._evict(token_id)
+
+    async def log_out_of_browsers(self, user_id: UserId) -> None:
+        async with self._db() as session:
+            access_token_ids, refresh_token_ids = await end_browser_sessions(session, int(user_id))
+        for token_id in (*access_token_ids, *refresh_token_ids):
+            await self._evict(token_id)
 
 
 _TokenT = TypeVar("_TokenT", bound=Token)

@@ -326,6 +326,7 @@ class CanRevokeTokens(Protocol):
 
 class CanLogOutUser(Protocol):
     async def log_out(self, user_id: UserId) -> None: ...
+    async def log_out_of_browsers(self, user_id: UserId) -> None: ...
 
 
 class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):

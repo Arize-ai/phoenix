@@ -67,6 +67,15 @@ phoenix serve --host 0.0.0.0 --port 6006
 PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
 ```
 
+### Signing out of the browser no longer signs out OAuth2 clients
+
+Signing out of the Phoenix UI still ends the user's sessions in every browser, but it no longer
+ends OAuth2 sessions, such as `px auth login` and MCP clients. Since v19.0.0, signing out deleted
+those clients' refresh tokens while still listing their grants as authorized. To end an OAuth2
+session, run `px auth logout` or revoke the client from the user's authorized applications.
+Changing or resetting a password, or changing the user's role, ends OAuth2 sessions as well as
+browser sessions.
+
 ## v19.x to v20.0.0
 
 The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a

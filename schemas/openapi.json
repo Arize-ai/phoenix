@@ -8931,7 +8931,7 @@
     "/auth/logout": {
       "get": {
         "summary": " Logout",
-        "description": "Log out user by revoking tokens and clearing cookies.",
+        "description": "Log out of every browser session by revoking its tokens, and clear the cookies.",
         "operationId": "_logout_auth_logout_get",
         "responses": {
           "200": {
