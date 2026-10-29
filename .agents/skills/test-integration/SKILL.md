@@ -47,7 +47,9 @@ declared model. Ollama checks do not require a provider API key.
 - Monday's scheduled workflow and manual dispatch run all enabled docs. A
   manual `docs` input accepts space-separated paths from `integrations.json`.
 - Selected docs are distributed deterministically across a matrix of shards;
-  shard reports are merged into one artifact, job summary, and PR comment.
+  shard reports are merged into one artifact, job summary, and PR comment. The
+  workflow only triggers on PRs that touch integration docs or the harness, and
+  posts no comment when no enabled doc was selected.
 - Each invocation uses a unique Phoenix project, so shards do not contend for
   shared project state.
 - Local services are declared per integration in `integrations.json` and

@@ -8,13 +8,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-STATUS_ICON = {
-    "pass": "✅",
-    "fail": "❌",
-    "skipped": "⏭",
-    "no-op": "⏭",
-}
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -64,7 +57,7 @@ def main() -> int:
     lines = [
         "# Integration documentation checks",
         "",
-        f"Overall status: **{STATUS_ICON.get(status, '❔')} {status}** "
+        f"Overall status: **{status}** "
         f"({counts['pass']} passed, {counts['fail']} failed, {counts['skipped']} skipped)",
         f"Classification: {args.reason}",
         "",
@@ -73,7 +66,6 @@ def main() -> int:
     ]
     for record in integrations:
         record_status = record.get("status", "?")
-        icon = STATUS_ICON.get(record_status, "❔")
         span = record.get("span", {})
         result = record.get("reason") or record.get("error") or "—"
         if span:
@@ -84,7 +76,7 @@ def main() -> int:
         result = str(result).replace("|", "\\|").replace("\n", " ")
         row = (
             f"| `{record.get('id', '?')}` | `{record.get('document', '?')}` | "
-            f"{record.get('language', '?')} | {icon} **{record_status}** | {result} |"
+            f"{record.get('language', '?')} | **{record_status}** | {result} |"
         )
         lines.append(row)
     noteworthy = [record for record in integrations if record.get("status") != "pass"]
@@ -92,11 +84,11 @@ def main() -> int:
         lines.extend(["", "## Failures and skips", ""])
         for record in noteworthy:
             record_status = record.get("status", "?")
-            icon = STATUS_ICON.get(record_status, "❔")
             detail = record.get("reason") or record.get("error") or "No result details recorded"
             detail = str(detail).replace("|", "\\|").replace("\n", " ")
             lines.append(
-                f"- {icon} **{record.get('id', '?')}** ({record.get('language', '?')}): {detail}"
+                f"- **{record.get('id', '?')}** ({record_status}, {record.get('language', '?')}): "
+                f"{detail}"
             )
     (args.output_dir / "integration-docs.md").write_text("\n".join(lines) + "\n")
     print((args.output_dir / "integration-docs.md").read_text())
