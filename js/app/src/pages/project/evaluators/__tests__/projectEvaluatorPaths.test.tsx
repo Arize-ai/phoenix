@@ -44,7 +44,7 @@ function TestProjectEvaluatorPaths() {
         data-new-code={creation.newCode}
         data-copy-llm={creation.copyLlm("Evaluator:llm/source")}
         data-copy-code={creation.copyCode("Evaluator:code/source")}
-        data-attach-code={creation.attachCode("Evaluator:code/source")}
+        data-attach-code={creation.attach("Evaluator:code/source")}
       />
       <Outlet />
     </>

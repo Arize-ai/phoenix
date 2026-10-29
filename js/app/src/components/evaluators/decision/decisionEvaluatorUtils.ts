@@ -11,6 +11,8 @@ import {
   questionScoringEqual,
   toDecisionQuestionDefinitions,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
+import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
+import type { EvaluatorInputMapping } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -30,6 +32,21 @@ export type DecisionEvaluatorData = {
   };
 };
 
+/** A query node selecting `decisionEvaluatorFragment_evaluator` unmasked. */
+export function readDecisionEvaluatorData(node: {
+  readonly id?: string;
+  readonly name?: string;
+  readonly inputSchema?: unknown;
+  readonly scoringPolicy?: DecisionEvaluatorData["scoringPolicy"] | null;
+  readonly decisionVersion?: DecisionEvaluatorData["decisionVersion"] | null;
+}): DecisionEvaluatorData | null {
+  const { id, name, inputSchema, scoringPolicy, decisionVersion } = node;
+  if (id == null || name == null || !scoringPolicy || !decisionVersion) {
+    return null;
+  }
+  return { id, name, inputSchema, scoringPolicy, decisionVersion };
+}
+
 /** What a binding form needs to know about the evaluator it is bound to. */
 export type DecisionEvaluatorView = {
   /** Null for a evaluator that has not been created yet. */
@@ -47,6 +64,26 @@ export function inputNamesFromSchema(schema: unknown): string[] {
   if (!isStringKeyedObject(schema)) return [];
   const properties = schema.properties;
   return isStringKeyedObject(properties) ? Object.keys(properties) : [];
+}
+
+export function pickDeclaredInputMapping(
+  mapping: EvaluatorInputMapping,
+  variables: readonly string[]
+) {
+  const normalized = normalizeInputMapping(mapping);
+  const declared = new Set(variables);
+  return {
+    pathMapping: Object.fromEntries(
+      Object.entries(normalized.pathMapping).filter(([name]) =>
+        declared.has(name)
+      )
+    ),
+    literalMapping: Object.fromEntries(
+      Object.entries(normalized.literalMapping).filter(([name]) =>
+        declared.has(name)
+      )
+    ),
+  };
 }
 
 /** Describes a saved evaluator for a binding form. */

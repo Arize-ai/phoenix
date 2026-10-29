@@ -1165,3 +1165,142 @@ mutation($input: EvaluatorPreviewsInput!) {
         # Seeded LLM evaluators already exist; a preview must not add a Decision or judge.
         assert await session.scalar(select(func.count()).select_from(models.Decision)) == 0
         assert await session.scalar(select(func.count()).select_from(models.DecisionEvaluator)) == 0
+
+
+PROJECT_EVALUATOR_FIELDS = """
+id name samplingRate filterCondition enabled evaluationTarget evaluationDelaySeconds
+inputMapping { pathMapping literalMapping } traceProject { name }
+evaluator { id kind ... on DecisionEvaluator { decisionVersion { id decision { versionCount } } } }
+"""
+CREATE_PROJECT_EVALUATOR = f"""
+mutation($input: CreateProjectDecisionEvaluatorInput!) {{
+  createProjectDecisionEvaluator(input: $input) {{ evaluator {{ {PROJECT_EVALUATOR_FIELDS} }} }}
+}}
+"""
+UPDATE_PROJECT_EVALUATOR = f"""
+mutation($input: UpdateProjectDecisionEvaluatorInput!) {{
+  updateProjectDecisionEvaluator(input: $input) {{ evaluator {{ {PROJECT_EVALUATOR_FIELDS} }} }}
+}}
+"""
+
+
+async def project_id(db: DbSessionFactory) -> str:
+    async with db() as session:
+        project = models.Project(name="support")
+        session.add(project)
+        await session.flush()
+        return str(GlobalID("Project", str(project.id)))
+
+
+def project_input(project: str, **overrides: Any) -> dict[str, Any]:
+    return {
+        "projectId": project,
+        "name": "triage",
+        "evaluatorName": "triage-evaluator",
+        "inputMapping": {"pathMapping": {"ticket": "input"}, "literalMapping": {}},
+        "samplingRate": 1.0,
+        "evaluationTarget": "TRACE",
+        **overrides,
+    }
+
+
+async def test_project_evaluator_runs_a_saved_decision_version(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    decision = await create(gql_client)
+    result = await gql_client.execute(
+        CREATE_PROJECT_EVALUATOR,
+        variables={
+            "input": project_input(
+                await project_id(db), decisionVersionId=decision["version"]["id"]
+            )
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    binding = result.data["createProjectDecisionEvaluator"]["evaluator"]
+    assert binding["evaluator"]["kind"] == "DECISION"
+    assert binding["evaluator"]["decisionVersion"]["id"] == decision["version"]["id"]
+    assert binding["inputMapping"]["pathMapping"] == {"ticket": "input"}
+    assert (binding["evaluationTarget"], binding["evaluationDelaySeconds"]) == ("TRACE", 300)
+    assert binding["traceProject"]["name"]
+
+
+async def test_failed_project_authoring_with_a_draft_version_leaves_nothing_behind(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    from sqlalchemy import func, select
+
+    project = await project_id(db)
+    async with db() as session:
+        projects = await session.scalar(select(func.count()).select_from(models.Project))
+    result = await gql_client.execute(
+        CREATE_PROJECT_EVALUATOR,
+        variables={
+            "input": project_input(
+                project,
+                decisionVersion=version_input(),
+                inputMapping={"pathMapping": {}, "literalMapping": {}},
+            )
+        },
+    )
+    assert result.errors and "Map the inputs" in result.errors[0].message
+    async with db() as session:
+        for model in (
+            models.Decision,
+            models.DecisionVersion,
+            models.DecisionVersionTag,
+            models.DecisionEvaluator,
+            models.ProjectEvaluator,
+        ):
+            assert await session.scalar(select(func.count()).select_from(model)) == 0
+        assert await session.scalar(select(func.count()).select_from(models.Project)) == projects
+
+    result = await gql_client.execute(
+        CREATE_PROJECT_EVALUATOR,
+        variables={"input": project_input(project, decisionVersion=version_input())},
+    )
+    assert result.data and not result.errors, result.errors
+    version = result.data["createProjectDecisionEvaluator"]["evaluator"]["evaluator"]
+    assert version["decisionVersion"]["decision"]["versionCount"] == 1
+
+
+async def test_project_evaluator_update_saves_binding_and_version_together(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    created = await gql_client.execute(
+        CREATE_PROJECT_EVALUATOR,
+        variables={"input": project_input(await project_id(db), decisionVersion=version_input())},
+    )
+    assert created.data and not created.errors, created.errors
+    binding = created.data["createProjectDecisionEvaluator"]["evaluator"]
+    result = await gql_client.execute(
+        UPDATE_PROJECT_EVALUATOR,
+        variables={
+            "input": {
+                "projectEvaluatorId": binding["id"],
+                "name": "triage-renamed",
+                "samplingRate": 0.5,
+                "evaluationTarget": "TRACE",
+                "filterCondition": "num_spans > 1",
+                "enabled": False,
+                "evaluationDelaySeconds": 600,
+                "decisionVersion": version_input(
+                    inputs=[{"name": "answer"}], state={"input": "answer"}
+                ),
+                "inputMapping": {"pathMapping": {"answer": "output"}, "literalMapping": {}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    updated = result.data["updateProjectDecisionEvaluator"]["evaluator"]
+    assert updated["id"] == binding["id"]
+    assert (updated["name"], updated["samplingRate"], updated["enabled"]) == (
+        "triage-renamed",
+        0.5,
+        False,
+    )
+    assert (updated["filterCondition"], updated["evaluationDelaySeconds"]) == ("num_spans > 1", 600)
+    assert updated["inputMapping"]["pathMapping"] == {"answer": "output"}
+    version = updated["evaluator"]["decisionVersion"]
+    assert version["id"] != binding["evaluator"]["decisionVersion"]["id"]
+    assert version["decision"]["versionCount"] == 2

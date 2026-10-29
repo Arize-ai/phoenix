@@ -34,6 +34,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
         ...CodeProjectEvaluatorDetails_projectEvaluator
+        ...DecisionProjectEvaluatorDetails_projectEvaluator
         ...CodeProjectEvaluatorConfigCards_projectEvaluator
         ...ProjectEvaluatorMetrics_projectEvaluator
         ...AnnotationConfigurationCard_projectEvaluator

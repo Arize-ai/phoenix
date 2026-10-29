@@ -27,10 +27,11 @@ export const newCodeProjectEvaluatorPath = (projectRootPath: string) =>
 export type ProjectEvaluatorCreationPaths = {
   newLlm: string;
   newCode: string;
+  newDecision: string;
   newLlmFromTemplate: (templateName: string) => string;
   copyLlm: (evaluatorId: string) => string;
   copyCode: (evaluatorId: string) => string;
-  attachCode: (evaluatorId: string) => string;
+  attach: (evaluatorId: string) => string;
 };
 
 /** Drops the search params that belong to a sub-view a destination leaves. */
@@ -119,13 +120,14 @@ export function useProjectEvaluatorCreationPaths(): ProjectEvaluatorCreationPath
     return {
       newLlm: creation("llm"),
       newCode: creation("code"),
+      newDecision: creation("decision"),
       newLlmFromTemplate: (templateName: string) =>
         creation(`template/${encodeURIComponent(templateName)}`),
       copyLlm: (evaluatorId: string) =>
         creation(`copy-llm/${encodeURIComponent(evaluatorId)}`),
       copyCode: (evaluatorId: string) =>
         creation(`copy-code/${encodeURIComponent(evaluatorId)}`),
-      attachCode: (evaluatorId: string) =>
+      attach: (evaluatorId: string) =>
         creation(`attach/${encodeURIComponent(evaluatorId)}`),
     };
   }, [parentPath, search]);

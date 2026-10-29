@@ -160,9 +160,14 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
+    online = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_online_decision_judge", online
+    )
     args.func(args)
     decisions.assert_called_once_with(transport, [])
     evaluators.assert_called_once_with(transport, [])
+    online.assert_called_once_with(transport)
     expected = (
         list(DATASET_SOURCES.values())
         if source == "all"
@@ -244,6 +249,10 @@ def test_startup_seeding_retries_until_server_is_ready(monkeypatch: pytest.Monke
     )
     seed = MagicMock(side_effect=[httpx.ConnectError("starting"), unavailable, []])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_online_decision_judge",
+        MagicMock(return_value=[]),
+    )
     sleep = MagicMock()
     monkeypatch.setattr(time, "sleep", sleep)
     datagen._seed_when_ready(datagen._resolve_config(args, {}))
@@ -274,7 +283,7 @@ def test_startup_seeding_does_not_retry_permission_errors(
     seed.assert_called_once()
 
 
-def test_startup_seeds_decisions_and_accuracy_evaluator(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_startup_seeds_decisions_and_decision_judges(monkeypatch: pytest.MonkeyPatch) -> None:
     parser = ArgumentParser()
     datagen.register(parser.add_subparsers())
     args = parser.parse_args(["datagen"])
@@ -288,6 +297,11 @@ def test_startup_seeds_decisions_and_accuracy_evaluator(monkeypatch: pytest.Monk
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
+    online = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_online_decision_judge", online
+    )
     datagen._seed_when_ready(datagen._resolve_config(args, {}))
     assert decisions.call_args.args[1] is datasets
     evaluators.assert_called_once_with(decisions.call_args.args[0], datasets)
+    online.assert_called_once_with(decisions.call_args.args[0])
