@@ -53,6 +53,7 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.redaction import RedactedType
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -256,7 +257,25 @@ class JsonList(TypeDecorator[list[Any]]):
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
-class _PhoenixUIMessage(TypeDecorator[PhoenixUIMessage]):
+class RedactedString(RedactedType, TypeDecorator[str]):
+    cache_ok = True
+    impl = String
+
+
+class RedactedLargeBinary(RedactedType, TypeDecorator[bytes]):
+    cache_ok = True
+    impl = LargeBinary
+
+
+class RedactedJsonDict(RedactedType, JsonDict):
+    cache_ok = True
+
+
+class RedactedJsonList(RedactedType, JsonList):
+    cache_ok = True
+
+
+class _PhoenixUIMessage(RedactedType, TypeDecorator[PhoenixUIMessage]):
     cache_ok = True
     impl = JSON_
 
@@ -347,7 +366,7 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
         return PromptInvocationParametersRootModel.model_validate(value).root
 
 
-class _PromptTemplate(TypeDecorator[PromptTemplate]):
+class _PromptTemplate(RedactedType, TypeDecorator[PromptTemplate]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
@@ -876,8 +895,8 @@ class Span(HasId):
     span_kind: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
-    attributes: Mapped[dict[str, Any]]
-    events: Mapped[list[dict[str, Any]]]
+    attributes: Mapped[dict[str, Any]] = mapped_column(RedactedJsonDict)
+    events: Mapped[list[dict[str, Any]]] = mapped_column(RedactedJsonList)
     status_code: Mapped[str] = mapped_column(
         CheckConstraint("status_code IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
     )
@@ -1280,7 +1299,7 @@ class SpanAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(RedactedString)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1322,7 +1341,7 @@ class TraceAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(RedactedString)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1362,7 +1381,7 @@ class DocumentAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(RedactedString)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1405,7 +1424,7 @@ class ProjectSessionAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(RedactedString)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1603,9 +1622,9 @@ class DatasetExampleRevision(HasId):
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
         index=True,
     )
-    input: Mapped[dict[str, Any]]
-    output: Mapped[dict[str, Any]]
-    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    input: Mapped[dict[str, Any]] = mapped_column(RedactedJsonDict)
+    output: Mapped[dict[str, Any]] = mapped_column(RedactedJsonDict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", RedactedJsonDict)
     content_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True, index=True)
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
@@ -1789,7 +1808,7 @@ class ExperimentRun(HasId):
     )
     repetition_number: Mapped[int]
     trace_id: Mapped[Optional[str]]
-    output: Mapped[ExperimentRunOutput]
+    output: Mapped[ExperimentRunOutput] = mapped_column(RedactedJsonDict)
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]
@@ -1833,7 +1852,7 @@ class ExperimentRunAnnotation(HasId):
     )
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(RedactedString)
     trace_id: Mapped[Optional[str]]
     error: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
@@ -2179,17 +2198,19 @@ class User(HasId):
         index=True,
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
-    username: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
-    email: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    username: Mapped[str] = mapped_column(RedactedString, nullable=False, unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(
+        RedactedString, nullable=True, unique=True, index=True
+    )
     profile_picture_url: Mapped[Optional[str]]
-    password_hash: Mapped[Optional[bytes]]
-    password_salt: Mapped[Optional[bytes]]
+    password_hash: Mapped[Optional[bytes]] = mapped_column(RedactedLargeBinary)
+    password_salt: Mapped[Optional[bytes]] = mapped_column(RedactedLargeBinary)
     reset_password: Mapped[bool]
     # OAuth2-specific fields (only used by OAuth2 users)
     oauth2_client_id: Mapped[Optional[str]]
-    oauth2_user_id: Mapped[Optional[str]]
+    oauth2_user_id: Mapped[Optional[str]] = mapped_column(RedactedString)
     # LDAP-specific field (only used by LDAP users)
-    ldap_unique_id: Mapped[Optional[str]]
+    ldap_unique_id: Mapped[Optional[str]] = mapped_column(RedactedString)
     auth_method: Mapped[AuthMethod] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')", name="valid_auth_method")
     )
@@ -3292,7 +3313,7 @@ class DatasetEvaluators(HasId):
 class Secret(Base):
     __tablename__ = "secrets"
     key: Mapped[str] = mapped_column(String, primary_key=True)
-    value: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    value: Mapped[bytes] = mapped_column(RedactedLargeBinary, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -3325,7 +3346,7 @@ class GenerativeModelCustomProvider(HasId):
     description: Mapped[Optional[str]]
     provider: Mapped[str] = mapped_column(String, nullable=False)
     sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
-    config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    config: Mapped[bytes] = mapped_column(RedactedLargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3399,7 +3420,7 @@ class AgentSession(HasId):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,  # sessions may be created while auth is disabled
     )
-    title: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(RedactedString, nullable=False)
     model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider, nullable=False)
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     custom_provider_id: Mapped[Optional[int]] = mapped_column(

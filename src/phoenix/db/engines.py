@@ -22,6 +22,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
+from phoenix.db.redaction import redact_parameters_in_errors
 
 SQLEAN_EXTENSIONS = ("text", "stats", "time", "crypto")
 
@@ -251,7 +252,6 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
-        hide_parameters=True,
         async_creator=sqlite_connection_factory(database, mode="ro"),
         pool_size=_READ_POOL_SIZE,
         max_overflow=_READ_MAX_OVERFLOW,
@@ -260,6 +260,7 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_read_pragma)
     configure_sqlite_transactions(engine)
+    redact_parameters_in_errors(engine)
     return engine
 
 
@@ -310,7 +311,6 @@ def aio_sqlite_engine(
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
-        hide_parameters=True,
         # rwc, not rw. Connections are lazy, so this engine can open before the
         # migration engine has created the file, and `rw` against a database
         # that does not exist yet fails.
@@ -332,6 +332,7 @@ def aio_sqlite_engine(
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     configure_sqlite_transactions(engine)
+    redact_parameters_in_errors(engine)
     if not migrate:
         return engine
     if database.startswith(":memory:"):
@@ -340,13 +341,13 @@ def aio_sqlite_engine(
         migration_engine = create_async_engine(
             url=url,
             json_serializer=_dumps,
-            hide_parameters=True,
             # rwc: the migration engine is the only one that creates the file.
             async_creator=sqlite_connection_factory(database, mode="rwc"),
             poolclass=NullPool,
             echo=log_migrations,
         )
         event.listen(migration_engine.sync_engine, "connect", set_sqlite_migration_pragma)
+        redact_parameters_in_errors(migration_engine)
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
 
@@ -434,7 +435,6 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -447,7 +447,6 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -457,11 +456,11 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
 
+    redact_parameters_in_errors(engine)
     if not migrate:
         return engine
 
@@ -480,7 +479,6 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
-            hide_parameters=True,
             poolclass=NullPool,
         )
     elif use_aws:
@@ -491,7 +489,6 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
-            hide_parameters=True,
             poolclass=NullPool,
         )
     else:
@@ -500,9 +497,9 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
-            hide_parameters=True,
             poolclass=NullPool,
         )
+    redact_parameters_in_errors(migration_engine)
     migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
 
