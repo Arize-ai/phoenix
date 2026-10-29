@@ -36,6 +36,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   isSubmitting,
   error,
   mode = "create",
+  canDescribeInputs,
 }: {
   title: string;
   projectId: string;
@@ -55,6 +56,11 @@ export const ProjectCodeEvaluatorDialogContent = ({
   isSubmitting: boolean;
   error?: string;
   mode?: "create" | "update";
+  /**
+   * Whether this form saves the evaluator's definition, so input descriptions
+   * written here persist. Attaching an existing evaluator does not.
+   */
+  canDescribeInputs?: boolean;
 }) => {
   const [isFilterValid, setIsFilterValid] = useState(true);
   const unboundVariables = useUnboundRequiredVariables({
@@ -101,6 +107,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           recordKind={toEvaluatorRecordKind(scope.targetType)}
           requiredVariables={requiredVariables}
           evaluatorKind="code"
+          canDescribeInputs={canDescribeInputs}
         />
       }
       right={

@@ -13469,6 +13469,19 @@
               }
             ],
             "title": "Source Code"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "The parameters of the current version's evaluate function, with a description on each the author described. Null without a version."
           }
         },
         "type": "object",
@@ -13482,7 +13495,8 @@
           "input_mapping",
           "output_configs",
           "current_version_id",
-          "source_code"
+          "source_code",
+          "input_schema"
         ],
         "title": "CodeEvaluatorDefinition"
       },
@@ -13613,6 +13627,19 @@
             "minItems": 1,
             "title": "Output Configs",
             "description": "Outputs the new code produces. Omit to keep."
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the parameters the new code still declares; null clears them."
           }
         },
         "additionalProperties": false,
@@ -14163,6 +14190,19 @@
             "minItems": 1,
             "title": "Output Configs",
             "description": "Outputs the code produces."
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422."
           }
         },
         "additionalProperties": false,
@@ -14609,6 +14649,19 @@
             "type": "array",
             "minItems": 1,
             "title": "Output Configs"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422."
           }
         },
         "additionalProperties": false,
@@ -17722,6 +17775,19 @@
             },
             "type": "array",
             "title": "Output Configs"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "The variables of the prompt version the evaluator runs, with a description on each the author described. Null when that version cannot be resolved or its template cannot be parsed."
           }
         },
         "type": "object",
@@ -17731,7 +17797,8 @@
           "name",
           "description",
           "prompt",
-          "output_configs"
+          "output_configs",
+          "input_schema"
         ],
         "title": "LLMEvaluatorDefinition"
       },
@@ -19344,6 +19411,19 @@
             "type": "array",
             "minItems": 1,
             "title": "Output Configs"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them."
           }
         },
         "additionalProperties": false,
@@ -19484,6 +19564,19 @@
             "type": "array",
             "minItems": 1,
             "title": "Output Configs"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema",
+            "description": "Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them."
           }
         },
         "additionalProperties": false,
