@@ -196,9 +196,9 @@ def test_phoenix_schema_marks_user_and_credential_fields() -> None:
     assert redacted["input"]["name"] == "my-openai"
 
     info = SimpleNamespace(parent_type=mutation, field_name="createSpanNotes")
-    args: dict[str, Any] = {
+    notes: dict[str, Any] = {
         "input": [{"span": {"id": "U3Bhbjox"}, "note": "customer said their SSN is ..."}]
     }
-    assert redact_arguments(args, info) == {  # type: ignore[arg-type]
+    assert redact_arguments(notes, info) == {  # type: ignore[arg-type]
         "input": [{"span": {"id": "U3Bhbjox"}, "note": "[redacted]"}]
     }
