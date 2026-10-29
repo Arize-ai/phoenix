@@ -1991,27 +1991,12 @@ enum DecisionFilterColumn {
   name
 }
 
-"""One named input a decision's state is built from."""
-type DecisionInputDefinition {
-  name: String!
-  description: String
-
-  """Describes the value for the playground form. Not enforced on a run."""
-  jsonSchema: JSON
-}
-
-"""One named input a caller passes."""
-input DecisionInputDefinitionInput {
-  name: String!
-  description: String = null
-
-  """Describes the value for the playground form. Not enforced on a run."""
-  jsonSchema: JSON = null
-}
-
-"""The state is one input's value, unchanged."""
-type DecisionInputState {
-  input: String!
+"""
+The state is JSON: any JSON value whose string leaves are templates. A string that is exactly one variable tag is replaced by the variable's value with its JSON type kept; other strings render as text. Object keys are literal.
+"""
+type DecisionJsonState {
+  """The JSON template."""
+  json: JSON!
 }
 
 type DecisionLabel implements Node {
@@ -2053,11 +2038,6 @@ type DecisionLabelEdge {
 type DecisionLabelMutationPayload {
   decisionLabels: [DecisionLabel!]!
   query: Query!
-}
-
-"""The state is the declared inputs, as a JSON object."""
-type DecisionObjectState {
-  object: Boolean!
 }
 
 type DecisionPredicateCriteria {
@@ -2184,17 +2164,14 @@ input DecisionScoringPolicyInput {
   questions: [DecisionQuestionScoringInput!]! = []
 }
 
-union DecisionState = DecisionObjectState | DecisionTextState | DecisionInputState
+union DecisionState = DecisionTextState | DecisionJsonState
 
 """
-How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged.
+The state template. Exactly one must be set: `text` is a text template; `json` is any JSON value whose string leaves are templates, where a string that is exactly one variable tag becomes the variable's value with its JSON type kept.
 """
 input DecisionStateInput @oneOf {
-  object: Boolean
-  text: TextStateInput
-
-  """The name of the input whose value is the state."""
-  input: String
+  text: String
+  json: JSON
 }
 
 type DecisionTaskConfig implements Node {
@@ -2205,16 +2182,17 @@ type DecisionTaskConfig implements Node {
 
   """The endpoint a built-in provider was reached at, when not its default."""
   baseUrl: String
-  inputs: [DecisionInputDefinition!]!
+  templateFormat: PromptTemplateFormat!
   state: DecisionState!
 
   """The fixed questions asked of every example."""
   questions: [DecisionQuestion!]!
 
-  """
-  Where input values were read, as a prompt task's templateVariablesPath.
-  """
-  inputValuesPath: String!
+  """The variables the state and questions use, in first-appearance order."""
+  variables: [String!]!
+
+  """Where each example's variables were read, as for a prompt task."""
+  templateVariablesPath: String!
 
   """The saved version the definition was copied from, if it still exists."""
   decisionVersion: DecisionVersion
@@ -2230,17 +2208,17 @@ input DecisionTaskInput {
   connection: DecisionConnectionInput!
   modelName: String!
 
-  """The named inputs the state is built from."""
-  inputs: [DecisionInputDefinitionInput!]!
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
   state: DecisionStateInput!
 
   """The fixed questions asked of every example; at least one is required."""
   questions: [DecisionQuestionInput!]!
 
   """
-  Dot-notation path to the object holding the input values, by input name, as `templateVariablesPath` is for a prompt. Default 'input' means input `ticket` resolves to input.ticket. Empty string means the whole context, so values are read as `input`, `reference`, or `metadata`.
+  Dot-notation path to the object holding the variables, by name, as for a prompt task. Default 'input' means variable `ticket` resolves to input.ticket. Empty string means the whole context, so variables are read as `input`, `reference`, or `metadata`. Values keep their JSON types; unused fields are ignored.
   """
-  inputValuesPath: String = "input"
+  templateVariablesPath: String = "input"
 
   """Dataset evaluators to run on this decision's runs"""
   evaluators: [PlaygroundEvaluatorInput!]! = []
@@ -2251,15 +2229,12 @@ input DecisionTaskInput {
   decisionVersionId: ID = null
 }
 
-enum DecisionTemplateFormat {
-  MUSTACHE
-  F_STRING
-}
-
-"""The state is a text template rendered over the inputs."""
+"""
+The state is text: a template rendered with the decision's template format.
+"""
 type DecisionTextState {
-  template: String!
-  templateFormat: DecisionTemplateFormat!
+  """The text template."""
+  text: String!
 }
 
 type DecisionUsage {
@@ -2268,7 +2243,7 @@ type DecisionUsage {
 }
 
 """
-An immutable version of a decision: its inputs, how the state is built from them, its questions, and the model that answers.
+An immutable version of a decision: its state template, questions, and the model that answers. Its variables are derived from the templates.
 """
 type DecisionVersion implements Node {
   """The Globally Unique ID of this object"""
@@ -2278,9 +2253,16 @@ type DecisionVersion implements Node {
   """The decision this version belongs to."""
   decision: Decision!
   description: String
-  inputs: [DecisionInputDefinition!]!
+
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
   state: DecisionState!
   questions: [DecisionQuestion!]!
+
+  """
+  The variables the state and questions use, by root name, in first-appearance order. A call must supply each of them.
+  """
+  variables: [String!]!
   modelProvider: GenerativeProviderKey!
   modelName: String!
   metadata: JSON!
@@ -2315,10 +2297,11 @@ type DecisionVersionEdge {
 }
 
 """
-A decision version to save: its inputs, state, questions, and the model that answers. Saved versions are immutable; saving again adds a version.
+A decision version to save: its template format, state template, questions, and the model that answers. Saved versions are immutable; saving again adds a version.
 """
 input DecisionVersionInput {
-  inputs: [DecisionInputDefinitionInput!]!
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
   state: DecisionStateInput!
   questions: [DecisionQuestionInput!]!
 
@@ -3893,9 +3876,12 @@ input InlineCodeEvaluatorInput {
 type InlineDecisionEvaluatorDefinition {
   name: String!
   description: String
-  inputs: [DecisionInputDefinition!]!
+  templateFormat: PromptTemplateFormat!
   state: DecisionState!
   questions: [DecisionQuestion!]!
+
+  """The variables the state and questions use, in first-appearance order."""
+  variables: [String!]!
   modelProvider: GenerativeProviderKey!
   modelName: String!
   customProviderId: ID
@@ -4093,7 +4079,7 @@ type Mutation {
   runDecision(input: RunDecisionInput!): RunDecisionPayload!
 
   """
-  Run a saved decision version as saved, with this call's input values, and record the call as a DECISION span in the playground project.
+  Run a saved decision version as saved, with this call's variables, and record the call as a DECISION span in the playground project.
   """
   runDecisionVersion(input: RunDecisionVersionInput!): RunDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
@@ -5931,7 +5917,7 @@ type RevokeOAuth2GrantMutationPayload {
 }
 
 """
-A decision run: where it runs, the inputs it declares and their values for this call, how the state is built from them, and the questions.
+A decision run: where it runs, its state template and questions, and this call's values for their variables.
 """
 input RunDecisionInput {
   connection: DecisionConnectionInput!
@@ -5941,21 +5927,21 @@ input RunDecisionInput {
   """
   modelName: String!
 
-  """The named inputs a caller passes, in order. Names must be unique."""
-  inputs: [DecisionInputDefinitionInput!]!
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
 
-  """How the state sent to the model is built from the inputs."""
+  """The state template: text, or JSON whose string leaves are templates."""
   state: DecisionStateInput!
-
-  """
-  An object with one entry per declared input: the key is the input's name, and the value is any JSON (a string, number, boolean, null, object, or array). Missing or undeclared names are rejected.
-  """
-  inputValues: JSON!
 
   """
   The questions, in order. Names must be unique; answers come back under them.
   """
   questions: [DecisionQuestionInput!]!
+
+  """
+  An object with a value for each variable the templates use, keyed by name; any JSON (a string, number, boolean, null, object, or array). A missing variable is rejected; extra keys are ignored.
+  """
+  variables: JSON!
 }
 
 """
@@ -5975,15 +5961,15 @@ type RunDecisionPayload {
 }
 
 """
-A run of a saved decision version: its definition, model, and provider as saved, with this call's input values.
+A run of a saved decision version: its definition, model, and provider as saved, with this call's variables.
 """
 input RunDecisionVersionInput {
   decisionVersionId: ID!
 
   """
-  An object with one entry per input the version declares, keyed by name. Missing or undeclared names are rejected.
+  An object with a value for each of the version's variables, keyed by name. A missing variable is rejected; extra keys are ignored.
   """
-  inputValues: JSON!
+  variables: JSON!
 
   """
   API keys for this request only, for a version on a built-in provider. When omitted, a stored secret is used, then the server environment. A custom provider brings its own key.
@@ -6718,12 +6704,6 @@ type TextContentValue {
 
 input TextContentValueInput {
   text: String!
-}
-
-"""Render a text template over the inputs."""
-input TextStateInput {
-  template: String!
-  templateFormat: DecisionTemplateFormat!
 }
 
 input TimeBinConfig {
