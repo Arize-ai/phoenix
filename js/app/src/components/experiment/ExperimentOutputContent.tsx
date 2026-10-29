@@ -28,6 +28,6 @@ export interface ExperimentOutputContentProps {
 export function ExperimentOutputContent({
   value,
 }: ExperimentOutputContentProps) {
-  const { content } = useExtractedOutputContent(value);
+  const content = useExtractedOutputContent(value);
   return <DynamicContent value={content} />;
 }

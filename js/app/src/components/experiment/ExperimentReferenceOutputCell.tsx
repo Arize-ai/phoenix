@@ -43,7 +43,7 @@ export function ExperimentReferenceOutputCell({
   label = "reference output",
   extra,
 }: ExperimentReferenceOutputCellProps) {
-  const { content } = useExtractedOutputContent(value);
+  const content = useExtractedOutputContent(value);
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={extra}>
