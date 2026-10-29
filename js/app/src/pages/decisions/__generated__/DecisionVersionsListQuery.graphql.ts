@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cf57d39932aa6cef5feeb7ad74369bd4>>
+ * @generated SignedSource<<8644c174f46a0f33432bc52a18c0710b>>
  * @lightSyntaxTransform
  */
 
@@ -9,19 +9,19 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionPageVersionsQuery$variables = {
+export type DecisionVersionsListQuery$variables = {
   after?: string | null;
   first?: number | null;
   id: string;
 };
-export type DecisionPageVersionsQuery$data = {
+export type DecisionVersionsListQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"DecisionPage_versions">;
+    readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionsList_versions">;
   };
 };
-export type DecisionPageVersionsQuery = {
-  response: DecisionPageVersionsQuery$data;
-  variables: DecisionPageVersionsQuery$variables;
+export type DecisionVersionsListQuery = {
+  response: DecisionVersionsListQuery$data;
+  variables: DecisionVersionsListQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -32,7 +32,7 @@ var v0 = [
     "name": "after"
   },
   {
-    "defaultValue": 20,
+    "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
   },
@@ -80,7 +80,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DecisionPageVersionsQuery",
+    "name": "DecisionVersionsListQuery",
     "selections": [
       {
         "alias": null,
@@ -93,7 +93,7 @@ return {
           {
             "args": (v2/*:: as any*/),
             "kind": "FragmentSpread",
-            "name": "DecisionPage_versions"
+            "name": "DecisionVersionsList_versions"
           }
         ],
         "storageKey": null
@@ -106,7 +106,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "DecisionPageVersionsQuery",
+    "name": "DecisionVersionsListQuery",
     "selections": [
       {
         "alias": null,
@@ -122,7 +122,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
+                "alias": "pagedVersions",
                 "args": (v2/*:: as any*/),
                 "concreteType": "DecisionVersionConnection",
                 "kind": "LinkedField",
@@ -150,6 +150,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "description",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "sequenceNumber",
                             "storageKey": null
                           },
@@ -158,20 +165,6 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "createdAt",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "description",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "modelName",
                             "storageKey": null
                           },
                           {
@@ -262,11 +255,11 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
+                "alias": "pagedVersions",
                 "args": (v2/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
-                "key": "DecisionPage_versions",
+                "key": "DecisionVersionsList_pagedVersions",
                 "kind": "LinkedHandle",
                 "name": "versions"
               }
@@ -280,16 +273,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cba7fa9d3f398e790afc3fab1ef81b9d",
+    "cacheID": "dd9869f362f4e379e52574f1d180f566",
     "id": null,
     "metadata": {},
-    "name": "DecisionPageVersionsQuery",
+    "name": "DecisionVersionsListQuery",
     "operationKind": "query",
-    "text": "query DecisionPageVersionsQuery(\n  $after: String\n  $first: Int = 20\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DecisionPage_versions_2HEEH6\n    id\n  }\n}\n\nfragment DecisionPage_versions_2HEEH6 on Decision {\n  versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        sequenceNumber\n        createdAt\n        description\n        modelName\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        tags {\n          id\n          name\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DecisionVersionsListQuery(\n  $after: String\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DecisionVersionsList_versions_2HEEH6\n    id\n  }\n}\n\nfragment DecisionVersionSummary_version on DecisionVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionsList_versions_2HEEH6 on Decision {\n  pagedVersions: versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        ...DecisionVersionSummary_version\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "65d07cf9b6d7f8c94480e6d48ee33b94";
+(node as any).hash = "d0b0f85eaed97d685324b6407ed43a9a";
 
 export default node;

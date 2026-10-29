@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<445f901b27ecec12ef746cdac4c4ad2a>>
+ * @generated SignedSource<<ab2fb8f80fdb91a38f3896b98d02a20c>>
  * @lightSyntaxTransform
  */
 
@@ -8,21 +8,21 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionActionsPatchMutation$variables = {
+export type EditDecisionButtonPatchMutation$variables = {
   description?: string | null;
   id: string;
   metadata: any;
 };
-export type DecisionActionsPatchMutation$data = {
+export type EditDecisionButtonPatchMutation$data = {
   readonly patchDecision: {
     readonly description: string | null;
     readonly id: string;
     readonly metadata: any;
   };
 };
-export type DecisionActionsPatchMutation = {
-  response: DecisionActionsPatchMutation$data;
-  variables: DecisionActionsPatchMutation$variables;
+export type EditDecisionButtonPatchMutation = {
+  response: EditDecisionButtonPatchMutation$data;
+  variables: EditDecisionButtonPatchMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -106,7 +106,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "DecisionActionsPatchMutation",
+    "name": "EditDecisionButtonPatchMutation",
     "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -119,20 +119,20 @@ return {
       (v2/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "DecisionActionsPatchMutation",
+    "name": "EditDecisionButtonPatchMutation",
     "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "314e98dfc0c05fc716bac1e70ef717f8",
+    "cacheID": "8451991d6bfa7e763df6bf2383931b98",
     "id": null,
     "metadata": {},
-    "name": "DecisionActionsPatchMutation",
+    "name": "EditDecisionButtonPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionActionsPatchMutation(\n  $id: ID!\n  $description: String\n  $metadata: JSON!\n) {\n  patchDecision(input: {decisionId: $id, description: $description, metadata: $metadata}) {\n    id\n    description\n    metadata\n  }\n}\n"
+    "text": "mutation EditDecisionButtonPatchMutation(\n  $id: ID!\n  $description: String\n  $metadata: JSON!\n) {\n  patchDecision(input: {decisionId: $id, description: $description, metadata: $metadata}) {\n    id\n    description\n    metadata\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ed85cec6f8e933994dec3a2bcaad5cf";
+(node as any).hash = "70cb9bcc6dc043509b7b72dd134ea024";
 
 export default node;
