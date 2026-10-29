@@ -4,13 +4,12 @@ import type { ComponentType } from "react";
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentItem } from "@phoenix/components/experiment/ExperimentCompareDetails";
-import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
+import {
+  type Experiment,
+  ExperimentCompareDetailsProvider,
+} from "@phoenix/contexts/ExperimentCompareContext";
 
 import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
-
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -24,21 +23,18 @@ const mockExperiment: Experiment = {
   id: "exp-1",
   name: "GPT-4 SQL Generator",
   repetitions: 1,
-  job: null,
 };
 
 const mockExperimentWithRepetitions: Experiment = {
   id: "exp-2",
   name: "Claude-3 Sonnet Multi-Run",
   repetitions: 3,
-  job: null,
 };
 
 const mockLongNameExperiment: Experiment = {
   id: "exp-3",
   name: "Very Long Experiment Name That Should Be Truncated Properly in the UI",
   repetitions: 1,
-  job: null,
 };
 
 type ExperimentRepetition = {

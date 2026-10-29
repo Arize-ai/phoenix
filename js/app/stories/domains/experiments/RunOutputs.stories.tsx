@@ -4,13 +4,12 @@ import type { ComponentType } from "react";
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
-import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
+import {
+  type Experiment,
+  ExperimentCompareDetailsProvider,
+} from "@phoenix/contexts/ExperimentCompareContext";
 
 import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
-
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -38,25 +37,21 @@ const mockExperiments: Record<string, Experiment> = {
     id: "exp-1",
     name: "GPT-4 SQL Generator",
     repetitions: 1,
-    job: null,
   },
   "exp-2": {
     id: "exp-2",
     name: "Claude-3 Sonnet",
     repetitions: 1,
-    job: null,
   },
   "exp-3": {
     id: "exp-3",
     name: "GPT-3.5 Turbo",
     repetitions: 3,
-    job: null,
   },
   "exp-4": {
     id: "exp-4",
     name: "Gemini Pro",
     repetitions: 1,
-    job: null,
   },
 };
 
@@ -534,19 +529,16 @@ const mockEdgeCaseExperiments: Record<string, Experiment> = {
     id: "edge-exp-1",
     name: "Mixed Annotation Types",
     repetitions: 3,
-    job: null,
   },
   "edge-exp-2": {
     id: "edge-exp-2",
     name: "Long Labels Experiment",
     repetitions: 2,
-    job: null,
   },
   "edge-exp-3": {
     id: "edge-exp-3",
     name: "Score vs Label Mix",
     repetitions: 1,
-    job: null,
   },
 };
 
@@ -906,19 +898,16 @@ const mockSingleRepetitionEdgeCaseExperiments: Record<string, Experiment> = {
     id: "single-edge-exp-1",
     name: "Single Rep Mixed Types",
     repetitions: 1,
-    job: null,
   },
   "single-edge-exp-2": {
     id: "single-edge-exp-2",
     name: "Single Rep Long Labels",
     repetitions: 1,
-    job: null,
   },
   "single-edge-exp-3": {
     id: "single-edge-exp-3",
     name: "Single Rep Score vs Label",
     repetitions: 1,
-    job: null,
   },
 };
 

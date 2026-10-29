@@ -4,7 +4,7 @@ import { formatDecisionAnswers } from "@phoenix/components/decision/decisionAnsw
 
 import {
   getDecisionRunAnswers,
-  getDecisionTaskQuestions,
+  toDecisionTaskQuestions,
 } from "../decisionRunOutput";
 
 const decisionTaskConfig = {
@@ -39,7 +39,7 @@ const decisionTaskConfig = {
   ],
 };
 
-const decisionQuestions = getDecisionTaskQuestions(decisionTaskConfig);
+const decisionQuestions = toDecisionTaskQuestions(decisionTaskConfig);
 
 const output = {
   category: {
@@ -113,7 +113,7 @@ describe("getDecisionRunAnswers", () => {
   });
 
   it("names scale levels by each experiment's own levels", () => {
-    const otherQuestions = getDecisionTaskQuestions({
+    const otherQuestions = toDecisionTaskQuestions({
       __typename: "DecisionTaskConfig",
       questions: [
         {
@@ -154,12 +154,12 @@ describe("getDecisionRunAnswers", () => {
   });
 
   it("falls back to the raw output for other tasks", () => {
-    const questions = getDecisionTaskQuestions({
-      __typename: "PromptTaskConfig",
+    const questions = toDecisionTaskQuestions({
+      __typename: "%other",
     });
     expect(questions).toBeNull();
     expect(getDecisionRunAnswers({ questions, output })).toBeNull();
-    expect(getDecisionTaskQuestions(null)).toBeNull();
+    expect(toDecisionTaskQuestions(null)).toBeNull();
   });
 });
 

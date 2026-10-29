@@ -223,7 +223,7 @@ export function ExperimentCompareListPage({
                       annotationName
                       meanScore
                     }
-                    ...decisionRunOutput_experiment @relay(mask: false)
+                    ...decisionRunOutput_experiment
                   }
                 }
               }
@@ -410,7 +410,7 @@ export function ExperimentCompareListPage({
       new Map(
         experiments.map((experiment) => [
           experiment.id,
-          getDecisionTaskQuestions(experiment.job?.taskConfig),
+          getDecisionTaskQuestions(experiment),
         ])
       ),
     [experiments]

@@ -172,7 +172,7 @@ export function ExperimentCompareDetails({
                   id
                   name
                   repetitions
-                  ...decisionRunOutput_experiment @relay(mask: false)
+                  ...decisionRunOutput_experiment
                 }
               }
             }
@@ -257,6 +257,17 @@ export function ExperimentCompareDetails({
     });
     return experimentsById;
   }, [experiments]);
+
+  const decisionQuestionsByExperimentId = useMemo(
+    () =>
+      new Map(
+        experiments?.map((edge) => [
+          edge.experiment.id,
+          getDecisionTaskQuestions(edge.experiment),
+        ])
+      ),
+    [experiments]
+  );
 
   const experimentRepetitionsByExperimentId = useMemo(() => {
     const experimentRepetitionsByExperimentId: Record<
@@ -345,6 +356,7 @@ export function ExperimentCompareDetails({
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             experimentsById={experimentsById}
+            decisionQuestionsByExperimentId={decisionQuestionsByExperimentId}
             experimentRepetitionsByExperimentId={
               experimentRepetitionsByExperimentId
             }
@@ -1009,16 +1021,16 @@ function DecisionOutputViewToggle({
 
 /** A decision run's answers, or null for errored runs and other tasks. */
 function useDecisionRunAnswers({
-  experiment,
+  experimentId,
   experimentRun,
 }: {
-  experiment: Experiment;
+  experimentId: string;
   experimentRun?: ExperimentRun;
 }) {
-  const decisionQuestions = useMemo(
-    () => getDecisionTaskQuestions(experiment?.job?.taskConfig),
-    [experiment]
-  );
+  const { decisionQuestionsByExperimentId } =
+    useExperimentCompareDetailsContext();
+  const decisionQuestions =
+    decisionQuestionsByExperimentId.get(experimentId) ?? null;
   return useMemo(
     () =>
       experimentRun?.error
@@ -1060,7 +1072,7 @@ export function ExperimentItem({
   );
 
   const decisionAnswers = useDecisionRunAnswers({
-    experiment,
+    experimentId: experimentRepetition.experimentId,
     experimentRun: experimentRepetition.experimentRun,
   });
   const [outputView, setOutputView] = useState<DecisionOutputView>("answers");

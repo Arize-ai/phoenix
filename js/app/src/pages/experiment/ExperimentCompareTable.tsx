@@ -298,7 +298,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       annotationName
                       meanScore
                     }
-                    ...decisionRunOutput_experiment @relay(mask: false)
+                    ...decisionRunOutput_experiment
                   }
                 }
               }
@@ -374,7 +374,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       new Map(
         data.dataset?.experiments?.edges.map((edge) => [
           edge.experiment.id,
-          getDecisionTaskQuestions(edge.experiment.job?.taskConfig),
+          getDecisionTaskQuestions(edge.experiment),
         ]) ?? []
       ),
     [data]

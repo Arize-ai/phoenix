@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71bc709b774464668bb64bd8f2438a71>>
+ * @generated SignedSource<<b68e346c9691df011a07c75de02d09d4>>
  * @lightSyntaxTransform
  */
 
@@ -7,7 +7,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type decisionRunOutput_experiment$data = {
   readonly job: {
@@ -55,179 +55,11 @@ export type decisionRunOutput_experiment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"decisionRunOutput_experiment">;
 };
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "instructions",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "description",
-  "storageKey": null
+const node: ReaderInlineDataFragment = {
+  "kind": "InlineDataFragment",
+  "name": "decisionRunOutput_experiment"
 };
-return {
-  "argumentDefinitions": [],
-  "kind": "Fragment",
-  "metadata": null,
-  "name": "decisionRunOutput_experiment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "ExperimentJob",
-      "kind": "LinkedField",
-      "name": "job",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": null,
-          "kind": "LinkedField",
-          "name": "taskConfig",
-          "plural": false,
-          "selections": [
-            (v0/*:: as any*/),
-            {
-              "kind": "InlineFragment",
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": null,
-                  "kind": "LinkedField",
-                  "name": "questions",
-                  "plural": true,
-                  "selections": [
-                    (v0/*:: as any*/),
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v1/*:: as any*/),
-                        (v2/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "DecisionPredicateCriteria",
-                          "kind": "LinkedField",
-                          "name": "criteria",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "true",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "false",
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "DecisionPredicateQuestion",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v1/*:: as any*/),
-                        (v2/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "DecisionChoiceOption",
-                          "kind": "LinkedField",
-                          "name": "choices",
-                          "plural": true,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "value",
-                              "storageKey": null
-                            },
-                            (v3/*:: as any*/)
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "DecisionChoiceQuestion",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v1/*:: as any*/),
-                        (v2/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "DecisionScaleLevel",
-                          "kind": "LinkedField",
-                          "name": "levels",
-                          "plural": true,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "label",
-                              "storageKey": null
-                            },
-                            (v3/*:: as any*/)
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "DecisionScaleQuestion",
-                      "abstractKey": null
-                    }
-                  ],
-                  "storageKey": null
-                }
-              ],
-              "type": "DecisionTaskConfig",
-              "abstractKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "type": "Experiment",
-  "abstractKey": null
-};
-})();
 
-(node as any).hash = "c62412613203bc40f2ed5cf0f94da210";
+(node as any).hash = "90ccf7de08ab0682e47b7f5c2aeb500b";
 
 export default node;

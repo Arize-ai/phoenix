@@ -179,7 +179,6 @@ function RunAnnotationsFrame({
       id: "exp-1",
       name: "Mock Experiment",
       repetitions: 1,
-      job: null,
     },
   };
 

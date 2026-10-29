@@ -1,24 +1,23 @@
-import { graphql } from "react-relay";
+import { graphql, readInlineData } from "react-relay";
 
 import {
   type NormalizedDecisionAnswer,
   normalizeDecisionAnswers,
 } from "@phoenix/components/decision/decisionAnswers";
 import {
-  type FetchedDecisionQuestion,
   toDraftQuestion,
   toSavedDecisionQuestions,
 } from "@phoenix/pages/playground/savedDecisionUtils";
 import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
-/**
- * The questions a decision experiment asked. Spread it unmasked
- * (`@relay(mask: false)`) on each compared experiment so its runs can be read
- * against its own questions.
- */
-export const decisionRunOutputFragment = graphql`
-  fragment decisionRunOutput_experiment on Experiment {
+import type {
+  decisionRunOutput_experiment$data,
+  decisionRunOutput_experiment$key,
+} from "./__generated__/decisionRunOutput_experiment.graphql";
+
+const decisionRunOutputFragment = graphql`
+  fragment decisionRunOutput_experiment on Experiment @inline {
     job {
       taskConfig {
         __typename
@@ -56,31 +55,31 @@ export const decisionRunOutputFragment = graphql`
   }
 `;
 
-type ExperimentTaskConfig =
-  | {
-      readonly __typename: "DecisionTaskConfig";
-      readonly questions: ReadonlyArray<FetchedDecisionQuestion>;
-    }
-  | { readonly __typename: string };
+type TaskConfig = NonNullable<
+  decisionRunOutput_experiment$data["job"]
+>["taskConfig"];
 
-function isDecisionTaskConfig(
-  taskConfig: ExperimentTaskConfig
-): taskConfig is Extract<
-  ExperimentTaskConfig,
-  { __typename: "DecisionTaskConfig" }
-> {
-  return taskConfig.__typename === "DecisionTaskConfig";
+/**
+ * The questions a decision task asked, or null for any other task.
+ * @param taskConfig - an experiment's `job.taskConfig`
+ */
+export function toDecisionTaskQuestions(
+  taskConfig: TaskConfig | null | undefined
+): DecisionQuestionDraft[] | null {
+  if (taskConfig?.__typename !== "DecisionTaskConfig") return null;
+  return toSavedDecisionQuestions(taskConfig.questions).map(toDraftQuestion);
 }
 
 /**
  * The questions a decision experiment asked, or null for any other task.
- * @param taskConfig - the experiment's `job.taskConfig`
+ * @param experiment - an experiment that spreads `decisionRunOutput_experiment`
  */
 export function getDecisionTaskQuestions(
-  taskConfig: ExperimentTaskConfig | null | undefined
+  experiment: decisionRunOutput_experiment$key
 ): DecisionQuestionDraft[] | null {
-  if (!taskConfig || !isDecisionTaskConfig(taskConfig)) return null;
-  return toSavedDecisionQuestions(taskConfig.questions).map(toDraftQuestion);
+  return toDecisionTaskQuestions(
+    readInlineData(decisionRunOutputFragment, experiment).job?.taskConfig
+  );
 }
 
 function parseOutput(output: unknown): unknown {

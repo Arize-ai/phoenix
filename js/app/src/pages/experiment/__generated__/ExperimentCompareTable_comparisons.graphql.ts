@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e155165565c69ab8051da7802798f9b>>
+ * @generated SignedSource<<0a7cd5ed27e77cb7d855bf3b4567b01a>>
  * @lightSyntaxTransform
  */
 
@@ -171,44 +171,6 @@ export type ExperimentCompareTable_comparisons$data = {
           readonly id: string;
           readonly isBaseline: boolean;
           readonly isEphemeral: boolean;
-          readonly job: {
-            readonly taskConfig: {
-              readonly __typename: "DecisionTaskConfig";
-              readonly questions: ReadonlyArray<{
-                readonly __typename: "DecisionChoiceQuestion";
-                readonly choices: ReadonlyArray<{
-                  readonly description: string | null;
-                  readonly value: string;
-                }>;
-                readonly instructions: string;
-                readonly name: string;
-              } | {
-                readonly __typename: "DecisionPredicateQuestion";
-                readonly criteria: {
-                  readonly false: string | null;
-                  readonly true: string | null;
-                } | null;
-                readonly instructions: string;
-                readonly name: string;
-              } | {
-                readonly __typename: "DecisionScaleQuestion";
-                readonly instructions: string;
-                readonly levels: ReadonlyArray<{
-                  readonly description: string | null;
-                  readonly label: string;
-                }>;
-                readonly name: string;
-              } | {
-                // This will never be '%other', but we need some
-                // value in case none of the concrete values match.
-                readonly __typename: "%other";
-              }>;
-            } | {
-              // This will never be '%other', but we need some
-              // value in case none of the concrete values match.
-              readonly __typename: "%other";
-            } | null;
-          } | null;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
@@ -217,6 +179,7 @@ export type ExperimentCompareTable_comparisons$data = {
           readonly repetitions: number;
           readonly runCount: number;
           readonly sequenceNumber: number;
+          readonly " $fragmentSpreads": FragmentRefs<"decisionRunOutput_experiment">;
         };
       }>;
     };
@@ -1063,100 +1026,108 @@ return {
                           "storageKey": null
                         },
                         {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "ExperimentJob",
-                          "kind": "LinkedField",
-                          "name": "job",
-                          "plural": false,
+                          "kind": "InlineDataFragmentSpread",
+                          "name": "decisionRunOutput_experiment",
                           "selections": [
                             {
                               "alias": null,
                               "args": null,
-                              "concreteType": null,
+                              "concreteType": "ExperimentJob",
                               "kind": "LinkedField",
-                              "name": "taskConfig",
+                              "name": "job",
                               "plural": false,
                               "selections": [
-                                (v12/*:: as any*/),
                                 {
-                                  "kind": "InlineFragment",
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": null,
+                                  "kind": "LinkedField",
+                                  "name": "taskConfig",
+                                  "plural": false,
                                   "selections": [
+                                    (v12/*:: as any*/),
                                     {
-                                      "alias": null,
-                                      "args": null,
-                                      "concreteType": null,
-                                      "kind": "LinkedField",
-                                      "name": "questions",
-                                      "plural": true,
+                                      "kind": "InlineFragment",
                                       "selections": [
-                                        (v12/*:: as any*/),
                                         {
-                                          "kind": "InlineFragment",
+                                          "alias": null,
+                                          "args": null,
+                                          "concreteType": null,
+                                          "kind": "LinkedField",
+                                          "name": "questions",
+                                          "plural": true,
                                           "selections": [
-                                            (v6/*:: as any*/),
-                                            (v18/*:: as any*/),
+                                            (v12/*:: as any*/),
                                             {
-                                              "alias": null,
-                                              "args": null,
-                                              "concreteType": "DecisionPredicateCriteria",
-                                              "kind": "LinkedField",
-                                              "name": "criteria",
-                                              "plural": false,
+                                              "kind": "InlineFragment",
                                               "selections": [
+                                                (v6/*:: as any*/),
+                                                (v18/*:: as any*/),
                                                 {
                                                   "alias": null,
                                                   "args": null,
-                                                  "kind": "ScalarField",
-                                                  "name": "true",
-                                                  "storageKey": null
-                                                },
-                                                {
-                                                  "alias": null,
-                                                  "args": null,
-                                                  "kind": "ScalarField",
-                                                  "name": "false",
+                                                  "concreteType": "DecisionPredicateCriteria",
+                                                  "kind": "LinkedField",
+                                                  "name": "criteria",
+                                                  "plural": false,
+                                                  "selections": [
+                                                    {
+                                                      "alias": null,
+                                                      "args": null,
+                                                      "kind": "ScalarField",
+                                                      "name": "true",
+                                                      "storageKey": null
+                                                    },
+                                                    {
+                                                      "alias": null,
+                                                      "args": null,
+                                                      "kind": "ScalarField",
+                                                      "name": "false",
+                                                      "storageKey": null
+                                                    }
+                                                  ],
                                                   "storageKey": null
                                                 }
                                               ],
-                                              "storageKey": null
+                                              "type": "DecisionPredicateQuestion",
+                                              "abstractKey": null
+                                            },
+                                            {
+                                              "kind": "InlineFragment",
+                                              "selections": [
+                                                (v6/*:: as any*/),
+                                                (v18/*:: as any*/),
+                                                (v9/*:: as any*/)
+                                              ],
+                                              "type": "DecisionChoiceQuestion",
+                                              "abstractKey": null
+                                            },
+                                            {
+                                              "kind": "InlineFragment",
+                                              "selections": [
+                                                (v6/*:: as any*/),
+                                                (v18/*:: as any*/),
+                                                (v11/*:: as any*/)
+                                              ],
+                                              "type": "DecisionScaleQuestion",
+                                              "abstractKey": null
                                             }
                                           ],
-                                          "type": "DecisionPredicateQuestion",
-                                          "abstractKey": null
-                                        },
-                                        {
-                                          "kind": "InlineFragment",
-                                          "selections": [
-                                            (v6/*:: as any*/),
-                                            (v18/*:: as any*/),
-                                            (v9/*:: as any*/)
-                                          ],
-                                          "type": "DecisionChoiceQuestion",
-                                          "abstractKey": null
-                                        },
-                                        {
-                                          "kind": "InlineFragment",
-                                          "selections": [
-                                            (v6/*:: as any*/),
-                                            (v18/*:: as any*/),
-                                            (v11/*:: as any*/)
-                                          ],
-                                          "type": "DecisionScaleQuestion",
-                                          "abstractKey": null
+                                          "storageKey": null
                                         }
                                       ],
-                                      "storageKey": null
+                                      "type": "DecisionTaskConfig",
+                                      "abstractKey": null
                                     }
                                   ],
-                                  "type": "DecisionTaskConfig",
-                                  "abstractKey": null
+                                  "storageKey": null
                                 }
                               ],
                               "storageKey": null
                             }
                           ],
-                          "storageKey": null
+                          "args": null,
+                          "argumentDefinitions": []
                         }
                       ],
                       "storageKey": null
@@ -1301,6 +1272,6 @@ return {
 };
 })();
 
-(node as any).hash = "41fc4bb3006ad3ba365a2cb4b0436fdd";
+(node as any).hash = "dbc6e14d49acc7371f879b4e7ed74515";
 
 export default node;
