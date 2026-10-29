@@ -179,7 +179,7 @@ def to_chat_messages_and_kwargs(
     messages: list[MessageParam] = []
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "system":
+            if message["role"] in ("system", "developer"):
                 if isinstance(message["content"], str):
                     system_messages.append(
                         formatter.format(message["content"], variables=variables)

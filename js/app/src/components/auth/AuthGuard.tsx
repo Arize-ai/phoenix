@@ -6,6 +6,7 @@ import {
   useViewerCanManageRetentionPolicy,
   useViewerCanManageSandboxes,
   useViewerCanModify,
+  useViewerCanViewSandboxes,
 } from "@phoenix/contexts";
 
 type AuthGuardProps = {
@@ -77,6 +78,19 @@ export function CanManageSandboxes(props: PropsWithChildren<AuthGuardProps>) {
   const { fallback = null, children } = props;
   const canManageSandboxes = useViewerCanManageSandboxes();
   if (!canManageSandboxes) {
+    return <>{fallback}</>;
+  }
+  return children;
+}
+
+/**
+ * Users can view sandbox settings if they are not a viewer role
+ * (e.g. an admin or member), or if authentication is disabled.
+ */
+export function CanViewSandboxes(props: PropsWithChildren<AuthGuardProps>) {
+  const { fallback = null, children } = props;
+  const canViewSandboxes = useViewerCanViewSandboxes();
+  if (!canViewSandboxes) {
     return <>{fallback}</>;
   }
   return children;

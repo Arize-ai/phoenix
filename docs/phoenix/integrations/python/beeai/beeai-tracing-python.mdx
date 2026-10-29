@@ -10,7 +10,7 @@ Phoenix provides seamless observability and tracing for BeeAI agents through the
 ## Install
 
 ```bash
-pip install openinference-instrumentation-beeai beeai-framework
+pip install openinference-instrumentation-beeai 'beeai-framework[duckduckgo,wikipedia]'
 ```
 
 ## Setup
@@ -34,7 +34,7 @@ from beeai_framework.tools.tool import AnyTool
 from beeai_framework.tools.weather.openmeteo import OpenMeteoTool
 
 llm = ChatModel.from_name(
-    "ollama:granite3.1-dense:8b",
+    "openai:gpt-4o-mini",
     ChatModelParameters(temperature=0),
 )
 
@@ -50,13 +50,13 @@ prompt = "What's the current weather in Las Vegas?"
 
 async def main() -> None:
     response = await agent.run(
-        prompt=prompt,
+        prompt,
         execution=AgentExecutionConfig(
             max_retries_per_step=3, total_max_retries=10, max_iterations=20
         ),
     )
 
-    print("Agent 🤖 : ", response.result.text)
+    print("Agent 🤖 : ", response.last_message.text)
 
 asyncio.run(main())
 ```

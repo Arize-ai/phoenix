@@ -116,6 +116,12 @@ const map: Partial<Record<string, string>> = {};
 const value = map["missing"]; // typed as string | undefined
 ```
 
+## Comments
+
+Default to no inline comments, in `js/app/` and the packages alike. Keep one only if a competent reader of the final code, without it, would likely change the code wrongly — an early return that looks dead, two calls that must stay in that order. Delete a comment that restates the next line, describes a helper or a test step, or justifies the change; that reasoning belongs in the commit message or PR description.
+
+TSDoc on exported symbols in `js/packages/` is public API, not an inline comment: keep it.
+
 ## Imports
 
 - Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.

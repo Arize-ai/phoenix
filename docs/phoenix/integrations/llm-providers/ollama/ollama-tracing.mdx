@@ -14,21 +14,22 @@ Other client methods — including `generate` and `embed`/`embeddings` — are n
 ## Install
 
 ```bash
-pip install openinference-instrumentation-ollama "ollama>=0.4.0"
+pip install arize-phoenix-otel openinference-instrumentation-ollama "ollama>=0.4.0"
 ```
 
 ## Setup
 
-Make sure a local Ollama server is running and the model you want to use has been pulled, for example `ollama pull llama3.2`.
+Make sure a local Ollama server is running and the model you want to use has been pulled, for example `ollama pull llama3.2:1b`. The 1B model keeps the runnable example lightweight.
 
 Connect your application to Phoenix and instrument the Ollama client:
 
 ```python
+import os
 from openinference.instrumentation.ollama import OllamaInstrumentor
 from phoenix.otel import register
 
 # Configure the Phoenix tracer
-tracer_provider = register(project_name="my-llm-app")
+tracer_provider = register(project_name=os.environ.get("PHOENIX_PROJECT_NAME", "ollama-app"))
 
 OllamaInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
@@ -41,7 +42,7 @@ Instrument the client before you import or call it. Aliases captured before inst
 import ollama
 
 response = ollama.chat(
-    model="llama3.2",
+    model="llama3.2:1b",
     messages=[
         {
             "role": "user",

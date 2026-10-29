@@ -196,7 +196,7 @@ def to_chat_messages_and_kwargs(
     tool_call_names = _collect_tool_call_names(template)
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "system":
+            if message["role"] in ("system", "developer"):
                 content = message["content"]
                 if isinstance(content, str):
                     if text := formatter.format(content, variables=variables):

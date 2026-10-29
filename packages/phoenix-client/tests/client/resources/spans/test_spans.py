@@ -346,6 +346,18 @@ class TestGetSpansAttributeFilters:
         )
         assert len(spans) == 1
 
+    @pytest.mark.parametrize("value", ['"hello"', '""', ' "hello" ', r'"line\nbreak"'])
+    def test_json_string_value_preserved_on_wire(self, value: str) -> None:
+        transport = _make_handler(
+            expected_params={"attribute": [f"input.value:{json.dumps(value)}"]}
+        )
+        with httpx.Client(transport=transport, base_url="http://test") as client:
+            spans = Spans(client).get_spans(
+                project_identifier="my-project",
+                attributes={"input.value": value},
+            )
+        assert len(spans) == 1
+
     def test_empty_string_value_quoted_on_wire(self) -> None:
         transport = _make_handler(expected_params={"attribute": ['model:""']})
         client = httpx.Client(transport=transport, base_url="http://test")
@@ -422,15 +434,17 @@ class TestAsyncGetSpansFilters:
         assert len(spans) == 1
 
     @pytest.mark.anyio
-    async def test_attribute_filter_wired_through_async_client(self) -> None:
+    @pytest.mark.parametrize("value", ["gpt-4", '"gpt-4"'])
+    async def test_attribute_filter_wired_through_async_client(self, value: str) -> None:
         """Async client routes the `attributes` kwarg through the shared
         `_serialize_attributes` helper — serialization cases live in
         the sync suite; this test just pins async wiring."""
-        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4"]})
+        expected = value if value == "gpt-4" else json.dumps(value)
+        transport = _make_handler(expected_params={"attribute": [f"llm.model:{expected}"]})
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attributes={"llm.model": "gpt-4"},
+            attributes={"llm.model": value},
         )
         assert len(spans) == 1
 
