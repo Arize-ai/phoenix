@@ -143,10 +143,10 @@ export function NewPromptVersionDialog({
                       isInvalid={invalid}
                       onChange={(value) =>
                         onChange(
-                          transformInputValue(
+                          transformInputValue({
                             value,
-                            replaceWhitespaceWithDashes
-                          )
+                            transform: replaceWhitespaceWithDashes,
+                          })
                         )
                       }
                       onBlur={onBlur}

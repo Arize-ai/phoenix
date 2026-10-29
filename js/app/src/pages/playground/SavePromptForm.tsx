@@ -171,10 +171,10 @@ export function SavePromptForm({
               onBlur={onBlur}
               inputValue={promptInputValue}
               onInputChange={(value) => {
-                const transformed = transformInputValue(
+                const transformed = transformInputValue({
                   value,
-                  replaceWhitespaceWithDashes
-                );
+                  transform: replaceWhitespaceWithDashes,
+                });
                 setPromptInputValue(transformed);
                 onChange(transformed);
               }}
@@ -396,7 +396,10 @@ function NewTagInlineForm({
         value={inputValue}
         onChange={(value) => {
           setInputValue(
-            transformInputValue(value, replaceWhitespaceWithDashes)
+            transformInputValue({
+              value,
+              transform: replaceWhitespaceWithDashes,
+            })
           );
           setShowLeadingTrailingError(false);
         }}

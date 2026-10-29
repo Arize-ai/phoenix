@@ -122,7 +122,9 @@ export const EvaluatorNameInput = ({
         const displayedError = shouldShowError ? error.message : undefined;
 
         const handleChange = (value: string) => {
-          field.onChange(transformInputValue(value, transformIdentifierInput));
+          field.onChange(
+            transformInputValue({ value, transform: transformIdentifierInput })
+          );
         };
 
         const handleFocus = () => {

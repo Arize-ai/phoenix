@@ -550,7 +550,10 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     {...field}
                     onChange={(value) =>
                       field.onChange(
-                        transformInputValue(value, transformIdentifierInput)
+                        transformInputValue({
+                          value,
+                          transform: transformIdentifierInput,
+                        })
                       )
                     }
                     isInvalid={fieldState.invalid}

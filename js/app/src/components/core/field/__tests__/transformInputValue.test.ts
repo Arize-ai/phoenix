@@ -20,21 +20,24 @@ describe("transformInputValue", () => {
    * Simulates the browser state after a keystroke or paste: the focused input
    * holds `value` with the caret at `caret` when the change handler runs.
    */
-  function type(value: string, caret: number) {
+  function type({ value, caret }: { value: string; caret: number }) {
     input.focus();
     input.value = value;
     input.setSelectionRange(caret, caret);
-    return transformInputValue(value, replaceWhitespaceWithDashes);
+    return transformInputValue({
+      value,
+      transform: replaceWhitespaceWithDashes,
+    });
   }
 
   it("should keep the caret after a space typed mid-word", () => {
-    expect(type("a bc", 2)).toBe("a-bc");
+    expect(type({ value: "a bc", caret: 2 })).toBe("a-bc");
     expect(input.value).toBe("a-bc");
     expect(input.selectionStart).toBe(2);
   });
 
   it("should place the caret after a collapsed pasted run of whitespace", () => {
-    expect(type("my   \tname-tag", 10)).toBe("my-name-tag");
+    expect(type({ value: "my   \tname-tag", caret: 10 })).toBe("my-name-tag");
     expect(input.selectionStart).toBe(7);
   });
 
@@ -42,16 +45,22 @@ describe("transformInputValue", () => {
     input.focus();
     input.value = "typed";
     input.setSelectionRange(2, 2);
-    expect(transformInputValue("my prompt", replaceWhitespaceWithDashes)).toBe(
-      "my-prompt"
-    );
+    expect(
+      transformInputValue({
+        value: "my prompt",
+        transform: replaceWhitespaceWithDashes,
+      })
+    ).toBe("my-prompt");
     expect(input.value).toBe("typed");
     expect(input.selectionStart).toBe(2);
   });
 
   it("should still transform when no input is focused", () => {
-    expect(transformInputValue("my tag", replaceWhitespaceWithDashes)).toBe(
-      "my-tag"
-    );
+    expect(
+      transformInputValue({
+        value: "my tag",
+        transform: replaceWhitespaceWithDashes,
+      })
+    ).toBe("my-tag");
   });
 });

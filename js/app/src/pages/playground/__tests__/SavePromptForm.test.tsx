@@ -173,7 +173,7 @@ describe("SavePromptForm", () => {
     await renderSavePromptForm(root);
 
     await act(async () => {
-      typeInto(getPromptNameInput(container), "my prompt");
+      typeInto({ input: getPromptNameInput(container), value: "my prompt" });
     });
     expect(getPromptNameInput(container).value).toBe("my-prompt");
   });
@@ -194,7 +194,7 @@ describe("SavePromptForm", () => {
       getButton(container, "Select prompt").click();
     });
     await act(async () => {
-      typeInto(getPromptNameInput(container), "Existing");
+      typeInto({ input: getPromptNameInput(container), value: "Existing" });
     });
     // The ComboBox sends the selected key again to revert an edit, e.g. on Escape
     await act(async () => {
@@ -211,7 +211,7 @@ describe("SavePromptForm", () => {
       getButton(container, "Select prompt").click();
     });
     await act(async () => {
-      typeInto(getPromptNameInput(container), "new name");
+      typeInto({ input: getPromptNameInput(container), value: "new name" });
     });
     await act(async () => {
       getButton(container, "Clear prompt").click();
@@ -228,7 +228,7 @@ describe("SavePromptForm", () => {
 
     await act(async () => {
       tagInput.focus();
-      typeInto(tagInput, "my ");
+      typeInto({ input: tagInput, value: "my " });
     });
     expect(tagInput.value).toBe("my-");
     expect(container.textContent).not.toContain(
@@ -269,7 +269,13 @@ function getPromptNameInput(container: HTMLElement): HTMLInputElement {
 /**
  * Sets the value the way a browser does, so React's onChange fires.
  */
-function typeInto(input: HTMLInputElement, value: string) {
+function typeInto({
+  input,
+  value,
+}: {
+  input: HTMLInputElement;
+  value: string;
+}) {
   Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     "value"

@@ -9,17 +9,26 @@
  * holds `value`, so programmatic changes such as a ComboBox filling in a
  * selected item are left to React.
  *
+ * @param params.value - the value the input reported, before transforming
+ * @param params.transform - rewrites the value; must not depend on where the
+ * text is split, so the text before the caret transforms the same way
+ *
  * @example
  * <TextField
  *   onChange={(value) =>
- *     field.onChange(transformInputValue(value, transformIdentifierInput))
+ *     field.onChange(
+ *       transformInputValue({ value, transform: transformIdentifierInput })
+ *     )
  *   }
  * />
  */
-export function transformInputValue(
-  value: string,
-  transform: (value: string) => string
-): string {
+export function transformInputValue({
+  value,
+  transform,
+}: {
+  value: string;
+  transform: (value: string) => string;
+}): string {
   const transformed = transform(value);
   const input = document.activeElement;
   if (

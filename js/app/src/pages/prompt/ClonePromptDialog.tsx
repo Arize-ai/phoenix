@@ -158,10 +158,10 @@ export const ClonePromptDialog = ({
                         value={value}
                         onChange={(value) =>
                           onChange(
-                            transformInputValue(
+                            transformInputValue({
                               value,
-                              replaceWhitespaceWithDashes
-                            )
+                              transform: replaceWhitespaceWithDashes,
+                            })
                           )
                         }
                         onBlur={onBlur}
