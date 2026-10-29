@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLocation, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
+import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { ProjectEvaluatorSlideoverRoutesCopyNamesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorSlideoverRoutesCopyNamesQuery.graphql";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -87,7 +88,7 @@ function CreateProjectEvaluatorRoute({
  * the URL names nothing. Suspends, so the slideover opens only once that
  * evaluator has loaded.
  */
-function useSourceEvaluator() {
+function useSourceEvaluatorNode() {
   const { evaluatorId } = useParams();
   invariant(evaluatorId, "evaluatorId is required");
   const data = useLazyLoadQuery<projectEvaluatorDetailsQuery>(
@@ -95,7 +96,11 @@ function useSourceEvaluator() {
     { id: evaluatorId },
     { fetchPolicy: "store-or-network" }
   );
-  return readProjectEvaluatorDetails(data.evaluator);
+  return data.evaluator;
+}
+
+function useSourceEvaluator() {
+  return readProjectEvaluatorDetails(useSourceEvaluatorNode());
 }
 
 const copyNamesQuery = graphql`
@@ -134,6 +139,10 @@ export function NewLlmProjectEvaluatorPage() {
 
 export function NewCodeProjectEvaluatorPage() {
   return <CreateProjectEvaluatorRoute creationMode={{ kind: "newCode" }} />;
+}
+
+export function NewDecisionProjectEvaluatorPage() {
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "newDecision" }} />;
 }
 
 export function NewLlmFromTemplateProjectEvaluatorPage() {
@@ -207,23 +216,29 @@ function CopyLlmProjectEvaluatorRoute({
   return <CreateProjectEvaluatorRoute creationMode={built.mode} />;
 }
 
-export function AttachCodeProjectEvaluatorPage() {
+export function AttachProjectEvaluatorPage() {
   const onOpenChange = useCloseSlideover();
-  const evaluator = useSourceEvaluator();
+  const node = useSourceEvaluatorNode();
+  const evaluator = readProjectEvaluatorDetails(node);
   // Memoized for the same reason as the copy route: it parses the evaluator's
   // source twice to extract its variables.
-  const creationMode = useMemo(
-    () =>
-      evaluator?.__typename === "CodeEvaluator"
-        ? buildAttachCodeCreationMode(evaluator)
-        : null,
-    [evaluator]
-  );
+  const creationMode = useMemo<ProjectEvaluatorCreationMode | null>(() => {
+    const decisionEvaluator =
+      node?.__typename === "DecisionEvaluator"
+        ? readDecisionEvaluatorData(node)
+        : null;
+    if (decisionEvaluator) {
+      return { kind: "attachDecision", evaluator: decisionEvaluator };
+    }
+    return evaluator?.__typename === "CodeEvaluator"
+      ? buildAttachCodeCreationMode(evaluator)
+      : null;
+  }, [node, evaluator]);
   if (!creationMode) {
     return (
       <ProjectEvaluatorSlideoverError
         title="Cannot attach evaluator"
-        message="This link does not name a code evaluator."
+        message="This link does not name a code or decision evaluator."
         onOpenChange={onOpenChange}
       />
     );
@@ -266,7 +281,8 @@ export function EditProjectEvaluatorPage() {
   const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
   if (
     evaluator.evaluator.kind !== "LLM" &&
-    evaluator.evaluator.kind !== "CODE"
+    evaluator.evaluator.kind !== "CODE" &&
+    evaluator.evaluator.kind !== "DECISION"
   ) {
     return (
       <ProjectEvaluatorSlideoverError
