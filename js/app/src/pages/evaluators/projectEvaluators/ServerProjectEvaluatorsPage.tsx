@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
@@ -12,11 +13,12 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
 import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationQueueStrip";
-import {
-  QUEUE_SHARE_SORTING,
-  ServerProjectEvaluatorsTable,
-} from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
+import { ServerProjectEvaluatorsTable } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
+import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectsFilterButton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
+
+/** The projects picked to show, repeated once per project. */
+const PROJECT_PARAM = "project";
 
 const pageCSS = css`
   flex: 1 1 auto;
@@ -52,11 +54,27 @@ function ServerProjectEvaluatorsPageContent() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const showQueueDrivers = useCallback(() => {
-    setSorting(QUEUE_SHARE_SORTING);
-    tableScrollRef.current?.scrollTo({ top: 0 });
-  }, []);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectParam = searchParams.getAll(PROJECT_PARAM).join(",");
+  const pickedProjectIds = useMemo(
+    () => (projectParam ? projectParam.split(",") : []),
+    [projectParam]
+  );
+  const setPickedProjectIds = useCallback(
+    (projectIds: string[]) =>
+      setSearchParams(
+        (params) => {
+          const next = new URLSearchParams(params);
+          next.delete(PROJECT_PARAM);
+          for (const projectId of projectIds) {
+            next.append(PROJECT_PARAM, projectId);
+          }
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
   return (
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
@@ -66,10 +84,12 @@ function ServerProjectEvaluatorsPageContent() {
         <ServerEvaluationQueueStrip
           refreshKey={refreshKey}
           onQueueCleared={refresh}
-          onShowQueueDrivers={showQueueDrivers}
         />
         <Suspense fallback={<ChartPanelStripSkeleton />}>
-          <ServerEvaluationCharts fetchKey={refreshKey} />
+          <ServerEvaluationCharts
+            fetchKey={refreshKey}
+            pickedProjectIds={pickedProjectIds}
+          />
         </Suspense>
         <View padding="size-100" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -79,12 +99,20 @@ function ServerProjectEvaluatorsPageContent() {
               defaultValue={filter}
               onChange={setFilter}
             />
+            <Suspense fallback={null}>
+              <ServerProjectsFilterButton
+                pickedProjectIds={pickedProjectIds}
+                onPickedProjectIdsChange={setPickedProjectIds}
+                fetchKey={refreshKey}
+              />
+            </Suspense>
           </Flex>
         </View>
-        <div css={tableScrollCSS} ref={tableScrollRef}>
+        <div css={tableScrollCSS}>
           <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <ServerProjectEvaluatorsTable
               filter={filter}
+              projectIds={pickedProjectIds}
               fetchKey={refreshKey}
               sorting={sorting}
               onSortingChange={setSorting}

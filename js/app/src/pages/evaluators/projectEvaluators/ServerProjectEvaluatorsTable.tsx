@@ -32,9 +32,6 @@ type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
 /** Every project evaluator on the server is loaded; sorting happens here. */
 const PROJECT_EVALUATORS_LIMIT = 1000;
 
-/** The sort that puts the evaluators holding the most of the queue first. */
-export const QUEUE_SHARE_SORTING: SortingState = [{ id: "share", desc: true }];
-
 /**
  * While the queue is Degraded, the evaluators driving it: the fewest that
  * together hold most of it, each holding a sizable part on its own.
@@ -131,12 +128,15 @@ function getProjectEvaluatorDetailsPath(row: TableRow): string {
  */
 export function ServerProjectEvaluatorsTable({
   filter,
+  projectIds,
   fetchKey,
   sorting,
   onSortingChange,
 }: {
   /** Matches an evaluator's name or its project's name. */
   filter: string;
+  /** Only these projects' evaluators; all when empty. */
+  projectIds: ReadonlyArray<string>;
   /** Changes when the queue was changed from this page, to refetch at once. */
   fetchKey: number;
   sorting: SortingState;
@@ -218,16 +218,17 @@ export function ServerProjectEvaluatorsTable({
   );
   const trimmedFilter = filter.trim().toLowerCase();
   const rows = useMemo(() => {
-    const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
-    if (trimmedFilter.length === 0) {
-      return nodes;
-    }
-    return nodes.filter(
-      (node) =>
-        node.name.toLowerCase().includes(trimmedFilter) ||
-        node.project.name.toLowerCase().includes(trimmedFilter)
-    );
-  }, [data, trimmedFilter]);
+    const picked = new Set(projectIds);
+    return data.projectEvaluators.edges
+      .map((edge) => edge.node)
+      .filter((node) => picked.size === 0 || picked.has(node.project.id))
+      .filter(
+        (node) =>
+          trimmedFilter.length === 0 ||
+          node.name.toLowerCase().includes(trimmedFilter) ||
+          node.project.name.toLowerCase().includes(trimmedFilter)
+      );
+  }, [data, trimmedFilter, projectIds]);
   const totalQueued = data.evaluationQueue.queuedCount;
   const driverIds = useMemo(
     () =>
@@ -460,7 +461,7 @@ export function ServerProjectEvaluatorsTable({
           <CompactEmptyState
             icon={<Icon svg={<Icons.Scale />} />}
             description="No project evaluators"
-            isFiltered={trimmedFilter.length > 0}
+            isFiltered={trimmedFilter.length > 0 || projectIds.length > 0}
           />
         </TableEmptyWrap>
       ) : (

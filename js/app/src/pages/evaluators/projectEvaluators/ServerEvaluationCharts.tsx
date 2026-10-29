@@ -48,6 +48,11 @@ import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/projectEvaluators/__generated__/ServerEvaluationChartsQuery.graphql";
+import {
+  getShownProjectIds,
+  OTHER_PROJECTS_KEY,
+  rankProjects,
+} from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,
@@ -57,65 +62,22 @@ import {
 
 type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
 
-/** Projects past this many by evaluations share one "other projects" series. */
-const TOP_PROJECT_COUNT = 5;
-const OTHER_PROJECTS_KEY = "other";
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
 
 type ProjectSeries = { key: string; name: string; color: string };
 
 /**
- * The projects with the most evaluations in the range, each with a stable
- * color across the strip's charts, then one series for the rest.
+ * The server's evaluation activity over the selected range, grouped by
+ * project, with each project's evaluations in the queue now. The charts and
+ * the project picker read the same request.
  */
-function useProjectSeries(activity: Activity): {
-  series: ProjectSeries[];
-  getKey: (projectId: string) => string;
-  otherCount: number;
-} {
-  const colors = useCategoryChartColors();
-  return useMemo(() => {
-    const ranked = [...activity.groups].sort(
-      (a, b) =>
-        b.evaluatedCount + b.failedCount - (a.evaluatedCount + a.failedCount)
-    );
-    const top = ranked.slice(0, TOP_PROJECT_COUNT);
-    const topIds = new Set(top.map((group) => group.project.id));
-    const palette = [
-      colors.category1,
-      colors.category2,
-      colors.category3,
-      colors.category4,
-      colors.category5,
-    ];
-    const otherCount = ranked.length - top.length;
-    const series: ProjectSeries[] = top.map((group, index) => ({
-      key: group.project.id,
-      name: group.project.name,
-      color: palette[index] ?? OTHER_PROJECTS_COLOR,
-    }));
-    if (otherCount > 0) {
-      series.push({
-        key: OTHER_PROJECTS_KEY,
-        name:
-          otherCount === 1 ? "1 other project" : `${otherCount} other projects`,
-        color: OTHER_PROJECTS_COLOR,
-      });
-    }
-    return {
-      series,
-      getKey: (projectId: string) =>
-        topIds.has(projectId) ? projectId : OTHER_PROJECTS_KEY,
-      otherCount,
-    };
-  }, [activity.groups, colors]);
-}
-
-/**
- * Charts of the shared queue over the selected range: how full it was by
- * project, what entered and left it, and which projects used it most.
- */
-export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
+export function useServerEvaluationActivity({
+  fetchKey,
+  fetchPolicy = "store-and-network",
+}: {
+  fetchKey: number;
+  fetchPolicy?: "store-and-network" | "store-or-network";
+}) {
   const timeRange = useClosedTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -127,6 +89,13 @@ export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
       ) {
         evaluationQueue {
           queuedLimit
+          queuedCount
+          projects(first: 1000) {
+            project {
+              id
+            }
+            queuedCount
+          }
         }
         evaluationActivity(
           timeRange: $timeRange
@@ -166,10 +135,91 @@ export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
       },
       timeBinConfig: { scale, utcOffsetMinutes },
     },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy }
   );
+  return { data, timeRange, scale };
+}
+
+/**
+ * Which projects get their own series and color: the picked ones, or the
+ * heaviest few. The rest share one "other projects" series, so totals still
+ * add up against the shared queue limit.
+ */
+export function useServerProjectSeries(
+  data: ServerEvaluationChartsQuery$data,
+  pickedProjectIds: ReadonlyArray<string>
+) {
+  const colors = useCategoryChartColors();
+  return useMemo(() => {
+    const ranked = rankProjects({
+      groups: data.evaluationActivity.groups,
+      queued: data.evaluationQueue.projects,
+    });
+    const shownIds = getShownProjectIds(ranked, pickedProjectIds);
+    const shown = new Set(shownIds);
+    const palette = [
+      colors.category1,
+      colors.category2,
+      colors.category3,
+      colors.category4,
+      colors.category5,
+      colors.category6,
+      colors.category7,
+      colors.category8,
+      colors.category9,
+      colors.category10,
+      colors.category11,
+      colors.category12,
+    ];
+    const colorById = new Map(
+      shownIds.map((id, index) => [id, palette[index] ?? OTHER_PROJECTS_COLOR])
+    );
+    const nameById = new Map(
+      ranked.map((project) => [project.id, project.name])
+    );
+    const isFiltered = pickedProjectIds.length > 0;
+    const otherCount = ranked.length - shownIds.length;
+    const series: ProjectSeries[] = shownIds.map((id) => ({
+      key: id,
+      name: nameById.get(id) ?? id,
+      color: colorById.get(id) ?? OTHER_PROJECTS_COLOR,
+    }));
+    // Picks are a filter: only the picked projects show.
+    if (!isFiltered && otherCount > 0) {
+      series.push({
+        key: OTHER_PROJECTS_KEY,
+        name:
+          otherCount === 1 ? "1 other project" : `${otherCount} other projects`,
+        color: OTHER_PROJECTS_COLOR,
+      });
+    }
+    return {
+      ranked,
+      series,
+      colorById,
+      isFiltered,
+      isShown: (projectId: string) => shown.has(projectId),
+      getKey: (projectId: string) =>
+        shown.has(projectId) ? projectId : OTHER_PROJECTS_KEY,
+    };
+  }, [data, pickedProjectIds, colors]);
+}
+
+/**
+ * Charts of the shared queue over the selected range: how full it was by
+ * project, what entered and left it, and which projects used it most.
+ */
+export function ServerEvaluationCharts({
+  fetchKey,
+  pickedProjectIds,
+}: {
+  fetchKey: number;
+  /** Projects picked to show on their own; none shows the heaviest few. */
+  pickedProjectIds: ReadonlyArray<string>;
+}) {
+  const { data, timeRange, scale } = useServerEvaluationActivity({ fetchKey });
   const activity = data.evaluationActivity;
-  const projectSeries = useProjectSeries(activity);
+  const projectSeries = useServerProjectSeries(data, pickedProjectIds);
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const xAxisProps = {
     ...compactTimeXAxisProps,
@@ -193,7 +243,11 @@ export function ServerEvaluationCharts({ fetchKey }: { fetchKey: number }) {
           />
         </ChartPanel>
         <ChartPanel title="Queued vs completed" fillHeight>
-          <QueuedVsCompletedChart activity={activity} xAxisProps={xAxisProps} />
+          <QueuedVsCompletedChart
+            activity={activity}
+            projectSeries={projectSeries}
+            xAxisProps={xAxisProps}
+          />
         </ChartPanel>
         <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
       </ChartPanelStrip>
@@ -238,7 +292,7 @@ function QueueSizeChart({
   xAxisProps,
 }: {
   activity: Activity;
-  projectSeries: ReturnType<typeof useProjectSeries>;
+  projectSeries: ReturnType<typeof useServerProjectSeries>;
   queuedLimit: number;
   xAxisProps: XAxisOverrides;
 }) {
@@ -313,6 +367,7 @@ function QueueSizeChart({
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}
+            itemSorter={null}
             onToggleDataKey={toggleDataKey}
           />
         </AreaChart>
@@ -323,23 +378,31 @@ function QueueSizeChart({
 
 function QueuedVsCompletedChart({
   activity,
+  projectSeries,
   xAxisProps,
 }: {
   activity: Activity;
+  projectSeries: ReturnType<typeof useServerProjectSeries>;
   xAxisProps: XAxisOverrides;
 }) {
   const colors = useCategoryChartColors();
+  const { isFiltered, isShown } = projectSeries;
   const chartData = useMemo(
     () =>
-      activity.series.map((bin) => ({
-        timestamp: new Date(bin.timestamp).getTime(),
-        queued: bin.groups.reduce((sum, group) => sum + group.queuedCount, 0),
-        completed: bin.groups.reduce(
-          (sum, group) => sum + group.evaluatedCount + group.failedCount,
-          0
-        ),
-      })),
-    [activity.series]
+      activity.series.map((bin) => {
+        const groups = isFiltered
+          ? bin.groups.filter((group) => isShown(group.project.id))
+          : bin.groups;
+        return {
+          timestamp: new Date(bin.timestamp).getTime(),
+          queued: groups.reduce((sum, group) => sum + group.queuedCount, 0),
+          completed: groups.reduce(
+            (sum, group) => sum + group.evaluatedCount + group.failedCount,
+            0
+          ),
+        };
+      }),
+    [activity.series, isFiltered, isShown]
   );
   const hasData = chartData.some(
     (datum) => datum.queued > 0 || datum.completed > 0
@@ -384,6 +447,7 @@ function QueuedVsCompletedChart({
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}
+            itemSorter={null}
             onToggleDataKey={toggleDataKey}
           />
         </LineChart>
@@ -418,7 +482,7 @@ function TopProjectsPanel({
   projectSeries,
 }: {
   activity: Activity;
-  projectSeries: ReturnType<typeof useProjectSeries>;
+  projectSeries: ReturnType<typeof useServerProjectSeries>;
 }) {
   const [metric, setMetric] = useState<TopProjectsMetric>("evaluations");
   const { series, getKey } = projectSeries;
@@ -434,14 +498,19 @@ function TopProjectsPanel({
     }
     const ranked = series
       .map((entry) => ({ ...entry, value: totals.get(entry.key) ?? 0 }))
-      .filter((entry) => entry.key !== OTHER_PROJECTS_KEY && entry.value > 0)
+      // A picked project shows even with nothing to rank.
+      .filter(
+        (entry) =>
+          entry.key !== OTHER_PROJECTS_KEY &&
+          (projectSeries.isFiltered || entry.value > 0)
+      )
       .sort((a, b) => b.value - a.value);
     const other = series.find((entry) => entry.key === OTHER_PROJECTS_KEY);
     const otherValue = other != null ? (totals.get(other.key) ?? 0) : 0;
     return other != null && otherValue > 0
       ? [...ranked, { ...other, value: otherValue }]
       : ranked;
-  }, [activity.groups, getKey, metric, series]);
+  }, [activity.groups, getKey, metric, series, projectSeries.isFiltered]);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const max = Math.max(...rows.map((row) => row.value), 0);
   const format = metric === "evaluations" ? intFormatter : costFormatter;

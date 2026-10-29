@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f8bc9d4f568494cc35311db777730429>>
+ * @generated SignedSource<<30bb57df09b96c1d0470aa8ceb92abfe>>
  * @lightSyntaxTransform
  */
 
@@ -50,6 +50,13 @@ export type ServerEvaluationChartsQuery$data = {
     }>;
   };
   readonly evaluationQueue: {
+    readonly projects: ReadonlyArray<{
+      readonly project: {
+        readonly id: string;
+      };
+      readonly queuedCount: number;
+    }>;
+    readonly queuedCount: number;
     readonly queuedLimit: number;
   };
 };
@@ -73,31 +80,50 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "evaluatedCount",
+  "name": "queuedCount",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "failedCount",
+  "name": "id",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "cost",
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v3/*:: as any*/)
+  ],
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "evaluatedCount",
   "storageKey": null
 },
-v6 = [
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "failedCount",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cost",
+  "storageKey": null
+},
+v8 = [
   {
     "alias": null,
     "args": null,
@@ -112,6 +138,26 @@ v6 = [
         "kind": "ScalarField",
         "name": "queuedLimit",
         "storageKey": null
+      },
+      (v2/*:: as any*/),
+      {
+        "alias": null,
+        "args": [
+          {
+            "kind": "Literal",
+            "name": "first",
+            "value": 1000
+          }
+        ],
+        "concreteType": "EvaluationQueueProject",
+        "kind": "LinkedField",
+        "name": "projects",
+        "plural": true,
+        "selections": [
+          (v4/*:: as any*/),
+          (v2/*:: as any*/)
+        ],
+        "storageKey": "projects(first:1000)"
       }
     ],
     "storageKey": null
@@ -135,9 +181,9 @@ v6 = [
     "name": "evaluationActivity",
     "plural": false,
     "selections": [
-      (v2/*:: as any*/),
-      (v3/*:: as any*/),
-      (v4/*:: as any*/),
+      (v5/*:: as any*/),
+      (v6/*:: as any*/),
+      (v7/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -154,7 +200,7 @@ v6 = [
             "name": "project",
             "plural": false,
             "selections": [
-              (v5/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -165,9 +211,9 @@ v6 = [
             ],
             "storageKey": null
           },
-          (v2/*:: as any*/),
-          (v3/*:: as any*/),
-          (v4/*:: as any*/)
+          (v5/*:: as any*/),
+          (v6/*:: as any*/),
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -194,27 +240,10 @@ v6 = [
             "name": "groups",
             "plural": true,
             "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Project",
-                "kind": "LinkedField",
-                "name": "project",
-                "plural": false,
-                "selections": [
-                  (v5/*:: as any*/)
-                ],
-                "storageKey": null
-              },
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
               (v2/*:: as any*/),
-              (v3/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "queuedCount",
-                "storageKey": null
-              },
               {
                 "alias": null,
                 "args": null,
@@ -241,7 +270,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ServerEvaluationChartsQuery",
-    "selections": (v6/*:: as any*/),
+    "selections": (v8/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -253,19 +282,19 @@ return {
     ],
     "kind": "Operation",
     "name": "ServerEvaluationChartsQuery",
-    "selections": (v6/*:: as any*/)
+    "selections": (v8/*:: as any*/)
   },
   "params": {
-    "cacheID": "7393f32b7a596660802664726d1eb465",
+    "cacheID": "e81de4cf71c05ffc490a55109a177c24",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationChartsQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedLimit\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        queuedCount\n        queueSize\n      }\n    }\n  }\n}\n"
+    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedLimit\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        queuedCount\n        queueSize\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "33e33e1334c1cd2dc9e42498fdcdd615";
+(node as any).hash = "c96fe6cc9baf227ef0482b64c2a4b234";
 
 export default node;

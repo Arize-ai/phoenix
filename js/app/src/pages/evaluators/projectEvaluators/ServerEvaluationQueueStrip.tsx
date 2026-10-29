@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Button, Flex, Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
@@ -46,13 +46,10 @@ const stripCSS = css`
 export function ServerEvaluationQueueStrip({
   refreshKey,
   onQueueCleared,
-  onShowQueueDrivers,
 }: {
   /** Changes when the queue was changed from this page, to refetch at once. */
   refreshKey: number;
   onQueueCleared: () => void;
-  /** Brings the evaluators holding most of the queue to the top of the table. */
-  onShowQueueDrivers: () => void;
 }) {
   const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   return (
@@ -75,7 +72,6 @@ export function ServerEvaluationQueueStrip({
               fetchKey={fetchKey}
               lastHour={lastHour}
               onQueueCleared={onQueueCleared}
-              onShowQueueDrivers={onShowQueueDrivers}
             />
           </Suspense>
         </ErrorBoundary>
@@ -88,12 +84,10 @@ function ServerEvaluationQueueStripContent({
   fetchKey,
   lastHour,
   onQueueCleared,
-  onShowQueueDrivers,
 }: {
   fetchKey: string;
   lastHour: { start: string; end: string };
   onQueueCleared: () => void;
-  onShowQueueDrivers: () => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
@@ -172,11 +166,6 @@ function ServerEvaluationQueueStripContent({
           >
             <QueueStatusBadge status={queue.status} />
           </HoverDetail>
-          {queue.status === "DEGRADED" ? (
-            <Button size="S" variant="quiet" onPress={onShowQueueDrivers}>
-              What's driving it
-            </Button>
-          ) : null}
         </StatItem>
         <StatItem label="In queue">
           <Flex direction="column" gap="size-50" minWidth="size-2400">
