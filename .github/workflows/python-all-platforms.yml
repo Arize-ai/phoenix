@@ -118,6 +118,10 @@ jobs:
           sudo apt-get -yqq install postgresql-14
       - name: Sync dependencies
         run: uv sync --frozen --all-packages
+      - name: Warm pytest's assertion-rewrite cache for the xdist workers
+        continue-on-error: true
+        working-directory: tests
+        run: uv run --no-sync python unit/_warm_rewrite_cache.py "${{ github.workspace }}" unit -n 4 --dist loadscope
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 90
@@ -232,7 +236,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-client --extra pytest --extra evals --extra harbor
+      - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
       - run: uv run --no-sync pyright .
         working-directory: packages/phoenix-client
       - run: uv run --no-sync mypy --strict .
@@ -265,7 +269,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-evals --extra test
+      - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-evals
       - run: uv run --no-sync pytest -ra -x .
@@ -296,7 +300,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-otel --extra test
+      - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-otel
       - run: uv run --no-sync pytest -ra -x .

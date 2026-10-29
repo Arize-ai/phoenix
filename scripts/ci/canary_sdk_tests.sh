@@ -3,13 +3,19 @@
 # SDK's latest release. These intentionally resolve fresh from PyPI rather
 # than from uv.lock: the point is to catch upstream SDK changes early.
 #
-# Usage: scripts/ci/canary_sdk_tests.sh <sdk> <module> [pytest args...]
-#   e.g. scripts/ci/canary_sdk_tests.sh openai chat -ra -x
+# Usage: scripts/ci/canary_sdk_tests.sh <sdk> [pytest args...]
+#   e.g. scripts/ci/canary_sdk_tests.sh openai -ra -x
 set -euo pipefail
 
 SDK="$1"
-MOD="$2"
-shift 2
+shift
+
+case "$SDK" in
+  openai) MOD=chat ;;
+  anthropic) MOD=messages ;;
+  google_genai) MOD=generate_content ;;
+  *) echo "unknown SDK: $SDK" >&2; exit 2 ;;
+esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLIENT_DIR="$REPO_ROOT/packages/phoenix-client"

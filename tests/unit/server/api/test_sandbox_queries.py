@@ -12,7 +12,6 @@ from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     AdapterMetadata,
 )
-from phoenix.server.sandbox.sync import default_sandbox_config_name
 from phoenix.server.sandbox.types import (
     NoDeployment,
     SandboxAdapter,
@@ -107,17 +106,9 @@ async def test_sandbox_providers_returns_nested_configs(
         SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
     )
     assert provider_result["enabled"] is True
-    fixture_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
-    seeded_names = {
-        str(default_sandbox_config_name(provider.backend_type, language))
-        for language in SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
-    }
-    other_configs = [c for c in provider_result["configs"] if c["id"] != fixture_config_id]
-    assert {c["name"] for c in other_configs} <= seeded_names
-    fixture_configs = [c for c in provider_result["configs"] if c["id"] == fixture_config_id]
-    assert fixture_configs == [
+    assert provider_result["configs"] == [
         {
-            "id": fixture_config_id,
+            "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
             "name": sandbox_config.name.root,
             "description": sandbox_config.description,
             "language": sandbox_config.language,

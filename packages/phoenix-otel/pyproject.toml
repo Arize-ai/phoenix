@@ -66,7 +66,7 @@ packages = ["src/phoenix"]
 only-packages = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", ".tox", "dist"]
+exclude = [".git", "__pycache__", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
 target-version = "py311"

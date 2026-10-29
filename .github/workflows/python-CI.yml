@@ -184,7 +184,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-client --extra pytest --extra evals --extra harbor
+      - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
       - run: uv run --no-sync pyright .
         working-directory: packages/phoenix-client
       - run: uv run --no-sync mypy --strict .
@@ -215,7 +215,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-evals --extra test
+      - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-evals
       - run: uv run --no-sync pytest -ra -x .
@@ -243,7 +243,7 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uv sync --frozen --no-editable --package arize-phoenix-otel --extra test
+      - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-otel
       - run: uv run --no-sync pytest -ra -x .
@@ -737,6 +737,10 @@ jobs:
           sudo apt-get -yqq install postgresql-14
       - name: Sync dependencies
         run: uv sync --frozen --all-packages
+      - name: Warm pytest's assertion-rewrite cache for the xdist workers
+        continue-on-error: true
+        working-directory: tests
+        run: uv run --no-sync python unit/_warm_rewrite_cache.py "${{ github.workspace }}" unit -n 16 --dist loadscope
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
@@ -916,13 +920,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.11"]
-        include:
-          - pkg: openai
-            mod: chat
-          - pkg: anthropic
-            mod: messages
-          - pkg: google_genai
-            mod: generate_content
+        pkg: [openai, anthropic, google_genai]
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -945,8 +943,7 @@ jobs:
       - name: Run canary tests for ${{ matrix.pkg }}
         env:
           SDK: ${{ matrix.pkg }}
-          MOD: ${{ matrix.mod }}
-        run: scripts/ci/canary_sdk_tests.sh "$SDK" "$MOD" -ra -x
+        run: scripts/ci/canary_sdk_tests.sh "$SDK" -ra -x
 
   ci-required:
     name: Python CI Required

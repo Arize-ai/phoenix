@@ -10,7 +10,7 @@ config:
   packages:
     type: packages
     apt: [gh] # authenticates with the vault's GH_TOKEN credential
-    pip: [uv, tox] # `make setup` checks for both
+    pip: [uv] # `make setup` checks for it
     npm:
       - pnpm@12.0.0 # matches packageManager in js/package.json
       - "@arizeai/phoenix-cli" # `px`
