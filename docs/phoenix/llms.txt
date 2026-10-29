@@ -534,7 +534,6 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 ## Resources
 
 - [General FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions about Phoenix features, pricing, and compatibility
-- [Contribute](https://arize.com/docs/phoenix/resources/contribute-to-phoenix): Open-source contribution guide
 - [Arize Phoenix or Arize AX](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Compare open-source Phoenix with the commercial Arize AX platform and decide which fits your team
 - [Migrating to Arize AX](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Use the supported AX guide and migration skill to migrate supported Phoenix traces, datasets, experiments, and evaluation results
 

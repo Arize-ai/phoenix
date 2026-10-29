@@ -448,7 +448,6 @@
                   "docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith"
                 ]
               },
-              "docs/phoenix/resources/contribute-to-phoenix",
               {
                 "group": "Arize AX",
                 "root": "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
@@ -2425,7 +2424,11 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/contribute-to-phoenix",
-      "destination": "/docs/phoenix/resources/contribute-to-phoenix"
+      "destination": "https://github.com/Arize-ai/phoenix/blob/main/CONTRIBUTING.md"
+    },
+    {
+      "source": "/docs/phoenix/resources/contribute-to-phoenix",
+      "destination": "https://github.com/Arize-ai/phoenix/blob/main/CONTRIBUTING.md"
     },
     {
       "source": "/docs/phoenix/learn/tracing/how-tracing-works",
