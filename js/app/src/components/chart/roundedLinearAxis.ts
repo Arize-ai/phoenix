@@ -1,10 +1,10 @@
 /**
- * Step multipliers that land a linear axis's ticks on round numbers, per power of ten.
+ * Multipliers of a power of ten that give round tick steps (e.g. 0.25, 2, 50).
  */
 const ROUND_STEP_MULTIPLIERS = [1, 2, 2.5, 5, 10] as const;
 
 /**
- * The most intervals (gaps between ticks) a compact chart's y axis shows.
+ * The maximum number of intervals (gaps between ticks) on a compact chart's y-axis.
  */
 const DEFAULT_MAX_INTERVAL_COUNT = 5;
 
@@ -14,13 +14,15 @@ export type RoundedLinearAxis = {
 };
 
 /**
- * Computes a zero-based linear axis whose bounds snap to the nearest round tick
- * beyond the data.
+ * Computes a linear axis that includes zero and whose bounds extend to the
+ * first round tick at or beyond the data.
  *
  * Recharts' default `tickCount` forces an exact number of ticks, which inflates
  * the step (e.g. a max of 4.2 gets 0, 2, 4, 6, 8) and leaves the tallest bar at
- * half height. Letting the tick count flex keeps the data filling the plot.
+ * about half height. Letting the tick count vary keeps the data filling the plot.
  * Zero is always included so bar lengths stay proportional to their values.
+ *
+ * Returns `undefined` when there are no finite values or they are all zero.
  */
 export function getRoundedLinearAxis({
   values,
@@ -41,7 +43,8 @@ export function getRoundedLinearAxis({
   let step = getRoundStep((max - min) / maxIntervalCount);
   let roundedMin = Math.floor(min / step) * step;
   let roundedMax = Math.ceil(max / step) * step;
-  // Snapping both ends outward can add an interval when the data spans zero
+  // Rounding both ends outward can add an interval when the data spans zero,
+  // so move up to the next round step until the axis fits
   while (Math.round((roundedMax - roundedMin) / step) > maxIntervalCount) {
     step = getRoundStep(step * 1.000001);
     roundedMin = Math.floor(min / step) * step;
@@ -56,7 +59,7 @@ export function getRoundedLinearAxis({
 }
 
 /**
- * The smallest round step that is at least `minStep`
+ * Returns the smallest round step that is greater than or equal to `minStep`.
  */
 function getRoundStep(minStep: number): number {
   const magnitude = 10 ** Math.floor(Math.log10(minStep));
