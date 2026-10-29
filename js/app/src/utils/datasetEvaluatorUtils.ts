@@ -152,3 +152,33 @@ export function datasetEvaluatorsToAnnotationConfigs(
 ): AnnotationConfig[] {
   return evaluators.flatMap(datasetEvaluatorToAnnotationConfigs);
 }
+
+/**
+ * Narrows annotation configs to the annotations that have results.
+ *
+ * Keeps the configs whose name is among `annotationNames`, in config order,
+ * then appends a freeform config for each remaining name with no config
+ * (e.g. an evaluator that ran from an SDK or was since removed from the
+ * dataset), sorted by name.
+ */
+export function getAnnotationConfigsWithResults({
+  annotationConfigs,
+  annotationNames,
+}: {
+  annotationConfigs: readonly AnnotationConfig[];
+  /** Names of the annotations that have at least one result */
+  annotationNames: Iterable<string>;
+}): AnnotationConfig[] {
+  const namesWithResults = new Set(annotationNames);
+  const configsWithResults = annotationConfigs.filter((config) =>
+    namesWithResults.has(config.name)
+  );
+  const configuredNames = new Set(
+    annotationConfigs.map((config) => config.name)
+  );
+  const unconfiguredConfigs: AnnotationConfig[] = [...namesWithResults]
+    .filter((name) => !configuredNames.has(name))
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ name, annotationType: "FREEFORM" }));
+  return [...configsWithResults, ...unconfiguredConfigs];
+}
