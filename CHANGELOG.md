@@ -1,5 +1,37 @@
 # Changelog
 
+## [20.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.26.1...arize-phoenix-v20.27.0) (2026-10-29)
+
+
+### Features
+
+* **api:** expose prompt version creation timestamps ([#17188](https://github.com/Arize-ai/phoenix/issues/17188)) ([87a9934](https://github.com/Arize-ai/phoenix/commit/87a9934710ad232b238ad27ceefe07a703197bd1))
+* **evals:** support TypeSafe Jev decision models in Python classification evaluators ([#16953](https://github.com/Arize-ai/phoenix/issues/16953)) ([9089efc](https://github.com/Arize-ai/phoenix/commit/9089efc2bdbd7d71286cd27a3b731b132f41fb79))
+* **factory:** grade PR reviews with one verdict and report only that verdict ([#17314](https://github.com/Arize-ai/phoenix/issues/17314)) ([2dcaa0b](https://github.com/Arize-ai/phoenix/commit/2dcaa0ba9e3d2fb0756e096c2002ed935fa9874f))
+* **factory:** review a pull request on demand with the pr-reviewer lane ([#17235](https://github.com/Arize-ai/phoenix/issues/17235)) ([b21d451](https://github.com/Arize-ai/phoenix/commit/b21d4515d7dfbfbd6f5d26b387a411c0217eb98e))
+
+
+### Bug Fixes
+
+* **agents:** harden GitHub token handling and subagent write access ([#15828](https://github.com/Arize-ai/phoenix/issues/15828)) ([80f2715](https://github.com/Arize-ai/phoenix/commit/80f27153694c92e55b1b970a7af4c11093103341))
+* **deps:** require graphql-core&gt;=3.3.1 and avoid stale argument default memoization ([#17332](https://github.com/Arize-ai/phoenix/issues/17332)) ([5b56d89](https://github.com/Arize-ai/phoenix/commit/5b56d89203cd818d937dcac36caa1b8e97416795))
+* **deps:** update arize-phoenix-evals to 3.9.4 ([#17236](https://github.com/Arize-ai/phoenix/issues/17236)) ([edcd546](https://github.com/Arize-ai/phoenix/commit/edcd5466dd8a394ad5bb1617d69dab800f3a53c8))
+* **deps:** update arize-phoenix-evals to 3.9.5 ([#17311](https://github.com/Arize-ai/phoenix/issues/17311)) ([e9bd808](https://github.com/Arize-ai/phoenix/commit/e9bd808f85afa9e0e01ad083fb633c65f4c68151))
+* **dsl:** three defects in the span-filter DSL found in a security review ([#16091](https://github.com/Arize-ai/phoenix/issues/16091)) ([70cf713](https://github.com/Arize-ai/phoenix/commit/70cf71335741701fac639b48f87e67c56892fa6f))
+* **evals:** ask for the Anthropic tool call instead of forcing tool_choice ([#17366](https://github.com/Arize-ai/phoenix/issues/17366)) ([be808f6](https://github.com/Arize-ai/phoenix/commit/be808f6bef86a67437f6cddede9e424a17fe6fb9))
+* **graphql:** scope trace error subquery to project and time range ([#17257](https://github.com/Arize-ai/phoenix/issues/17257)) ([bc34f2d](https://github.com/Arize-ai/phoenix/commit/bc34f2db2186d6d4d3160b6fcc6fe8d9df12f0df)), closes [#17256](https://github.com/Arize-ai/phoenix/issues/17256)
+* **server:** log reported client errors by route, not full URL ([#17334](https://github.com/Arize-ai/phoenix/issues/17334)) ([850bac8](https://github.com/Arize-ai/phoenix/commit/850bac8b438695fb90eb4255cd2a9bff5271a375))
+* **server:** redact pii from exported logs and spans ([#17343](https://github.com/Arize-ai/phoenix/issues/17343)) ([2fd6d18](https://github.com/Arize-ai/phoenix/commit/2fd6d186422ef908f17b8f889d3ae7183e9eb717))
+* **trace:** save sanitized dataframe with document metadata ([#17263](https://github.com/Arize-ai/phoenix/issues/17263)) ([b3a491a](https://github.com/Arize-ai/phoenix/commit/b3a491a352db26aa2c7d2dd320d9a23db64960da))
+
+
+### Documentation
+
+* add Phoenix release notes ([#17318](https://github.com/Arize-ai/phoenix/issues/17318)) ([10d971b](https://github.com/Arize-ai/phoenix/commit/10d971b4276022e68b244b33bf8c90043ae08793))
+* add REST reference page for creating a prompt version ([#17299](https://github.com/Arize-ai/phoenix/issues/17299)) ([966cb1b](https://github.com/Arize-ai/phoenix/commit/966cb1b8abb25c34bc2defeb979943053286c9dd))
+* **integrations:** add pages for 30 integrations documented in Arize AX ([#17228](https://github.com/Arize-ai/phoenix/issues/17228)) ([1848437](https://github.com/Arize-ai/phoenix/commit/184843719d96e42b97c1b754dd372375411afd66))
+* require object params for multi-parameter TypeScript functions ([#17364](https://github.com/Arize-ai/phoenix/issues/17364)) ([69091e2](https://github.com/Arize-ai/phoenix/commit/69091e274f8191465ee8afd2c5dc0a0e1c193af3))
+
 ## [20.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.26.0...arize-phoenix-v20.26.1) (2026-10-25)
 
 
