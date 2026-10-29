@@ -193,6 +193,8 @@ def test_rejected_manifest_does_not_warn_about_entries(caplog: pytest.LogCapture
             "'bad'",
             id="missing-completion-output-fallback",
         ),
+        pytest.param(_model("model-a"), "'model-a'", id="duplicate-name"),
+        pytest.param(_model("bad", name_pattern="model-a"), "'bad'", id="duplicate-pattern"),
         pytest.param("not an object", "at index 1", id="not-an-object"),
     ],
 )
@@ -216,6 +218,7 @@ def test_reports_names_of_skipped_entries() -> None:
         models=[
             _model("model-a"),
             _model(" bad ", token_prices=invalid_rate),
+            _model("dup-pattern", name_pattern="model-a"),
             _model("model-b", token_prices=invalid_rate),
             _model("model-b"),
             _model("   ", token_prices=invalid_rate),
@@ -225,7 +228,7 @@ def test_reports_names_of_skipped_entries() -> None:
     manifest = parse_manifest(json.dumps(data))
     assert [model.name for model in manifest.models] == ["model-a", "model-b"]
     # model-b also has a valid entry, so it isn't reported; blank names can't be.
-    assert manifest.skipped_model_names == {"bad"}
+    assert manifest.skipped_model_names == {"bad", "dup-pattern"}
     assert "skipped_model_names" not in manifest.model_dump()
 
 

@@ -698,6 +698,34 @@ class TestApplyManifestIfNewer:
         model_a = (await _get_models(db, is_built_in=True))["model-a"]
         assert _extract_token_prices(model_a) == {("input", True): 1e-6, ("output", False): 2e-6}
 
+    async def test_duplicate_pattern_or_collision_with_skipped_model_preserves_existing_models(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+
+        # model-b's new pattern collides with model-a's in the manifest; model-b stays as-is.
+        dup_b = {**_manifest_model("model-b", input_rate=4e-6), "name_pattern": r"(?i)^(model-a)$"}
+        manifest_day2 = _manifest_of([_manifest_model("model-a", input_rate=3e-6), dup_b], day=2)
+        assert manifest_day2.skipped_model_names == {"model-b"}
+        assert await _apply(db, manifest_day2)
+        assert await _active_built_in_prices(db) == {"model-a": 3e-6, "model-b": 1e-6}
+
+        # model-a tries to claim model-b's existing DB pattern while model-b is skipped:
+        # model-b is kept as-is, and model-a, whose entry is skipped for the collision, is
+        # soft-deleted like any model missing from the manifest.
+        claim_b = {
+            **_manifest_model("model-a", input_rate=5e-6),
+            "name_pattern": r"(?i)^(model-b)$",
+        }
+        invalid_b = _manifest_model("model-b", input_rate=6e-6)
+        invalid_b["token_prices"][0]["base_rate"] = -1
+        manifest_day3 = _manifest_of([claim_b, invalid_b], day=3)
+        assert await _apply(db, manifest_day3)
+        assert await _active_built_in_prices(db) == {"model-b": 1e-6}
+        assert await _get_deleted_model_names(db) == {"model-a"}
+
     async def test_unchanged_manifest_does_not_touch_models(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", "model-b", day=1))
