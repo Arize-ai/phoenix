@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d34efd952fbc3207251ac3aa0c5dfab0>>
+ * @generated SignedSource<<3bf06f2915b00b31f4c699ee3c8583de>>
  * @lightSyntaxTransform
  */
 
@@ -115,10 +115,17 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = [
+v8 = [
   {
     "kind": "Literal",
     "name": "filter",
@@ -131,18 +138,46 @@ v7 = [
     }
   }
 ],
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
   "storageKey": null
 };
 return {
@@ -246,28 +281,22 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
                   (v6/*:: as any*/),
+                  (v7/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       {
                         "alias": "summaryTraceAnnotations",
-                        "args": (v7/*:: as any*/),
+                        "args": (v8/*:: as any*/),
                         "concreteType": "TraceAnnotation",
                         "kind": "LinkedField",
                         "name": "traceAnnotations",
                         "plural": true,
                         "selections": [
-                          (v6/*:: as any*/),
-                          (v8/*:: as any*/),
+                          (v7/*:: as any*/),
                           (v9/*:: as any*/),
+                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -325,7 +354,173 @@ return {
                                 "name": "profilePictureUrl",
                                 "storageKey": null
                               },
-                              (v6/*:: as any*/)
+                              (v7/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DecisionAnnotation",
+                            "kind": "LinkedField",
+                            "name": "decision",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "status",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "DecisionAnnotationQuestion",
+                                "kind": "LinkedField",
+                                "name": "question",
+                                "plural": false,
+                                "selections": [
+                                  (v9/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "type",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "DecisionChoiceOption",
+                                    "kind": "LinkedField",
+                                    "name": "choices",
+                                    "plural": true,
+                                    "selections": [
+                                      (v11/*:: as any*/),
+                                      (v12/*:: as any*/)
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "DecisionScaleLevel",
+                                    "kind": "LinkedField",
+                                    "name": "levels",
+                                    "plural": true,
+                                    "selections": [
+                                      (v10/*:: as any*/),
+                                      (v12/*:: as any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "answer",
+                                "plural": false,
+                                "selections": [
+                                  (v6/*:: as any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v13/*:: as any*/)
+                                    ],
+                                    "type": "PredicateAnswer",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "choice",
+                                        "storageKey": null
+                                      },
+                                      (v14/*:: as any*/),
+                                      {
+                                        "alias": "choiceProbabilities",
+                                        "args": null,
+                                        "concreteType": "ChoiceProbability",
+                                        "kind": "LinkedField",
+                                        "name": "probabilities",
+                                        "plural": true,
+                                        "selections": [
+                                          (v11/*:: as any*/),
+                                          (v13/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "ChoiceAnswer",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "expectedLevel",
+                                        "storageKey": null
+                                      },
+                                      (v14/*:: as any*/),
+                                      {
+                                        "alias": "levelProbabilities",
+                                        "args": null,
+                                        "concreteType": "LevelProbability",
+                                        "kind": "LinkedField",
+                                        "name": "probabilities",
+                                        "plural": true,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "level",
+                                            "storageKey": null
+                                          },
+                                          (v13/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "ScaleAnswer",
+                                    "abstractKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "requestedModel",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "resolvedModel",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "modelProvider",
+                                "storageKey": null
+                              }
                             ],
                             "storageKey": null
                           }
@@ -334,7 +529,7 @@ return {
                       },
                       {
                         "alias": "summaryTraceAnnotationSummaries",
-                        "args": (v7/*:: as any*/),
+                        "args": (v8/*:: as any*/),
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "traceAnnotationSummaries",
@@ -376,7 +571,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v9/*:: as any*/)
+                              (v10/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -387,7 +582,7 @@ return {
                             "name": "meanScore",
                             "storageKey": null
                           },
-                          (v8/*:: as any*/)
+                          (v9/*:: as any*/)
                         ],
                         "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       },
@@ -411,8 +606,8 @@ return {
                         "name": "traceAnnotations",
                         "plural": true,
                         "selections": [
-                          (v6/*:: as any*/),
-                          (v9/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -439,12 +634,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8a6948f9dd526969cd5cc256491eb8d9",
+    "cacheID": "210adf1346944c00cc37cac983ce4b9a",
     "id": null,
     "metadata": {},
     "name": "TraceActionToolbarCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();

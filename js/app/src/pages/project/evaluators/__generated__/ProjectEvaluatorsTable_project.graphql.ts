@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b129e62a8f6821bbcfeb42d8b0a59fec>>
+ * @generated SignedSource<<8135f3e1d4a53ddf9d6fa3d134611aea>>
  * @lightSyntaxTransform
  */
 
@@ -108,13 +108,30 @@ v12 = {
   "storageKey": null
 },
 v13 = [
+  (v6/*:: as any*/)
+],
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v16 = [
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v14 = [
+v17 = [
   {
     "alias": null,
     "args": null,
@@ -123,17 +140,17 @@ v14 = [
     "storageKey": null
   }
 ],
-v15 = [
+v18 = [
   (v3/*:: as any*/)
 ],
-v16 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v17 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -470,9 +487,7 @@ return {
                               "kind": "LinkedField",
                               "name": "promptVersionTag",
                               "plural": false,
-                              "selections": [
-                                (v6/*:: as any*/)
-                              ],
+                              "selections": (v13/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -483,25 +498,51 @@ return {
                               "name": "promptVersion",
                               "plural": false,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "modelName",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "modelProvider",
-                                  "storageKey": null
-                                }
+                                (v14/*:: as any*/),
+                                (v15/*:: as any*/)
                               ],
                               "storageKey": null
                             }
                           ],
                           "type": "LLMEvaluator",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "DecisionVersion",
+                              "kind": "LinkedField",
+                              "name": "decisionVersion",
+                              "plural": false,
+                              "selections": [
+                                (v5/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "decisionId",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "Decision",
+                                  "kind": "LinkedField",
+                                  "name": "decision",
+                                  "plural": false,
+                                  "selections": (v13/*:: as any*/),
+                                  "storageKey": null
+                                },
+                                (v14/*:: as any*/),
+                                (v15/*:: as any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "DecisionEvaluator",
                           "abstractKey": null
                         },
                         {
@@ -571,14 +612,14 @@ return {
                         (v5/*:: as any*/),
                         {
                           "alias": null,
-                          "args": (v13/*:: as any*/),
+                          "args": (v16/*:: as any*/),
                           "kind": "ScalarField",
                           "name": "traceCount",
                           "storageKey": null
                         },
                         {
                           "alias": null,
-                          "args": (v13/*:: as any*/),
+                          "args": (v16/*:: as any*/),
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -591,7 +632,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v14/*:: as any*/),
+                              "selections": (v17/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -601,7 +642,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v14/*:: as any*/),
+                              "selections": (v17/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -611,7 +652,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v14/*:: as any*/),
+                              "selections": (v17/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -621,8 +662,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v13/*:: as any*/),
-                  "argumentDefinitions": (v15/*:: as any*/)
+                  "args": (v16/*:: as any*/),
+                  "argumentDefinitions": (v18/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -630,7 +671,7 @@ return {
                   "selections": [
                     {
                       "alias": null,
-                      "args": (v13/*:: as any*/),
+                      "args": (v16/*:: as any*/),
                       "concreteType": "ProjectEvaluatorFailureSummary",
                       "kind": "LinkedField",
                       "name": "failureSummary",
@@ -663,8 +704,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v13/*:: as any*/),
-                  "argumentDefinitions": (v15/*:: as any*/)
+                  "args": (v16/*:: as any*/),
+                  "argumentDefinitions": (v18/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -709,8 +750,8 @@ return {
                               "name": "summary",
                               "plural": false,
                               "selections": [
-                                (v16/*:: as any*/),
-                                (v17/*:: as any*/),
+                                (v19/*:: as any*/),
+                                (v20/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -755,7 +796,7 @@ return {
                               "name": "previousSummary",
                               "plural": false,
                               "selections": [
-                                (v16/*:: as any*/)
+                                (v19/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -774,8 +815,8 @@ return {
                                   "name": "timestamp",
                                   "storageKey": null
                                 },
-                                (v16/*:: as any*/),
-                                (v17/*:: as any*/)
+                                (v19/*:: as any*/),
+                                (v20/*:: as any*/)
                               ],
                               "storageKey": null
                             }

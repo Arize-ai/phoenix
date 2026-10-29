@@ -16,6 +16,9 @@ import {
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { DecisionEvaluatorDefinitionFields } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDefinitionFields";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
@@ -111,7 +114,7 @@ export const ProjectEvaluatorInputMappingDock = ({
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
-  evaluatorKind: "prompt" | "code";
+  evaluatorKind: "prompt" | "code" | "decision";
 }) => {
   const variables = useEvaluatorInputVariables();
   const unboundVariables = useUnboundRequiredVariables({
@@ -170,7 +173,9 @@ export const ProjectEvaluatorInputMappingDock = ({
                     description={
                       evaluatorKind === "prompt"
                         ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
-                        : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+                        : evaluatorKind === "decision"
+                          ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
+                          : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
                     }
                   />
                 }
@@ -229,22 +234,10 @@ export const ProjectCodeEvaluatorFormSections = ({
   if (codeDefinition == null) {
     return (
       <>
-        <View marginBottom="size-200" flex="none">
-          <Flex direction="column" gap="size-100">
-            <EvaluatorSectionHeader
-              title="Evaluator"
-              description="Attach the selected code evaluator to this project."
-            />
-            <View
-              borderRadius="medium"
-              borderWidth="thin"
-              borderColor="default"
-              padding="size-200"
-            >
-              <Heading level={3}>{codeEvaluatorName}</Heading>
-            </View>
-          </Flex>
-        </View>
+        <ProjectEvaluatorAttachSummary
+          evaluatorKind="code"
+          evaluatorName={codeEvaluatorName}
+        />
         <ProjectEvaluatorScopeSection {...scopeProps} />
       </>
     );
@@ -259,5 +252,82 @@ export const ProjectCodeEvaluatorFormSections = ({
       <ProjectEvaluatorScopeSection {...scopeProps} />
       {codeDefinition}
     </>
+  );
+};
+
+/**
+ * The left definition panel for a decision project evaluator, laid out like
+ * {@link ProjectCodeEvaluatorFormSections}: a draft gets the name, scope, and
+ * decision definition; an attached evaluator gets its summary card and scope.
+ */
+export const ProjectDecisionEvaluatorFormSections = (
+  props: ProjectEvaluatorScopeProps &
+    (
+      | { draft: DecisionEvaluatorDraft; isDisabled?: boolean }
+      | { attachedEvaluator: DecisionEvaluatorData }
+    )
+) => {
+  if ("attachedEvaluator" in props) {
+    const { attachedEvaluator, ...scopeProps } = props;
+    return (
+      <>
+        <ProjectEvaluatorAttachSummary
+          evaluatorKind="decision"
+          evaluatorName={attachedEvaluator.name}
+          subtitle={attachedEvaluator.decisionVersion.decision.name}
+        />
+        <ProjectEvaluatorScopeSection {...scopeProps} />
+      </>
+    );
+  }
+  const { draft, isDisabled, ...scopeProps } = props;
+  return (
+    <>
+      <EvaluatorNameAndDescriptionFields isNameRequired />
+      <ProjectEvaluatorScopeSection {...scopeProps} />
+      <Flex direction="column" gap="size-200">
+        <DecisionEvaluatorDefinitionFields
+          draft={draft}
+          isDisabled={isDisabled}
+          scoringDescription="Turn each answer into the score this evaluator records."
+        />
+      </Flex>
+    </>
+  );
+};
+
+const ProjectEvaluatorAttachSummary = ({
+  evaluatorKind,
+  evaluatorName,
+  subtitle,
+}: {
+  evaluatorKind: "code" | "decision";
+  evaluatorName?: string;
+  subtitle?: string;
+}) => {
+  return (
+    <View marginBottom="size-200" flex="none">
+      <Flex direction="column" gap="size-100">
+        <EvaluatorSectionHeader
+          title="Evaluator"
+          description={`Attach the selected ${evaluatorKind} evaluator to this project.`}
+        />
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          borderColor="default"
+          padding="size-200"
+        >
+          <Flex direction="column" gap="size-50">
+            <Heading level={3}>{evaluatorName}</Heading>
+            {subtitle ? (
+              <Text size="S" color="text-500">
+                {subtitle}
+              </Text>
+            ) : null}
+          </Flex>
+        </View>
+      </Flex>
+    </View>
   );
 };
