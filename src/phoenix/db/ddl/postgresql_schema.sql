@@ -969,7 +969,6 @@ CREATE TABLE public.experiment_jobs (
     cooldown_until TIMESTAMP WITH TIME ZONE,
     max_concurrency INTEGER NOT NULL DEFAULT 10,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    decision_evaluator_snapshots JSON NOT NULL DEFAULT '[]'::json,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),

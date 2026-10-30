@@ -914,7 +914,6 @@ CREATE TABLE experiment_jobs (
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    decision_evaluator_snapshots JSON DEFAULT '[]' NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
     CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"

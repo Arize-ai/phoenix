@@ -1964,25 +1964,6 @@ type DecisionEvaluatorMutationPayload {
   query: Query!
 }
 
-"""
-A decision evaluator configuration captured when the experiment was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
-"""
-type DecisionEvaluatorSnapshot {
-  """The binding name captured when the experiment was created."""
-  name: String!
-
-  """
-  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
-  """
-  datasetEvaluatorId: ID!
-
-  """The captured evaluator definition, including its scoring settings."""
-  definition: InlineDecisionEvaluatorDefinition!
-
-  """Names of the annotations this evaluator writes."""
-  annotationNames: [String!]!
-}
-
 """The filter key and value for decision connections"""
 input DecisionFilter {
   col: DecisionFilterColumn!
@@ -3274,11 +3255,6 @@ type ExperimentJob implements Node {
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
-
-  """
-  Decision evaluator configurations captured for this experiment, with binding names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a binding is deleted.
-  """
-  decisionEvaluatorSnapshots: [DecisionEvaluatorSnapshot!]!
 }
 
 """A connection to a list of items."""

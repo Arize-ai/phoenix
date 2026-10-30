@@ -1,15 +1,13 @@
-"""Capture and pin frozen evaluator definitions and dataset bindings."""
+"""Capture and pin frozen evaluator definitions."""
 
 from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.evaluator_definition import (
-    DecisionEvaluatorSnapshot,
     EvaluatorDefinition,
     EvaluatorSource,
     InlineDecisionEvaluatorDefinition,
@@ -100,59 +98,3 @@ async def pin_evaluator_definition(
             "language": definition.language or record.language,
         }
     )
-
-
-async def capture_dataset_decision_evaluators(session: AsyncSession, experiment_id: int) -> None:
-    """Freeze definitions, effective policies, mappings, and output names at creation."""
-    await session.flush()
-    job = await session.get(models.ExperimentJob, experiment_id)
-    if job is None:
-        raise ValueError("Experiment execution configuration not found")
-    bindings = list(
-        await session.scalars(
-            select(models.DatasetEvaluators)
-            .join(
-                models.ExperimentDatasetEvaluator,
-                models.ExperimentDatasetEvaluator.dataset_evaluator_id
-                == models.DatasetEvaluators.id,
-            )
-            .join(models.Evaluator, models.Evaluator.id == models.DatasetEvaluators.evaluator_id)
-            .where(
-                models.ExperimentDatasetEvaluator.experiment_id == experiment_id,
-                models.Evaluator.kind == "DECISION",
-            )
-            .order_by(models.DatasetEvaluators.evaluator_id, models.DatasetEvaluators.id)
-        )
-    )
-    if not bindings:
-        job.decision_evaluator_snapshots = []
-        return
-    evaluators_by_id = {
-        evaluator.id: evaluator
-        for evaluator in await session.scalars(
-            select(models.DecisionEvaluator)
-            .where(models.DecisionEvaluator.id.in_({binding.evaluator_id for binding in bindings}))
-            .order_by(models.DecisionEvaluator.id)
-            .with_for_update()
-        )
-    }
-    snapshots: list[DecisionEvaluatorSnapshot] = []
-    for binding in bindings:
-        evaluator = evaluators_by_id[binding.evaluator_id]
-        try:
-            definition = capture_decision_evaluator_definition(
-                evaluator,
-                name=binding.name.root,
-                description=binding.description,
-                dataset_evaluator_id=binding.id,
-            )
-        except ValueError as error:
-            raise BadRequest(f"Dataset evaluator '{binding.name.root}': {error}") from error
-        snapshots.append(
-            DecisionEvaluatorSnapshot(
-                definition=definition,
-                input_mapping=binding.input_mapping,
-                project_id=binding.project_id,
-            )
-        )
-    job.decision_evaluator_snapshots = snapshots

@@ -633,12 +633,12 @@ The deliberation below is kept as the record of the alternatives.
        `adapt_scoring_policy(version.questions, evaluator.scoring_policy)` at
        read/capture time automatically preserves matching question/choice
        settings and fills defaults for new questions.
-    3. Running and resumed decision dataset evaluations use
-       `experiment_jobs.decision_evaluator_snapshots`,
-       so moving or deleting a tag never mutates an in-flight or historical
-       experiment, and online evaluation resolves the tagged (or latest)
-       `decision_version_id` + adapted `scoring_policy` into its configuration
-       fingerprint.
+    3. Experiments load attached decision evaluators at each start and resume,
+       as they load other evaluators, so moving or deleting a tag changes only
+       evaluations that have not run yet; each recorded annotation names the
+       decision version that produced it. Online evaluation resolves the tagged
+       (or latest) `decision_version_id` + adapted `scoring_policy` into its
+       configuration fingerprint.
     4. If a new version adds an unmapped `input`, `DecisionEvaluator.evaluate()`
        catches it and records a normal evaluation error on the span/annotation
        (just as `LLMEvaluator` does for an unmapped template variable).
@@ -745,7 +745,7 @@ that don't apply here.
    a new API version.
 8. **Questions are the only authored output schema.** Output configs are derived
    from questions and scoring settings, not authored as a competing definition.
-   Experiment snapshots copy definitions for reproducibility; annotations retain
+   Experiment tasks copy definitions for reproducibility; annotations retain
    the asked choices and levels so historical answers remain interpretable.
 
 ## 10. Data Model
@@ -1240,7 +1240,7 @@ explicit migration or separate evaluator. Reordering variables, questions, or ch
 is compatible; reordering a scale's levels is not, since a level's index is its
 score. A
 version of another decision can never be pinned. Compatible changes affect future
-execution snapshots.
+executions.
 
 **Still to settle:** the current dataset-binding edit path exempts the binding
 being edited from that compatibility check and saves its mapping in the same
@@ -1324,25 +1324,25 @@ non-secret connection identity. Request usage belongs on the DECISION span rathe
 than being repeated per annotation. The current shape is provisional; see
 [Evaluator Annotation Metadata](#56-evaluator-annotation-metadata).
 
-### 14.7 Experiment Snapshots and Resume
+### 14.7 Experiment Start and Resume
 
-Freeze a dataset evaluator's resolved decision definition/version, effective
-scoring policy, derived output configs, input mapping, binding name and source
-IDs when attaching it to an experiment. The current implementation stores these
-snapshots in `ExperimentJob.decision_evaluator_snapshots`; evaluator-as-task
-definitions are stored separately in `ExperimentEvaluatorTask.definition`.
-Persist no credentials; resolve them through
-the connection system at execution time. Legacy experiments without a snapshot
-retain their existing semantics rather than claiming reconstructable history.
+When an experiment starts or resumes, it loads each attached decision evaluator
+as it is at that moment, the same way it loads LLM, code, and built-in
+evaluators: the judge's selected version and scoring policy, and the binding's
+name and input mapping. A binding deleted before a resume is no longer attached,
+so the resume does not run it. Credentials are resolved through the connection
+system at execution time. Each annotation records the judge, decision version,
+and binding that produced it in `metadata.decision.source` (see [Evaluator
+Annotation Metadata](#56-evaluator-annotation-metadata)).
 
-On start or resume, rebuild the judge from the experiment snapshot, independently
-of live binding membership. Editing or deleting the dataset binding or repinning
-the evaluator must not silently change or remove already-snapshotted work.
+An evaluator-as-task experiment differs: the evaluator is what the experiment
+tests, so its definition is stored in `ExperimentEvaluatorTask.definition` and
+rebuilt from there on every start and resume.
 
 The existing reconciliation scan identifies successful task runs whose expected
 annotation names are missing or have a non-null error. It then queues each
 incomplete evaluator/run pair once, even if several outputs are missing. Preserve
-that behavior with names from the frozen configs:
+that behavior with names from the loaded configs:
 
 - Reuse successful task outputs; evaluation resume does not rerun the task.
 - Skip evaluator/run pairs with every expected terminal result recorded.
@@ -1487,7 +1487,7 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
   partial results, online failure classification, and terminal refusals.
 - **A deleted custom provider, for prompts.** Decisions are settled: deleting
   a custom provider that a decision version or a decision experiment task uses
-  is refused, and an evaluator snapshot whose provider is gone fails with not found
+  is refused, and a stored evaluator-task definition whose provider is gone fails with not found
   rather than falling back. Prompts still fall back: deleting a provider sets
   `custom_provider_id` to null on prompt versions and prompt tasks, so a saved
   prompt or a resumed task silently runs on the built-in provider of the same
@@ -1694,7 +1694,7 @@ identified. Optional enhancements beyond completing these steps are listed under
 
 | Step | Decision-specific behavior | Built | Missing |
 |---|---|---|---|
-| **Dataset evaluators**, milestone 1 (chat: saved LLM evaluators using prompt versions and tags; dataset bindings) | Projects typed answers into scores and retains probabilities and per-question refusals. | Server: saved decision evaluators with pinned versions, scoring policies, and derived outputs, exposed through GraphQL and REST; dataset input mappings; previews under the evaluator's own name or a binding's name and provenance; captured configurations, evaluation resume, and refusals. UI: the global evaluators table; create, attach, edit, mapping, scoring, preview, and details; refusal and uncertainty displays on experiment annotations. | No remaining work identified. |
+| **Dataset evaluators**, milestone 1 (chat: saved LLM evaluators using prompt versions and tags; dataset bindings) | Projects typed answers into scores and retains probabilities and per-question refusals. | Server: saved decision evaluators with pinned versions, scoring policies, and derived outputs, exposed through GraphQL and REST; dataset input mappings; previews under the evaluator's own name or a binding's name and provenance; evaluation resume and refusals. UI: the global evaluators table; create, attach, edit, mapping, scoring, preview, and details; refusal and uncertainty displays on experiment annotations. | No remaining work identified. |
 | **Online evaluation**, milestone 2 (chat: project bindings; sweeper, producer, executor) | Applies decision questions and scoring policies to live spans, traces, and sessions. | Server: REST project bindings with input validation and compatibility checks; configuration identity pins the decision version, scoring policy, and provider revision. Execution uses server credentials, enforces the request-size limit, handles refusals, retries transient provider failures, and records timeouts. GraphQL exposes typed decision results on span, trace, and session annotations. Previews with `applyOnlineEvaluationLimits` pass the online request-size cap to decision evaluators. | GraphQL create/update mutations; project evaluator listing, overview, creation, and editing for decisions. Fetch decision metadata in span, trace, and session annotation queries and reuse the existing renderer. |
 | **Calibration** in the evaluator playground, milestone 3 (chat: evaluator tasks against expected outputs) | Compares projected decision judgments with expected outputs to assess question and scoring choices. | Server: `EvaluatorDefinitionInput` accepts saved decision evaluator references and `inlineDecisionEvaluator` for previews and experiments; experiments capture definitions and reconstruct them on start or resume; GraphQL exposes the captured definitions. | Playground authoring of unsaved evaluators, loading saved decision evaluators, and reopening decision evaluator experiments. Extend evaluator-task source inputs to accept decision evaluator/version IDs and preserve captured decision provenance when a binding source is supplied. Verify decision evaluator-task execution and resume, including refusals and provider failures. |
 
@@ -1704,9 +1704,6 @@ These optional enhancements are beyond the requirements tracked in Missing:
 
 - **Evaluation summaries:** per-question refusal counts and the fraction of
   evaluations producing usable judgments.
-- **Evaluator configuration history:** an experiment UI for inspecting the
-  evaluator configuration captured when the experiment started. Attached LLM
-  evaluators lack the same snapshot mechanism and inspection UI.
 
 ### 17.4 Cross-Cutting
 
@@ -1775,8 +1772,9 @@ explain the integration points and behavior to preserve when changing them;
 [Implementation Status](#17-implementation-status) tracks the remaining work.
 
 - **Persistence.** The evaluator subtype stores a direct version pin and scoring
-  policy. Attached decision judges have execution snapshots; calibration tasks
-  store their definitions separately. Definition edits and deletion guards use
+  policy. Attached decision judges load from the evaluator and binding at each
+  experiment start and resume; calibration tasks store their definitions.
+  Definition edits and deletion guards use
   the shared evaluator services and lock ordering. Annotation kind remains
   `LLM`, since these are model judgments.
 - **Discovery and APIs.** GraphQL, REST, node resolution, and dataloaders expose
@@ -1798,8 +1796,8 @@ explain the integration points and behavior to preserve when changing them;
   so previews can use a no-op tracer. Preserve validation, accounting, terminal
   error metadata, and links from results to recorded traces.
 - **Connections.** Deleted custom providers fail clearly or are blocked from
-  deletion; they never trigger a fallback to a built-in host. An execution
-  snapshot captures configuration, not the continued availability of a service.
+  deletion; they never trigger a fallback to a built-in host. A stored task
+  definition captures configuration, not the continued availability of a service.
 - **Frontend.** Dataset authoring and experiment decision details already use
   the shared editors and answer renderer. Project and calibration flows still
   need their own authoring and loading work; reuse those pieces without assuming
@@ -1819,8 +1817,8 @@ exclusion, rather than introduce a separate decision queue or consumer.
 Milestone 1 is complete when users can author a saved decision evaluator, attach
 it to a dataset through UI/API mapping and scoring controls, preview it, run it
 against prompt or decision task outputs, and inspect annotations and traces.
-Evaluation resume must work after task completion and server restart, with captured
-configuration and explicit refusals. It does not depend on calibration or project
+Evaluation resume must work after task completion and server restart, with explicit
+refusals. It does not depend on calibration or project
 bindings.
 
 Verify output derivation, threshold/tie behavior, structured mapping, one-call
