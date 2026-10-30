@@ -12,7 +12,11 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { useNotifyError, usePreferencesContext } from "@phoenix/contexts";
+import {
+  useNotifyError,
+  useNotifySuccess,
+  usePreferencesContext,
+} from "@phoenix/contexts";
 
 import type { SpanNoteBarAddNoteMutation } from "./__generated__/SpanNoteBarAddNoteMutation.graphql";
 import { useSpanNoteBarOpenRequest } from "./SpanNoteBarContext";
@@ -83,6 +87,7 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
     (state) => state.setIsTakingSpanNotes
   );
   const notifyError = useNotifyError();
+  const notifySuccess = useNotifySuccess();
   const [noteText, setNoteText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -158,6 +163,10 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
           },
         ],
         spanNodeId,
+      },
+      // the notes card may be collapsed or on another tab, so confirm here
+      onCompleted: () => {
+        notifySuccess({ title: "Note added" });
       },
       onError: (error) => {
         // restore the draft unless they typed more
