@@ -16,5 +16,13 @@ def _skip_server_version_check() -> Iterator[None]:
             "phoenix.client.utils.server_requirements.AsyncServerVersionGuard.require",
             new=AsyncMock(return_value=None),
         ),
+        patch(
+            "phoenix.client.utils.server_requirements.ServerVersionGuard.supports",
+            return_value=True,
+        ),
+        patch(
+            "phoenix.client.utils.server_requirements.AsyncServerVersionGuard.supports",
+            new=AsyncMock(return_value=True),
+        ),
     ):
         yield
