@@ -1,42 +1,29 @@
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Alert, Button, Flex, View } from "@phoenix/components";
-import { DecisionEvaluatorDefinitionFields } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDefinitionFields";
+import { Flex } from "@phoenix/components";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
+import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
 import {
   commitAsync,
-  getMutationErrorMessage,
   type DecisionEvaluatorData,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useDecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { useDecisionEvaluatorSave } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
-import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
+import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
-import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
-import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import {
-  AnnotationPreviewCard,
-  AnnotationPreviewSkeletonCard,
+  EvaluatorPreviewSection,
+  getEvaluatorPreviewHelpText,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
-import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
-import {
-  useEvaluatorStore,
-  useEvaluatorStoreInstance,
-} from "@phoenix/contexts/EvaluatorContext";
+import { useEvaluatorPreview } from "@phoenix/components/evaluators/useEvaluatorPreview";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import {
-  createDecisionQuestion,
-  createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
-import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import type { DecisionPromptDraft } from "@phoenix/store/playground";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 import type { DecisionDatasetEvaluatorForm_createMutation } from "./__generated__/DecisionDatasetEvaluatorForm_createMutation.graphql";
-import type { DecisionDatasetEvaluatorForm_previewMutation } from "./__generated__/DecisionDatasetEvaluatorForm_previewMutation.graphql";
 import type { DecisionDatasetEvaluatorForm_updateMutation } from "./__generated__/DecisionDatasetEvaluatorForm_updateMutation.graphql";
 
 type Props = {
@@ -49,29 +36,14 @@ type Props = {
   onSaved?: (id: string) => void;
 };
 
-function createDatasetDecisionDraft(): DecisionPromptDraft {
-  return {
-    state: createDecisionStateDraft({ text: "{{output}}" }),
-    questions: [
-      createDecisionQuestion({
-        type: "predicate",
-        name: "relevant",
-        instructions: "Is the output relevant to the request?",
-      }),
-    ],
-  };
-}
-
 export function DecisionDatasetEvaluatorForm(props: Props) {
-  const [defaultDraft] = useState(createDatasetDecisionDraft);
   return (
-    <DecisionEvaluatorDraftProvider defaultDraft={defaultDraft}>
+    <DecisionEvaluatorDraftProvider surface="dataset">
       <DecisionDatasetEvaluatorFormContent {...props} />
     </DecisionEvaluatorDraftProvider>
   );
 }
 
-// oxlint-disable-next-line complexity -- create and edit.
 function DecisionDatasetEvaluatorFormContent({
   datasetId,
   datasetEvaluatorId,
@@ -81,23 +53,17 @@ function DecisionDatasetEvaluatorFormContent({
   onClose,
   onSaved,
 }: Props) {
-  const store = useEvaluatorStoreInstance();
   const notifySuccess = useNotifySuccess();
-  const credentials = useCredentialsContext((state) => state);
   const bindingName = useEvaluatorStore((state) =>
     datasetEvaluatorId ? state.evaluator.name : state.evaluator.globalName
   );
   const draft = useDecisionEvaluatorDraft({ initialEvaluator });
-  const { variables, isLoading, isVersionReady } = draft;
+  const isDraftReady = !draft.isLoading && draft.isVersionReady;
   const { getInputMapping, buildCreateInput, buildUpdateInput } =
     useDecisionEvaluatorSave(draft);
+  const preview = useEvaluatorPreview();
   const [submitError, setSubmitError] = useState<string | undefined>();
-  const error = submitError ?? draft.loadError;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewResults, setPreviewResults] = useState<
-    DecisionDatasetEvaluatorForm_previewMutation["response"]["evaluatorPreviews"]["results"]
-  >([]);
   const isEditing = !!initialEvaluator;
 
   const [create] =
@@ -142,66 +108,19 @@ function DecisionDatasetEvaluatorFormContent({
         }
       }
     `);
-  const [preview, isPreviewing] =
-    useMutation<DecisionDatasetEvaluatorForm_previewMutation>(graphql`
-      mutation DecisionDatasetEvaluatorForm_previewMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            error
-            annotation {
-              ...decisionAnnotation_annotation @relay(mask: false)
-              id
-              name
-              label
-              score
-              explanation
-            }
-          }
-        }
-      }
-    `);
 
-  const getPreviewDefinition = () => ({
-    inlineDecisionEvaluator: draft.getDefinition(
-      bindingName || "decision_preview",
-      "test"
-    ),
-  });
-  const onTest = () => {
-    setPreviewError(null);
-    setPreviewResults([]);
-    try {
-      const evaluator = getPreviewDefinition();
-      const state = store.getState();
-      preview({
-        variables: {
-          input: {
-            previews: [
-              {
-                evaluator,
-                context: state.evaluatorMappingSource.source,
-                inputMapping: getInputMapping(),
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
-          },
+  const onTest = () =>
+    void preview.run(() => ({
+      evaluator: {
+        inlineDecisionEvaluator: {
+          name: bindingName || "decision_preview",
+          ...draft.getTestDefinition(),
         },
-        onCompleted: (response, errors) => {
-          if (errors?.length)
-            setPreviewError(errors.map(({ message }) => message).join("\n"));
-          else setPreviewResults(response.evaluatorPreviews.results);
-        },
-        onError: (error) => setPreviewError(getMutationErrorMessage(error)),
-      });
-    } catch (error) {
-      setPreviewError(getMutationErrorMessage(error));
-    }
-  };
+      },
+      inputMapping: getInputMapping(),
+    }));
   const onSubmit = async () => {
-    if (isLoading || !isVersionReady) return;
+    if (!isDraftReady) return;
     setSubmitError(undefined);
     try {
       let id: string;
@@ -233,62 +152,6 @@ function DecisionDatasetEvaluatorFormContent({
     }
   };
 
-  const left = (
-    <Flex direction="column" gap="size-200">
-      <EvaluatorNameAndDescriptionFields isNameRequired />
-      <DecisionEvaluatorDefinitionFields
-        draft={draft}
-        isDisabled={isSubmitting}
-        scoringDescription="Turn each answer into the score this dataset records."
-        sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
-      />
-      <EvaluatorSectionHeader
-        title="Input mapping"
-        description="Inputs named input, output, reference, or metadata fill from the example when left blank."
-      />
-      <EvaluatorInputMapping />
-    </Flex>
-  );
-  const right = (
-    <Flex direction="column" gap="size-200">
-      <View paddingX="size-200">
-        <Flex direction="column" gap="size-150">
-          <EvaluatorExampleDataset />
-          <EvaluatorSectionHeader
-            title="Test with an Example"
-            description="Run the current definition, scoring, and input mapping on the selected example. Unsaved changes are included."
-            extra={
-              <Button
-                variant="primary"
-                size="S"
-                onPress={onTest}
-                isPending={isPreviewing}
-                isDisabled={isLoading || !isVersionReady || isSubmitting}
-                data-testid="decision-evaluator-preview-button"
-              >
-                Test
-              </Button>
-            }
-          />
-          {isPreviewing ? <AnnotationPreviewSkeletonCard /> : null}
-          {previewResults.map((result, index) =>
-            result.error ? (
-              <Alert key={index} variant="danger">
-                {result.error}
-              </Alert>
-            ) : result.annotation ? (
-              <AnnotationPreviewCard
-                key={index}
-                annotation={result.annotation}
-              />
-            ) : null
-          )}
-          {previewError ? <Alert variant="danger">{previewError}</Alert> : null}
-        </Flex>
-      </View>
-      <EvaluatorInputPreview />
-    </Flex>
-  );
   return (
     <EvaluatorFormDialogContent
       title={
@@ -297,15 +160,36 @@ function DecisionDatasetEvaluatorFormContent({
       submitLabel={isEditing ? "Update" : "Create"}
       onSubmit={() => void onSubmit()}
       isSubmitting={isSubmitting}
-      isSubmitDisabled={isLoading || !isVersionReady}
-      error={error}
+      isSubmitDisabled={!isDraftReady}
+      error={submitError ?? draft.loadError}
       errorTitle="Failed to save evaluator"
-      left={left}
-      right={right}
+      left={
+        <Flex direction="column" gap="size-200">
+          <EvaluatorNameAndDescriptionFields isNameRequired />
+          <DecisionEvaluatorForm
+            draft={draft}
+            isDisabled={isSubmitting}
+            scoringDescription="Turn each answer into the score this dataset records."
+            sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
+          />
+        </Flex>
+      }
+      right={
+        <EvaluatorDatasetTestPanel
+          testSection={
+            <EvaluatorPreviewSection
+              preview={preview}
+              onTest={onTest}
+              helpText={getEvaluatorPreviewHelpText("DECISION")}
+              isDisabled={!isDraftReady || isSubmitting}
+            />
+          }
+        />
+      }
       renderInputVariables={(form) => (
-        <CodeEvaluatorInputVariablesProvider variables={variables}>
+        <EvaluatorInputVariablesProvider variables={draft.variables}>
           {form}
-        </CodeEvaluatorInputVariablesProvider>
+        </EvaluatorInputVariablesProvider>
       )}
       submitButtonProps={{
         "data-testid": "decision-evaluator-form-submit-button",

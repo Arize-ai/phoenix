@@ -43,8 +43,8 @@ vi.mock("@phoenix/pages/playground/fetchPlaygroundDecision", () => ({
   fetchPlaygroundDecisionAsInstance: (...args: unknown[]) =>
     loadVersion(...args),
 }));
-vi.mock("@phoenix/components/generative", () => ({
-  ModelMenu: () => <span>Decision model</span>,
+vi.mock("@phoenix/pages/playground/PlaygroundInstanceControls", () => ({
+  PlaygroundInstanceModelControls: () => <span>Decision model</span>,
 }));
 vi.mock("@phoenix/components/evaluators/EvaluatorExampleDataset", () => ({
   EvaluatorExampleDataset: () => null,
@@ -200,7 +200,7 @@ const saved: DecisionEvaluatorData = {
 };
 const CREATE = "DecisionDatasetEvaluatorForm_createMutation";
 const UPDATE = "DecisionDatasetEvaluatorForm_updateMutation";
-const PREVIEW = "DecisionDatasetEvaluatorForm_previewMutation";
+const PREVIEW = "useEvaluatorPreviewMutation";
 
 describe("Decision dataset evaluator authoring", () => {
   let container: HTMLDivElement;

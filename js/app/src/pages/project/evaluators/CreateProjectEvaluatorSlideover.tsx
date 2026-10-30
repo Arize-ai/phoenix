@@ -57,6 +57,7 @@ import {
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
+  DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   defaultEvaluatorMappingSourceState,
   type AnnotationConfig,
@@ -250,18 +251,14 @@ const CreateProjectEvaluatorDialog = ({
       creationMode.kind === "attachDecision"
     ) {
       return {
-        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
         evaluator: {
-          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES.evaluator,
           globalName:
             creationMode.kind === "attachDecision"
               ? creationMode.evaluator.name
               : "",
-          description: "",
-          inputMapping: { pathMapping: {}, literalMapping: {} },
-          kind: "DECISION",
         },
-        outputConfigs: [],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
           toEvaluatorRecordKind(scope.targetType)
         ),

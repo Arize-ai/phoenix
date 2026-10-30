@@ -5,29 +5,31 @@ import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evalua
 import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
 import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { ModelMenu } from "@phoenix/components/generative";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
 import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
 import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
+import { PlaygroundInstanceModelControls } from "@phoenix/pages/playground/PlaygroundInstanceControls";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
-export function DecisionEvaluatorDefinitionFields({
+/**
+ * A decision evaluator's definition: the saved version it starts from, the
+ * judge model, the state and questions, and the scoring, then the dataset
+ * input mapping unless `showInputMapping` is off.
+ */
+export function DecisionEvaluatorForm({
   draft,
   isDisabled,
   scoringDescription,
   sharedEvaluatorNote,
+  showInputMapping = true,
 }: {
   draft: DecisionEvaluatorDraft;
   isDisabled?: boolean;
   scoringDescription: string;
   sharedEvaluatorNote?: string;
+  showInputMapping?: boolean;
 }) {
-  const playground = usePlaygroundStore();
-  const model = usePlaygroundContext((state) => state.instances[0].model);
   const { initialEvaluator } = draft;
   return (
     <>
@@ -73,35 +75,12 @@ export function DecisionEvaluatorDefinitionFields({
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Suspense fallback={<Loading />}>
-                  <ModelMenu
+                  <PlaygroundInstanceModelControls
+                    instanceId={DECISION_EVALUATOR_DRAFT_INSTANCE_ID}
                     supportsDecisionModels
                     fixedModelType="DECISION"
                     credentialSource="server"
-                    value={
-                      model.modelName
-                        ? {
-                            provider: model.provider,
-                            modelName: model.modelName,
-                            modelType: "DECISION",
-                            customProvider: model.customProvider ?? undefined,
-                          }
-                        : null
-                    }
-                    onChange={(next) =>
-                      playground.getState().updateInstance({
-                        instanceId: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
-                        patch: {
-                          model: {
-                            ...model,
-                            provider: next.provider,
-                            modelName: next.modelName,
-                            modelType: "DECISION",
-                            customProvider: next.customProvider ?? null,
-                          },
-                        },
-                        dirty: true,
-                      })
-                    }
+                    disableEphemeralRouting
                   />
                 </Suspense>
                 <TemplateFormatRadioGroup size="S" showNoneOption={false} />
@@ -123,6 +102,15 @@ export function DecisionEvaluatorDefinitionFields({
           />
         </>
       )}
+      {showInputMapping ? (
+        <>
+          <EvaluatorSectionHeader
+            title="Input mapping"
+            description="Inputs named input, output, reference, or metadata fill from the example when left blank."
+          />
+          <EvaluatorInputMapping />
+        </>
+      ) : null}
     </>
   );
 }
