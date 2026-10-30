@@ -35,6 +35,7 @@ from phoenix.trace.gen_ai.conversion import (
 # semconv attribute keys not yet exposed by the OTel Python package as constants;
 # pinned here only so tests stay readable.
 _GEN_AI_REQUEST_STREAM = "gen_ai.request.stream"
+_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS = "gen_ai.usage.cache_write.input_tokens"
 
 
 def _as_json(value: AttributeValue) -> Any:
@@ -344,6 +345,32 @@ def test_usage_cache_token_counts() -> None:
     )
     assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] == 50
     assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_cache_write_token_count_from_renamed_attribute() -> None:
+    out = get_openinference_usage_attributes({_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS: 10})
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_cache_write_prefers_renamed_attribute() -> None:
+    out = get_openinference_usage_attributes(
+        {
+            _GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS: 10,
+            gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS: 7,
+        }
+    )
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_reasoning_token_count() -> None:
+    out = get_openinference_usage_attributes(
+        {
+            gen_ai.GEN_AI_USAGE_OUTPUT_TOKENS: 25,
+            gen_ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS: 10,
+        }
+    )
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION] == 25
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] == 10
 
 
 @pytest.mark.parametrize("value,expected", [("100", 100), (100.0, 100), (True, None), ("x", None)])
