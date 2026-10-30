@@ -11,6 +11,7 @@ it is one 1200x675 AVIF, published at a path that follows from its art:
     docs-cards/integrations/<logo>.avif          integrations/openai.avif
     docs-cards/integrations/<logo>-<badge>.avif  integrations/openai-evals.avif
     docs-cards/topics/<motif>.avif               topics/trace.avif
+    docs-cards/banners/<page>.avif               banners/settings-sandboxes.avif
 
 Paths never change, so docs link them once. Each object carries a fingerprint
 of its spec, logo files and card_design.py in its GCS metadata.
@@ -47,15 +48,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import resvg_py
-from PIL import Image, ImageChops, ImageFilter, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageFont, ImageStat
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import banner_design as banners  # noqa: E402
 import card_design as design  # noqa: E402
 
 SKILL = Path(__file__).resolve().parent.parent
 ASSETS = SKILL / "assets" / "cards"
 MANIFEST = ASSETS / "cards.toml"
 LOGOS = ASSETS / "logos"
+FONTS = SKILL / "assets" / "fonts"
 REPO = SKILL.parents[2]
 DOCS = REPO / "docs"
 PLATFORM_ICONS = REPO / "js/app/src/components/core/icon/Icons.tsx"
@@ -64,7 +67,7 @@ CACHE = Path.home() / ".cache" / "phoenix-docs-cards"
 BUCKET = "arize-phoenix-assets"
 PREFIX = "assets/images/docs-cards"
 PUBLIC = f"https://storage.googleapis.com/{BUCKET}/{PREFIX}"
-SECTIONS = ("integrations", "topics")
+SECTIONS = ("integrations", "topics", "banners")
 # Overview pages list many brands side by side; there a qualifier only adds
 # noise, so cards show the plain brand mark.
 INDEX_PAGES = ("phoenix/integrations.mdx",)
@@ -79,6 +82,8 @@ MANAGED = re.compile(re.escape(PUBLIC) + rf"/((?:{'|'.join(SECTIONS)})/{KEY})\.a
 CARD_TAG = re.compile(r"<Card\b[^>]*>", re.S)
 IMG_ATTR = re.compile(r'\bimg="([^"]+)"')
 ATTR = re.compile(r'\b(title|href)="([^"]*)"')
+# A page image: ![alt](url) or <img src="url">, the forms banners replace.
+PAGE_IMAGE = re.compile(r'(!\[[^\]]*\]\(|<img\b[^>]*\bsrc=")([^)"\s]+)(\)|")')
 MATCH_KEYS = ("title", "href")
 
 SOURCES = {
@@ -116,7 +121,8 @@ class Card:
 
     @property
     def marks(self) -> list[str]:
-        return [m for m in (self.spec.get("logo"), self.spec.get("badge")) if m]
+        single = [m for m in (self.spec.get("logo"), self.spec.get("badge")) if m]
+        return single + list(self.spec.get("marks", []))
 
 
 def _replacements(items: list, where: str) -> tuple[Replacement, ...]:
@@ -158,6 +164,22 @@ def load_cards() -> dict[str, Card]:
         if key not in design.MOTIFS:
             sys.exit(f"cards.toml: {path}: no motif {key!r} (have {', '.join(design.MOTIFS)})")
         cards[path] = Card(path, {"id": path, "template": "topic", "motif": key}, replaces)
+    for key, entry in raw.get("banners", {}).items():
+        path = f"banners/{key}"
+        entry = dict(entry)
+        replaces = _replacements(entry.pop("replaces", []), path)
+        if not re.fullmatch(KEY, key):
+            sys.exit(f"cards.toml: {path}: banner keys are the page path in kebab-case")
+        art = [k for k in ("motif", "logo", "marks") if k in entry]
+        extra = set(entry) - {"eyebrow", "title", "kicker", "motif", "logo", "marks"}
+        if len(art) != 1 or extra or not entry.get("title") or not entry.get("eyebrow"):
+            sys.exit(
+                f"cards.toml: {path} takes eyebrow, title, optional kicker,"
+                " and one of motif, logo or marks"
+            )
+        if entry.get("motif") and entry["motif"] not in design.MOTIFS:
+            sys.exit(f"cards.toml: {path}: no motif {entry['motif']!r}")
+        cards[path] = Card(path, {"id": path, "template": "banner", **entry}, replaces)
     return cards
 
 
@@ -222,10 +244,10 @@ def measure(name: str) -> design.Mark:
 
 
 @functools.cache
-def design_digest() -> bytes:
+def design_digest(module: str) -> bytes:
     """card_design.py as code only, so comments, docstrings and formatting
     can change without re-rendering every card."""
-    tree = ast.parse(Path(design.__file__).read_text())
+    tree = ast.parse(Path(module).read_text())
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
         if (
@@ -241,7 +263,11 @@ def design_digest() -> bytes:
 
 def fingerprint(card: Card) -> str:
     h = hashlib.sha256()
-    h.update(design_digest())
+    h.update(design_digest(design.__file__))
+    if card.spec["template"] == "banner":
+        h.update(design_digest(banners.__file__))
+        for font in sorted(FONTS.glob("*.ttf")):
+            h.update(font.read_bytes())
     h.update(json.dumps([card.spec, ENCODE], sort_keys=True).encode())
     for name in card.marks:
         h.update(mark_path(name).read_bytes())
@@ -252,14 +278,49 @@ def url_for(card: Card) -> str:
     return f"{PUBLIC}/{card.path}.avif"
 
 
+def wrap(text: str, font: str, size: int, tracking: float, width: float, lines: int) -> list[str]:
+    """Wrap text to the column width, balancing two-line wraps so no word sits alone."""
+    face = ImageFont.truetype(str(FONTS / font), size)
+
+    def fits(line: str) -> bool:
+        return face.getlength(line) + tracking * size * len(line) <= width
+
+    words = text.split()
+    if fits(text) or lines == 1:
+        return [text]
+    splits = [(" ".join(words[:i]), " ".join(words[i:])) for i in range(1, len(words))]
+    good = [pair for pair in splits if fits(pair[0]) and fits(pair[1])]
+    if not good:
+        sys.exit(f"banner text does not fit in {lines} lines: {text!r}")
+    return list(min(good, key=lambda pair: abs(face.getlength(pair[0]) - face.getlength(pair[1]))))
+
+
+def banner_text(spec: dict) -> banners.Text:
+    _, width = banners.TEXT_COLUMNS
+    kicker = spec.get("kicker")
+    return banners.Text(
+        eyebrow=spec["eyebrow"],
+        title=wrap(spec["title"], "Geist-SemiBold.ttf", banners.TITLE_SIZE, -0.025, width, 2),
+        kicker=wrap(kicker, "Geist-Regular.ttf", banners.KICKER_SIZE, 0, width, 2)
+        if kicker
+        else [],
+    )
+
+
 def render(card: Card) -> Path:
     """Render into the cache, keyed by fingerprint, and return the file."""
     leaf = card.path.replace("/", "__")
     path = CACHE / "renders" / f"{leaf}.{fingerprint(card)}.avif"
     if path.exists():
         return path
-    svg = design.compose(card.spec, {name: measure(name) for name in card.marks})
-    png = resvg_py.svg_to_bytes(svg_string=svg, skip_system_fonts=True)
+    marks = {name: measure(name) for name in card.marks}
+    if card.spec["template"] == "banner":
+        svg = banners.compose_banner(card.spec, banner_text(card.spec), marks)
+        fonts = [str(f) for f in sorted(FONTS.glob("*.ttf"))]
+        png = resvg_py.svg_to_bytes(svg_string=svg, skip_system_fonts=True, font_files=fonts)
+    else:
+        svg = design.compose(card.spec, marks)
+        png = resvg_py.svg_to_bytes(svg_string=svg, skip_system_fonts=True)
     img = Image.open(io.BytesIO(bytes(png))).convert("RGB")
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, **ENCODE)
@@ -482,12 +543,25 @@ def cmd_relink(args: argparse.Namespace) -> None:
             return text
         return text.replace(url, url_for(card))
 
+    banner_urls = {
+        r.url: c
+        for c in cards.values()
+        if c.path.startswith("banners/") and c.path in scope
+        for r in c.replaces
+    }
+
+    def swap_image(m: re.Match[str]) -> str:
+        card = banner_urls.get(m.group(2))
+        return m.group(1) + url_for(card) + m.group(3) if card else m.group(0)
+
     changed = 0
     for path in mdx_files():
         before = path.read_bytes().decode()  # keep line endings as they are
         after = CARD_TAG.sub(lambda tag, ix=is_index(path): swap(tag, ix), before)
+        after = PAGE_IMAGE.sub(swap_image, after)
         if after != before:
             n = sum(a != b for a, b in zip(IMG_ATTR.findall(before), IMG_ATTR.findall(after)))
+            n += sum(a != b for a, b in zip(PAGE_IMAGE.findall(before), PAGE_IMAGE.findall(after)))
             changed += n
             print(f"{n:3}  {path.relative_to(REPO)}")
             if not args.dry_run:
@@ -685,16 +759,24 @@ def cmd_logo(args: argparse.Namespace) -> None:
 
 
 def contact_sheet(paths: list[tuple[Card, Path]]) -> str:
-    """Review page: every render at 4-column and 2-column docs widths, on both docs themes."""
+    """Review page: cards at 4- and 2-column widths and banners at desktop and phone
+    widths, on both docs themes."""
+    tiles = [(c, p) for c, p in paths if not c.path.startswith("banners/")]
+    heroes = [(c, p) for c, p in paths if c.path.startswith("banners/")]
 
-    def grid(cols: int, width: int) -> str:
-        items = "".join(
+    def grid(items: list, cols: int, width: int, label: str) -> str:
+        if not items:
+            return ""
+        figs = "".join(
             f'<figure><img src="{p}" alt=""><figcaption>{c.path}</figcaption></figure>'
-            for c, p in paths
+            for c, p in items
         )
-        return f'<h2>{cols} columns · {width}px cards</h2><div class="g{cols}">{items}</div>'
+        return f'<h2>{label}</h2><div class="g" style="--w:{width}px">{figs}</div>'
 
-    grids = grid(4, 158) + grid(2, 334)
+    grids = grid(tiles, 4, 158, "Cards · 4 columns · 158px")
+    grids += grid(tiles, 2, 334, "Cards · 2 columns · 334px")
+    grids += grid(heroes, 1, 689, "Banners · desktop · 689px")
+    grids += grid(heroes, 1, 350, "Banners · phone · 350px")
     return f"""<!doctype html><meta charset="utf-8"><title>Card sheet</title>
 <style>
 body{{margin:0;font:14px system-ui}}
@@ -703,8 +785,7 @@ section{{padding:24px 32px 40px}}
 .light{{background:#fff;color:#2B2D31;--card:#F7F7F8;--line:rgba(8,9,10,.18);--title:#08090A}}
 h1{{font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin:0}}
 h2{{font-weight:600;font-size:15px;margin:28px 0 12px}}
-.g4,.g2{{display:grid;gap:16px}}.g4{{grid-template-columns:repeat(auto-fill,158px)}}
-.g2{{grid-template-columns:repeat(auto-fill,334px)}}
+.g{{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,var(--w))}}
 figure{{margin:0;background:var(--card);border:1px solid var(--line);border-radius:16px;
 overflow:hidden}}img{{display:block;width:100%}}
 figcaption{{padding:12px 14px;font-weight:600;color:var(--title);overflow-wrap:anywhere}}
