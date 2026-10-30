@@ -1169,7 +1169,7 @@ async def test_decision_client_cannot_change_while_decision_versions_use_it(
             "id": provider_id,
             "clientConfig": {
                 "azureOpenai": {
-                    **azure_patch["input"]["clientConfig"]["azureOpenai"],  # type: ignore[index]
+                    **azure_patch["input"]["clientConfig"]["azureOpenai"],
                     "decisionModels": {"decisionSdk": "OPENAI"},
                 }
             },
