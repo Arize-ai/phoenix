@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any, Mapping
 
 from openinference.semconv.trace import SpanAttributes
@@ -13,6 +14,12 @@ _CompletionTokens: TypeAlias = int
 _TotalTokens: TypeAlias = int
 
 
+def _parse_token_count(value: Any) -> int:
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        return 0
+    return max(0, int(value))
+
+
 def get_aggregated_tokens(
     attributes: Mapping[str, Any],
 ) -> tuple[_PromptTokens, _CompletionTokens, _TotalTokens]:
@@ -22,31 +29,19 @@ def get_aggregated_tokens(
             attributes,
             SpanAttributes.LLM_TOKEN_COUNT_PROMPT,
         )
-        prompt_tokens: int = (
-            0
-            if not isinstance(prompt_tokens_value, (int, float))
-            else max(0, int(prompt_tokens_value))
-        )
+        prompt_tokens: int = _parse_token_count(prompt_tokens_value)
 
         completion_tokens_value = get_attribute_value(
             attributes,
             SpanAttributes.LLM_TOKEN_COUNT_COMPLETION,
         )
-        completion_tokens: int = (
-            0
-            if not isinstance(completion_tokens_value, (int, float))
-            else max(0, int(completion_tokens_value))
-        )
+        completion_tokens: int = _parse_token_count(completion_tokens_value)
 
         total_tokens_value = get_attribute_value(
             attributes,
             SpanAttributes.LLM_TOKEN_COUNT_TOTAL,
         )
-        total_tokens: int = (
-            0
-            if not isinstance(total_tokens_value, (int, float))
-            else max(0, int(total_tokens_value))
-        )
+        total_tokens: int = _parse_token_count(total_tokens_value)
 
         assert prompt_tokens >= 0
         assert completion_tokens >= 0
