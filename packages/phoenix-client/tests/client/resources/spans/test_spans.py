@@ -97,6 +97,63 @@ def test_log_span_annotations_dataframe_omits_missing_cells(column: str, missing
     ]
 
 
+@pytest.mark.parametrize(
+    ("columns", "kwargs", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            {},
+            "DataFrame must contain columns: {'annotator_kind'}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            {},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+def test_log_span_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    kwargs: dict[str, str],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"span_id": ["span1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    with httpx.Client(transport=transport, base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            client.spans.log_span_annotations_dataframe(dataframe=dataframe, **kwargs)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            "DataFrame must contain columns: {'annotator_kind'}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+async def test_async_log_span_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"span_id": ["span1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http_client:
+        with pytest.raises(ValueError, match=expected_message):
+            await AsyncSpans(http_client).log_span_annotations_dataframe(dataframe=dataframe)
+
+
 def _make_span(
     *,
     name: str = "test-span",
