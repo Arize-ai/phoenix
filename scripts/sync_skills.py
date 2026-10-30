@@ -13,9 +13,11 @@ Run with no arguments to write every copy (``make skills``):
 - ``src/phoenix/server/mcp/skills/<name>/``: a copy of each ``mcp`` skill.
 - ``src/phoenix/server/agents/prompts/public_skills/<name>/``: a copy of each
   ``pxi`` skill.
-- ``plugins/claude/arize-phoenix/skills/<name>`` and
-  ``plugins/codex/arize-phoenix/skills/<name>``: a symlink for each ``agents``
-  skill; ``.cursor-plugin/plugin.json`` lists the same skills.
+- ``plugins/claude/arize-phoenix/skills/<name>``: a symlink for each ``agents``
+  skill. Claude Code follows the symlinks when it installs the plugin.
+- ``plugins/codex/arize-phoenix/skills/<name>/``: a copy of each ``agents``
+  skill. Codex drops symlinks that point outside the plugin when it installs it.
+- ``.cursor-plugin/plugin.json``: lists the same skills as the plugins.
 - ``.agents/skills/<name>``: a symlink for every public skill, so contributors
   in the repo have them too.
 - ``metadata.internal: true`` on every contributor skill in ``.agents/skills/``
@@ -54,10 +56,8 @@ VENDORED_LOCKFILE = REPO_ROOT / "skills-lock.json"
 MCP_ROOT = REPO_ROOT / "src" / "phoenix" / "server" / "mcp" / "skills"
 PXI_PUBLIC_ROOT = REPO_ROOT / "src" / "phoenix" / "server" / "agents" / "prompts" / "public_skills"
 PXI_ROOT = REPO_ROOT / "src" / "phoenix" / "server" / "agents" / "prompts" / "skills"
-PLUGIN_SKILL_ROOTS = (
-    REPO_ROOT / "plugins" / "claude" / "arize-phoenix" / "skills",
-    REPO_ROOT / "plugins" / "codex" / "arize-phoenix" / "skills",
-)
+CLAUDE_PLUGIN_ROOT = REPO_ROOT / "plugins" / "claude" / "arize-phoenix" / "skills"
+CODEX_PLUGIN_ROOT = REPO_ROOT / "plugins" / "codex" / "arize-phoenix" / "skills"
 CURSOR_MANIFEST = REPO_ROOT / ".cursor-plugin" / "plugin.json"
 
 TARGETS = frozenset({"agents", "mcp", "pxi"})
@@ -289,11 +289,8 @@ def build(errors: list[str]) -> list[Change]:
     changes = [
         *copies(MCP_ROOT, targeted("mcp")),
         *copies(PXI_PUBLIC_ROOT, targeted("pxi")),
-        *(
-            change
-            for root in PLUGIN_SKILL_ROOTS
-            for change in links(root, targeted("agents"), prune=lambda entry: True)
-        ),
+        *links(CLAUDE_PLUGIN_ROOT, targeted("agents"), prune=lambda entry: True),
+        *copies(CODEX_PLUGIN_ROOT, targeted("agents")),
         *cursor_manifest(targeted("agents")),
         *links(CONTRIBUTOR_ROOT, public, prune=_points_into_public_root),
         *contributor_skills(public, errors),

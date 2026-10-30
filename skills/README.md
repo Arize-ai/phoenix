@@ -21,7 +21,7 @@ metadata:
 
 | Target | Who gets the skill | How |
 | ------ | ------------------ | --- |
-| `agents` | `npx skills add`, `px setup`, and the Claude Code, Cursor and Codex plugins | Installed as files. The plugins link or list the folder. |
+| `agents` | `npx skills add`, `px setup`, and the Claude Code, Cursor and Codex plugins | Installed as files. The Claude Code plugin links the folder, the Codex plugin gets a copy from `make skills`, and the Cursor plugin lists it. |
 | `mcp` | Clients of the Phoenix MCP server | `make skills` copies it to `src/phoenix/server/mcp/skills/`. |
 | `pxi` | PXI, on top of its own skills | `make skills` copies it to `src/phoenix/server/agents/prompts/public_skills/`. |
 
