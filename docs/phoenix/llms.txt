@@ -46,6 +46,8 @@
 
 - [Run a Phoenix dataset experiment](https://arize.com/docs/phoenix/learn/run-experiment): Compare complete Wonder Toys runs on a fixed dataset version.
 
+- [Compare results and agent steps](https://arize.com/docs/phoenix/learn/compare-experiments): Inspect individual answers, repetitions, judgments, and traces.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config
