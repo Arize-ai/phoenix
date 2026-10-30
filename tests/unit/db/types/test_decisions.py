@@ -2,14 +2,12 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from phoenix.db.types.decisions import (
-    DecisionInput,
     DecisionQuestion,
     DecisionState,
 )
 from phoenix.server.decisions.validation import validate_questions
 
 _QUESTIONS_ADAPTER: TypeAdapter[list[DecisionQuestion]] = TypeAdapter(list[DecisionQuestion])
-_INPUTS_ADAPTER: TypeAdapter[list[DecisionInput]] = TypeAdapter(list[DecisionInput])
 _STATE_ADAPTER: TypeAdapter[DecisionState] = TypeAdapter(DecisionState)
 
 _STORED_QUESTIONS = {
@@ -48,16 +46,18 @@ def test_stored_questions_reject_an_unknown_type() -> None:
         )
 
 
-def test_stored_inputs_and_state_round_trip() -> None:
-    inputs = [
-        {"name": "ticket", "description": "The message", "json_schema": {"type": "string"}},
-        {"name": "plan"},
-    ]
-    assert [item.model_dump() for item in _INPUTS_ADAPTER.validate_python(inputs)] == inputs
+def test_stored_state_round_trips() -> None:
     for state in (
-        {"type": "object"},
-        {"type": "text", "template": "{{ticket}}", "template_format": "MUSTACHE"},
+        {"type": "text", "template": "{{ticket}}"},
+        {"type": "json", "template": {"ticket": "{{ticket}}", "n": 1, "tags": ["a", None]}},
+        {"type": "json", "template": "{{state}}"},
     ):
         assert _STATE_ADAPTER.validate_python(state).model_dump() == state
-    with pytest.raises(ValidationError):
-        _STATE_ADAPTER.validate_python({"type": "messages", "messages": []})
+    for retired in (
+        {"type": "object"},
+        {"type": "input", "name": "state"},
+        {"type": "text", "template": "{{ticket}}", "template_format": "MUSTACHE"},
+        {"type": "messages", "messages": []},
+    ):
+        with pytest.raises(ValidationError):
+            _STATE_ADAPTER.validate_python(retired)

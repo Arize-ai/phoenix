@@ -108,9 +108,10 @@ describe("DecisionProjectEvaluatorDetails", () => {
             decision: { name: "answer-quality" },
             modelName: "jev-latest",
             modelProvider: "OPENAI",
+            templateFormat: "MUSTACHE",
             state: {
               __typename: "DecisionTextState",
-              template: "Answer: {{answer}}",
+              text: "Answer: {{answer}}",
             },
             questions: [
               {

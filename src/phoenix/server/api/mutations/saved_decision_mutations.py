@@ -205,7 +205,7 @@ class SavedDecisionMutationMixin:
                             for field in (
                                 "description",
                                 "user_id",
-                                "inputs",
+                                "template_format",
                                 "state",
                                 "questions",
                                 "model_provider",

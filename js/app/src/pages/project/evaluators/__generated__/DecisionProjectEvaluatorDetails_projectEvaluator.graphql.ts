@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9815831ce4fdadfcb98974a18822207f>>
+ * @generated SignedSource<<e1fde28543821c8632e47a7cf258bb27>>
  * @lightSyntaxTransform
  */
 
@@ -10,6 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type DecisionProjectEvaluatorDetails_projectEvaluator$data = {
   readonly evaluator: {
@@ -52,16 +53,17 @@ export type DecisionProjectEvaluatorDetails_projectEvaluator$data = {
         readonly __typename: "%other";
       }>;
       readonly state: {
-        readonly __typename: "DecisionInputState";
-        readonly input: string;
+        readonly __typename: "DecisionJsonState";
+        readonly json: any;
       } | {
         readonly __typename: "DecisionTextState";
-        readonly template: string;
+        readonly text: string;
       } | {
         // This will never be '%other', but we need some
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       };
+      readonly templateFormat: PromptTemplateFormat;
     };
     readonly scoringPolicy: {
       readonly questions: ReadonlyArray<{
@@ -306,6 +308,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "templateFormat",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": null,
                   "kind": "LinkedField",
                   "name": "state",
@@ -319,7 +328,7 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "template",
+                          "name": "text",
                           "storageKey": null
                         }
                       ],
@@ -333,11 +342,11 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "input",
+                          "name": "json",
                           "storageKey": null
                         }
                       ],
-                      "type": "DecisionInputState",
+                      "type": "DecisionJsonState",
                       "abstractKey": null
                     }
                   ],
@@ -461,6 +470,6 @@ return {
 };
 })();
 
-(node as any).hash = "fd416b9669a9769cc888c97845b90d67";
+(node as any).hash = "c1c81e10af595d7a0787a1bd06f1ede1";
 
 export default node;

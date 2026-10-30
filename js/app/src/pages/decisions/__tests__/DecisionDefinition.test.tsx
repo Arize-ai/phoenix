@@ -6,6 +6,12 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import type { DecisionVersionDetails_definition$data } from "../__generated__/DecisionVersionDetails_definition.graphql";
 import { DecisionDefinition } from "../DecisionDefinition";
 
+vi.mock("@phoenix/components/decision/DecisionJsonTemplateEditor", () => ({
+  DecisionJsonTemplateEditor: ({ defaultValue }: { defaultValue?: string }) => (
+    <pre data-testid="json-template">{defaultValue}</pre>
+  ),
+}));
+
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: ({ defaultValue }: { defaultValue?: string }) => (
     <pre data-testid="template">{defaultValue}</pre>
@@ -19,8 +25,9 @@ function definition(
   overrides: Partial<Omit<Definition, " $fragmentType">>
 ): Definition {
   return {
-    inputs: [],
-    state: { __typename: "DecisionObjectState", object: true },
+    templateFormat: "MUSTACHE",
+    variables: [],
+    state: { __typename: "DecisionTextState", text: "A ticket" },
     questions: [],
     modelName: "gpt-4o",
     modelProvider: "OPENAI",
@@ -60,39 +67,36 @@ describe("DecisionDefinition", () => {
     return container.textContent ?? "";
   }
 
-  it("lists inputs by name and description, and a text state's template with its format", async () => {
+  it("shows a text state's template, its format and its variables", async () => {
     const text = await render(
       definition({
-        inputs: [
-          { name: "question", description: "The user's question" },
-          { name: "answer", description: null },
-        ],
-        state: {
-          __typename: "DecisionTextState",
-          template: "Q: {{question}}",
-          templateFormat: "MUSTACHE",
-        },
+        variables: ["question"],
+        state: { __typename: "DecisionTextState", text: "Q: {{question}}" },
       })
     );
-    expect(text).toContain("question: The user's question");
-    expect(text).toContain("answer");
+    expect(text).toContain("Text");
     expect(text).toContain("Mustache");
+    expect(text).toContain("question");
     expect(
       container.querySelector('[data-testid="template"]')?.textContent
     ).toBe("Q: {{question}}");
   });
 
-  it("explains the object and input states and an empty input list", async () => {
-    const objectText = await render(definition({}));
-    expect(objectText).toContain("No inputs");
-    expect(objectText).toContain("inputs as a JSON object");
-
-    const inputText = await render(
+  it("shows a JSON state's template as JSON and says when there are no variables", async () => {
+    const text = await render(
       definition({
-        state: { __typename: "DecisionInputState", input: "transcript" },
+        templateFormat: "NONE",
+        state: {
+          __typename: "DecisionJsonState",
+          json: { ticket: "{{ticket}}" },
+        },
       })
     );
-    expect(inputText).toContain("Input: transcript");
+    expect(text).toContain("JSON");
+    expect(text).toContain("None: the template format reads nothing");
+    expect(
+      container.querySelector('[data-testid="json-template"]')?.textContent
+    ).toBe(JSON.stringify({ ticket: "{{ticket}}" }, null, 2));
   });
 
   it("renders each question type with its label, criteria, choices or levels, and skips unknown kinds", async () => {
