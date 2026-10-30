@@ -32,6 +32,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -45,6 +46,10 @@ import {
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
+import {
+  getDecisionRunAnswers,
+  getDecisionTaskQuestions,
+} from "@phoenix/components/experiment/decisionRunOutput";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import {
   CellTop,
@@ -65,6 +70,7 @@ import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/exp
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
+import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 import {
   datasetEvaluatorsToAnnotationConfigs,
   getAnnotationConfigsWithResults,
@@ -295,6 +301,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       annotationName
                       meanScore
                     }
+                    ...decisionRunOutput_experiment
                   }
                 }
               }
@@ -364,6 +371,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ) ?? [],
     });
   }, [data]);
+
+  const decisionQuestionsByExperimentId = useMemo(
+    () =>
+      new Map(
+        data.dataset?.experiments?.edges.map((edge) => [
+          edge.experiment.id,
+          getDecisionTaskQuestions(edge.experiment),
+        ]) ?? []
+      ),
+    [data]
+  );
 
   const baseExperiment = experimentInfoById[baseExperimentId];
 
@@ -549,6 +567,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
+              decisionQuestions={
+                decisionQuestionsByExperimentId.get(experimentId) ?? null
+              }
               height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
@@ -562,6 +583,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
+    decisionQuestionsByExperimentId,
     experimentInfoById,
     getExperimentColor,
     openTraceDetails,
@@ -932,6 +954,8 @@ export function ExperimentRunOutput(
     onOpenTraceDetails: (details: SelectedTraceDetails) => void;
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
+    /** The experiment's decision questions, or null for other tasks. */
+    decisionQuestions: readonly DecisionQuestionDraft[] | null;
     height: number;
     /**
      * The base experiment's run group for the same example, to show deltas
@@ -950,11 +974,16 @@ export function ExperimentRunOutput(
     annotationConfigs,
     repetitionNumber,
     baseRepeatedRunGroup,
+    decisionQuestions,
   } = props;
 
   if (error) {
     return <RunError error={error} height={height} />;
   }
+  const decisionAnswers = getDecisionRunAnswers({
+    questions: decisionQuestions,
+    output,
+  });
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
@@ -968,7 +997,11 @@ export function ExperimentRunOutput(
     <Flex direction="column" height="100%" justifyContent="space-between">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <ExperimentOutputContent value={output} />
+          {decisionAnswers ? (
+            <DecisionAnswerList answers={decisionAnswers} />
+          ) : (
+            <ExperimentOutputContent value={output} />
+          )}
         </div>
       </ExpandableContent>
       <ExperimentRunCellAnnotationsList
@@ -1038,6 +1071,7 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex,
   annotationSummaries,
   annotationConfigs,
+  decisionQuestions,
   height,
 }: {
   experimentRepetitionCount: number;
@@ -1053,6 +1087,7 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
   annotationConfigs: readonly AnnotationConfig[];
+  decisionQuestions: readonly DecisionQuestionDraft[] | null;
   height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1150,6 +1185,7 @@ function ExperimentRunOutputCell({
           onOpenTraceDetails={onOpenTraceDetails}
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
+          decisionQuestions={decisionQuestions}
           height={height}
           baseRepeatedRunGroup={baseRepeatedRunGroup}
         />

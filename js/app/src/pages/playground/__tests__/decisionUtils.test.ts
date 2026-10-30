@@ -1,3 +1,7 @@
+import {
+  normalizeDecisionAnswer,
+  normalizeDecisionResult,
+} from "@phoenix/components/decision/decisionAnswers";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
@@ -21,8 +25,6 @@ import {
   getImportedTemplateFormat,
   getJsonTemplateStringLeaves,
   maskUntouchedErrors,
-  normalizeDecisionAnswer,
-  normalizeDecisionResult,
   parseDecisionImport,
   readDecisionVariable,
   switchDecisionStateMode,
@@ -190,7 +192,7 @@ describe("decision prompt draft", () => {
 });
 
 describe("answer normalization", () => {
-  it("normalizes a System One response in the author's option order", () => {
+  it("normalizes a System One response most likely first, ties in the author's order", () => {
     const draft = createDecisionDraft();
     const result = normalizeDecisionResult({
       result: {
@@ -295,7 +297,12 @@ describe("span replay", () => {
       },
     });
     expect(result.answers).toEqual([
-      { kind: "predicate", name: "urgent", probability: 0.9 },
+      expect.objectContaining({
+        kind: "predicate",
+        name: "urgent",
+        probability: 0.9,
+        choice: "True",
+      }),
       { kind: "refusal", name: "team" },
     ]);
   });
