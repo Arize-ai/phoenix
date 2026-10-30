@@ -535,14 +535,15 @@ def normalize_svg(data: bytes, note: str) -> bytes:
     diff = _same_silhouette(data, out)
     if diff > 0.01:
         print(f"  kept the original: normalizing changed {diff:.1%} of the silhouette")
-        return f"<!-- {note} -->\n".encode() + re.sub(rb"<!--.*?-->\n?", b"", data, flags=re.S)
+        _, rest = split_comment(data.decode())
+        return f"<!-- {note} -->\n{rest}".encode()
     return out
 
 
 def _normalize_once(data: bytes, note: str) -> bytes:
     ET.register_namespace("", SVG_NS)
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-    root = ET.fromstring(re.sub(rb"<!--.*?-->", b"", data, flags=re.S))
+    root = ET.fromstring(data)  # the parser drops comments
     for parent in list(root.iter()):
         for child in list(parent):
             tag = child.tag.split("}")[-1] if isinstance(child.tag, str) else ""
@@ -605,10 +606,18 @@ def _normalize_once(data: bytes, note: str) -> bytes:
     return out
 
 
+def split_comment(text: str) -> tuple[str | None, str]:
+    """Split the leading <!-- ... --> comment off an SVG document."""
+    head = text.lstrip()
+    if head.startswith("<!--") and "-->" in head:
+        comment, rest = head[4:].split("-->", 1)
+        return comment.strip(), rest.lstrip("\n")
+    return None, text
+
+
 def source_note(path: Path) -> str:
-    first = path.read_text().split("\n", 1)[0]
-    found = re.fullmatch(r"<!-- (.*) -->", first.strip())
-    return found.group(1) if found else f"source: {path.name}"
+    note, _ = split_comment(path.read_text())
+    return note or f"source: {path.name}"
 
 
 def cmd_normalize(args: argparse.Namespace) -> None:
