@@ -727,6 +727,31 @@ class TestCreateEvaluatorDecorator:
         assert score.label == "very good"
         assert score.explanation == "This is a comprehensive evaluation"
 
+    @pytest.mark.parametrize(
+        ("returned", "expected_score", "expected_label"),
+        [
+            ((0.8, True), 0.8, "True"),
+            ((True, 0.8), 0.8, "True"),
+            ((False, 0.25), 0.25, "False"),
+            ((1, False), 1, "False"),
+            ((True,), 1.0, "True"),
+            ((True, False), 0.0, "True"),
+            ((0.8,), 0.8, None),
+        ],
+    )
+    def test_create_evaluator_tuple_number_and_bool_ignore_order(
+        self, returned, expected_score, expected_label
+    ):
+        """A bool is the label and a number is the score, whichever comes first."""
+
+        @create_evaluator(name="order_evaluator", kind="code")
+        def test_func(input_text: str) -> tuple:
+            return returned
+
+        score = test_func.evaluate({"input_text": "test"})[0]
+        assert score.score == expected_score
+        assert score.label == expected_label
+
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
