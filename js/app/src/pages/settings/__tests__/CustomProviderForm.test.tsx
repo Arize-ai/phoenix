@@ -164,4 +164,26 @@ describe("CustomProviderForm decision models", () => {
     expect(container.querySelector('input[role="switch"]')).toBeNull();
     expect(container.textContent).toContain("Test Credentials");
   });
+
+  it("offers suggested LLM model names on chat SDKs", () => {
+    render({
+      ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),
+      name: "anthropic",
+      model_names: "claude-gateway-sonnet",
+    } as ProviderFormData);
+    expect(input("qwen3-coder, llama-5-70b").value).toBe(
+      "claude-gateway-sonnet"
+    );
+    expect(container.textContent).toContain("built-in Anthropic models");
+  });
+
+  it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
+    render({
+      ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
+      name: "ts",
+    });
+    expect(
+      container.querySelector('input[placeholder="qwen3-coder, llama-5-70b"]')
+    ).toBeNull();
+  });
 });

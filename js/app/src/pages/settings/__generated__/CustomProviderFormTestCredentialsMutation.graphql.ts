@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4299cbeb8d3aae6ce8921c1b73fd4321>>
+ * @generated SignedSource<<9c35b18234adf709e3f7b75443bae981>>
  * @lightSyntaxTransform
  */
 
@@ -55,6 +55,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
 };
 export type OpenAICustomProviderConfigInput = {
   decisionModels?: DecisionModelsConfigInput | null;
+  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -77,6 +78,7 @@ export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
   decisionModels?: DecisionModelsConfigInput | null;
+  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -105,6 +107,7 @@ export type AzureOpenAIClientKwargsInput = {
 export type AnthropicCustomProviderConfigInput = {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
   anthropicClientKwargs?: AnthropicClientKwargsInput | null;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type AnthropicAuthenticationMethodInput = {
   apiKey: string;
@@ -116,6 +119,7 @@ export type AnthropicClientKwargsInput = {
 export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type AWSBedrockAuthenticationMethodInput = {
   accessKeys: AWSBedrockAccessKeysInput;
@@ -136,6 +140,7 @@ export type AWSBedrockClientKwargsInput = {
 export type GoogleGenAICustomProviderConfigInput = {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
   googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
+  modelNames?: ReadonlyArray<string> | null;
 };
 export type GoogleGenAIAuthenticationMethodInput = {
   apiKey: string;

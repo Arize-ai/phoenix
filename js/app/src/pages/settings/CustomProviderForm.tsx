@@ -46,6 +46,7 @@ import {
   DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
+  SDK_LABELS,
   SDK_OPTIONS,
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
@@ -101,10 +102,21 @@ export interface DecisionModelsFormData {
 }
 
 /**
+ * Suggested LLM model names, shared by the SDKs that serve LLMs.
+ */
+export interface LLMModelsFormData {
+  /**
+   * Comma or newline separated. Replaces the SDK's built-in list in the model
+   * menu; empty lists the built-in models.
+   */
+  model_names?: string;
+}
+
+/**
  * OpenAI SDK configuration.
  */
 export interface OpenAIFormData
-  extends BaseProviderFormData, DecisionModelsFormData {
+  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
   sdk: "OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
@@ -119,7 +131,7 @@ export interface OpenAIFormData
  * Supports both API key and Azure AD token provider authentication.
  */
 export interface AzureOpenAIFormData
-  extends BaseProviderFormData, DecisionModelsFormData {
+  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
@@ -137,7 +149,8 @@ export interface AzureOpenAIFormData
 /**
  * Anthropic SDK configuration.
  */
-export interface AnthropicFormData extends BaseProviderFormData {
+export interface AnthropicFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "ANTHROPIC";
   anthropic_api_key: string;
   anthropic_base_url?: string;
@@ -148,7 +161,8 @@ export interface AnthropicFormData extends BaseProviderFormData {
  * AWS Bedrock SDK configuration.
  * Supports both explicit access keys and environment credentials (IAM role).
  */
-export interface AWSBedrockFormData extends BaseProviderFormData {
+export interface AWSBedrockFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "AWS_BEDROCK";
   aws_region: string;
   aws_auth_method: AWSAuthMethod;
@@ -162,7 +176,8 @@ export interface AWSBedrockFormData extends BaseProviderFormData {
 /**
  * Google GenAI SDK configuration.
  */
-export interface GoogleGenAIFormData extends BaseProviderFormData {
+export interface GoogleGenAIFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "GOOGLE_GENAI";
   google_api_key: string;
   google_base_url?: string;
@@ -961,6 +976,44 @@ function TypeSafeFields({
   );
 }
 
+/**
+ * Suggested LLM model names. They replace the SDK's built-in list in the model
+ * menu, which suits gateways and deployments whose names differ from it.
+ */
+function LLMModelsSection({
+  sdk,
+  control,
+  isSubmitting,
+}: {
+  sdk: GenerativeModelSDK;
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  return (
+    <ProviderSection title="LLM Models">
+      <Controller
+        name="model_names"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            value={field.value ?? ""}
+            isDisabled={isSubmitting}
+          >
+            <Label>Suggested model names</Label>
+            <Input placeholder="qwen3-coder, llama-5-70b" />
+            <Text slot="description">
+              Optional, comma separated. Listed in the model menu in place of
+              the built-in {SDK_LABELS[sdk]} models; leave empty to list those.
+              Any model the endpoint accepts can be used.
+            </Text>
+          </TextField>
+        )}
+      />
+    </ProviderSection>
+  );
+}
+
 // SDK-specific fields renderer
 function SDKFieldsRenderer({
   sdk,
@@ -1175,6 +1228,15 @@ export const ProviderForm = ({
           control={control}
           isSubmitting={isSubmitting}
         />
+
+        {sdk !== "TYPESAFE" ? (
+          // A TypeSafe provider serves decision models only.
+          <LLMModelsSection
+            sdk={sdk}
+            control={control}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
 
         {sdkCanServeDecisions(sdk) ? (
           <DecisionModelsSection
