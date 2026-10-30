@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -115,7 +115,6 @@ import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton
 import type { ExperimentMetadataFilter } from "./experimentMetadataFilters";
 import {
   formatMetadataFilter,
-  readMetadataFiltersFromSearchParams,
   writeMetadataFiltersToSearchParams,
 } from "./experimentMetadataFilters";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
@@ -235,15 +234,21 @@ export const MemoizedTableBody = memo(
 
 export function ExperimentsTable({
   dataset,
+  initialMetadataFilters,
 }: {
   dataset: ExperimentsTableFragment$key;
+  /**
+   * The metadata filters the page query fetched the dataset's experiments
+   * with. The table owns the filters from then on, so the tokens it shows
+   * always match the rows it last fetched.
+   */
+  initialMetadataFilters: ExperimentMetadataFilter[];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [searchParams, setSearchParams] = useSearchParams();
-  const metadataFilters = useMemo(
-    () => readMetadataFiltersFromSearchParams(searchParams),
-    [searchParams]
+  const [, setSearchParams] = useSearchParams();
+  const [metadataFilters, setMetadataFilters] = useState(
+    initialMetadataFilters
   );
   const {
     isExpanded: areRowsExpanded,
@@ -432,33 +437,28 @@ export function ExperimentsTable({
     [data.experiments.edges]
   );
 
-  const onSearchTextChange = useCallback(
-    (searchText: string) => {
-      startTransition(() => {
-        refetch(
-          { filterCondition: searchText || null },
-          { fetchPolicy: "network-only" }
-        );
-      });
-    },
-    [refetch]
-  );
-
-  const onMetadataFiltersChange = useCallback(
-    (filters: ExperimentMetadataFilter[]) => {
-      setSearchParams(
-        (prev) => writeMetadataFiltersToSearchParams(prev, filters),
-        { replace: true }
+  const onSearchTextChange = (searchText: string) => {
+    startTransition(() => {
+      refetch(
+        { filterCondition: searchText || null },
+        { fetchPolicy: "network-only" }
       );
-      startTransition(() => {
-        refetch(
-          { metadataFilters: filters.length ? filters : null },
-          { fetchPolicy: "network-only" }
-        );
-      });
-    },
-    [refetch, setSearchParams]
-  );
+    });
+  };
+
+  const onMetadataFiltersChange = (filters: ExperimentMetadataFilter[]) => {
+    setMetadataFilters(filters);
+    setSearchParams(
+      (prev) => writeMetadataFiltersToSearchParams(prev, filters),
+      { replace: true }
+    );
+    startTransition(() => {
+      refetch(
+        { metadataFilters: filters.length ? filters : null },
+        { fetchPolicy: "network-only" }
+      );
+    });
+  };
 
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),
@@ -1184,6 +1184,8 @@ function ExperimentJobStatusIcon({
   experimentId: string;
   datasetId: string;
 }) {
+  // Keep the table's filters in the URL for when the dialog closes.
+  const { search } = useLocation();
   if (status === "RUNNING") {
     return (
       <TooltipTrigger>
@@ -1211,7 +1213,12 @@ function ExperimentJobStatusIcon({
             This experiment encountered an error during execution.
           </RichTooltipDescription>
           <RichTooltipActions>
-            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
+            <Link
+              to={{
+                pathname: `/datasets/${datasetId}/experiments/${experimentId}`,
+                search,
+              }}
+            >
               View details
             </Link>
           </RichTooltipActions>

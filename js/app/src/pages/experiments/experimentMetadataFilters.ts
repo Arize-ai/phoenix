@@ -41,10 +41,11 @@ export function parseMetadataFilterValue(
   }
   try {
     const parsed: unknown = JSON.parse(trimmed);
+    // `1e999` parses to `Infinity`, which JSON can't send, so it stays text.
     if (
       typeof parsed === "string" ||
-      typeof parsed === "number" ||
-      typeof parsed === "boolean"
+      typeof parsed === "boolean" ||
+      (typeof parsed === "number" && Number.isFinite(parsed))
     ) {
       return parsed;
     }

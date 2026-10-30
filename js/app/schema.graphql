@@ -2119,7 +2119,7 @@ Matches experiments whose metadata holds a value at a key path. For example, pat
 """
 input ExperimentMetadataFilter {
   """
-  The keys to follow from the top of the metadata object, outermost first.
+  The keys to follow from the top of the metadata object, outermost first. Each key names an object key. On PostgreSQL, an integer key such as '0' also indexes into an array; on SQLite, it doesn't.
   """
   path: [String!]!
 

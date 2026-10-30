@@ -32,6 +32,7 @@ describe("parseMetadataFilterValue", () => {
     ['"true"', "true"],
     ["null", "null"],
     ["[1]", "[1]"],
+    ["1e999", "1e999"],
   ])("reads %j as %j", (text, expected) => {
     expect(parseMetadataFilterValue(text)).toEqual(expected);
   });

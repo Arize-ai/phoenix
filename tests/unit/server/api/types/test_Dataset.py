@@ -1,13 +1,14 @@
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -23,7 +24,9 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
+from phoenix.server.api.input_types.ExperimentMetadataFilter import ExperimentMetadataFilter
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -1286,6 +1289,18 @@ class TestDatasetExperimentsMetadataFilter:
                 "model": "other",
                 "harbor_agent": {"model_params": {"temperature": "0.7", "stream": "true"}},
             },
+            "bool-like-numbers": {
+                "model": "other",
+                "harbor_agent": {"model_params": {"temperature": True, "stream": 1}},
+            },
+            "bool-like-zeros": {
+                "model": "other",
+                "harbor_agent": {"model_params": {"temperature": False, "stream": 0}},
+            },
+            "string-one": {
+                "model": "other",
+                "harbor_agent": {"model_params": {"temperature": "1"}},
+            },
             "no-metadata": {},
         }
         async with db() as session:
@@ -1345,24 +1360,54 @@ class TestDatasetExperimentsMetadataFilter:
                 id="nested-string-ignores-number",
             ),
             pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": 1}],
+                {"claude"},
+                id="integer-ignores-true-and-string",
+            ),
+            pytest.param(
                 [{"path": ["harbor_agent", "model_params", "temperature"], "value": 1.0}],
                 {"claude"},
                 id="float-matches-integer",
             ),
             pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": "1"}],
+                {"string-one"},
+                id="string-ignores-integer-and-true",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": True}],
+                {"bool-like-numbers"},
+                id="true-ignores-integer-and-string",
+            ),
+            pytest.param(
                 [{"path": ["harbor_agent", "model_params", "temperature"], "value": 0}],
                 {"gpt-cold"},
-                id="zero-does-not-match-false",
+                id="zero-ignores-false",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": False}],
+                {"bool-like-zeros"},
+                id="false-ignores-zero",
             ),
             pytest.param(
                 [{"path": ["harbor_agent", "model_params", "stream"], "value": True}],
                 {"gpt-hot"},
-                id="true-ignores-string-and-one",
+                id="true-ignores-one-and-string",
             ),
             pytest.param(
                 [{"path": ["harbor_agent", "model_params", "stream"], "value": False}],
                 {"gpt-cold"},
-                id="false",
+                id="false-ignores-zero-at-other-key",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "stream"], "value": 1}],
+                {"bool-like-numbers"},
+                id="one-ignores-true",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "stream"], "value": 0}],
+                {"bool-like-zeros"},
+                id="zero-ignores-false-at-other-key",
             ),
             pytest.param(
                 [{"path": ["dotted.key"], "value": "literal"}],
@@ -1407,12 +1452,23 @@ class TestDatasetExperimentsMetadataFilter:
         assert names == {"gpt-cold"}
 
     @pytest.mark.parametrize(
-        "metadata_filter",
+        "metadata_filter, message",
         [
-            pytest.param({"path": [], "value": "gpt-5"}, id="empty-path"),
-            pytest.param({"path": ["model"], "value": None}, id="null-value"),
-            pytest.param({"path": ["model"], "value": ["gpt-5"]}, id="list-value"),
-            pytest.param({"path": ["model"], "value": {"a": 1}}, id="object-value"),
+            pytest.param(
+                {"path": [], "value": "gpt-5"},
+                "Metadata filter path must contain at least one key",
+                id="empty-path",
+            ),
+            pytest.param(
+                {"path": ["model"], "value": ["gpt-5"]},
+                "Metadata filter value must be a string, number, or boolean",
+                id="list-value",
+            ),
+            pytest.param(
+                {"path": ["model"], "value": {"a": 1}},
+                "Metadata filter value must be a string, number, or boolean",
+                id="object-value",
+            ),
         ],
     )
     async def test_rejects_invalid_filter(
@@ -1420,12 +1476,22 @@ class TestDatasetExperimentsMetadataFilter:
         gql_client: AsyncGraphQLClient,
         dataset_id: GlobalID,
         metadata_filter: dict[str, Any],
+        message: str,
     ) -> None:
         response = await gql_client.execute(
             query=self._QUERY,
             variables={"datasetId": str(dataset_id), "metadataFilters": [metadata_filter]},
         )
-        assert response.errors
+        assert response.data is None
+        assert [error.message for error in response.errors or []] == [message]
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_rejects_non_finite_number(self, value: float) -> None:
+        # JSON request variables can't carry these values, so the test calls
+        # the input type directly.
+        metadata_filter = ExperimentMetadataFilter(path=["temperature"], value=cast(Any, value))
+        with pytest.raises(BadRequest, match="finite number"):
+            metadata_filter.to_sql(SupportedSQLDialect.SQLITE)
 
 
 async def test_experiments_filter_by_description_search(

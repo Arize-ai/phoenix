@@ -1,4 +1,5 @@
 import json
+import math
 from typing import Union
 
 import strawberry
@@ -20,7 +21,9 @@ MetadataScalar = Union[str, int, float, bool]
 )
 class ExperimentMetadataFilter:
     path: list[str] = strawberry.field(
-        description="The keys to follow from the top of the metadata object, outermost first."
+        description="The keys to follow from the top of the metadata object, outermost first. "
+        "Each key names an object key. On PostgreSQL, an integer key such as '0' also "
+        "indexes into an array; on SQLite, it doesn't."
     )
     value: JSON = strawberry.field(
         description="The value to match: a string, number, or boolean. "
@@ -33,13 +36,16 @@ class ExperimentMetadataFilter:
         metadata value at `path` equals `value` in both type and value.
 
         Raises:
-            BadRequest: If `path` is empty or `value` isn't a string, number, or boolean.
+            BadRequest: If `path` is empty or `value` isn't a string, finite number,
+                or boolean.
         """
         if not self.path:
             raise BadRequest("Metadata filter path must contain at least one key")
         value = self.value
         if not isinstance(value, (str, int, float, bool)):
             raise BadRequest("Metadata filter value must be a string, number, or boolean")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise BadRequest("Metadata filter value must be a finite number")
         if dialect is SupportedSQLDialect.POSTGRESQL:
             return _postgresql_condition(self.path, value)
         return _sqlite_condition(self.path, value)
