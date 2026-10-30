@@ -82,12 +82,3 @@ export function azureChatBaseUrl(endpoint: string | undefined): string | null {
   }
   return trimmed.endsWith("/openai/v1") ? trimmed : `${trimmed}/openai/v1`;
 }
-
-/** Splits the suggested model names field: one per line or comma separated. */
-export function parseDecisionModelNames(value: string | undefined): string[] {
-  const names = (value ?? "")
-    .split(/[\n,]/)
-    .map((name) => name.trim())
-    .filter(Boolean);
-  return [...new Set(names)];
-}

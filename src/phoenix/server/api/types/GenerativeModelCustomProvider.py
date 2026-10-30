@@ -121,6 +121,9 @@ class OpenAICustomProviderConfig:
     openai_authentication_method: OpenAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
     openai_api_type: OpenAIApiType
+    model_names: list[str] = strawberry.field(
+        description=("Suggested LLM model names; empty lists the SDK's built-in models instead.")
+    )
     decision_models: DecisionModelsConfig | None = None
 
     @classmethod
@@ -136,6 +139,7 @@ class OpenAICustomProviderConfig:
             ),
             openai_client_kwargs=OpenAIClientKwargs.from_orm(config.openai_client_kwargs),
             openai_api_type=OpenAIApiType(config.openai_api_type),
+            model_names=list(config.model_names),
         )
 
 
@@ -191,6 +195,9 @@ class AzureOpenAICustomProviderConfig:
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
     azure_openai_client_kwargs: AzureOpenAIClientKwargs
     openai_api_type: OpenAIApiType
+    model_names: list[str] = strawberry.field(
+        description=("Suggested LLM model names; empty lists the SDK's built-in models instead.")
+    )
     decision_models: DecisionModelsConfig | None = None
 
     @classmethod
@@ -208,6 +215,7 @@ class AzureOpenAICustomProviderConfig:
                 config.azure_openai_client_kwargs
             ),
             openai_api_type=OpenAIApiType(config.openai_api_type),
+            model_names=list(config.model_names),
         )
 
 
@@ -241,6 +249,9 @@ class AnthropicClientKwargs:
 class AnthropicCustomProviderConfig:
     anthropic_authentication_method: AnthropicAuthenticationMethod
     anthropic_client_kwargs: AnthropicClientKwargs | None = UNSET
+    model_names: list[str] = strawberry.field(
+        description=("Suggested LLM model names; empty lists the SDK's built-in models instead.")
+    )
 
     @classmethod
     def from_orm(cls, config: mp.AnthropicCustomProviderConfig) -> Self:
@@ -249,6 +260,7 @@ class AnthropicCustomProviderConfig:
                 config.anthropic_authentication_method
             ),
             anthropic_client_kwargs=AnthropicClientKwargs.from_orm(config.anthropic_client_kwargs),
+            model_names=list(config.model_names),
         )
 
 
@@ -316,6 +328,9 @@ class AWSBedrockClientKwargs:
 class AWSBedrockCustomProviderConfig:
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethod
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs
+    model_names: list[str] = strawberry.field(
+        description=("Suggested LLM model names; empty lists the SDK's built-in models instead.")
+    )
 
     @classmethod
     def from_orm(cls, config: mp.AWSBedrockCustomProviderConfig) -> Self:
@@ -326,6 +341,7 @@ class AWSBedrockCustomProviderConfig:
             aws_bedrock_client_kwargs=AWSBedrockClientKwargs.from_orm(
                 config.aws_bedrock_client_kwargs
             ),
+            model_names=list(config.model_names),
         )
 
 
@@ -371,6 +387,9 @@ class GoogleGenAIClientKwargs:
 class GoogleGenAICustomProviderConfig:
     google_genai_authentication_method: GoogleGenAIAuthenticationMethod
     google_genai_client_kwargs: GoogleGenAIClientKwargs | None = UNSET
+    model_names: list[str] = strawberry.field(
+        description=("Suggested LLM model names; empty lists the SDK's built-in models instead.")
+    )
 
     @classmethod
     def from_orm(cls, config: mp.GoogleGenAICustomProviderConfig) -> Self:
@@ -381,6 +400,7 @@ class GoogleGenAICustomProviderConfig:
             google_genai_client_kwargs=GoogleGenAIClientKwargs.from_orm(
                 config.google_genai_client_kwargs
             ),
+            model_names=list(config.model_names),
         )
 
 
@@ -662,4 +682,8 @@ class GenerativeModelCustomProvider(Node):
             return list(DECISION_CLIENTS[key].model_names)
         if not mp.sdk_offers_chat(sdk):
             return []
+        # Suggested names replace the built-in list; an unparsable config has none.
+        llm_model_names: list[str] = getattr(await self._config(info), "model_names", [])
+        if llm_model_names:
+            return llm_model_names
         return PLAYGROUND_CLIENT_REGISTRY.list_models(CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[sdk])

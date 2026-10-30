@@ -46,11 +46,21 @@ type AWSBedrockConnectionConfig {
 type AWSBedrockCustomProviderConfig {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input AWSBedrockCustomProviderConfigInput {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput!
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 input AddAnnotationConfigToProjectInput {
@@ -464,11 +474,21 @@ type AnthropicConnectionConfig {
 type AnthropicCustomProviderConfig {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input AnthropicCustomProviderConfigInput {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput!
   anthropicClientKwargs: AnthropicClientKwargsInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 enum AnthropicOutputConfigEffort {
@@ -566,6 +586,11 @@ type AzureOpenAICustomProviderConfig {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
   openaiApiType: OpenAIApiType!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
   decisionModels: DecisionModelsConfig
 }
 
@@ -574,6 +599,11 @@ input AzureOpenAICustomProviderConfigInput {
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
   openaiApiType: OpenAIApiType = RESPONSES
   decisionModels: DecisionModelsConfigInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 input BranchAgentSessionInput {
@@ -3878,11 +3908,21 @@ type GoogleGenAIConnectionConfig {
 type GoogleGenAICustomProviderConfig {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input GoogleGenAICustomProviderConfigInput {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
   googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 type GoogleGenAIHttpOptions {
@@ -4373,6 +4413,11 @@ type OpenAICustomProviderConfig {
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
   openaiApiType: OpenAIApiType!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
   decisionModels: DecisionModelsConfig
 }
 
@@ -4381,6 +4426,11 @@ input OpenAICustomProviderConfigInput {
   openaiClientKwargs: OpenAIClientKwargsInput
   openaiApiType: OpenAIApiType = RESPONSES
   decisionModels: DecisionModelsConfigInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 enum OpenAIReasoningEffort {

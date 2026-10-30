@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { OpenAIFormData, TypeSafeFormData } from "../CustomProviderForm";
+import type {
+  AWSBedrockFormData,
+  OpenAIFormData,
+  TypeSafeFormData,
+} from "../CustomProviderForm";
 import {
   buildClientConfig,
   createDefaultFormData,
+  parseModelNames,
   transformToPatchInput,
 } from "../customProviderFormUtils";
 
@@ -84,5 +89,49 @@ describe("decision models in the client config", () => {
     expect(
       transformToPatchInput(original, "provider-id", original).clientConfig
     ).toBeUndefined();
+  });
+});
+
+describe("suggested LLM model names in the client config", () => {
+  it("sends the names, which replace the SDK's built-in list", () => {
+    expect(
+      buildClientConfig(openai({ model_names: "qwen3-coder, llama-5-70b" }))
+        .openai?.modelNames
+    ).toEqual(["qwen3-coder", "llama-5-70b"]);
+    expect(
+      buildClientConfig({
+        ...(createDefaultFormData("AWS_BEDROCK") as AWSBedrockFormData),
+        name: "bedrock",
+        aws_region: "us-east-1",
+        model_names: "us.anthropic.claude-gateway",
+      }).awsBedrock?.modelNames
+    ).toEqual(["us.anthropic.claude-gateway"]);
+  });
+
+  it("sends none when the field is empty, so the built-in list is used", () => {
+    expect(buildClientConfig(openai()).openai).not.toHaveProperty("modelNames");
+    expect(
+      buildClientConfig(openai({ model_names: " , " })).openai
+    ).not.toHaveProperty("modelNames");
+  });
+
+  it("patches the config when only the names change", () => {
+    const original = openai();
+    const patch = transformToPatchInput(
+      openai({ model_names: "qwen3-coder" }),
+      "provider-id",
+      original
+    );
+    expect(patch.clientConfig?.openai?.modelNames).toEqual(["qwen3-coder"]);
+  });
+});
+
+describe("parseModelNames", () => {
+  it("splits on commas and newlines, drops blanks and repeats", () => {
+    expect(parseModelNames(" jev-latest,\njev-1.14.0 , ,jev-latest")).toEqual([
+      "jev-latest",
+      "jev-1.14.0",
+    ]);
+    expect(parseModelNames(undefined)).toEqual([]);
   });
 });

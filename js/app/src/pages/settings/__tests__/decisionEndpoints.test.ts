@@ -7,7 +7,6 @@ import {
   type DecisionSDK,
   decisionEndpointUrl,
   guessDecisionBaseUrl,
-  parseDecisionModelNames,
 } from "../decisionEndpoints";
 
 /** The server's cases, so the form previews the URL a run calls. */
@@ -66,14 +65,5 @@ describe("azureChatBaseUrl", () => {
       "https://res.openai.azure.com/openai/v1"
     );
     expect(azureChatBaseUrl("")).toBeNull();
-  });
-});
-
-describe("parseDecisionModelNames", () => {
-  it("splits on commas and newlines, drops blanks and repeats", () => {
-    expect(
-      parseDecisionModelNames(" jev-latest,\njev-1.14.0 , ,jev-latest")
-    ).toEqual(["jev-latest", "jev-1.14.0"]);
-    expect(parseDecisionModelNames(undefined)).toEqual([]);
   });
 });

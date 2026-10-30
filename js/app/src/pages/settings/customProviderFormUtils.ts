@@ -29,6 +29,7 @@ import type {
   AzureOpenAIFormData,
   DecisionModelsFormData,
   GoogleGenAIFormData,
+  LLMModelsFormData,
   OpenAIFormData,
   ProviderFormData,
   TypeSafeFormData,
@@ -37,7 +38,6 @@ import {
   type DecisionSDK,
   azureChatBaseUrl,
   guessDecisionBaseUrl,
-  parseDecisionModelNames,
 } from "./decisionEndpoints";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
@@ -46,6 +46,28 @@ type CustomProviderNode = Extract<
   { readonly __typename: "GenerativeModelCustomProvider" }
 >;
 type ProviderConfig = NonNullable<CustomProviderNode["config"]>;
+
+/** Splits a suggested model names field: one per line or comma separated. */
+export function parseModelNames(value: string | undefined): string[] {
+  const names = (value ?? "")
+    .split(/[\n,]/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return [...new Set(names)];
+}
+
+/** Suggested model names as the form edits them. */
+function formatModelNames(
+  modelNames: readonly string[] | null | undefined
+): string | undefined {
+  return modelNames?.join(", ") || undefined;
+}
+
+/** The LLM model names to send; none lists the SDK's built-in models. */
+function buildModelNames(formData: LLMModelsFormData) {
+  const modelNames = parseModelNames(formData.model_names);
+  return modelNames.length > 0 ? { modelNames } : {};
+}
 
 // =============================================================================
 // Form Default Values
@@ -81,6 +103,7 @@ export function createDefaultFormData(
         openai_organization: undefined,
         openai_project: undefined,
         openai_default_headers: undefined,
+        model_names: undefined,
         ...noDecisionModels,
       } satisfies OpenAIFormData;
 
@@ -98,6 +121,7 @@ export function createDefaultFormData(
         azure_client_secret: undefined,
         azure_scope: undefined,
         azure_default_headers: undefined,
+        model_names: undefined,
         ...noDecisionModels,
       } satisfies AzureOpenAIFormData;
 
@@ -109,6 +133,7 @@ export function createDefaultFormData(
         anthropic_api_key: "",
         anthropic_base_url: undefined,
         anthropic_default_headers: undefined,
+        model_names: undefined,
       } satisfies AnthropicFormData;
 
     case "AWS_BEDROCK":
@@ -122,6 +147,7 @@ export function createDefaultFormData(
         aws_secret_access_key: undefined,
         aws_session_token: undefined,
         aws_endpoint_url: undefined,
+        model_names: undefined,
       } satisfies AWSBedrockFormData;
 
     case "GOOGLE_GENAI":
@@ -132,6 +158,7 @@ export function createDefaultFormData(
         google_api_key: "",
         google_base_url: undefined,
         google_headers: undefined,
+        model_names: undefined,
       } satisfies GoogleGenAIFormData;
 
     case "TYPESAFE":
@@ -221,7 +248,7 @@ function getDecisionModelsFormValues(
     decision_sdk: decisionSdk,
     decision_base_url:
       decisionModels.baseUrl ?? guessDecisionBaseUrl(decisionSdk, chatBaseUrl),
-    decision_model_names: decisionModels.modelNames.join(", ") || undefined,
+    decision_model_names: formatModelNames(decisionModels.modelNames),
   };
 }
 
@@ -242,16 +269,29 @@ function transformOpenAIConfig(provider: CustomProviderNode): OpenAIFormData {
       (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
       "RESPONSES",
     openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
-    openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
-    openai_organization: config?.openaiClientKwargs?.organization ?? undefined,
-    openai_project: config?.openaiClientKwargs?.project ?? undefined,
-    openai_default_headers: safelyJSONStringify(
-      config?.openaiClientKwargs?.defaultHeaders
-    ),
+    ...getOpenAIClientFormValues(config?.openaiClientKwargs),
+    model_names: formatModelNames(config?.modelNames),
     ...getDecisionModelsFormValues(
       config?.decisionModels,
       config?.openaiClientKwargs?.baseUrl
     ),
+  };
+}
+
+function getOpenAIClientFormValues(
+  kwargs: ProviderConfig["openaiClientKwargs"]
+): Pick<
+  OpenAIFormData,
+  | "openai_base_url"
+  | "openai_organization"
+  | "openai_project"
+  | "openai_default_headers"
+> {
+  return {
+    openai_base_url: kwargs?.baseUrl ?? undefined,
+    openai_organization: kwargs?.organization ?? undefined,
+    openai_project: kwargs?.project ?? undefined,
+    openai_default_headers: safelyJSONStringify(kwargs?.defaultHeaders),
   };
 }
 
@@ -269,6 +309,7 @@ function transformAzureOpenAIConfig(
       config?.azureOpenaiAuthenticationMethod
     ),
     ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
+    model_names: formatModelNames(config?.modelNames),
     ...getDecisionModelsFormValues(
       config?.decisionModels,
       azureChatBaseUrl(config?.azureOpenaiClientKwargs?.azureEndpoint)
@@ -323,6 +364,7 @@ function transformAnthropicConfig(
     anthropic_default_headers: safelyJSONStringify(
       config?.anthropicClientKwargs?.defaultHeaders
     ),
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -343,6 +385,7 @@ function transformAwsBedrockConfig(
       authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
     aws_session_token: authMethod?.accessKeys?.awsSessionToken ?? undefined,
     aws_endpoint_url: config?.awsBedrockClientKwargs?.endpointUrl ?? undefined,
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -357,6 +400,7 @@ function transformGoogleGenAIConfig(
     google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
     google_base_url: httpOptions?.baseUrl ?? undefined,
     google_headers: safelyJSONStringify(httpOptions?.headers),
+    model_names: formatModelNames(config?.modelNames),
   };
 }
 
@@ -375,8 +419,7 @@ function transformTypeSafeConfig(
     decision_enabled: true,
     decision_sdk: "TYPESAFE",
     decision_base_url: undefined,
-    decision_model_names:
-      config?.decisionModels?.modelNames.join(", ") || undefined,
+    decision_model_names: formatModelNames(config?.decisionModels?.modelNames),
   };
 }
 
@@ -392,7 +435,7 @@ function buildDecisionModels(formData: DecisionModelsFormData) {
   if (!formData.decision_enabled) {
     return undefined;
   }
-  const modelNames = parseDecisionModelNames(formData.decision_model_names);
+  const modelNames = parseModelNames(formData.decision_model_names);
   return {
     decisionSdk: formData.decision_sdk,
     ...(formData.decision_base_url?.trim() && {
@@ -429,6 +472,7 @@ export function buildClientConfig(
                 ? safelyParseJSONObjectString(formData.openai_default_headers)
                 : undefined,
           }),
+          ...buildModelNames(formData),
           decisionModels: buildDecisionModels(formData),
         },
       };
@@ -507,6 +551,7 @@ export function buildClientConfig(
             azureEndpoint: formData.azure_endpoint,
             ...(defaultHeaders !== undefined && { defaultHeaders }),
           },
+          ...buildModelNames(formData),
           decisionModels: buildDecisionModels(formData),
         },
       };
@@ -526,6 +571,7 @@ export function buildClientConfig(
                   )
                 : undefined,
           }),
+          ...buildModelNames(formData),
         },
       };
     case "AWS_BEDROCK": {
@@ -581,6 +627,7 @@ export function buildClientConfig(
               endpointUrl: formData.aws_endpoint_url,
             }),
           },
+          ...buildModelNames(formData),
         },
       };
     }
@@ -600,6 +647,7 @@ export function buildClientConfig(
           },
           // Only include googleGenaiClientKwargs if there are httpOptions to send
           ...(httpOptions && { googleGenaiClientKwargs: { httpOptions } }),
+          ...buildModelNames(formData),
         },
       };
     }
@@ -702,6 +750,7 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "openai_organization",
     "openai_project",
     "openai_default_headers",
+    "model_names",
     ...DECISION_FIELDS,
   ],
   AZURE_OPENAI: [
@@ -714,12 +763,14 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "azure_client_secret",
     "azure_scope",
     "azure_default_headers",
+    "model_names",
     ...DECISION_FIELDS,
   ],
   ANTHROPIC: [
     "anthropic_api_key",
     "anthropic_base_url",
     "anthropic_default_headers",
+    "model_names",
   ],
   AWS_BEDROCK: [
     "aws_region",
@@ -728,8 +779,14 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "aws_secret_access_key",
     "aws_session_token",
     "aws_endpoint_url",
+    "model_names",
   ],
-  GOOGLE_GENAI: ["google_api_key", "google_base_url", "google_headers"],
+  GOOGLE_GENAI: [
+    "google_api_key",
+    "google_base_url",
+    "google_headers",
+    "model_names",
+  ],
   TYPESAFE: [
     "typesafe_api_key",
     "typesafe_base_url",

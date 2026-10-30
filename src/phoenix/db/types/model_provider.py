@@ -16,6 +16,7 @@ from typing import (
 )
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -249,6 +250,19 @@ def required_decision_sdk(sdk: "GenerativeModelSDK") -> "DecisionSDK | None":
     return "typesafe" if sdk == "typesafe" else None
 
 
+def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
+
+
+SuggestedModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
+"""Model names listed in the model menu, trimmed and without duplicates."""
+
+LLM_MODEL_NAMES_DESCRIPTION = (
+    "Suggested LLM model names, listed in the model menu in place of the SDK's built-in "
+    "list; empty lists the built-in models. Any name the endpoint accepts works."
+)
+
+
 class DecisionModelsConfig(BaseModel):
     """Where a custom provider's decision models run, beside its chat settings.
 
@@ -267,7 +281,7 @@ class DecisionModelsConfig(BaseModel):
             "A TypeSafe provider always uses its own base URL."
         ),
     )
-    model_names: tuple[str, ...] = Field(
+    model_names: SuggestedModelNames = Field(
         default=(),
         description="Suggested decision model names; any name the endpoint accepts works.",
     )
@@ -276,11 +290,6 @@ class DecisionModelsConfig(BaseModel):
     @classmethod
     def _empty_base_url_is_none(cls, value: str | None) -> str | None:
         return value or None
-
-    @field_validator("model_names", mode="after")
-    @classmethod
-    def _dedupe_model_names(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -352,6 +361,10 @@ class OpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
     decision_models: DecisionModelsConfig | None = Field(
         default=None,
@@ -466,6 +479,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
     decision_models: DecisionModelsConfig | None = Field(
         default=None,
@@ -619,6 +636,10 @@ class AnthropicCustomProviderConfig(BaseModel):
         default=None,
         description="Anthropic client kwargs",
     )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
 
     def get_client_factory(
         self,
@@ -720,6 +741,10 @@ class AWSBedrockCustomProviderConfig(BaseModel):
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs = Field(
         ...,
         description="AWS Bedrock client kwargs",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
 
     def get_client_factory(
@@ -852,6 +877,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
     google_genai_client_kwargs: GoogleGenAIClientKwargs | None = Field(
         default=None,
         description="Google GenAI client kwargs",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
 
     def get_client_factory(

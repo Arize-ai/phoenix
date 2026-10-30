@@ -100,6 +100,14 @@ class OpenAICustomProviderConfigInput:
     decision_models: DecisionModelsConfigInput | None = UNSET
     """ Decision endpoint settings; omitted or null means no decision models. """
 
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
+
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
@@ -109,6 +117,7 @@ class OpenAICustomProviderConfigInput:
                 if self.openai_client_kwargs
                 else None,
                 openai_api_type=api_type,
+                model_names=tuple(self.model_names or ()),
                 decision_models=self.decision_models.to_orm() if self.decision_models else None,
             )
         )
@@ -179,6 +188,14 @@ class AzureOpenAICustomProviderConfigInput:
     decision_models: DecisionModelsConfigInput | None = UNSET
     """ Decision endpoint settings; omitted or null means no decision models. """
 
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
+
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
@@ -186,6 +203,7 @@ class AzureOpenAICustomProviderConfigInput:
                 azure_openai_authentication_method=self.azure_openai_authentication_method.to_orm(),
                 azure_openai_client_kwargs=self.azure_openai_client_kwargs.to_orm(),
                 openai_api_type=api_type,
+                model_names=tuple(self.model_names or ()),
                 decision_models=self.decision_models.to_orm() if self.decision_models else None,
             )
         )
@@ -215,6 +233,13 @@ class AnthropicClientKwargsInput:
 class AnthropicCustomProviderConfigInput:
     anthropic_authentication_method: AnthropicAuthenticationMethodInput
     anthropic_client_kwargs: AnthropicClientKwargsInput | None = UNSET
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
@@ -223,6 +248,7 @@ class AnthropicCustomProviderConfigInput:
                 anthropic_client_kwargs=self.anthropic_client_kwargs.to_orm()
                 if self.anthropic_client_kwargs
                 else None,
+                model_names=tuple(self.model_names or ()),
             )
         )
 
@@ -265,6 +291,13 @@ class GoogleGenAIClientKwargsInput:
 class GoogleGenAICustomProviderConfigInput:
     google_genai_authentication_method: GoogleGenAIAuthenticationMethodInput
     google_genai_client_kwargs: GoogleGenAIClientKwargsInput | None = UNSET
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
@@ -273,6 +306,7 @@ class GoogleGenAICustomProviderConfigInput:
                 google_genai_client_kwargs=self.google_genai_client_kwargs.to_orm()
                 if self.google_genai_client_kwargs
                 else None,
+                model_names=tuple(self.model_names or ()),
             )
         )
 
@@ -332,12 +366,20 @@ class AWSBedrockClientKwargsInput:
 class AWSBedrockCustomProviderConfigInput:
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethodInput
     aws_bedrock_client_kwargs: AWSBedrockClientKwargsInput
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
             root=AWSBedrockCustomProviderConfig(
                 aws_bedrock_authentication_method=self.aws_bedrock_authentication_method.to_orm(),
                 aws_bedrock_client_kwargs=self.aws_bedrock_client_kwargs.to_orm(),
+                model_names=tuple(self.model_names or ()),
             )
         )
 
