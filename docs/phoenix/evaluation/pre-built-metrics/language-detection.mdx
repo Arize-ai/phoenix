@@ -1,0 +1,168 @@
+---
+title: "Language Detection"
+description: "Detect the primary natural language used throughout a given source text, which could be a conversation session."
+---
+
+## Overview
+
+The **Language Detection** evaluator classifies the primary natural language of a conversation session. It chooses the language that carries the majority of substantive content, then maps it to a fixed label set.
+
+Supported labels are `english`, `mandarin_chinese`, `hindi`, `spanish`, `french`, and `other`. `other` covers every language outside that list, and sessions that contain no identifiable natural language.
+
+<Info>
+The evaluator is descriptive. It records which language is primary. It does not judge whether that language was correct, expected, or consistent between the user and the assistant.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply when a span contains the full exchange to classify. |
+| **Trace** | Yes | Useful when a trace holds one complete conversation. |
+| **Session** | Yes | The intended level. Pass the user and assistant turns as one string. |
+
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve the conversation between the user and the assistant. Leave tool calls, tool results, and retrieved text out of the input.
+
+## Input Requirements
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session` | `string` | User and assistant turns, in chronological order, as readable text. |
+
+Pass both parties. Leave out tool calls, tool results, and retrieved documents. Natural-language prose inside comments counts. Code, JSON, markup, proper nouns, and lone loanwords do not decide the language on their own.
+
+## Output Interpretation
+
+The evaluator returns a `Score` with one label:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"english"`, `"mandarin_chinese"`, `"hindi"`, `"spanish"`, `"french"`, or `"other"` | Primary language of the session |
+| `score` | `None` | The result is the label; there is no score |
+| `explanation` | `string` | Judge reasoning |
+| `direction` | `"neutral"` | Neither higher nor lower scores are better |
+
+
+Read `label`. `score` is `None`.
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import LanguageDetectionEvaluator
+
+    evaluator = LanguageDetectionEvaluator(
+        llm=LLM(provider="openai", model="gpt-4o-mini"),
+        temperature=0.0,
+    )
+
+    scores = evaluator.evaluate({
+        "session": (
+            "User: My deploy keeps failing with an out-of-memory error.\n"
+            "Assistant: Lower the build parallelism or raise the memory limit."
+        ),
+    })
+
+    print(scores[0])
+    # Score(name='language_detection', score=None, label='english', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createLanguageDetectionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createLanguageDetectionEvaluator({
+      model: openai("gpt-4o-mini"),
+    });
+
+    const result = await evaluator.evaluate({
+      session:
+        "User: My deploy keeps failing with an out-of-memory error.\nAssistant: Lower the build parallelism or raise the memory limit.",
+    });
+
+    console.log(result.label); // "english"
+    ```
+  </Tab>
+</Tabs>
+
+## Viewing and Modifying the Prompt
+
+The default prompt is maintained in the
+[classification evaluator config](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM, ClassificationEvaluator
+    from phoenix.evals.metrics import LanguageDetectionEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = LanguageDetectionEvaluator(llm=llm)
+
+    print(evaluator.prompt_template)
+
+    custom_evaluator = ClassificationEvaluator(
+        name="language_detection",
+        prompt_template=evaluator.prompt_template,
+        llm=llm,
+        choices=[
+            "english",
+            "mandarin_chinese",
+            "hindi",
+            "spanish",
+            "french",
+            "other",
+        ],
+        direction="neutral",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import {
+      LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
+      createLanguageDetectionEvaluator,
+    } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    console.log(LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    const customEvaluator = createLanguageDetectionEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.template,
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For model and provider options, see
+[Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+On a 32-example synthetic benchmark using `gpt-4o-mini`, the default prompt achieves 0.97 accuracy, 0.96 macro precision, 0.99 macro recall, and 0.97 macro F1. See [language_detection.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/language_detection.eval.ts) for the categorized example set.
+
+On 50 passages sampled from [candradhipa/Language-Detection](https://huggingface.co/datasets/candradhipa/Language-Detection) — 10 each of English, French, Spanish, Hindi, and other languages — the same model and prompt achieve 1.00 accuracy, 1.00 macro precision, 1.00 macro recall, and 1.00 macro F1. That dataset has no Mandarin. See [language_detection_candradhipa.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/language_detection_candradhipa.eval.ts).
+
+## API Reference
+
+- **Python:** [LanguageDetectionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript:** [createLanguageDetectionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [User Friction Evaluator](/docs/phoenix/evaluation/pre-built-metrics/user-friction)
+- [Refusal Evaluator](/docs/phoenix/evaluation/pre-built-metrics/refusal)
