@@ -1201,6 +1201,7 @@ CREATE TABLE generative_model_custom_providers (
     user_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    decision_sdk VARCHAR,
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name UNIQUE (name),
     CONSTRAINT fk_generative_model_custom_providers_user_id_users

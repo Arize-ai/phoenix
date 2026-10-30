@@ -6,8 +6,8 @@ OpenAI's Decisions API posts to ``{base}/decisions``, System One to
 ``https://api.openai.com/v1``), which is what the OpenAI style wants and what System One
 adds itself, so the System One rule drops one trailing ``/v1``. These functions are the
 only place that happens; the settings form mirrors them in
-``js/app/src/pages/settings/decisionEndpoints.ts``, checked against the shared vectors in
-``decisionEndpointVectors.json`` beside it.
+``js/app/src/pages/settings/decisionEndpoints.ts``, and both run the cases in
+``tests/unit/server/decisions/decision_endpoint_cases.json``.
 """
 
 from __future__ import annotations
