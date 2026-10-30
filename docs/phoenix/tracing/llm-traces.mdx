@@ -15,7 +15,7 @@ LLM tracing records the paths taken by requests as they propagate through multip
 Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing)), SDKs ([OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), [Vertex](/docs/phoenix/integrations/llm-providers/vertexai)), and languages. ([Python](/docs/phoenix/integrations/python/agno), [TypeScript](/docs/phoenix/integrations/typescript/beeai), etc.)
 
 <Frame caption="View the inner workings for your LLM Application">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" alt="Phoenix trace tree with the input and output of a selected span" />
 </Frame>
 
 Using Phoenix's tracing capabilities can provide important insights into the inner workings of your LLM application. By analyzing the collected trace data, you can identify and address various performance and operational issues and improve the overall reliability and efficiency of your system.
@@ -43,16 +43,16 @@ By using tracing in Phoenix, you can gain increased visibility into your LLM app
 ## Features
 
 <CardGroup cols={2}>
-  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/llm-traces/projects">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Projects" href="/docs/phoenix/tracing/llm-traces/projects">
     Organize traces into separate projects for different applications
   </Card>
-  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/llm-traces/sessions">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Sessions" href="/docs/phoenix/tracing/llm-traces/sessions">
     Group related traces into conversations and user sessions
   </Card>
-  <Card title="Annotations" icon="tags" href="/docs/phoenix/tracing/llm-traces/how-to-annotate-traces">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/annotation.avif" title="Annotations" href="/docs/phoenix/tracing/llm-traces/how-to-annotate-traces">
     Add feedback, labels, and scores to your traces
   </Card>
-  <Card title="Metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/experiment.avif" title="Metrics" href="/docs/phoenix/tracing/llm-traces/metrics">
     Monitor latency, token usage, and error rates
   </Card>
 </CardGroup>
@@ -60,28 +60,28 @@ By using tracing in Phoenix, you can gain increased visibility into your LLM app
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/docs/phoenix/get-started/get-started-tracing">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Quickstart" href="/docs/phoenix/get-started/get-started-tracing">
     Send your first traces to Phoenix
   </Card>
-  <Card title="Concepts" icon="book" href="/docs/phoenix/tracing/concepts-tracing/what-are-traces">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Concepts" href="/docs/phoenix/tracing/concepts-tracing/what-are-traces">
     Learn how traces and spans work
   </Card>
-  <Card title="How-To Guides" icon="compass" href="/docs/phoenix/tracing/how-to-tracing">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="How-To Guides" href="/docs/phoenix/tracing/how-to-tracing">
     Step-by-step tutorials for common tasks
   </Card>
-  <Card title="Add Metadata & Tags" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/annotation.avif" title="Add Metadata & Tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
     Enrich traces with custom attributes for filtering and analysis
   </Card>
-  <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/phoenix.avif" title="Integrations" href="/docs/phoenix/integrations">
     Connect LangChain, LlamaIndex, Anthropic, and 20+ frameworks
   </Card>
-  <Card title="Manual Instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Manual Instrumentation" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
     Add custom spans with decorators and wrappers
   </Card>
-  <Card title="Run Evaluations" icon="chart-line" href="/docs/phoenix/get-started/get-started-evaluations">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/eval.avif" title="Run Evaluations" href="/docs/phoenix/get-started/get-started-evaluations">
     Score your traces with LLM-as-a-judge evaluators
   </Card>
-  <Card title="Advanced Setup" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Advanced Setup" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
     Configure batching, gRPC, headers, and more
   </Card>
 </CardGroup>

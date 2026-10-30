@@ -13,13 +13,13 @@ To annotate data in the UI, you first will want to setup a rubric for how to ann
 - Optimize the direction based on your goal: <br/>- **Maximize:** higher scores are better. (e.g. confidence, faithfulness) <br/>- **Minimize:** lower scores are better. (e.g. toxicity) <br/>- **None:** direction optimization does not apply. (e.g. refusal)
 
 <Frame caption="Different types of annotations change the way human annotators provide feedback">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6c7b80dc-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6c7b80dc-image.jpeg" alt="Phoenix annotation configuration with name, type, and category labels" />
 </Frame>
 
 </Accordion>
 
 <Frame caption="Configure an annotation to guide how a user should input an annotation">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/55fe6610-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/55fe6610-image.jpeg" alt="Phoenix trace list with configured annotation columns" />
 </Frame>
 
 <Note>
@@ -29,7 +29,7 @@ Every Phoenix instance ships with a built-in `user_feedback` annotation config â
 ## Adding Annotations
 
 <Frame caption="Once annotations are configured, you can add them to your project to build out a custom annotation form">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/352ab698-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/352ab698-image.jpeg" alt="Adding a label to a trace using the Phoenix annotation menu" />
 </Frame>
 
 Once you have annotations configured, you can associate annotations to the data that you have traced. Click on the `Annotate` button and fill out the form to rate different steps in your AI application. 
@@ -50,7 +50,7 @@ Once an annotation has been provided, you can also add a reason to explain why t
 As annotations come in from various sources (annotators, evals), the entire list of annotations can be found under the `Annotations` tab. Here you can see the author, the annotator kind (e.g. was the annotation performed by a human, llm, or code), and so on. This can be particularly useful if you want to see if different annotators disagree.
 
 <Frame caption="You can view the annotations by different users, llms, and annotators">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b79bd97c-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b79bd97c-image.jpeg" alt="Phoenix trace list displaying annotation values" />
 </Frame>
 
 ## Exporting Traces with specific Annotation Values
@@ -58,5 +58,5 @@ As annotations come in from various sources (annotators, evals), the entire list
 Once you have collected feedback in the form of annotations, you can filter your traces by the annotation values to narrow down to interesting samples (e.x. llm spans that are incorrect). Once filtered down to a sample of spans, you can export your selection to a dataset, which in turn can be used for things like experimentation, fine-tuning, or building a human-aligned eval.
 
 <Frame caption="Narrow down your data to areas that need more attention or refinement">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/54c1dd55-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/54c1dd55-image.jpeg" alt="Phoenix trace list filtered by an annotation value" />
 </Frame>

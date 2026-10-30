@@ -70,10 +70,10 @@ flowchart TB
     They **do not** support environment variables, network access, or third-party dependencies. If your evaluator needs any of those, use a hosted sandbox.
 
     <CardGroup cols={2}>
-      <Card title="WebAssembly" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" href="/docs/phoenix/settings/sandboxes/wasm">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/wasm.avif" title="WebAssembly" href="/docs/phoenix/settings/sandboxes/wasm">
         Runs simple Python evaluators in an isolated WebAssembly runtime. No env vars, network, or packages.
       </Card>
-      <Card title="Deno" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" href="/docs/phoenix/settings/sandboxes/deno">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/deno.avif" title="Deno" href="/docs/phoenix/settings/sandboxes/deno">
         Runs simple TypeScript evaluators in a locked-down Deno process. No env vars, network, or packages.
       </Card>
     </CardGroup>
@@ -83,16 +83,16 @@ flowchart TB
     **Hosted sandboxes** run on a third-party provider's infrastructure. Each invocation spins up a fresh sandbox there — a VM, micro-VM, or container, depending on the provider. They are the **only** sandboxes that support environment variables, outbound network access, and third-party dependencies, plus kernel-level isolation and longer maximum timeouts. The cost: per-call round-trip latency and the need to configure credentials for the upstream service.
 
     <CardGroup cols={2}>
-      <Card title="E2B" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/e2b.svg" href="/docs/phoenix/settings/sandboxes/e2b">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/e2b.avif" title="E2B" href="/docs/phoenix/settings/sandboxes/e2b">
         Cloud micro-VMs purpose-built for AI-generated code execution.
       </Card>
-      <Card title="Daytona" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/daytona.svg" href="/docs/phoenix/settings/sandboxes/daytona">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/daytona.avif" title="Daytona" href="/docs/phoenix/settings/sandboxes/daytona">
         Managed development sandboxes with fast snapshot-based startup.
       </Card>
-      <Card title="Vercel Sandbox" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/vercel.svg" href="/docs/phoenix/settings/sandboxes/vercel">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vercel.avif" title="Vercel Sandbox" href="/docs/phoenix/settings/sandboxes/vercel">
         Ephemeral compute on Vercel's infrastructure with team-scoped credentials.
       </Card>
-      <Card title="Modal" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/modal.svg" href="/docs/phoenix/settings/sandboxes/modal">
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/modal.avif" title="Modal" href="/docs/phoenix/settings/sandboxes/modal">
         Serverless containers with sub-second cold starts and Python-first ergonomics.
       </Card>
     </CardGroup>
@@ -161,7 +161,7 @@ The dialog exposes the following fields. The last three are **hosted-sandbox-onl
 Once a configuration is in place, point an evaluator at it.
 
 <CardGroup cols={1}>
-  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/cli.avif" title="Code Evaluators" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
     Configure a server-side code evaluator that runs against a sandbox configuration.
   </Card>
 </CardGroup>

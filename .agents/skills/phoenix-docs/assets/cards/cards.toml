@@ -99,6 +99,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif", title = "AutoGen" },
 ]
 
+[integrations.aws]
+logo = "aws"
+
 [integrations.azure]
 logo = "azure"
 
@@ -212,6 +215,9 @@ logo = "daytona"
 [integrations.deepseek]
 logo = "deepseek"
 
+[integrations.deno]
+logo = "deno"
+
 [integrations.devin]
 logo = "devin"
 
@@ -317,6 +323,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/98eefc93-image.avif",
 ]
 
+[integrations.helm]
+logo = "helm"
+
 [integrations.huggingface]
 logo = "huggingface"
 replaces = [
@@ -334,6 +343,9 @@ logo = "java"
 
 [integrations.kiro]
 logo = "kiro"
+
+[integrations.kubernetes]
+logo = "kubernetes"
 
 [integrations.langchain]
 logo = "langchain"
@@ -540,6 +552,9 @@ replaces = [
 [integrations.opencode]
 logo = "opencode"
 
+[integrations.openinference]
+logo = "openinference"
+
 [integrations.openlit]
 logo = "openlit"
 
@@ -557,6 +572,9 @@ logo = "orcarouter"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
 ]
+
+[integrations.phoenix]
+logo = "phoenix"
 
 [integrations.pipecat]
 logo = "pipecat"
@@ -603,6 +621,12 @@ logo = "qwen"
 
 [integrations.ragas]
 logo = "ragas"
+
+[integrations.railway]
+logo = "railway"
+
+[integrations.render]
+logo = "render"
 
 [integrations.scalekit]
 logo = "scalekit"
@@ -695,6 +719,9 @@ replaces = [
 [integrations.vllm]
 logo = "vllm"
 
+[integrations.wasm]
+logo = "wasm"
+
 [integrations.xai]
 logo = "xai"
 
@@ -718,6 +745,8 @@ replaces = [
 [topics.annotation]
 
 [topics.cli]
+
+[topics.dataset]
 
 [topics.eval]
 replaces = [
@@ -863,6 +892,7 @@ replaces = [
 
 # Sandbox logo URLs are shared by integration and settings pages.
 # Link these banners explicitly so each page keeps its own banner path.
+
 [banners.integrations-sandboxes-daytona]
 title = "Daytona"
 logo = "daytona"

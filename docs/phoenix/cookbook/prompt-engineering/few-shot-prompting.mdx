@@ -123,7 +123,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3f8f33b2-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3f8f33b2-image.jpeg" alt="Phoenix example with a zero-shot prompt and response" />
 </Frame>
 
 Next we will define a task and evaluator for the experiment.
@@ -172,7 +172,7 @@ initial_experiment = px_client.experiments.run_experiment(
 In the following sections, we refine the prompt to enhance the model's performance and improve the evaluation results on our dataset.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/479413e2-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/479413e2-image.jpeg" alt="Phoenix experiment results for zero-shot prompting" />
 </Frame>
 
 ## One-Shot Prompting
@@ -214,7 +214,7 @@ one_shot_prompt = PhoenixClient().prompts.create(
 Under the prompts tab in Phoenix, we can see that our prompt has an updated version. The prompt includes one random example from the test dataset to help the model make its classification.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7c5aef58-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7c5aef58-image.jpeg" alt="Phoenix example with a one-shot prompt and response" />
 </Frame>
 
 Similar to the previous step, we will define the task and run the evaluator. This time, we will be using our updated prompt for One-Shot Prompting and see how the evaluation changes.
@@ -244,7 +244,7 @@ In this run, we observe a slight improvement in the evaluation results. Let’s 
 **Note**: You may sometimes see a decline in performance, which is not necessarily "wrong." Results can vary due to factors such as the choice of LLM, the randomness of selected test examples, and other inherent model behaviors.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cdab4863-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cdab4863-image.jpeg" alt="Phoenix experiment results for one-shot prompting" />
 </Frame>
 
 ## Few-Shot Prompting
@@ -285,7 +285,7 @@ few_shot_prompt = PhoenixClient().prompts.create(
 Our updated prompt also lives in Phoenix. We can clearly see how the linear version history of our prompt was built.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6e7ad85c-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6e7ad85c-image.jpeg" alt="Phoenix example with a few-shot prompt and response" />
 </Frame>
 
 Just like previous steps, we run our task and evaluation.
@@ -317,7 +317,7 @@ In this final run, we observe the most significant improvement in evaluation res
 Note: Performance may still vary, and in some cases, results might decline. Like before, this is not necessarily "wrong," as factors like the choice of LLM, the randomness of selected test examples, and inherent model behaviors can all influence outcomes.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8b50ef80-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8b50ef80-image.jpeg" alt="Phoenix comparison of zero-shot, one-shot, and few-shot experiments" />
 </Frame>
 
 From here, you can check out more [examples on Phoenix](/docs/phoenix/cookbook), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

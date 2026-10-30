@@ -117,7 +117,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/001cbba8-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/001cbba8-image.jpeg" alt="Phoenix dataset examples used for the zero-shot prompting baseline" />
 </Frame>
 
 Next, we will define a task and evaluator for the experiment. Then, we run our experiment.
@@ -159,7 +159,7 @@ We can review the results of the experiment in Phoenix. We achieved \~75% accura
 **Note**: Throughout this tutorial, you will encounter various evaluator outcomes. At times, you may notice a decline in performance compared to the initial experiment. However, this is not necessarily a flaw. Variations in results can arise due to factors such as the choice of LLM, inherent model behaviors, and randomness.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/faaa33f1-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/faaa33f1-image.jpeg" alt="Phoenix experiment results for the zero-shot prompting baseline" />
 </Frame>
 
 ## Zero-Shot CoT Prompting
@@ -238,11 +238,11 @@ initial_experiment = px_client.experiments.run_experiment(
 By clicking into the experiment in Phoenix, you can take a look at the steps the model took the reach the answer. By telling the model to think through the problem and output reasoning, we see a performance improvement.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bf02e468-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bf02e468-image.jpeg" alt="Phoenix comparison of zero-shot chain-of-thought responses" />
 </Frame>
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/59367c9d-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/59367c9d-image.jpeg" alt="Phoenix results for the zero-shot chain-of-thought experiment" />
 </Frame>
 
 ## Self-Consistency CoT Prompting
@@ -314,11 +314,11 @@ initial_experiment = px_client.experiments.run_experiment(
 We've observed a significant improvement in performance! Since the prompt instructs the model to compute the answer multiple times independently, you may notice that the experiment takes slightly longer to run. You can click into the experiment explore to view the independent computations the model performed for each problem.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/68542c22-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/68542c22-image.jpeg" alt="Phoenix results for self-consistent chain-of-thought prompting" />
 </Frame>
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cab94fe4-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cab94fe4-image.jpeg" alt="Phoenix dataset example showing a self-consistent chain-of-thought response" />
 </Frame>
 
 ## Few Shot CoT Prompting
@@ -366,7 +366,7 @@ few_shot_COT = PhoenixClient().prompts.create(
 ```
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1d542b0-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1d542b0-image.jpeg" alt="Phoenix example showing the few-shot chain-of-thought prompt and output" />
 </Frame>
 
 ```python expandable
@@ -412,7 +412,7 @@ You can review your prompt version history in the **Prompts tab** and explore th
 To refine and test these prompts against other datasets, experiment with Chain of Thought (CoT) prompting to see its relevance to your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using the TypeScript and Python Clients.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f4c71f73-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f4c71f73-image.jpeg" alt="Phoenix comparison of chain-of-thought prompting experiments" />
 </Frame>
 
 From here, you can check out more [examples on Phoenix](/docs/phoenix/cookbook), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

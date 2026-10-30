@@ -69,4 +69,4 @@ Edit `scripts/card_design.py` and `references/card-design.md` together, in a PR 
 
 ## Check for drift
 
-Run `cards.py status --check` before you merge. It fails if the MDX uses a card or banner that is missing or changed in GCS, uses an unknown one, or matches two `replaces` entries. It also lists legacy images that are not managed yet, and GCS objects under `docs-cards/` that belong to no card.
+Run `cards.py status --check` before you merge. It fails if the MDX uses a card or banner that is missing or changed in GCS, uses an unknown one, has duplicate `img` attributes, or matches two `replaces` entries. It also lists legacy images that are not managed yet, and GCS objects under `docs-cards/` that belong to no card.

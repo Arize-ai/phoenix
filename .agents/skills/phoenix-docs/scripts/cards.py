@@ -81,7 +81,7 @@ ENCODE = {"format": "AVIF", "quality": 62, "speed": 4, "subsampling": "4:2:0"}
 KEY = r"[a-z0-9][a-z0-9-]*"
 MANAGED = re.compile(re.escape(PUBLIC) + rf"/((?:{'|'.join(SECTIONS)})/{KEY})\.avif")
 CARD_TAG = re.compile(r"<Card\b[^>]*>", re.S)
-IMG_ATTR = re.compile(r'\bimg="([^"]+)"')
+IMG_ATTR = re.compile(r'\bimg\s*=\s*"([^"]+)"')
 ATTR = re.compile(r'\b(title|href)="([^"]*)"')
 # A page image: ![alt](url) or <img src="url">, the forms banners replace.
 IMAGE = r"!\[[^\]]*\]\([^)\s]+\)|<img\b[^>]*?/?>"
@@ -359,7 +359,11 @@ def card_tags() -> list[tuple[Path, str, dict[str, str]]]:
     """Every <Card img> in the docs as (file, img URL, title/href attributes)."""
     tags = []
     for path in mdx_files():
-        for tag in CARD_TAG.finditer(path.read_text()):
+        source = path.read_text()
+        for tag in CARD_TAG.finditer(source):
+            if len(re.findall(r"\bimg\s*=", tag.group(0))) > 1:
+                line = source[: tag.start()].count("\n") + 1
+                sys.exit(f"{path.relative_to(REPO)}:{line}: duplicate Card img attributes")
             img = IMG_ATTR.search(tag.group(0))
             if img:
                 tags.append((path, img.group(1), dict(ATTR.findall(tag.group(0)))))
