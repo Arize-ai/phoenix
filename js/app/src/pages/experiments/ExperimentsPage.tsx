@@ -34,8 +34,8 @@ export function ExperimentsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiments");
   const [searchParams] = useSearchParams();
-  // Read the URL's filters once. The table refetches when they change, so
-  // the page query must not refetch, and suspend, as well.
+  // Read the URL's filters only on mount. The table refetches on later
+  // changes, and refetching this query as well would suspend the whole page.
   const [initialMetadataFilters] = useState(() => {
     const filters = readMetadataFiltersFromSearchParams(searchParams);
     return filters.length ? filters : null;

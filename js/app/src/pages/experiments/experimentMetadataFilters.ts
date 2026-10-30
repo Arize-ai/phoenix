@@ -23,11 +23,8 @@ export const METADATA_FILTERS_SEARCH_PARAM = "metadataFilters";
  * path. Returns null when the key is blank or has an empty segment.
  */
 export function parseMetadataFilterKey(key: string): string[] | null {
-  const path = key.trim().split(".");
-  if (path.some((segment) => segment.trim() === "")) {
-    return null;
-  }
-  return path.map((segment) => segment.trim());
+  const path = key.split(".").map((segment) => segment.trim());
+  return path.includes("") ? null : path;
 }
 
 /**
