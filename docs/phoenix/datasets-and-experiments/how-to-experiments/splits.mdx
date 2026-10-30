@@ -89,6 +89,36 @@ dataset = client.datasets.create_dataset(
     split_key="split",
 )
 ```
+
+To create, edit, and delete splits on an existing dataset, and to add or remove examples, use `create_split`, `update_split`, and `delete_split`. Example IDs can be the user-provided `id` or the Phoenix `node_id` of each example. These methods require Phoenix server 19.20.0 or newer; pass `node_id` values when you target a server on 20.15.0 or older.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+test_split = client.datasets.create_split(
+    dataset="my-dataset",
+    name="test",
+    description="Held-out evaluation examples",
+    example_ids=["example-1"],
+)
+
+# Only the fields you pass change. Adding an existing member or removing a
+# non-member is a no-op.
+client.datasets.update_split(
+    dataset="my-dataset",
+    split_id=test_split["id"],
+    add_example_ids=["example-2"],
+    remove_example_ids=["example-1"],
+)
+
+# Deleting a split removes the split and its memberships. The examples stay in
+# the dataset.
+client.datasets.delete_split(dataset="my-dataset", split_id=test_split["id"])
+```
+
+Split names are unique across the Phoenix instance, so creating or renaming a split to a name that is already taken raises an `httpx.HTTPStatusError` with status 409. The `AsyncClient` has the same methods.
 </Tab>
 
 <Tab title="TypeScript" icon="js">

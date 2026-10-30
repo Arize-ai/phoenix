@@ -1,4 +1,5 @@
 import gzip
+import json
 import warnings
 from datetime import datetime
 from io import StringIO
@@ -11,7 +12,13 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    CREATE_DATASET_SPLIT,
+    DELETE_DATASET_SPLIT,
+    UPDATE_DATASET_SPLIT,
+)
 from phoenix.client.resources.datasets import (
+    AsyncDatasets,
     Dataset,
     DatasetKeys,
     Datasets,
@@ -25,6 +32,7 @@ from phoenix.client.resources.datasets import (
     _prepare_csv,  # pyright: ignore[reportPrivateUsage]
     _prepare_dataframe_as_csv,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.types import NOT_GIVEN
 
 
 class TestDataset:
@@ -625,3 +633,215 @@ class TestUpdateActionFallback:
                 action="append",
             )
         assert mock_client.post.call_count == 1
+
+
+_DATASET_ID = "RGF0YXNldDox"  # GlobalID("Dataset", "1")
+_SPLIT_ID = "RGF0YXNldFNwbGl0OjE="  # GlobalID("DatasetSplit", "1")
+
+
+def _make_split(**overrides: Any) -> v1.DatasetSplit:
+    split = v1.DatasetSplit(
+        id=_SPLIT_ID,
+        name="test",
+        description=None,
+        color="#33c5e8",
+        metadata={},
+        example_count=0,
+        created_at="2026-10-30T10:00:00+00:00",
+        updated_at="2026-10-30T10:00:00+00:00",
+    )
+    split.update(overrides)  # type: ignore[typeddict-item]
+    return split
+
+
+def _split_handler(
+    expected_method: str,
+    expected_path: str,
+    expected_body: Any,
+    response: httpx.Response,
+) -> Any:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path == "/v1/datasets":
+            # Name lookup performed before the split request.
+            assert request.url.params["name"] == "my-dataset"
+            return httpx.Response(200, json={"data": [{"id": _DATASET_ID}], "next_cursor": None})
+        assert request.method == expected_method
+        assert request.url.path == expected_path
+        if expected_body is None:
+            assert request.content == b""
+        else:
+            assert json.loads(request.content) == expected_body
+        return response
+
+    return handler
+
+
+class TestDatasetSplitWrites:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_create_split_omits_unset_fields(self, is_async: bool) -> None:
+        created = _make_split()
+        handler = _split_handler(
+            "POST",
+            f"/v1/datasets/{_DATASET_ID}/splits",
+            {"name": "test"},
+            httpx.Response(201, json={"data": created}),
+        )
+        if is_async:
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url="http://test"
+            ) as aclient:
+                result = await AsyncDatasets(aclient).create_split(
+                    dataset="my-dataset", name="test"
+                )
+        else:
+            client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+            result = Datasets(client).create_split(dataset="my-dataset", name="test")
+        assert result == created
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_create_split_sends_optional_fields(self, is_async: bool) -> None:
+        created = _make_split(description="held out", metadata={"k": "v"}, example_count=2)
+        body = {
+            "name": "test",
+            "description": "held out",
+            "color": "#ff0000",
+            "metadata": {"k": "v"},
+            "example_ids": ["ex-1", "ex-2"],
+        }
+        handler = _split_handler(
+            "POST",
+            f"/v1/datasets/{_DATASET_ID}/splits",
+            body,
+            httpx.Response(201, json={"data": created}),
+        )
+        kwargs: dict[str, Any] = dict(
+            dataset=_DATASET_ID,
+            name="test",
+            description="held out",
+            color="#ff0000",
+            metadata={"k": "v"},
+            example_ids=("ex-1", "ex-2"),
+        )
+        if is_async:
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url="http://test"
+            ) as aclient:
+                result = await AsyncDatasets(aclient).create_split(**kwargs)
+        else:
+            client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+            result = Datasets(client).create_split(**kwargs)
+        assert result == created
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_update_split_sends_only_given_fields(self, is_async: bool) -> None:
+        updated = _make_split(example_count=1)
+        body = {
+            "description": None,
+            "add_example_ids": ["ex-1"],
+            "remove_example_ids": ["ex-2"],
+        }
+        handler = _split_handler(
+            "PATCH",
+            f"/v1/datasets/{_DATASET_ID}/splits/{_SPLIT_ID}",
+            body,
+            httpx.Response(200, json={"data": updated}),
+        )
+        kwargs: dict[str, Any] = dict(
+            dataset="my-dataset",
+            split_id=_SPLIT_ID,
+            description=None,
+            add_example_ids=["ex-1"],
+            remove_example_ids=["ex-2"],
+        )
+        if is_async:
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url="http://test"
+            ) as aclient:
+                result = await AsyncDatasets(aclient).update_split(**kwargs)
+        else:
+            client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+            result = Datasets(client).update_split(**kwargs)
+        assert result == updated
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_update_split_with_no_fields_sends_empty_body(self, is_async: bool) -> None:
+        handler = _split_handler(
+            "PATCH",
+            f"/v1/datasets/{_DATASET_ID}/splits/{_SPLIT_ID}",
+            {},
+            httpx.Response(200, json={"data": _make_split()}),
+        )
+        if is_async:
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(handler), base_url="http://test"
+            ) as aclient:
+                await AsyncDatasets(aclient).update_split(
+                    dataset=_DATASET_ID, split_id=_SPLIT_ID, name=NOT_GIVEN
+                )
+        else:
+            client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+            Datasets(client).update_split(dataset=_DATASET_ID, split_id=_SPLIT_ID, name=NOT_GIVEN)
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_delete_split(self, is_async: bool) -> None:
+        handler = _split_handler(
+            "DELETE",
+            f"/v1/datasets/{_DATASET_ID}/splits/{_SPLIT_ID}",
+            None,
+            httpx.Response(204),
+        )
+        methods: list[str] = []
+
+        def recording_handler(request: httpx.Request) -> httpx.Response:
+            methods.append(request.method)
+            response: httpx.Response = handler(request)
+            return response
+
+        transport = httpx.MockTransport(recording_handler)
+        if is_async:
+            async with httpx.AsyncClient(transport=transport, base_url="http://test") as aclient:
+                await AsyncDatasets(aclient).delete_split(dataset="my-dataset", split_id=_SPLIT_ID)
+        else:
+            client = httpx.Client(transport=transport, base_url="http://test")
+            Datasets(client).delete_split(dataset="my-dataset", split_id=_SPLIT_ID)
+        assert methods == ["GET", "DELETE"]
+
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_split_errors_raise_http_status_error(self, is_async: bool) -> None:
+        handler = _split_handler(
+            "POST",
+            f"/v1/datasets/{_DATASET_ID}/splits",
+            {"name": "dupe"},
+            httpx.Response(409, json={"detail": "A dataset split named 'dupe' already exists"}),
+        )
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            if is_async:
+                async with httpx.AsyncClient(
+                    transport=httpx.MockTransport(handler), base_url="http://test"
+                ) as aclient:
+                    await AsyncDatasets(aclient).create_split(dataset=_DATASET_ID, name="dupe")
+            else:
+                client = httpx.Client(
+                    transport=httpx.MockTransport(handler), base_url="http://test"
+                )
+                Datasets(client).create_split(dataset=_DATASET_ID, name="dupe")
+        assert exc_info.value.response.status_code == 409
+
+    def test_split_methods_require_server_version(self) -> None:
+        required: list[object] = []
+
+        class _Guard:
+            def require(self, requirement: object) -> None:
+                required.append(requirement)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "DELETE":
+                return httpx.Response(204)
+            return httpx.Response(200, json={"data": _make_split()})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        datasets = Datasets(client, _guard=_Guard())  # type: ignore[arg-type]
+        datasets.create_split(dataset=_DATASET_ID, name="test")
+        datasets.update_split(dataset=_DATASET_ID, split_id=_SPLIT_ID, name="renamed")
+        datasets.delete_split(dataset=_DATASET_ID, split_id=_SPLIT_ID)
+        assert required == [CREATE_DATASET_SPLIT, UPDATE_DATASET_SPLIT, DELETE_DATASET_SPLIT]
