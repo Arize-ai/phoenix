@@ -835,6 +835,42 @@ class TestBedrockClient:
         tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
         assert "strict" not in tool_spec
 
+    def test_ai_tool_calls_are_sent_as_tool_use_blocks(self) -> None:
+        """Replayed AI tool calls must reach Converse as `toolUse` content blocks."""
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        messages = client._build_converse_messages(
+            [
+                create_playground_message(
+                    ChatCompletionMessageRole.AI,
+                    "",
+                    tool_calls=[
+                        {
+                            "id": "call_1",
+                            "function": {"name": "get_weather", "arguments": {"city": "Paris"}},
+                        }
+                    ],
+                ),
+            ]
+        )
+        assert messages == [
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "toolUse": {
+                            "toolUseId": "call_1",
+                            "name": "get_weather",
+                            "input": {"city": "Paris"},
+                        }
+                    }
+                ],
+            }
+        ]
+
 
 class TestGetOpenAIClientClass:
     """Tests for the get_openai_client_class helper function."""
