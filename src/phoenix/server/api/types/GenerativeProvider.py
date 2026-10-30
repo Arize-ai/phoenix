@@ -12,7 +12,7 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
-MINIMAX_MODEL_NAMES = ("MiniMax-M3", "MiniMax-M2.7")
+MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
 
 @strawberry.enum

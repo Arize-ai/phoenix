@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-python-${{ github.head_ref }}
+  group: test-python-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -41,6 +41,7 @@ jobs:
       skills: ${{ steps.filter.outputs.skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
+      sync_models: ${{ steps.filter.outputs.sync_models }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -62,16 +63,15 @@ jobs:
               - "tests/**"
               - "tutorials/**"
               - "pyproject.toml"
-              - "tox.ini"
             phoenix_client:
               - "packages/phoenix-client/**"
-              - "tox.ini"
+              - "uv.lock"
             phoenix_evals:
               - "packages/phoenix-evals/**"
-              - "tox.ini"
+              - "uv.lock"
             phoenix_otel:
               - "packages/phoenix-otel/**"
-              - "tox.ini"
+              - "uv.lock"
             migrations:
               - "src/phoenix/db/migrations/versions/**"
             ddl:
@@ -117,6 +117,9 @@ jobs:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
+            sync_models:
+              - "scripts/cost_tracking/**"
+              - "src/phoenix/server/cost_tracking/**"
       # Skip suites only when every changed path is a changelog or release
       # manifest.
       - name: Detect a bookkeeping-only change
@@ -153,6 +156,7 @@ jobs:
           SKILLS: ${{ steps.filter.outputs.skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
+          SYNC_MODELS: ${{ steps.filter.outputs.sync_models }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -169,6 +173,7 @@ jobs:
           echo "skills: $SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
+          echo "sync_models: $SYNC_MODELS"
 
   phoenix-client:
     name: Phoenix Client
@@ -177,15 +182,14 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.11", "3.13", "3.14"]
+        py: ["3.11", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: |
-            requirements/
-            packages/phoenix-client/
-            packages/phoenix-evals/
+            packages/
+            evals/harbor/verifiers/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -193,7 +197,13 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uvx tox run -e phoenix_client -- -ra -x
+      - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
+      - run: uv run --no-sync pyright .
+        working-directory: packages/phoenix-client
+      - run: uv run --no-sync mypy --strict .
+        working-directory: packages/phoenix-client
+      - run: uv run --no-sync pytest -ra -x tests/client
+        working-directory: packages/phoenix-client
 
   phoenix-evals:
     name: Phoenix Evals
@@ -203,14 +213,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.13", "3.14"]
+        py: ["3.11", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: |
-            requirements/
-            packages/phoenix-evals/
+            packages/
+            evals/harbor/verifiers/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -218,7 +228,11 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uvx tox run -e phoenix_evals -- -ra -x
+      - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
+      - run: uv run --no-sync mypy .
+        working-directory: packages/phoenix-evals
+      - run: uv run --no-sync pytest -ra -x .
+        working-directory: packages/phoenix-evals
 
   phoenix-otel:
     name: Phoenix OTel
@@ -227,14 +241,14 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: |
-            requirements/
-            packages/phoenix-otel/
+            packages/
+            evals/harbor/verifiers/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -242,7 +256,11 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
-      - run: uvx tox run -e phoenix_otel -- -ra -x
+      - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
+      - run: uv run --no-sync mypy .
+        working-directory: packages/phoenix-otel
+      - run: uv run --no-sync pytest -ra -x .
+        working-directory: packages/phoenix-otel
 
   test-json-canonicalization-schema:
     name: JSON Canonicalization Schema (${{ matrix.py }}, ${{ matrix.os }})
@@ -257,11 +275,9 @@ jobs:
             os: ubuntu-latest
           - py: "3.11"
             os: macos-latest
-          - py: "3.12"
-            os: ubuntu-latest
-          - py: "3.13"
+          - py: "3.15"
             os: windows-latest
-          - py: "3.14"
+          - py: "3.15"
             os: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -275,6 +291,10 @@ jobs:
             packages/
             evals/harbor/verifiers/
             .jcs-test-data/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -298,7 +318,7 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -325,7 +345,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -352,7 +372,7 @@ jobs:
     if: ${{ needs.changes.outputs.harbor_graphql == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -378,7 +398,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.filter_dsl == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -389,7 +409,6 @@ jobs:
           sparse-checkout: |
             Makefile
             scripts/ci/
-            requirements/
             src/phoenix/
             packages/
             evals/harbor/verifiers/
@@ -430,7 +449,7 @@ jobs:
     if: ${{ needs.changes.outputs.skill_graphql_examples == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -452,13 +471,46 @@ jobs:
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
 
+  test-sync-models:
+    name: Test Model Cost Sync Script
+    needs: changes
+    if: ${{ needs.changes.outputs.sync_models == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/cost_tracking/
+            requirements/
+            src/phoenix/
+            packages/
+            evals/harbor/verifiers/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Test the model cost manifest sync script
+        run: make test-sync-models
+
   doctests:
     name: Doctests
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -484,7 +536,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -511,7 +563,7 @@ jobs:
     if: ${{ needs.changes.outputs.ddl == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -542,7 +594,7 @@ jobs:
     if: ${{ needs.changes.outputs.prompts == 'true' }}
     strategy:
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -589,7 +641,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -614,7 +666,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.14"]
+        py: ["3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -644,7 +696,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.11", "3.14"]
+        py: ["3.11", "3.15"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -654,7 +706,6 @@ jobs:
           sparse-checkout: |
             Makefile
             scripts/ci/
-            requirements/
             src/
             packages/
             tests/
@@ -685,16 +736,23 @@ jobs:
       matrix:
         py: ["3.11"]
         db: [sqlite, postgresql]
+    env:
+      PHOENIX_MASK_INTERNAL_SERVER_ERRORS: "false"
+      # uv installs without bytecode by default, which leaves every xdist worker to
+      # compile each module it imports on first use.
+      UV_COMPILE_BYTECODE: "1"
+      # pytest's stdout is a block-buffered pipe on CI; unbuffered output gives each
+      # line its own timestamp in the job log.
+      PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: |
-            requirements/
             src/phoenix/
             evals/
-            packages/phoenix-evals/
+            packages/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -719,14 +777,22 @@ jobs:
           sudo apt-get -yqq install postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get -yqq install postgresql-14
+      - name: Sync dependencies
+        run: uv sync --frozen --all-packages
+      - name: Warm pytest's assertion-rewrite cache for the xdist workers
+        continue-on-error: true
+        working-directory: tests
+        run: uv run --no-sync python unit/_warm_rewrite_cache.py "${{ github.workspace }}" unit -n 16 --dist loadscope
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 -n 16 --dist loadscope
+        working-directory: tests
+        run: uv run --no-sync pytest -ra --durations=20 --timeout 360 -n 16 --dist loadscope unit/
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 --db postgresql -n 16 --dist loadscope --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
+        working-directory: tests
+        run: uv run --no-sync pytest -ra --durations=20 --timeout 360 --db postgresql -n 16 --dist loadscope --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl unit/
 
   integration-tests:
     name: Integration Tests
@@ -741,6 +807,7 @@ jobs:
         os: [oss-4-core-runner]
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
+      PHOENIX_MASK_INTERNAL_SERVER_ERRORS: "false"
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
@@ -761,10 +828,9 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            requirements/
             src/phoenix/
-            packages/phoenix-client/
-            packages/phoenix-evals/
+            packages/
+            evals/harbor/verifiers/
             tests/integration/
             tests/__generated__/
             tests/__init__.py
@@ -783,9 +849,24 @@ jobs:
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+      - name: Sync dependencies
+        run: uv sync --frozen
+      # Return the next major version in response headers so all client methods
+      # work; otherwise, some may be version-gated. Avoids importing phoenix
+      # (which triggers heavy deps like pandas/numpy).
+      - name: Report the next major server version
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import re, pathlib
+          vf = pathlib.Path("src/phoenix/version.py")
+          major = int(re.search(r'"(\d+)\.', vf.read_text()).group(1))
+          vf.write_text(f'__version__ = "{major + 1}.0.0"\n')
+          PY
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 16
+        working-directory: tests/integration
+        run: uv run --no-sync pytest -ra --durations=20 --reruns 5 --timeout 360 -n 16 .
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
@@ -814,10 +895,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Set up Python 3.14
+      - name: Set up Python 3.11
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: 3.14
+          python-version: "3.11"
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -825,7 +906,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
-          version: "0.12.19"
+          version: "0.13.5"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -872,37 +953,6 @@ jobs:
           alembic upgrade head
           alembic current
 
-  phoenix-client-canary-tests-sdk:
-    name: Phoenix Client Canary Tests for Third-Party SDKs
-    runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        py: ["3.11"]
-        pkg: [openai, anthropic, google_genai]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            requirements/
-            packages/phoenix-client/
-            packages/phoenix-evals/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: "pyproject.toml"
-          resolution-strategy: "lowest"
-      - name: Run canary tests for ${{ matrix.pkg }}
-        run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
-
   ci-required:
     name: Python CI Required
     needs:
@@ -917,6 +967,7 @@ jobs:
       - check-filter-dsl-snippets
       - check-docs-snippets
       - check-skill-graphql-examples
+      - test-sync-models
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
@@ -927,7 +978,6 @@ jobs:
       - integration-tests
       - test-migrations
       - test-json-canonicalization-schema
-      - phoenix-client-canary-tests-sdk
     if: always()
     runs-on: ubuntu-latest
     steps:

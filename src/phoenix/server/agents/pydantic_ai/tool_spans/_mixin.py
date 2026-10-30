@@ -4,13 +4,14 @@ from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
 from openinference.instrumentation import (
+    OITracer,
     get_input_attributes,
     get_output_attributes,
     get_span_kind_attributes,
     get_tool_attributes,
 )
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, ToolCallAttributes
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai.tools import ToolDefinition
 
 
@@ -25,7 +26,7 @@ class ToolSpanMixin:
     rather than by raising can pass ``get_error`` to mark the span as an error.
     """
 
-    tracer: Tracer
+    tracer: OITracer
 
     @contextmanager
     def _tool_span(

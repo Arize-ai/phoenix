@@ -26,7 +26,8 @@ export const batchSpanAnnotateOperation = defineUIOperation({
     "reuse the same name and identifier to update one, or distinct identifiers (e.g. " +
     "evaluator:v1) for multiple annotations with the same name. Set annotatorKind to LLM " +
     "(default) for your own judgment, HUMAN when recording explicit user feedback, or CODE " +
-    "for deterministic checks. The name 'note' is reserved for span notes.",
+    "for deterministic checks. DECISION and AGENT are also valid. The name 'note' is " +
+    "reserved for span notes.",
   inputSchema: batchSpanAnnotateInputSchema,
   operationKind: "approval",
   requireSession: true,

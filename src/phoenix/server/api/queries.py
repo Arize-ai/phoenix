@@ -100,6 +100,10 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.ModelCostManifest import (
+    ModelCostManifest,
+    to_gql_model_cost_manifest,
+)
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -153,6 +157,8 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -352,6 +358,19 @@ class Query:
             )
             data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description=(
+            "The model cost manifest that the built-in models and token prices were last "
+            "synced from, or null if none has been applied."
+        ),
+    )  # type: ignore
+    async def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
+        async with info.context.db.read() as session:
+            marker = await get_applied_manifest_version(session)
+        if marker is None:
+            return None
+        return to_gql_model_cost_manifest(marker)
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
@@ -1637,8 +1656,15 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
+        if info.context.auth_enabled and not (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
+            database_encryption_key_is_public = None
+        else:
+            database_encryption_key_is_public = not info.context.secret
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+            database_encryption_key_is_public=database_encryption_key_is_public,
         )
 
     @strawberry.field(

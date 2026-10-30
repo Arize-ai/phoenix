@@ -117,7 +117,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -132,7 +132,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -147,7 +147,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -161,7 +161,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -174,8 +174,8 @@ class Traces:
         Args:
             trace_id (str): The ID of the trace to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -295,7 +295,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> list[InsertedTraceAnnotation]: ...
 
@@ -305,7 +305,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -315,7 +315,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[list[InsertedTraceAnnotation]]: ...
 
@@ -324,7 +324,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedTraceAnnotation]]:
         """Log multiple trace annotations from a pandas DataFrame.
@@ -344,10 +344,10 @@ class Traces:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -541,7 +541,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -556,7 +556,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -571,7 +571,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -585,7 +585,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -598,8 +598,8 @@ class AsyncTraces:
         Args:
             trace_id (str): The ID of the trace to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -719,7 +719,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> list[InsertedTraceAnnotation]: ...
 
@@ -729,7 +729,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -739,7 +739,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[list[InsertedTraceAnnotation]]: ...
 
@@ -748,7 +748,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedTraceAnnotation]]:
         """Log multiple trace annotations from a pandas DataFrame asynchronously.
@@ -768,10 +768,10 @@ class AsyncTraces:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.

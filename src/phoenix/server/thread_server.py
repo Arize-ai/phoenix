@@ -33,7 +33,8 @@ class ThreadServer(Server):
         loop = "asyncio" if _nest_asyncio_applied() else "auto"
         config = Config(
             app=app,
-            host=host,
+            # uvicorn binds IPv4 and IPv6 separately for None, which :: alone does not do.
+            host=None if host == "::" else host,  # type: ignore[arg-type]
             port=port,
             root_path=root_path,
             # TODO: save logs to file

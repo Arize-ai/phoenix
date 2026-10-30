@@ -21,10 +21,16 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
+import { movePromptVersionTag } from "@phoenix/components/prompt/movePromptVersionTag";
 
-import { validateIdentifier } from "../../utils/identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  validateIdentifier,
+} from "../../utils/identifierUtils";
+import type { NewPromptVersionTagDialogMutation } from "./__generated__/NewPromptVersionTagDialogMutation.graphql";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -33,9 +39,14 @@ type PromptVersionTagFormParams = {
 
 export function NewPromptVersionDialog({
   onNewTagCreated,
+  promptId,
   promptVersionId,
   onDismiss,
 }: {
+  /**
+   * The prompt the version belongs to
+   */
+  promptId: string;
   /**
    * The prompt version to set the tag on
    */
@@ -55,20 +66,20 @@ export function NewPromptVersionDialog({
     mode: "onChange",
   });
   const [error, setError] = useState<string | null>(null);
-  const [commitCreate, isCommitting] = useMutation(graphql`
-    mutation NewPromptVersionTagDialogMutation(
-      $input: SetPromptVersionTagInput!
-      $promptVersionId: ID!
-    ) {
-      setPromptVersionTag(input: $input) {
-        query {
-          node(id: $promptVersionId) {
-            ...PromptVersionTagsList_data
+  const [commitCreate, isCommitting] =
+    useMutation<NewPromptVersionTagDialogMutation>(graphql`
+      mutation NewPromptVersionTagDialogMutation(
+        $input: SetPromptVersionTagInput!
+      ) {
+        setPromptVersionTag(input: $input) {
+          promptVersionTag {
+            id
+            name
+            promptVersionId
           }
         }
       }
-    }
-  `);
+    `);
   const onSubmit = (newTag: PromptVersionTagFormParams) => {
     setError(null);
     commitCreate({
@@ -78,7 +89,17 @@ export function NewPromptVersionDialog({
           description: newTag.description,
           promptVersionId: promptVersionId,
         },
-        promptVersionId,
+      },
+      updater: (store, data) => {
+        const tagId = data?.setPromptVersionTag.promptVersionTag?.id;
+        if (tagId) {
+          movePromptVersionTag({
+            store,
+            promptId,
+            versionId: promptVersionId,
+            tagId,
+          });
+        }
       },
       onCompleted: () => {
         onNewTagCreated(newTag);
@@ -120,7 +141,14 @@ export function NewPromptVersionDialog({
                   }) => (
                     <TextField
                       isInvalid={invalid}
-                      onChange={onChange}
+                      onChange={(value) =>
+                        onChange(
+                          transformInputValue({
+                            value,
+                            transform: replaceWhitespaceWithDashes,
+                          })
+                        )
+                      }
                       onBlur={onBlur}
                       name={name}
                       value={value}
