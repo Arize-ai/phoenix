@@ -1,0 +1,144 @@
+---
+title: "Test sandboxable agents with Harbor"
+description: "Run Wonder Toys in a fresh environment and verify the order it saved, then inspect the result in Phoenix."
+---
+
+{/* video: TODO */}
+
+Changing an agent's model, prompt, or tools can improve some tasks and break others. In [Compare results and agent steps](/docs/phoenix/learn/compare-experiments), you compared versions on the same shopping requests. For tasks that change application data, a fair comparison also needs the same starting environment and checks of the completed work.
+
+[Harbor](https://docs.harborframework.com/) packages instructions, an isolated test environment (a **sandbox**), and code that checks the outcome (a **verifier**) into a reusable benchmark task. You'll start with one [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) purchase task and inspect its scores and agent trace in Phoenix. You can reuse that task to compare other agent configurations.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-harbor-light-75a25a36912d.svg" alt="Harbor starts a fresh Wonder Toys environment, runs the confirmed purchase request, and verifies saved order state. Phoenix records the rewards and agent trace." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-harbor-dark-05bce1c1e0e7.svg" alt="Harbor starts a fresh Wonder Toys environment, runs the confirmed purchase request, and verifies saved order state. Phoenix records the rewards and agent trace." />
+</Frame>
+
+## Before you start
+
+Use your existing Wonder Toys checkout. You'll need:
+
+- Python 3.12 or newer and `uv`.
+- [Docker](https://docs.docker.com/get-started/get-docker/) and [Phoenix](/docs/phoenix/learn/capture-first-run#step-1-start-phoenix) running. Use Phoenix 15.0 or newer.
+- The [Anthropic API key configured earlier](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys). The agent run makes model API calls.
+
+## Step 1: Understand the task
+
+The exercise includes a ready-to-run [purchase task](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/purchase-confirmed/instruction.md). First, read the fictional shopper's request and the checks below so you know what counts as success:
+
+> Buy exactly one Dinosaur Explorer Kit, product toy-051, for me. I confirm the product, quantity, and purchase using my saved payment method.
+>
+> Ship it to Demo Shopper, 123 Example Street, Example City, CA 00000, US. Do not purchase any other products. Tell me the resulting order ID and total.
+
+For this task, the [verifier](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/purchase-confirmed/tests/verify.py) checks that the agent saved exactly 1 order with:
+
+- **The correct items:** 1 Dinosaur Explorer Kit, with no extra products.
+- **The correct address:** The shipping details from the request.
+- **The correct owner:** `academy-shopper`, the test shopper's account.
+
+These checks use the same approach as [Write checks for actions and outcomes](/docs/phoenix/learn/code-checks). A confirmation in the agent's reply alone won't pass them.
+
+<Accordion title="What's included in the task?">
+  A [Harbor task](https://docs.harborframework.com/tasks/overview) combines a request, an environment, and checks. The supplied [purchase task](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/harbor/purchase-confirmed) contains:
+
+  - **[`instruction.md`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/purchase-confirmed/instruction.md):** The shopper's request.
+  - **[`environment/`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/harbor/purchase-confirmed/environment):** The Docker setup for the existing application.
+  - **[`tests/verify.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/purchase-confirmed/tests/verify.py):** The saved-order checks.
+  - **[`solution/`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/harbor/purchase-confirmed/solution):** A reference solution you'll use to check the verifier in Step 4.
+</Accordion>
+
+## Step 2: Run the task
+
+Run the supplied task to see whether Wonder Toys meets those checks. Harbor reads the request and verifier from the task files and starts the agent in a fresh environment.
+
+From the Wonder Toys repository root, prepare the application files:
+
+```bash
+python3 -m academy.harbor.prepare
+```
+
+Then run Wonder Toys on the shopper's request:
+
+```bash
+uv run --python 3.12 --with 'arize-phoenix-client[harbor]' \
+  python -m academy.harbor.run \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006
+```
+
+Replace `http://localhost:6006` if Phoenix uses a different address.
+
+These helpers run Harbor with the [Phoenix plugin](/docs/phoenix/integrations/evaluation-integrations/harbor). Once the agent and verifier finish, Phoenix holds the scores and trace you'll use to explain the outcome.
+
+<Accordion title="What do the commands run?">
+  - [`prepare.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/prepare.py) copies the existing backend into the Docker build context.
+  - [`run.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/run.py) calls the Harbor CLI with `--plugin arize-phoenix`. The agent uses its existing tools and product catalog.
+
+  Harbor saves local job files under `academy/harbor/jobs/`.
+</Accordion>
+
+## Step 3: Explain the result
+
+Use the recorded scores to check whether the purchase met the success criteria from Step 1, then follow the trace to understand the agent's actions. In Phoenix:
+
+- Open **Datasets & Experiments**.
+- Select `harbor-task/phoenix-academy/purchase-confirmed`, the dataset created for this task.
+- Open its **Experiments** tab and select `wonder-toys-purchase-check`.
+
+Read the scores in this order:
+
+- **`infra_ok`:** `1` means Harbor recorded no execution exception. If it's `0`, inspect the error before interpreting the task result.
+- **`reward`:** `1` means the saved items, address, and owner all matched the requirements; `0` means at least one check failed.
+- **Individual checks:** `ordered_items_match`, `shipping_address_match`, and `order_owner_match` show which requirement passed (`1`) or failed (`0`).
+
+<Frame caption="Verifier scores from a recorded purchase: the item, address, and owner checks all passed.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-harbor-checks-86bc751d485e.png" alt="Phoenix verifier scores showing infra_ok, order_owner_match, ordered_items_match, reward, and shipping_address_match, all equal to 1." />
+</Frame>
+
+A completed task can have `reward=0` and `infra_ok=1`. If an exception occurred, inspect it alongside any rewards before interpreting the result.
+
+To explain why the run received that score:
+
+- Select **View run trace**, the trace icon above the answer.
+- Look for the `purchase-product` tool call and inspect its arguments and result. If it's missing, inspect the model steps to see how the run ended.
+- Compare the product, quantity, address, and shopper account with the checks from Step 1.
+
+<Frame caption="The purchase tool received the confirmed cart and returned a successful order. The verifier separately checked the saved order state.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-harbor-trace-c202fae29bb7.png" alt="Phoenix ATIF trace showing the real Wonder Toys purchase-product call and its result." />
+</Frame>
+
+<Accordion title="How Harbor results reach Phoenix">
+  The [Phoenix Harbor plugin](/docs/phoenix/integrations/evaluation-integrations/harbor) records the verifier's scores and converts the agent's saved trajectory into a trace after the trial. The trajectory uses ATIF, a format for recording agent steps. Phoenix records the outcome; Harbor runs the task and verifier. ATIF timestamps may not provide precise operation durations, so a tool span showing 0ms doesn't mean the tool took no time.
+</Accordion>
+
+## Step 4: Check that the test works
+
+The result you just read depends on the verifier applying those checks correctly. Before relying on it to assess other agent versions, test it with 2 known outcomes. Neither run calls the model.
+
+First, run the [reference solution](https://docs.harborframework.com/tasks/solution). It saves the correct order and should pass:
+
+```bash
+uv run --python 3.12 --with 'arize-phoenix-client[harbor]' \
+  python -m academy.harbor.run --agent oracle \
+  --phoenix-url http://localhost:6006
+```
+
+Then run the do-nothing agent. It leaves no order and should fail:
+
+```bash
+uv run --python 3.12 --with 'arize-phoenix-client[harbor]' \
+  python -m academy.harbor.run --agent nop \
+  --phoenix-url http://localhost:6006
+```
+
+Open their experiments in the same Phoenix dataset:
+
+- **`oracle-purchase-check`:** Expect `reward=1` because the reference solution saved the correct order.
+- **`nop-purchase-check`:** Expect `reward=0` because no order was placed.
+- **Both runs:** Expect `infra_ok=1`, meaning no execution exception was recorded.
+
+If either result differs, investigate the task or verifier before trusting the agent's score. These checks can catch a test that passes everything or fails even a correct solution.
+
+When the reference solution passes and doing nothing fails, you have checked this task against known outcomes. To cover missing consent, cancellations, or stock shortages, add separate tasks with their own success criteria.
+
+You've now checked recommendations and a saved action. In Decide whether a change is ready, you'll use your results and the cases you haven't tested to decide whether to release a change or keep testing.

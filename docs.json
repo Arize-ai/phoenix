@@ -504,7 +504,8 @@
             "pages": [
               "docs/phoenix/learn/playground-evals",
               "docs/phoenix/learn/run-experiment",
-              "docs/phoenix/learn/compare-experiments"
+              "docs/phoenix/learn/compare-experiments",
+              "docs/phoenix/learn/harbor-agent-tests"
             ]
           }
         ]
