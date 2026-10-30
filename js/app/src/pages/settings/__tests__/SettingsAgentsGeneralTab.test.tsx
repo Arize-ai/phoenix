@@ -121,7 +121,7 @@ describe("SettingsAgentsGeneralTab model setting", () => {
       ...document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
     ].find(
       (candidate) =>
-        candidate.querySelector(".agent-model-row__name")?.textContent === name
+        candidate.querySelector(".model-row__name")?.textContent === name
     );
     if (!item) throw new Error(`no row named "${name}"`);
     return item;

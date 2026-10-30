@@ -6,13 +6,13 @@ import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
 import { getDefaultCredentialChainSource } from "@phoenix/components/generative/modelProviderUtils";
+import {
+  getProviderCredentialState,
+  type ModelCredentialState,
+} from "@phoenix/components/generative/modelSearch";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
-import {
-  type AgentModelCredentialState,
-  getProviderCredentialState,
-} from "./agentModelSearch";
 
 const credentialFormCSS = css`
   box-sizing: border-box;
@@ -43,7 +43,7 @@ export type AgentModelMissingCredentials = {
    * "no-key" blocks sending; "may-work" (AWS, Azure) doesn't, since the
    * server falls back to the provider's ambient credential chain
    */
-  credentialState: Exclude<AgentModelCredentialState, "ready">;
+  credentialState: Exclude<ModelCredentialState, "ready">;
 };
 
 /**

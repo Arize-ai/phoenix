@@ -1,22 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { getAgentModelKey } from "../agentModelConfig";
+import { AGENT_MODEL_CURATION } from "@phoenix/components/agent/agentCuratedModels";
+
 import {
-  type AgentModelCatalogInput,
-  buildAgentModelCatalog,
-  buildAgentModelProviderOptions,
-  getAgentModelCustomModelOption,
-  getAgentModelHighlightRanges,
-  getAgentModelProviderHighlightQuery,
+  type ModelCatalogInput,
+  buildModelCatalog,
+  buildModelProviderOptions,
+  getCustomModelOption,
+  getModelHighlightRanges,
+  getProviderHighlightQuery,
   inferProviderFromModelName,
   MATCH_SCORE,
-  rankAgentModels,
-  resolveAgentModelRow,
-  toAgentModelMenuValue,
+  getModelKey,
+  rankModels,
+  resolveModelRow,
+  toModelMenuValueFromRow,
   tokenMatchScore,
-} from "../agentModelSearch";
+} from "../modelSearch";
 
-type ModelProviderInput = AgentModelCatalogInput["modelProviders"][number];
+type ModelProviderInput = ModelCatalogInput["modelProviders"][number];
 
 function makeProvider(
   overrides: Partial<ModelProviderInput> & Pick<ModelProviderInput, "key">
@@ -39,7 +41,7 @@ const MODEL_PROVIDERS: ModelProviderInput[] = [
   makeProvider({ key: "XAI", name: "xAI", dependenciesInstalled: false }),
 ];
 
-const PLAYGROUND_MODELS: AgentModelCatalogInput["playgroundModels"] = [
+const PLAYGROUND_MODELS: ModelCatalogInput["models"] = [
   { providerKey: "OPENAI", name: "gpt-4o" },
   { providerKey: "OPENAI", name: "gpt-4o-mini" },
   { providerKey: "OPENAI", name: "gpt-5.4" },
@@ -56,7 +58,7 @@ const PLAYGROUND_MODELS: AgentModelCatalogInput["playgroundModels"] = [
   { providerKey: "XAI", name: "grok-4" },
 ];
 
-const CUSTOM_PROVIDERS: AgentModelCatalogInput["customProviders"] = [
+const CUSTOM_PROVIDERS: ModelCatalogInput["customProviders"] = [
   {
     id: "custom-acme",
     name: "Acme gateway",
@@ -65,41 +67,40 @@ const CUSTOM_PROVIDERS: AgentModelCatalogInput["customProviders"] = [
   },
 ];
 
-const INPUT: AgentModelCatalogInput = {
-  playgroundModels: PLAYGROUND_MODELS,
+const INPUT: ModelCatalogInput = {
+  models: PLAYGROUND_MODELS,
   modelProviders: MODEL_PROVIDERS,
   customProviders: CUSTOM_PROVIDERS,
 };
 
-/** {@link buildAgentModelCatalog} with the provider options built from the input. */
+/** {@link buildModelCatalog} with the provider options built from the input. */
 function buildCatalog({
-  playgroundModels,
+  models,
   modelProviders,
   customProviders,
-}: AgentModelCatalogInput) {
-  return buildAgentModelCatalog({
-    playgroundModels,
-    providers: buildAgentModelProviderOptions({
+}: ModelCatalogInput) {
+  return buildModelCatalog({
+    models,
+    providers: buildModelProviderOptions({
       modelProviders,
       customProviders,
     }),
     customProviders,
+    curation: AGENT_MODEL_CURATION,
   });
 }
 
 const ROWS = buildCatalog(INPUT);
-const PROVIDERS = buildAgentModelProviderOptions(INPUT);
+const PROVIDERS = buildModelProviderOptions(INPUT);
 
 function search(
   query: string,
-  options: Omit<Parameters<typeof rankAgentModels>[0], "rows" | "query"> = {}
+  options: Omit<Parameters<typeof rankModels>[0], "rows" | "query"> = {}
 ) {
-  return rankAgentModels({ rows: ROWS, query, ...options }).map(
-    (row) => row.key
-  );
+  return rankModels({ rows: ROWS, query, ...options }).map((row) => row.key);
 }
 
-describe("buildAgentModelCatalog", () => {
+describe("buildModelCatalog", () => {
   it("leaves out providers whose dependencies aren't installed", () => {
     expect(ROWS.some((row) => row.provider === "XAI")).toBe(false);
     expect(PROVIDERS.some((option) => option.provider === "XAI")).toBe(false);
@@ -108,15 +109,15 @@ describe("buildAgentModelCatalog", () => {
   it("leaves out models whose provider isn't listed", () => {
     const rows = buildCatalog({
       ...INPUT,
-      playgroundModels: [{ providerKey: "MOONSHOT", name: "kimi-k2" }],
+      models: [{ providerKey: "MOONSHOT", name: "kimi-k2" }],
       customProviders: [],
     });
     expect(rows).toEqual([]);
   });
 
   it("leaves out custom providers missing from the provider options", () => {
-    const rows = buildAgentModelCatalog({
-      playgroundModels: [],
+    const rows = buildModelCatalog({
+      models: [],
       providers: PROVIDERS.filter((option) => !option.customProvider),
       customProviders: CUSTOM_PROVIDERS,
     });
@@ -143,7 +144,7 @@ describe("buildAgentModelCatalog", () => {
   });
 
   it("treats AWS and Azure as ready once credentials are set", () => {
-    const options = buildAgentModelProviderOptions({
+    const options = buildModelProviderOptions({
       modelProviders: [
         makeProvider({ key: "AWS", credentialsSet: true }),
         makeProvider({ key: "AZURE_OPENAI", credentialsSet: true }),
@@ -186,7 +187,7 @@ describe("buildAgentModelCatalog", () => {
         isCurated: false,
       }),
     ]);
-    expect(toAgentModelMenuValue(customRows[0])).toEqual({
+    expect(toModelMenuValueFromRow(customRows[0])).toEqual({
       provider: "OPENAI",
       modelName: "acme/gpt-5.4-internal",
       customProvider: { id: "custom-acme", name: "Acme gateway" },
@@ -268,7 +269,7 @@ describe("tokenMatchScore", () => {
   });
 });
 
-describe("rankAgentModels", () => {
+describe("rankModels", () => {
   it("finds `opus 5` and `4o mini`", () => {
     expect(search("opus 5")).toEqual([
       "ANTHROPIC:claude-opus-5-5",
@@ -302,7 +303,7 @@ describe("rankAgentModels", () => {
 
   it("ranks no-key providers lower but still lists them", () => {
     const rows = buildCatalog({
-      playgroundModels: [
+      models: [
         { providerKey: "GOOGLE", name: "model-x" },
         { providerKey: "AWS", name: "model-x-v2" },
         { providerKey: "OPENAI", name: "model-x-v3" },
@@ -310,9 +311,11 @@ describe("rankAgentModels", () => {
       modelProviders: MODEL_PROVIDERS,
       customProviders: [],
     });
-    expect(rankAgentModels({ rows, query: "x" }).map((row) => row.key)).toEqual(
-      ["OPENAI:model-x-v3", "AWS:model-x-v2", "GOOGLE:model-x"]
-    );
+    expect(rankModels({ rows, query: "x" }).map((row) => row.key)).toEqual([
+      "OPENAI:model-x-v3",
+      "AWS:model-x-v2",
+      "GOOGLE:model-x",
+    ]);
   });
 
   it("puts match quality ahead of curated and credentials", () => {
@@ -326,7 +329,7 @@ describe("rankAgentModels", () => {
 
   it("breaks ties with recency", () => {
     const recentModelKeys = [
-      getAgentModelKey({ provider: "OPENAI", modelName: "gpt-4o-mini" }),
+      getModelKey({ provider: "OPENAI", modelName: "gpt-4o-mini" }),
     ];
     expect(search("4o", { recentModelKeys })[0]).toBe("OPENAI:gpt-4o-mini");
     expect(search("4o")[0]).toBe("OPENAI:gpt-4o");
@@ -345,19 +348,19 @@ describe("rankAgentModels", () => {
 
   it("caps results at 8 by default", () => {
     const rows = buildCatalog({
-      playgroundModels: Array.from({ length: 12 }, (_, index) => ({
+      models: Array.from({ length: 12 }, (_, index) => ({
         providerKey: "OPENAI" as const,
         name: `gpt-test-${index}`,
       })),
       modelProviders: MODEL_PROVIDERS,
       customProviders: [],
     });
-    expect(rankAgentModels({ rows, query: "gpt" })).toHaveLength(8);
-    expect(rankAgentModels({ rows, query: "gpt", limit: 3 })).toHaveLength(3);
+    expect(rankModels({ rows, query: "gpt" })).toHaveLength(8);
+    expect(rankModels({ rows, query: "gpt", limit: 3 })).toHaveLength(3);
   });
 });
 
-describe("rankAgentModels provider search", () => {
+describe("rankModels provider search", () => {
   const OPENAI_KEYS = [
     "OPENAI:gpt-4o",
     "OPENAI:gpt-4o-mini",
@@ -402,16 +405,16 @@ describe("rankAgentModels provider search", () => {
 
   it("keeps the catalog order for a provider token alone", () => {
     const rows = buildCatalog({
-      playgroundModels: [
+      models: [
         { providerKey: "OPENAI", name: "gpt-6-long-name" },
         { providerKey: "OPENAI", name: "gpt-4" },
       ],
       modelProviders: MODEL_PROVIDERS,
       customProviders: [],
     });
-    expect(
-      rankAgentModels({ rows, query: "openai" }).map((row) => row.key)
-    ).toEqual(["OPENAI:gpt-6-long-name", "OPENAI:gpt-4"]);
+    expect(rankModels({ rows, query: "openai" }).map((row) => row.key)).toEqual(
+      ["OPENAI:gpt-6-long-name", "OPENAI:gpt-4"]
+    );
   });
 
   it("matches custom providers by name", () => {
@@ -434,7 +437,7 @@ describe("rankAgentModels provider search", () => {
 
   it("keeps model-name matches for a partly typed provider", () => {
     const rows = buildCatalog({
-      playgroundModels: [
+      models: [
         { providerKey: "MINIMAX", name: "abab-7" },
         { providerKey: "OPENAI", name: "gpt-5-mini" },
       ],
@@ -444,9 +447,10 @@ describe("rankAgentModels provider search", () => {
       ],
       customProviders: [],
     });
-    expect(
-      rankAgentModels({ rows, query: "mini" }).map((row) => row.key)
-    ).toEqual(["MINIMAX:abab-7", "OPENAI:gpt-5-mini"]);
+    expect(rankModels({ rows, query: "mini" }).map((row) => row.key)).toEqual([
+      "MINIMAX:abab-7",
+      "OPENAI:gpt-5-mini",
+    ]);
   });
 
   it("never treats a token shorter than 3 characters as a provider", () => {
@@ -455,7 +459,7 @@ describe("rankAgentModels provider search", () => {
 
   it("doesn't cap a provider's models, only the rows after them", () => {
     const rows = buildCatalog({
-      playgroundModels: [
+      models: [
         ...Array.from({ length: 12 }, (_, index) => ({
           providerKey: "OPENAI" as const,
           name: `gpt-test-${index}`,
@@ -468,7 +472,7 @@ describe("rankAgentModels provider search", () => {
       modelProviders: MODEL_PROVIDERS,
       customProviders: [],
     });
-    const results = rankAgentModels({ rows, query: "openai" });
+    const results = rankModels({ rows, query: "openai" });
     expect(results).toHaveLength(12 + 8);
     expect(results.slice(0, 12).every((row) => row.provider === "OPENAI")).toBe(
       true
@@ -477,7 +481,7 @@ describe("rankAgentModels provider search", () => {
 
   describe("with a provider whose name contains another's", () => {
     const rows = buildCatalog({
-      playgroundModels: [
+      models: [
         { providerKey: "OPENAI", name: "gpt-4o" },
         { providerKey: "OPENAI", name: "gpt-4o-mini" },
         ...Array.from({ length: 12 }, (_, index) => ({
@@ -490,7 +494,7 @@ describe("rankAgentModels provider search", () => {
       customProviders: [],
     });
     const rank = (query: string) =>
-      rankAgentModels({ rows, query }).map((row) => row.key);
+      rankModels({ rows, query }).map((row) => row.key);
 
     it("caps the word matches after the provider named in full", () => {
       const results = rank("openai");
@@ -547,14 +551,14 @@ describe("inferProviderFromModelName", () => {
   });
 });
 
-describe("getAgentModelCustomModelOption", () => {
+describe("getCustomModelOption", () => {
   function getOption(
     query: string,
     providers: Parameters<
-      typeof getAgentModelCustomModelOption
+      typeof getCustomModelOption
     >[0]["providers"] = PROVIDERS
   ) {
-    return getAgentModelCustomModelOption({ query, providers });
+    return getCustomModelOption({ query, providers });
   }
   const getProviderKeys = (query: string) =>
     getOption(query)?.providers.map((option) => option.key);
@@ -625,9 +629,14 @@ describe("getAgentModelCustomModelOption", () => {
   });
 });
 
-describe("resolveAgentModelRow", () => {
-  function resolve(model: Parameters<typeof resolveAgentModelRow>[0]["model"]) {
-    return resolveAgentModelRow({ model, rows: ROWS, providers: PROVIDERS });
+describe("resolveModelRow", () => {
+  function resolve(model: Parameters<typeof resolveModelRow>[0]["model"]) {
+    return resolveModelRow({
+      model,
+      rows: ROWS,
+      providers: PROVIDERS,
+      curation: AGENT_MODEL_CURATION,
+    });
   }
 
   it("returns the catalog row for a listed model", () => {
@@ -639,7 +648,7 @@ describe("resolveAgentModelRow", () => {
       ROWS.find(
         (catalogRow) =>
           catalogRow.key ===
-          getAgentModelKey({
+          getModelKey({
             provider: "ANTHROPIC",
             modelName: "claude-opus-4-6",
           })
@@ -695,22 +704,22 @@ describe("resolveAgentModelRow", () => {
   });
 });
 
-describe("getAgentModelHighlightRanges", () => {
+describe("getModelHighlightRanges", () => {
   it("marks the whole query when it appears as is", () => {
     expect(
-      getAgentModelHighlightRanges({ text: "claude-opus-5", query: "Opus-5" })
+      getModelHighlightRanges({ text: "claude-opus-5", query: "Opus-5" })
     ).toEqual([[7, 13]]);
   });
 
   it("marks each token, preferring word starts", () => {
     expect(
-      getAgentModelHighlightRanges({ text: "claude-opus-4-5", query: "opus 5" })
+      getModelHighlightRanges({ text: "claude-opus-4-5", query: "opus 5" })
     ).toEqual([
       [7, 11],
       [14, 15],
     ]);
     expect(
-      getAgentModelHighlightRanges({ text: "gpt-4o-mini", query: "4o mini" })
+      getModelHighlightRanges({ text: "gpt-4o-mini", query: "4o mini" })
     ).toEqual([
       [4, 6],
       [7, 11],
@@ -718,33 +727,31 @@ describe("getAgentModelHighlightRanges", () => {
   });
 
   it("marks nothing for an empty or unmatched query", () => {
+    expect(getModelHighlightRanges({ text: "gpt-4o", query: " " })).toEqual([]);
     expect(
-      getAgentModelHighlightRanges({ text: "gpt-4o", query: " " })
-    ).toEqual([]);
-    expect(
-      getAgentModelHighlightRanges({ text: "gpt-4o", query: "claude" })
+      getModelHighlightRanges({ text: "gpt-4o", query: "claude" })
     ).toEqual([]);
   });
 });
 
-describe("getAgentModelProviderHighlightQuery", () => {
+describe("getProviderHighlightQuery", () => {
   const openAIRow = ROWS.find((row) => row.key === "OPENAI:gpt-4o")!;
 
   it("keeps the tokens that name the row's provider", () => {
     expect(
-      getAgentModelProviderHighlightQuery({
+      getProviderHighlightQuery({
         row: openAIRow,
         query: "openai mini",
       })
     ).toBe("openai");
-    expect(
-      getAgentModelProviderHighlightQuery({ row: openAIRow, query: "open" })
-    ).toBe("open");
+    expect(getProviderHighlightQuery({ row: openAIRow, query: "open" })).toBe(
+      "open"
+    );
   });
 
   it("drops tokens that only appear inside the name", () => {
-    expect(
-      getAgentModelProviderHighlightQuery({ row: openAIRow, query: "pen 4o" })
-    ).toBe("");
+    expect(getProviderHighlightQuery({ row: openAIRow, query: "pen 4o" })).toBe(
+      ""
+    );
   });
 });

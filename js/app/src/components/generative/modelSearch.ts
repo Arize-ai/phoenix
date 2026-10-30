@@ -1,12 +1,14 @@
 /**
- * Pure search and catalog logic for the PXI chat model picker: a flat catalog
- * of every model PXI can run, token search with ranking (where a provider name
- * in the query filters to that provider), provider guessing for typed names,
- * and the provider list offered for a typed custom model name.
+ * Pure search and catalog logic shared by the model pickers (the playground's
+ * `ModelMenu` and the PXI `AgentModelPicker`): a flat catalog of the models a
+ * picker offers, token search with ranking (where a provider name in the
+ * query filters to that provider), provider guessing for typed names, and the
+ * provider list offered for a typed custom model name.
  *
- * Everything here works from the data `useModelMenuData` returns and from
- * server-side credentials only: PXI sends through the server proxy, so
- * browser-local keys never make a provider usable.
+ * Everything here works from the data `useModelMenuData` returns. Pickers
+ * differ only in their inputs: which providers and models they pass, how a
+ * provider's credential state is judged (PXI counts server-side credentials
+ * only, the playground browser-local keys too), and which models are curated.
  */
 import type {
   CustomProviderRef,
@@ -29,27 +31,17 @@ import {
   isModelProvider,
 } from "@phoenix/utils/generativeUtils";
 
-import {
-  getAgentCuratedModelDisplayName,
-  isAgentCuratedModelSelection,
-} from "./agentCuratedModels";
-import {
-  getAgentModelKey,
-  getAgentModelKeyForValue,
-  getAgentProviderKey,
-} from "./agentModelConfig";
-
 /**
- * Whether PXI can authenticate with a provider:
- * - "ready": credentials are set on the server, or none are needed
+ * Whether a picker's execution path can authenticate with a provider:
+ * - "ready": credentials are set, or none are needed
  * - "may-work": none are set, but the provider can fall back to an ambient
  *   default credential chain the server can't detect (AWS, Azure)
  * - "no-key": credentials are required and missing
  */
-export type AgentModelCredentialState = "ready" | "may-work" | "no-key";
+export type ModelCredentialState = "ready" | "may-work" | "no-key";
 
 /** A provider models can be picked from: a built-in one or a custom one. */
-export type AgentModelProviderOption = {
+export type ModelProviderOption = {
   /** Stable id: the provider key, or `custom:<id>` for a custom provider */
   key: string;
   /** Built-in provider key; for a custom provider, the key of its SDK */
@@ -57,12 +49,12 @@ export type AgentModelProviderOption = {
   customProvider: CustomProviderRef | null;
   /** Human-readable provider name */
   name: string;
-  credentialState: AgentModelCredentialState;
+  credentialState: ModelCredentialState;
 };
 
 /** One pickable model in the flat catalog. */
-export type AgentModelCatalogRow = {
-  /** Stable id, see `getAgentModelKey` in `agentModelConfig` */
+export type ModelCatalogRow = {
+  /** Stable id, see {@link getModelKey} */
   key: string;
   provider: GenerativeProviderKey;
   customProvider: CustomProviderRef | null;
@@ -72,31 +64,46 @@ export type AgentModelCatalogRow = {
   isCurated: boolean;
   /** Curated display name, or null to show the raw id */
   displayName: string | null;
-  credentialState: AgentModelCredentialState;
+  credentialState: ModelCredentialState;
   /**
    * Set on a resolved selection whose custom provider no longer exists, see
-   * {@link resolveAgentModelRow}. Catalog rows never set it.
+   * {@link resolveModelRow}. Catalog rows never set it.
    */
   isProviderMissing?: boolean;
 };
 
 /** A typed name to offer as a custom model, with the providers it can use. */
-export type AgentModelCustomModelOption = {
+export type CustomModelOption = {
   modelName: string;
   /**
    * The providers to offer, in order: the one guessed from the name, then
    * ready, may-work and no-key providers (otherwise in provider order)
    */
-  providers: AgentModelProviderOption[];
+  providers: ModelProviderOption[];
   /** Key of the provider guessed from the name, when it's offered */
   guessedProviderKey: string | null;
 };
 
-const DEFAULT_AGENT_MODEL_RESULT_LIMIT = 8;
+/**
+ * Which models a picker recommends, and the names it shows for them. PXI
+ * curates a short list; pickers without one pass nothing.
+ */
+export type ModelCuration = {
+  isCurated: (model: ModelMenuValue) => boolean;
+  getDisplayName: (model: ModelMenuValue) => string | null;
+};
+
+const NO_CURATION: ModelCuration = {
+  isCurated: () => false,
+  getDisplayName: () => null,
+};
+
+const DEFAULT_MODEL_RESULT_LIMIT = 8;
 
 /** The data `useModelMenuData` returns that the catalog is built from. */
-export type AgentModelCatalogInput = {
-  playgroundModels: readonly {
+export type ModelCatalogInput = {
+  /** Built-in models, e.g. `playgroundModels` or the decision catalog */
+  models: readonly {
     readonly name: string;
     readonly providerKey: GenerativeProviderKey;
   }[];
@@ -107,9 +114,57 @@ export type AgentModelCatalogInput = {
   customProviders: readonly CustomProviderInfo[];
 };
 
+/**
+ * The stable id of a provider: the built-in provider key, or `custom:<id>`
+ * for a custom provider.
+ *
+ * @param params - the provider
+ * @param params.provider - built-in provider key (the SDK's key for custom providers)
+ * @param params.customProviderId - custom provider id, if any
+ */
+export function getModelProviderKey({
+  provider,
+  customProviderId,
+}: {
+  provider: string;
+  customProviderId?: string | null;
+}): string {
+  return customProviderId ? `custom:${customProviderId}` : provider;
+}
+
+/**
+ * The stable id of a model selection, used for picker row keys, recency
+ * lookups and recent-model dedupe.
+ *
+ * @param params - the selection
+ * @param params.provider - built-in provider key (the SDK's key for custom providers)
+ * @param params.customProviderId - custom provider id, if any
+ * @param params.modelName - the model id
+ */
+export function getModelKey({
+  provider,
+  customProviderId,
+  modelName,
+}: {
+  provider: string;
+  customProviderId?: string | null;
+  modelName: string;
+}): string {
+  return `${getModelProviderKey({ provider, customProviderId })}:${modelName}`;
+}
+
+/** {@link getModelKey} for a picker value. */
+export function getModelKeyForValue(model: ModelMenuValue): string {
+  return getModelKey({
+    provider: model.provider,
+    customProviderId: model.customProvider?.id,
+    modelName: model.modelName,
+  });
+}
+
 /** The picker value to emit when a catalog row is picked. */
-export function toAgentModelMenuValue(
-  row: Pick<AgentModelCatalogRow, "provider" | "customProvider" | "modelName">
+export function toModelMenuValueFromRow(
+  row: Pick<ModelCatalogRow, "provider" | "customProvider" | "modelName">
 ): ModelMenuValue {
   return {
     provider: row.provider,
@@ -123,7 +178,7 @@ export function toAgentModelMenuValue(
  */
 export function getProviderCredentialState(
   provider: Pick<ProviderCredentialStatus, "key" | "credentialsSet">
-): AgentModelCredentialState {
+): ModelCredentialState {
   if (
     provider.credentialsSet ||
     !providerRequiresCredentials({ providerKey: provider.key })
@@ -137,101 +192,111 @@ export function getProviderCredentialState(
 }
 
 /**
- * Every provider PXI can pick from: built-in providers with their server
- * dependencies installed (in server order), then custom providers.
+ * Every provider a picker can pick from: built-in providers with their server
+ * dependencies installed (in the given order), then custom providers.
  *
  * Custom providers are always "ready": their credentials live in the
  * provider's own server-side config, which Settings requires when the
  * provider is created, so the built-in provider's env-var status says nothing
  * about them. As in `ModelMenu`, they aren't filtered by dependencies.
+ *
+ * @param params - inputs
+ * @param params.modelProviders - the built-in providers to offer
+ * @param params.customProviders - the custom providers to offer
+ * @param params.getCredentialState - a built-in provider's credential state;
+ *   defaults to server-side credentials only, see
+ *   {@link getProviderCredentialState}
  */
-export function buildAgentModelProviderOptions({
+export function buildModelProviderOptions<
+  Provider extends ModelCatalogInput["modelProviders"][number],
+>({
   modelProviders,
   customProviders,
-}: Pick<
-  AgentModelCatalogInput,
-  "modelProviders" | "customProviders"
->): AgentModelProviderOption[] {
+  getCredentialState = getProviderCredentialState,
+}: {
+  modelProviders: readonly Provider[];
+  customProviders: ModelCatalogInput["customProviders"];
+  getCredentialState?: (provider: Provider) => ModelCredentialState;
+}): ModelProviderOption[] {
   const builtIn = modelProviders
     .filter((provider) => provider.dependenciesInstalled)
     .map(
-      (provider): AgentModelProviderOption => ({
-        key: getAgentProviderKey({ provider: provider.key }),
+      (provider): ModelProviderOption => ({
+        key: getModelProviderKey({ provider: provider.key }),
         provider: provider.key,
         customProvider: null,
         name: provider.name,
-        credentialState: getProviderCredentialState(provider),
+        credentialState: getCredentialState(provider),
       })
     );
-  const custom = customProviders.map(
-    (customProvider): AgentModelProviderOption => {
-      const provider = getProviderKeyForGenerativeModelSDK(customProvider.sdk);
-      return {
-        key: getAgentProviderKey({
-          provider,
-          customProviderId: customProvider.id,
-        }),
+  const custom = customProviders.map((customProvider): ModelProviderOption => {
+    const provider = getProviderKeyForGenerativeModelSDK(customProvider.sdk);
+    return {
+      key: getModelProviderKey({
         provider,
-        customProvider: { id: customProvider.id, name: customProvider.name },
-        name: customProvider.name,
-        credentialState: "ready",
-      };
-    }
-  );
+        customProviderId: customProvider.id,
+      }),
+      provider,
+      customProvider: { id: customProvider.id, name: customProvider.name },
+      name: customProvider.name,
+      credentialState: "ready",
+    };
+  });
   return [...builtIn, ...custom];
 }
 
 /**
- * The flat model catalog: built-in playground models, then each custom
- * provider's model names, for the providers in `providers` (so built-in
- * providers without their dependencies are left out). Rows keep the server's
- * order; ranking happens in {@link rankAgentModels}.
+ * The flat model catalog: built-in models, then each custom provider's model
+ * names, for the providers in `providers` (so built-in providers without
+ * their dependencies are left out). Rows keep the server's order; ranking
+ * happens in {@link rankModels}.
  *
  * @param params - inputs
- * @param params.playgroundModels - built-in models, from `useModelMenuData`
- * @param params.providers - from {@link buildAgentModelProviderOptions}
+ * @param params.models - built-in models, from `useModelMenuData`
+ * @param params.providers - from {@link buildModelProviderOptions}
  * @param params.customProviders - custom providers with their model names
+ * @param params.curation - the picker's recommended models, if any
  */
-export function buildAgentModelCatalog({
-  playgroundModels,
+export function buildModelCatalog({
+  models,
   providers,
   customProviders,
-}: Pick<AgentModelCatalogInput, "playgroundModels" | "customProviders"> & {
-  providers: readonly AgentModelProviderOption[];
-}): AgentModelCatalogRow[] {
+  curation = NO_CURATION,
+}: Pick<ModelCatalogInput, "models" | "customProviders"> & {
+  providers: readonly ModelProviderOption[];
+  curation?: ModelCuration;
+}): ModelCatalogRow[] {
   const providersByKey = new Map(
     providers.map((option) => [option.key, option])
   );
-  const builtInRows = playgroundModels.flatMap(
-    (model): AgentModelCatalogRow[] => {
-      const option = providersByKey.get(
-        getAgentProviderKey({ provider: model.providerKey })
-      );
-      if (!option) {
-        return [];
-      }
-      const value: ModelMenuValue = {
-        provider: model.providerKey,
-        modelName: model.name,
-      };
-      return [
-        {
-          key: getAgentModelKeyForValue(value),
-          provider: model.providerKey,
-          customProvider: null,
-          providerName: option.name,
-          modelName: model.name,
-          isCurated: isAgentCuratedModelSelection(value),
-          displayName: getAgentCuratedModelDisplayName(value),
-          credentialState: option.credentialState,
-        },
-      ];
+  const builtInRows = models.flatMap((model): ModelCatalogRow[] => {
+    const option = providersByKey.get(
+      getModelProviderKey({ provider: model.providerKey })
+    );
+    if (!option) {
+      return [];
     }
-  );
+    const value: ModelMenuValue = {
+      provider: model.providerKey,
+      modelName: model.name,
+    };
+    return [
+      {
+        key: getModelKeyForValue(value),
+        provider: model.providerKey,
+        customProvider: null,
+        providerName: option.name,
+        modelName: model.name,
+        isCurated: curation.isCurated(value),
+        displayName: curation.getDisplayName(value),
+        credentialState: option.credentialState,
+      },
+    ];
+  });
   const customRows = customProviders.flatMap(
-    (customProvider): AgentModelCatalogRow[] => {
+    (customProvider): ModelCatalogRow[] => {
       const option = providersByKey.get(
-        getAgentProviderKey({
+        getModelProviderKey({
           provider: getProviderKeyForGenerativeModelSDK(customProvider.sdk),
           customProviderId: customProvider.id,
         })
@@ -241,8 +306,8 @@ export function buildAgentModelCatalog({
       }
       const optionCustomProvider = option.customProvider;
       return customProvider.modelNames.map(
-        (modelName): AgentModelCatalogRow => ({
-          key: getAgentModelKey({
+        (modelName): ModelCatalogRow => ({
+          key: getModelKey({
             provider: option.provider,
             customProviderId: optionCustomProvider.id,
             modelName,
@@ -275,22 +340,25 @@ export function buildAgentModelCatalog({
  *
  * @param params - inputs
  * @param params.model - the selection to show
- * @param params.rows - the catalog from {@link buildAgentModelCatalog}
- * @param params.providers - from {@link buildAgentModelProviderOptions}
+ * @param params.rows - the catalog from {@link buildModelCatalog}
+ * @param params.providers - from {@link buildModelProviderOptions}
+ * @param params.curation - the picker's recommended models, if any
  */
-export function resolveAgentModelRow({
+export function resolveModelRow({
   model,
   rows,
   providers,
+  curation = NO_CURATION,
 }: {
   model: ModelMenuValue;
-  rows: readonly AgentModelCatalogRow[];
-  providers: readonly AgentModelProviderOption[];
-}): AgentModelCatalogRow {
-  const key = getAgentModelKeyForValue(model);
+  rows: readonly ModelCatalogRow[];
+  providers: readonly ModelProviderOption[];
+  curation?: ModelCuration;
+}): ModelCatalogRow {
+  const key = getModelKeyForValue(model);
   const unprefixedKey =
     model.provider === "AWS"
-      ? getAgentModelKeyForValue({
+      ? getModelKeyForValue({
           ...model,
           modelName: stripBedrockRegionPrefix(model.modelName),
         })
@@ -319,8 +387,8 @@ export function resolveAgentModelRow({
         ? getProviderName(model.provider)
         : model.provider),
     modelName: model.modelName,
-    isCurated: isAgentCuratedModelSelection(model),
-    displayName: getAgentCuratedModelDisplayName(model),
+    isCurated: curation.isCurated(model),
+    displayName: curation.getDisplayName(model),
     credentialState: providerOption?.credentialState ?? "no-key",
     ...(isProviderMissing && { isProviderMissing }),
   };
@@ -420,7 +488,7 @@ function getRowMatchScore({
   row,
   query,
 }: {
-  row: AgentModelCatalogRow;
+  row: ModelCatalogRow;
   query: string;
 }): number | null {
   const idScore = tokenMatchScore({ name: row.modelName, query });
@@ -464,7 +532,7 @@ type ProviderTermMatch = "name" | "word" | "prefix";
 
 /** The provider of a row or provider option, as matched by search. */
 type ProviderSearchTarget = Pick<
-  AgentModelCatalogRow,
+  ModelCatalogRow,
   "providerName" | "provider" | "customProvider"
 >;
 
@@ -542,7 +610,7 @@ function getRowMatch({
   tokens,
   isProviderNameInQuery,
 }: {
-  row: AgentModelCatalogRow;
+  row: ModelCatalogRow;
   /** The trimmed search text */
   query: string;
   /** The query's tokens, see {@link tokenizeQuery} */
@@ -583,7 +651,7 @@ function getRowMatch({
 }
 
 /** Sort order of credential states: ready, then may-work, then no-key. */
-const CREDENTIAL_STATE_ORDER: Record<AgentModelCredentialState, number> = {
+const CREDENTIAL_STATE_ORDER: Record<ModelCredentialState, number> = {
   ready: 0,
   "may-work": 1,
   "no-key": 2,
@@ -611,22 +679,22 @@ const CREDENTIAL_STATE_ORDER: Record<AgentModelCredentialState, number> = {
  * An empty query returns nothing.
  *
  * @param params - search inputs
- * @param params.rows - the catalog from {@link buildAgentModelCatalog}
+ * @param params.rows - the catalog from {@link buildModelCatalog}
  * @param params.query - the search text
- * @param params.recentModelKeys - row keys (see `getAgentModelKey`), newest first
+ * @param params.recentModelKeys - row keys (see `getModelKey`), newest first
  * @param params.limit - max rows after the provider matches (default 8)
  */
-export function rankAgentModels({
+export function rankModels({
   rows,
   query,
   recentModelKeys = [],
-  limit = DEFAULT_AGENT_MODEL_RESULT_LIMIT,
+  limit = DEFAULT_MODEL_RESULT_LIMIT,
 }: {
-  rows: readonly AgentModelCatalogRow[];
+  rows: readonly ModelCatalogRow[];
   query: string;
   recentModelKeys?: readonly string[];
   limit?: number;
-}): AgentModelCatalogRow[] {
+}): ModelCatalogRow[] {
   const trimmedQuery = query.trim();
   const tokens = tokenizeQuery(trimmedQuery);
   if (tokens.length === 0) {
@@ -639,7 +707,7 @@ export function rankAgentModels({
   const providerTargets = [
     ...new Map(
       rows.map((row) => [
-        getAgentProviderKey({
+        getModelProviderKey({
           provider: row.provider,
           customProviderId: row.customProvider?.id,
         }),
@@ -754,15 +822,15 @@ export function inferProviderFromModelName(
  *
  * @param params - inputs
  * @param params.query - the search text
- * @param params.providers - from {@link buildAgentModelProviderOptions}
+ * @param params.providers - from {@link buildModelProviderOptions}
  */
-export function getAgentModelCustomModelOption({
+export function getCustomModelOption({
   query,
   providers,
 }: {
   query: string;
-  providers: readonly AgentModelProviderOption[];
-}): AgentModelCustomModelOption | null {
+  providers: readonly ModelProviderOption[];
+}): CustomModelOption | null {
   const modelName = query.trim();
   if (!modelName || /\s/.test(modelName) || providers.length === 0) {
     return null;
@@ -795,14 +863,11 @@ export function getAgentModelCustomModelOption({
  * The query tokens that name a row's provider, to highlight in its provider
  * label: so `openai mini` marks "OpenAI" but `pen` doesn't mark it.
  */
-export function getAgentModelProviderHighlightQuery({
+export function getProviderHighlightQuery({
   row,
   query,
 }: {
-  row: Pick<
-    AgentModelCatalogRow,
-    "provider" | "customProvider" | "providerName"
-  >;
+  row: Pick<ModelCatalogRow, "provider" | "customProvider" | "providerName">;
   query: string;
 }): string {
   return tokenizeQuery(query)
@@ -811,7 +876,7 @@ export function getAgentModelProviderHighlightQuery({
 }
 
 /** A `[start, end)` character range to highlight. */
-type AgentModelHighlightRange = readonly [start: number, end: number];
+type ModelHighlightRange = readonly [start: number, end: number];
 
 const isWordCharacter = (char: string | undefined) =>
   char != null && /[a-z0-9]/i.test(char);
@@ -829,13 +894,13 @@ const isWordCharacter = (char: string | undefined) =>
  * @param params.text - the text shown in the row
  * @param params.query - the search text
  */
-export function getAgentModelHighlightRanges({
+export function getModelHighlightRanges({
   text,
   query,
 }: {
   text: string;
   query: string;
-}): AgentModelHighlightRange[] {
+}): ModelHighlightRange[] {
   const lowerText = text.toLowerCase();
   const wholeQuery = query.trim().toLowerCase();
   if (!wholeQuery) {
@@ -851,7 +916,7 @@ export function getAgentModelHighlightRanges({
       return [[wholeIndex, wholeIndex + candidate.length]];
     }
   }
-  const ranges: AgentModelHighlightRange[] = [];
+  const ranges: ModelHighlightRange[] = [];
   for (const token of tokenizeQuery(wholeQuery)) {
     const occurrences: number[] = [];
     for (
