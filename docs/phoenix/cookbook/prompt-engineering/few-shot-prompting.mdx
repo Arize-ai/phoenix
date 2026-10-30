@@ -123,7 +123,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3f8f33b2-image.jpeg" alt="Phoenix example with a zero-shot prompt and response" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3f8f33b2-image.jpeg" alt="Saved zero-shot prompt template and model configuration in Phoenix" />
 </Frame>
 
 Next we will define a task and evaluator for the experiment.
@@ -214,7 +214,7 @@ one_shot_prompt = PhoenixClient().prompts.create(
 Under the prompts tab in Phoenix, we can see that our prompt has an updated version. The prompt includes one random example from the test dataset to help the model make its classification.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7c5aef58-image.jpeg" alt="Phoenix example with a one-shot prompt and response" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7c5aef58-image.jpeg" alt="Saved one-shot prompt template and model configuration in Phoenix" />
 </Frame>
 
 Similar to the previous step, we will define the task and run the evaluator. This time, we will be using our updated prompt for One-Shot Prompting and see how the evaluation changes.
@@ -285,7 +285,7 @@ few_shot_prompt = PhoenixClient().prompts.create(
 Our updated prompt also lives in Phoenix. We can clearly see how the linear version history of our prompt was built.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6e7ad85c-image.jpeg" alt="Phoenix example with a few-shot prompt and response" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6e7ad85c-image.jpeg" alt="Saved few-shot prompt template and model configuration in Phoenix" />
 </Frame>
 
 Just like previous steps, we run our task and evaluation.

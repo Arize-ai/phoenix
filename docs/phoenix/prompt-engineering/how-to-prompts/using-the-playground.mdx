@@ -41,9 +41,9 @@ Each prompt instance has its own LLM and invocation parameters.
 
 <Frame caption="Switch models and modify invocation params">
   <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Changing model configuration in the Phoenix playground" width="100%">
-  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/model_config.mp4" type="video/mp4" />
-  Changing model configuration in the Phoenix playground
-</video>
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/model_config.mp4" type="video/mp4" />
+    Changing model configuration in the Phoenix playground
+  </video>
 </Frame>
 
 <Info>
@@ -68,7 +68,7 @@ Compare multiple prompt variants in the playground. The UI labels the variants A
 3. Click **Run** to compare the outputs, or run an experiment to find the best prompt and model configuration for the task.
 
 <Frame caption="Compare multiple different prompt variants at once">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/941ee277-image.jpeg" alt="Phoenix playground comparing responses from multiple prompt configurations" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/941ee277-image.jpeg" alt="Phoenix playground comparing multiple prompt configurations" />
 </Frame>
 
 ## Using Datasets with Prompts
@@ -81,7 +81,7 @@ Run one or more prompts on each example in a dataset.
 Phoenix applies each configured prompt to each dataset example. It invokes the LLM for all prompt-example combinations. Phoenix records the results as an experiment on the loaded dataset. See [Playground Traces](/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground#playground-traces).
 
 <Frame caption="Each example's input is used to fill the prompt template">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" alt="Phoenix playground with dataset selection for a prompt run" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" alt="Dataset inputs substituted into a prompt template in the Phoenix playground" />
 </Frame>
 
 ### Configuring Dataset Paths
@@ -205,5 +205,5 @@ If you run an LLM with free-form inputs (no dataset), Phoenix records the spans 
 If you run a prompt over dataset examples, Phoenix records the outputs and spans as an experiment. If you do not [name the experiment](#naming-the-experiment), its name is `playground-experiment`. If the playground has a saved prompt loaded, its name is `playground-experiment prompt:<prompt name>`.
 
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" alt="Opening the trace for a playground prompt run" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" alt="Phoenix playground result with a link to its dataset experiment" />
 </Frame>

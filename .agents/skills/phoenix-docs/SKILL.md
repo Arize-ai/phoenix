@@ -34,6 +34,14 @@ Use for how-to guides and reference.
 - Write warnings before the step they apply to.
 - No idioms, no "please", no "simply/just/easily".
 
+## Accessible images and videos
+
+- Give informative images meaningful alt text that describes their purpose in the surrounding content. Inspect the image before describing it.
+- For an image that is the only content of a link, describe the link's action or destination.
+- Use `alt=""` for purely decorative images when nearby text already supplies their meaning. Do not use filenames as descriptions.
+- Explain the essential information from complex diagrams in nearby text; alt text alone must not carry the full explanation.
+- Give videos an accessible label and playback controls. Keep the demonstrated steps available in text, and provide captions for spoken audio.
+
 ## Card images and page banners
 
 Card art (`<Card img>`) and page banners (the image that opens a page) are generated, never hand-made.

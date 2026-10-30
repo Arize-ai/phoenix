@@ -112,7 +112,7 @@ prompt = px_client.prompts.create(
 You should now see that prompt in Phoenix:
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b63d2eb3-image.jpeg" alt="Phoenix dataset example containing the initial evaluation prompt" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b63d2eb3-image.jpeg" alt="Initial evaluation prompt template and model configuration in Phoenix" />
 </Frame>
 
 Next you'll need a task and evaluator for the experiment. A task is a function that will be run across each example in the dataset. The task is also the piece of your code that you'll change between each run of the experiment. To start off, the task is simply a call to GPT 3.5 Turbo with a basic prompt.
@@ -161,7 +161,7 @@ initial_experiment = px_client.experiments.run_experiment(
 You should now see the initial experiment results in Phoenix:
 
 <Frame caption="1st experiment results">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/0e581df6-image.jpeg" alt="Phoenix dataset examples ready for prompt optimization" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/0e581df6-image.jpeg" alt="Phoenix experiment results for the initial evaluation prompt" />
 </Frame>
 
 ## Prompt Optimization Technique #1: Few Shot Examples
@@ -209,7 +209,7 @@ few_shot_prompt = PhoenixClient().prompts.create(
 You'll notice you now have a new version of the prompt in Phoenix:
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/4889cd2f-image.jpeg" alt="Phoenix example showing an evaluation prompt with few-shot examples" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/4889cd2f-image.jpeg" alt="Saved evaluation prompt template with few-shot examples in Phoenix" />
 </Frame>
 
 Define a new task with your new prompt:

@@ -247,7 +247,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d5166de2-image.jpeg" alt="Phoenix example showing the initial customer support prompt" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d5166de2-image.jpeg" alt="Saved customer support prompt template and tool definitions in Phoenix" />
 </Frame>
 
 Next, we will define our evaluation tools. In this step, we use [**LLM as a Judge**](/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge) to evaluate the output. LLM as a Judge is a technique where one LLM assesses the performance of another LLM.
@@ -360,7 +360,7 @@ prompt = PhoenixClient().prompts.create(
 In the Prompts tab, you will see the updated prompt. As you iterate, you can build a version history.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/494bd0e3-image.jpeg" alt="Phoenix example showing the ReAct prompt and response" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/494bd0e3-image.jpeg" alt="Saved ReAct prompt template in Phoenix" />
 </Frame>
 
 Just like above, we define our task and run the experiment with the same evaluators.
@@ -394,10 +394,10 @@ You can explore the evaluators outputs to better understand the improvements in 
 Keep in mind that results may vary due to randomness and the model's non-deterministic behavior.
 
 <Frame caption="">
-<video controls autoPlay muted loop playsInline preload="metadata" aria-label="Comparing the ReAct prompt experiments in Phoenix" width="100%">
-  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/react_prompts2.mp4" type="video/mp4" />
-  Comparing the ReAct prompt experiments in Phoenix
-</video>
+  <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Comparing the ReAct prompt experiments in Phoenix" width="100%">
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/react_prompts2.mp4" type="video/mp4" />
+    Comparing the ReAct prompt experiments in Phoenix
+  </video>
 </Frame>
 
 To refine and test these prompts against other datasets, experiment with alternative techniques like Chain of Thought (CoT) prompting to assess how they complement or contrast with ReAct in your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using both the TypeScript and Python Clients.

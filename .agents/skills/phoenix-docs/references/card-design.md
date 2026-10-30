@@ -17,6 +17,8 @@ Before adding an image, identify the product, source, or action it represents. C
 
 Review new art at 158 px and 334 px, in both themes, and inspect the page layout. Successful image downloads, fingerprints, and builds verify delivery, not visual quality. If a page review is blocked, record that gap instead of calling the design approved.
 
+Review banners with the page title, description, introduction, and first actionable section. Use a banner when it adds context; skip it when it only repeats the heading and delays the setup steps.
+
 ## Canvas and palette
 
 The canvas is 1200 × 675 (16:9). The ground is flat gray-900, the same color as the docs' dark card body. In dark mode the art merges into the card, so a logo seems to sit on the card itself. In light mode the art reads as a dark panel on a light card. Both are intended; one image serves both themes.

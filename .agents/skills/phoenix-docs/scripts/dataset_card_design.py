@@ -23,8 +23,7 @@ def _csv() -> str:
         )
         + el(
             "path",
-            d="M442 270H758V480H442Z M442 340H758 M442 410H758 "
-            "M547 270V480 M653 270V480",
+            d="M442 270H758V480H442Z M442 340H758 M442 410H758 M547 270V480 M653 270V480",
             fill="none",
             stroke=design.GUIDE,
             stroke_width=6,
@@ -39,8 +38,7 @@ def _jsonl() -> str:
     """Braces surround separate record lines, with one record selected."""
     el = design.el
     brace = (
-        "M445 144H417Q377 144 377 184V274Q377 324 329 324"
-        "Q377 324 377 374V464Q377 504 417 504H445"
+        "M445 144H417Q377 144 377 184V274Q377 324 329 324Q377 324 377 374V464Q377 504 417 504H445"
     )
     return (
         el("path", d=brace, fill="none", stroke=design.INK, stroke_width=12)
