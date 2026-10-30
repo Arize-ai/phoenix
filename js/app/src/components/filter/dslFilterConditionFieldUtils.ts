@@ -26,6 +26,16 @@ const tokenBeforeCursorPattern = new RegExp(
 );
 
 /**
+ * The rest of the token after the cursor, which accepting a completion must
+ * replace too: identifier characters (`mo|del_name`) and, inside an unclosed
+ * subscript, the rest of the key up to its `]` — including the `']` that
+ * closeBrackets auto-inserts (`attributes['us|']`). Never operators or values.
+ */
+const identifierTailPattern = /^\w*/;
+const subscriptTailPattern = /^(?:[^'"[\]\n]*['"]?\]|\w*)/;
+const openSubscriptPattern = /\[[^\]]*$/;
+
+/**
  * CodeMirror's `validFor` guard for the token returned by
  * `getDSLFilterCompletionTokenBeforeCursor`. If the user keeps typing inside
  * a valid DSL accessor prefix, CodeMirror can filter the existing completion
@@ -509,6 +519,13 @@ export function createDSLFilterCompletionSource(
     }
 
     const isBrowsing = word.from === word.to;
+    const tail = isBrowsing
+      ? ""
+      : (textAfterCursor.match(
+          openSubscriptPattern.test(word.text)
+            ? subscriptTailPattern
+            : identifierTailPattern
+        )?.[0] ?? "");
 
     let options: Completion[];
     try {
@@ -525,6 +542,7 @@ export function createDSLFilterCompletionSource(
 
     return {
       from: word.from,
+      to: context.pos + tail.length,
       options,
       // A browse result may be a curated subset — force a fresh query on
       // the next keystroke rather than letting CodeMirror filter the subset
