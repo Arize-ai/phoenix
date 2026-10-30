@@ -293,6 +293,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "google-gen-ai-evals$" },
 ]
 
+[integrations.googlecloud]
+logo = "googlecloud"
+
 [integrations.graphite]
 logo = "graphite"
 replaces = [
