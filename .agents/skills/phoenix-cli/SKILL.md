@@ -40,6 +40,9 @@ px session-annotations delete
 px dataset list
 px dataset get <name>
 px dataset delete <dataset-identifier>
+px dataset split create <dataset-identifier> --name <name>
+px dataset split update <dataset-identifier> <split-id>
+px dataset split delete <dataset-identifier> <split-id>
 px experiment list
 px experiment get <id>
 px experiment delete <experiment-id>
@@ -382,6 +385,9 @@ px dataset list --format raw --no-progress | jq '.[].name'
 px dataset get <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
 px dataset get <name> --split train --format raw | jq .    # filter by split
 px dataset get <name> --version <version-id> --format raw | jq .
+px dataset split create <name> --name train --example-id <example-id> --format raw --no-progress | jq -r '.id'
+px dataset split update <name> <split-id> --add-example <example-id> --remove-example <example-id>
+px dataset split delete <name> <split-id> --yes   # needs PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; keeps the examples
 px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'

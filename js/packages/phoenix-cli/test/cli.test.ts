@@ -168,6 +168,21 @@ describe("Phoenix CLI", () => {
     );
   });
 
+  it("should register the split subcommand group for dataset", () => {
+    const program = createProgram();
+    const datasetCommand = program.commands.find(
+      (command) => command.name() === "dataset"
+    );
+    const splitCommand = datasetCommand?.commands.find(
+      (command) => command.name() === "split"
+    );
+
+    expect(splitCommand).toBeDefined();
+    expect(splitCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["create", "update", "delete"])
+    );
+  });
+
   it("should register delete subcommand for project", () => {
     const program = createProgram();
     const projectCommand = program.commands.find(
