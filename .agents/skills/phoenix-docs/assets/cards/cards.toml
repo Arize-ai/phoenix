@@ -61,6 +61,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif", href = "anthropic-sdk-typescript$" },
 ]
 
+[integrations.antigravity]
+logo = "antigravity"
+
 [integrations.autogen]
 logo = "autogen"
 replaces = [
@@ -73,6 +76,12 @@ badge = "agents"
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif", title = "AutoGen" },
 ]
+
+[integrations.azure]
+logo = "azure"
+
+[integrations.baseten]
+logo = "baseten"
 
 [integrations.bedrock]
 logo = "bedrock"
@@ -122,6 +131,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9de53658-image.avif", href = "typescript/beeai" },
 ]
 
+[integrations.cerebras]
+logo = "cerebras"
+
 [integrations.claude-agents]
 logo = "claude"
 badge = "agents"
@@ -156,6 +168,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cloudflare-ai-gateway-card.avif",
 ]
 
+[integrations.codex]
+logo = "codex"
+
 [integrations.cohere]
 logo = "cohere"
 replaces = [
@@ -168,11 +183,23 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/23915314-image.avif",
 ]
 
+[integrations.cursor]
+logo = "cursor"
+
+[integrations.deepseek]
+logo = "deepseek"
+
+[integrations.devin]
+logo = "devin"
+
 [integrations.dify]
 logo = "dify"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/e30418d8-image.jpeg",
 ]
+
+[integrations.docker]
+logo = "docker"
 
 [integrations.dspy]
 logo = "dspy"
@@ -185,6 +212,9 @@ logo = "envoy"
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg", title = "Envoy" },
 ]
+
+[integrations.fireworks]
+logo = "fireworks"
 
 [integrations.flowise]
 logo = "flowise"
@@ -205,6 +235,12 @@ badge = "go"
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "gemini-go-sdk$" },
 ]
+
+[integrations.geminicli]
+logo = "geminicli"
+
+[integrations.githubcopilot]
+logo = "githubcopilot"
 
 [integrations.google]
 logo = "google"
@@ -271,6 +307,12 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7756bbf9-image.jpeg",
 ]
 
+[integrations.java]
+logo = "java"
+
+[integrations.kiro]
+logo = "kiro"
+
 [integrations.langchain]
 logo = "langchain"
 replaces = [
@@ -317,6 +359,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a22c16d3-image.avif", href = "litellm-evals$" },
 ]
 
+[integrations.livekit]
+logo = "livekit"
+
 [integrations.llamaindex]
 logo = "llamaindex"
 replaces = [
@@ -342,6 +387,14 @@ badge = "phoenix"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/0e65210e-image.jpeg",
 ]
+
+[integrations.mcp-python]
+logo = "mcp"
+badge = "python"
+
+[integrations.mcp-typescript]
+logo = "mcp"
+badge = "typescript"
 
 [integrations.microsoft-dotnet]
 logo = "microsoft"
@@ -369,6 +422,18 @@ badge = "evals"
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/808d1f26-image.avif", href = "mistralai-evals$" },
 ]
+
+[integrations.mlflow]
+logo = "mlflow"
+
+[integrations.modal]
+logo = "modal"
+
+[integrations.n8n]
+logo = "n8n"
+
+[integrations.novita]
+logo = "novita"
 
 [integrations.nvidia]
 logo = "nvidia"
@@ -451,11 +516,20 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif", href = "typescript/openai-agents$" },
 ]
 
+[integrations.opencode]
+logo = "opencode"
+
 [integrations.openrouter]
 logo = "openrouter"
 replaces = [
   "https://storage.googleapis.com/arize-assets/gitbook_openrouter.png",
 ]
+
+[integrations.openwebui]
+logo = "openwebui"
+
+[integrations.pipecat]
+logo = "pipecat"
 
 [integrations.portkey]
 logo = "portkey"
@@ -488,6 +562,12 @@ replaces = [
   "https://storage.googleapis.com/arize-assets/dev-rel/Image%20Assets%20Public/python-logo.png",
 ]
 
+[integrations.qdrant]
+logo = "qdrant"
+
+[integrations.qwen]
+logo = "qwen"
+
 [integrations.scalekit]
 logo = "scalekit"
 replaces = [
@@ -505,6 +585,9 @@ logo = "tanstack"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/tanstack-ai-integration.png",
 ]
+
+[integrations.temporal]
+logo = "temporal"
 
 [integrations.together]
 logo = "together"
@@ -563,6 +646,15 @@ badge = "evals"
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif", href = "vertexai-evals$" },
 ]
+
+[integrations.vllm]
+logo = "vllm"
+
+[integrations.xai]
+logo = "xai"
+
+[integrations.zai]
+logo = "zai"
 
 # --- Topics: one drawing per Phoenix product area -------------------------------
 
