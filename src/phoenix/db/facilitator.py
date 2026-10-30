@@ -113,16 +113,10 @@ async def _ensure_enums(db: DbSessionFactory) -> None:
 
 
 async def _ensure_user_roles(db: DbSessionFactory) -> None:
-    """
-    Ensure that the system and admin roles are present in the database. If they are not, they will
-    be added. The system user will have the email "system@localhost" and the admin user will have
-    the email "admin@localhost".
+    """Ensure system and admin accounts exist.
 
-    If the admin user already exists, still requires a password reset, and still has the default
-    password "admin", a non-default PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD replaces that password.
-    The replacement also deletes the admin user's password reset, access, and refresh tokens and
-    unredeemed OAuth2 authorization codes, and revokes the admin user's OAuth2 grants. A password
-    that has been changed from the default is never replaced.
+    Apply a custom initial admin password only if the existing account still requires reset
+    and retains the default password. Invalidate its pending password resets and sessions.
     """
     initial_password = get_env_default_admin_initial_password()
     default_admin: Optional[models.LocalUser] = None
@@ -211,10 +205,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             .returning(models.LocalUser.id)
         )
         if updated_id is not None:
-            # The public password may have opened sessions before the replacement, so end them
-            # as a password reset does. A pending reset token would let its holder set the
-            # password, so delete it as well. The token store has not started yet, so no cached
-            # token needs evicting.
+            # This process's token store has not started, so local cache eviction is unnecessary.
             await session.execute(
                 sa.delete(models.PasswordResetToken).where(
                     models.PasswordResetToken.user_id == updated_id
@@ -534,11 +525,7 @@ _COST_MODEL_MANIFEST: Path = BUNDLED_MANIFEST_PATH
 
 
 async def _ensure_model_costs(db: DbSessionFactory) -> None:
-    """
-    Syncs the built-in generative models and their token prices with the manifest bundled with
-    Phoenix, unless the database already has a manifest at least as new (for example, one
-    fetched since the last upgrade).
-    """
+    """Apply bundled model prices unless the database has an equal or newer manifest."""
     # Prices are estimates, so a failure here must not stop the server from starting. The
     # prices already in the database stay in use, and the next startup or fetch tries again.
     try:
