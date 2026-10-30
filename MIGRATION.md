@@ -2,61 +2,25 @@
 
 ## v20.x to v21.0.0
 
-The upgrade from v20.x to v21.0.0 changes the default bind address and how authentication follows it.
-
 ### Bind address and authentication
 
-- **Default bind is loopback.** `PHOENIX_HOST` defaults to `127.0.0.1`. The HTTP, gRPC, and Prometheus
-  listeners all bind `PHOENIX_HOST`. To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` (or `::`).
-- **The auth default follows the bind address.** An explicit `PHOENIX_ENABLE_AUTH` is always honored. When it is
-  unset, authentication is on for a non-loopback `PHOENIX_HOST` and off for loopback.
-- **The Docker image requires login by default.** The image sets `PHOENIX_HOST=::` (dual-stack), so authentication is on
-  unless `PHOENIX_ENABLE_AUTH=false` is set. The initial admin is `admin@localhost` with password `admin` unless
-  `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is set; set that variable or change the password immediately. Helm
-  already enables auth explicitly and is unaffected. Trace exporters and other clients that send data without an
-  API key will be rejected (HTTP 401 / gRPC unauthenticated) after upgrading, so operators must create an API key
-  and configure their exporters with it, or set `PHOENIX_ENABLE_AUTH=false`.
-- **`launch_app` follows the same rule.** Notebook sessions previously ran with authentication off regardless of
-  `PHOENIX_ENABLE_AUTH`. They now honor it, and when it is unset, a non-loopback host (the `host` argument or
-  `PHOENIX_HOST`, such as `0.0.0.0`) requires login, and `register()`, `px.Client()`, and other clients in the
-  notebook need `PHOENIX_API_KEY`. The default loopback host keeps authentication off, except on Databricks,
-  where `launch_app` defaults to `0.0.0.0` because the driver proxy cannot reach loopback, so authentication is
-  on. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
-- **The public default password cannot open a session.** Logging in with the password `admin` while the account
-  still requires a password reset returns HTTP 403 and a password reset token instead of access and refresh
-  tokens. The password must be changed via `POST /auth/password-reset` before signing in. A custom
-  `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is not subject to this restriction.
-- **`PHOENIX_SECRET` is optional when auth is enabled.** Without it, tokens are signed with a key derived from a
-  random per-deployment value stored in the database, and each token must also match a hash stored when it was
-  issued, so database readers cannot forge tokens. Saved credentials (provider API keys, workspace secrets,
-  GitHub tokens) are then encrypted with a publicly known key: anyone with a copy of the database can decrypt
-  them, and Settings → Secrets warns administrators. Set `PHOENIX_SECRET` to protect them. If you set or change
-  `PHOENIX_SECRET` after saving credentials in the database, previously stored credentials cannot be decrypted
-  with the new key and must be re-entered or deleted under **Settings → Secrets** (and any custom model or
-  sandbox provider settings).
+- **The default bind address is loopback.** `PHOENIX_HOST` defaults to `127.0.0.1` for HTTP, gRPC, and Prometheus.
+  To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` or `::`.
+- **Authentication follows the bind address.** When `PHOENIX_ENABLE_AUTH` is unset, authentication is enabled for
+  non-loopback addresses and disabled for loopback. An explicit `PHOENIX_ENABLE_AUTH` setting takes precedence.
+- **Docker requires authentication by default.** The image sets `PHOENIX_HOST=::`. Create an API key and configure
+  trace exporters and other API clients to use it. Unauthenticated requests are rejected with HTTP 401 or gRPC
+  unauthenticated errors. To keep authentication disabled, set `PHOENIX_ENABLE_AUTH=false`.
+  Helm already enables authentication explicitly; its authentication default is unchanged.
+- **Notebooks now honor authentication settings.** `launch_app` previously disabled authentication regardless of
+  `PHOENIX_ENABLE_AUTH`. It now honors that setting and otherwise follows the bind-address rule above, including
+  an explicit `host` argument. When authentication is enabled, configure `PHOENIX_API_KEY` for `register()`,
+  `px.Client()`, and other notebook clients. Databricks defaults to `0.0.0.0`, so authentication is enabled there
+  by default. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
 
-### Upgrade existing default-admin credentials with all replicas stopped
+### Replace `phoenix serve --host` with `PHOENIX_HOST`
 
-For a persistent database that still has `admin@localhost` with the unchanged default password `admin`,
-set `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` to an unpredictable password before starting v21.
-Startup applies it only while that local admin account still requires reset and its stored password
-still matches `admin`. Customized credentials are preserved. For an account updated this way, its
-password-reset, access, and refresh tokens and its unredeemed OAuth2 authorization codes are deleted,
-and its OAuth2 grants are revoked, in the same transaction. This ends any session opened with the
-public password. API keys are kept, as they are on a password reset; review
-the admin account's API keys and revoke any you do not recognize. When the password is applied,
-startup logs `Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD to the default admin account`.
-
-**Stop all Phoenix replicas before this upgrade; do not use a rolling upgrade for this credential
-replacement.** A running replica can retain deleted tokens in its cache and keep accepting them.
-Stop the old processes, configure the initial password consistently on the replacement replicas,
-start v21, and confirm the log line above or verify login with the configured password before
-restoring external traffic. Existing customized accounts should continue using their current
-credentials; this variable is not a general password-rotation mechanism.
-
-### `--host` is removed from `phoenix serve`
-
-The bind address comes only from `PHOENIX_HOST`.
+The `--host` option is removed. Set the bind address through `PHOENIX_HOST` instead.
 
 **Before:**
 
@@ -70,14 +34,40 @@ phoenix serve --host 0.0.0.0 --port 6006
 PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
 ```
 
-### Signing out of the browser no longer signs out OAuth2 clients
+### Default-admin credentials
 
-Signing out of the Phoenix UI still ends the user's sessions in every browser, but it no longer
-ends OAuth2 sessions, such as `px auth login` and MCP clients. Since v19.0.0, signing out deleted
-those clients' refresh tokens while still listing their grants as authorized. To end an OAuth2
-session, run `px auth logout` or revoke the client from the user's authorized applications.
-Changing or resetting a password, or changing the user's role, ends OAuth2 sessions as well as
-browser sessions.
+The initial admin account is `admin@localhost`. Set `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` to an unpredictable
+password before starting Phoenix. Otherwise, the default password is `admin`, which must be changed before
+opening a session. Scripted logins with this default receive HTTP 403 and a reset token; use
+`POST /auth/password-reset` to change the password. A custom initial password does not require this reset.
+
+On an existing database, startup applies `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` only if the local admin
+still requires a password reset and its password is still `admin`. Customized credentials are preserved;
+this variable is not a general password-rotation mechanism. Replacing the default password revokes existing
+browser and OAuth2 sessions and invalidates pending password-reset tokens and OAuth2 authorization codes.
+API keys remain valid. Review the admin account's API keys and revoke any you do not recognize.
+
+**To invalidate old sessions immediately during this credential replacement, stop all replicas first.**
+Running replicas can continue accepting cached tokens until they stop. Configure the same initial password
+on all replacement replicas, then start v21. Verify login with the configured password before restoring
+external traffic. This stop requirement does not apply to upgrades that preserve customized admin credentials.
+
+### `PHOENIX_SECRET` and saved credentials
+
+`PHOENIX_SECRET` is now optional for authentication. Without it, anyone with a copy of the database can decrypt
+saved credentials, including provider API keys, workspace secrets, and GitHub tokens.
+Set `PHOENIX_SECRET` to protect these credentials.
+
+**Setting or changing `PHOENIX_SECRET` makes previously saved credentials unreadable.** Re-enter credentials
+you still need, or delete unused ones, in **Settings → Secrets**, custom model settings, or sandbox provider
+settings, as applicable.
+
+### Browser sign-out no longer ends OAuth2 sessions
+
+Signing out of the Phoenix UI still ends the user's sessions in every browser. It no longer ends OAuth2
+sessions used by the CLI or MCP clients. To end an OAuth2 session, run `px auth logout` or revoke the client
+from the user's authorized applications. Password changes, password resets, and role changes still end
+both browser and OAuth2 sessions.
 
 ## v19.x to v20.0.0
 
