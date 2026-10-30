@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a7cd5ed27e77cb7d855bf3b4567b01a>>
+ * @generated SignedSource<<87857d757a4728238d07edf0a8d25acf>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
