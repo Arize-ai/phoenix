@@ -362,7 +362,7 @@ function QueuedStat({
             }
           >
             <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-              {`of ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} shared`}
+              {`of ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} max`}
             </Text>
           </HoverDetail>
         </Flex>
