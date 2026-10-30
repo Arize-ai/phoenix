@@ -13,11 +13,9 @@ permissions:
 
 jobs:
   guard:
-    # A factory PR is one on a `factory/` branch or one the factory's app opened, since the
-    # agent chooses the branch.
-    if: >-
-      startsWith(github.head_ref, 'factory/') ||
-      (vars.FACTORY_GITHUB_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_GITHUB_LOGIN)
+    # A factory PR is one on a `factory/` branch. The factory's app also opens the release and
+    # sync PRs, which change these paths, so authorship alone does not mark a factory PR.
+    if: startsWith(github.head_ref, 'factory/')
     runs-on: ubuntu-latest
     steps:
       - name: Reject changes to protected paths
