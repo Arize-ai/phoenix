@@ -49,6 +49,8 @@ px prompt delete <prompt-identifier>
 px project list
 px project get <name>
 px project delete <project-identifier>
+px project retention set <project-identifier> <policy-id>
+px project retention reset <project-identifier>
 px annotation-config list
 px annotation-config get <identifier>
 px annotation-config create
@@ -228,6 +230,13 @@ substring. Use it instead of piping `list` through `grep` when you only know par
 of a project's name.
 
 `project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
+
+`project retention set <project> <policy-id>` assigns an existing trace
+retention policy (GlobalID) and `project retention reset <project>` returns the
+project to the default policy. Both are admin-only, prompt for confirmation
+(pass `--yes` when non-interactive), and print `{project_id, policy_id}`
+(`policy_id` is `null` after a reset). A 401/403 exits `AUTH_REQUIRED` (4) and a
+malformed policy ID exits `INVALID_ARGUMENT` (3).
 
 ## Traces
 

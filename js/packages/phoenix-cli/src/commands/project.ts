@@ -1,4 +1,5 @@
-import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { HttpError, type PhoenixClient } from "@arizeai/phoenix-client";
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -11,8 +12,16 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
-import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
-import type { CommonOptions, DeleteOptions } from "./options";
+import {
+  formatProjectRetentionOutput,
+  formatProjectsOutput,
+  type OutputFormat,
+} from "./formatProjects";
+import type {
+  CommonOptions,
+  ConfirmationOptions,
+  DeleteOptions,
+} from "./options";
 
 /**
  * Options for `px project list`.
@@ -344,6 +353,191 @@ export function createProjectGetCommand(): Command {
 }
 
 /**
+ * Options for `px project retention set` and `px project retention reset`.
+ */
+interface ProjectRetentionOptions
+  extends CommonOptions<OutputFormat>, ConfirmationOptions {}
+
+const RETENTION_POLICY_LIST_HINT =
+  "px api graphql '{ projectTraceRetentionPolicies { edges { node { id name } } } }'";
+
+/**
+ * Map a failed retention request to a `StructuredError` and exit code. The
+ * server answers 403 for non-admins, 422 for a malformed policy GlobalID, and
+ * 404 for an unknown project or policy, with the reason as a plain-text body.
+ */
+async function exitOnRetentionHttpError({
+  error,
+  action,
+  format,
+}: {
+  error: HttpError;
+  action: string;
+  format?: OutputFormat;
+}): Promise<never> {
+  const detail = (await error.response.text().catch(() => "")) || error.message;
+  const message = `Error ${action} project retention policy: ${detail}`;
+  if (error.status === 401 || error.status === 403) {
+    writeStructuredError({
+      format,
+      message,
+      code: "AUTH_REQUIRED",
+      hint: "px auth status",
+    });
+    process.exit(ExitCode.AUTH_REQUIRED);
+  }
+  if (error.status === 422) {
+    writeStructuredError({
+      format,
+      message,
+      code: "INVALID_ARGUMENT",
+      hint: RETENTION_POLICY_LIST_HINT,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  writeStructuredError({ format, message, code: "FAILURE" });
+  process.exit(ExitCode.FAILURE);
+}
+
+/**
+ * Shared handler for `project retention set` and `project retention reset`.
+ * A `null` policy ID resets the project to the default policy; the server
+ * requires the field, so it is always sent explicitly.
+ */
+async function projectRetentionHandler({
+  projectIdentifier,
+  policyId,
+  options,
+}: {
+  projectIdentifier: string;
+  policyId: string | null;
+  options: ProjectRetentionOptions;
+}): Promise<void> {
+  const action = policyId === null ? "resetting" : "setting";
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    // Shortening retention lets the next sweep delete traces, so both verbs
+    // confirm like the delete commands do.
+    await confirmOrExit({
+      message:
+        policyId === null
+          ? `Reset project ${projectIdentifier} to the default retention policy? Traces outside the default policy's retention window will be permanently deleted the next time it runs.`
+          : `Assign retention policy ${policyId} to project ${projectIdentifier}? Traces outside the policy's retention window will be permanently deleted the next time it runs.`,
+      yes: options.yes,
+    });
+
+    writeProgress({
+      message:
+        policyId === null
+          ? `Resetting retention policy for project ${projectIdentifier}...`
+          : `Assigning retention policy ${policyId} to project ${projectIdentifier}...`,
+      noProgress: !options.progress,
+    });
+
+    const assignment = await setProjectRetentionPolicy({
+      client,
+      project: projectIdentifier,
+      policyId,
+    });
+
+    writeOutput({
+      message: formatProjectRetentionOutput({
+        assignment,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      await exitOnRetentionHttpError({ error, action, format: options.format });
+    }
+    writeError({
+      message: `Error ${action} project retention policy: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+function addRetentionOptions(command: Command): Command {
+  return command
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators");
+}
+
+/**
+ * Create the `project retention` command with `set` and `reset` subcommands.
+ */
+export function createProjectRetentionCommand(): Command {
+  const command = new Command("retention");
+  command.description(
+    "Manage which trace retention policy a project uses (admin only)"
+  );
+
+  command.addCommand(
+    addRetentionOptions(
+      new Command("set")
+        .description("Assign an existing trace retention policy to a project")
+        .argument("<project-identifier>", "Project name or ID")
+        .argument("<policy-id>", "Retention policy ID (GlobalID)")
+    )
+      .addHelpText(
+        "after",
+        "\nExamples:\n" +
+          "  px project retention set my-project UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=\n" +
+          "  px project retention set my-project <policy-id> --yes --format raw\n"
+      )
+      .action(
+        (
+          projectIdentifier: string,
+          policyId: string,
+          options: ProjectRetentionOptions
+        ) => projectRetentionHandler({ projectIdentifier, policyId, options })
+      )
+  );
+
+  command.addCommand(
+    addRetentionOptions(
+      new Command("reset")
+        .description("Reset a project to the default trace retention policy")
+        .argument("<project-identifier>", "Project name or ID")
+    )
+      .addHelpText(
+        "after",
+        "\nExamples:\n" +
+          "  px project retention reset my-project\n" +
+          "  px project retention reset my-project --yes --format raw\n"
+      )
+      .action((projectIdentifier: string, options: ProjectRetentionOptions) =>
+        projectRetentionHandler({ projectIdentifier, policyId: null, options })
+      )
+  );
+
+  return command;
+}
+
+/**
  * Create the `project` command with subcommands
  */
 export function createProjectCommand(): Command {
@@ -352,5 +546,6 @@ export function createProjectCommand(): Command {
   command.addCommand(configureProjectListCommand(new Command("list")));
   command.addCommand(createProjectGetCommand());
   command.addCommand(createProjectDeleteCommand());
+  command.addCommand(createProjectRetentionCommand());
   return command;
 }
