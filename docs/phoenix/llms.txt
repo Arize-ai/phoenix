@@ -52,6 +52,8 @@
 
 - [Decide whether a change is ready](https://arize.com/docs/phoenix/learn/ship-decision): Review experiment evidence and coverage gaps, then record a release decision and next action.
 
+- [Evaluate new runs and update tests](https://arize.com/docs/phoenix/learn/production-evals): Manually evaluate captured runs, review judgments, and add useful cases to the test set.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

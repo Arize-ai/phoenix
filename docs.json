@@ -511,7 +511,8 @@
           {
             "group": "Ship and repeat",
             "pages": [
-              "docs/phoenix/learn/ship-decision"
+              "docs/phoenix/learn/ship-decision",
+              "docs/phoenix/learn/production-evals"
             ]
           }
         ]

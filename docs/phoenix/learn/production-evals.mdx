@@ -1,0 +1,121 @@
+---
+title: "Evaluate new runs and update tests"
+description: "Manually evaluate captured agent runs, review the results in Phoenix, and improve your next test set."
+---
+
+{/* video: TODO */}
+
+[CI](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest) helps protect the requirements you've already tested, but users can send requests your test set doesn't cover. To find those gaps, you need to review new application runs and bring useful examples back into your tests.
+
+You'll select a completed [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) run and manually run a script to evaluate its saved request and answer with your budget judge. Then you'll review the judgment in Phoenix and decide which examples belong in your next test set.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-production-light-1add2c4bfd8e.svg" alt="Score captured requests, review their judgments, and add useful cases to the next dataset version." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-production-dark-7713d2eb1418.svg" alt="Score captured requests, review their judgments, and add useful cases to the next dataset version." />
+</Frame>
+
+## Before you start
+
+Have these ready:
+
+- Wonder Toys running with [tracing enabled](/docs/phoenix/learn/capture-first-run).
+- The budget judge from [Write and validate an LLM judge](/docs/phoenix/learn/llm-judge), using the same rubric as your experiments.
+- Your [Anthropic API key](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys) in `phoenix/langchain-py/.env.local`.
+
+## Step 1: Choose a new run to review
+
+Start a new conversation in the Wonder Toys agent and send a request such as:
+
+```text
+Find dinosaur toys for a 6-year-old under $20. Recommend at most 2 options.
+```
+
+Once the answer is complete, find its trace in Phoenix:
+
+- Open **Tracing → wonder-toys** and select the completed request.
+- Select the top **Wonder Toys** span. Check that **Input** is the shopper's request and **Output** is the final answer.
+- Copy the **trace ID** from the trace header. Use the trace ID, not the selected span's ID.
+
+<Frame caption="Select the application’s root span, check the request and answer, then copy the trace ID from the header.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-production-trace-id-bba20ebfd8ed.gif" alt="Light-mode Phoenix walkthrough showing a Wonder Toys root span and the copy-trace-ID control in the trace header." />
+</Frame>
+
+Your answer may satisfy the budget or miss it. Either outcome works for this exercise; you'll judge the response that was actually recorded.
+
+## Step 2: Score the recorded answer
+
+Use that trace ID with the supplied [scoring script](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/score_runs.py). It reads the saved request and answer, calls the budget judge, and attaches the judgment to the root span. It doesn't rerun the shopping agent.
+
+From the Wonder Toys repository root, replace `YOUR_TRACE_ID`:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.score_runs \
+  --trace-id YOUR_TRACE_ID \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006
+```
+
+Use your setup's addresses:
+
+- Replace `http://localhost:6006` if Phoenix runs elsewhere.
+- Add `--project YOUR_PROJECT` if your project isn't named `wonder-toys`.
+
+When the command finishes, it prints the judge's label and explanation. Phoenix stores the result as a [`budget_compliance_judge` annotation](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui) marked **LLM** in the **kind** column, separate from your manual `budget_compliance` review.
+
+## Step 3: Check the judgment against the answer
+
+Now review the result the command attached. Refresh the trace and select the same root span:
+
+- Expand **Annotations** and select **Table**.
+- Find `budget_compliance_judge` and read its label and explanation. Use the wrap-rows control if the text is cut off.
+- Compare the judgment with the shopper's request and the agent's answer in **Input** and **Output** below.
+
+<Frame caption="Open Annotations on the root span to inspect the LLM judgment and its explanation.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-production-review-55485e7cbebc.gif" alt="Light-mode Phoenix walkthrough opening the root span’s Annotations view and inspecting its budget_compliance_judge label and explanation." />
+</Frame>
+
+Check the label against your [budget criteria](/docs/phoenix/learn/choose-evals):
+
+- **`fail`:** Identify the recommendation that violated the limit.
+- **`pass`:** Check that the explanation didn't overlook an expensive recommendation.
+- **`needs_review`:** Inspect the ambiguous or missing evidence. This label has no numeric score.
+
+If scoring failed, investigate the error before treating the run as a budget failure. The annotation's metadata identifies the model and rubric version that produced the judgment.
+
+## Step 4: Save useful cases after review
+
+Your review determines what to change next:
+
+- **A confirmed agent failure:** Use **Add to Dataset** on the root span. Save the request and set **Output** to the expected behavior before saving, following [Turn failures into representative cases](/docs/phoenix/learn/build-test-cases). Preserve the source trace.
+- **A useful passing case:** Keep it when it adds coverage you want to preserve in future comparisons.
+- **An incorrect judge decision:** Use the answer in your [judge-validation exercise](/docs/phoenix/learn/llm-judge) and review the rubric before relying on more scores.
+
+The failed answer is evidence of the problem. The dataset's expected output should describe what a correct answer would do.
+
+## Step 5: Repeat the review
+
+As your application receives more requests, choose a sample of captured runs to review using the same process:
+
+- Which runs to select and how often to review them.
+- Which evaluator and rubric version to use.
+- Who reviews failures and uncertain judgments, and when.
+
+Keep the sampling rule consistent when comparing results over time. A few requests chosen for this exercise don't represent your application's overall failure rate.
+
+Use the updated dataset to [run the next experiments](/docs/phoenix/learn/run-experiment), then revisit your [release decision](/docs/phoenix/learn/ship-decision). New requests now provide evidence for the next change and test run.
+
+## You've completed the core learning path
+
+You've followed Wonder Toys from its first trace through testing changes and reviewing new runs. Along the way, you've practiced how to:
+
+- **Understand behavior:** Inspect model calls, tool results, and conversations.
+- **Find failures:** Review traces and feedback, then save representative test cases.
+- **Design evaluations:** Write code checks and validate an LLM judge against reviewed examples.
+- **Test a change:** Compare prompt and agent versions, and verify completed tasks with Harbor.
+- **Ship and repeat:** Explain a release decision, repeat critical checks, and use new requests to improve the tests.
+
+Apply the same process to your own application: start with a behavior you need to understand, collect evidence, test a change, and review what happens next.
+
+The **Further workflows** section is optional. Explore those lessons when you want to investigate Phoenix with a coding assistant, evaluate coding agents, check retrieval, or test prompt injection defenses.
