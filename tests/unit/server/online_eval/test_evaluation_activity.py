@@ -386,3 +386,48 @@ async def test_project_evaluator_lag_graphql(
         # Nothing completed in the last hour.
         "recent": None,
     }
+
+
+async def test_lag_without_a_range_reads_every_evaluator_at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.server.api.dataloaders import project_evaluator_lags
+
+    reads: list[tuple[list[int], timedelta]] = []
+
+    async def fake_load_evaluation_lags(
+        db: Any, ids: list[int], start: datetime, end: datetime
+    ) -> dict[int, EvaluationLag]:
+        reads.append((ids, end - start))
+        return {id_: _lag(1, 2, 3) for id_ in ids}
+
+    monkeypatch.setattr(project_evaluator_lags, "load_evaluation_lags", fake_load_evaluation_lags)
+    loader = project_evaluator_lags.ProjectEvaluatorLagsDataLoader(db=None)  # type: ignore[arg-type]
+    lags = await loader.load_many([(1, None, None), (2, None, None), (3, _at(12), None)])
+    assert [ids for ids, _ in reads] == [[1, 2], [3]]
+    assert reads[0][1] == project_evaluator_lags.DEFAULT_LAG_WINDOW
+    assert lags == [_lag(1, 2, 3)] * 3
+
+
+@pytest.mark.parametrize(
+    "time_range, message",
+    [
+        pytest.param({"end": _at(15)}, "Start time is required", id="no-start"),
+        pytest.param(
+            {"start": _at(15), "end": _at(12)}, "End time must be after start time", id="end-first"
+        ),
+    ],
+)
+async def test_evaluation_activity_rejects_a_bad_range(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    time_range: dict[str, datetime],
+    message: str,
+) -> None:
+    response = await gql_client.execute(
+        """query ($timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) { evaluatedCount }
+        }""",
+        {"timeRange": {key: value.isoformat() for key, value in time_range.items()}},
+    )
+    assert response.errors and message in response.errors[0].message

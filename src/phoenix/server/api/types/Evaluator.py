@@ -1,6 +1,6 @@
 import asyncio
 import zlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Literal, Optional, Sequence, Union
 
@@ -114,7 +114,6 @@ class EvaluationTarget(Enum):
 
 _DEGRADED_QUEUE_WAIT_MINUTES = int(DEGRADED_QUEUE_WAIT.total_seconds() // 60)
 _EVALUATION_LOAD_WINDOW_MINUTES = int(EVALUATION_LOAD_WINDOW.total_seconds() // 60)
-_DEFAULT_LAG_WINDOW = timedelta(hours=1)
 
 
 @strawberry.enum(
@@ -1590,10 +1589,13 @@ class ProjectEvaluator(Node):
     async def lag(
         self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
     ) -> Optional[EvaluationLag]:
-        now = datetime.now(timezone.utc)
-        end = (time_range.end if time_range else None) or now
-        start = (time_range.start if time_range else None) or end - _DEFAULT_LAG_WINDOW
-        lag = await info.context.data_loaders.project_evaluator_lags.load((self.id, start, end))
+        lag = await info.context.data_loaders.project_evaluator_lags.load(
+            (
+                self.id,
+                time_range.start if time_range else None,
+                time_range.end if time_range else None,
+            )
+        )
         return to_gql_evaluation_lag(lag)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
