@@ -78,13 +78,15 @@ def redact_secrets(value: Any) -> Any:
     if isinstance(value, str):
         return _QUERY_PARAM.sub(_redact_query_param, _URL_USERINFO.sub("", value))
     if isinstance(value, Mapping):
+        mapping: Mapping[Any, Any] = value
         return {
             str(key): redact_secrets(item)
-            for key, item in cast(Mapping[Any, Any], value).items()
+            for key, item in mapping.items()
             if not is_secret_key(str(key))
         }
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
-        return [redact_secrets(item) for item in cast(Sequence[Any], value)]
+        sequence: Sequence[Any] = value
+        return [redact_secrets(item) for item in sequence]
     return redact_secrets(str(value))
 
 
