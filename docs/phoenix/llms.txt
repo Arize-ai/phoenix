@@ -20,7 +20,6 @@
 ## Learn (Phoenix Academy)
 
 - [Welcome to Phoenix Academy](https://arize.com/docs/phoenix/learn): Learn how tracing, evaluation, and experiments support agent improvement with a shared shopping assistant example
-- [How teams improve an agent](https://arize.com/docs/phoenix/learn/improvement-loop): Understand the five stages of improving an agent, from inspecting behavior to testing and releasing changes
 
 ### Understand behavior
 
