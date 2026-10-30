@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<153e53b786546c894cb01c830fc8f127>>
+ * @generated SignedSource<<747445d9027d847fcb817cc135345e2b>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "X
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type Language = "PYTHON" | "TYPESCRIPT";

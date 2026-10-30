@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cedd33bbe452a05a20a508bec165b7a3>>
+ * @generated SignedSource<<7307261ecff59a5cb5619db3ac079bb5>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0acf91ed2d13f863781e2997aea23dee>>
+ * @generated SignedSource<<ff2ceabb6fbe53f0e9745f323bc317a2>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type DecisionAnnotationQuestionType = "CHOICE" | "PREDICATE" | "SCALE";
 export type DecisionAnnotationStatus = "ANSWERED" | "ERROR" | "REFUSED";
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type PlaygroundExperimentRunDetailsDialogQuery$variables = {
   runId: string;
