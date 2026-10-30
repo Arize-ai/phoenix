@@ -208,6 +208,33 @@ describe("CustomProviderForm decision models", () => {
     ).toBeNull();
   });
 
+  it("shows one Connection section after switching SDKs", async () => {
+    const user = userEvent.setup();
+    render();
+    const chooseSdk = async (label: string) => {
+      // The SDK select is the form's first select.
+      const trigger = container.querySelector<HTMLButtonElement>(
+        'button[aria-haspopup="listbox"]'
+      );
+      if (!trigger) throw new Error("no SDK select");
+      await act(() => user.click(trigger));
+      const option = [
+        ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+      ].find((candidate) => candidate.textContent === label);
+      if (!option) throw new Error(`no SDK option ${label}`);
+      await act(() => user.click(option));
+    };
+    await chooseSdk("TypeSafe");
+    await chooseSdk("OpenAI");
+    const headings = [...container.querySelectorAll("h1, h2, h3, h4")].map(
+      (heading) => heading.textContent
+    );
+    expect(headings.filter((text) => text === "Connection")).toHaveLength(1);
+    expect(headings.filter((text) => text === "Decision models")).toHaveLength(
+      1
+    );
+  });
+
   it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
     render({
       ...(createDefaultFormData("TYPESAFE") as ProviderFormData),

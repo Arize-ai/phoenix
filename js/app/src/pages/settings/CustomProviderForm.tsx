@@ -10,6 +10,7 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
+  DialogFooter,
   FieldError,
   Flex,
   Form,
@@ -214,12 +215,19 @@ const flexFieldCSS = css`
   flex: 1 1 auto;
 `;
 
-const formFooterCSS = css`
+// The sections scroll between the dialog's header and its pinned footer.
+const formCSS = css`
   display: flex;
-  justify-content: flex-end;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-200);
-  border-top: 1px solid var(--global-border-color-default);
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
+
+const formBodyCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 `;
 
 const OPENAI_OPTIONAL_FIELDS = [
@@ -1171,100 +1179,103 @@ export const ProviderForm = ({
   invariant(sdk, "SDK field must be defined in form state");
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <ProviderFormSection title="Provider">
-        <Controller
-          name="name"
-          control={control}
-          rules={{ required: "Name is required" }}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isRequired
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-            >
-              <Label>Provider Name</Label>
-              <Input placeholder="My Custom Provider" />
-              {error ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">
-                  A unique name to identify this provider configuration
-                </Text>
-              )}
-            </TextField>
-          )}
-        />
-
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => (
-            <TextField {...field} isDisabled={isSubmitting}>
-              <Label>Description</Label>
-              <TextArea placeholder="Optional description for this provider" />
-            </TextField>
-          )}
-        />
-
-        <Flex direction="row" gap="size-100" alignItems="start">
-          <SDKSelect
-            control={control}
-            reset={reset}
-            getValues={getValues}
-            isSubmitting={isSubmitting}
-          />
+    <Form onSubmit={handleSubmit(onSubmit)} css={formCSS}>
+      <div css={formBodyCSS}>
+        <ProviderFormSection title="Provider">
           <Controller
-            name="provider"
+            name="name"
             control={control}
-            rules={{ required: "Provider is required" }}
+            rules={{ required: "Name is required" }}
             render={({ field, fieldState: { invalid, error } }) => (
               <TextField
                 isRequired
                 isInvalid={invalid}
                 {...field}
                 isDisabled={isSubmitting}
-                css={flexFieldCSS}
               >
-                <Label>Provider String</Label>
-                <Input placeholder="e.g., openai, azure, my-custom-provider" />
-                {error && <FieldError>{error.message}</FieldError>}
+                <Label>Provider Name</Label>
+                <Input placeholder="My Custom Provider" />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    A unique name to identify this provider configuration
+                  </Text>
+                )}
               </TextField>
             )}
           />
-        </Flex>
-      </ProviderFormSection>
 
-      <ConnectionSection
-        key={sdk}
-        sdk={sdk}
-        control={control}
-        getValues={getValues}
-        isSubmitting={isSubmitting}
-      />
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} isDisabled={isSubmitting}>
+                <Label>Description</Label>
+                <TextArea placeholder="Optional description for this provider" />
+              </TextField>
+            )}
+          />
 
-      {sdk !== "TYPESAFE" ? (
-        // A TypeSafe provider serves decision models only.
-        <LLMModelsSection
-          sdk={sdk}
-          control={control}
-          isSubmitting={isSubmitting}
-        />
-      ) : null}
+          <Flex direction="row" gap="size-100" alignItems="start">
+            <SDKSelect
+              control={control}
+              reset={reset}
+              getValues={getValues}
+              isSubmitting={isSubmitting}
+            />
+            <Controller
+              name="provider"
+              control={control}
+              rules={{ required: "Provider is required" }}
+              render={({ field, fieldState: { invalid, error } }) => (
+                <TextField
+                  isRequired
+                  isInvalid={invalid}
+                  {...field}
+                  isDisabled={isSubmitting}
+                  css={flexFieldCSS}
+                >
+                  <Label>Provider String</Label>
+                  <Input placeholder="e.g., openai, azure, my-custom-provider" />
+                  {error && <FieldError>{error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+          </Flex>
+        </ProviderFormSection>
 
-      {sdkCanServeDecisions(sdk) ? (
-        <DecisionModelsSection
-          key={sdk}
+        <ConnectionSection
+          // Keys are unique among siblings; a shared one leaves stale sections
+          // behind when the SDK changes.
+          key={`connection-${sdk}`}
           sdk={sdk}
           control={control}
           getValues={getValues}
-          setValue={setValue}
           isSubmitting={isSubmitting}
         />
-      ) : null}
 
-      <div css={formFooterCSS}>
+        {sdk !== "TYPESAFE" ? (
+          // A TypeSafe provider serves decision models only.
+          <LLMModelsSection
+            sdk={sdk}
+            control={control}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
+
+        {sdkCanServeDecisions(sdk) ? (
+          <DecisionModelsSection
+            key={`decisions-${sdk}`}
+            sdk={sdk}
+            control={control}
+            getValues={getValues}
+            setValue={setValue}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
+      </div>
+      <DialogFooter>
         <Button variant="default" onPress={onCancel} isDisabled={isSubmitting}>
           Cancel
         </Button>
@@ -1275,7 +1286,7 @@ export const ProviderForm = ({
               ? "Update Provider"
               : "Create Provider"}
         </Button>
-      </div>
+      </DialogFooter>
     </Form>
   );
 };
