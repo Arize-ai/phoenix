@@ -5,8 +5,8 @@ import {
 
 describe("decision definition comparison", () => {
   const version: DecisionVersionDefinition = {
-    inputs: [{ name: "ticket" }],
-    state: { __typename: "DecisionInputState", input: "ticket" },
+    templateFormat: "MUSTACHE",
+    state: { __typename: "DecisionJsonState", json: "{{ticket}}" },
     questions: [
       {
         __typename: "DecisionPredicateQuestion",
@@ -35,10 +35,10 @@ describe("decision definition comparison", () => {
       JSON.parse(
         decisionVersionToText({
           ...version,
-          state: { __typename: "DecisionObjectState", object: true },
+          state: { __typename: "DecisionJsonState", json: "{{state}}" },
         })
       ).state
-    ).toEqual({ object: true });
+    ).toEqual({ json: "{{state}}" });
   });
   it("includes question content, model, and provider routing changes", () => {
     for (const changed of [

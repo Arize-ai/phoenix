@@ -12,7 +12,10 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-import { createDecisionQuestion } from "@phoenix/pages/playground/decisionUtils";
+import {
+  createDecisionQuestion,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
 
@@ -91,8 +94,10 @@ vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
           store.getState().updateDecisionPrompt({
             instanceId: 1,
             request: {
-              state: "answer",
-              stateEditorMode: "inputs",
+              state: createDecisionStateDraft({
+                mode: "json",
+                json: '{"answer": "{{answer}}"}',
+              }),
               questions: [
                 createDecisionQuestion({
                   type: "predicate",
@@ -223,8 +228,10 @@ describe("Decision dataset evaluator authoring", () => {
               tag: null,
             },
             decisionPrompt: {
-              state: "answer",
-              stateEditorMode: "inputs",
+              state: createDecisionStateDraft({
+                mode: "json",
+                json: '{"answer": "{{answer}}"}',
+              }),
               questions: [
                 createDecisionQuestion({
                   type: "predicate",

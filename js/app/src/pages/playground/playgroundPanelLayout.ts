@@ -13,19 +13,17 @@ export function getPlaygroundPanelIds({
   isDatasetMode,
   templateFormat,
   mode = "task",
-  hasDecisionInputState = false,
 }: {
   isDatasetMode: boolean;
   templateFormat: TemplateFormat;
   mode?: PlaygroundMode;
-  hasDecisionInputState?: boolean;
 }): string[] {
   // Evaluator tasks have no manual input, so without a dataset they show the
   // same two panels as a dataset does.
   if (isDatasetMode || mode === "evaluator") {
     return ["prompts", "io"];
   }
-  return templateFormat !== TemplateFormats.NONE || hasDecisionInputState
+  return templateFormat !== TemplateFormats.NONE
     ? ["prompts", "input", "output"]
     : ["prompts", "output"];
 }

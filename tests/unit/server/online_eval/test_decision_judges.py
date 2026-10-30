@@ -14,9 +14,10 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, PredicateScoring
-from phoenix.db.types.decisions import DecisionInput, InputState
+from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.helpers.decision_clients import (
     DecisionRateLimitError,
     DecisionResponse,
@@ -68,8 +69,8 @@ async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
         decision = models.Decision(name=Identifier(f"decision-{token_hex(4)}"), metadata_={})
         version = models.DecisionVersion(
             decision=decision,
-            inputs=[DecisionInput(name="output")],
-            state=InputState(type="input", name="output"),
+            template_format=PromptTemplateFormat.MUSTACHE,
+            state=JsonState(type="json", template="{{output}}"),
             questions=questions(),
             model_provider=ModelProvider.TYPESAFE,
             model_name="jev-latest",
@@ -341,8 +342,7 @@ async def test_binding_a_judge_to_a_project_checks_what_the_target_can_fill(
         judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None
         version = judge.selected_version
-        version.inputs = [DecisionInput(name="ticket")]
-        version.state = InputState(type="input", name="ticket")
+        version.state = JsonState(type="json", template="{{ticket}}")
     route = f"v1/projects/{GlobalID('Project', str(project_id))}/evaluators"
     body: dict[str, Any] = {
         "name": "judge",

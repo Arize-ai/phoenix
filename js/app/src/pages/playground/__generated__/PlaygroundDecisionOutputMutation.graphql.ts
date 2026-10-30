@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0a475a56997dafef6e4171182ef1593>>
+ * @generated SignedSource<<04826f96105913891e6d732103920763>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type RunDecisionInput = {
   connection: DecisionConnectionInput;
-  inputValues: any;
-  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   modelName: string;
   questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
+  templateFormat: PromptTemplateFormat;
+  variables: any;
 };
 export type DecisionConnectionInput = {
   builtIn: BuiltInDecisionConnectionInput;
@@ -37,27 +37,12 @@ export type GenerativeCredentialInput = {
 export type CustomProviderDecisionConnectionInput = {
   id: string;
 };
-export type DecisionInputDefinitionInput = {
-  description?: string | null;
-  jsonSchema?: any | null;
-  name: string;
-};
 export type DecisionStateInput = {
-  input?: never;
-  object: boolean;
-  text?: never;
+  json?: never;
+  text: string;
 } | {
-  input?: never;
-  object?: never;
-  text: TextStateInput;
-} | {
-  input: string;
-  object?: never;
+  json: any;
   text?: never;
-};
-export type TextStateInput = {
-  template: string;
-  templateFormat: DecisionTemplateFormat;
 };
 export type DecisionQuestionInput = {
   choice?: never;

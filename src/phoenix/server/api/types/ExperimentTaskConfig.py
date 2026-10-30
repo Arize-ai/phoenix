@@ -34,10 +34,8 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.DecisionDefinition import (
-    DecisionInputDefinition,
     DecisionQuestion,
     DecisionState,
-    to_gql_decision_input,
     to_gql_decision_question,
     to_gql_decision_state,
 )
@@ -65,6 +63,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
 )
+from phoenix.server.decisions.rendering import decision_variables
 
 # =============================================================================
 # Connection Config (discriminated union — builtin providers only)
@@ -339,13 +338,16 @@ class DecisionTaskConfig(Node):
     base_url: Optional[str] = strawberry.field(
         description="The endpoint a built-in provider was reached at, when not its default."
     )
-    inputs: list[DecisionInputDefinition]
+    template_format: PromptTemplateFormat
     state: DecisionState
     questions: list[DecisionQuestion] = strawberry.field(
         description="The fixed questions asked of every example."
     )
-    input_values_path: str = strawberry.field(
-        description="Where input values were read, as a prompt task's templateVariablesPath."
+    variables: list[str] = strawberry.field(
+        description="The variables the state and questions use, in first-appearance order."
+    )
+    template_variables_path: str = strawberry.field(
+        description="Where each example's variables were read, as for a prompt task."
     )
     decision_version_id: Private[Optional[int]] = None
     custom_provider_id: Private[Optional[int]] = None
@@ -358,10 +360,11 @@ class DecisionTaskConfig(Node):
             model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
             model_name=obj.model_name,
             base_url=obj.base_url,
-            inputs=[to_gql_decision_input(input) for input in config.inputs],
+            template_format=config.template_format,
             state=to_gql_decision_state(config.state),
             questions=[to_gql_decision_question(question) for question in config.questions],
-            input_values_path=config.input_values_path,
+            variables=decision_variables(config.template_format, config.state, config.questions),
+            template_variables_path=config.template_variables_path,
             decision_version_id=obj.decision_version_id,
             custom_provider_id=obj.custom_provider_id,
         )

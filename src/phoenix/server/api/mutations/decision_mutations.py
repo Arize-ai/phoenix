@@ -11,6 +11,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -26,28 +27,24 @@ from phoenix.server.api.input_types.DecisionConnectionInput import (
     DecisionConnectionInput,
 )
 from phoenix.server.api.input_types.DecisionVersionInput import (
-    DecisionInputDefinitionInput,
     DecisionQuestionInput,
     DecisionStateInput,
+    to_decision_definition,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.DecisionAnswer import DecisionResult, to_gql_decision_result
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.decisions.rendering import render_state
-from phoenix.server.decisions.validation import (
-    validate_inputs,
-    validate_questions,
-)
+from phoenix.server.decisions.rendering import RenderedDecision, render_decision
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.tracers import Tracer
 
 
 @strawberry.input(
     description=(
-        "A decision run: where it runs, the inputs it declares and their values for this "
-        "call, how the state is built from them, and the questions."
+        "A decision run: where it runs, its state template and questions, and this call's "
+        "values for their variables."
     )
 )
 class RunDecisionInput:
@@ -58,36 +55,36 @@ class RunDecisionInput:
             "only suggests names."
         )
     )
-    inputs: list[DecisionInputDefinitionInput] = strawberry.field(
-        description="The named inputs a caller passes, in order. Names must be unique."
+    template_format: PromptTemplateFormat = strawberry.field(
+        description="How variable tags are read in the state and the question fields."
     )
     state: DecisionStateInput = strawberry.field(
-        description="How the state sent to the model is built from the inputs."
-    )
-    input_values: JSON = strawberry.field(
-        description=(
-            "An object with one entry per declared input: the key is the input's name, and "
-            "the value is any JSON (a string, number, boolean, null, object, or array). "
-            "Missing or undeclared names are rejected."
-        )
+        description="The state template: text, or JSON whose string leaves are templates."
     )
     questions: list[DecisionQuestionInput] = strawberry.field(
         description="The questions, in order. Names must be unique; answers come back under them."
+    )
+    variables: JSON = strawberry.field(
+        description=(
+            "An object with a value for each variable the templates use, keyed by name; any "
+            "JSON (a string, number, boolean, null, object, or array). A missing variable is "
+            "rejected; extra keys are ignored."
+        )
     )
 
 
 @strawberry.input(
     description=(
         "A run of a saved decision version: its definition, model, and provider as saved, "
-        "with this call's input values."
+        "with this call's variables."
     )
 )
 class RunDecisionVersionInput:
     decision_version_id: GlobalID
-    input_values: JSON = strawberry.field(
+    variables: JSON = strawberry.field(
         description=(
-            "An object with one entry per input the version declares, keyed by name. "
-            "Missing or undeclared names are rejected."
+            "An object with a value for each of the version's variables, keyed by name. A "
+            "missing variable is rejected; extra keys are ignored."
         )
     )
     credentials: Optional[list[GenerativeCredentialInput]] = strawberry.field(
@@ -134,45 +131,41 @@ class RunDecisionPayload:
 
 
 def to_decision_request(input: RunDecisionInput) -> DecisionRequest:
-    """Validate the typed input, render its state, and build a provider-independent request.
+    """Validate the typed input, render it, and build a provider-independent request.
 
     Raises:
-        BadRequest: The inputs, state, or questions break a write-time rule, or the input
-            values don't match the declared inputs.
+        BadRequest: The state template or questions break a write-time rule, or the
+            variables can't render them.
     """
-    if not isinstance(input.input_values, dict):
-        raise BadRequest("inputValues must be an object keyed by input name")
+    if not isinstance(input.variables, dict):
+        raise BadRequest("variables must be an object keyed by variable name")
     try:
-        inputs = [definition.to_orm() for definition in input.inputs]
-        state = input.state.to_orm()
-        validate_inputs(inputs, state)
-        questions = [question.to_orm() for question in input.questions]
-        validate_questions(questions)
-        return DecisionRequest(
-            state=render_state(inputs, state, input.input_values),
-            questions=questions,
+        state, questions = to_decision_definition(
+            input.template_format, input.state, input.questions
         )
+        return _request(render_decision(input.template_format, state, questions, input.variables))
     except ValueError as error:
         raise BadRequest(str(error)) from error
 
 
-def version_decision_request(
-    version: models.DecisionVersion, input_values: JSON
-) -> DecisionRequest:
+def version_decision_request(version: models.DecisionVersion, variables: JSON) -> DecisionRequest:
     """The request for a saved version, which passed the write-time rules when saved.
 
     Raises:
-        BadRequest: The input values don't match the version's declared inputs.
+        BadRequest: The variables can't render the version.
     """
-    if not isinstance(input_values, dict):
-        raise BadRequest("inputValues must be an object keyed by input name")
+    if not isinstance(variables, dict):
+        raise BadRequest("variables must be an object keyed by variable name")
     try:
-        return DecisionRequest(
-            state=render_state(version.inputs, version.state, input_values),
-            questions=version.questions,
+        return _request(
+            render_decision(version.template_format, version.state, version.questions, variables)
         )
     except ValueError as error:
         raise BadRequest(str(error)) from error
+
+
+def _request(rendered: RenderedDecision) -> DecisionRequest:
+    return DecisionRequest(state=rendered.state, questions=rendered.questions)
 
 
 @strawberry.type
@@ -209,7 +202,7 @@ class DecisionMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
-            "Run a saved decision version as saved, with this call's input values, and "
+            "Run a saved decision version as saved, with this call's variables, and "
             "record the call as a DECISION span in the playground project."
         ),
     )  # type: ignore
@@ -222,7 +215,7 @@ class DecisionMutationMixin:
             version = await session.get(models.DecisionVersion, version_id)
             if version is None:
                 raise NotFound(f"Decision version not found: {input.decision_version_id}")
-            request = version_decision_request(version, input.input_values)
+            request = version_decision_request(version, input.variables)
             if version.custom_provider_id is not None:
                 if input.base_url is not None:
                     raise BadRequest(

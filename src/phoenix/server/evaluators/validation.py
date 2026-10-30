@@ -25,6 +25,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.decisions.rendering import decision_variables
 
 
 def validate_evaluator_prompt_and_configs(
@@ -275,13 +276,14 @@ def validate_decision_input_mapping(
     context_keys: Sequence[str] = EVALUATOR_CONTEXT_KEYS,
     context: str = "experiment run",
 ) -> None:
-    """Reject a mapping that names undeclared inputs or leaves a declared one unfillable.
+    """Reject a mapping that names variables the decision doesn't use, or leaves one of its
+    variables unfillable.
 
-    Undeclared keys would otherwise be silently dropped at run time. An unmapped declared
-    input is filled from the context only when it is named like one of the context's
-    keys; any other would fail every run as missing.
+    Keys the decision doesn't use would otherwise be silently dropped at run time. An
+    unmapped variable is filled from the context only when it is named like one of the
+    context's keys; any other would fail every run as missing.
     """
-    declared = [input.name for input in version.inputs]
+    declared = decision_variables(version.template_format, version.state, version.questions)
     mapped = (
         set(input_mapping.path_mapping) | set(input_mapping.literal_mapping)
         if input_mapping is not None
@@ -289,12 +291,13 @@ def validate_decision_input_mapping(
     )
     if unknown := sorted(mapped - set(declared)):
         raise BadRequest(
-            f"Input mapping names undeclared inputs: {', '.join(repr(k) for k in unknown)}. "
-            f"Declared inputs: {', '.join(repr(n) for n in declared) or 'none'}"
+            f"Input mapping names variables the decision doesn't use: "
+            f"{', '.join(repr(k) for k in unknown)}. "
+            f"Its variables: {', '.join(repr(n) for n in declared) or 'none'}"
         )
     if unfilled := [name for name in declared if name not in mapped and name not in context_keys]:
         raise BadRequest(
-            f"Map the inputs {', '.join(repr(name) for name in unfilled)}: only inputs named "
+            f"Map the variables {', '.join(repr(name) for name in unfilled)}: only variables named "
             f"{', '.join(repr(key) for key in context_keys)} are filled from the "
             f"{context} without a mapping"
         )
