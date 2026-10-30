@@ -79,19 +79,19 @@ def renamed(question: dict[str, Any], name: str) -> dict[str, Any]:
 
 
 def text_state(message: str) -> dict[str, Any]:
-    """Run fields for one ``message`` input rendered as the whole text state."""
+    """Run fields for one ``message`` variable rendered as the whole text state."""
     return {
-        "inputs": [{"name": "message"}],
-        "state": {"text": {"template": "{{message}}", "templateFormat": "MUSTACHE"}},
-        "inputValues": {"message": message},
+        "templateFormat": "MUSTACHE",
+        "state": {"text": "{{message}}"},
+        "variables": {"message": message},
     }
 
 
-# Run fields whose state is the inputs object itself.
+# Run fields whose state is a JSON object with one variable.
 OBJECT_STATE = {
-    "inputs": [{"name": "complaint"}],
-    "state": {"object": True},
-    "inputValues": {"complaint": "I was charged twice."},
+    "templateFormat": "MUSTACHE",
+    "state": {"json": {"complaint": "{{complaint}}"}},
+    "variables": {"complaint": "I was charged twice."},
 }
 
 
@@ -898,43 +898,34 @@ async def test_invalid_base_urls_fail_before_provider_call(
     "fields,message",
     [
         pytest.param(
-            {**OBJECT_STATE, "inputValues": {}}, "Missing inputs: complaint", id="missing-value"
+            {**OBJECT_STATE, "variables": {}}, "Missing variables: complaint", id="missing-value"
         ),
         pytest.param(
-            {**OBJECT_STATE, "inputValues": {"complaint": "x", "other": 1}},
-            "Undeclared inputs: other",
-            id="undeclared-value",
+            {**OBJECT_STATE, "variables": ["x"]}, "variables must be an object", id="array"
         ),
         pytest.param(
-            {**OBJECT_STATE, "inputValues": ["x"]}, "inputValues must be an object", id="array"
+            {**OBJECT_STATE, "state": {"json": 5}},
+            "must be an object, a list, or a string",
+            id="scalar-json",
         ),
         pytest.param(
-            {
-                **text_state("x"),
-                "state": {"text": {"template": "{{other}}", "templateFormat": "MUSTACHE"}},
-            },
-            "uses undeclared inputs: other",
-            id="undeclared-template-variable",
+            {**OBJECT_STATE, "state": {"text": "{{#complaint}}"}},
+            "Invalid template in the state",
+            id="invalid-template",
         ),
         pytest.param(
-            {
-                **OBJECT_STATE,
-                "state": {
-                    "object": True,
-                    "text": {"template": "{{complaint}}", "templateFormat": "MUSTACHE"},
-                },
-            },
+            {**OBJECT_STATE, "state": {"json": {"a": "{{complaint.missing}}"}}},
+            "The state reads a missing field: complaint.missing",
+            id="missing-field",
+        ),
+        pytest.param(
+            {**OBJECT_STATE, "state": {"json": {"a": 1}, "text": "{{complaint}}"}},
             "OneOf Input Object 'DecisionStateInput' must specify exactly one key.",
             id="two-states",
         ),
-        pytest.param(
-            {**OBJECT_STATE, "state": {"object": False}},
-            "object must be true",
-            id="object-false",
-        ),
     ],
 )
-async def test_invalid_inputs_fail_before_provider_call(
+async def test_invalid_runs_fail_before_provider_call(
     gql_client: AsyncGraphQLClient, fields: dict[str, Any], message: str
 ) -> None:
     with respx.mock(assert_all_called=False) as router:
@@ -961,7 +952,7 @@ async def test_invalid_inputs_fail_before_provider_call(
     assert not route.called
 
 
-async def test_text_state_renders_structured_inputs_for_the_provider(
+async def test_text_state_renders_structured_variables_for_the_provider(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     with respx.mock:
@@ -986,14 +977,9 @@ async def test_text_state_renders_structured_inputs_for_the_provider(
                         }
                     },
                     "modelName": "jev-latest",
-                    "inputs": [{"name": "ticket"}, {"name": "plan"}],
-                    "state": {
-                        "text": {
-                            "template": "Plan: {{plan}}\nTicket: {{ticket}}",
-                            "templateFormat": "MUSTACHE",
-                        }
-                    },
-                    "inputValues": {"ticket": {"body": "Refund?"}, "plan": "pro"},
+                    "templateFormat": "MUSTACHE",
+                    "state": {"text": "Plan: {{plan}}\nTicket: {{ticket}}"},
+                    "variables": {"ticket": {"body": "Refund?"}, "plan": "pro", "extra": 1},
                     "questions": [URGENT],
                 }
             },
@@ -1002,6 +988,70 @@ async def test_text_state_renders_structured_inputs_for_the_provider(
     assert result.data["runDecision"]["error"] is None
     body = json.loads(route.calls[0].request.content)
     assert body["state"] == 'Plan: pro\nTicket: {"body": "Refund?"}'
+
+
+async def test_json_state_sends_typed_values_and_renders_question_templates(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    with respx.mock:
+        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(
+            200,
+            json={
+                "model": "jev-latest",
+                "answers": {"urgent": {"type": "noul", "noul": 0.5}},
+                "usage": {"input_tokens": 20, "output_tokens": 0},
+            },
+        )
+        result = await gql_client.execute(
+            MUTATION,
+            variables={
+                "input": {
+                    "connection": {
+                        "builtIn": {
+                            "providerKey": "TYPESAFE",
+                            "credentials": [
+                                {"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}
+                            ],
+                        }
+                    },
+                    "modelName": "jev-latest",
+                    "templateFormat": "MUSTACHE",
+                    "state": {
+                        "json": {
+                            "customer": "{{customer}}",
+                            "open_tickets": "{{ open_tickets }}",
+                            "note": "Customer since {{since}}",
+                            "channel": "email",
+                        }
+                    },
+                    "variables": {
+                        "customer": {"tier": "gold", "tags": ["vip"]},
+                        "open_tickets": 3,
+                        "since": 2019,
+                        "deadline": "Friday",
+                    },
+                    "questions": [
+                        {
+                            "predicate": {
+                                "name": "urgent",
+                                "instructions": "Must this be solved by {{deadline}}?",
+                            }
+                        }
+                    ],
+                }
+            },
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecision"]["error"] is None
+    body = json.loads(route.calls[0].request.content)
+    assert body["state"] == {
+        "customer": {"tier": "gold", "tags": ["vip"]},
+        "open_tickets": 3,
+        "note": "Customer since 2019",
+        "channel": "email",
+    }
+    assert list(body["state"]) == ["customer", "open_tickets", "note", "channel"]
+    assert body["questions"]["urgent"]["instructions"] == "Must this be solved by Friday?"
 
 
 CREATE_CUSTOM_PROVIDER = """
@@ -1403,15 +1453,15 @@ URGENT_ANSWER = {
 
 
 async def save_version(gql_client: AsyncGraphQLClient, **version: Any) -> str:
-    """Save the urgent question over one `ticket` input, the state being the ticket."""
+    """Save the urgent question over one `ticket` variable, the state being the ticket."""
     result = await gql_client.execute(
         SAVE_DECISION,
         variables={
             "input": {
                 "name": "triage",
                 "version": {
-                    "inputs": [{"name": "ticket"}],
-                    "state": {"input": "ticket"},
+                    "templateFormat": "MUSTACHE",
+                    "state": {"json": "{{ticket}}"},
                     "questions": [URGENT],
                     "modelProvider": "TYPESAFE",
                     "modelName": "jev-latest",
@@ -1427,7 +1477,7 @@ async def save_version(gql_client: AsyncGraphQLClient, **version: Any) -> str:
 async def test_a_saved_version_runs_as_saved(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
-    """Only the version and its input values are given; the definition and model come
+    """Only the version and its variables are given; the definition and model come
     from the version, and credentials for a built-in provider from the call."""
     version_id = await save_version(gql_client)
     with respx.mock:
@@ -1437,7 +1487,7 @@ async def test_a_saved_version_runs_as_saved(
             variables={
                 "input": {
                     "decisionVersionId": version_id,
-                    "inputValues": {"ticket": {"subject": "Charged twice"}},
+                    "variables": {"ticket": {"subject": "Charged twice"}},
                     "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "request-key"}],
                 }
             },
@@ -1469,29 +1519,29 @@ async def test_a_saved_version_runs_on_its_custom_provider(gql_client: AsyncGrap
         )
         result = await gql_client.execute(
             RUN_VERSION,
-            variables={"input": {"decisionVersionId": version_id, "inputValues": {"ticket": "hi"}}},
+            variables={"input": {"decisionVersionId": version_id, "variables": {"ticket": "hi"}}},
         )
     assert result.data and not result.errors, result.errors
     assert result.data["runDecisionVersion"]["error"] is None
     assert route.calls[0].request.headers["authorization"] == "Bearer ts-custom-key"
 
 
-async def test_a_saved_version_checks_its_input_values_before_calling(
+async def test_a_saved_version_checks_its_variables_before_calling(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     version_id = await save_version(gql_client)
 
-    async def error(input_values: Any, version: str = version_id) -> str:
+    async def error(variables: Any, version: str = version_id) -> str:
         result = await gql_client.execute(
             RUN_VERSION,
-            variables={"input": {"decisionVersionId": version, "inputValues": input_values}},
+            variables={"input": {"decisionVersionId": version, "variables": variables}},
         )
         assert result.errors, result.data
         return result.errors[0].message
 
     with respx.mock:
         route = respx.post("https://api.typesafe.ai/v1/systemone").respond(200, json=URGENT_ANSWER)
-        assert "keyed by input name" in await error(["hi"])
+        assert "keyed by variable name" in await error(["hi"])
         assert "ticket" in await error({})
         assert "Decision version not found" in await error(
             {"ticket": "hi"}, str(GlobalID("DecisionVersion", "999"))
@@ -1505,7 +1555,7 @@ async def test_a_saved_version_runs_at_the_endpoint_the_call_names(
     """A saved version stores no endpoint, so a local Ollama is named by the call."""
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     version_id = await save_version(gql_client, modelProvider="OLLAMA", modelName="nimble")
-    run = {"decisionVersionId": version_id, "inputValues": {"ticket": "hi"}}
+    run = {"decisionVersionId": version_id, "variables": {"ticket": "hi"}}
     result = await gql_client.execute(RUN_VERSION, variables={"input": run})
     assert result.errors and "base URL is required" in result.errors[0].message
     with respx.mock:
@@ -1530,7 +1580,7 @@ async def test_the_server_key_never_goes_to_an_endpoint_the_call_names(
             variables={
                 "input": {
                     "decisionVersionId": version_id,
-                    "inputValues": {"ticket": "hi"},
+                    "variables": {"ticket": "hi"},
                     "baseUrl": "https://attacker.example",
                 }
             },
@@ -1549,7 +1599,7 @@ async def test_a_custom_provider_version_takes_no_endpoint(gql_client: AsyncGrap
         variables={
             "input": {
                 "decisionVersionId": version_id,
-                "inputValues": {"ticket": "hi"},
+                "variables": {"ticket": "hi"},
                 "baseUrl": "https://elsewhere.example",
             }
         },

@@ -24,7 +24,8 @@ _DOWN = "f3b8c2d14e70"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (
-    "(decision_id, inputs, state, questions, model_provider, model_name, metadata, created_at)"
+    "(decision_id, template_format, state, questions, model_provider, model_name, metadata, "
+    "created_at)"
 )
 
 
@@ -57,6 +58,8 @@ async def test_decision_tables_schema(
 
     triage = await _run_async(_engine, lambda conn: _insert_decision(conn, "triage"))
     triage_version = await _run_async(_engine, lambda conn: _insert_version(conn, triage))
+    with pytest.raises(Exception, match="template_format"):
+        await _run_async(_engine, lambda conn: _insert_version(conn, triage, "JINJA"))
     other = await _run_async(_engine, lambda conn: _insert_decision(conn, "other"))
     other_version = await _run_async(_engine, lambda conn: _insert_version(conn, other))
 
@@ -210,13 +213,18 @@ def _insert_decision(conn: Connection, name: str) -> int:
     return decision_id
 
 
-def _insert_version(conn: Connection, decision_id: int) -> int:
+def _insert_version(conn: Connection, decision_id: int, template_format: str = "MUSTACHE") -> int:
     version_id = conn.execute(
         text(
             f"INSERT INTO decision_versions {_VERSION_COLUMNS} VALUES (:decision_id, "
-            "'[]', '{\"type\": \"object\"}', '[]', 'OLLAMA', 'tev1', '{}', :now) RETURNING id"
+            ':template_format, \'{"type": "json", "template": "{{state}}"}\', \'[]\', '
+            "'OLLAMA', 'tev1', '{}', :now) RETURNING id"
         ),
-        {"decision_id": decision_id, "now": datetime.now(timezone.utc)},
+        {
+            "decision_id": decision_id,
+            "template_format": template_format,
+            "now": datetime.now(timezone.utc),
+        },
     ).scalar()
     conn.commit()
     assert isinstance(version_id, int)

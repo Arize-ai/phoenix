@@ -61,10 +61,7 @@ export function DecisionDatasetEvaluatorDetails({
               }
               modelName
               modelProvider
-              inputs {
-                name
-                description
-              }
+              variables
               questions {
                 __typename
                 ... on DecisionPredicateQuestion {
@@ -122,18 +119,13 @@ export function DecisionDatasetEvaluatorDetails({
             </Text>
           </Flex>
         </Flex>
-        {version.inputs.length > 0 && (
+        {version.variables.length > 0 && (
           <div css={evaluatorDetailsCardCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S" weight="heavy">
-                Inputs
+                Variables
               </Text>
-              {version.inputs.map((input) => (
-                <Text key={input.name} size="S">
-                  <Text weight="heavy">{input.name}</Text>
-                  {input.description ? `: ${input.description}` : ""}
-                </Text>
-              ))}
+              <Text size="S">{version.variables.join(", ")}</Text>
             </Flex>
           </div>
         )}

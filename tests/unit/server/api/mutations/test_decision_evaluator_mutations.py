@@ -285,8 +285,9 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         )
         assert result.errors
         message = result.errors[0].message
-        assert "undeclared inputs" in message and "Declared inputs: 'ticket'" in message
-    # An unmapped input is filled from the run only when named like a context key.
+        assert "variables the decision doesn't use" in message
+        assert "Its variables: 'ticket'" in message
+    # An unmapped variable is filled from the run only when named like a context key.
     result = await gql_client.execute(
         create_binding,
         variables={
@@ -298,7 +299,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
             }
         },
     )
-    assert result.errors and "Map the inputs 'ticket'" in result.errors[0].message
+    assert result.errors and "Map the variables 'ticket'" in result.errors[0].message
     result = await gql_client.execute(
         create_binding,
         variables={
@@ -332,7 +333,7 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
             }
         },
     )
-    assert result.errors and "Map the inputs 'ticket'" in result.errors[0].message
+    assert result.errors and "Map the variables 'ticket'" in result.errors[0].message
     # Omitting the mapping keeps the saved one, which still fills ticket.
     result = await gql_client.execute(
         update, variables={"input": {"datasetEvaluatorId": binding_id, "description": "x"}}
@@ -348,13 +349,12 @@ async def test_binding_input_mapping_rejects_undeclared_keys(
         },
     )
     assert result.data and not result.errors, result.errors
-    # An input whose name is a top-level context key ("input") needs no explicit mapping.
+    # A variable named like a top-level context key ("input") needs no explicit mapping.
     context_decision = await create(
         gql_client,
         name="context-keyed",
         version=version_input(
-            inputs=[{"name": "input"}],
-            state={"input": "input"},
+            state={"json": "{{input}}"},
             questions=[{"predicate": {"name": "urgent", "instructions": "Is it urgent?"}}],
         ),
     )
@@ -1008,7 +1008,7 @@ async def test_invalid_mapping_rolls_back_the_entire_dataset_authoring_save(
             "input": authored_dataset_input(inputMapping={"pathMapping": {}, "literalMapping": {}})
         },
     )
-    assert result.errors and "Map the inputs" in result.errors[0].message
+    assert result.errors and "Map the variables" in result.errors[0].message
     async with db() as session:
         for model in (
             models.Decision,
@@ -1020,7 +1020,7 @@ async def test_invalid_mapping_rolls_back_the_entire_dataset_authoring_save(
             assert await session.scalar(select(func.count()).select_from(model)) == 0
 
 
-async def test_dataset_authoring_can_change_its_own_inputs_and_questions_atomically(
+async def test_dataset_authoring_can_change_its_own_variables_and_questions_atomically(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
 ) -> None:
@@ -1036,8 +1036,7 @@ async def test_dataset_authoring_can_change_its_own_inputs_and_questions_atomica
             "input": {
                 "datasetEvaluatorId": binding["id"],
                 "decisionVersion": version_input(
-                    inputs=[{"name": "answer"}],
-                    state={"input": "answer"},
+                    state={"json": "{{answer}}"},
                     questions=[
                         {
                             "predicate": {
@@ -1082,14 +1081,12 @@ async def test_failed_dataset_edit_preserves_version_scoring_and_mapping(
         variables={
             "input": {
                 "datasetEvaluatorId": binding["id"],
-                "decisionVersion": version_input(
-                    inputs=[{"name": "answer"}], state={"input": "answer"}
-                ),
+                "decisionVersion": version_input(state={"json": "{{answer}}"}),
                 "inputMapping": {"pathMapping": {}, "literalMapping": {}},
             }
         },
     )
-    assert result.errors and "Map the inputs" in result.errors[0].message
+    assert result.errors and "Map the variables" in result.errors[0].message
     check = await gql_client.execute(
         "query($id: ID!) { node(id:$id) { ... on DecisionEvaluator { decisionVersion { id decision { versionCount } } } } }",
         variables={"id": binding["evaluator"]["id"]},
@@ -1243,7 +1240,7 @@ async def test_failed_project_authoring_with_a_draft_version_leaves_nothing_behi
             )
         },
     )
-    assert result.errors and "Map the inputs" in result.errors[0].message
+    assert result.errors and "Map the variables" in result.errors[0].message
     async with db() as session:
         for model in (
             models.Decision,
@@ -1284,9 +1281,7 @@ async def test_project_evaluator_update_saves_binding_and_version_together(
                 "filterCondition": "num_spans > 1",
                 "enabled": False,
                 "evaluationDelaySeconds": 600,
-                "decisionVersion": version_input(
-                    inputs=[{"name": "answer"}], state={"input": "answer"}
-                ),
+                "decisionVersion": version_input(state={"json": "{{answer}}"}),
                 "inputMapping": {"pathMapping": {"answer": "output"}, "literalMapping": {}},
             }
         },

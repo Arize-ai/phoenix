@@ -226,7 +226,7 @@ function getDecisionTaskInput({
     // Recorded, not read, as a prompt task's promptVersionId: the definition
     // above is what runs, edits included.
     decisionVersionId: instance.decision?.versionId ?? null,
-    inputValuesPath:
+    templateVariablesPath:
       getTemplateVariablesPath({
         stateByDatasetId,
         datasetId,

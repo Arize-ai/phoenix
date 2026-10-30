@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<efb6677a751b368bc28a1b2ef02533ab>>
+ * @generated SignedSource<<9b27ef37c908b32c71fce8fa100bca60>>
  * @lightSyntaxTransform
  */
 
@@ -20,10 +20,6 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
       };
       readonly decisionId: string;
       readonly id: string;
-      readonly inputs: ReadonlyArray<{
-        readonly description: string | null;
-        readonly name: string;
-      }>;
       readonly modelName: string;
       readonly modelProvider: GenerativeProviderKey;
       readonly questions: ReadonlyArray<{
@@ -49,6 +45,7 @@ export type DecisionDatasetEvaluatorDetails_datasetEvaluator$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       }>;
+      readonly variables: ReadonlyArray<string>;
     };
     readonly scoringPolicy: {
       readonly questions: ReadonlyArray<{
@@ -291,20 +288,8 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "DecisionInputDefinition",
-                  "kind": "LinkedField",
-                  "name": "inputs",
-                  "plural": true,
-                  "selections": [
-                    (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "description",
-                      "storageKey": null
-                    }
-                  ],
+                  "kind": "ScalarField",
+                  "name": "variables",
                   "storageKey": null
                 },
                 {
@@ -398,6 +383,6 @@ return {
 };
 })();
 
-(node as any).hash = "a9b327765aaac913ec925721d1b38274";
+(node as any).hash = "f0ab879f3598978c50db6a2db29cbf24";
 
 export default node;

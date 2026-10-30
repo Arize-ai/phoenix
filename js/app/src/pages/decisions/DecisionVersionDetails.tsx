@@ -31,21 +31,15 @@ import { TagDecisionVersionButton } from "./TagDecisionVersionButton";
 
 const definitionFragment = graphql`
   fragment DecisionVersionDetails_definition on DecisionVersion {
-    inputs {
-      name
-      description
-    }
+    templateFormat
+    variables
     state {
       __typename
-      ... on DecisionObjectState {
-        object
-      }
       ... on DecisionTextState {
-        template
-        templateFormat
+        text
       }
-      ... on DecisionInputState {
-        input
+      ... on DecisionJsonState {
+        json
       }
     }
     questions {

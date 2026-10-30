@@ -13,12 +13,11 @@ import type { PlaygroundDecisionOutputMutation } from "./__generated__/Playgroun
 import {
   buildDecisionConnection,
   buildDecisionInput,
+  extractDecisionVariables,
   toDecisionOutput,
+  toDecisionVariableValues,
 } from "./decisionUtils";
-import {
-  denormalizePlaygroundInstance,
-  getVariablesMapFromInstances,
-} from "./playgroundUtils";
+import { denormalizePlaygroundInstance } from "./playgroundUtils";
 
 const mutation = graphql`
   mutation PlaygroundDecisionOutputMutation($input: RunDecisionInput!) {
@@ -100,9 +99,11 @@ export function useDecisionRunner(instanceId: number) {
     if (!decision) return undefined;
     // Resolve template variables and credentials once per run so every
     // repetition sends the same request.
-    const { variablesMap } = getVariablesMapFromInstances({
-      instances: [snapshot],
-      templateFormat: state.templateFormat,
+    const variables = toDecisionVariableValues({
+      names: extractDecisionVariables({
+        draft: decision,
+        templateFormat: state.templateFormat,
+      }),
       input: state.input,
     });
     const providerCredentials =
@@ -131,7 +132,7 @@ export function useDecisionRunner(instanceId: number) {
           const input = buildDecisionInput({
             draft: decision,
             templateFormat: state.templateFormat,
-            variables: variablesMap,
+            variables,
           });
           await new Promise<void>((resolve, reject) => {
             const complete = () => {

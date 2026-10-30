@@ -1147,7 +1147,7 @@ export const appRouteObjects = createRoutesFromElements(
                 agentRoute: {
                   label: "Decision Details",
                   description:
-                    "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
+                    "Inspect a saved decision, its state template, variables and questions, version history and tags, or open it in the playground.",
                 },
               }}
             >

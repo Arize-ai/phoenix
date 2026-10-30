@@ -1,5 +1,7 @@
 import pytest
+from strawberry.scalars import JSON
 
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DecisionConnectionInput import (
     BuiltInDecisionConnectionInput,
@@ -9,7 +11,6 @@ from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
 from phoenix.server.api.input_types.DecisionVersionInput import (
     ChoiceOptionInput,
     ChoiceQuestionInput,
-    DecisionInputDefinitionInput,
     DecisionQuestionInput,
     DecisionStateInput,
     PredicateQuestionInput,
@@ -26,8 +27,8 @@ def _task(
             built_in=BuiltInDecisionConnectionInput(provider_key=GenerativeProviderKey.OPENAI)
         ),
         model_name="model",
-        inputs=[DecisionInputDefinitionInput(name="ticket")],
-        state=DecisionStateInput(input="ticket"),
+        template_format=PromptTemplateFormat.MUSTACHE,
+        state=DecisionStateInput(json=JSON({"ticket": "{{ticket}}"})),
         questions=questions,
     )
 
@@ -61,3 +62,19 @@ def test_invalid_inline_question_is_rejected() -> None:
                 )
             ]
         ).to_config()
+
+
+def test_the_config_copies_the_template_and_the_variables_path() -> None:
+    task = _task(questions=[_question()])
+    task.template_variables_path = "reference"
+    config = task.to_config()
+    assert config.template_format is PromptTemplateFormat.MUSTACHE
+    assert config.state.model_dump() == {"type": "json", "template": {"ticket": "{{ticket}}"}}
+    assert config.template_variables_path == "reference"
+
+
+def test_a_scalar_json_template_is_rejected() -> None:
+    task = _task(questions=[_question()])
+    task.state = DecisionStateInput(json=JSON(3))
+    with pytest.raises(BadRequest, match="must be an object, a list, or a string"):
+        task.to_config()
