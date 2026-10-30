@@ -9,6 +9,8 @@ metadata:
 
 Reference for working on Mintlify projects. This file covers essentials that apply to every task. For detailed reference on specific topics, read the files listed in the reference index below.
 
+The Mintlify CLI also prints current guidance on completing specific tasks in Mintlify, fetched from the live documentation. Run `mint instructions` to list topics, then `mint instructions <topic>` to fetch instructions. If the command is unknown, run `npx mint@latest instructions`. When it differs from this file, follow `mint instructions`.
+
 ## Reference index
 
 Read these **only when your task requires them**. Each links to a Mintlify documentation page or, for agent workflow guidance, the source file on GitHub.
@@ -32,7 +34,7 @@ Read these **only when your task requires them**. Each links to a Mintlify docum
 
 If the user wants a new docs site, wants to publish docs, or has no `docs.json` yet, run this workflow yourself. Ask the user only for information or approvals you cannot supply. Recommend CLI onboarding. If the user prefers to onboard in the browser, or you cannot run terminal commands, send them to [mintlify.com/start](https://mintlify.com/start).
 
-1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`.
+1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`. Then run `mint instructions new-site` for current setup guidance.
 2. Run `mint status`. If it shows an organization, use that account and follow **Existing account**. If the user has an account but isn't logged in, run `mint login`. If the user has no account, follow **No account**. Don't run `mint signup` yourself: from an agent or any non-interactive shell, it only prints https://mintlify.com/auth.md and creates no account.
 
 **Existing account:**
@@ -66,7 +68,7 @@ When you have no local checkout and no CLI (for example, editing through the Min
 
 ### Migrating from another platform
 
-For Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide at `https://mintlify.com/docs/migration/<platform>.md` (for example `docusaurus.md`), using the Mintlify Search MCP server to read it. For any other platform, follow `https://mintlify.com/docs/migration/manual.md`. The scraper only handles simple public sites. Complex sites migrate from source files. Porting rules are in [Site building](https://raw.githubusercontent.com/mintlify/docs/main/agent-context/context/skills/mintlify/reference/site-building.md).
+The CLI prints migration instructions for agents: `mint migrate` shows the workflow and lists the topics and source platforms it covers. Run `mint migrate --from <platform>` for a platform's guide and `mint migrate --topic <name>` for one topic. For Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide at `https://mintlify.com/docs/migration/<platform>.md` (for example `docusaurus.md`), using the Mintlify Search MCP server to read it. For any other platform, follow `https://mintlify.com/docs/migration/manual.md`. The scraper only handles simple public sites. Complex sites migrate from source files. Porting rules are in [Site building](https://raw.githubusercontent.com/mintlify/docs/main/agent-context/context/skills/mintlify/reference/site-building.md).
 
 ## MCP servers
 
@@ -280,7 +282,7 @@ Use `<Columns>` to arrange cards (or other content) in a grid. `cols` accepts 1-
 
 ## CLI commands
 
-Install with `npm i -g mint`. Key commands: `mint dev` (local preview), `mint validate`, `mint broken-links`, `mint a11y`, `mint score`, `mint analytics` (traffic, search, feedback, and assistant conversations; Pro and Enterprise plans), `mint new`, `mint signup`. Read [CLI commands](https://mintlify.com/docs/cli/commands.md) for full flags and subcommands.
+Install with `npm i -g mint`. Key commands: `mint dev` (local preview), `mint validate`, `mint broken-links`, `mint a11y`, `mint score`, `mint analytics` (traffic, search, feedback, and assistant conversations; Pro and Enterprise plans), `mint new`, `mint signup`, `mint instructions` (current guidance for completing specific tasks). Read [CLI commands](https://mintlify.com/docs/cli/commands.md) for full flags and subcommands.
 
 After you edit pages, run `mint validate --no-build --format json` for a fast check and `mint validate --fix` to apply automatic fixes. Run a full `mint validate` before you push.
 

@@ -1,4 +1,7 @@
 {
+  "schema_version": 1,
+  "generated_at": "2026-10-30T01:19:43Z",
+  "models_sha256": "f0e8916d4cde2931d013823adf6238ca8daf6eb9d0836f90300400469555a051",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -1734,7 +1737,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 1e-5,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1744,7 +1747,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 1e-5,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "reasoning"
         }
@@ -6814,7 +6817,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 2e-5,
+          "base_rate": 0.00002,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -8356,6 +8359,11 @@
       "source": "litellm",
       "token_prices": [
         {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
           "base_rate": 1.8e-6,
           "is_prompt": false,
           "token_type": "output"
@@ -8435,6 +8443,11 @@
       "name_pattern": "sonar-small-online",
       "source": "litellm",
       "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
         {
           "base_rate": 2.8e-7,
           "is_prompt": false,
@@ -10028,6 +10041,11 @@
           "base_rate": 1.1e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10051,6 +10069,11 @@
           "base_rate": 1.1e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10074,6 +10097,11 @@
           "base_rate": 2e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10097,6 +10125,11 @@
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10120,6 +10153,11 @@
           "base_rate": 2.6e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10143,6 +10181,11 @@
           "base_rate": 2.6e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10166,6 +10209,11 @@
           "base_rate": 2.6e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -10189,6 +10237,11 @@
           "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     }

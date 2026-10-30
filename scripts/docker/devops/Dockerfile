@@ -20,7 +20,7 @@ RUN mkdir -p /phoenix/src/phoenix/server/static
 RUN pnpm --filter 'phoenix-ui...' run build
 
 # Stage 2: Backend Builder  
-FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
+FROM python:${PYTHON_VERSION}-slim-trixie AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
@@ -80,7 +80,7 @@ actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
 FROM denoland/deno:bin-2.1.4 AS deno-binary
 
 # Stage 3: Runtime (combines everything)
-FROM python:${PYTHON_VERSION}-slim-bullseye AS runtime
+FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 WORKDIR /phoenix
 
 # Install only essential system dependencies for runtime
@@ -102,7 +102,7 @@ COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./env/phoenix/s
 # Bundled local sandbox runtimes (Deno + CPython WASM). Mirrors the
 # production Dockerfile so devops images behave the same as shipped
 # containers for the local sandbox providers. /usr/local/bin is on the
-# default PATH for python:slim-bullseye, so shutil.which("deno") in
+# default PATH for python:slim-trixie, so shutil.which("deno") in
 # deno_backend.py resolves the bundled binary.
 COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
 COPY --from=backend-builder /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
@@ -118,6 +118,8 @@ COPY --from=backend-builder /phoenix/.venv/bin/monty /usr/local/bin/monty
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
+# Bind all IPv4 and IPv6 interfaces (dual-stack) for HTTP, gRPC, and Prometheus.
+ENV PHOENIX_HOST=::
 
 # Create VS Code configuration for debugging
 RUN mkdir -p /phoenix/env/phoenix/.vscode
