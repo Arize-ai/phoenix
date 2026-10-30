@@ -33,12 +33,6 @@ def walk_schema(schema: Any, visit: Callable[[Dict[str, Any]], None]) -> None:
             walk_schema(value, visit)
 
 
-def is_object_schema(schema: Dict[str, Any]) -> bool:
-    """Checks whether a subschema's `type` is `object` or a list that includes it."""
-    schema_type = schema.get("type")
-    return schema_type == "object" or (isinstance(schema_type, list) and "object" in schema_type)
-
-
 def close_objects(schema: Dict[str, Any]) -> Dict[str, Any]:
     """Returns a copy of the schema with `additionalProperties: false` on every object.
 
@@ -48,7 +42,8 @@ def close_objects(schema: Dict[str, Any]) -> Dict[str, Any]:
     closed = copy.deepcopy(schema)
 
     def close(node: Dict[str, Any]) -> None:
-        if is_object_schema(node):
+        schema_type = node.get("type")
+        if schema_type == "object" or (isinstance(schema_type, list) and "object" in schema_type):
             node.setdefault("additionalProperties", False)
 
     walk_schema(closed, close)

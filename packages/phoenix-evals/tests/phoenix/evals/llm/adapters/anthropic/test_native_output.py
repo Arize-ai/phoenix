@@ -149,7 +149,7 @@ async def test_async_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
     assert ["output_config" in r for r in requests] == [True, False, False]
 
 
-def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
+def test_auto_remembers_a_rejected_schema_but_not_for_other_schemas() -> None:
     def respond(body: Dict[str, Any]) -> httpx2.Response:
         if "output_config" in body:
             return _bad_request("output_config.format.schema: Schema type 'oneOf' is not supported")
@@ -158,9 +158,12 @@ def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
     requests: List[Dict[str, Any]] = []
     adapter = _sync_adapter(respond, requests)
 
+    other_schema = {**_SCHEMA, "required": []}
+
     assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
     assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
-    assert ["output_config" in r for r in requests] == [True, False, True, False]
+    assert adapter.generate_object("q", other_schema) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False, False, True, False]
 
 
 @pytest.mark.parametrize(
@@ -266,10 +269,18 @@ def test_native_output_explains_an_sdk_without_output_config() -> None:
         adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.STRUCTURED_OUTPUT)
 
 
-def test_auto_uses_tool_calling_for_a_schema_native_output_rejects() -> None:
+@pytest.mark.parametrize(
+    "score",
+    [
+        pytest.param({"type": "integer", "minimum": 1}, id="number-constraint"),
+        pytest.param({"oneOf": [{"type": "integer"}, {"type": "string"}]}, id="non-const-one-of"),
+        pytest.param({"type": "object", "additionalProperties": True}, id="open-object"),
+    ],
+)
+def test_auto_uses_tool_calling_for_a_schema_native_output_rejects(score: Dict[str, Any]) -> None:
     requests: List[Dict[str, Any]] = []
     adapter = _sync_adapter(lambda _: _tool_use({"score": 3}), requests)
-    schema = {"type": "object", "properties": {"score": {"type": "integer", "minimum": 1}}}
+    schema = {"type": "object", "properties": {"score": score}}
 
     assert adapter.generate_object("q", schema) == {"score": 3}
     assert len(requests) == 1
@@ -389,3 +400,12 @@ def test_validates_a_label_against_const_choices() -> None:
 
     with pytest.raises(ValueError, match="isn't one of"):
         adapter.generate_object("q", schema, method=ObjectGenerationMethod.TOOL_CALLING)
+
+
+def test_tool_calling_ignores_a_call_to_another_tool() -> None:
+    requests: List[Dict[str, Any]] = []
+    other_tool = {"type": "tool_use", "id": "t1", "name": "other", "input": {"label": "good"}}
+    adapter = _sync_adapter(lambda _: _message([other_tool], "tool_use"), requests)
+
+    with pytest.raises(ValueError, match="No tool use in response"):
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)

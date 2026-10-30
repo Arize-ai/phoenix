@@ -2,7 +2,7 @@ import inspect
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Type, cast
+from typing import Any, Dict, List, Optional, Set, Type, cast
 
 from ...prompts import (
     Message,
@@ -78,6 +78,10 @@ def _native_output_schema(schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     walk_schema(native, convert)
     return native if supported else None
+
+
+def _schema_key(schema: Dict[str, Any]) -> str:
+    return json.dumps(schema, sort_keys=True)
 
 
 def _raise_if_incomplete(response: Any) -> None:
@@ -192,6 +196,8 @@ class AnthropicAdapter(BaseLLMAdapter):
         self._sdk_has_native_output = self._check_sdk_has_native_output()
         # Set once the model rejects native structured output, so AUTO stops trying it.
         self._native_output_rejected = False
+        # Schemas that native output rejected, so AUTO sends each one to tool calling from then on.
+        self._rejected_schemas: Set[str] = set()
 
     @classmethod
     def client_name(cls) -> str:
@@ -309,7 +315,7 @@ class AnthropicAdapter(BaseLLMAdapter):
                 try:
                     return self._generate_with_native_output(prompt, schema, **kwargs)
                 except BadRequestError as error:
-                    self._fall_back_or_raise(error)
+                    self._fall_back_or_raise(error, schema)
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         else:
@@ -342,7 +348,7 @@ class AnthropicAdapter(BaseLLMAdapter):
                 try:
                     return await self._async_generate_with_native_output(prompt, schema, **kwargs)
                 except BadRequestError as error:
-                    self._fall_back_or_raise(error)
+                    self._fall_back_or_raise(error, schema)
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -351,19 +357,21 @@ class AnthropicAdapter(BaseLLMAdapter):
         return (
             self._sdk_has_native_output
             and not self._native_output_rejected
+            and _schema_key(schema) not in self._rejected_schemas
             and _native_output_schema(schema) is not None
         )
 
-    def _fall_back_or_raise(self, error: Exception) -> None:
+    def _fall_back_or_raise(self, error: Exception, schema: Dict[str, Any]) -> None:
         """Re-raises the error unless it means native output can't serve the request.
 
         A rejection of native output as a whole sends every later AUTO call to tool calling. A
-        rejection of one schema affects only the current call.
+        rejection of one schema sends only later calls with that schema to tool calling.
         """
         if _SCHEMA_UNSUPPORTED.search(str(error)):
             logger.debug(
                 f"Native structured output rejected the schema, using tool calling: {error}"
             )
+            self._rejected_schemas.add(_schema_key(schema))
         elif _NATIVE_OUTPUT_UNSUPPORTED.search(str(error)):
             logger.debug(
                 f"Native structured output rejected by {self.model}, using tool calling: {error}"
