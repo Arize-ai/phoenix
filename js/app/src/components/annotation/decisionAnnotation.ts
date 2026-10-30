@@ -1,5 +1,12 @@
 import { graphql } from "react-relay";
 
+import {
+  type OptionProbability,
+  rankOptions,
+  rankPredicateOptions,
+  type RankedOptions,
+} from "@phoenix/components/decision/decisionAnswers";
+
 import type { decisionAnnotation_annotation$data } from "./__generated__/decisionAnnotation_annotation.graphql";
 
 /**
@@ -100,26 +107,50 @@ export function describeScaleLevel(
   return { name, title };
 }
 
-/** A choice's or scale's probabilities, in the question's order. */
+/**
+ * A yes/no or choice answer's options, most likely first and without options
+ * that round to 0%, or a scale's probabilities in level order.
+ */
 export function decisionProbabilities(
   decision: DecisionAnnotation
-): DecisionProbability[] {
+): RankedOptions<DecisionProbability> {
   const answer = decision.answer;
+  const toProbability = ({ value, probability }: OptionProbability) => ({
+    key: value,
+    name: value,
+    probability,
+  });
+  if (answer?.__typename === "PredicateAnswer") {
+    const ranked = rankPredicateOptions(answer.probability);
+    return {
+      probabilities: ranked.probabilities.map(toProbability),
+      omittedOptionCount: ranked.omittedOptionCount,
+    };
+  }
   if (answer?.__typename === "ChoiceAnswer") {
-    return answer.choiceProbabilities.map(({ value, probability }) => ({
-      key: value,
-      name: value,
-      probability,
-    }));
+    const ranked = rankOptions({
+      options: answer.choiceProbabilities,
+      chosen: answer.choice,
+      optionValues: decision.question?.choices?.map((choice) => choice.value),
+    });
+    return {
+      probabilities: ranked.probabilities.map(toProbability),
+      omittedOptionCount: ranked.omittedOptionCount,
+    };
   }
   if (answer?.__typename === "ScaleAnswer") {
-    return answer.levelProbabilities.map(({ level, probability }) => ({
-      key: String(level),
-      ...describeScaleLevel(level, decision.question?.levels),
-      probability,
-    }));
+    return {
+      probabilities: answer.levelProbabilities.map(
+        ({ level, probability }) => ({
+          key: String(level),
+          ...describeScaleLevel(level, decision.question?.levels),
+          probability,
+        })
+      ),
+      omittedOptionCount: 0,
+    };
   }
-  return [];
+  return { probabilities: [], omittedOptionCount: 0 };
 }
 
 export function isRefusedDecisionAnnotation(annotation: {
