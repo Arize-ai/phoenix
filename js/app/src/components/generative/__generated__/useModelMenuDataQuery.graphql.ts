@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de54d9fb02324279710c1e67e98c5053>>
+ * @generated SignedSource<<905dafea60a9605dec92ceee2ace84f3>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type ModelType = "DECISION" | "LLM";
@@ -24,6 +25,7 @@ export type useModelMenuDataQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly decisionModelNames?: ReadonlyArray<string>;
+        readonly decisionSdk?: DecisionSDK | null;
         readonly id: string;
         readonly modelNames: ReadonlyArray<string>;
         readonly modelTypes: ReadonlyArray<ModelType>;
@@ -154,6 +156,13 @@ v4 = [
                     "kind": "ScalarField",
                     "name": "modelNames",
                     "storageKey": "modelNames(modelType:\"DECISION\")"
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "decisionSdk",
+                    "storageKey": null
                   }
                 ]
               }
@@ -255,16 +264,16 @@ return {
     "selections": (v4/*:: as any*/)
   },
   "params": {
-    "cacheID": "224c230150fc5f5b9b76269f7f6dfa71",
+    "cacheID": "f69fd366a3c45d07191d76ddb889a5e9",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery(\n  $includeDecisionModels: Boolean!\n) {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelTypes\n        modelNames\n        decisionModelNames: modelNames(modelType: DECISION) @include(if: $includeDecisionModels)\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n    modelTypes\n  }\n  playgroundModels {\n    name\n    providerKey\n    modelType\n  }\n  decisionModels: playgroundModels(input: {providerKey: null, modelType: DECISION}) @include(if: $includeDecisionModels) {\n    name\n    providerKey\n    modelType\n  }\n}\n"
+    "text": "query useModelMenuDataQuery(\n  $includeDecisionModels: Boolean!\n) {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelTypes\n        modelNames\n        decisionModelNames: modelNames(modelType: DECISION) @include(if: $includeDecisionModels)\n        decisionSdk @include(if: $includeDecisionModels)\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n    modelTypes\n  }\n  playgroundModels {\n    name\n    providerKey\n    modelType\n  }\n  decisionModels: playgroundModels(input: {providerKey: null, modelType: DECISION}) @include(if: $includeDecisionModels) {\n    name\n    providerKey\n    modelType\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8684d93168fa0f3c7ddf4a6038e1044e";
+(node as any).hash = "8f02611f9e783f455bd65d5596f361a0";
 
 export default node;
