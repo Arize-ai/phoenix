@@ -709,17 +709,76 @@ class OpenAIDecisionClient(DecisionClient):
         )
 
 
+class AzureOpenAIDecisionClient(OpenAIDecisionClient):
+    """OpenAI's Decisions API on Azure OpenAI, at ``{endpoint}/openai/v1/decisions``.
+
+    Configured the way Azure OpenAI chat is: ``AZURE_OPENAI_API_KEY`` and the resource
+    endpoint from the run or ``AZURE_OPENAI_ENDPOINT``. Like chat, it calls Azure's v1
+    API through the plain OpenAI client, which needs no ``api-version``; the SDK's
+    ``AsyncAzureOpenAI`` would require one. The model name is the deployment name.
+    """
+
+    provider_key = GenerativeProviderKey.AZURE_OPENAI
+    system = OpenInferenceDecisionSystemValues.OPENAI
+    provider = "azure"  # OpenInference has no Azure decision provider value yet.
+    model_names = OPENAI_DECISION_MODELS
+    default_base_url = None
+    base_url_env_var = "AZURE_OPENAI_ENDPOINT"
+
+    @classmethod
+    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
+        endpoint = super().resolve_base_url(override)
+        if endpoint is None:
+            return None
+        endpoint = endpoint.rstrip("/")
+        return endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1"
+
+
+FIREWORKS_DECISION_MODELS: tuple[str, ...] = ("accounts/fireworks/models/rune",)
+
+
+class FireworksDecisionClient(TypeSafeDecisionClient):
+    """Fireworks' decision models, which it serves through System One at
+    ``/inference/v1/systemone``.
+
+    ``FIREWORKS_BASE_URL`` names the OpenAI-compatible root (``.../inference/v1``) for
+    chat, while System One's path starts one level up, so a trailing ``/v1`` is dropped
+    and one variable serves both.
+    """
+
+    provider_key = GenerativeProviderKey.FIREWORKS
+    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    provider = "fireworks"  # OpenInference has no Fireworks decision provider value yet.
+    model_names = FIREWORKS_DECISION_MODELS
+    default_base_url = "https://api.fireworks.ai/inference"
+    base_url_env_var = "FIREWORKS_BASE_URL"
+
+    @classmethod
+    def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
+        base_url = super().resolve_base_url(override)
+        if base_url is None:
+            return None
+        return base_url.rstrip("/").removesuffix("/v1")
+
+
 OLLAMA_DECISION_MODELS: tuple[str, ...] = (
-    "tev1",
     "nimble",
+    "tev1",
+    "clef",
     "clef-flash",
+    "d3",
+    "d1",
+    "d1-omni",
     "nimble-v3",
-    "laya",
-    "kev",
     "pplx-decider",
+    "kev",
+    "laya",
     "strands-decider",
 )
-"""Ollama's local decision models. ``clef`` is left out: it runs on Ollama's cloud."""
+"""Ollama's decision models: first the four its decision guide names
+(docs.ollama.com/capabilities/decision), then the rest of its library's decision
+category (ollama.com/search?c=decision). ``clef`` runs locally or, as ``clef:cloud``,
+on Ollama's cloud."""
 
 
 class OllamaDecisionClient(TypeSafeDecisionClient):
@@ -749,7 +808,13 @@ class OllamaDecisionClient(TypeSafeDecisionClient):
 
 DECISION_CLIENTS: Mapping[GenerativeProviderKey, type[DecisionClient]] = {
     client.provider_key: client
-    for client in (TypeSafeDecisionClient, OpenAIDecisionClient, OllamaDecisionClient)
+    for client in (
+        TypeSafeDecisionClient,
+        OpenAIDecisionClient,
+        AzureOpenAIDecisionClient,
+        FireworksDecisionClient,
+        OllamaDecisionClient,
+    )
 }
 """The client for each provider that offers decision models. A provider here and not in
 the playground registry is decision-only, which is what the chat-path guards in
