@@ -417,6 +417,29 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px trace transfer [trace-id...] --to <project>`
+
+Move traces into another project. The traces are re-parented, not copied, so they no longer appear in their source project. Every trace must currently belong to the same source project; a mixed-source request (422) exits with code 3 (invalid argument), and a missing trace or destination project (404) exits with code 1. Asks for confirmation unless `--yes` is passed. Requires Phoenix server >= 20.4.0.
+
+```bash
+px trace transfer abc123def456 0123456789abcdef --to production
+px trace transfer --file trace-ids.txt --to UHJvamVjdDoy --yes
+px trace list --format raw --no-progress | jq -r '.[].traceId' | px trace transfer --file - --to production --yes --format raw
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[trace-id...]` | Trace IDs to move (OpenTelemetry trace IDs or GlobalIDs) | — |
+| `--to <project>` | Destination project name or GlobalID | Required |
+| `--file <path>` | Read more trace IDs from a file, one per line; `-` reads stdin | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `-y, --yes` | Skip the confirmation prompt (required when stdin is not a TTY) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+Output (json/raw): `{ transferred_trace_count, destination_project_identifier, destination_project_id }`.
+
 ### `px trace-annotations delete`
 
 Bulk-delete trace annotations for the configured project. Requires `--all` (delete every matching row) **or** both `--start-time` and `--end-time` to bound the delete to a `[start_time, end_time)` window — `--name`, `--identifier`, and `--annotator-kind` are narrowing filters and never authorize the request on their own. Deletes are disabled by default; set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first.
