@@ -379,7 +379,6 @@
           {
             "group": "Concepts",
             "pages": [
-              "docs/phoenix/user-guide",
               "docs/phoenix/production-guide",
               {
                 "group": "Tracing",
@@ -1899,6 +1898,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/user-guide",
+      "destination": "/docs/phoenix"
+    },
     {
       "source": "/docs/phoenix/phoenix-demo",
       "destination": "/docs/phoenix/get-started"
