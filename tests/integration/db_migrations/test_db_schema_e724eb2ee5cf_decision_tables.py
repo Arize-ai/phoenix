@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up, _verify_clean_state
 
-_DOWN = "f3b8c2d14e70"
+_DOWN = "ef09e3bc213f"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (

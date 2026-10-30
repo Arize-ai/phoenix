@@ -1,7 +1,7 @@
 """add decision tables
 
 Revision ID: e724eb2ee5cf
-Revises: f3b8c2d14e70
+Revises: ef09e3bc213f
 Create Date: 2026-10-19 12:00:00.000000
 
 """
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 revision: str = "e724eb2ee5cf"
-down_revision: Union[str, None] = "f3b8c2d14e70"
+down_revision: Union[str, None] = "ef09e3bc213f"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
