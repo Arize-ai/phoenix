@@ -924,7 +924,7 @@ def create_evaluator(
         - A boolean (converted to integer Score.score and string Score.label)
         - A short string (≤3 words, converted to Score.label)
         - A long string (≥4 words, converted to Score.explanation)
-        - A dictionary with keys "score", "label", or "explanation"
+        - A dictionary with keys "score", "label", "explanation", or "metadata"
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
