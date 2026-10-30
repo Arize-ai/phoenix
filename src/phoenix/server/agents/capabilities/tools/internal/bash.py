@@ -201,7 +201,7 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
 
 # The query root alone needs most of this, and a root cut short hides entry
 # points; the MCP tool uses the same figure.
-_SCHEMA_BUDGET = 4000
+_SCHEMA_BUDGET = 5000
 
 
 _MAX_VALUE_CHARS = 2000

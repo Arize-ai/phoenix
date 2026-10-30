@@ -11,7 +11,6 @@ import {
 } from "@phoenix/components/chart";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { MetricChartTableView } from "./constants";
 import {
@@ -23,7 +22,7 @@ import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
 /**
  * A strip of user-selected metric charts shown above a project table (spans,
- * traces, or sessions) for troubleshooting. Any chart in the chart catalog
+ * traces, sessions, or evaluators) for troubleshooting. Any chart in the chart catalog
  * can be added. Charts support legend-based series filtering, and most
  * support click-to-narrow and drag-to-select time range zooming, with browser
  * Back restoring the prior range. The chart selection is persisted per project
@@ -34,7 +33,7 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
 }: {
   view: MetricChartTableView;
 }) {
-  const projectId = useTracingContext((state) => state.projectId);
+  const projectId = useProjectContext((state) => state.projectId);
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
@@ -61,6 +60,9 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
               projectId={projectId}
               timeRange={timeRange}
               onTimeRangeSelected={setCustomTimeRange}
+              // Evaluator chart titles say what they show; their descriptions
+              // stay in the picker.
+              subtitle={view === "evaluators" ? "" : undefined}
               fillHeight
             />
           ))}

@@ -11,7 +11,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as PhoenixChart from "@phoenix/components/chart";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 
 import { ProjectAnnotationMetricsGrid } from "../ProjectAnnotationMetrics";
 
@@ -103,7 +103,7 @@ function setIsIntersecting(target: Element, isIntersecting: boolean) {
 }
 
 const LEVEL_CASES: ReadonlyArray<{
-  annotationLevel: MetricChartTableView;
+  annotationLevel: AnnotationMetricLevel;
   namesOperationName: string;
   namesField: string;
   metricsOperationName: string;

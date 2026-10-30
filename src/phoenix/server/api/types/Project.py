@@ -52,6 +52,11 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
+)
 from phoenix.server.api.types.EvaluationQueue import ProjectEvaluationQueue
 from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
 from phoenix.server.api.types.EvaluatorComparison import (
@@ -411,6 +416,25 @@ class Project(Node):
         queue = await info.context.data_loaders.project_evaluation_queue.load(self.id)
         return ProjectEvaluationQueue(queue=queue)
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluation activity of this project's evaluators, grouped by evaluator. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        )
+    )
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=self.id,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
+        )
+
     @strawberry.field
     async def evaluators(
         self,
@@ -435,39 +459,7 @@ class Project(Node):
                 models.ProjectEvaluator.id,
             )
         )
-        if filter and filter.col and filter.value and (value := filter.value.strip()):
-            column = getattr(models.ProjectEvaluator, filter.col.value)
-            # `name` is an Identifier-typed column; compare it as text so LIKE applies.
-            stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
-        annotation_names = filter.annotation_names if filter else None
-        if annotation_names:
-            # Project evaluator identifiers cannot contain dots.
-            candidate_names = {name.partition(".")[0] for name in annotation_names}
-            stmt = stmt.where(
-                sqlalchemy_cast(models.ProjectEvaluator.name, String).in_(candidate_names)
-            )
-        async with info.context.db.read() as session:
-            records = list(await session.scalars(stmt))
-        if annotation_names:
-            evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
-                [record.evaluator_id for record in records]
-            )
-            requested_names = set(annotation_names)
-            records = [
-                record
-                for record, evaluator in zip(records, evaluators)
-                if evaluator is not None
-                and requested_names.intersection(
-                    result_annotation_names(
-                        record.name.root,
-                        as_output_configs(getattr(evaluator, "output_configs", None)),
-                    )
-                )
-            ]
-        return connection_from_list(
-            data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
-            args=args,
-        )
+        return await project_evaluator_connection(info, stmt, filter, args)
 
     @strawberry.field
     async def gradient_start_color(
@@ -2990,6 +2982,47 @@ def _evaluator_comparison_stmts(
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+
+
+async def project_evaluator_connection(
+    info: Info[Context, None],
+    stmt: Select[models.ProjectEvaluator],
+    filter: Optional[ProjectEvaluatorFilter],
+    args: ConnectionArgs,
+) -> Connection[ProjectEvaluator]:
+    if filter and filter.col and filter.value and (value := filter.value.strip()):
+        column = getattr(models.ProjectEvaluator, filter.col.value)
+        # `name` is an Identifier-typed column; compare it as text so LIKE applies.
+        stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+    annotation_names = filter.annotation_names if filter else None
+    if annotation_names:
+        # Project evaluator identifiers cannot contain dots.
+        candidate_names = {name.partition(".")[0] for name in annotation_names}
+        stmt = stmt.where(
+            sqlalchemy_cast(models.ProjectEvaluator.name, String).in_(candidate_names)
+        )
+    async with info.context.db.read() as session:
+        records = list(await session.scalars(stmt))
+    if annotation_names:
+        evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
+            [record.evaluator_id for record in records]
+        )
+        requested_names = set(annotation_names)
+        records = [
+            record
+            for record, evaluator in zip(records, evaluators)
+            if evaluator is not None
+            and requested_names.intersection(
+                result_annotation_names(
+                    record.name.root,
+                    as_output_configs(getattr(evaluator, "output_configs", None)),
+                )
+            )
+        ]
+    return connection_from_list(
+        data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
+        args=args,
+    )
 
 
 def _as_datetime(value: Any) -> datetime:

@@ -28,8 +28,10 @@ import {
 } from "@phoenix/pages/decisions/decisionLoader";
 import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
 import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
+import { EvaluatorsLayout } from "@phoenix/pages/evaluators/EvaluatorsLayout";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import { ServerProjectEvaluatorsPage } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsPage";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import {
   projectEvaluatorCompareLoader,
@@ -1054,18 +1056,31 @@ export const appRouteObjects = createRoutesFromElements(
             },
           }}
         >
-          <Route
-            index
-            element={<EvaluatorsPage />}
-            loader={evaluatorsPageLoader}
-            handle={{
-              agentRoute: {
-                label: "Evaluators",
-                description:
-                  "Browse and manage evaluators, evals, and evaluation metrics.",
-              },
-            }}
-          />
+          <Route element={<EvaluatorsLayout />}>
+            <Route
+              index
+              element={<EvaluatorsPage />}
+              loader={evaluatorsPageLoader}
+              handle={{
+                agentRoute: {
+                  label: "Evaluators",
+                  description:
+                    "Browse and manage evaluators, evals, and evaluation metrics.",
+                },
+              }}
+            />
+            <Route
+              path="project-evaluators"
+              element={<ServerProjectEvaluatorsPage />}
+              handle={{
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Every project evaluator running online across all projects: the shared evaluation queue, each evaluator's status, queued evaluations, lag, load, failure rate and cost, and clearing every project's queue.",
+                },
+              }}
+            />
+          </Route>
         </Route>
         <Route
           path="/prompts"

@@ -15,6 +15,7 @@ import {
 } from "@phoenix/pages/project/constants";
 
 export interface ProjectState {
+  projectId: string;
   defaultTab: ProjectTab;
   setDefaultTab: (tab: ProjectTab) => void;
   /**
@@ -68,6 +69,7 @@ export function createProjectStore({
   const state = create<ProjectState>()(
     persist(
       devtools((set) => ({
+        projectId,
         defaultTab: "spans",
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });

@@ -6,7 +6,7 @@ import {
   type ProjectEvaluatorResultAnnotation,
   useProjectEvaluatorResultAnnotations,
 } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 import {
   DeferredProjectMetricPanel,
   getProjectMetricChart,
@@ -25,7 +25,7 @@ import type {
 
 function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
-): MetricChartTableView {
+): AnnotationMetricLevel {
   switch (evaluationTarget) {
     case "SPAN":
       return "spans";
@@ -99,7 +99,7 @@ const ProjectEvaluatorMetricPanels = memo(
     evaluatedProjectId: string;
     /** The evaluator's own trace project, minted when the evaluator is created. */
     traceProjectId: string;
-    annotationLevel: MetricChartTableView;
+    annotationLevel: AnnotationMetricLevel;
     /** The annotations the evaluator writes, named the way its runs persist them. */
     resultAnnotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
     timeRange: TimeRange;

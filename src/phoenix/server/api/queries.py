@@ -63,11 +63,14 @@ from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
 from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
@@ -87,6 +90,11 @@ from phoenix.server.api.types.Decision import (
     DecisionLabel,
     DecisionVersion,
     DecisionVersionTag,
+)
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
 )
 from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
@@ -135,7 +143,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
-from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Project import Project, project_evaluator_connection
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -1693,6 +1701,33 @@ class Query:
 
         return connection_from_list(data=data, args=args)
 
+    @strawberry.field(
+        description=(
+            "Every project evaluator on the server, across projects, newest first. "
+            "projectId narrows to one project."
+        ),
+    )  # type: ignore
+    async def project_evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+        project_id: Optional[GlobalID] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+        )
+        stmt = select(models.ProjectEvaluator).order_by(
+            models.ProjectEvaluator.created_at.desc(),
+            models.ProjectEvaluator.id.desc(),
+        )
+        if isinstance(project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
+            stmt = stmt.where(models.ProjectEvaluator.project_id == project_rowid)
+        return await project_evaluator_connection(info, stmt, filter, args)
+
     @strawberry.field
     async def annotation_configs(
         self,
@@ -1842,6 +1877,25 @@ class Query:
     )  # type: ignore
     async def evaluation_queue(self, info: Info[Context, None]) -> EvaluationQueue:
         return EvaluationQueue(queue=await info.context.data_loaders.evaluation_queue.load(None))
+
+    @strawberry.field(
+        description=(
+            "Evaluation activity of every project evaluator on the server, grouped by project. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        ),
+    )  # type: ignore
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=None,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
+        )
 
     @strawberry.field(
         description=(

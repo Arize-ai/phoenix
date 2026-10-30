@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8135f3e1d4a53ddf9d6fa3d134611aea>>
+ * @generated SignedSource<<d7df95731418ee9b7ab4a947685da87c>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type ProjectEvaluatorsTable_project$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_row" | "ProjectEvaluatorsTable_scores">;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_lag" | "ProjectEvaluatorsTable_row" | "ProjectEvaluatorsTable_scores">;
       };
     }>;
   };
@@ -709,6 +709,46 @@ return {
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
+                  "name": "ProjectEvaluatorsTable_lag",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": (v16/*:: as any*/),
+                      "concreteType": "EvaluationLag",
+                      "kind": "LinkedField",
+                      "name": "lag",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "p50Seconds",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "p95Seconds",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "p99Seconds",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "args": (v16/*:: as any*/),
+                  "argumentDefinitions": (v18/*:: as any*/)
+                },
+                {
+                  "kind": "InlineDataFragmentSpread",
                   "name": "ProjectEvaluatorsTable_scores",
                   "selections": [
                     {
@@ -904,6 +944,6 @@ return {
 };
 })();
 
-(node as any).hash = "9f24d0be426c3cd1ddda1ec684b167ed";
+(node as any).hash = "f130b49e37f2b824ef834791e7ab5c04";
 
 export default node;

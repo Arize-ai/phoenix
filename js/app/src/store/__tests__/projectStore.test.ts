@@ -34,6 +34,22 @@ describe("projectStore metricChartKeys", () => {
       "spans_annotation:quality",
     ]);
   });
+  it("gives the evaluators view its default charts when the saved state predates it", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        state: { metricChartKeys: { spans: ["traffic"] } },
+        version: 0,
+      })
+    );
+
+    const store = createProjectStore({ projectId: PROJECT_ID });
+
+    expect(store.state.getState().metricChartKeys.evaluators).toEqual(
+      DEFAULT_METRIC_CHART_KEYS.evaluators
+    );
+    expect(store.state.getState().projectId).toBe(PROJECT_ID);
+  });
   it("keeps a scoped store's defaults and saved preferences separate", () => {
     const unscoped = createProjectStore({ projectId: PROJECT_ID });
     unscoped.state
