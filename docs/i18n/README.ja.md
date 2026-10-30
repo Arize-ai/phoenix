@@ -287,9 +287,9 @@ Phoenix は、人間と AI コーディングエージェントのどちらか�
 
 | スキル                                              | 説明                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
 
 ## セキュリティとプライバシー
 

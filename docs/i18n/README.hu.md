@@ -287,9 +287,9 @@ A beállításhoz és a használathoz lásd a [kódoló ágensekről szóló dok
 
 | Skill                                              | Leírás                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | LLM-alkalmazások hibakeresése a Phoenix CLI-vel — trace-ek lekérése, hibák elemzése, kísérletek áttekintése és lekérdezések a GraphQL API-n |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Kiértékelők készítése és futtatása AI/LLM-alkalmazásokhoz a Phoenix segítségével                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | OpenInference szemantikai konvenciók és instrumentáció LLM-alkalmazások tracingjéhez                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | LLM-alkalmazások hibakeresése a Phoenix CLI-vel — trace-ek lekérése, hibák elemzése, kísérletek áttekintése és lekérdezések a GraphQL API-n |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Kiértékelők készítése és futtatása AI/LLM-alkalmazásokhoz a Phoenix segítségével                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | OpenInference szemantikai konvenciók és instrumentáció LLM-alkalmazások tracingjéhez                                        |
 
 ## Biztonság és adatvédelem
 

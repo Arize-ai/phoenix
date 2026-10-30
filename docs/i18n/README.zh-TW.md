@@ -287,9 +287,9 @@ Phoenix 的設計讓人類與 AI 程式設計代理都能操作。代理（Claud
 
 | 技能                                              | 說明                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | 使用 Phoenix CLI 除錯 LLM 應用程式 — 擷取追蹤、分析錯誤、檢視實驗，並查詢 GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | 使用 Phoenix 為 AI/LLM 應用程式建構並執行評估器                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | 用於追蹤 LLM 應用程式的 OpenInference 語意慣例與檢測                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | 使用 Phoenix CLI 除錯 LLM 應用程式 — 擷取追蹤、分析錯誤、檢視實驗，並查詢 GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | 使用 Phoenix 為 AI/LLM 應用程式建構並執行評估器                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | 用於追蹤 LLM 應用程式的 OpenInference 語意慣例與檢測                                        |
 
 ## 安全性與隱私權
 

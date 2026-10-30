@@ -287,9 +287,9 @@ Kurulum ve kullanım için [kodlama ajanları dokümantasyonuna](https://arize.c
 
 | Beceri | Açıklama |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI ile LLM uygulamalarında hata ayıklayın — trace'leri getirin, hataları analiz edin, deneyleri inceleyin ve GraphQL API'sini sorgulayın |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix kullanarak AI/LLM uygulamaları için değerlendiriciler oluşturun ve çalıştırın |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM uygulamalarını izlemek için OpenInference semantik kuralları ve enstrümantasyonu |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI ile LLM uygulamalarında hata ayıklayın — trace'leri getirin, hataları analiz edin, deneyleri inceleyin ve GraphQL API'sini sorgulayın |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix kullanarak AI/LLM uygulamaları için değerlendiriciler oluşturun ve çalıştırın |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM uygulamalarını izlemek için OpenInference semantik kuralları ve enstrümantasyonu |
 
 ## Güvenlik ve Gizlilik
 

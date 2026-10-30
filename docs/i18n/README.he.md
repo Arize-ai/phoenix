@@ -287,9 +287,9 @@ Phoenix נבנתה כדי שגם אנשים וגם סוכני קוד מבוסס�
 
 | Skill | תיאור |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | ניפוי באגים באפליקציות LLM באמצעות Phoenix CLI — אחזור traces, ניתוח שגיאות, סקירת ניסויים ושאילתות מול ה-GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | בנייה והרצה של מעריכים לאפליקציות AI/LLM באמצעות Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | מוסכמות סמנטיות ואינסטרומנטציה של OpenInference לביצוע tracing לאפליקציות LLM |
+| [phoenix-cli](../../skills/phoenix-cli/) | ניפוי באגים באפליקציות LLM באמצעות Phoenix CLI — אחזור traces, ניתוח שגיאות, סקירת ניסויים ושאילתות מול ה-GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/) | בנייה והרצה של מעריכים לאפליקציות AI/LLM באמצעות Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | מוסכמות סמנטיות ואינסטרומנטציה של OpenInference לביצוע tracing לאפליקציות LLM |
 
 ## אבטחה ופרטיות
 

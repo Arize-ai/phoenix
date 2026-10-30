@@ -287,9 +287,9 @@ Consulte a [documentação sobre agentes de programação](https://arize.com/doc
 
 | Skill | Descrição |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Depure aplicações LLM com a CLI do Phoenix — obtenha traces, analise erros, reveja experiências e consulte a API GraphQL |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Crie e execute avaliadores para aplicações de IA/LLM com o Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Convenções semânticas e instrumentação OpenInference para o rastreio de aplicações LLM |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Depure aplicações LLM com a CLI do Phoenix — obtenha traces, analise erros, reveja experiências e consulte a API GraphQL |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Crie e execute avaliadores para aplicações de IA/LLM com o Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Convenções semânticas e instrumentação OpenInference para o rastreio de aplicações LLM |
 
 ## Segurança e privacidade
 
