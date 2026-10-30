@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { Outlet, useParams } from "react-router";
+import { Outlet, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -22,6 +22,7 @@ import {
 import { TableSkeleton } from "@phoenix/components/table";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
+import { readMetadataFiltersFromSearchParams } from "./experimentMetadataFilters";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import {
   ExperimentsMetricsCharts,
@@ -32,22 +33,34 @@ import { ExperimentsTable } from "./ExperimentsTable";
 export function ExperimentsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiments");
+  const [searchParams] = useSearchParams();
+  // Read the URL's filters once. The table refetches when they change, so
+  // the page query must not refetch, and suspend, as well.
+  const [initialMetadataFilters] = useState(() => {
+    const filters = readMetadataFiltersFromSearchParams(searchParams);
+    return filters.length ? filters : null;
+  });
   // We use a lazyLoadQuery here due to the fact that there is an issue with Relay connections
   // @see https://github.com/facebook/relay/issues/4875#issuecomment-3138533719
   const data = useLazyLoadQuery<ExperimentsPageQuery>(
     graphql`
-      query ExperimentsPageQuery($datasetId: ID!) {
+      query ExperimentsPageQuery(
+        $datasetId: ID!
+        $metadataFilters: [ExperimentMetadataFilter!]
+      ) {
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
             experimentCount
           }
           ...ExperimentsTableFragment
+            @arguments(metadataFilters: $metadataFilters)
         }
       }
     `,
     {
       datasetId,
+      metadataFilters: initialMetadataFilters,
     },
     { fetchPolicy: "store-and-network" }
   );

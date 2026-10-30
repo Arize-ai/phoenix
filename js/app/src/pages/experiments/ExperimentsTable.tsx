@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -111,6 +111,13 @@ import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateText } from "./ErrorRateText";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
+import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton";
+import type { ExperimentMetadataFilter } from "./experimentMetadataFilters";
+import {
+  formatMetadataFilter,
+  readMetadataFiltersFromSearchParams,
+  writeMetadataFiltersToSearchParams,
+} from "./experimentMetadataFilters";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
@@ -233,7 +240,11 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [, setSearchText] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const metadataFilters = useMemo(
+    () => readMetadataFiltersFromSearchParams(searchParams),
+    [searchParams]
+  );
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -249,6 +260,11 @@ export function ExperimentsTable({
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
+          filterCondition: { type: "String", defaultValue: null }
+          metadataFilters: {
+            type: "[ExperimentMetadataFilter!]"
+            defaultValue: null
+          }
         ) {
           id
           experimentAnnotationSummaries {
@@ -303,8 +319,12 @@ export function ExperimentsTable({
               }
             }
           }
-          experiments(first: $first, after: $after)
-            @connection(key: "ExperimentsTable_experiments") {
+          experiments(
+            first: $first
+            after: $after
+            filterCondition: $filterCondition
+            metadataFilters: $metadataFilters
+          ) @connection(key: "ExperimentsTable_experiments") {
             edges {
               experiment: node {
                 id
@@ -410,6 +430,34 @@ export function ExperimentsTable({
         };
       }),
     [data.experiments.edges]
+  );
+
+  const onSearchTextChange = useCallback(
+    (searchText: string) => {
+      startTransition(() => {
+        refetch(
+          { filterCondition: searchText || null },
+          { fetchPolicy: "network-only" }
+        );
+      });
+    },
+    [refetch]
+  );
+
+  const onMetadataFiltersChange = useCallback(
+    (filters: ExperimentMetadataFilter[]) => {
+      setSearchParams(
+        (prev) => writeMetadataFiltersToSearchParams(prev, filters),
+        { replace: true }
+      );
+      startTransition(() => {
+        refetch(
+          { metadataFilters: filters.length ? filters : null },
+          { fetchPolicy: "network-only" }
+        );
+      });
+    },
+    [refetch, setSearchParams]
   );
 
   const hasRunningExperiments = useMemo(
@@ -959,9 +1007,14 @@ export function ExperimentsTable({
             <DebouncedSearch
               placeholder="Search experiments"
               aria-label="Search experiments"
-              onChange={setSearchText}
+              onChange={onSearchTextChange}
             />
           </View>
+          <ExperimentMetadataFilterButton
+            onAddFilter={(filter) =>
+              onMetadataFiltersChange([...metadataFilters, filter])
+            }
+          />
           <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
@@ -982,6 +1035,36 @@ export function ExperimentsTable({
             }
           />
         </Flex>
+        {metadataFilters.length ? (
+          <View paddingTop="size-100">
+            <Flex
+              direction="row"
+              gap="size-50"
+              wrap="wrap"
+              alignItems="center"
+              data-testid="experiment-metadata-filters"
+            >
+              {metadataFilters.map((filter, index) => {
+                const label = formatMetadataFilter(filter);
+                return (
+                  <Token
+                    key={`${index}-${label}`}
+                    maxWidth="var(--global-dimension-size-4600)"
+                    onRemove={() =>
+                      onMetadataFiltersChange(
+                        metadataFilters.filter(
+                          (_, filterIndex) => filterIndex !== index
+                        )
+                      )
+                    }
+                  >
+                    {label}
+                  </Token>
+                );
+              })}
+            </Flex>
+          </View>
+        ) : null}
       </View>
       <div
         css={css`

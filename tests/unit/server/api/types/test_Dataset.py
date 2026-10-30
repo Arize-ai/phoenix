@@ -1249,6 +1249,185 @@ async def test_experiments_filter_by_search_term(
     assert response.data == {"node": {"experiments": {"edges": []}}}
 
 
+class TestDatasetExperimentsMetadataFilter:
+    _QUERY = """
+      query ($datasetId: ID!, $metadataFilters: [ExperimentMetadataFilter!], $filterCondition: String) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(metadataFilters: $metadataFilters, filterCondition: $filterCondition) {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    @pytest.fixture
+    async def dataset_id(self, db: DbSessionFactory) -> GlobalID:
+        metadata_by_name: dict[str, dict[str, Any]] = {
+            "gpt-hot": {
+                "model": "gpt-5",
+                "harbor_agent": {"model_params": {"temperature": 0.7, "stream": True}},
+            },
+            "gpt-cold": {
+                "model": "gpt-5",
+                "harbor_agent": {"model_params": {"temperature": 0, "stream": False}},
+            },
+            "claude": {
+                "model": "claude",
+                "harbor_agent": {"model_params": {"temperature": 1}},
+                "dotted.key": "literal",
+            },
+            "string-numbers": {
+                "model": "other",
+                "harbor_agent": {"model_params": {"temperature": "0.7", "stream": "true"}},
+            },
+            "no-metadata": {},
+        }
+        async with db() as session:
+            dataset = models.Dataset(name="metadata-filter-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(version)
+            await session.flush()
+            session.add_all(
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=version.id,
+                    name=name,
+                    repetitions=1,
+                    metadata_=metadata,
+                )
+                for name, metadata in metadata_by_name.items()
+            )
+        return GlobalID("Dataset", str(dataset.id))
+
+    async def _names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        metadata_filters: list[dict[str, Any]],
+        filter_condition: str | None = None,
+    ) -> set[str]:
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "datasetId": str(dataset_id),
+                "metadataFilters": metadata_filters,
+                "filterCondition": filter_condition,
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        return {edge["node"]["name"] for edge in response.data["node"]["experiments"]["edges"]}
+
+    @pytest.mark.parametrize(
+        "metadata_filters, expected_names",
+        [
+            pytest.param(
+                [{"path": ["model"], "value": "gpt-5"}],
+                {"gpt-hot", "gpt-cold"},
+                id="top-level-string",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": 0.7}],
+                {"gpt-hot"},
+                id="nested-float-ignores-string",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": "0.7"}],
+                {"string-numbers"},
+                id="nested-string-ignores-number",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": 1.0}],
+                {"claude"},
+                id="float-matches-integer",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "temperature"], "value": 0}],
+                {"gpt-cold"},
+                id="zero-does-not-match-false",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "stream"], "value": True}],
+                {"gpt-hot"},
+                id="true-ignores-string-and-one",
+            ),
+            pytest.param(
+                [{"path": ["harbor_agent", "model_params", "stream"], "value": False}],
+                {"gpt-cold"},
+                id="false",
+            ),
+            pytest.param(
+                [{"path": ["dotted.key"], "value": "literal"}],
+                {"claude"},
+                id="key-containing-dot",
+            ),
+            pytest.param(
+                [{"path": ["missing"], "value": "gpt-5"}],
+                set(),
+                id="missing-key",
+            ),
+            pytest.param(
+                [
+                    {"path": ["model"], "value": "gpt-5"},
+                    {"path": ["harbor_agent", "model_params", "stream"], "value": False},
+                ],
+                {"gpt-cold"},
+                id="filters-combine-with-and",
+            ),
+        ],
+    )
+    async def test_filters_by_metadata_value(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        metadata_filters: list[dict[str, Any]],
+        expected_names: set[str],
+    ) -> None:
+        assert await self._names(gql_client, dataset_id, metadata_filters) == expected_names
+
+    async def test_composes_with_filter_condition(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+    ) -> None:
+        names = await self._names(
+            gql_client,
+            dataset_id,
+            [{"path": ["model"], "value": "gpt-5"}],
+            filter_condition="cold",
+        )
+        assert names == {"gpt-cold"}
+
+    @pytest.mark.parametrize(
+        "metadata_filter",
+        [
+            pytest.param({"path": [], "value": "gpt-5"}, id="empty-path"),
+            pytest.param({"path": ["model"], "value": None}, id="null-value"),
+            pytest.param({"path": ["model"], "value": ["gpt-5"]}, id="list-value"),
+            pytest.param({"path": ["model"], "value": {"a": 1}}, id="object-value"),
+        ],
+    )
+    async def test_rejects_invalid_filter(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        metadata_filter: dict[str, Any],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={"datasetId": str(dataset_id), "metadataFilters": [metadata_filter]},
+        )
+        assert response.errors
+
+
 async def test_experiments_filter_by_description_search(
     gql_client: AsyncGraphQLClient,
     experiments_for_filtering: Any,
