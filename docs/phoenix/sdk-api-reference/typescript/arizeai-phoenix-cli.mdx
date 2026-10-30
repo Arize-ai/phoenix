@@ -781,6 +781,33 @@ px annotation-config list --format raw --no-progress | jq -r '.[].name'  # Names
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum number of configs | — |
 
+### `px project annotation-config list|assign|unassign|set <project-identifier>`
+
+List or change the annotation configs assigned to a project. The project and each config may be a name or ID. Assigning an already assigned config, or unassigning one that is not assigned, succeeds without a change. `unassign` and `set` never delete the configs themselves.
+
+```bash
+px project annotation-config list my-project                                 # Configs assigned to the project
+px project annotation-config list my-project --format raw --no-progress | jq -r '.[].name'
+px project annotation-config assign my-project correctness                   # Prints the assigned config
+px project annotation-config unassign my-project correctness
+px project annotation-config set my-project correctness helpfulness --yes    # Replace the whole set
+px project annotation-config set my-project --none --yes                     # Unassign every config
+```
+
+| Option | Command | Description | Default |
+|--------|---------|-------------|---------|
+| `<project-identifier>` | all | Project name or ID | — |
+| `<config-identifier>` | `assign`, `unassign` | Annotation config name or ID | — |
+| `[config-identifiers...]` | `set` | Every config the project should have; others are unassigned | — |
+| `--none` | `set` | Unassign every config (instead of listing configs) | — |
+| `-y, --yes` | `set` | Skip confirmation prompt | — |
+| `--format <format>` | all | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | all | Phoenix API endpoint | From env |
+| `--api-key <key>` | all | Phoenix API key | From env |
+| `--no-progress` | all | Disable progress indicators | — |
+
+`list` and `set` print the project's configs, `assign` prints the assigned config, and `unassign` prints `{unassigned, project, config}`. `set` resolves config names to IDs before sending, because the replace endpoint takes IDs only, and asks for confirmation unless `--yes` is passed. Config names containing `/` cannot be used with `assign` or `unassign`; pass the config ID instead. A 401/403 exits `AUTH_REQUIRED` (4), and viewers get a 403 from `assign`, `unassign`, and `set`. A 400/422 exits `INVALID_ARGUMENT` (3). A missing project or config exits `FAILURE` (1) with the server's message.
+
 ### `px annotation-config get <config-identifier>`
 
 Fetch a single annotation configuration by name or ID.

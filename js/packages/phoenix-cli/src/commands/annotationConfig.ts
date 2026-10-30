@@ -452,7 +452,7 @@ function exitOnInvalidSharedWriteFlags(options: {
 /**
  * Fetch all annotation configs from Phoenix
  */
-async function fetchAnnotationConfigs(
+export async function fetchAnnotationConfigs(
   client: PhoenixClient,
   options: { limit?: number } = {}
 ): Promise<AnnotationConfig[]> {

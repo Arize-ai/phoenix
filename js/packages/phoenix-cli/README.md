@@ -633,6 +633,32 @@ The two forms are mutually exclusive — pass one or the other, not both.
 
 ---
 
+### `px project annotation-config list|assign|unassign|set <project-identifier>`
+
+List or change the annotation configs assigned to a project. The project and each config may be a name or ID. `assign` and `unassign` are idempotent: assigning an assigned config or unassigning an unassigned one succeeds. `unassign` and `set` never delete the configs themselves.
+
+```bash
+px project annotation-config list my-project
+px project annotation-config list my-project --format raw --no-progress | jq -r '.[].name'
+px project annotation-config assign my-project correctness
+px project annotation-config unassign my-project correctness
+px project annotation-config set my-project correctness helpfulness --yes   # replace the whole set
+px project annotation-config set my-project --none --yes                    # unassign every config
+```
+
+| Option              | Description                              | Default  |
+| ------------------- | ---------------------------------------- | -------- |
+| `--none`            | `set` only: unassign every config        | —        |
+| `-y, --yes`         | `set` only: skip the confirmation prompt | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`               | `pretty` |
+| `--no-progress`     | Suppress progress output                 | —        |
+
+`list` and `set` print the project's configs as an array, `assign` prints the assigned config, and `unassign` prints `{unassigned, project, config}`. `set` takes the full desired set: configs not listed are unassigned. It needs at least one config or `--none`, resolves config names to IDs before sending, and asks for confirmation unless `--yes` is set. Config names containing `/` cannot be used with `assign` or `unassign`; pass the config ID instead.
+
+Errors exit with `AUTH_REQUIRED` (4) for a 401/403 (viewers cannot assign, unassign, or set), `INVALID_ARGUMENT` (3) for a 400/422, and `FAILURE` (1) when the project or a config does not exist, with the server's message and a `StructuredError` on stderr in `--format json|raw`.
+
+---
+
 ### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.
