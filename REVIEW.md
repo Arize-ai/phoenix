@@ -44,6 +44,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Public API parameters, config options and exports the change does not need MUST NOT be added
 - Code, props and exports the change leaves unused MUST be removed
 - Modules MUST live in the layer they belong to — `utils` holds pure functions only, and imports SHOULD flow one way
+- Code MUST NOT branch on hard-coded model names, model ID substrings, or version strings to decide how to call a provider, and SHOULD NOT send a request it expects some models to reject and then retry it in another form. When models disagree on a parameter, the request SHOULD use the form every supported model accepts. Name lists go stale with every model release and miss aliases, deployment IDs, and proxied model names
 
 ## Security
 

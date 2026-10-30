@@ -38,6 +38,18 @@ dependencies = [
 test = [
 ]
 
+[dependency-groups]
+dev = [
+  "mypy==2.4.0",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-timeout",
+  "pytest-xdist",
+  "uvloop; platform_system != 'Windows'",
+]
+
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
@@ -54,7 +66,7 @@ packages = ["src/phoenix"]
 only-packages = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", ".tox", "dist"]
+exclude = [".git", "__pycache__", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
 target-version = "py311"

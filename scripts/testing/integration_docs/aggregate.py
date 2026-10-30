@@ -11,8 +11,7 @@ from pathlib import Path
 STATUS_ICON = {
     "pass": "✅",
     "fail": "❌",
-    "skipped": "⏭",
-    "no-op": "⏭",
+    "skipped": "➖",
 }
 
 
@@ -22,7 +21,7 @@ def main() -> int:
         "--reports", type=Path, required=True, help="Directory containing shard artifacts"
     )
     parser.add_argument("--output-dir", type=Path, default=Path("ci-results/integration-docs"))
-    parser.add_argument("--run-mode", choices=("all", "changed", "none"), required=True)
+    parser.add_argument("--run-mode", choices=("all", "changed"), required=True)
     parser.add_argument("--reason", required=True)
     parser.add_argument("--shard-result", required=True)
     args = parser.parse_args()
@@ -43,8 +42,6 @@ def main() -> int:
         status = "skipped"
     else:
         status = "pass"
-    if args.run_mode == "none":
-        status = "no-op"
     counts = {
         name: sum(item.get("status") == name for item in integrations)
         for name in ("pass", "fail", "skipped")
@@ -64,7 +61,7 @@ def main() -> int:
     lines = [
         "# Integration documentation checks",
         "",
-        f"Overall status: **{STATUS_ICON.get(status, '❔')} {status}** "
+        f"Overall status: **{STATUS_ICON.get(status, '')} {status}** "
         f"({counts['pass']} passed, {counts['fail']} failed, {counts['skipped']} skipped)",
         f"Classification: {args.reason}",
         "",
@@ -73,7 +70,7 @@ def main() -> int:
     ]
     for record in integrations:
         record_status = record.get("status", "?")
-        icon = STATUS_ICON.get(record_status, "❔")
+        icon = STATUS_ICON.get(record_status, "")
         span = record.get("span", {})
         result = record.get("reason") or record.get("error") or "—"
         if span:
@@ -92,7 +89,7 @@ def main() -> int:
         lines.extend(["", "## Failures and skips", ""])
         for record in noteworthy:
             record_status = record.get("status", "?")
-            icon = STATUS_ICON.get(record_status, "❔")
+            icon = STATUS_ICON.get(record_status, "")
             detail = record.get("reason") or record.get("error") or "No result details recorded"
             detail = str(detail).replace("|", "\\|").replace("\n", " ")
             lines.append(

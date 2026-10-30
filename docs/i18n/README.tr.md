@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanm�
 
 Phoenix satıcıdan ve dilden bağımsızdır; popüler framework'ler ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) ve LLM sağlayıcıları ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) ve daha fazlası) için kutudan çıktığı gibi destek sunar. Otomatik enstrümantasyon hakkında ayrıntılar için [OpenInference](https://github.com/Arize-ai/openinference) projesine göz atın.
 
-Phoenix yerel makineniz, konteyner tabanlı bir dağıtım veya bulut dahil olmak üzere neredeyse her yerde çalışır. Her seçeneğin adım adım anlatımı için [Ortamlar](https://arize.com/docs/phoenix/environments) bölümüne bakın ya da doğrudan [İzleme Hızlı Başlangıç](https://arize.com/docs/phoenix/get-started/get-started-tracing) kılavuzuna geçin.
+Phoenix yerel makineniz, konteyner tabanlı bir dağıtım veya bulut dahil olmak üzere neredeyse her yerde çalışır. Her seçeneğin adım adım anlatımı için [Ortamlar](https://arize.com/docs/phoenix/self-hosting) bölümüne bakın ya da doğrudan [İzleme Hızlı Başlangıç](https://arize.com/docs/phoenix/get-started/get-started-tracing) kılavuzuna geçin.
 
 > [!NOTE]
 > Phoenix açık kaynaklıdır ve kendi altyapınızda barındırılır (self-hosted). Yönetilen bir platform için Arize, [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tr) sunar — aynı OpenTelemetry/OpenInference enstrümantasyonu her ikisiyle de çalışır. [Ayrıntılı karşılaştırmaya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) bakın.
