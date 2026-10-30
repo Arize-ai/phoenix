@@ -94,10 +94,24 @@ One shape in each drawing is cyan. It marks what the reader should look at: the 
 - Keep meaningful lines at 6 px or more, rules at 4 px or more, and shapes at 28 px or more.
 - Render the review sheet and compare the new motif beside the others at 158 px and 334 px.
 
+## Page banners
+
+A banner opens a docs page and says one thing: the page name, set large and heavy beside one piece of art. Exact values live in `scripts/banner_design.py`.
+
+- **Canvas.** 1536 × 512 (3:1) on the same flat ground as the cards. It shows at 689 CSS px on desktop and 350 px on a phone.
+- **Grid.** Twelve 90 px columns with 24 px gutters, 96 px side margins and 88 px top and bottom margins. The title takes columns 1–6, column 7 stays empty, and the art takes columns 8–12.
+- **Title.** Geist Bold in ink, one size on every banner, with its cap height centred on the canvas. A long name wraps to two balanced lines. `cards.py` rejects a title that needs three. Banners are the one place art carries text. They have no label above the title and no description below it.
+- **Art.** Exactly one of:
+  - a topic drawing, scaled into the art columns;
+  - one brand mark, sized by visual weight like a logo card;
+  - two to six brand marks in equal cells: one row of up to four, or two rows for five or six.
+- **Banner-only drawings.** A drawing that only banners need lives in `banner_design.py`, drawn with the card vocabulary in card coordinates, so it can move to `card_design.py` later. Moving it changes every card's fingerprint. `settings` shows three labelled switches; the one switched on is cyan. A switch means a setting.
+
 ## Do not
 
 - Use screenshots. Product UI is unreadable at card size.
 - Use brand colors, a second accent, or cyan on a logo card.
 - Put badges, tiles or stickers in a corner.
 - Add decoration: dot grids, rails, frames, glows or noise.
-- Put text in the art.
+- Put text in the art. A banner's title is the only exception.
+- Add a subtitle, label or second line of copy to a banner.

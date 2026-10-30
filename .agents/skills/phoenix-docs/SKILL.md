@@ -34,9 +34,9 @@ Use for how-to guides and reference.
 - Write warnings before the step they apply to.
 - No idioms, no "please", no "simply/just/easily".
 
-## Card images
+## Card images and page banners
 
-Card art (`<Card img>`) is generated, never hand-made.
+Card art (`<Card img>`) and page banners (the image that opens a page) are generated, never hand-made.
 
 - [references/card-images.md](references/card-images.md): names, URLs, publishing to GCS and linking from MDX.
-- [references/card-design.md](references/card-design.md): the design language. Read it before you change how a card looks.
+- [references/card-design.md](references/card-design.md): the design language. Read it before you change how a card or banner looks.
