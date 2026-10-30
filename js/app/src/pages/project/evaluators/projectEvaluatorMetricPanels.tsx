@@ -1,5 +1,5 @@
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 import { DeferredProjectAnnotationMetricPanel } from "@phoenix/pages/project/metrics/ProjectAnnotationMetrics";
 
 /**
@@ -16,7 +16,7 @@ export function EvaluatorResultAnnotationMetricPanel({
 }: {
   /** The project whose spans, traces, or sessions this evaluator annotates. */
   evaluatedProjectId: string;
-  annotationLevel: MetricChartTableView;
+  annotationLevel: AnnotationMetricLevel;
   /** The annotation the evaluator writes, named the way its runs persist it. */
   annotation: ProjectEvaluatorResultAnnotation;
   title: string;
