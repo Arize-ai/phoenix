@@ -1,4 +1,6 @@
-from phoenix.evals.llm.adapters.json_schema import close_objects
+from typing import Any, Dict, List
+
+from phoenix.evals.llm.adapters.json_schema import close_objects, walk_schema
 
 
 def test_closes_nested_objects() -> None:
@@ -36,3 +38,21 @@ def test_keeps_values_and_property_names_as_they_are() -> None:
     assert closed["additionalProperties"] is True
     assert "additionalProperties" not in closed["properties"]
     assert closed["properties"]["choice"] == schema["properties"]["choice"]
+
+
+def test_walks_property_schemas_but_not_the_property_map() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"minimum": {"type": "integer"}, "type": {"type": "string"}},
+        "$defs": {"oneOf": {"type": "string"}},
+    }
+    visited: List[Dict[str, Any]] = []
+
+    walk_schema(schema, visited.append)
+
+    assert visited == [
+        schema,
+        schema["properties"]["minimum"],
+        schema["properties"]["type"],
+        schema["$defs"]["oneOf"],
+    ]

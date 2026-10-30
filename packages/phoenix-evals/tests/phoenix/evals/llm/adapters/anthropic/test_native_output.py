@@ -163,16 +163,107 @@ def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
     assert ["output_config" in r for r in requests] == [True, False, True, False]
 
 
-def test_auto_raises_an_error_about_another_output_config_field() -> None:
+@pytest.mark.parametrize(
+    "message",
+    [
+        "output_config.effort: 'xhigh' is not supported for this model",
+        "This model does not support the effort parameter.",
+    ],
+)
+def test_auto_raises_an_error_about_another_output_config_field(message: str) -> None:
     requests: List[Dict[str, Any]] = []
-    adapter = _sync_adapter(
-        lambda _: _bad_request("This model does not support the effort parameter."),
-        requests,
-    )
+    adapter = _sync_adapter(lambda _: _bad_request(message), requests)
 
-    with pytest.raises(anthropic.BadRequestError):
-        adapter.generate_object("q", _SCHEMA, output_config={"effort": "xhigh"})
-    assert len(requests) == 1
+    for _ in range(2):
+        with pytest.raises(anthropic.BadRequestError):
+            adapter.generate_object("q", _SCHEMA, output_config={"effort": "xhigh"})
+    assert ["output_config" in r and "format" in r["output_config"] for r in requests] == [
+        True,
+        True,
+    ]
+
+
+def test_keeps_native_output_for_property_names_that_are_keywords() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _text('{"minimum": 1, "oneOf": "a"}'), requests)
+    schema = {
+        "type": "object",
+        "properties": {"minimum": {"type": "integer"}, "oneOf": {"type": "string"}},
+        "required": ["minimum", "oneOf"],
+    }
+
+    assert adapter.generate_object("q", schema) == {"minimum": 1, "oneOf": "a"}
+    sent = requests[0]["output_config"]["format"]["schema"]
+    assert sent["properties"] == schema["properties"]
+
+
+def test_does_not_send_tool_settings_with_native_output() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _text('{"label": "good"}'), requests)
+
+    adapter.generate_object("q", _SCHEMA, tool_choice={"type": "auto"}, tools=[])
+
+    assert "tool_choice" not in requests[0]
+    assert "tools" not in requests[0]
+
+
+class _OldSdkMessages:
+    """A `messages` resource from an `anthropic` SDK without `output_config`."""
+
+    def __init__(self, response: Dict[str, Any]) -> None:
+        self.calls: List[Dict[str, Any]] = []
+        self._response = response
+
+    def create(
+        self,
+        *,
+        model: str,
+        messages: List[Dict[str, Any]],
+        max_tokens: int,
+        system: Any = None,
+        tools: Any = None,
+        tool_choice: Any = None,
+    ) -> Any:
+        self.calls.append({"tools": tools, "tool_choice": tool_choice})
+        return anthropic.types.Message.model_validate(self._response)
+
+
+class _OldSdkClient:
+    def __init__(self, response: Dict[str, Any]) -> None:
+        self.messages = _OldSdkMessages(response)
+
+
+_TOOL_USE_MESSAGE = {
+    "id": "msg_1",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-test",
+    "content": [
+        {
+            "type": "tool_use",
+            "id": "t1",
+            "name": "extract_structured_data",
+            "input": {"label": "bad"},
+        }
+    ],
+    "stop_reason": "tool_use",
+    "usage": {"input_tokens": 1, "output_tokens": 1},
+}
+
+
+def test_auto_uses_tool_calling_on_an_sdk_without_output_config() -> None:
+    client = _OldSdkClient(_TOOL_USE_MESSAGE)
+    adapter = AnthropicAdapter(client=client, model="claude-test")
+
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert len(client.messages.calls) == 1
+
+
+def test_native_output_explains_an_sdk_without_output_config() -> None:
+    adapter = AnthropicAdapter(client=_OldSdkClient(_TOOL_USE_MESSAGE), model="claude-test")
+
+    with pytest.raises(ValueError, match="Upgrade `anthropic`"):
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.STRUCTURED_OUTPUT)
 
 
 def test_auto_uses_tool_calling_for_a_schema_native_output_rejects() -> None:

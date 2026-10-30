@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 import re
@@ -188,6 +189,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
+        self._sdk_has_native_output = self._check_sdk_has_native_output()
         # Set once the model rejects native structured output, so AUTO stops trying it.
         self._native_output_rejected = False
 
@@ -203,6 +205,21 @@ class AnthropicAdapter(BaseLLMAdapter):
                 f"{type(self.client)}"
             )
 
+    def _check_sdk_has_native_output(self) -> bool:
+        """Checks whether the client's `messages.create` accepts `output_config`.
+
+        Older `anthropic` SDKs don't have the parameter and raise a TypeError when it's passed.
+        """
+        actual_client = getattr(self.client, "client", self.client)
+        try:
+            parameters = inspect.signature(actual_client.messages.create).parameters.values()
+        except (TypeError, ValueError):
+            return True
+        return any(
+            parameter.name == "output_config" or parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters
+        )
+
     def _check_if_async_client(self) -> bool:
         actual_client = getattr(self.client, "client", self.client)
 
@@ -212,8 +229,6 @@ class AnthropicAdapter(BaseLLMAdapter):
                 return "Async" in class_name
 
         create_method = actual_client.messages.create
-        import inspect
-
         return inspect.iscoroutinefunction(create_method)
 
     def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
@@ -333,7 +348,11 @@ class AnthropicAdapter(BaseLLMAdapter):
             raise ValueError(f"Unsupported object generation method: {method}")
 
     def _can_use_native_output(self, schema: Dict[str, Any]) -> bool:
-        return not self._native_output_rejected and _native_output_schema(schema) is not None
+        return (
+            self._sdk_has_native_output
+            and not self._native_output_rejected
+            and _native_output_schema(schema) is not None
+        )
 
     def _fall_back_or_raise(self, error: Exception) -> None:
         """Re-raises the error unless it means native output can't serve the request.
@@ -376,9 +395,15 @@ class AnthropicAdapter(BaseLLMAdapter):
     def _native_output_params(
         self, prompt: PromptLike, schema: Dict[str, Any], kwargs: Dict[str, Any]
     ) -> Dict[str, Any]:
+        if not self._sdk_has_native_output:
+            raise ValueError(
+                "Native structured output needs an `anthropic` SDK whose `messages.create` accepts "
+                "`output_config`. Upgrade `anthropic`, or use TOOL_CALLING."
+            )
         messages, system = self._build_messages(prompt)
         params = {
-            **kwargs,
+            # A caller's `tools` and `tool_choice` apply to tool calling only.
+            **{key: value for key, value in kwargs.items() if key not in ("tools", "tool_choice")},
             "model": self.model,
             "messages": messages,
             "output_config": {
