@@ -15,7 +15,11 @@ from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
-from phoenix.server.api.types.GenerativeProvider import CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY
+from phoenix.server.api.types.DecisionSDK import DecisionSDK
+from phoenix.server.api.types.GenerativeProvider import (
+    CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
+    GenerativeProviderKey,
+)
 from phoenix.server.api.types.ModelType import ModelType
 from phoenix.server.api.types.RedactedString import RedactedString
 
@@ -35,6 +39,34 @@ class GenerativeModelSDK(Enum):
 @strawberry.type
 class UnparsableConfig:
     parse_error: str
+
+
+@strawberry.type(
+    description=(
+        "Where a custom provider's decision models run. They reuse the provider's API key "
+        "and headers."
+    )
+)
+class DecisionModelsConfig:
+    decision_sdk: DecisionSDK
+    base_url: str | None = strawberry.field(
+        description="The configured decision base URL; null uses the chat base URL."
+    )
+    model_names: list[str] = strawberry.field(description="Suggested decision model names.")
+
+    @classmethod
+    def from_orm(
+        cls,
+        decision_sdk: models.DecisionSDK | None,
+        config: mp.DecisionModelsConfig | None,
+    ) -> Self | None:
+        if decision_sdk is None:
+            return None
+        return cls(
+            decision_sdk=DecisionSDK(decision_sdk),
+            base_url=config.base_url if config else None,
+            model_names=list(config.model_names) if config else [],
+        )
 
 
 @strawberry.type
@@ -89,10 +121,16 @@ class OpenAICustomProviderConfig:
     openai_authentication_method: OpenAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
     openai_api_type: OpenAIApiType
+    decision_models: DecisionModelsConfig | None = None
 
     @classmethod
-    def from_orm(cls, config: mp.OpenAICustomProviderConfig) -> Self:
+    def from_orm(
+        cls,
+        config: mp.OpenAICustomProviderConfig,
+        decision_sdk: models.DecisionSDK | None = None,
+    ) -> Self:
         return cls(
+            decision_models=DecisionModelsConfig.from_orm(decision_sdk, config.decision_models),
             openai_authentication_method=OpenAIAuthenticationMethod.from_orm(
                 config.openai_authentication_method
             ),
@@ -153,10 +191,16 @@ class AzureOpenAICustomProviderConfig:
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
     azure_openai_client_kwargs: AzureOpenAIClientKwargs
     openai_api_type: OpenAIApiType
+    decision_models: DecisionModelsConfig | None = None
 
     @classmethod
-    def from_orm(cls, config: mp.AzureOpenAICustomProviderConfig) -> Self:
+    def from_orm(
+        cls,
+        config: mp.AzureOpenAICustomProviderConfig,
+        decision_sdk: models.DecisionSDK | None = None,
+    ) -> Self:
         return cls(
+            decision_models=DecisionModelsConfig.from_orm(decision_sdk, config.decision_models),
             azure_openai_authentication_method=AzureOpenAIAuthenticationMethod.from_orm(
                 config.azure_openai_authentication_method
             ),
@@ -370,10 +414,16 @@ class TypeSafeClientKwargs:
 class TypeSafeCustomProviderConfig:
     typesafe_authentication_method: TypeSafeAuthenticationMethod
     typesafe_client_kwargs: TypeSafeClientKwargs | None = UNSET
+    decision_models: DecisionModelsConfig | None = None
 
     @classmethod
-    def from_orm(cls, config: mp.TypeSafeCustomProviderConfig) -> Self:
+    def from_orm(
+        cls,
+        config: mp.TypeSafeCustomProviderConfig,
+        decision_sdk: models.DecisionSDK | None = "typesafe",
+    ) -> Self:
         return cls(
+            decision_models=DecisionModelsConfig.from_orm(decision_sdk, config.decision_models),
             typesafe_authentication_method=TypeSafeAuthenticationMethod.from_orm(
                 config.typesafe_authentication_method
             ),
@@ -400,6 +450,7 @@ def _parse_config(
     sdk: models.GenerativeModelSDK,
     encrypted_config: bytes,
     decrypt: Callable[[bytes], bytes],
+    decision_sdk: models.DecisionSDK | None = None,
 ) -> CustomProviderConfig:
     """Parse the encrypted config based on the SDK type."""
     try:
@@ -410,10 +461,10 @@ def _parse_config(
     try:
         if sdk == "openai":
             openai_config = mp.OpenAICustomProviderConfig.model_validate_json(data)
-            return OpenAICustomProviderConfig.from_orm(openai_config)
+            return OpenAICustomProviderConfig.from_orm(openai_config, decision_sdk)
         elif sdk == "azure_openai":
             azure_config = mp.AzureOpenAICustomProviderConfig.model_validate_json(data)
-            return AzureOpenAICustomProviderConfig.from_orm(azure_config)
+            return AzureOpenAICustomProviderConfig.from_orm(azure_config, decision_sdk)
         elif sdk == "anthropic":
             anthropic_config = mp.AnthropicCustomProviderConfig.model_validate_json(data)
             return AnthropicCustomProviderConfig.from_orm(anthropic_config)
@@ -425,7 +476,7 @@ def _parse_config(
             return GoogleGenAICustomProviderConfig.from_orm(google_config)
         elif sdk == "typesafe":
             typesafe_config = mp.TypeSafeCustomProviderConfig.model_validate_json(data)
-            return TypeSafeCustomProviderConfig.from_orm(typesafe_config)
+            return TypeSafeCustomProviderConfig.from_orm(typesafe_config, decision_sdk)
         else:
             assert_never(sdk)
     except ValidationError:
@@ -503,20 +554,26 @@ class GenerativeModelCustomProvider(Node):
 
     @strawberry.field(description="The config of this provider.")  # type: ignore
     async def config(self, info: Info[Context, None]) -> CustomProviderConfig:
+        return await self._config(info)
+
+    async def _config(self, info: Info[Context, None]) -> CustomProviderConfig:
         if self.db_record:
             sdk = self.db_record.sdk
             encrypted_config = self.db_record.config
+            decision_sdk = self.db_record.decision_sdk
         else:
             (
                 sdk,
                 encrypted_config,
+                decision_sdk,
             ) = await info.context.data_loaders.generative_model_custom_provider_fields.load_many(
                 [
                     (self.id, models.GenerativeModelCustomProvider.sdk),
                     (self.id, models.GenerativeModelCustomProvider.config),
+                    (self.id, models.GenerativeModelCustomProvider.decision_sdk),
                 ]
             )
-        return _parse_config(sdk, encrypted_config, info.context.decrypt)
+        return _parse_config(sdk, encrypted_config, info.context.decrypt, decision_sdk)
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(
@@ -544,18 +601,27 @@ class GenerativeModelCustomProvider(Node):
         )
         return sdk
 
+    async def _decision_sdk(self, info: Info[Context, None]) -> models.DecisionSDK | None:
+        if self.db_record:
+            return self.db_record.decision_sdk
+        decision_sdk: (
+            models.DecisionSDK | None
+        ) = await info.context.data_loaders.generative_model_custom_provider_fields.load(
+            (self.id, models.GenerativeModelCustomProvider.decision_sdk),
+        )
+        return decision_sdk
+
     @strawberry.field(
         description=(
             "The model types this provider can serve: chat (LLM) models, decision models, "
-            "or both. Derived from its SDK."
+            "or both. Chat comes from its SDK; decision models from its decision client."
         )
     )  # type: ignore
     async def model_types(self, info: Info[Context, None]) -> list[ModelType]:
-        sdk = await self._sdk(info)
         model_types: list[ModelType] = []
-        if mp.sdk_offers_chat(sdk):
+        if mp.sdk_offers_chat(await self._sdk(info)):
             model_types.append(ModelType.LLM)
-        if mp.sdk_offers_decisions(sdk):
+        if await self._decision_sdk(info) is not None:
             model_types.append(ModelType.DECISION)
         return model_types
 
@@ -572,10 +638,18 @@ class GenerativeModelCustomProvider(Node):
         if model_type is ModelType.DECISION:
             from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
 
-            if not mp.sdk_offers_decisions(sdk):
+            if (decision_sdk := await self._decision_sdk(info)) is None:
                 return []
-            client = DECISION_CLIENTS.get(CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[sdk])
-            return list(client.model_names) if client else []
+            config = await self._config(info)
+            decision_models = getattr(config, "decision_models", None)
+            if isinstance(decision_models, DecisionModelsConfig) and decision_models.model_names:
+                return decision_models.model_names
+            key = (
+                GenerativeProviderKey.OPENAI
+                if decision_sdk == "openai"
+                else GenerativeProviderKey.TYPESAFE
+            )
+            return list(DECISION_CLIENTS[key].model_names)
         if not mp.sdk_offers_chat(sdk):
             return []
         return PLAYGROUND_CLIENT_REGISTRY.list_models(CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[sdk])
