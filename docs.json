@@ -468,7 +468,12 @@
       {
         "tab": "Learn",
         "pages": [
-          "docs/phoenix/learn",
+          {
+            "group": "Start here",
+            "pages": [
+              "docs/phoenix/learn"
+            ]
+          },
           {
             "group": "Understand behavior",
             "pages": [
