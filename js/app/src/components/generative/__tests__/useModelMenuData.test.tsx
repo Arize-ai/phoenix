@@ -78,13 +78,12 @@ describe("useModelMenuData decision providers", () => {
   });
 
   it("lists custom providers with a decision client, under that client's SDK", async () => {
-    let seen: CustomProviderInfo[] = [];
     function Probe() {
-      seen = useModelMenuData({
+      const { customProviders } = useModelMenuData({
         modelType: "DECISION",
         includeDecisionModels: true,
-      }).customProviders;
-      return null;
+      });
+      return <pre>{JSON.stringify(customProviders)}</pre>;
     }
     const environment = new Environment({
       network: Network.create(() => Observable.from(Promise.resolve(RESPONSE))),
@@ -103,6 +102,9 @@ describe("useModelMenuData decision providers", () => {
     });
     // The SDK decides the provider a decision is saved with, so an OpenAI-SDK
     // provider that runs System One is listed as TypeSafe.
+    const seen: CustomProviderInfo[] = JSON.parse(
+      container.querySelector("pre")?.textContent ?? "[]"
+    );
     expect(seen).toEqual([
       {
         id: "openai-on-system-one",
