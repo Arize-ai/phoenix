@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { Alert, Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
@@ -52,6 +52,9 @@ export function ServerEvaluationQueueStrip({
   onQueueCleared: () => void;
 }) {
   const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
+  // Read by the clear button, which stays outside the stats' error boundary
+  // so a failed poll can't take the only clear-all control with it.
+  const [clearableCount, setClearableCount] = useState<number | null>(null);
   return (
     <View
       paddingX="size-200"
@@ -66,15 +69,27 @@ export function ServerEvaluationQueueStrip({
         alignItems="start"
         gap="size-200"
       >
-        <ErrorBoundary fallback={() => <StripPlaceholder />}>
+        <ErrorBoundary
+          resetKey={fetchKey}
+          fallback={() => (
+            <Flex direction="column" gap="size-100">
+              <StripPlaceholder />
+              <Alert variant="danger">Couldn't load the queue stats</Alert>
+            </Flex>
+          )}
+        >
           <Suspense fallback={<StripPlaceholder />}>
             <ServerEvaluationQueueStripContent
               fetchKey={fetchKey}
               lastHour={lastHour}
-              onQueueCleared={onQueueCleared}
+              onClearableCount={setClearableCount}
             />
           </Suspense>
         </ErrorBoundary>
+        <ClearAllQueuedEvaluationsButton
+          isQueueEmpty={clearableCount === 0}
+          onCleared={onQueueCleared}
+        />
       </Flex>
     </View>
   );
@@ -83,11 +98,11 @@ export function ServerEvaluationQueueStrip({
 function ServerEvaluationQueueStripContent({
   fetchKey,
   lastHour,
-  onQueueCleared,
+  onClearableCount,
 }: {
   fetchKey: string;
   lastHour: { start: string; end: string };
-  onQueueCleared: () => void;
+  onClearableCount: (clearableCount: number) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
@@ -155,6 +170,9 @@ function ServerEvaluationQueueStripContent({
     queue.oldestQueuedAt != null && hasWaitedTooLong(queue.oldestQueuedAt);
   const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
   const clearableCount = queue.queuedCount - queue.runningCount;
+  useEffect(() => {
+    onClearableCount(clearableCount);
+  }, [clearableCount, onClearableCount]);
   return (
     <>
       <div css={stripCSS}>
@@ -254,10 +272,6 @@ function ServerEvaluationQueueStripContent({
           </HoverDetail>
         </StatItem>
       </div>
-      <ClearAllQueuedEvaluationsButton
-        isQueueEmpty={clearableCount <= 0}
-        onCleared={onQueueCleared}
-      />
     </>
   );
 }

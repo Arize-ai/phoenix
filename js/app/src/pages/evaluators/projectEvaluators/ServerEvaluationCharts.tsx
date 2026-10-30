@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import {
@@ -48,10 +48,13 @@ import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/projectEvaluators/__generated__/ServerEvaluationChartsQuery.graphql";
+import type {
+  ProjectSeries,
+  ServerProjectSeries,
+} from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
 import {
-  getShownProjectIds,
+  getServerProjectSeries,
   OTHER_PROJECTS_KEY,
-  rankProjects,
 } from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
@@ -63,8 +66,6 @@ import {
 type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
 
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
-
-type ProjectSeries = { key: string; name: string; color: string };
 
 /**
  * The server's evaluation activity over the selected range, grouped by
@@ -141,23 +142,19 @@ export function useServerEvaluationActivity({
 }
 
 /**
- * Which projects get their own series and color: the picked ones, or the
- * heaviest few. The rest share one "other projects" series, so totals still
- * add up against the shared queue limit.
+ * Which projects get their own series and color in the strip's charts and the
+ * project picker; see {@link getServerProjectSeries}.
  */
 export function useServerProjectSeries(
   data: ServerEvaluationChartsQuery$data,
   pickedProjectIds: ReadonlyArray<string>
-) {
+): ServerProjectSeries {
   const colors = useCategoryChartColors();
-  return useMemo(() => {
-    const ranked = rankProjects({
-      groups: data.evaluationActivity.groups,
-      queued: data.evaluationQueue.projects,
-    });
-    const shownIds = getShownProjectIds(ranked, pickedProjectIds);
-    const shown = new Set(shownIds);
-    const palette = [
+  return getServerProjectSeries({
+    groups: data.evaluationActivity.groups,
+    queued: data.evaluationQueue.projects,
+    pickedProjectIds,
+    palette: [
       colors.category1,
       colors.category2,
       colors.category3,
@@ -170,39 +167,9 @@ export function useServerProjectSeries(
       colors.category10,
       colors.category11,
       colors.category12,
-    ];
-    const colorById = new Map(
-      shownIds.map((id, index) => [id, palette[index] ?? OTHER_PROJECTS_COLOR])
-    );
-    const nameById = new Map(
-      ranked.map((project) => [project.id, project.name])
-    );
-    const isFiltered = pickedProjectIds.length > 0;
-    const otherCount = ranked.length - shownIds.length;
-    const series: ProjectSeries[] = shownIds.map((id) => ({
-      key: id,
-      name: nameById.get(id) ?? id,
-      color: colorById.get(id) ?? OTHER_PROJECTS_COLOR,
-    }));
-    // Picks are a filter: only the picked projects show.
-    if (!isFiltered && otherCount > 0) {
-      series.push({
-        key: OTHER_PROJECTS_KEY,
-        name:
-          otherCount === 1 ? "1 other project" : `${otherCount} other projects`,
-        color: OTHER_PROJECTS_COLOR,
-      });
-    }
-    return {
-      ranked,
-      series,
-      colorById,
-      isFiltered,
-      isShown: (projectId: string) => shown.has(projectId),
-      getKey: (projectId: string) =>
-        shown.has(projectId) ? projectId : OTHER_PROJECTS_KEY,
-    };
-  }, [data, pickedProjectIds, colors]);
+    ],
+    otherColor: OTHER_PROJECTS_COLOR,
+  });
 }
 
 /**
@@ -212,14 +179,24 @@ export function useServerProjectSeries(
 export function ServerEvaluationCharts({
   fetchKey,
   pickedProjectIds,
+  onPickedProjectIdsChange,
 }: {
   fetchKey: number;
   /** Projects picked to show on their own; none shows the heaviest few. */
   pickedProjectIds: ReadonlyArray<string>;
+  /** Called to drop picks that no longer name a project with an evaluator. */
+  onPickedProjectIdsChange: (projectIds: string[]) => void;
 }) {
   const { data, timeRange, scale } = useServerEvaluationActivity({ fetchKey });
   const activity = data.evaluationActivity;
   const projectSeries = useServerProjectSeries(data, pickedProjectIds);
+  const hasStalePicks =
+    projectSeries.pickedIds.length !== pickedProjectIds.length;
+  useEffect(() => {
+    if (hasStalePicks) {
+      onPickedProjectIdsChange(projectSeries.pickedIds);
+    }
+  }, [hasStalePicks, onPickedProjectIdsChange, projectSeries.pickedIds]);
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const xAxisProps = {
     ...compactTimeXAxisProps,
@@ -292,28 +269,24 @@ function QueueSizeChart({
   xAxisProps,
 }: {
   activity: Activity;
-  projectSeries: ReturnType<typeof useServerProjectSeries>;
+  projectSeries: ServerProjectSeries;
   queuedLimit: number;
   xAxisProps: XAxisOverrides;
 }) {
   const { series, getKey } = projectSeries;
-  const chartData = useMemo(
-    () =>
-      activity.series.map((bin) => {
-        const datum: Record<string, number> = {
-          timestamp: new Date(bin.timestamp).getTime(),
-        };
-        for (const { key } of series) {
-          datum[key] = 0;
-        }
-        for (const group of bin.groups) {
-          const key = getKey(group.project.id);
-          datum[key] = (datum[key] ?? 0) + group.queueSize;
-        }
-        return datum;
-      }),
-    [activity.series, series, getKey]
-  );
+  const chartData = activity.series.map((bin) => {
+    const datum: Record<string, number> = {
+      timestamp: new Date(bin.timestamp).getTime(),
+    };
+    for (const { key } of series) {
+      datum[key] = 0;
+    }
+    for (const group of bin.groups) {
+      const key = getKey(group.project.id);
+      datum[key] = (datum[key] ?? 0) + group.queueSize;
+    }
+    return datum;
+  });
   const hasData = activity.series.some((bin) =>
     bin.groups.some((group) => group.queueSize > 0)
   );
@@ -382,28 +355,24 @@ function QueuedVsCompletedChart({
   xAxisProps,
 }: {
   activity: Activity;
-  projectSeries: ReturnType<typeof useServerProjectSeries>;
+  projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
 }) {
   const colors = useCategoryChartColors();
   const { isFiltered, isShown } = projectSeries;
-  const chartData = useMemo(
-    () =>
-      activity.series.map((bin) => {
-        const groups = isFiltered
-          ? bin.groups.filter((group) => isShown(group.project.id))
-          : bin.groups;
-        return {
-          timestamp: new Date(bin.timestamp).getTime(),
-          queued: groups.reduce((sum, group) => sum + group.queuedCount, 0),
-          completed: groups.reduce(
-            (sum, group) => sum + group.evaluatedCount + group.failedCount,
-            0
-          ),
-        };
-      }),
-    [activity.series, isFiltered, isShown]
-  );
+  const chartData = activity.series.map((bin) => {
+    const groups = isFiltered
+      ? bin.groups.filter((group) => isShown(group.project.id))
+      : bin.groups;
+    return {
+      timestamp: new Date(bin.timestamp).getTime(),
+      queued: groups.reduce((sum, group) => sum + group.queuedCount, 0),
+      completed: groups.reduce(
+        (sum, group) => sum + group.evaluatedCount + group.failedCount,
+        0
+      ),
+    };
+  });
   const hasData = chartData.some(
     (datum) => datum.queued > 0 || datum.completed > 0
   );
@@ -477,39 +446,50 @@ const rankedListCSS = css`
   }
 `;
 
+/** Each shown project's total for the metric, largest first, then the rest. */
+function getTopProjectRows({
+  activity,
+  projectSeries,
+  metric,
+}: {
+  activity: Activity;
+  projectSeries: ServerProjectSeries;
+  metric: TopProjectsMetric;
+}): Array<ProjectSeries & { value: number }> {
+  const { series, getKey, isFiltered } = projectSeries;
+  const totals = new Map<string, number>();
+  for (const group of activity.groups) {
+    const key = getKey(group.project.id);
+    const value =
+      metric === "evaluations"
+        ? group.evaluatedCount + group.failedCount
+        : (group.cost ?? 0);
+    totals.set(key, (totals.get(key) ?? 0) + value);
+  }
+  const ranked = series
+    .map((entry) => ({ ...entry, value: totals.get(entry.key) ?? 0 }))
+    // A picked project shows even with nothing to rank.
+    .filter(
+      (entry) =>
+        entry.key !== OTHER_PROJECTS_KEY && (isFiltered || entry.value > 0)
+    )
+    .sort((a, b) => b.value - a.value);
+  const other = series.find((entry) => entry.key === OTHER_PROJECTS_KEY);
+  const otherValue = other != null ? (totals.get(other.key) ?? 0) : 0;
+  return other != null && otherValue > 0
+    ? [...ranked, { ...other, value: otherValue }]
+    : ranked;
+}
+
 function TopProjectsPanel({
   activity,
   projectSeries,
 }: {
   activity: Activity;
-  projectSeries: ReturnType<typeof useServerProjectSeries>;
+  projectSeries: ServerProjectSeries;
 }) {
   const [metric, setMetric] = useState<TopProjectsMetric>("evaluations");
-  const { series, getKey, isFiltered } = projectSeries;
-  const rows = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const group of activity.groups) {
-      const key = getKey(group.project.id);
-      const value =
-        metric === "evaluations"
-          ? group.evaluatedCount + group.failedCount
-          : (group.cost ?? 0);
-      totals.set(key, (totals.get(key) ?? 0) + value);
-    }
-    const ranked = series
-      .map((entry) => ({ ...entry, value: totals.get(entry.key) ?? 0 }))
-      // A picked project shows even with nothing to rank.
-      .filter(
-        (entry) =>
-          entry.key !== OTHER_PROJECTS_KEY && (isFiltered || entry.value > 0)
-      )
-      .sort((a, b) => b.value - a.value);
-    const other = series.find((entry) => entry.key === OTHER_PROJECTS_KEY);
-    const otherValue = other != null ? (totals.get(other.key) ?? 0) : 0;
-    return other != null && otherValue > 0
-      ? [...ranked, { ...other, value: otherValue }]
-      : ranked;
-  }, [activity.groups, getKey, metric, series, isFiltered]);
+  const rows = getTopProjectRows({ activity, projectSeries, metric });
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const max = Math.max(...rows.map((row) => row.value), 0);
   const format = metric === "evaluations" ? intFormatter : costFormatter;

@@ -84,10 +84,14 @@ function ServerProjectsFilterContent({
     fetchKey,
     fetchPolicy: "store-or-network",
   });
-  const { ranked, colorById } = useServerProjectSeries(data, pickedProjectIds);
+  const { ranked, colorById, pickedIds } = useServerProjectSeries(
+    data,
+    pickedProjectIds
+  );
   const totalQueued = data.evaluationQueue.queuedCount;
-  const isFull = pickedProjectIds.length >= MAX_PICKED_PROJECTS;
-  const picked = new Set(pickedProjectIds);
+  // Only projects that still have an evaluator count toward the limit.
+  const isFull = pickedIds.length >= MAX_PICKED_PROJECTS;
+  const picked = new Set(pickedIds);
   const disabledKeys = isFull
     ? ranked.filter((project) => !picked.has(project.id)).map(({ id }) => id)
     : [];
@@ -114,7 +118,7 @@ function ServerProjectsFilterContent({
           selectionMode="multiple"
           // Escape closes the menu; it must not also clear the picks.
           escapeKeyBehavior="none"
-          selectedKeys={pickedProjectIds}
+          selectedKeys={pickedIds}
           disabledKeys={disabledKeys}
           onSelectionChange={handleSelectionChange}
           renderEmptyState={() => (

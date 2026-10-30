@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Link } from "react-router";
 
@@ -15,6 +14,7 @@ import {
 } from "@phoenix/components/evaluators/EvaluatorCost";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
@@ -217,187 +217,184 @@ export function ServerProjectEvaluatorsTable({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const trimmedFilter = filter.trim().toLowerCase();
-  const rows = useMemo(() => {
-    const picked = new Set(projectIds);
-    return data.projectEvaluators.edges
-      .map((edge) => edge.node)
-      .filter((node) => picked.size === 0 || picked.has(node.project.id))
-      .filter(
-        (node) =>
-          trimmedFilter.length === 0 ||
-          node.name.toLowerCase().includes(trimmedFilter) ||
-          node.project.name.toLowerCase().includes(trimmedFilter)
-      );
-  }, [data, trimmedFilter, projectIds]);
+  const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
+  // Picks naming a deleted project are ignored, as the charts ignore them.
+  const projectIdsWithEvaluators = new Set(
+    nodes.map((node) => node.project.id)
+  );
+  const picked = new Set(
+    projectIds.filter((id) => projectIdsWithEvaluators.has(id))
+  );
+  const rows = nodes
+    .filter((node) => picked.size === 0 || picked.has(node.project.id))
+    .filter(
+      (node) =>
+        trimmedFilter.length === 0 ||
+        node.name.toLowerCase().includes(trimmedFilter) ||
+        node.project.name.toLowerCase().includes(trimmedFilter)
+    );
   const totalQueued = data.evaluationQueue.queuedCount;
-  const driverIds = useMemo(
-    () =>
-      data.evaluationQueue.status === "DEGRADED"
-        ? getQueueDriverIds(
-            data.projectEvaluators.edges.map((edge) => edge.node),
-            totalQueued
-          )
-        : new Set<string>(),
-    [data, totalQueued]
-  );
-  const columns = useMemo<ColumnDef<TableRow>[]>(
-    () => [
-      {
-        id: "enabled",
-        header: "enabled",
-        size: 80,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <StopPropagation>
-            <ProjectEvaluatorEnabledSwitch
-              projectEvaluatorId={row.original.id}
-              name={row.original.name}
-              enabled={row.original.enabled}
-              clearableCount={
-                row.original.runSummary.queuedCount -
-                row.original.runSummary.runningCount
-              }
-            />
-          </StopPropagation>
-        ),
-      },
-      {
-        id: "name",
-        header: "name",
-        size: 200,
-        accessorFn: (row) => row.name,
-        cell: ({ row }) => (
-          <Link to={getProjectEvaluatorDetailsPath(row.original)}>
-            <Truncate maxWidth="100%">{row.original.name}</Truncate>
-          </Link>
-        ),
-      },
-      {
-        id: "project",
-        header: "project",
-        size: 180,
-        accessorFn: (row) => row.project.name,
-        cell: ({ row }) => (
-          <Link
-            to={`/projects/${encodeURIComponent(row.original.project.id)}/evaluators`}
-          >
-            <Truncate maxWidth="100%">{row.original.project.name}</Truncate>
-          </Link>
-        ),
-      },
-      {
-        id: "status",
-        header: "status",
-        size: 120,
-        accessorFn: (row) => row.runSummary.status,
-        cell: ({ row }) => (
-          <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
-        ),
-      },
-      {
-        id: "queue",
-        header: "queued",
-        size: 110,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        accessorFn: (row) => row.runSummary.queuedCount,
-        cell: ({ row }) => (
-          <ProjectEvaluatorQueueCell queuedWork={row.original.runSummary} />
-        ),
-      },
-      {
-        id: "share",
-        header: "queue share",
-        size: 150,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        accessorFn: (row) =>
-          totalQueued > 0 ? row.runSummary.queuedCount / totalQueued : 0,
-        cell: ({ row, getValue }) => (
-          <QueueShareCell
-            share={getValue() as number}
-            isDriver={driverIds.has(row.original.id)}
+  const driverIds =
+    data.evaluationQueue.status === "DEGRADED"
+      ? getQueueDriverIds(
+          data.projectEvaluators.edges.map((edge) => edge.node),
+          totalQueued
+        )
+      : new Set<string>();
+  const columns: ColumnDef<TableRow>[] = [
+    {
+      id: "enabled",
+      header: "enabled",
+      size: 80,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <StopPropagation>
+          <ProjectEvaluatorEnabledSwitch
+            projectEvaluatorId={row.original.id}
+            name={row.original.name}
+            enabled={row.original.enabled}
+            clearableCount={
+              row.original.runSummary.queuedCount -
+              row.original.runSummary.runningCount
+            }
           />
-        ),
+        </StopPropagation>
+      ),
+    },
+    {
+      id: "name",
+      header: "name",
+      size: 200,
+      accessorFn: (row) => row.name,
+      cell: ({ row }) => (
+        <Link to={getProjectEvaluatorDetailsPath(row.original)}>
+          <Truncate maxWidth="100%">{row.original.name}</Truncate>
+        </Link>
+      ),
+    },
+    {
+      id: "project",
+      header: "project",
+      size: 180,
+      accessorFn: (row) => row.project.name,
+      cell: ({ row }) => (
+        <Link
+          to={`/projects/${encodeURIComponent(row.original.project.id)}/evaluators`}
+        >
+          <Truncate maxWidth="100%">{row.original.project.name}</Truncate>
+        </Link>
+      ),
+    },
+    {
+      id: "status",
+      header: "status",
+      size: 120,
+      accessorFn: (row) => row.runSummary.status,
+      cell: ({ row }) => (
+        <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+      ),
+    },
+    {
+      id: "queue",
+      header: "queued",
+      size: 110,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      accessorFn: (row) => row.runSummary.queuedCount,
+      cell: ({ row }) => (
+        <ProjectEvaluatorQueueCell queuedWork={row.original.runSummary} />
+      ),
+    },
+    {
+      id: "share",
+      header: "queue share",
+      size: 150,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      accessorFn: (row) =>
+        totalQueued > 0 ? row.runSummary.queuedCount / totalQueued : 0,
+      cell: ({ row, getValue }) => (
+        <QueueShareCell
+          share={getValue() as number}
+          isDriver={driverIds.has(row.original.id)}
+        />
+      ),
+    },
+    {
+      id: "lag",
+      header: "lag p95",
+      size: 96,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.lag?.p95Seconds,
+      cell: ({ row }) => <ProjectEvaluatorLagCell lag={row.original.lag} />,
+    },
+    {
+      id: "load",
+      header: "load",
+      size: 80,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) =>
+        row.evaluationLoad.shareOfEvaluationTime ?? undefined,
+      cell: ({ row }) => (
+        <ProjectEvaluatorLoadCell
+          evaluationLoad={row.original.evaluationLoad}
+        />
+      ),
+    },
+    {
+      id: "failures",
+      header: "failure rate",
+      size: 110,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.failureSummary.failureRate ?? undefined,
+      cell: ({ row }) => (
+        <ProjectEvaluatorFailuresCell
+          failureSummary={row.original.failureSummary}
+        />
+      ),
+    },
+    {
+      id: "cost",
+      header: "total cost",
+      size: 110,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.traceProject.costSummary.total.cost ?? undefined,
+      cell: ({ row }) => (
+        <EvaluatorCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.traceProject.costSummary}
+        />
+      ),
+    },
+    {
+      id: "averageCost",
+      header: "avg cost / run",
+      size: 130,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => {
+        const cost = row.traceProject.costSummary.total.cost;
+        const runCount = row.traceProject.traceCount;
+        return cost != null && runCount > 0 ? cost / runCount : undefined;
       },
-      {
-        id: "lag",
-        header: "lag p95",
-        size: 96,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        sortUndefined: "last",
-        accessorFn: (row) => row.lag?.p95Seconds,
-        cell: ({ row }) => <ProjectEvaluatorLagCell lag={row.original.lag} />,
-      },
-      {
-        id: "load",
-        header: "load",
-        size: 80,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        sortUndefined: "last",
-        accessorFn: (row) =>
-          row.evaluationLoad.shareOfEvaluationTime ?? undefined,
-        cell: ({ row }) => (
-          <ProjectEvaluatorLoadCell
-            evaluationLoad={row.original.evaluationLoad}
-          />
-        ),
-      },
-      {
-        id: "failures",
-        header: "failure rate",
-        size: 110,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        sortUndefined: "last",
-        accessorFn: (row) => row.failureSummary.failureRate ?? undefined,
-        cell: ({ row }) => (
-          <ProjectEvaluatorFailuresCell
-            failureSummary={row.original.failureSummary}
-          />
-        ),
-      },
-      {
-        id: "cost",
-        header: "total cost",
-        size: 110,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        sortUndefined: "last",
-        accessorFn: (row) =>
-          row.traceProject.costSummary.total.cost ?? undefined,
-        cell: ({ row }) => (
-          <EvaluatorCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-          />
-        ),
-      },
-      {
-        id: "averageCost",
-        header: "avg cost / run",
-        size: 130,
-        meta: { textAlign: "right" },
-        sortDescFirst: true,
-        sortUndefined: "last",
-        accessorFn: (row) => {
-          const cost = row.traceProject.costSummary.total.cost;
-          const runCount = row.traceProject.traceCount;
-          return cost != null && runCount > 0 ? cost / runCount : undefined;
-        },
-        cell: ({ row }) => (
-          <EvaluatorAverageCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-            runCount={row.original.traceProject.traceCount}
-          />
-        ),
-      },
-    ],
-    [totalQueued, driverIds]
-  );
+      cell: ({ row }) => (
+        <EvaluatorAverageCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.traceProject.costSummary}
+          runCount={row.original.traceProject.traceCount}
+        />
+      ),
+    },
+  ];
   const table = useTable({
     features: appTableFeatures,
     data: rows as TableRow[],
@@ -412,47 +409,9 @@ export function ServerProjectEvaluatorsTable({
       <thead>
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              const sorted = header.column.getIsSorted();
-              return (
-                <th
-                  key={header.id}
-                  style={{
-                    width: header.getSize(),
-                    textAlign: header.column.columnDef.meta?.textAlign,
-                  }}
-                  aria-sort={
-                    sorted === "asc"
-                      ? "ascending"
-                      : sorted === "desc"
-                        ? "descending"
-                        : undefined
-                  }
-                >
-                  <div
-                    className={header.column.getCanSort() ? "sort" : undefined}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    {sorted ? (
-                      <Icon
-                        className="sort-icon"
-                        svg={
-                          sorted === "asc" ? (
-                            <Icons.CaretUpFilled />
-                          ) : (
-                            <Icons.CaretDownFilled />
-                          )
-                        }
-                      />
-                    ) : null}
-                  </div>
-                </th>
-              );
-            })}
+            {headerGroup.headers.map((header) => (
+              <TableColumnHeader key={header.id} header={header} />
+            ))}
           </tr>
         ))}
       </thead>
@@ -461,7 +420,7 @@ export function ServerProjectEvaluatorsTable({
           <CompactEmptyState
             icon={<Icon svg={<Icons.Scale />} />}
             description="No project evaluators"
-            isFiltered={trimmedFilter.length > 0 || projectIds.length > 0}
+            isFiltered={trimmedFilter.length > 0 || picked.size > 0}
           />
         </TableEmptyWrap>
       ) : (
