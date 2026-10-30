@@ -90,6 +90,9 @@ _TRACE_DATETIME_NAMES: NameMap = MappingProxyType(
 class _ElementField(typing.NamedTuple):
     attribute: str
     kind: typing.Literal["string", "float", "datetime", "boolean"]
+    # True when the value lives on the element span's `span_costs` row rather than on the
+    # span itself, and must therefore be reached by correlation instead of attribute access.
+    from_span_cost: bool = False
 
 
 class _NestedIterable(typing.NamedTuple):
@@ -147,6 +150,11 @@ _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
         "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
         "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
         "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
+        # Reached through the element span's cost row. The trace-level names of the same
+        # spelling remain totals across the whole trace.
+        "total_cost": _ElementField("total_cost", "float", from_span_cost=True),
+        "prompt_cost": _ElementField("prompt_cost", "float", from_span_cost=True),
+        "completion_cost": _ElementField("completion_cost", "float", from_span_cost=True),
     }
 )
 _ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
@@ -220,8 +228,39 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
 )
 
 
+def _span_cost_scalar(element: typing.Any, member: str) -> typing.Any:
+    """Return one cost scalar of the element span as a correlated subquery.
+
+    Adding `span_costs` to the iterable's joins would not work: those are rendered as inner
+    joins, so a span with no cost row would drop out of the comprehension entirely, and an
+    outer join there would still tie the element's multiplicity to the cost table. Correlating
+    a scalar subquery to the element instead leaves the element set untouched and survives the
+    caller's own joins, since the alias is private to this expression.
+
+    An absent cost row and a recorded-but-null column are the same answer to the user's
+    question, so both coalesce to 0 — matching the top-level cost names.
+    """
+    span_cost = aliased(models.SpanCost)
+    # Assumes at most one cost row per span, as the top-level cost names do; enforcing that
+    # is tracked separately.
+    #
+    # The coalesce wraps the subquery rather than the column: a span with no cost row yields
+    # no rows at all, and a scalar subquery over an empty result is NULL, which a coalesce
+    # placed inside it would never see. Wrapping it turns both an absent row and a
+    # recorded-but-null column into 0.
+    return func.coalesce(
+        select(getattr(span_cost, member))
+        .where(span_cost.span_rowid == element.id)
+        .scalar_subquery(),
+        0,
+    )
+
+
 def _element_column(source: typing.Any, name: str, spec: _IterableSpec) -> typing.Any:
-    column = getattr(source, spec.fields[name].attribute)
+    field = spec.fields[name]
+    if field.from_span_cost:
+        return _span_cost_scalar(source, field.attribute)
+    column = getattr(source, field.attribute)
     return func.upper(column) if name in spec.uppercase_fields else column
 
 
