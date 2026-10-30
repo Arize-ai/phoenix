@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<21661a2d6465316069729178ca2df420>>
+ * @generated SignedSource<<a82b1f777044c0a41db46bdc3c353913>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
+export type ModelType = "DECISION" | "LLM";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PatchGenerativeModelCustomProviderMutationInput = {
   clientConfig?: GenerativeModelCustomerProviderConfigInput | null;
@@ -62,6 +64,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -75,9 +78,15 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
+export type DecisionModelsConfigInput = {
+  baseUrl?: string | null;
+  decisionSdk: DecisionSDK;
+  modelNames?: ReadonlyArray<string> | null;
+};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -149,6 +158,7 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };
@@ -168,6 +178,7 @@ export type EditCustomProviderButtonPatchMutation$data = {
       readonly createdAt: string;
       readonly description: string | null;
       readonly id: string;
+      readonly modelTypes: ReadonlyArray<ModelType>;
       readonly name: string;
       readonly provider: string;
       readonly sdk: GenerativeModelSDK;
@@ -242,17 +253,24 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "modelTypes",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "createdAt",
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -278,7 +296,7 @@ v9 = {
   ],
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "GenerativeModelCustomProvider",
@@ -293,18 +311,19 @@ v10 = {
     (v6/*:: as any*/),
     (v7/*:: as any*/),
     (v8/*:: as any*/),
-    (v9/*:: as any*/)
+    (v9/*:: as any*/),
+    (v10/*:: as any*/)
   ],
   "storageKey": null
 },
-v11 = [
+v12 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 50
   }
 ],
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -326,7 +345,7 @@ return {
         "name": "patchGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v10/*:: as any*/),
+          (v11/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -364,7 +383,7 @@ return {
         "name": "patchGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v10/*:: as any*/),
+          (v11/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -375,7 +394,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v11/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "concreteType": "GenerativeModelCustomProviderConnection",
                 "kind": "LinkedField",
                 "name": "generativeModelCustomProviders",
@@ -405,6 +424,7 @@ return {
                           (v7/*:: as any*/),
                           (v8/*:: as any*/),
                           (v9/*:: as any*/),
+                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -413,7 +433,7 @@ return {
                             "name": "config",
                             "plural": false,
                             "selections": [
-                              (v12/*:: as any*/),
+                              (v13/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -431,7 +451,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v12/*:: as any*/)
+                          (v13/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -475,7 +495,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v11/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "CustomProvidersCard_generativeModelCustomProviders",
@@ -491,16 +511,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f20ba75812dc0b1e7b9c58b07de1a39e",
+    "cacheID": "cd71e290c0b08ca6c0b9e7ea1dab86e3",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation EditCustomProviderButtonPatchMutation(\n  $input: PatchGenerativeModelCustomProviderMutationInput!\n) {\n  patchGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f83fe12b75d5555bd263598ea93480c0";
+(node as any).hash = "04553d8873b56710a39dc1af0cc3e14b";
 
 export default node;

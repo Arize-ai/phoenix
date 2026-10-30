@@ -1,5 +1,5 @@
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -38,6 +38,7 @@ import type {
 } from "./__generated__/CustomProvidersCard_data.graphql";
 import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { EditCustomProviderButton } from "./EditCustomProviderButton";
+import { ModelTypeBadges } from "./ModelTypeBadges";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
@@ -129,17 +130,25 @@ function ProviderCell({
 function NameCell({
   name,
   hasParseError,
+  modelTypes,
 }: {
   name: string;
   hasParseError: boolean;
+  modelTypes: ComponentProps<typeof ModelTypeBadges>["modelTypes"];
 }) {
   if (!hasParseError) {
-    return <span>{name}</span>;
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <span>{name}</span>
+        <ModelTypeBadges modelTypes={modelTypes} />
+      </Flex>
+    );
   }
 
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
       <span>{name}</span>
+      <ModelTypeBadges modelTypes={modelTypes} />
       <TooltipTrigger>
         <TriggerWrap>
           <Icon
@@ -201,6 +210,7 @@ export function CustomProvidersCard({
               description
               sdk
               provider
+              modelTypes
               createdAt
               updatedAt
               user {
@@ -238,6 +248,7 @@ export function CustomProvidersCard({
           <NameCell
             name={row.original.name}
             hasParseError={Boolean(row.original.config?.parseError)}
+            modelTypes={row.original.modelTypes}
           />
         ),
       },

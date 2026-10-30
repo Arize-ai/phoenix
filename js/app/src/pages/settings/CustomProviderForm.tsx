@@ -56,6 +56,8 @@ import {
   buildClientConfig,
   createDefaultFormData,
 } from "./customProviderFormUtils";
+import { type DecisionSDK, sdkCanServeDecisions } from "./decisionEndpoints";
+import { DecisionModelsSection } from "./DecisionModelsSection";
 
 /**
  * Base form data shared across all provider types.
@@ -84,9 +86,25 @@ const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
 ];
 
 /**
+ * Decision model settings, shared by the SDKs that can serve decision models.
+ * The decision client reuses the provider's API key and headers.
+ */
+export interface DecisionModelsFormData {
+  /** Whether the provider serves decision models. Always true for TypeSafe. */
+  decision_enabled: boolean;
+  /** Which decision API to call. Always TYPESAFE (System One) for TypeSafe. */
+  decision_sdk: DecisionSDK;
+  /** Base URL of the decision API; ignored for TypeSafe, which uses its own. */
+  decision_base_url?: string;
+  /** Suggested decision model names, comma or newline separated. */
+  decision_model_names?: string;
+}
+
+/**
  * OpenAI SDK configuration.
  */
-export interface OpenAIFormData extends BaseProviderFormData {
+export interface OpenAIFormData
+  extends BaseProviderFormData, DecisionModelsFormData {
   sdk: "OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
@@ -100,7 +118,8 @@ export interface OpenAIFormData extends BaseProviderFormData {
  * Azure OpenAI SDK configuration.
  * Supports both API key and Azure AD token provider authentication.
  */
-export interface AzureOpenAIFormData extends BaseProviderFormData {
+export interface AzureOpenAIFormData
+  extends BaseProviderFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
@@ -152,9 +171,10 @@ export interface GoogleGenAIFormData extends BaseProviderFormData {
 
 /**
  * TypeSafe SDK configuration: a System One-compatible endpoint that serves
- * decision models only.
+ * decision models only, always through System One.
  */
-export interface TypeSafeFormData extends BaseProviderFormData {
+export interface TypeSafeFormData
+  extends BaseProviderFormData, DecisionModelsFormData {
   sdk: "TYPESAFE";
   typesafe_api_key: string;
   typesafe_base_url?: string;
@@ -880,7 +900,8 @@ function TypeSafeFields({
   return (
     <ProviderSection title="TypeSafe Configuration">
       <Text size="S" color="text-700">
-        Serves decision models only. Any System One-compatible endpoint works.
+        Serves decision models only, through System One. Any System
+        One-compatible endpoint works.
       </Text>
       <Controller
         name="typesafe_api_key"
@@ -1068,6 +1089,7 @@ export const ProviderForm = ({
     handleSubmit,
     reset,
     getValues,
+    setValue,
     formState: { isDirty },
   } = useForm<ProviderFormData>({
     defaultValues,
@@ -1154,12 +1176,26 @@ export const ProviderForm = ({
           isSubmitting={isSubmitting}
         />
 
-        <TestConnectionButton
-          key={sdk}
-          control={control}
-          getValues={getValues}
-          sdk={sdk}
-        />
+        {sdkCanServeDecisions(sdk) ? (
+          <DecisionModelsSection
+            key={sdk}
+            sdk={sdk}
+            control={control}
+            getValues={getValues}
+            setValue={setValue}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
+
+        {sdk !== "TYPESAFE" ? (
+          // A TypeSafe provider's credential test is its decision endpoint test.
+          <TestConnectionButton
+            key={sdk}
+            control={control}
+            getValues={getValues}
+            sdk={sdk}
+          />
+        ) : null}
 
         <Flex direction="row" gap="size-100" justifyContent="end">
           <Button
