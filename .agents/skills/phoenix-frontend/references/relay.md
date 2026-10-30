@@ -43,6 +43,10 @@ When you need a single object by id (e.g. a lazy tooltip, a detail popover), fet
 
 If the type isn't yet exposed through the `node` interface, make it a `Node` on the backend (have its GQL type declare `id: NodeID[int]` / implement `Node`, resolve fields lazily from the id, and add an `elif type_name == X.__name__: return X(id=node_id)` branch to `Query.node` in `src/phoenix/server/api/queries.py`) rather than working around it with a collection query.
 
+## Reading fragment data outside render
+
+Don't use `@relay(mask: false)`; Relay's docs recommend against it. For data read in a helper or a parent's derivation, define the fragment with `@inline`, spread it in the query, and read it with `readInlineData`. Derive what children need at the query owner and pass the result down, rather than unmasking the selection into shared types and fixtures.
+
 ## Testing
 
 Test Relay components with `relay-test-utils` (`createMockEnvironment`, `MockPayloadGenerator`, `@relay_test_operation`). See `references/testing.md`.
