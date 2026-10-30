@@ -287,9 +287,9 @@ Lihat [dokumentasi coding agent](https://arize.com/docs/phoenix/integrations/dev
 
 | Skill                                              | Deskripsi                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Debug aplikasi LLM menggunakan Phoenix CLI — ambil trace, analisis error, tinjau eksperimen, dan lakukan kueri ke GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Bangun dan jalankan evaluator untuk aplikasi AI/LLM menggunakan Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Konvensi semantik dan instrumentasi OpenInference untuk tracing aplikasi LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Debug aplikasi LLM menggunakan Phoenix CLI — ambil trace, analisis error, tinjau eksperimen, dan lakukan kueri ke GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Bangun dan jalankan evaluator untuk aplikasi AI/LLM menggunakan Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Konvensi semantik dan instrumentasi OpenInference untuk tracing aplikasi LLM                                        |
 
 ## Keamanan & Privasi
 

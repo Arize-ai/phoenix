@@ -287,9 +287,9 @@ Phoenix کو اس طرح بنایا گیا ہے کہ اسے انسان اور AI
 
 | Skill | تفصیل |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | Phoenix CLI کے ذریعے LLM ایپلیکیشنز کو ڈیبگ کریں — traces حاصل کریں، خرابیوں کا تجزیہ کریں، تجربات کا جائزہ لیں، اور GraphQL API پر کوئری کریں |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | Phoenix کے ذریعے AI/LLM ایپلیکیشنز کے لیے evaluators بنائیں اور چلائیں |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM ایپلیکیشنز کی ٹریسنگ کے لیے OpenInference کی semantic conventions اور instrumentation |
+| [phoenix-cli](../../skills/phoenix-cli/) | Phoenix CLI کے ذریعے LLM ایپلیکیشنز کو ڈیبگ کریں — traces حاصل کریں، خرابیوں کا تجزیہ کریں، تجربات کا جائزہ لیں، اور GraphQL API پر کوئری کریں |
+| [phoenix-evals](../../skills/phoenix-evals/) | Phoenix کے ذریعے AI/LLM ایپلیکیشنز کے لیے evaluators بنائیں اور چلائیں |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM ایپلیکیشنز کی ٹریسنگ کے لیے OpenInference کی semantic conventions اور instrumentation |
 
 ## سیکیورٹی اور پرائیویسی
 

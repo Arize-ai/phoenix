@@ -287,9 +287,9 @@ Se [dokumentationen om kodeagenter](https://arize.com/docs/phoenix/integrations/
 
 | Skill                                              | Beskrivelse                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Debug LLM-applikationer med Phoenix CLI — hent traces, analysér fejl, gennemgå eksperimenter og forespørg på GraphQL-API'et |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Byg og kør evaluatorer til AI/LLM-applikationer med Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Semantiske konventioner og instrumentering fra OpenInference til tracing af LLM-applikationer                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Debug LLM-applikationer med Phoenix CLI — hent traces, analysér fejl, gennemgå eksperimenter og forespørg på GraphQL-API'et |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Byg og kør evaluatorer til AI/LLM-applikationer med Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Semantiske konventioner og instrumentering fra OpenInference til tracing af LLM-applikationer                                        |
 
 ## Sikkerhed og privatliv
 

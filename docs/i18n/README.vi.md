@@ -287,9 +287,9 @@ Xem [tài liệu về coding agent](https://arize.com/docs/phoenix/integrations/
 
 | Kỹ năng                                              | Mô tả                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
 
 ## Bảo mật & Quyền riêng tư
 

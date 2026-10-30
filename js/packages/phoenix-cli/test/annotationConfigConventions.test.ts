@@ -151,10 +151,7 @@ describe("annotation-config CLI conventions", () => {
 
   it("phoenix-cli skill examples stay in sync with the option surface", () => {
     const skillPath = fileURLToPath(
-      new URL(
-        "../../../../.agents/skills/phoenix-cli/SKILL.md",
-        import.meta.url
-      )
+      new URL("../../../../skills/phoenix-cli/SKILL.md", import.meta.url)
     );
     const skill = fs.readFileSync(skillPath, "utf8");
     assertInvocationsValid(extractExampleInvocations(skill), "SKILL.md");
