@@ -6,7 +6,7 @@ Common mistakes and fixes.
 | ------------ | ------- | --- |
 | Generic metrics | Pre-built scores don't match your failures | Build from error analysis |
 | Vibe-based | No quantification | Measure with experiments |
-| Ignoring humans | Uncalibrated LLM judges | Validate >80% TPR/TNR |
+| Ignoring humans | Uncalibrated LLM judges | Validate >80% accuracy, >70% TPR/TNR |
 | Premature automation | Evaluators for imagined problems | Let observed failures drive |
 | Saturation blindness | 100% pass = no signal | Keep capability evals at 50-80% |
 | Similarity metrics | BERTScore/ROUGE for generation | Use for retrieval only |

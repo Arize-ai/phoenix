@@ -1,5 +1,5 @@
 """
-Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
+Regression tests for src/phoenix/server/cost_tracking/manifests/v1.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
 sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
@@ -9,6 +9,9 @@ Also guards that the current flagship lineup stays priced and, just as important
 stays distinguishable: several model IDs are prefixes of newer ones (``claude-opus-5``
 of ``claude-opus-5-5``), so a span must bill against its own entry rather than the
 older, pricier one it happens to be a prefix of.
+
+And guards that the models never change without ``generated_at``: servers apply the manifest
+only if it is newer than the one they have.
 """
 
 import json
@@ -19,8 +22,16 @@ from typing import Any
 
 import pytest
 
+import phoenix
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    DEFAULT_MANIFEST_URL,
+    SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
+    parse_manifest,
+)
 
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[4]
@@ -28,7 +39,8 @@ MANIFEST_PATH = (
     / "phoenix"
     / "server"
     / "cost_tracking"
-    / "model_cost_manifest.json"
+    / "manifests"
+    / "v1.json"
 )
 
 
@@ -188,7 +200,9 @@ def test_direct_mistral_models_carry_openinference_provider_and_rates(
     assert model_name in models_by_name, f"missing model entry: {model_name}"
     model = models_by_name[model_name]
     assert model.get("provider") == provider
-    assert model["name_pattern"] == model_name.removeprefix("mistral/")
+    assert model["name_pattern"] == (
+        model_name.removeprefix("mistral/") + r"(?!-\d{1,2}(?!\d))(?!-[a-zA-Z]+)"
+    )
     prices = {price["token_type"]: price for price in model["token_prices"]}
     assert prices["input"]["base_rate"] == pytest.approx(input_rate, rel=1e-9)
     assert prices["output"]["base_rate"] == pytest.approx(output_rate, rel=1e-9)
@@ -277,6 +291,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),
+        # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
+        ("gemini-4-argon", "gemini-4-argon"),
+        ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
 def test_current_lineup_resolves_to_its_own_manifest_entry(
@@ -349,3 +366,32 @@ def test_unpriced_model_extending_existing_id_does_not_bill_as_prefix(
         attributes={"llm": {"model_name": span_model_name}},
     )
     assert model is None or model.name != unexpected_entry
+
+
+def test_checked_in_manifest_parses_without_skipping_entries(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers fetch this file from GitHub, so anything parse_manifest rejects or skips here
+    # would be rejected or skipped by every running server too.
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed.schema_version == SUPPORTED_SCHEMA_VERSION
+    assert [model.name for model in parsed.models] == [
+        model["name"] for model in manifest["models"]
+    ]
+
+
+def test_bundled_manifest_is_the_one_servers_fetch() -> None:
+    # Servers fetch the bundled file from GitHub, and the sync script writes it, so the URL
+    # must point at it. Compared within the package, since CI tests an installed copy of it.
+    package_path = BUNDLED_MANIFEST_PATH.relative_to(Path(phoenix.__file__).parent)
+    assert package_path == MANIFEST_PATH.relative_to(MANIFEST_PATH.parents[3])
+    repo_root = MANIFEST_PATH.parents[5]
+    assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
+
+
+def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
+    assert manifest.get("models_sha256") == compute_models_sha256(manifest["models"]), (
+        "The manifest's models changed without generated_at. Servers would skip the change, "
+        "since they apply only a newer manifest. Run "
+        "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
+    )

@@ -400,6 +400,8 @@ enum AnnotatorKind {
   LLM
   HUMAN
   CODE
+  DECISION
+  AGENT
 }
 
 type AnthropicAuthenticationMethod {
@@ -915,7 +917,7 @@ input CreateDatasetLLMEvaluatorInput {
 
 input CreateDatasetLabelInput {
   name: String!
-  description: String
+  description: String = null
   color: String!
   datasetIds: [ID!]
 }
@@ -2209,6 +2211,8 @@ enum ExperimentRunAnnotatorKind {
   LLM
   HUMAN
   CODE
+  DECISION
+  AGENT
 }
 
 input ExperimentRunColumn @oneOf {
@@ -2630,6 +2634,11 @@ input ModalConfigInput {
   envVars: [EnvVarInput!]! = []
   internetAccess: InternetAccessInput = null
   dependencies: DependenciesInput = null
+}
+
+type ModelCostManifest {
+  """When the manifest's built-in models and token prices were generated."""
+  generatedAt: DateTime!
 }
 
 interface ModelInterface {
@@ -3935,6 +3944,11 @@ type Query {
   generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
   secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
   generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
+
+  """
+  The model cost manifest that the built-in models and token prices were last synced from, or null if none has been applied.
+  """
+  modelCostManifest: ModelCostManifest
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
@@ -4015,7 +4029,7 @@ type Query {
 }
 
 """
-A string that is automatically redacted on output and un-redacted on input. Values are symmetrically encrypted with a key derived from PHOENIX_SECRET; tokens remain valid across replicas and restarts as long as the secret is unchanged.
+A string encrypted on output and decrypted on input using a key derived from the deployment seed and PHOENIX_SECRET. Values remain valid across replicas and restarts while both are unchanged.
 """
 scalar RedactedString
 
@@ -4245,6 +4259,11 @@ scalar SecretString
 
 type ServerStatus {
   insufficientStorage: Boolean!
+
+  """
+  Whether PHOENIX_SECRET is unset for stored credential encryption. Null for non-admin viewers when authentication is enabled.
+  """
+  databaseEncryptionKeyIsPublic: Boolean
 }
 
 input SetAgentAssistantEnabledInput {

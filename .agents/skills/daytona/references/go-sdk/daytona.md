@@ -4380,12 +4380,12 @@ type Sandbox struct {
     Labels         map[string]string              // Custom labels attached to the sandbox
     Public         bool                           // Whether the sandbox is publicly accessible
     Target         string                         // Target region/environment where the sandbox runs
-    Cpu            float32                        // Number of CPUs allocated to the sandbox
-    Gpu            float32                        // Number of GPUs allocated to the sandbox
+    Cpu            int32                          // Number of CPUs allocated to the sandbox
+    Gpu            int32                          // Number of GPUs allocated to the sandbox
     Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
     SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
-    Memory         float32                        // Amount of memory allocated to the sandbox in GiB
-    Disk           float32                        // Amount of disk space allocated to the sandbox in GiB
+    Memory         int32                          // Amount of memory allocated to the sandbox in GiB
+    Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
     State          apiclient.SandboxState         // Current sandbox state
     ErrorReason    *string                        // Error message if the sandbox is in an error state
     Recoverable    *bool                          // Whether the sandbox error is recoverable
@@ -4439,6 +4439,10 @@ type Sandbox struct {
     // NetworkBlockAll blocks all network access when true. Nil when not populated.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
     NetworkBlockAll *bool
+
+    // Kvm reports whether the sandbox exposes KVM (/dev/kvm) to its guest.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    Kvm *bool
 
     // NetworkAllowList is a comma-separated list of allowed CIDR addresses.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.

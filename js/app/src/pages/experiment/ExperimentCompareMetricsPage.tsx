@@ -10,7 +10,9 @@ import {
   Heading,
   Icon,
   Icons,
+  Skeleton,
   Text,
+  TextSkeleton,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
@@ -56,6 +58,42 @@ const metricCardCSS = css`
   gap: var(--global-dimension-size-200);
   height: 100%;
 `;
+
+const metricsPageCSS = css`
+  overflow: auto;
+  padding: var(--global-dimension-size-200);
+  height: 100%;
+`;
+
+const metricsPageColumnsCSS = css`
+  min-width: 1280px;
+`;
+
+const metricsColumnHeadingCSS = css`
+  margin-bottom: var(--global-dimension-size-150);
+`;
+
+const metricsColumnListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  min-width: 300px;
+`;
+
+/**
+ * The height of a metric card comparing the given number of experiments: its
+ * padding and border around a title line, one bar per experiment and one
+ * value line per experiment.
+ */
+const getMetricCardSkeletonHeight = (experimentCount: number) =>
+  `calc(2 * var(--global-dimension-size-200) + 2px + var(--global-line-height-m) + 2 * var(--global-dimension-size-200) + ${2 * experimentCount - 1} * 0.3rem + ${experimentCount} * var(--global-line-height-m))`;
+
+/**
+ * The cost, performance and token count columns, by the number of cards in
+ * each. The evaluations column is left out, since which evaluators the
+ * experiments have is not known until they load.
+ */
+const METRICS_COLUMN_SKELETON_CARD_COUNTS = [3, 1, 3];
 
 type MetricValue = number | null | undefined;
 
@@ -388,18 +426,8 @@ export function ExperimentCompareMetricsPage({
   );
 
   return (
-    <div
-      css={css`
-        overflow: auto;
-        padding: var(--global-dimension-size-200);
-        height: 100%;
-      `}
-    >
-      <div
-        css={css`
-          min-width: 1280px;
-        `}
-      >
+    <div css={metricsPageCSS}>
+      <div css={metricsPageColumnsCSS}>
         <Flex direction="row" gap="size-250">
           {annotationMetrics.length > 0 && (
             <MetricsColumn title="Evaluations" metrics={annotationMetrics} />
@@ -407,6 +435,44 @@ export function ExperimentCompareMetricsPage({
           <MetricsColumn title="Cost" metrics={costMetrics} />
           <MetricsColumn title="Performance" metrics={performanceMetrics} />
           <MetricsColumn title="Token Counts" metrics={tokenCountMetrics} />
+        </Flex>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A loading placeholder for the compare metrics page: a column of metric card
+ * skeletons under a heading skeleton for each metric group, the cards as tall
+ * as cards comparing the selected experiments.
+ */
+export function ExperimentCompareMetricsPageSkeleton() {
+  const [searchParams] = useSearchParams();
+  const experimentCount = Math.max(
+    1,
+    searchParams.getAll("experimentId").length
+  );
+  const cardHeight = getMetricCardSkeletonHeight(experimentCount);
+  return (
+    <div css={metricsPageCSS} role="status" aria-label="loading">
+      <div css={metricsPageColumnsCSS} aria-hidden>
+        <Flex direction="row" gap="size-250">
+          {METRICS_COLUMN_SKELETON_CARD_COUNTS.map((cardCount, columnIndex) => (
+            <View key={columnIndex}>
+              <div css={metricsColumnHeadingCSS}>
+                <TextSkeleton size="L" width="12ch" />
+              </div>
+              <div css={metricsColumnListCSS}>
+                {Array.from({ length: cardCount }, (_, cardIndex) => (
+                  <Skeleton
+                    key={cardIndex}
+                    height={cardHeight}
+                    borderRadius="medium"
+                  />
+                ))}
+              </div>
+            </View>
+          ))}
         </Flex>
       </div>
     </div>
@@ -422,22 +488,10 @@ function MetricsColumn({
 }) {
   return (
     <View>
-      <Heading
-        level={2}
-        css={css`
-          margin-bottom: var(--global-dimension-size-150);
-        `}
-      >
+      <Heading level={2} css={metricsColumnHeadingCSS}>
         {title}
       </Heading>
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: column;
-          gap: var(--global-dimension-size-200);
-          min-width: 300px;
-        `}
-      >
+      <ul css={metricsColumnListCSS}>
         {metrics.map((metric: MetricCardProps) => (
           <li
             key={metric.title}

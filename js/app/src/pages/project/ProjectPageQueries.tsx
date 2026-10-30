@@ -17,10 +17,6 @@ export const ProjectPageQueriesTracesQuery = graphql`
     $traceFilterCondition: String
   ) {
     project: node(id: $id) {
-      ... on Project {
-        name
-        hasTraces
-      }
       ...TracesTable_spans
         @arguments(traceFilterCondition: $traceFilterCondition)
     }
@@ -40,10 +36,6 @@ export const ProjectPageQueriesSpansQuery = graphql`
     $rootSpansOnly: Boolean!
   ) {
     project: node(id: $id) {
-      ... on Project {
-        name
-        hasTraces
-      }
       ...SpansTable_spans
         @arguments(
           filterCondition: $filterCondition

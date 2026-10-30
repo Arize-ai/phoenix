@@ -29,6 +29,8 @@ DSPy uses LiteLLM under the hood to make some calls. By adding the OpenInference
 Now run invoke your compiled DSPy module. Your traces should appear inside of Phoenix.
 
 ```python expandable
+import dspy
+
 class BasicQA(dspy.Signature):
     """Answer questions with short factoid answers."""
 
@@ -39,9 +41,9 @@ class BasicQA(dspy.Signature):
 if __name__ == "__main__":
     from phoenix.otel import using_attributes  # requires arize-phoenix-otel>=0.16.0
 
-    turbo = dspy.LM("openai/gpt-3.5-turbo")
+    lm = dspy.LM("openai/gpt-5.6-terra")
 
-    dspy.configure(lm=turbo)
+    dspy.configure(lm=lm)
 
     with using_attributes(
         session_id="my-test-session",

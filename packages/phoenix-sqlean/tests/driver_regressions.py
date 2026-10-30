@@ -1823,6 +1823,98 @@ class RowRegressionTests(unittest.TestCase):
             cx.close()
 
 
+class AdaptRegressionTests(unittest.TestCase):
+    # __adapt__ and __conform__ receive their argument as one object, even
+    # when it is a tuple, matching the stdlib sqlite3 module.
+    def test_adapt_passes_tuple_whole(self):
+        class Proto:
+            @staticmethod
+            def __adapt__(obj):
+                return obj
+
+        for obj in ((1, 2), (7,), ()):
+            with self.subTest(obj=obj):
+                self.assertEqual(sqlite.adapt(obj, Proto), obj)
+
+    def test_conform_passes_tuple_whole(self):
+        class Obj:
+            def __conform__(self, proto):
+                return proto
+
+        for proto in ((1, 2), (7,), ()):
+            with self.subTest(proto=proto):
+                self.assertEqual(sqlite.adapt(Obj(), proto), proto)
+
+    # Each hook is looked up exactly once, and a lookup that fails with
+    # anything other than AttributeError propagates unchanged.
+    def test_adapt_looked_up_once(self):
+        lookups = []
+
+        class Meta(type):
+            @property
+            def __adapt__(cls):
+                lookups.append(None)
+                return lambda obj: len(lookups)
+
+        class Proto(metaclass=Meta):
+            pass
+
+        self.assertEqual(sqlite.adapt(object(), Proto), 1)
+
+    def test_adapt_lookup_error_propagates(self):
+        class Meta(type):
+            @property
+            def __adapt__(cls):
+                raise RuntimeError("adapt lookup")
+
+        class Proto(metaclass=Meta):
+            pass
+
+        with self.assertRaisesRegex(RuntimeError, "adapt lookup"):
+            sqlite.adapt(object(), Proto)
+
+    def test_conform_looked_up_once(self):
+        lookups = []
+
+        class Obj:
+            @property
+            def __conform__(self):
+                lookups.append(None)
+                return lambda proto: len(lookups)
+
+        cx = sqlite.connect(":memory:")
+        try:
+            self.assertEqual(cx.execute("select ?", (Obj(),)).fetchone()[0], 1)
+            lookups.clear()
+            self.assertEqual(cx.execute("select :v", {"v": Obj()}).fetchone()[0], 1)
+        finally:
+            cx.close()
+
+    def test_conform_lookup_error_propagates(self):
+        class Obj:
+            @property
+            def __conform__(self):
+                raise RuntimeError("conform lookup")
+
+        cx = sqlite.connect(":memory:")
+        try:
+            with self.assertRaisesRegex(RuntimeError, "conform lookup"):
+                cx.execute("select ?", (Obj(),))
+            with self.assertRaisesRegex(RuntimeError, "conform lookup"):
+                cx.execute("select :v", {"v": Obj()})
+        finally:
+            cx.close()
+
+    def test_missing_hooks_fall_through(self):
+        class Obj:
+            pass
+
+        obj = Obj()
+        self.assertIs(sqlite.adapt(obj, sqlite.PrepareProtocol, obj), obj)
+        with self.assertRaises(sqlite.ProgrammingError):
+            sqlite.adapt(obj, sqlite.PrepareProtocol)
+
+
 def suite():
     loader = unittest.TestLoader()
     return unittest.TestSuite(
@@ -1836,6 +1928,7 @@ def suite():
             loader.loadTestsFromTestCase(StatementLifetimeRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
             loader.loadTestsFromTestCase(RowRegressionTests),
+            loader.loadTestsFromTestCase(AdaptRegressionTests),
         )
     )
 

@@ -179,7 +179,7 @@ def to_chat_messages_and_kwargs(
     messages: list[MessageParam] = []
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "system":
+            if message["role"] in ("system", "developer"):
                 if isinstance(message["content"], str):
                     system_messages.append(
                         formatter.format(message["content"], variables=variables)
@@ -298,6 +298,8 @@ class _InvocationParametersConversion:
                     ans["thinking"] = adaptive_param
                 elif TYPE_CHECKING:
                     assert_never(thinking["type"])
+            if "extra_body" in anthropic_params:
+                sampling.update(anthropic_params["extra_body"])
         elif obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]

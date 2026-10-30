@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.cs.md" />
 </p>
 
-Arize Phoenix je open-source platforma společnosti Arize pro pozorovatelnost (observability) AI, navržená pro experimentování, evaluaci a řešení problémů. Pro spravované produkční pracovní postupy nabízí Arize také [Arize AX](https://arize.com/products/ax/). Phoenix poskytuje:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix je open-source platforma společnosti Arize pro pozorovatelnost (observability) AI, navržená pro experimentování, evaluaci a řešení problémů. Pro spravované produkční pracovní postupy nabízí Arize také [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-cs). Phoenix poskytuje:
 
 - [**_Trasování_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trasujte běh vaší LLM aplikace pomocí instrumentace založené na OpenTelemetry.
 - [**_Evaluace_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Využijte LLM k měření výkonu vaší aplikace pomocí evaluací odpovědí a vyhledávání (retrieval).
@@ -61,10 +73,10 @@ Arize Phoenix je open-source platforma společnosti Arize pro pozorovatelnost (o
 
 Phoenix je nezávislý na dodavateli i programovacím jazyce a nabízí okamžitou podporu populárních frameworků ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) a poskytovatelů LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) a dalších). Podrobnosti o automatické instrumentaci najdete v projektu [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix běží prakticky kdekoli, včetně vašeho lokálního počítače, kontejnerového nasazení nebo cloudu. Průvodce jednotlivými možnostmi najdete v části [Prostředí](https://arize.com/docs/phoenix/environments), nebo rovnou přejděte na [Rychlý start s trasováním](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix běží prakticky kdekoli, včetně vašeho lokálního počítače, kontejnerového nasazení nebo cloudu. Průvodce jednotlivými možnostmi najdete v části [Prostředí](https://arize.com/docs/phoenix/self-hosting), nebo rovnou přejděte na [Rychlý start s trasováním](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix je open-source a provozujete jej sami (self-hosted). Jako spravovanou platformu nabízí Arize [Arize AX](https://arize.com/products/ax/) — stejná instrumentace OpenTelemetry/OpenInference funguje s oběma. Viz [úplné srovnání](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix je open-source a provozujete jej sami (self-hosted). Jako spravovanou platformu nabízí Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-cs) — stejná instrumentace OpenTelemetry/OpenInference funguje s oběma. Viz [úplné srovnání](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Obsah
 
@@ -314,3 +326,15 @@ Copyright 2025 Arize AI, Inc. Všechna práva vyhrazena.
 Části tohoto kódu jsou chráněny jedním nebo více patenty USA. Viz [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Tento software je licencován za podmínek licence Elastic License 2.0 (ELv2). Viz [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

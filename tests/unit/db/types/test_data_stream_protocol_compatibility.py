@@ -12,6 +12,8 @@ from phoenix.db.types.data_stream_protocol import _models as vendored_models
 from phoenix.db.types.data_stream_protocol import request_types as vendored_request_types
 
 _LOCAL_FIELD_ADDITIONS: dict[str, frozenset[str]] = {
+    "ToolInputStreamingPart": frozenset({"raw_input"}),
+    "DynamicToolInputStreamingPart": frozenset({"raw_input"}),
     "ToolOutputAvailablePart": frozenset({"result_provider_metadata"}),
     "ToolOutputErrorPart": frozenset({"result_provider_metadata"}),
     "DynamicToolOutputAvailablePart": frozenset({"result_provider_metadata"}),

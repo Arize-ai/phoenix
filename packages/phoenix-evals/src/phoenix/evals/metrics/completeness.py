@@ -1,10 +1,11 @@
-from typing import Any
+from typing import Any, Union
 
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
     COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ..decision import DecisionModel
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
@@ -72,7 +73,7 @@ class CompletenessEvaluator(ClassificationEvaluator):
             ),
         )
 
-    def __init__(self, llm: LLM, **kwargs: Any):
+    def __init__(self, llm: Union[LLM, DecisionModel], **kwargs: Any):
         super().__init__(
             name=self.NAME,
             llm=llm,

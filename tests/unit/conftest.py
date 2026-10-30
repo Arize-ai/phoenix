@@ -23,7 +23,8 @@ from typing import (
 )
 
 import aiosqlite
-import httpx
+import freezegun
+import httpx2
 import pytest
 import sqlalchemy
 import sqlean
@@ -55,6 +56,7 @@ from phoenix.db.engines import (
 from phoenix.db.engines import (
     aio_postgresql_engine,
     aio_sqlite_engine,
+    configure_sqlite_transactions,
     set_sqlite_pragma,
 )
 from phoenix.db.facilitator import Facilitator
@@ -74,6 +76,10 @@ from tests.unit.vcr import CustomVCR
 
 
 def pytest_configure(config: Config) -> None:
+    # freeze_time() touches every attribute of every loaded module; daytona_sdk
+    # answers by importing submodules whose pydantic models then fail to build
+    # against FakeDatetime, and the exception leaves the patch half-applied.
+    freezegun.configure(extend_ignore_list=["daytona_sdk", "daytona_api_client"])
     config.addinivalue_line(
         "markers",
         "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
@@ -102,7 +108,12 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
+        "real_model_cost_fetcher: run the app's model cost manifest fetcher loop, which "
+        "downloads the manifest from GitHub unless the test patches the download",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_key_derivation: derive the encryption key with the real PBKDF2 "
         "rounds instead of the memoized ones",
     )
     config.addinivalue_line(
@@ -247,10 +258,26 @@ def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.Monkey
     monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
 
 
+@pytest.fixture(autouse=True)
+def _model_cost_fetcher_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's model cost manifest fetcher downloads the manifest from GitHub
+    after startup. Off suite-wide so tests make no network calls; the fetcher
+    tests drive it on their own instance, and a test that needs the loop opts
+    in with ``@pytest.mark.real_model_cost_fetcher``."""
+    if request.node.get_closest_marker("real_model_cost_fetcher"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.model_cost_manifest_fetcher.ModelCostManifestFetcher._run",
+        _idle,
+    )
+
+
 _DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key
-_DERIVE_REDACTION_KEY = Redactor._derive_key
 _MEMOIZED_ENCRYPTION_KEYS: dict[str, bytes] = {}
-_MEMOIZED_REDACTION_KEYS: dict[str, bytes] = {}
 
 
 def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
@@ -260,30 +287,18 @@ def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
     return _MEMOIZED_ENCRYPTION_KEYS[plaintext]
 
 
-def _memoized_redaction_key(secret: SecretStr) -> bytes:
-    plaintext = secret.get_secret_value()
-    if plaintext not in _MEMOIZED_REDACTION_KEYS:
-        _MEMOIZED_REDACTION_KEYS[plaintext] = _DERIVE_REDACTION_KEY(secret)
-    return _MEMOIZED_REDACTION_KEYS[plaintext]
-
-
 @pytest.fixture(autouse=True)
 def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``EncryptionService`` and ``Redactor`` each derive a Fernet key from the
-    secret with 600,000 PBKDF2 rounds, a deliberately slow key stretch that
-    every app pays twice at construction. Each derivation is a pure function
-    of the secret, so the worker memoizes
-    it per secret value: every app after the worker's first gets its keys for
-    free, and the keys are identical to the ones the real derivation returns.
-    A test that asserts on the derivation itself opts out with
-    ``@pytest.mark.real_key_derivation``."""
+    """Memoize deterministic PBKDF2 derivation per worker to avoid repeated key stretching.
+
+    Tests of key derivation must opt out with ``@pytest.mark.real_key_derivation``.
+    """
     if request.node.get_closest_marker("real_key_derivation"):
         return
 
     monkeypatch.setattr(
         EncryptionService, "_derive_encryption_key", staticmethod(_memoized_encryption_key)
     )
-    monkeypatch.setattr(Redactor, "_derive_key", staticmethod(_memoized_redaction_key))
 
 
 _GraphQLExtensions = Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
@@ -422,6 +437,7 @@ def _memoized_fastapi_type_adapters(
 # construction, so it is not a function of its arguments alone.
 _ROUTER_BUILDER_NAMES = (
     "create_v1_router",
+    "create_client_errors_router",
     "create_agents_router",
     "create_legacy_agents_router",
 )
@@ -802,6 +818,7 @@ def _named_memory_sqlite_engine(uri: str) -> AsyncEngine:
         json_serializer=_json_serializer,
     )
     sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
     return engine
 
 
@@ -971,15 +988,23 @@ async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
 
 
 @pytest.fixture
-def httpx_client(
-    asgi_app: ASGIApp,
-) -> httpx.AsyncClient:
-    asgi_transport = httpx.ASGITransport(app=asgi_app)
-    return httpx.AsyncClient(transport=asgi_transport, base_url="http://test")
+def redactor(app: FastAPI, asgi_app: ASGIApp) -> Redactor:
+    assert asgi_app is not None
+    redactor = getattr(app.state, "redactor", None)
+    assert isinstance(redactor, Redactor)
+    return redactor
 
 
 @pytest.fixture
-def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
+def httpx_client(
+    asgi_app: ASGIApp,
+) -> httpx2.AsyncClient:
+    asgi_transport = httpx2.ASGITransport(app=asgi_app)
+    return httpx2.AsyncClient(transport=asgi_transport, base_url="http://test")
+
+
+@pytest.fixture
+def gql_client(httpx_client: httpx2.AsyncClient) -> Iterator[AsyncGraphQLClient]:
     yield AsyncGraphQLClient(httpx_client)
 
 
