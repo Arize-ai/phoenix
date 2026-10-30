@@ -12,7 +12,12 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
-import type { CommonOptions, DeleteOptions } from "./options";
+import type {
+  CommonOptions,
+  ConnectionOptions,
+  DeleteOptions,
+  ProgressOptions,
+} from "./options";
 
 /**
  * Options for `px project list`.
@@ -344,6 +349,104 @@ export function createProjectGetCommand(): Command {
 }
 
 /**
+ * Options for `px project create`.
+ */
+interface ProjectCreateOptions extends ConnectionOptions, ProgressOptions {
+  /**
+   * `--name <name>`: Name of the project to create. Required.
+   *
+   * @example my-project
+   */
+  name?: string;
+}
+
+/**
+ * Handler for `project create`.
+ *
+ * The missing-name check runs before the try block so its `process.exit` is
+ * not swallowed by the generic error handler and no request is made.
+ */
+async function projectCreateHandler(
+  options: ProjectCreateOptions
+): Promise<void> {
+  if (!options.name) {
+    writeStructuredError({
+      format: undefined,
+      message: "Missing required flag --name",
+      code: "INVALID_ARGUMENT",
+      hint: "px project create --name <name>",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  const name = options.name;
+
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Creating project '${name}'...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.POST("/v1/projects", {
+      body: { name },
+    });
+
+    if (response.error || !response.data) {
+      const detail =
+        typeof response.error === "string" && response.error
+          ? `: ${response.error}`
+          : "";
+      throw new Error(
+        `Failed to create project (HTTP ${response.response.status})${detail}`
+      );
+    }
+
+    const project = response.data.data;
+    writeOutput({
+      message: `Created project '${project.name}' (id: ${project.id})`,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error creating project: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
+ * Create the `project create` command
+ */
+export function createProjectCreateCommand(): Command {
+  return new Command("create")
+    .description("Create a Phoenix project")
+    .option("--name <name>", "Project name (required)")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n  px project create --name my-project\n"
+    )
+    .action(projectCreateHandler);
+}
+
+/**
  * Create the `project` command with subcommands
  */
 export function createProjectCommand(): Command {
@@ -351,6 +454,7 @@ export function createProjectCommand(): Command {
   command.description("Manage Phoenix projects");
   command.addCommand(configureProjectListCommand(new Command("list")));
   command.addCommand(createProjectGetCommand());
+  command.addCommand(createProjectCreateCommand());
   command.addCommand(createProjectDeleteCommand());
   return command;
 }

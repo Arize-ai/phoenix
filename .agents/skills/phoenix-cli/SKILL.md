@@ -48,6 +48,7 @@ px prompt get <prompt-identifier>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
+px project create --name <name>
 px project delete <project-identifier>
 px annotation-config list
 px annotation-config get <identifier>
@@ -220,6 +221,7 @@ px project list --format raw --no-progress | jq '.[].name' # project names as JS
 px project list --name-contains prod                       # filter by name substring (case-insensitive)
 px project get my-project --format raw --no-progress       # single record by exact name
 px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
+px project create --name my-project                        # prints "Created project 'my-project' (id: <id>)"
 ```
 
 `project list` accepts `--limit <n>` (projects fetched per page) and
