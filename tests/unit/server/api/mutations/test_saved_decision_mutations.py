@@ -23,10 +23,12 @@ DECISION_FIELDS = """
     description
     modelProvider
     modelName
-    inputs { name }
+    templateFormat
+    variables
     state {
       __typename
-      ... on DecisionInputState { input }
+      ... on DecisionTextState { text }
+      ... on DecisionJsonState { json }
     }
     questions {
       __typename
@@ -110,8 +112,8 @@ TYPESAFE_PROVIDER_CONFIG = {
 
 def version_input(**overrides: Any) -> dict[str, Any]:
     return {
-        "inputs": [{"name": "ticket"}],
-        "state": {"input": "ticket"},
+        "templateFormat": "MUSTACHE",
+        "state": {"json": "{{ticket}}"},
         "questions": [
             {"predicate": {"name": "urgent", "instructions": "Is the ticket urgent?"}},
             {
@@ -147,11 +149,17 @@ async def error_of(gql_client: AsyncGraphQLClient, query: str, input: dict[str, 
 async def test_a_decision_is_saved_with_its_first_version_and_tags(
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    questions = version_input()["questions"]
+    urgent = {"predicate": {"name": "urgent", "instructions": "Is the ticket urgent by {{date}}?"}}
     decision = await create(
         gql_client,
         description="Routes support tickets",
         metadata={"owner": "support"},
         tags=[{"name": "production"}],
+        version=version_input(
+            state={"json": {"ticket": "{{ticket}}", "team": "{{team.name}}"}},
+            questions=[urgent, *questions[1:]],
+        ),
     )
     assert decision["name"] == "triage"
     assert decision["metadata"] == {"owner": "support"}
@@ -160,13 +168,17 @@ async def test_a_decision_is_saved_with_its_first_version_and_tags(
     assert version["decision"] == {"id": decision["id"], "name": "triage"}
     assert version["modelProvider"] == "TYPESAFE"
     assert version["modelName"] == "tev1"
-    assert version["inputs"] == [{"name": "ticket"}]
-    assert version["state"] == {"__typename": "DecisionInputState", "input": "ticket"}
+    assert version["templateFormat"] == "MUSTACHE"
+    assert version["variables"] == ["ticket", "team", "date"]
+    assert version["state"] == {
+        "__typename": "DecisionJsonState",
+        "json": {"ticket": "{{ticket}}", "team": "{{team.name}}"},
+    }
     assert version["questions"] == [
         {
             "__typename": "DecisionPredicateQuestion",
             "name": "urgent",
-            "instructions": "Is the ticket urgent?",
+            "instructions": "Is the ticket urgent by {{date}}?",
         },
         {
             "__typename": "DecisionChoiceQuestion",
@@ -313,7 +325,11 @@ async def test_a_version_is_checked_before_it_is_saved(gql_client: AsyncGraphQLC
 
     assert "does not offer decision models" in await message(modelProvider="ANTHROPIC")
     assert "model name is required" in await message(modelName=" ")
-    assert "undeclared input: missing" in await message(state={"input": "missing"})
+    assert "must be an object, a list, or a string" in await message(state={"json": True})
+    assert "cannot be empty" in await message(state={"text": "  "})
+    assert "Invalid template in the state" in await message(
+        templateFormat="F_STRING", state={"text": "{ticket"}
+    )
     duplicate = {"predicate": {"name": "urgent", "instructions": "Again?"}}
     assert "urgent" in await message(questions=[duplicate, duplicate])
 

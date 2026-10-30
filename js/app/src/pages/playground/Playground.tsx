@@ -99,7 +99,7 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
-import { Alert, Flex, PageHeader, View } from "@phoenix/components";
+import { Flex, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -139,10 +139,8 @@ import {
   getPlaygroundMode,
   isDecisionInstance,
 } from "@phoenix/store/playground";
-import { getPlaygroundInstancesWithDecisionPrompts } from "@phoenix/store/playground/selectors";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { getDecisionDatasetBlockedReason } from "./decisionUtils";
 import {
   createEvaluatorTaskAgentRegistry,
   EvaluatorPlaygroundEmptySource,
@@ -333,13 +331,6 @@ function PlaygroundContent() {
     getTaskPanelTitle(state.instances)
   );
 
-  // Over a dataset, why the page's decision instances can't run, if they can't.
-  const decisionDatasetBlockedReason = usePlaygroundContext((state) =>
-    getDecisionDatasetBlockedReason({
-      instances: getPlaygroundInstancesWithDecisionPrompts(state),
-      templateFormat: state.templateFormat,
-    })
-  );
   const decisionInstanceIds = usePlaygroundContext(
     useShallow((state) =>
       state.instances.filter(isDecisionInstance).map((instance) => instance.id)
@@ -829,23 +820,14 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning, hasUnsavedExampleChanges]);
 
-  const hasDecisionInputState = usePlaygroundContext((state) =>
-    getPlaygroundInstancesWithDecisionPrompts(state).some(
-      (instance) =>
-        isDecisionInstance(instance) &&
-        (instance.decisionPrompt?.stateEditorMode === "input" ||
-          instance.decisionPrompt?.stateEditorMode === "inputs")
-    )
-  );
   const panelIds = useMemo(
     () =>
       getPlaygroundPanelIds({
         isDatasetMode,
         templateFormat,
         mode,
-        hasDecisionInputState,
       }),
-    [isDatasetMode, templateFormat, mode, hasDecisionInputState]
+    [isDatasetMode, templateFormat, mode]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: PLAYGROUND_PANEL_LAYOUT_ID,
@@ -901,13 +883,6 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
-            {isDatasetMode && decisionDatasetBlockedReason != null ? (
-              <View paddingBottom="size-200">
-                <Alert variant="danger" title="Run blocked">
-                  {decisionDatasetBlockedReason}
-                </Alert>
-              </View>
-            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View
@@ -980,8 +955,7 @@ function PlaygroundContent() {
           </TitledPanel>
         ) : (
           <>
-            {templateFormat !== TemplateFormats.NONE ||
-            hasDecisionInputState ? (
+            {templateFormat !== TemplateFormats.NONE ? (
               <TitledPanel
                 ref={inputsPanelRef}
                 headingLevel={2}

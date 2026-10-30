@@ -57,8 +57,8 @@ def load_workflow_definitions(datasets: Sequence[Dataset]) -> list[WorkflowDefin
 
 _VERSION_FIELDS = """
   id description metadata modelProvider modelName customProvider { id }
-  inputs { name description jsonSchema }
-  state { __typename ... on DecisionInputState { input } ... on DecisionObjectState { object } }
+  templateFormat
+  state { __typename ... on DecisionTextState { text } ... on DecisionJsonState { json } }
   questions {
     __typename
     ... on DecisionPredicateQuestion { name instructions criteria { true false } }
@@ -141,10 +141,9 @@ def build_workflow_decision(
         **{key: value for key, value in source_metadata.items() if key.startswith("source_")},
     }
     return {
-        "inputs": [
-            {"name": "state", "description": "The workflow state to evaluate.", "jsonSchema": None}
-        ],
-        "state": {"input": "state"},
+        # The whole example state is one variable, sent as it is: text, object, or list.
+        "templateFormat": "MUSTACHE",
+        "state": {"json": "{{state}}"},
         "questions": native_questions,
         "modelProvider": "TYPESAFE",
         "modelName": "jev-latest",
@@ -182,10 +181,10 @@ def _find_decision(http: httpx.Client, name: str) -> dict[str, Any] | None:
 def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) -> bool:
     if saved is None:
         return False
-    if saved["state"]["__typename"] == "DecisionInputState":
-        state = {"input": saved["state"]["input"]}
-    elif saved["state"]["__typename"] == "DecisionObjectState":
-        state = {"object": saved["state"]["object"]}
+    if saved["state"]["__typename"] == "DecisionTextState":
+        state = {"text": saved["state"]["text"]}
+    elif saved["state"]["__typename"] == "DecisionJsonState":
+        state = {"json": saved["state"]["json"]}
     else:
         return False
     variants = {
@@ -202,7 +201,7 @@ def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) 
             {variant: {key: value for key, value in question.items() if key != "__typename"}}
         )
     content = {
-        "inputs": saved["inputs"],
+        "templateFormat": saved["templateFormat"],
         "state": state,
         "questions": questions,
         "modelProvider": saved["modelProvider"],

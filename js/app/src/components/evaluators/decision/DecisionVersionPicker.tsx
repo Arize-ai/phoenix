@@ -27,12 +27,6 @@ import type { DecisionVersionPickerVersionQuery } from "./__generated__/Decision
 import type { DecisionQuestionDefinition } from "./decisionPolicyUtils";
 import { toDecisionQuestionDefinitions } from "./decisionPolicyUtils";
 
-/** A declared decision input. */
-export type DecisionInputDefinition = {
-  name: string;
-  description: string | null;
-};
-
 /** A decision version chosen in the picker, with what a binding needs from it. */
 export type DecisionVersionSelection = {
   decisionId: string;
@@ -42,8 +36,8 @@ export type DecisionVersionSelection = {
   tagName: string | null;
   /** The version's questions, in declared order. */
   questions: DecisionQuestionDefinition[];
-  /** The inputs the version declares, in declared order. */
-  inputs: DecisionInputDefinition[];
+  /** The variables the version's templates use, in first-appearance order. */
+  variables: string[];
 };
 
 export type DecisionVersionPickerProps = {
@@ -69,10 +63,7 @@ const versionQuery = graphql`
         name
         version(versionId: $versionId, tagName: $tagName) {
           id
-          inputs {
-            name
-            description
-          }
+          variables
           questions {
             __typename
             ... on DecisionPredicateQuestion {
@@ -137,10 +128,7 @@ export function DecisionVersionPicker({
         versionId: decision.version.id,
         tagName: version.tagName ?? null,
         questions: toDecisionQuestionDefinitions(decision.version.questions),
-        inputs: decision.version.inputs.map(({ name, description }) => ({
-          name,
-          description: description ?? null,
-        })),
+        variables: [...decision.version.variables],
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load the version.");

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7208023778ed7572029bf7d37601324f>>
+ * @generated SignedSource<<0588ba4dd366b75c435f3b6de3b64294>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,6 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
@@ -53,10 +52,6 @@ export type ExperimentDetailsDialogQuery$data = {
           readonly id: string;
           readonly name: string;
         } | null;
-        readonly inputValuesPath: string;
-        readonly inputs: ReadonlyArray<{
-          readonly name: string;
-        }>;
         readonly modelName: string;
         readonly modelProvider: GenerativeProviderKey;
         readonly questions: ReadonlyArray<{
@@ -89,20 +84,18 @@ export type ExperimentDetailsDialogQuery$data = {
           readonly __typename: "%other";
         }>;
         readonly state: {
-          readonly __typename: "DecisionInputState";
-          readonly input: string;
-        } | {
-          readonly __typename: "DecisionObjectState";
-          readonly object: boolean;
+          readonly __typename: "DecisionJsonState";
+          readonly json: any;
         } | {
           readonly __typename: "DecisionTextState";
-          readonly template: string;
-          readonly templateFormat: DecisionTemplateFormat;
+          readonly text: string;
         } | {
           // This will never be '%other', but we need some
           // value in case none of the concrete values match.
           readonly __typename: "%other";
         };
+        readonly templateFormat: PromptTemplateFormat;
+        readonly templateVariablesPath: string;
       } | {
         readonly __typename: "PromptTaskConfig";
         readonly connection: {
@@ -436,21 +429,10 @@ v30 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "inputValuesPath",
+      "name": "templateVariablesPath",
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DecisionInputDefinition",
-      "kind": "LinkedField",
-      "name": "inputs",
-      "plural": true,
-      "selections": [
-        (v5/*:: as any*/)
-      ],
-      "storageKey": null
-    },
+    (v28/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -467,40 +449,25 @@ v30 = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "object",
+              "name": "text",
               "storageKey": null
             }
-          ],
-          "type": "DecisionObjectState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "input",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionInputState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "template",
-              "storageKey": null
-            },
-            (v28/*:: as any*/)
           ],
           "type": "DecisionTextState",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "json",
+              "storageKey": null
+            }
+          ],
+          "type": "DecisionJsonState",
           "abstractKey": null
         }
       ],
@@ -1516,16 +1483,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c1f89aa73b5f0e90fee7044ec11f23f1",
+    "cacheID": "dd74430fce791b2886fe0f116463942e",
     "id": null,
     "metadata": {},
     "name": "ExperimentDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n  $errorsFirst: Int = 20\n  $errorsAfter: String = null\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      job {\n        status\n        createdAt\n        maxConcurrency\n        ...ExperimentDetailsDialog_jobErrors\n        taskConfig {\n          __typename\n          ... on DecisionTaskConfig {\n            modelProvider\n            modelName\n            baseUrl\n            customProvider {\n              id\n              name\n            }\n            inputValuesPath\n            inputs {\n              name\n            }\n            state {\n              __typename\n              ... on DecisionObjectState {\n                object\n              }\n              ... on DecisionInputState {\n                input\n              }\n              ... on DecisionTextState {\n                template\n                templateFormat\n              }\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n                instructions\n                criteria {\n                  true\n                  false\n                }\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                instructions\n                choices {\n                  value\n                  description\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                instructions\n                levels {\n                  label\n                  description\n                }\n              }\n            }\n          }\n          ... on PromptTaskConfig {\n            id\n            streamModelOutput\n            prompt {\n              modelProvider\n              modelName\n              templateType\n              templateFormat\n              invocationParameters {\n                __typename\n                ...PromptInvocationParametersReadableFragment\n              }\n            }\n            connection {\n              __typename\n              ... on OpenAIConnectionConfig {\n                __typename\n                baseUrl\n                openaiApiType\n              }\n              ... on AzureOpenAIConnectionConfig {\n                __typename\n                azureEndpoint\n                openaiApiType\n              }\n              ... on AnthropicConnectionConfig {\n                __typename\n                baseUrl\n              }\n              ... on AWSBedrockConnectionConfig {\n                __typename\n                regionName\n                endpointUrl\n              }\n              ... on GoogleGenAIConnectionConfig {\n                __typename\n                baseUrl\n              }\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
+    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n  $errorsFirst: Int = 20\n  $errorsAfter: String = null\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      job {\n        status\n        createdAt\n        maxConcurrency\n        ...ExperimentDetailsDialog_jobErrors\n        taskConfig {\n          __typename\n          ... on DecisionTaskConfig {\n            modelProvider\n            modelName\n            baseUrl\n            customProvider {\n              id\n              name\n            }\n            templateVariablesPath\n            templateFormat\n            state {\n              __typename\n              ... on DecisionTextState {\n                text\n              }\n              ... on DecisionJsonState {\n                json\n              }\n            }\n            questions {\n              __typename\n              ... on DecisionPredicateQuestion {\n                name\n                instructions\n                criteria {\n                  true\n                  false\n                }\n              }\n              ... on DecisionChoiceQuestion {\n                name\n                instructions\n                choices {\n                  value\n                  description\n                }\n              }\n              ... on DecisionScaleQuestion {\n                name\n                instructions\n                levels {\n                  label\n                  description\n                }\n              }\n            }\n          }\n          ... on PromptTaskConfig {\n            id\n            streamModelOutput\n            prompt {\n              modelProvider\n              modelName\n              templateType\n              templateFormat\n              invocationParameters {\n                __typename\n                ...PromptInvocationParametersReadableFragment\n              }\n            }\n            connection {\n              __typename\n              ... on OpenAIConnectionConfig {\n                __typename\n                baseUrl\n                openaiApiType\n              }\n              ... on AzureOpenAIConnectionConfig {\n                __typename\n                azureEndpoint\n                openaiApiType\n              }\n              ... on AnthropicConnectionConfig {\n                __typename\n                baseUrl\n              }\n              ... on AWSBedrockConnectionConfig {\n                __typename\n                regionName\n                endpointUrl\n              }\n              ... on GoogleGenAIConnectionConfig {\n                __typename\n                baseUrl\n              }\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2b706aff74e2312bc09d9891416e8c9a";
+(node as any).hash = "c57ec521bce38b4dbe822b11ab73acc0";
 
 export default node;

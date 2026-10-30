@@ -152,3 +152,13 @@ export const pierreTokenColors = {
   light: jsonTokenColors(pierreLightTheme),
   dark: jsonTokenColors(pierreDarkTheme),
 };
+
+/** The color a template editor gives a `{{variable}}`. */
+function templateVariableColor(theme: PierreTheme) {
+  return scopeColor(theme, "variable") ?? theme.colors["editor.foreground"];
+}
+
+export const pierreTemplateVariableColor = {
+  light: templateVariableColor(pierreLightTheme),
+  dark: templateVariableColor(pierreDarkTheme),
+};

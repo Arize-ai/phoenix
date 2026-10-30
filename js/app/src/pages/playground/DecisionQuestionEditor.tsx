@@ -92,11 +92,18 @@ const listCSS = css`
 
 type Props = {
   question: DecisionQuestionDraft;
+  /**
+   * The playground's template format. Instructions and criteria are
+   * templates in it, as message content is; names, choice values and level
+   * labels are identifiers and stay as written.
+   */
+  templateFormat: TemplateFormat;
+  /** Dataset paths the templates can autocomplete. */
+  availablePaths?: string[];
   index: number;
   errors: DecisionQuestionErrors | undefined;
   isDisabled: boolean;
   canRemove: boolean;
-  templateFormat: TemplateFormat;
   /** Called with an id from {@link decisionFieldId} when the user leaves a field. */
   onTouch: (fieldId: string) => void;
   onChange: (patch: Partial<DecisionQuestionDraft>) => void;
@@ -115,11 +122,12 @@ function isQuestionType(key: unknown): key is DecisionQuestionType {
  */
 export function DecisionQuestionEditor({
   question,
+  templateFormat,
+  availablePaths,
   index,
   errors,
   isDisabled,
   canRemove,
-  templateFormat,
   onTouch,
   onChange,
   onRemove,
@@ -222,10 +230,10 @@ export function DecisionQuestionEditor({
       ) : null}
       <TemplateEditorWrap readOnly={isDisabled}>
         <TemplateEditor
-          // Uncontrolled: remount on template format change.
-          key={`${question.id}-${templateFormat}`}
+          key={question.id}
           aria-label={`Instructions for ${label}`}
           templateFormat={templateFormat}
+          availablePaths={availablePaths}
           defaultValue={question.instructions}
           placeholder="What should the model decide about the state?"
           onChange={(instructions) => onChange({ instructions })}
@@ -238,26 +246,26 @@ export function DecisionQuestionEditor({
           {question.type === "choice" ? (
             <ChoiceCriteriaEditor
               question={question}
+              templateFormat={templateFormat}
               errors={errors}
               isDisabled={isDisabled}
-              templateFormat={templateFormat}
               onTouch={onTouch}
               onChange={onChange}
             />
           ) : question.type === "scale" ? (
             <ScaleCriteriaEditor
               question={question}
+              templateFormat={templateFormat}
               errors={errors}
               isDisabled={isDisabled}
-              templateFormat={templateFormat}
               onTouch={onTouch}
               onChange={onChange}
             />
           ) : (
             <PredicateCriteriaEditor
               question={question}
-              isDisabled={isDisabled}
               templateFormat={templateFormat}
+              isDisabled={isDisabled}
               onChange={onChange}
             />
           )}
@@ -270,9 +278,9 @@ export function DecisionQuestionEditor({
 type CriteriaProps = Pick<
   Props,
   | "question"
+  | "templateFormat"
   | "errors"
   | "isDisabled"
-  | "templateFormat"
   | "onTouch"
   | "onChange"
 >;
@@ -301,9 +309,9 @@ function CriteriaHeading({
 
 function ChoiceCriteriaEditor({
   question,
+  templateFormat,
   errors,
   isDisabled,
-  templateFormat,
   onTouch,
   onChange,
 }: CriteriaProps) {
@@ -362,7 +370,7 @@ function ChoiceCriteriaEditor({
                 {optionError ? <FieldError>{optionError}</FieldError> : null}
               </TextField>
               <TemplateInput
-                key={`${option.id}-${templateFormat}`}
+                key={option.id}
                 aria-label={`Option ${optionIndex + 1} description`}
                 templateFormat={templateFormat}
                 defaultValue={option.description}
@@ -396,9 +404,9 @@ function ChoiceCriteriaEditor({
 
 function ScaleCriteriaEditor({
   question,
+  templateFormat,
   errors,
   isDisabled,
-  templateFormat,
   onTouch,
   onChange,
 }: CriteriaProps) {
@@ -470,7 +478,7 @@ function ScaleCriteriaEditor({
                 {levelError ? <FieldError>{levelError}</FieldError> : null}
               </TextField>
               <TemplateInput
-                key={`${level.id}-${templateFormat}`}
+                key={level.id}
                 aria-label={`Level ${levelIndex} description`}
                 templateFormat={templateFormat}
                 defaultValue={level.description}
@@ -528,8 +536,8 @@ function ScaleCriteriaEditor({
 
 function PredicateCriteriaEditor({
   question,
-  isDisabled,
   templateFormat,
+  isDisabled,
   onChange,
 }: Omit<CriteriaProps, "errors" | "onTouch">) {
   return (
@@ -537,7 +545,7 @@ function PredicateCriteriaEditor({
       <CriteriaHeading title="Criteria (optional)" action={null} />
       <div css={twoUpCSS}>
         <TemplateInput
-          key={`${question.id}-true-${templateFormat}`}
+          key={`${question.id}-true`}
           aria-label="True when"
           templateFormat={templateFormat}
           defaultValue={question.predicate.trueDescription}
@@ -548,7 +556,7 @@ function PredicateCriteriaEditor({
           }
         />
         <TemplateInput
-          key={`${question.id}-false-${templateFormat}`}
+          key={`${question.id}-false`}
           aria-label="False when"
           templateFormat={templateFormat}
           defaultValue={question.predicate.falseDescription}

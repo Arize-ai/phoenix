@@ -26,7 +26,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.decision_clients import resolve_decision_client
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.decisions.validation import validate_inputs, validate_questions
+from phoenix.server.decisions.validation import validate_questions, validate_template
 from phoenix.server.evaluators.runtime.base import BaseEvaluator
 from phoenix.server.evaluators.runtime.builtin import (
     BuiltInEvaluator,
@@ -67,7 +67,7 @@ async def build_decision_evaluator(
             await get_decision_evaluator(session, definition.decision_evaluator_id)
         )
     try:
-        validate_inputs(definition.inputs, definition.state)
+        validate_template(definition.template_format, definition.state, definition.questions)
         validate_questions(definition.questions)
     except ValueError as error:
         raise BadRequest(str(error)) from error

@@ -1,18 +1,38 @@
 import { defaultKeymap } from "@codemirror/commands";
+import { css } from "@emotion/react";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import ReactCodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
-import { Label } from "@phoenix/components";
+import { Badge, Flex, Label, Switch, Text } from "@phoenix/components";
 import { CodeWrap, pierreDark, pierreLight } from "@phoenix/components/code";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
+
+/** How a decision reads this variable, shown beside its name. */
+export type VariableDecisionReading = {
+  /** The JSON type the value is sent as, or `text`; null when empty. */
+  type: string | null;
+  /** Whether the value parses as JSON, so reading it as text is a choice. */
+  isJson: boolean;
+  isReadAsText: boolean;
+  onReadAsTextChange: (isReadAsText: boolean) => void;
+};
 
 type VariableEditorProps = {
   label?: string;
   defaultValue: string;
   onChange?: (value: string) => void;
+  /** Shown when a decision reads the variable; prompts read every value as text. */
+  decisionReading?: VariableDecisionReading;
 };
+
+const labelRowCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-300);
+`;
 
 const basicSetupOptions: BasicSetupOptions = {
   lineNumbers: false,
@@ -42,6 +62,7 @@ export const VariableEditor = ({
   label,
   defaultValue,
   onChange,
+  decisionReading,
 }: VariableEditorProps) => {
   const { theme } = useTheme();
   const editorValue = defaultValue ?? "";
@@ -60,7 +81,34 @@ export const VariableEditor = ({
   );
   return (
     <div css={fieldBaseCSS}>
-      <Label>{label}</Label>
+      {decisionReading ? (
+        <div css={labelRowCSS}>
+          <Label>{label}</Label>
+          {decisionReading.type != null ? (
+            <Badge
+              size="S"
+              aria-label={`Decisions read ${label} as ${decisionReading.type}`}
+            >
+              {decisionReading.type}
+            </Badge>
+          ) : null}
+          <Flex flex="1 1 auto" justifyContent="end">
+            {decisionReading.isJson ? (
+              <Switch
+                labelPlacement="start"
+                isSelected={decisionReading.isReadAsText}
+                onChange={decisionReading.onReadAsTextChange}
+              >
+                <Text size="XS" color="text-700">
+                  Read as text
+                </Text>
+              </Switch>
+            ) : null}
+          </Flex>
+        </div>
+      ) : (
+        <Label>{label}</Label>
+      )}
       <CodeWrap style={{ width: "100%" }}>
         <ReactCodeMirror
           key={editorKey}

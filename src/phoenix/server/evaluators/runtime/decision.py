@@ -41,7 +41,7 @@ from phoenix.server.api.helpers.decision_clients import (
     RefusalAnswer,
     ScaleAnswer,
 )
-from phoenix.server.decisions.rendering import render_state
+from phoenix.server.decisions.rendering import render_decision
 from phoenix.server.evaluators.input_mapping import apply_input_mapping
 from phoenix.server.evaluators.runtime.base import (
     BaseEvaluator,
@@ -50,7 +50,7 @@ from phoenix.server.evaluators.runtime.base import (
     RenderedMessageTooLargeError,
     result_annotation_names,
 )
-from phoenix.server.evaluators.schemas import decision_input_schema
+from phoenix.server.evaluators.schemas import infer_input_schema_from_decision
 
 
 class _AnnotationModel(BaseModel):
@@ -206,7 +206,11 @@ class DecisionEvaluator(BaseEvaluator):
         self._output_configs = tuple(
             derive_decision_output_configs(definition.questions, self._scoring_policy)
         )
-        self._input_schema = decision_input_schema(definition.inputs)
+        self._input_schema = infer_input_schema_from_decision(
+            template_format=definition.template_format,
+            state=definition.state,
+            questions=definition.questions,
+        )
         self.definition = definition
         self.client = client
         # Online evaluation caps what one call sends, as it caps an LLM judge's messages.
@@ -241,7 +245,7 @@ class DecisionEvaluator(BaseEvaluator):
         if size > self.max_request_bytes:
             raise RenderedMessageTooLargeError(
                 f"The rendered state and questions are {size} bytes, exceeding the "
-                f"{self.max_request_bytes}-byte limit. Narrow the inputs with a path mapping, "
+                f"{self.max_request_bytes}-byte limit. Narrow the variables with a path mapping, "
                 "or raise the limit with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
             )
 
@@ -280,10 +284,13 @@ class DecisionEvaluator(BaseEvaluator):
                 values = apply_input_mapping(
                     input_schema=self.input_schema, input_mapping=input_mapping, context=context
                 )
-                request = DecisionRequest(
-                    state=render_state(self.definition.inputs, self.definition.state, values),
-                    questions=self.definition.questions,
+                rendered = render_decision(
+                    self.definition.template_format,
+                    self.definition.state,
+                    self.definition.questions,
+                    values,
                 )
+                request = DecisionRequest(state=rendered.state, questions=rendered.questions)
                 self._check_request_size(request)
                 response = await self.client.create(request=request, tracer=collector)
                 results = project_decision_response(

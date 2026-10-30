@@ -10,7 +10,10 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
-import { createDecisionDraft } from "../decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
 
@@ -130,7 +133,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     });
   });
 
-  it("runs over a dataset when each example fills the state", () => {
+  it("runs over a dataset when the state is valid", () => {
     const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
     const instance = store.getState().instances[0];
     act(() =>
@@ -140,7 +143,7 @@ describe("PlaygroundRunButton with decision instances", () => {
           ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
             store.getState()
           )!,
-          state: "{{ticket}}",
+          state: createDecisionStateDraft({ text: "{{ticket}}" }),
         },
       })
     );
@@ -150,8 +153,20 @@ describe("PlaygroundRunButton with decision instances", () => {
     expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses a dataset run and explains why when no example can fill the state", async () => {
-    const { runPlaygroundInstances } = mount("RGF0YXNldDox");
+  it("refuses a run and explains why when the JSON state is not valid JSON", async () => {
+    const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
+    const instance = store.getState().instances[0];
+    act(() =>
+      store.getState().updateDecisionPrompt({
+        instanceId: instance.id,
+        request: {
+          ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
+            store.getState()
+          )!,
+          state: createDecisionStateDraft({ mode: "json", json: '{"a": ' }),
+        },
+      })
+    );
     const button = runButton();
     expect(button?.disabled).toBe(true);
     act(() => button?.click());
@@ -168,7 +183,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     await act(async () => user.hover(triggerWrap!));
     await vi.waitFor(() => {
       expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
-        "Instance A: Over a dataset, the state needs a template variable"
+        "Instance A: The state is not valid JSON"
       );
     });
   });

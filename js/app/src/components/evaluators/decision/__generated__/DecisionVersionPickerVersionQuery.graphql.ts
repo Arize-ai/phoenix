@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14be38dce7d52f852e1fd905891120a2>>
+ * @generated SignedSource<<374ab1b552584dab73fa7d723d283fbf>>
  * @lightSyntaxTransform
  */
 
@@ -19,10 +19,6 @@ export type DecisionVersionPickerVersionQuery$data = {
     readonly name?: string;
     readonly version?: {
       readonly id: string;
-      readonly inputs: ReadonlyArray<{
-        readonly description: string | null;
-        readonly name: string;
-      }>;
       readonly questions: ReadonlyArray<{
         readonly __typename: "DecisionChoiceQuestion";
         readonly choices: ReadonlyArray<{
@@ -43,6 +39,7 @@ export type DecisionVersionPickerVersionQuery$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       }>;
+      readonly variables: ReadonlyArray<string>;
     } | null;
   };
 };
@@ -118,20 +115,8 @@ v7 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "DecisionInputDefinition",
-      "kind": "LinkedField",
-      "name": "inputs",
-      "plural": true,
-      "selections": [
-        (v5/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "description",
-          "storageKey": null
-        }
-      ],
+      "kind": "ScalarField",
+      "name": "variables",
       "storageKey": null
     },
     {
@@ -280,16 +265,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ead8439ed461fa7642e3323358e558d0",
+    "cacheID": "9a9b0828f189471734c25ea2dae8d567",
     "id": null,
     "metadata": {},
     "name": "DecisionVersionPickerVersionQuery",
     "operationKind": "query",
-    "text": "query DecisionVersionPickerVersionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        inputs {\n          name\n          description\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query DecisionVersionPickerVersionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        variables\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "415cf359c0139a7d18b0a3ab6c67ec6f";
+(node as any).hash = "e31c265a744381e98caec825f18c7c5e";
 
 export default node;

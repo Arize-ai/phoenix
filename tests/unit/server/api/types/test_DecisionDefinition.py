@@ -1,9 +1,10 @@
+from strawberry.scalars import JSON
+
 from phoenix.db.types import decisions as stored
-from phoenix.server.api.input_types.DecisionVersionInput import DecisionTemplateFormat
 from phoenix.server.api.types.DecisionDefinition import (
     DecisionChoiceOption,
     DecisionChoiceQuestion,
-    DecisionObjectState,
+    DecisionJsonState,
     DecisionPredicateCriteria,
     DecisionPredicateQuestion,
     DecisionScaleLevel,
@@ -15,10 +16,13 @@ from phoenix.server.api.types.DecisionDefinition import (
 
 
 def test_each_state_kind_has_an_output_type() -> None:
-    assert to_gql_decision_state(stored.ObjectState(type="object")) == DecisionObjectState()
     assert to_gql_decision_state(
-        stored.TextState(type="text", template="{{ticket}}", template_format="MUSTACHE")
-    ) == DecisionTextState(template="{{ticket}}", template_format=DecisionTemplateFormat.MUSTACHE)
+        stored.TextState(type="text", template="{{ticket}}")
+    ) == DecisionTextState(text="{{ticket}}")
+    for template in ({"ticket": "{{ticket}}", "n": 1}, ["{{a}}"], "{{state}}"):
+        assert to_gql_decision_state(
+            stored.JsonState(type="json", template=template)
+        ) == DecisionJsonState(json=JSON(template))
 
 
 def test_each_question_kind_has_an_output_type() -> None:

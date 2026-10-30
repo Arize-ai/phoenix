@@ -18,8 +18,8 @@ async function createDecision(page: Page, name: string): Promise<string> {
           name,
           description: "routes support tickets",
           version: {
-            inputs: [{ name: "ticket" }],
-            state: { input: "ticket" },
+            templateFormat: "MUSTACHE",
+            state: { json: "{{ticket}}" },
             questions: [
               {
                 predicate: {
