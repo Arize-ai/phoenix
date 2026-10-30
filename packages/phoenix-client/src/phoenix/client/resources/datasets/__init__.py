@@ -19,6 +19,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
 )
 from urllib.parse import quote
 
@@ -30,10 +31,14 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    CREATE_DATASET_SPLIT,
     DATASET_UPLOAD_EXAMPLE_ID_KEY,
     DATASET_UPLOAD_EXAMPLE_IDS,
     DATASET_UPLOAD_SPLIT_KEY,
+    DELETE_DATASET_SPLIT,
+    UPDATE_DATASET_SPLIT,
 )
+from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.id_handling import is_node_id
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
@@ -422,6 +427,7 @@ class Datasets:
         - get_dataset(): Retrieve a specific dataset with examples
         - create_dataset(): Create new datasets from various sources
         - add_examples_to_dataset(): Add examples to existing datasets
+        - create_split(), update_split(), delete_split(): Manage splits on existing datasets
 
     Examples:
         Basic usage::
@@ -1111,6 +1117,229 @@ class Datasets:
                 action="append",
                 timeout=timeout,
             )
+
+    def _get_dataset_id(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> str:
+        """Resolve a dataset identifier to a dataset ID, looking names up on the server."""
+        resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
+        if resolved_id:
+            return resolved_id
+        if resolved_name:
+            return self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
+        raise ValueError("Could not determine dataset ID or name from input")
+
+    def create_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        name: str,
+        description: Optional[str] = None,
+        color: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        example_ids: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.DatasetSplit:
+        """
+        Create a split on an existing dataset, optionally seeded with examples.
+
+        Split names are unique across the Phoenix instance, not just within the
+        dataset. Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+            name (str): A unique name for the split.
+            description (Optional[str]): An optional description of the split.
+            color (Optional[str]): An optional hex color for the split. The server
+                picks a default color if omitted.
+            metadata (Optional[Mapping[str, Any]]): Optional JSON metadata for the split.
+            example_ids (Optional[Sequence[str]]): Examples to add to the split.
+                Each must belong to the dataset. Accepts the example ``node_id``
+                (GlobalID) or the user-provided example ``id``; user-provided IDs
+                require a Phoenix server newer than 20.15.0.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Returns:
+            v1.DatasetSplit: The created split, including its ID and the number of
+                its examples in this dataset.
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset or an example is not found, or 409 when a split with
+                the same name already exists.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            split = client.datasets.create_split(
+                dataset="my-dataset",
+                name="test",
+                description="Held-out evaluation examples",
+                metadata={"owner": "eval-team"},
+                example_ids=[example["node_id"] for example in dataset.examples[:10]],
+            )
+            print(f"Created split {split['name']} with {split['example_count']} examples")
+        """
+        self._guard.require(CREATE_DATASET_SPLIT)
+        dataset_id = self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = self._client.post(
+            url=f"v1/datasets/{quote(dataset_id)}/splits",
+            json=_build_create_split_body(
+                name=name,
+                description=description,
+                color=color,
+                metadata=metadata,
+                example_ids=example_ids,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.CreateDatasetSplitResponseBody, response.json())["data"]
+
+    def update_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        split_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        color: Union[str, NotGiven] = NOT_GIVEN,
+        metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        add_example_ids: Optional[Sequence[str]] = None,
+        remove_example_ids: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.DatasetSplit:
+        """
+        Partially update a dataset split and/or its example membership.
+
+        Omit a field to leave it unchanged. Pass ``description=None`` to clear the
+        description. ``metadata`` replaces the existing metadata as a whole.
+        Membership changes are idempotent: adding an example that is already in
+        the split, or removing one that is not, is a no-op. If an example appears
+        in both ``add_example_ids`` and ``remove_example_ids``, it is removed.
+        Removing an example from a split does not delete the example.
+        Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+                Example IDs are resolved within this dataset.
+            split_id (str): The split ID (GlobalID), as returned by
+                :meth:`create_split`.
+            name (str): A new unique name for the split.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            color (str): A new hex color for the split.
+            metadata (Mapping[str, Any]): New metadata for the split (full replace).
+            add_example_ids (Optional[Sequence[str]]): Examples to add to the split.
+                Accepts example ``node_id`` (GlobalID) or user-provided ``id``
+                values; user-provided IDs require a Phoenix server newer than 20.15.0.
+            remove_example_ids (Optional[Sequence[str]]): Examples to remove from
+                the split, in the same formats as ``add_example_ids``.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Returns:
+            v1.DatasetSplit: The updated split.
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset, split, or an example is not found, 409 when the new
+                name is already in use, or 422 when the split ID is invalid.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            split = client.datasets.update_split(
+                dataset="my-dataset",
+                split_id="RGF0YXNldFNwbGl0OjE=",
+                description="Reviewed held-out examples",
+                add_example_ids=["example-2"],
+                remove_example_ids=["example-1"],
+            )
+
+            # Clear the description only
+            client.datasets.update_split(
+                dataset="my-dataset",
+                split_id=split["id"],
+                description=None,
+            )
+        """
+        self._guard.require(UPDATE_DATASET_SPLIT)
+        dataset_id = self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = self._client.patch(
+            url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
+            json=_build_update_split_body(
+                name=name,
+                description=description,
+                color=color,
+                metadata=metadata,
+                add_example_ids=add_example_ids,
+                remove_example_ids=remove_example_ids,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.UpdateDatasetSplitResponseBody, response.json())["data"]
+
+    def delete_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        split_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete a dataset split.
+
+        This deletes the split and its example memberships only. The examples
+        themselves stay in the dataset and in any other splits, and no new
+        dataset version is created. Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+            split_id (str): The split ID (GlobalID), as returned by
+                :meth:`create_split`.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset or split is not found, or 422 when the split ID is
+                invalid.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.datasets.delete_split(
+                dataset="my-dataset",
+                split_id="RGF0YXNldFNwbGl0OjE=",
+            )
+        """
+        self._guard.require(DELETE_DATASET_SPLIT)
+        dataset_id = self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = self._client.delete(
+            url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
+            timeout=timeout,
+        )
+        response.raise_for_status()
 
     def _get_dataset_id_by_name(
         self,
@@ -2006,6 +2235,229 @@ class AsyncDatasets:
                 timeout=timeout,
             )
 
+    async def _get_dataset_id(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> str:
+        """Resolve a dataset identifier to a dataset ID, looking names up on the server."""
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
+        if resolved_id:
+            return resolved_id
+        if resolved_name:
+            return await self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
+        raise ValueError("Could not determine dataset ID or name from input")
+
+    async def create_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        name: str,
+        description: Optional[str] = None,
+        color: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        example_ids: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.DatasetSplit:
+        """
+        Create a split on an existing dataset, optionally seeded with examples.
+
+        Split names are unique across the Phoenix instance, not just within the
+        dataset. Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+            name (str): A unique name for the split.
+            description (Optional[str]): An optional description of the split.
+            color (Optional[str]): An optional hex color for the split. The server
+                picks a default color if omitted.
+            metadata (Optional[Mapping[str, Any]]): Optional JSON metadata for the split.
+            example_ids (Optional[Sequence[str]]): Examples to add to the split.
+                Each must belong to the dataset. Accepts the example ``node_id``
+                (GlobalID) or the user-provided example ``id``; user-provided IDs
+                require a Phoenix server newer than 20.15.0.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Returns:
+            v1.DatasetSplit: The created split, including its ID and the number of
+                its examples in this dataset.
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset or an example is not found, or 409 when a split with
+                the same name already exists.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            dataset = await client.datasets.get_dataset(dataset="my-dataset")
+            split = await client.datasets.create_split(
+                dataset="my-dataset",
+                name="test",
+                description="Held-out evaluation examples",
+                metadata={"owner": "eval-team"},
+                example_ids=[example["node_id"] for example in dataset.examples[:10]],
+            )
+            print(f"Created split {split['name']} with {split['example_count']} examples")
+        """
+        await self._guard.require(CREATE_DATASET_SPLIT)
+        dataset_id = await self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = await self._client.post(
+            url=f"v1/datasets/{quote(dataset_id)}/splits",
+            json=_build_create_split_body(
+                name=name,
+                description=description,
+                color=color,
+                metadata=metadata,
+                example_ids=example_ids,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.CreateDatasetSplitResponseBody, response.json())["data"]
+
+    async def update_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        split_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        color: Union[str, NotGiven] = NOT_GIVEN,
+        metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        add_example_ids: Optional[Sequence[str]] = None,
+        remove_example_ids: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.DatasetSplit:
+        """
+        Partially update a dataset split and/or its example membership.
+
+        Omit a field to leave it unchanged. Pass ``description=None`` to clear the
+        description. ``metadata`` replaces the existing metadata as a whole.
+        Membership changes are idempotent: adding an example that is already in
+        the split, or removing one that is not, is a no-op. If an example appears
+        in both ``add_example_ids`` and ``remove_example_ids``, it is removed.
+        Removing an example from a split does not delete the example.
+        Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+                Example IDs are resolved within this dataset.
+            split_id (str): The split ID (GlobalID), as returned by
+                :meth:`create_split`.
+            name (str): A new unique name for the split.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            color (str): A new hex color for the split.
+            metadata (Mapping[str, Any]): New metadata for the split (full replace).
+            add_example_ids (Optional[Sequence[str]]): Examples to add to the split.
+                Accepts example ``node_id`` (GlobalID) or user-provided ``id``
+                values; user-provided IDs require a Phoenix server newer than 20.15.0.
+            remove_example_ids (Optional[Sequence[str]]): Examples to remove from
+                the split, in the same formats as ``add_example_ids``.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Returns:
+            v1.DatasetSplit: The updated split.
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset, split, or an example is not found, 409 when the new
+                name is already in use, or 422 when the split ID is invalid.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            split = await client.datasets.update_split(
+                dataset="my-dataset",
+                split_id="RGF0YXNldFNwbGl0OjE=",
+                description="Reviewed held-out examples",
+                add_example_ids=["example-2"],
+                remove_example_ids=["example-1"],
+            )
+
+            # Clear the description only
+            await client.datasets.update_split(
+                dataset="my-dataset",
+                split_id=split["id"],
+                description=None,
+            )
+        """
+        await self._guard.require(UPDATE_DATASET_SPLIT)
+        dataset_id = await self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = await self._client.patch(
+            url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
+            json=_build_update_split_body(
+                name=name,
+                description=description,
+                color=color,
+                metadata=metadata,
+                add_example_ids=add_example_ids,
+                remove_example_ids=remove_example_ids,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.UpdateDatasetSplitResponseBody, response.json())["data"]
+
+    async def delete_split(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        split_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete a dataset split.
+
+        This deletes the split and its example memberships only. The examples
+        themselves stay in the dataset and in any other splits, and no new
+        dataset version is created. Requires Phoenix server >= 19.20.0.
+
+        Args:
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+                ID string, name string, Dataset object, or dict with 'id'/'name' fields.
+            split_id (str): The split ID (GlobalID), as returned by
+                :meth:`create_split`.
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
+
+        Raises:
+            ValueError: If the dataset identifier is invalid or no dataset has the
+                given name.
+            httpx.HTTPStatusError: If the API request fails, for example 404 when
+                the dataset or split is not found, or 422 when the split ID is
+                invalid.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            await client.datasets.delete_split(
+                dataset="my-dataset",
+                split_id="RGF0YXNldFNwbGl0OjE=",
+            )
+        """
+        await self._guard.require(DELETE_DATASET_SPLIT)
+        dataset_id = await self._get_dataset_id(dataset=dataset, timeout=timeout)
+        response = await self._client.delete(
+            url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
     async def _get_dataset_id_by_name(
         self,
         *,
@@ -2254,6 +2706,54 @@ class AsyncDatasets:
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
+
+
+def _build_create_split_body(
+    *,
+    name: str,
+    description: Optional[str],
+    color: Optional[str],
+    metadata: Optional[Mapping[str, Any]],
+    example_ids: Optional[Sequence[str]],
+) -> v1.CreateDatasetSplitRequestBody:
+    body = v1.CreateDatasetSplitRequestBody(name=name)
+    if description is not None:
+        body["description"] = description
+    if color is not None:
+        body["color"] = color
+    if metadata is not None:
+        body["metadata"] = dict(metadata)
+    if example_ids is not None:
+        body["example_ids"] = list(example_ids)
+    return body
+
+
+def _build_update_split_body(
+    *,
+    name: Union[str, NotGiven],
+    description: Union[str, None, NotGiven],
+    color: Union[str, NotGiven],
+    metadata: Union[Mapping[str, Any], NotGiven],
+    add_example_ids: Optional[Sequence[str]],
+    remove_example_ids: Optional[Sequence[str]],
+) -> dict[str, Any]:
+    # A plain dict rather than v1.UpdateDatasetSplitRequestBody, because an
+    # explicit null description (which clears it) is not expressible in the
+    # generated TypedDict.
+    body: dict[str, Any] = {}
+    if not isinstance(name, NotGiven):
+        body["name"] = name
+    if not isinstance(description, NotGiven):
+        body["description"] = description
+    if not isinstance(color, NotGiven):
+        body["color"] = color
+    if not isinstance(metadata, NotGiven):
+        body["metadata"] = dict(metadata)
+    if add_example_ids is not None:
+        body["add_example_ids"] = list(add_example_ids)
+    if remove_example_ids is not None:
+        body["remove_example_ids"] = list(remove_example_ids)
+    return body
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
