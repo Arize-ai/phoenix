@@ -39,6 +39,7 @@ PROVIDER = """
 query ($id: ID!) {
   node(id: $id) {
     ... on GenerativeModelCustomProvider {
+      decisionSdk
       modelTypes
       decision: modelNames(modelType: DECISION)
       config {
@@ -388,6 +389,7 @@ async def test_the_decision_client_and_names_round_trip(
     result = await gql_client.execute(PROVIDER, variables={"id": provider_id})
     assert result.data and not result.errors, result.errors
     node = result.data["node"]
+    assert node["decisionSdk"] == "TYPESAFE"
     assert node["modelTypes"] == ["LLM", "DECISION"]
     assert node["decision"] == ["jev-latest", "jev-1.14.0"]
     assert node["config"] == {

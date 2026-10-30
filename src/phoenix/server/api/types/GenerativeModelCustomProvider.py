@@ -613,6 +613,16 @@ class GenerativeModelCustomProvider(Node):
 
     @strawberry.field(
         description=(
+            "The client this provider's decision models run through; null when it serves "
+            "none. A decision made on it is saved with this client's model provider."
+        )
+    )  # type: ignore
+    async def decision_sdk(self, info: Info[Context, None]) -> DecisionSDK | None:
+        decision_sdk = await self._decision_sdk(info)
+        return DecisionSDK(decision_sdk) if decision_sdk is not None else None
+
+    @strawberry.field(
+        description=(
             "The model types this provider can serve: chat (LLM) models, decision models, "
             "or both. Chat comes from its SDK; decision models from its decision client."
         )

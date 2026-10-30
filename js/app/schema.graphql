@@ -3746,6 +3746,11 @@ type GenerativeModelCustomProvider implements Node {
   user: User
 
   """
+  The client this provider's decision models run through; null when it serves none. A decision made on it is saved with this client's model provider.
+  """
+  decisionSdk: DecisionSDK
+
+  """
   The model types this provider can serve: chat (LLM) models, decision models, or both. Chat comes from its SDK; decision models from its decision client.
   """
   modelTypes: [ModelType!]!
