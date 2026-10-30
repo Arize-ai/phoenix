@@ -2924,6 +2924,7 @@ class SpanCost(HasId):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+        unique=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
