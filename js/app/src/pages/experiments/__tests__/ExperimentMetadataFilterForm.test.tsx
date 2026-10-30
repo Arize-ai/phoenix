@@ -6,19 +6,22 @@ import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia"
 import { ThemeProvider } from "@phoenix/contexts";
 
 import { ExperimentMetadataFilterForm } from "../ExperimentMetadataFilterButton";
+import type { ExperimentMetadataFilter } from "../experimentMetadataFilters";
 
 installTestMatchMedia();
 
 describe("ExperimentMetadataFilterForm", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let onSubmit: ReturnType<typeof vi.fn>;
+  let onSubmit: ReturnType<
+    typeof vi.fn<(filter: ExperimentMetadataFilter) => void>
+  >;
 
   beforeEach(async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    onSubmit = vi.fn();
+    onSubmit = vi.fn<(filter: ExperimentMetadataFilter) => void>();
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
