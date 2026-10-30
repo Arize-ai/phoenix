@@ -15,6 +15,27 @@
 
 # --- Integrations: brand marks, alone or with one qualifier ---------------------
 
+[integrations.adk]
+logo = "adk"
+replaces = [
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "/python/google-adk$" },
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png", href = "google-adk-tracing$" },
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "java/google-adk$" },
+]
+
+[integrations.adk-evals]
+logo = "adk"
+badge = "evals"
+replaces = [
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png", title = "ADK.*Evaluation" },
+]
+
+[integrations.ag2]
+logo = "ag2"
+
+[integrations.agentcore]
+logo = "agentcore"
+
 [integrations.agentspec]
 logo = "agentspec"
 replaces = [
@@ -64,16 +85,13 @@ replaces = [
 [integrations.antigravity]
 logo = "antigravity"
 
+[integrations.atomicagents]
+logo = "atomicagents"
+
 [integrations.autogen]
 logo = "autogen"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/1946e18f-image.avif",
-]
-
-[integrations.autogen-agents]
-logo = "autogen"
-badge = "agents"
-replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif", title = "AutoGen" },
 ]
 
@@ -89,13 +107,6 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif",
 ]
 
-[integrations.bedrock-agents]
-logo = "bedrock"
-badge = "agents"
-replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif", title = "^Bedrock Agents" },
-]
-
 [integrations.bedrock-evals]
 logo = "bedrock"
 badge = "evals"
@@ -107,15 +118,18 @@ replaces = [
 logo = "bedrock"
 badge = "javascript"
 replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif", title = "^Bedrock Tracing \\(JavaScript\\)" },
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif", title = "\\(JavaScript\\)" },
 ]
 
 [integrations.bedrock-python]
 logo = "bedrock"
 badge = "python"
 replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif", title = "^Bedrock Tracing \\(Python\\)" },
+  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif", title = "\\(Python\\)" },
 ]
+
+[integrations.beeai]
+logo = "beeai"
 
 [integrations.beeai-python]
 logo = "beeai"
@@ -134,9 +148,8 @@ replaces = [
 [integrations.cerebras]
 logo = "cerebras"
 
-[integrations.claude-agents]
+[integrations.claude]
 logo = "claude"
-badge = "agents"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png",
 ]
@@ -162,6 +175,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png", href = "coding-agents/claude-code$" },
 ]
 
+[integrations.cleanlab]
+logo = "cleanlab"
+
 [integrations.cloudflare]
 logo = "cloudflare"
 replaces = [
@@ -186,6 +202,9 @@ replaces = [
 [integrations.cursor]
 logo = "cursor"
 
+[integrations.daytona]
+logo = "daytona"
+
 [integrations.deepseek]
 logo = "deepseek"
 
@@ -201,11 +220,17 @@ replaces = [
 [integrations.docker]
 logo = "docker"
 
+[integrations.doubleword]
+logo = "doubleword"
+
 [integrations.dspy]
 logo = "dspy"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b765e387-image.avif",
 ]
+
+[integrations.e2b]
+logo = "e2b"
 
 [integrations.envoy]
 logo = "envoy"
@@ -248,27 +273,11 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg",
 ]
 
-[integrations.google-agents]
-logo = "google"
-badge = "agents"
-replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "/python/google-adk$" },
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png", href = "google-adk-tracing$" },
-]
-
 [integrations.google-evals]
 logo = "google"
 badge = "evals"
 replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png", title = "ADK.*Evaluation" },
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "google-gen-ai-evals$" },
-]
-
-[integrations.google-java]
-logo = "google"
-badge = "java"
-replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "java/google-adk$" },
 ]
 
 [integrations.graphite]
@@ -276,6 +285,9 @@ logo = "graphite"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/graphite-logo.png",
 ]
+
+[integrations.gravitee]
+logo = "gravitee"
 
 [integrations.groq]
 logo = "groq"
@@ -288,6 +300,9 @@ logo = "guardrails"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/744e71c6-image.avif",
 ]
+
+[integrations.harbor]
+logo = "harbor"
 
 [integrations.haystack]
 logo = "haystack"
@@ -396,6 +411,9 @@ badge = "python"
 logo = "mcp"
 badge = "typescript"
 
+[integrations.microsoft]
+logo = "microsoft"
+
 [integrations.microsoft-dotnet]
 logo = "microsoft"
 badge = "dotnet"
@@ -441,6 +459,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/nvidia-logo.png",
 ]
 
+[integrations.ohmypi]
+logo = "ohmypi"
+
 [integrations.ollama]
 logo = "ollama"
 replaces = [
@@ -472,13 +493,6 @@ replaces = [
 logo = "openai"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif",
-]
-
-[integrations.openai-agents]
-logo = "openai"
-badge = "agents"
-replaces = [
-  { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif", href = "openai-agents-sdk-tracing$" },
 ]
 
 [integrations.openai-evals]
@@ -519,6 +533,9 @@ replaces = [
 [integrations.opencode]
 logo = "opencode"
 
+[integrations.openlit]
+logo = "openlit"
+
 [integrations.openrouter]
 logo = "openrouter"
 replaces = [
@@ -528,6 +545,12 @@ replaces = [
 [integrations.openwebui]
 logo = "openwebui"
 
+[integrations.orcarouter]
+logo = "orcarouter"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
+]
+
 [integrations.pipecat]
 logo = "pipecat"
 
@@ -536,6 +559,9 @@ logo = "portkey"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/portkey-logo.png",
 ]
+
+[integrations.prismml]
+logo = "prismml"
 
 [integrations.promptflow]
 logo = "promptflow"
@@ -568,11 +594,17 @@ logo = "qdrant"
 [integrations.qwen]
 logo = "qwen"
 
+[integrations.ragas]
+logo = "ragas"
+
 [integrations.scalekit]
 logo = "scalekit"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/scalekit.png",
 ]
+
+[integrations.semantickernel]
+logo = "semantickernel"
 
 [integrations.spring]
 logo = "spring"
@@ -594,6 +626,12 @@ logo = "together"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/together-card.png",
 ]
+
+[integrations.traceloop]
+logo = "traceloop"
+
+[integrations.truefoundry]
+logo = "truefoundry"
 
 [integrations.typesafe]
 logo = "typesafe"
@@ -664,7 +702,15 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9412043f-image.jpeg", title = "Agent" },
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/568f9035-image.jpeg", title = "Agent" },
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/07e6e85a-image.avif", title = "Agent" },
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/82e8d22e-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/c526ef15-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/093aab5e-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/agent-demos-computer-use.png",
 ]
+
+[topics.annotation]
+
+[topics.cli]
 
 [topics.eval]
 replaces = [
@@ -674,12 +720,17 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bc89de83-image.jpeg", title = "Eval" },
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5a295e3d-image.avif", title = "Eval" },
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/build-custom-eval.png",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/1c01894a-image.jpeg",
 ]
 
 [topics.experiment]
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/aligning-evals-with-feedback.png",
 ]
+
+[topics.judge]
+
+[topics.pipeline]
 
 [topics.prompt]
 replaces = [
@@ -689,10 +740,23 @@ replaces = [
 [topics.retrieval]
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7bde5dc5-image.jpeg", title = "RAG" },
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/agent-demos-rag-agent.png",
+]
+
+[topics.sandbox]
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/agent-demos-code-gen.png",
 ]
 
 [topics.trace]
 replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg", title = "Arconia" },
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a7759586-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/568f9035-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ba2f61a3-image.jpeg",
+]
+
+[topics.video]
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/0098cee1-image.jpeg",
 ]

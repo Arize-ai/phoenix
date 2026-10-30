@@ -20,22 +20,22 @@ Don't see an integration you need? We'd love to [hear from you!](https://github.
 Phoenix offers several types of integrations to support your AI development workflow:
 
 <CardGroup cols={2}>
-  <Card title="Developer Tools" icon="code" href="#developer-tools">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/cli.avif" title="Developer Tools" href="#developer-tools">
     Integrate Phoenix with AI coding assistants like Claude Code and Cursor for debugging and analysis.
   </Card>
-  <Card title="Tracing Integrations" icon="route" href="#tracing-integrations">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" title="Tracing Integrations" href="#tracing-integrations">
     Automatically capture traces from your AI applications built with popular frameworks and LLM providers.
   </Card>
-  <Card title="Eval Model Integrations" icon="brain" href="#eval-model-integrations">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Eval Model Integrations" href="#eval-model-integrations">
     Use any LLM provider to power Phoenix's evaluation capabilities for scoring and classifying your traces.
   </Card>
-  <Card title="Evaluation Integrations" icon="clipboard-check" href="#evaluation-integrations">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/eval.avif" title="Evaluation Integrations" href="#evaluation-integrations">
     Record results from evaluation frameworks and libraries such as Harbor, Ragas, Cleanlab, and MLflow.
   </Card>
-  <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/pipeline.avif" title="Span Processors" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
   </Card>
-  <Card title="Sandboxes" icon="cube" href="#sandboxes">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/sandbox.avif" title="Sandboxes" href="#sandboxes">
     Run code evaluators in hosted sandbox providers with kernel-level isolation.
   </Card>
 </CardGroup>
@@ -47,12 +47,151 @@ Phoenix offers several types of integrations to support your AI development work
 Integrate Phoenix with AI coding assistants to debug and analyze your LLM applications directly from your development environment.
 
 <CardGroup cols={2}>
-  <Card title="Coding Agents" icon="terminal" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/agent.avif" title="Coding Agents" href="/docs/phoenix/integrations/developer-tools/coding-agents">
     Install Phoenix debugging skills and CLI for Claude Code, Cursor, and other AI coding assistants.
   </Card>
-  <Card title="MCP Server" icon="plug" href="/docs/phoenix/integrations/mcp">
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mcp.avif" title="MCP Server" href="/docs/phoenix/integrations/mcp">
     Connect AI assistants to your Phoenix data and docs via the Model Context Protocol.
   </Card>
+</CardGroup>
+
+---
+
+## Tracing Integrations
+
+Phoenix captures detailed traces from your AI applications, giving you visibility into every step of your LLM pipeline.
+
+### By Language
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    <CardGroup cols={4}>
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/ag2.avif" title="AG2" href="/docs/phoenix/integrations/python/ag2" />
+      <Card title="Agent Spec" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/agentspec.avif" href="/docs/phoenix/integrations/python/agentspec" />
+      <Card title="Agno" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/agno.avif" href="/docs/phoenix/integrations/python/agno" />
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/atomicagents.avif" title="Atomic Agents" href="/docs/phoenix/integrations/python/atomic-agents" />
+      <Card title="AutoGen" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/autogen.avif" href="/docs/phoenix/integrations/python/autogen" />
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/agentcore.avif" title="Bedrock AgentCore" href="/docs/phoenix/integrations/python/bedrock-agentcore" />
+      <Card title="BeeAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/beeai.avif" href="/docs/phoenix/integrations/python/beeai" />
+      <Card title="CrewAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/crewai.avif" href="/docs/phoenix/integrations/python/crewai" />
+      <Card title="DSPy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/dspy.avif" href="/docs/phoenix/integrations/python/dspy" />
+      <Card title="Google ADK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/adk.avif" href="/docs/phoenix/integrations/python/google-adk" />
+      <Card title="Graphite" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/graphite.avif" href="/docs/phoenix/integrations/python/graphite" />
+      <Card title="Guardrails AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/guardrails.avif" href="/docs/phoenix/integrations/python/guardrails-ai" />
+      <Card title="Haystack" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/haystack.avif" href="/docs/phoenix/integrations/python/haystack" />
+      <Card title="Instructor" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/instructor.avif" href="/docs/phoenix/integrations/python/instructor" />
+      <Card title="LangChain" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain.avif" href="/docs/phoenix/integrations/python/langchain" />
+      <Card title="LangGraph" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langgraph.avif" href="/docs/phoenix/integrations/python/langgraph" />
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/livekit.avif" title="LiveKit Agents" href="/docs/phoenix/integrations/python/livekit-agents" />
+      <Card title="LlamaIndex" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/llamaindex.avif" href="/docs/phoenix/integrations/python/llamaindex" />
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mcp.avif" title="MCP" href="/docs/phoenix/integrations/python/mcp-tracing" description="MCP tracing integration"/>
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/microsoft.avif" title="Microsoft Agent Framework" href="/docs/phoenix/integrations/python/microsoft-agent-framework" />
+      <Card title="NVIDIA" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/nvidia.avif" href="/docs/phoenix/integrations/python/nvidia" />
+      <Card title="OpenAI Agents SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" href="/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing" />
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pipecat.avif" title="Pipecat" href="/docs/phoenix/integrations/python/pipecat" />
+      <Card title="Portkey" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/portkey.avif" href="/docs/phoenix/integrations/python/portkey" />
+      <Card title="Pydantic AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pydantic.avif" href="/docs/phoenix/integrations/python/pydantic" />
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/semantickernel.avif" title="Semantic Kernel" href="/docs/phoenix/integrations/python/semantic-kernel" />
+      <Card title="smolagents" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/huggingface.avif" href="/docs/phoenix/integrations/python/hugging-face-smolagents" />
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/temporal.avif" title="Temporal" href="/docs/phoenix/integrations/python/temporal" />
+    </CardGroup>
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+    <CardGroup cols={4}>
+      <Card title="BeeAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/beeai.avif" href="/docs/phoenix/integrations/typescript/beeai" />
+      <Card title="Claude Agent SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/claude.avif" href="/docs/phoenix/integrations/typescript/claude-agent-sdk" />
+      <Card title="LangChain.js" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain.avif" href="/docs/phoenix/integrations/typescript/langchain" />
+      <Card title="Mastra" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mastra.avif" href="/docs/phoenix/integrations/typescript/mastra" />
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mcp.avif" title="MCP" href="/docs/phoenix/integrations/typescript/mcp" description="MCP tracing integration"/>
+      <Card title="OpenAI Agents SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" href="/docs/phoenix/integrations/typescript/openai-agents" />
+      <Card title="TanStack AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/tanstack.avif" href="/docs/phoenix/integrations/typescript/tanstack-ai" />
+      <Card title="Vercel AI SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vercel.avif" href="/docs/phoenix/integrations/typescript/vercel" />
+    </CardGroup>
+  </Tab>
+  <Tab title="Java" icon="java">
+    <CardGroup cols={4}>
+      <Card title="Arconia" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" href="/docs/phoenix/integrations/java/arconia" />
+      <Card title="Google ADK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/adk.avif" href="/docs/phoenix/integrations/java/google-adk" />
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/java.avif" title="Java Annotations" href="/docs/phoenix/integrations/java/annotation" />
+      <Card title="LangChain4j" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain.avif" href="/docs/phoenix/integrations/java/langchain4j" />
+      <Card title="Spring AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/spring.avif" href="/docs/phoenix/integrations/java/springai" />
+    </CardGroup>
+  </Tab>
+  <Tab title=".NET" icon="microsoft">
+    <CardGroup cols={4}>
+    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/microsoft.avif" title="Microsoft Agent Framework" href="/docs/phoenix/integrations/dotnet/microsoft-agent-framework" />
+    </CardGroup>
+  </Tab>
+  <Tab title="Go" icon="golang">
+    <CardGroup cols={4}>
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic.avif" title="Anthropic SDK Go" href="/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go" description="OpenInference Go for anthropic-sdk-go"/>
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/gemini-go.avif" title="Gemini Go SDK" href="/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk" description="OTel GenAI conventions for google.golang.org/genai"/>
+      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" title="OpenAI Go SDK" href="/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk" description="OpenInference Go for openai/openai-go"/>
+    </CardGroup>
+  </Tab>
+</Tabs>
+
+### LLM Providers
+
+Phoenix provides native tracing support for all major LLM providers:
+
+<CardGroup cols={4}>
+  <Card title="Amazon Bedrock" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/bedrock.avif" href="/docs/phoenix/integrations/llm-providers/amazon-bedrock" />
+  <Card title="Anthropic" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic.avif" href="/docs/phoenix/integrations/llm-providers/anthropic" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/baseten.avif" title="Baseten" href="/docs/phoenix/integrations/llm-providers/baseten" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cerebras.avif" title="Cerebras" href="/docs/phoenix/integrations/llm-providers/cerebras" />
+  <Card title="Cloudflare AI Gateway" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cloudflare.avif" href="/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway" />
+  <Card title="Cohere" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cohere.avif" href="/docs/phoenix/integrations/llm-providers/cohere" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/deepseek.avif" title="DeepSeek" href="/docs/phoenix/integrations/llm-providers/deepseek" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/doubleword.avif" title="Doubleword" href="/docs/phoenix/integrations/llm-providers/doubleword" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/fireworks.avif" title="Fireworks AI" href="/docs/phoenix/integrations/llm-providers/fireworks-ai" />
+  <Card title="Google" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/google.avif" href="/docs/phoenix/integrations/llm-providers/google-gen-ai" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/gravitee.avif" title="Gravitee" href="/docs/phoenix/integrations/llm-providers/gravitee" />
+  <Card title="Groq" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/groq.avif" href="/docs/phoenix/integrations/llm-providers/groq" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/huggingface.avif" title="Hugging Face Inference Providers" href="/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers" />
+  <Card title="LiteLLM" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm.avif" href="/docs/phoenix/integrations/llm-providers/litellm" />
+  <Card title="MistralAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mistral.avif" href="/docs/phoenix/integrations/llm-providers/mistralai" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/novita.avif" title="Novita AI" href="/docs/phoenix/integrations/llm-providers/novita-ai" />
+  <Card title="Ollama" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/ollama.avif" href="/docs/phoenix/integrations/llm-providers/ollama" />
+  <Card title="OpenAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" href="/docs/phoenix/integrations/llm-providers/openai" />
+  <Card title="OpenRouter" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openrouter.avif" href="/docs/phoenix/integrations/llm-providers/openrouter" />
+  <Card title="OrcaRouter" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/orcarouter.avif" href="/docs/phoenix/integrations/llm-providers/orcarouter" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/prismml.avif" title="PrismML" href="/docs/phoenix/integrations/llm-providers/prismml" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/qwen.avif" title="Qwen" href="/docs/phoenix/integrations/llm-providers/qwen" />
+  <Card title="Together AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/together.avif" href="/docs/phoenix/integrations/llm-providers/together" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/truefoundry.avif" title="TrueFoundry" href="/docs/phoenix/integrations/llm-providers/truefoundry" />
+  <Card title="TypeSafe AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/typesafe.avif" href="/docs/phoenix/integrations/llm-providers/typesafe" />
+  <Card title="VertexAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vertexai.avif" href="/docs/phoenix/integrations/llm-providers/vertexai" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vllm.avif" title="vLLM" href="/docs/phoenix/integrations/llm-providers/vllm" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/xai.avif" title="xAI Grok" href="/docs/phoenix/integrations/llm-providers/xai" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/zai.avif" title="Z.ai" href="/docs/phoenix/integrations/llm-providers/z-ai" />
+</CardGroup>
+
+### Platforms
+
+Integrate Phoenix with AI development platforms and infrastructure:
+
+<CardGroup cols={3}>
+  <Card title="Claude Managed Agents" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/claude.avif" href="/docs/phoenix/integrations/platforms/claude-managed-agents" />
+  <Card title="Dify" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/dify.avif" href="/docs/phoenix/integrations/platforms/dify" />
+  <Card title="Envoy AI Gateway" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/envoy.avif" href="https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix" />
+  <Card title="Flowise" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/flowise.avif" href="/docs/phoenix/integrations/platforms/flowise" />
+  <Card title="LangFlow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langflow.avif" href="/docs/phoenix/integrations/platforms/langflow" />
+  <Card title="LiteLLM Proxy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm.avif" href="/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/n8n.avif" title="n8n" href="/docs/phoenix/integrations/platforms/n8n" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openwebui.avif" title="Open WebUI" href="/docs/phoenix/integrations/platforms/openwebui" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openrouter.avif" title="OpenRouter Broadcast" href="/docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast" />
+  <Card title="Prompt Flow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/promptflow.avif" href="/docs/phoenix/integrations/platforms/prompt-flow" />
+  <Card title="Scalekit" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/scalekit.avif" href="/docs/phoenix/integrations/platforms/scalekit" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/truefoundry.avif" title="TrueFoundry AI Gateway" href="/docs/phoenix/integrations/platforms/truefoundry" />
+</CardGroup>
+
+### Vector Databases
+
+Trace retrieval from vector databases to see which stage of a search to fix:
+
+<CardGroup cols={3}>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/qdrant.avif" title="Qdrant" href="/docs/phoenix/integrations/vector-databases/qdrant" description="Staged hybrid search tracing"/>
 </CardGroup>
 
 ---
@@ -67,150 +206,11 @@ Trace your sessions with a coding agent — turns, tool calls, and token costs �
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/codex.avif" title="Codex" href="/docs/phoenix/integrations/coding-agents/codex" />
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cursor.avif" title="Cursor" href="/docs/phoenix/integrations/coding-agents/cursor" />
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/devin.avif" title="Devin" href="/docs/phoenix/integrations/coding-agents/devin" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/githubcopilot.avif" title="GitHub Copilot" href="/docs/phoenix/integrations/coding-agents/copilot" />
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/geminicli.avif" title="Gemini CLI" href="/docs/phoenix/integrations/coding-agents/gemini" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/githubcopilot.avif" title="GitHub Copilot" href="/docs/phoenix/integrations/coding-agents/copilot" />
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/kiro.avif" title="Kiro" href="/docs/phoenix/integrations/coding-agents/kiro" />
-  <Card title="Oh My Pi" icon="terminal" href="/docs/phoenix/integrations/coding-agents/oh-my-pi" />
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/ohmypi.avif" title="Oh My Pi" href="/docs/phoenix/integrations/coding-agents/oh-my-pi" />
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/opencode.avif" title="OpenCode" href="/docs/phoenix/integrations/coding-agents/opencode" />
-</CardGroup>
-
----
-
-## Tracing Integrations
-
-Phoenix captures detailed traces from your AI applications, giving you visibility into every step of your LLM pipeline.
-
-### By Language
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    <CardGroup cols={4}>
-      <Card title="OpenAI Agents SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai-agents.avif" href="/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing" />
-      <Card title="LangChain" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain.avif" href="/docs/phoenix/integrations/python/langchain" />
-      <Card title="LlamaIndex" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/llamaindex.avif" href="/docs/phoenix/integrations/python/llamaindex" />
-      <Card title="LangGraph" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langgraph.avif" href="/docs/phoenix/integrations/python/langgraph" />
-      <Card title="CrewAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/crewai.avif" href="/docs/phoenix/integrations/python/crewai" />
-      <Card title="AG2" href="/docs/phoenix/integrations/python/ag2" />
-      <Card title="AutoGen" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/autogen.avif" href="/docs/phoenix/integrations/python/autogen" />
-      <Card title="DSPy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/dspy.avif" href="/docs/phoenix/integrations/python/dspy" />
-      <Card title="Haystack" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/haystack.avif" href="/docs/phoenix/integrations/python/haystack" />
-      <Card title="Instructor" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/instructor.avif" href="/docs/phoenix/integrations/python/instructor" />
-      <Card title="Atomic Agents" icon="atom" href="/docs/phoenix/integrations/python/atomic-agents" />
-      <Card title="Guardrails AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/guardrails.avif" href="/docs/phoenix/integrations/python/guardrails-ai" />
-      <Card title="Pydantic AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pydantic.avif" href="/docs/phoenix/integrations/python/pydantic" />
-      <Card title="smolagents" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/huggingface.avif" href="/docs/phoenix/integrations/python/hugging-face-smolagents" />
-      <Card title="Google ADK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/google-agents.avif" href="/docs/phoenix/integrations/python/google-adk" />
-      <Card title="Agno" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/agno.avif" href="/docs/phoenix/integrations/python/agno" />
-      <Card title="BeeAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/beeai-python.avif" href="/docs/phoenix/integrations/python/beeai" />
-      <Card title="Portkey" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/portkey.avif" href="/docs/phoenix/integrations/python/portkey" />
-      <Card title="Graphite" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/graphite.avif" href="/docs/phoenix/integrations/python/graphite" />
-      <Card title="NVIDIA" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/nvidia.avif" href="/docs/phoenix/integrations/python/nvidia" />
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pipecat.avif" title="Pipecat" href="/docs/phoenix/integrations/python/pipecat" />
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/microsoft-python.avif" title="Microsoft Agent Framework" href="/docs/phoenix/integrations/python/microsoft-agent-framework" />
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mcp-python.avif" title="MCP" href="/docs/phoenix/integrations/python/mcp-tracing" description="MCP tracing integration"/>
-      <Card title="Agent Spec" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/agentspec.avif" href="/docs/phoenix/integrations/python/agentspec" />
-    <Card title="Bedrock AgentCore" icon="cloud" href="/docs/phoenix/integrations/python/bedrock-agentcore" />
-    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/livekit.avif" title="LiveKit Agents" href="/docs/phoenix/integrations/python/livekit-agents" />
-    <Card title="Semantic Kernel" icon="microsoft" href="/docs/phoenix/integrations/python/semantic-kernel" />
-    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/temporal.avif" title="Temporal" href="/docs/phoenix/integrations/python/temporal" />
-    </CardGroup>
-  </Tab>
-  <Tab title="TypeScript" icon="js">
-    <CardGroup cols={4}>
-      <Card title="Vercel AI SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vercel.avif" href="/docs/phoenix/integrations/typescript/vercel" />
-      <Card title="LangChain.js" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain-typescript.avif" href="/docs/phoenix/integrations/typescript/langchain" />
-      <Card title="Mastra" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mastra.avif" href="/docs/phoenix/integrations/typescript/mastra" />
-      <Card title="TanStack AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/tanstack.avif" href="/docs/phoenix/integrations/typescript/tanstack-ai" />
-      <Card title="BeeAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/beeai-typescript.avif" href="/docs/phoenix/integrations/typescript/beeai" />
-      <Card title="Claude Agent SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/claude-typescript.avif" href="/docs/phoenix/integrations/typescript/claude-agent-sdk" />
-      <Card title="OpenAI Agents SDK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai-typescript.avif" href="/docs/phoenix/integrations/typescript/openai-agents" />
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mcp-typescript.avif" title="MCP" href="/docs/phoenix/integrations/typescript/mcp" description="MCP tracing integration"/>
-    </CardGroup>
-  </Tab>
-  <Tab title="Java" icon="java">
-    <CardGroup cols={4}>
-      <Card title="Google ADK" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/google-java.avif" href="/docs/phoenix/integrations/java/google-adk" />
-      <Card title="LangChain4j" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langchain-java.avif" href="/docs/phoenix/integrations/java/langchain4j" />
-      <Card title="Spring AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/spring.avif" href="/docs/phoenix/integrations/java/springai" />
-      <Card title="Arconia" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/trace.avif" href="/docs/phoenix/integrations/java/arconia" />
-    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/java.avif" title="Java Annotations" href="/docs/phoenix/integrations/java/annotation" />
-    </CardGroup>
-  </Tab>
-  <Tab title=".NET" icon="microsoft">
-    <CardGroup cols={4}>
-    <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/microsoft-dotnet.avif" title="Microsoft Agent Framework" href="/docs/phoenix/integrations/dotnet/microsoft-agent-framework" />
-    </CardGroup>
-  </Tab>
-  <Tab title="Go" icon="golang">
-    <CardGroup cols={4}>
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai-go.avif" title="OpenAI Go SDK" href="/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk" description="OpenInference Go for openai/openai-go"/>
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic-go.avif" title="Anthropic SDK Go" href="/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go" description="OpenInference Go for anthropic-sdk-go"/>
-      <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/gemini-go.avif" title="Gemini Go SDK" href="/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk" description="OTel GenAI conventions for google.golang.org/genai"/>
-    </CardGroup>
-  </Tab>
-</Tabs>
-
-### LLM Providers
-
-Phoenix provides native tracing support for all major LLM providers:
-
-<CardGroup cols={4}>
-  <Card title="OpenAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" href="/docs/phoenix/integrations/llm-providers/openai" />
-  <Card title="Anthropic" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic.avif" href="/docs/phoenix/integrations/llm-providers/anthropic" />
-  <Card title="Amazon Bedrock" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/bedrock.avif" href="/docs/phoenix/integrations/llm-providers/amazon-bedrock" />
-  <Card title="Google" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/google.avif" href="/docs/phoenix/integrations/llm-providers/google-gen-ai" />
-  <Card title="Cohere" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cohere.avif" href="/docs/phoenix/integrations/llm-providers/cohere" />
-  <Card title="Groq" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/groq.avif" href="/docs/phoenix/integrations/llm-providers/groq" />
-  <Card title="MistralAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mistral.avif" href="/docs/phoenix/integrations/llm-providers/mistralai" />
-  <Card title="VertexAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vertexai.avif" href="/docs/phoenix/integrations/llm-providers/vertexai" />
-  <Card title="LiteLLM" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm.avif" href="/docs/phoenix/integrations/llm-providers/litellm" />
-  <Card title="OpenRouter" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openrouter.avif" href="/docs/phoenix/integrations/llm-providers/openrouter" />
-  <Card title="OrcaRouter" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif" href="/docs/phoenix/integrations/llm-providers/orcarouter" />
-  <Card title="Cloudflare AI Gateway" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cloudflare.avif" href="/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway" />
-  <Card title="Ollama" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/ollama.avif" href="/docs/phoenix/integrations/llm-providers/ollama" />
-  <Card title="Together AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/together.avif" href="/docs/phoenix/integrations/llm-providers/together" />
-  <Card title="TypeSafe AI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/typesafe.avif" href="/docs/phoenix/integrations/llm-providers/typesafe" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/baseten.avif" title="Baseten" href="/docs/phoenix/integrations/llm-providers/baseten" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cerebras.avif" title="Cerebras" href="/docs/phoenix/integrations/llm-providers/cerebras" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/deepseek.avif" title="DeepSeek" href="/docs/phoenix/integrations/llm-providers/deepseek" />
-  <Card title="Doubleword" icon="server" href="/docs/phoenix/integrations/llm-providers/doubleword" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/fireworks.avif" title="Fireworks AI" href="/docs/phoenix/integrations/llm-providers/fireworks-ai" />
-  <Card title="Gravitee" icon="server" href="/docs/phoenix/integrations/llm-providers/gravitee" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/huggingface.avif" title="Hugging Face Inference Providers" href="/docs/phoenix/integrations/llm-providers/hugging-face-inference-providers" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/novita.avif" title="Novita AI" href="/docs/phoenix/integrations/llm-providers/novita-ai" />
-  <Card title="PrismML" icon="server" href="/docs/phoenix/integrations/llm-providers/prismml" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/qwen.avif" title="Qwen" href="/docs/phoenix/integrations/llm-providers/qwen" />
-  <Card title="TrueFoundry" icon="server" href="/docs/phoenix/integrations/llm-providers/truefoundry" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vllm.avif" title="vLLM" href="/docs/phoenix/integrations/llm-providers/vllm" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/xai.avif" title="xAI Grok" href="/docs/phoenix/integrations/llm-providers/xai" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/zai.avif" title="Z.ai" href="/docs/phoenix/integrations/llm-providers/z-ai" />
-</CardGroup>
-
-### Platforms
-
-Integrate Phoenix with AI development platforms and infrastructure:
-
-<CardGroup cols={3}>
-  <Card title="Claude Managed Agents" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/claude-agents.avif" href="/docs/phoenix/integrations/platforms/claude-managed-agents" />
-  <Card title="Dify" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/dify.avif" href="/docs/phoenix/integrations/platforms/dify" />
-  <Card title="Flowise" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/flowise.avif" href="/docs/phoenix/integrations/platforms/flowise" />
-  <Card title="LangFlow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/langflow.avif" href="/docs/phoenix/integrations/platforms/langflow" />
-  <Card title="Prompt Flow" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/promptflow.avif" href="/docs/phoenix/integrations/platforms/prompt-flow" />
-  <Card title="Scalekit" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/scalekit.avif" href="/docs/phoenix/integrations/platforms/scalekit" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/n8n.avif" title="n8n" href="/docs/phoenix/integrations/platforms/n8n" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openwebui.avif" title="Open WebUI" href="/docs/phoenix/integrations/platforms/openwebui" />
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openrouter.avif" title="OpenRouter Broadcast" href="/docs/phoenix/integrations/llm-providers/openrouter/openrouter-broadcast" />
-  <Card title="TrueFoundry AI Gateway" icon="network-wired" href="/docs/phoenix/integrations/platforms/truefoundry" />
-  <Card title="Envoy AI Gateway" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/envoy.avif" href="https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix" />
-  <Card title="LiteLLM Proxy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm.avif" href="/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing" />
-</CardGroup>
-
-### Vector Databases
-
-Trace retrieval from vector databases to see which stage of a search to fix:
-
-<CardGroup cols={3}>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/qdrant.avif" title="Qdrant" href="/docs/phoenix/integrations/vector-databases/qdrant" description="Staged hybrid search tracing"/>
 </CardGroup>
 
 ---
@@ -220,13 +220,13 @@ Trace retrieval from vector databases to see which stage of a search to fix:
 Phoenix's evaluation library (`phoenix-evals`) can use any LLM provider to power evaluations. These models score, classify, and analyze your traces.
 
 <CardGroup cols={4}>
-  <Card title="OpenAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai-evals.avif" href="/docs/phoenix/integrations/llm-providers/openai/openai-evals" />
-  <Card title="Anthropic" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic-evals.avif" href="/docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals" />
-  <Card title="Amazon Bedrock" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/bedrock-evals.avif" href="/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals" />
+  <Card title="Amazon Bedrock" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/bedrock.avif" href="/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals" />
+  <Card title="Anthropic" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/anthropic.avif" href="/docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals" />
   <Card title="Google Gemini" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/gemini-evals.avif" href="/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals" />
-  <Card title="VertexAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vertexai-evals.avif" href="/docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals" />
-  <Card title="MistralAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mistral-evals.avif" href="/docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals" />
-  <Card title="LiteLLM" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm-evals.avif" href="/docs/phoenix/integrations/llm-providers/litellm/litellm-evals" />
+  <Card title="LiteLLM" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/litellm.avif" href="/docs/phoenix/integrations/llm-providers/litellm/litellm-evals" />
+  <Card title="MistralAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mistral.avif" href="/docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals" />
+  <Card title="OpenAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openai.avif" href="/docs/phoenix/integrations/llm-providers/openai/openai-evals" />
+  <Card title="VertexAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vertexai.avif" href="/docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals" />
 </CardGroup>
 
 ---
@@ -236,13 +236,13 @@ Phoenix's evaluation library (`phoenix-evals`) can use any LLM provider to power
 Connect external evaluation frameworks and libraries to Phoenix:
 
 <CardGroup cols={4}>
-  <Card title="Harbor" href="/docs/phoenix/integrations/evaluation-integrations/harbor" icon="anchor" description="Sandboxed agent evaluation tracking"/>
-  <Card title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="clipboard-check" description="RAG evaluation library"/>
-  <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" icon="check-circle" description="Model quality diagnostics"/>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pydantic-evals.avif" title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" description="Pydantic-based evals"/>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mlflow.avif" title="MLflow" href="/docs/phoenix/integrations/evaluation-integrations/mlflow" description="MLflow evaluation tracking"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/cleanlab.avif" title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" description="Model quality diagnostics"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/harbor.avif" title="Harbor" href="/docs/phoenix/integrations/evaluation-integrations/harbor" description="Sandboxed agent evaluation tracking"/>
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/azure.avif" title="Microsoft Azure AI Evaluation" href="/docs/phoenix/integrations/evaluation-integrations/azure-ai-evaluation" description="Azure AI Evaluation SDK scores"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/mlflow.avif" title="MLflow" href="/docs/phoenix/integrations/evaluation-integrations/mlflow" description="MLflow evaluation tracking"/>
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/nvidia.avif" title="NVIDIA RAG Metrics via Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas-nvidia-rag-metrics" description="NVIDIA RAG metrics from Ragas"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/pydantic.avif" title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" description="Pydantic-based evals"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/ragas.avif" title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" description="RAG evaluation library"/>
 </CardGroup>
 
 ---
@@ -252,8 +252,8 @@ Connect external evaluation frameworks and libraries to Phoenix:
 Normalize and convert data from other instrumentation libraries by adding span processors that unify traces to the OpenInference format:
 
 <CardGroup cols={3}>
-  <Card title="OpenLIT" href="/docs/phoenix/integrations/python/openlit" icon="arrows-rotate" description="OpenLIT span processor"/>
-  <Card title="OpenLLMetry (Traceloop)" href="/docs/phoenix/integrations/python/openllmetry" icon="arrows-rotate" description="OpenLLMetry span processor"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/openlit.avif" title="OpenLIT" href="/docs/phoenix/integrations/python/openlit" description="OpenLIT span processor"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/traceloop.avif" title="OpenLLMetry (Traceloop)" href="/docs/phoenix/integrations/python/openllmetry" description="OpenLLMetry span processor"/>
 </CardGroup>
 
 ---
@@ -263,9 +263,9 @@ Normalize and convert data from other instrumentation libraries by adding span p
 Run Phoenix [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) in hosted sandbox providers for kernel-level isolation, runtime dependency installation, and opt-in outbound network access. Configure providers from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
 
 <CardGroup cols={4}>
-  <Card title="E2B" href="/docs/phoenix/integrations/sandboxes/e2b" icon="cube" description="Hosted micro-VMs for AI-generated code"/>
-  <Card title="Daytona" href="/docs/phoenix/integrations/sandboxes/daytona" icon="cube" description="Managed dev sandboxes with snapshot startup"/>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vercel.avif" title="Vercel Sandbox" href="/docs/phoenix/integrations/sandboxes/vercel" description="Ephemeral compute on Vercel infrastructure"/>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/modal.avif" title="Modal" href="/docs/phoenix/integrations/sandboxes/modal" description="Serverless containers, Python-first"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/daytona.avif" title="Daytona" href="/docs/phoenix/integrations/sandboxes/daytona" description="Managed dev sandboxes with snapshot startup"/>
   <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/docker.avif" title="Docker Sandboxes" href="/docs/phoenix/integrations/sandboxes/docker" description="Cloud sandboxes hosted by Docker"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/e2b.avif" title="E2B" href="/docs/phoenix/integrations/sandboxes/e2b" description="Hosted micro-VMs for AI-generated code"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/modal.avif" title="Modal" href="/docs/phoenix/integrations/sandboxes/modal" description="Serverless containers, Python-first"/>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/integrations/vercel.avif" title="Vercel Sandbox" href="/docs/phoenix/integrations/sandboxes/vercel" description="Ephemeral compute on Vercel infrastructure"/>
 </CardGroup>

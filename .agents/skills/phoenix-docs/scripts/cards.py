@@ -65,6 +65,9 @@ BUCKET = "arize-phoenix-assets"
 PREFIX = "assets/images/docs-cards"
 PUBLIC = f"https://storage.googleapis.com/{BUCKET}/{PREFIX}"
 SECTIONS = ("integrations", "topics")
+# Overview pages list many brands side by side; there a qualifier only adds
+# noise, so cards show the plain brand mark.
+INDEX_PAGES = ("phoenix/integrations.mdx",)
 # Paths are reused across design changes, so caches must expire.
 CACHE_CONTROL = "public, max-age=3600"
 
@@ -329,6 +332,17 @@ def replacement(cards: dict[str, Card], url: str, attrs: dict[str, str]) -> Card
     return None
 
 
+def plain(cards: dict[str, Card], card: Card) -> Card:
+    """The brand's plain card for a qualified one, when the manifest has it."""
+    if card.spec.get("badge"):
+        return cards.get(f"integrations/{card.spec['logo']}", card)
+    return card
+
+
+def is_index(path: Path) -> bool:
+    return str(path.relative_to(DOCS)) in INDEX_PAGES
+
+
 # --- Commands ------------------------------------------------------------------
 
 
@@ -368,6 +382,15 @@ def cmd_status(args: argparse.Namespace) -> None:
         if state != "current" and used.get(card.path):
             problems += 1
         print(f"{card.path:40} {state:8} {used.get(card.path, 0):>4}")
+    for file, url, _ in tags:
+        m = MANAGED.fullmatch(url)
+        if m and is_index(file) and m.group(1) in cards:
+            card = cards[m.group(1)]
+            if plain(cards, card) is not card:
+                problems += 1
+                print(
+                    f"  {file.relative_to(REPO)} uses {card.path}; index pages use the plain mark"
+                )
     for path in sorted(set(used) - set(cards)):
         problems += 1
         print(f"  MDX uses unknown card {path!r}")
@@ -438,22 +461,30 @@ def cmd_relink(args: argparse.Namespace) -> None:
         print(f"skipping {len(missing)} card(s) not in GCS yet (run push): {', '.join(missing)}")
         scope -= set(missing)
 
-    def swap(tag: re.Match[str]) -> str:
+    def swap(tag: re.Match[str], index: bool) -> str:
         text = tag.group(0)
         img = IMG_ATTR.search(text)
-        if not img or MANAGED.fullmatch(img.group(1)):
+        if not img:
             return text
-        try:
-            card = replacement(cards, img.group(1), dict(ATTR.findall(text)))
-        except Ambiguous as err:
-            print(f"  skipped, ambiguous: {err}")
+        url = img.group(1)
+        if managed := MANAGED.fullmatch(url):
+            card = cards.get(managed.group(1))
+        else:
+            try:
+                card = replacement(cards, url, dict(ATTR.findall(text)))
+            except Ambiguous as err:
+                print(f"  skipped, ambiguous: {err}")
+                return text
+        if card and index:
+            card = plain(cards, card)
+        if not card or card.path not in scope or url_for(card) == url:
             return text
-        return text.replace(img.group(1), url_for(card)) if card and card.path in scope else text
+        return text.replace(url, url_for(card))
 
     changed = 0
     for path in mdx_files():
         before = path.read_bytes().decode()  # keep line endings as they are
-        after = CARD_TAG.sub(swap, before)
+        after = CARD_TAG.sub(lambda tag, ix=is_index(path): swap(tag, ix), before)
         if after != before:
             n = sum(a != b for a, b in zip(IMG_ATTR.findall(before), IMG_ATTR.findall(after)))
             changed += n

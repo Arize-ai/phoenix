@@ -336,6 +336,121 @@ def _retrieval() -> str:
     return lens + handle + results
 
 
+def _chevron(x: float, y: float, size: float, color: str, width: float = 12, flip=False) -> str:
+    """A > (or <) mark: a command prompt or a processing step."""
+    dx = -size if flip else size
+    return _stroke_path(f"M{x} {y - size} l{dx} {size} l{-dx} {size}", color, width)
+
+
+def _stroke_path(d: str, color: str, width: float) -> str:
+    return el(
+        "path",
+        d=d,
+        fill="none",
+        stroke=color,
+        stroke_width=width,
+        stroke_linecap="round",
+        stroke_linejoin="round",
+    )
+
+
+def _cli() -> str:
+    """Terminal: two commands in a window, the cursor waiting on the next."""
+    x0, y0, w, h = 300, CY - 140, 600, 280
+    return (
+        el("rect", x=x0, y=y0, width=w, height=h, rx=24, fill="none", stroke=GUIDE, stroke_width=6)
+        + _chevron(x0 + 52, CY - 64, 22, INK)
+        + _bar(x0 + 110, CY - 64, 260, SECONDARY)
+        + _bar(x0 + 56, CY, 200, SECONDARY)
+        + _chevron(x0 + 52, CY + 64, 22, INK)
+        + el("rect", x=x0 + 110, y=CY + 44, width=30, height=40, rx=4, fill=FOCAL)
+    )
+
+
+def _judge() -> str:
+    """Eval model: an answer passes through a judge model and comes out scored."""
+    r, ring_r = 48, 58
+    circ = 2 * math.pi * ring_r
+    ring = {"cx": 880, "cy": CY, "r": ring_r, "fill": "none", "stroke_width": 24}
+    return (
+        _bar(290, CY - 60, 220, SECONDARY)
+        + _bar(290, CY, 180, SECONDARY)
+        + _bar(290, CY + 60, 140, SECONDARY)
+        + _line(550, CY, 680 - r, CY)
+        + _line(680 + r, CY, 880 - ring_r - 12, CY)
+        + el("circle", cx=680, cy=CY, r=r, fill=INK)
+        + el("circle", **ring, stroke=GUIDE)
+        + el(
+            "circle",
+            **ring,
+            stroke=FOCAL,
+            stroke_dasharray=f"{circ * 0.78:.1f} {circ:.1f}",
+            transform=f"rotate(-90 880 {CY})",
+        )
+    )
+
+
+def _pipeline() -> str:
+    """Span processor: spans go in, pass one processing step, and go out."""
+    out = [_bar(260, CY + dy, w, SECONDARY) for dy, w in ((-76, 200), (0, 150), (76, 180))]
+    out.append(
+        el(
+            "rect",
+            x=545,
+            y=CY - 55,
+            width=110,
+            height=110,
+            rx=18,
+            fill="none",
+            stroke=INK,
+            stroke_width=10,
+        )
+    )
+    out.append(_chevron(588, CY, 22, INK))
+    out += [
+        _bar(740, CY + dy, w, fill)
+        for dy, w, fill in ((-76, 200, INK), (0, 150, FOCAL), (76, 180, INK))
+    ]
+    return "".join(out)
+
+
+def _sandbox() -> str:
+    """Sandbox: code running inside an isolated boundary."""
+    x0, y0, w, h = 420, CY - 130, 360, 260
+    return (
+        el("rect", x=x0, y=y0, width=w, height=h, rx=32, fill="none", stroke=GUIDE, stroke_width=6)
+        + _chevron(CX - 50, CY, 44, INK, flip=True)
+        + _chevron(CX + 50, CY, 44, INK)
+        + _stroke_path(f"M{CX + 22} {CY - 56} L{CX - 22} {CY + 56}", FOCAL, 12)
+    )
+
+
+def _annotation() -> str:
+    """Error analysis: traces read and labeled, one label marking a failure."""
+    out = []
+    for i, (w, hot) in enumerate(((360, False), (300, True), (400, False))):
+        y = CY - 80 + i * 80
+        out.append(_bar(270, y, w, SECONDARY))
+        chip = {"x": 760, "y": y - 22, "width": 170, "height": 44, "rx": 22}
+        if hot:
+            out.append(el("rect", **chip, fill=FOCAL))
+        else:
+            out.append(el("rect", **chip, fill="none", stroke=GUIDE, stroke_width=6))
+    return "".join(out)
+
+
+def _video() -> str:
+    """Video: a player frame with a play button and a progress bar."""
+    x0, y0, w, h = 340, CY - 150, 520, 300
+    tri = f"M{CX - 30} {CY - 70} L{CX + 50} {CY - 20} L{CX - 30} {CY + 30} Z"
+    return (
+        el("rect", x=x0, y=y0, width=w, height=h, rx=28, fill="none", stroke=GUIDE, stroke_width=6)
+        + el("path", d=tri, fill=INK, stroke=INK, stroke_width=10, stroke_linejoin="round")
+        + el("rect", x=x0 + 48, y=y0 + h - 64, width=w - 96, height=14, rx=7, fill=GUIDE)
+        + el("rect", x=x0 + 48, y=y0 + h - 64, width=(w - 96) * 0.42, height=14, rx=7, fill=FOCAL)
+    )
+
+
 MOTIFS = {
     "trace": _trace,
     "eval": _eval,
@@ -344,4 +459,10 @@ MOTIFS = {
     "experiment": _experiment,
     "agent": _agent,
     "retrieval": _retrieval,
+    "cli": _cli,
+    "judge": _judge,
+    "pipeline": _pipeline,
+    "sandbox": _sandbox,
+    "annotation": _annotation,
+    "video": _video,
 }
