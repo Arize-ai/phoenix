@@ -495,7 +495,8 @@
             "group": "Design evaluations",
             "pages": [
               "docs/phoenix/learn/choose-evals",
-              "docs/phoenix/learn/code-checks"
+              "docs/phoenix/learn/code-checks",
+              "docs/phoenix/learn/llm-judge"
             ]
           }
         ]

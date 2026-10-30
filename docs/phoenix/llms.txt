@@ -40,6 +40,8 @@
 
 - [Write checks for actions and outcomes](https://arize.com/docs/phoenix/learn/code-checks): Verify the stored result of the existing Wonder Toys purchase tool and test a code evaluator against deliberate mistakes
 
+- [Write and validate an LLM judge](https://arize.com/docs/phoenix/learn/llm-judge): Apply a budget rubric, compare judge decisions with independent reviews, and inspect disagreements in Phoenix experiments
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config
