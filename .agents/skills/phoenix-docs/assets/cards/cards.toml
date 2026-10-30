@@ -1,0 +1,444 @@
+# Card art for docs <Card img> slots. See references/card-images.md.
+#
+# [cards.<id>]   lowercase kebab-case; becomes <id>.<fingerprint>.avif in GCS
+# template       "logo" (default), "topic" or "frame"
+# logo           logo template: a file stem in logos/
+# motif          topic template: trace, eval, prompt, dataset, experiment, agent, retrieval
+# src            frame template: URL of a product screenshot
+# badges         up to two logo stems, drawn bottom-right (languages, capabilities)
+# accent         cyan (default), green, violet, amber or rose
+# replaces       legacy image URLs that `relink` swaps for this card
+# title, href    regexes a legacy <Card> must match before `relink` swaps it;
+#                cards with patterns are tried first, in file order
+
+# --- LLM providers -------------------------------------------------------------
+
+[cards.openai-agents-python]
+logo = "openai"
+badges = ["agents", "python"]
+href = "openai-agents-sdk-tracing$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai-python]
+logo = "openai"
+badges = ["python"]
+href = "openai-tracing$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai-agents-typescript]
+logo = "openai"
+badges = ["agents", "typescript"]
+href = "typescript/openai-agents$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai-nodejs]
+logo = "openai"
+badges = ["nodejs"]
+href = "openai-node-js-sdk$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai-go]
+logo = "openai"
+badges = ["go"]
+href = "openai-go-sdk$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai-evals]
+logo = "openai"
+badges = ["evals"]
+href = "openai-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.openai]
+logo = "openai"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ae376d63-image.avif"]
+
+[cards.anthropic-python]
+logo = "anthropic"
+badges = ["python"]
+href = "anthropic-tracing$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif"]
+
+[cards.anthropic-typescript]
+logo = "anthropic"
+badges = ["typescript"]
+href = "anthropic-sdk-typescript$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif"]
+
+[cards.anthropic-go]
+logo = "anthropic"
+badges = ["go"]
+href = "anthropic-sdk-go$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif"]
+
+[cards.anthropic-evals]
+logo = "anthropic"
+badges = ["evals"]
+href = "anthropic-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif"]
+
+[cards.anthropic]
+logo = "anthropic"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif"]
+
+[cards.claude-agent-sdk-python]
+logo = "claude"
+badges = ["python"]
+href = "python/claude-agent-sdk$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png"]
+
+[cards.claude-agent-sdk-typescript]
+logo = "claude"
+badges = ["typescript"]
+href = "typescript/claude-agent-sdk$"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5d0ed01c-image.avif",
+]
+
+[cards.claude-code]
+logo = "claudecode"
+href = "coding-agents/claude-code$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png"]
+
+[cards.claude-managed-agents]
+logo = "claude"
+badges = ["agents"]
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/card_claude.png"]
+
+[cards.bedrock-agents-python]
+logo = "bedrock"
+badges = ["agents", "python"]
+title = "Agents \\(Python\\)"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.bedrock-agents-javascript]
+logo = "bedrock"
+badges = ["agents", "javascript"]
+title = "Agents \\(JavaScript\\)"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.bedrock-python]
+logo = "bedrock"
+badges = ["python"]
+title = "\\(Python\\)"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.bedrock-javascript]
+logo = "bedrock"
+badges = ["javascript"]
+title = "\\(JavaScript\\)"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.bedrock-evals]
+logo = "bedrock"
+badges = ["evals"]
+href = "amazon-bedrock-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.bedrock]
+logo = "bedrock"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/db8ae712-image.avif"]
+
+[cards.google-adk-evals]
+logo = "google"
+badges = ["agents", "evals"]
+title = "ADK.*Evaluation"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png"]
+
+[cards.google-adk-java]
+logo = "google"
+badges = ["agents", "java"]
+href = "java/google-adk$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg"]
+
+[cards.google-adk]
+logo = "google"
+badges = ["agents"]
+title = "ADK"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png",
+]
+
+[cards.gemini-go]
+logo = "gemini"
+badges = ["go"]
+href = "gemini-go-sdk$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg"]
+
+[cards.gemini-evals]
+logo = "gemini"
+badges = ["evals"]
+href = "gemini-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg"]
+
+[cards.google-evals]
+logo = "google"
+badges = ["evals"]
+href = "google-gen-ai-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg"]
+
+[cards.google]
+logo = "google"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg"]
+
+[cards.vertexai-evals]
+logo = "vertexai"
+badges = ["evals"]
+href = "vertexai-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif"]
+
+[cards.autogen-agentchat]
+template = "topic"
+motif = "agent"
+title = "AutoGen"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif"]
+
+[cards.vertexai]
+logo = "vertexai"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif"]
+
+[cards.mistral-evals]
+logo = "mistral"
+badges = ["evals"]
+href = "mistralai-evals$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/808d1f26-image.avif"]
+
+[cards.mistral]
+logo = "mistral"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/808d1f26-image.avif"]
+
+[cards.ollama-python]
+logo = "ollama"
+badges = ["python"]
+title = "Python"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ollama.svg"]
+
+[cards.ollama-nodejs]
+logo = "ollama"
+badges = ["nodejs"]
+title = "Node\\.js"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ollama.svg"]
+
+[cards.ollama-go]
+logo = "ollama"
+badges = ["go"]
+title = "\\bGo\\b"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ollama.svg"]
+
+[cards.ollama]
+logo = "ollama"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ollama.svg"]
+
+[cards.cohere]
+logo = "cohere"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cohere-card.avif"]
+
+[cards.groq]
+logo = "groq"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/612c738c-image.avif"]
+
+[cards.openrouter]
+logo = "openrouter"
+replaces = ["https://storage.googleapis.com/arize-assets/gitbook_openrouter.png"]
+
+[cards.together]
+logo = "together"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/together-card.png"]
+
+[cards.cloudflare]
+logo = "cloudflare"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cloudflare-ai-gateway-card.avif"]
+
+[cards.nvidia]
+logo = "nvidia"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/nvidia-logo.png"]
+
+# --- Frameworks ----------------------------------------------------------------
+
+[cards.langchain4j]
+logo = "langchain"
+badges = ["java"]
+title = "LangChain4j"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif"]
+
+[cards.langchain-typescript]
+logo = "langchain"
+badges = ["typescript"]
+href = "typescript/langchain$"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif"]
+
+[cards.langgraph]
+logo = "langgraph"
+title = "LangGraph"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif"]
+
+[cards.langchain]
+logo = "langchain"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif"]
+
+[cards.llamaindex-workflows]
+logo = "llamaindex"
+badges = ["workflows"]
+title = "Workflows"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/386f0e97-image.avif"]
+
+[cards.llamaindex]
+logo = "llamaindex"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/386f0e97-image.avif"]
+
+[cards.crewai]
+logo = "crewai"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/23915314-image.avif"]
+
+[cards.haystack]
+logo = "haystack"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/98eefc93-image.avif"]
+
+[cards.pydantic-evals]
+logo = "pydantic"
+badges = ["evals"]
+title = "Evals"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/pydantic-logo.png"]
+
+[cards.pydantic]
+logo = "pydantic"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/pydantic-logo.png"]
+
+[cards.smolagents]
+logo = "huggingface"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7f44783b-image.avif"]
+
+[cards.vercel-javascript]
+logo = "vercel"
+badges = ["javascript"]
+title = "\\(JS\\)"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/73e15985-image.avif"]
+
+[cards.vercel]
+logo = "vercel"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/73e15985-image.avif"]
+
+[cards.mastra]
+logo = "mastra"
+title = "Mastra"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b97976e8-image.jpeg"]
+
+[cards.tanstack]
+logo = "tanstack"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/tanstack-ai-integration.png"]
+
+[cards.spring-ai]
+logo = "spring"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/spring-ai.png"]
+
+[cards.microsoft-agent-framework-python]
+logo = "microsoft"
+badges = ["python"]
+href = "/python/microsoft-agent-framework/"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/microsoft-agent-framework-card.png"]
+
+[cards.microsoft-agent-framework-dotnet]
+logo = "microsoft"
+badges = ["dotnet"]
+href = "/dotnet/microsoft-agent-framework/"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/microsoft-agent-framework-card.png"]
+
+[cards.mcp-server]
+logo = "mcp"
+badges = ["phoenix"]
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/0e65210e-image.jpeg"]
+
+[cards.mcp]
+logo = "mcp"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b97976e8-image.jpeg"]
+
+# --- Platforms and gateways ----------------------------------------------------
+
+[cards.dify]
+logo = "dify"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/e30418d8-image.jpeg"]
+
+[cards.langflow]
+logo = "langflow"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/af9de5c3-image.avif"]
+
+[cards.envoy-ai-gateway]
+logo = "envoy"
+title = "Envoy"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg"]
+
+[cards.arconia]
+template = "topic"
+motif = "trace"
+badges = ["java"]
+title = "Arconia"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-tracing.jpeg"]
+
+# --- Tutorials and cookbooks ---------------------------------------------------
+
+[cards.tutorial-retrieval]
+template = "topic"
+motif = "retrieval"
+title = "RAG"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7bde5dc5-image.jpeg"]
+
+[cards.tutorial-langchain-agent]
+template = "topic"
+motif = "agent"
+badges = ["langchain"]
+title = "(?i)langchain.*agent"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a7759586-image.jpeg"]
+
+[cards.tutorial-evals]
+template = "topic"
+motif = "eval"
+title = "Eval"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a7759586-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/091961aa-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cf837d90-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bc89de83-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5a295e3d-image.avif",
+]
+
+[cards.tutorial-agents]
+template = "topic"
+motif = "agent"
+title = "Agent"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a7759586-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9412043f-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/568f9035-image.jpeg",
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/07e6e85a-image.avif",
+]
+
+[cards.tutorial-tracing]
+template = "topic"
+motif = "trace"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a7759586-image.jpeg"]
+
+[cards.walkthrough-python]
+logo = "python"
+replaces = ["https://storage.googleapis.com/arize-assets/dev-rel/Image%20Assets%20Public/python-logo.png"]
+
+[cards.walkthrough-typescript]
+logo = "typescript"
+replaces = ["https://storage.googleapis.com/arize-assets/dev-rel/Image%20Assets%20Public/ts-logo.png"]
+
+[cards.cookbook-prompt-learning]
+template = "topic"
+motif = "prompt"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/optimizing-coding-agent-prompt.png"]
+
+[cards.cookbook-aligning-evals]
+template = "frame"
+src = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/aligning-evals-with-feedback.png"
+accent = "green"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/aligning-evals-with-feedback.png"]
+
+[cards.cookbook-custom-eval]
+template = "topic"
+motif = "eval"
+replaces = ["https://storage.googleapis.com/arize-phoenix-assets/assets/images/build-custom-eval.png"]

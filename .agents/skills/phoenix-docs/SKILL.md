@@ -33,3 +33,7 @@ Use for how-to guides and reference.
 - Put conditions before the instruction: "If X, do Y."
 - Write warnings before the step they apply to.
 - No idioms, no "please", no "simply/just/easily".
+
+## Card images
+
+Card art (`<Card img>`) is generated, never hand-made. Follow [references/card-images.md](references/card-images.md).
