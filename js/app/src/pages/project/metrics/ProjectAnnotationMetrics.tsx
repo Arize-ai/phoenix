@@ -30,7 +30,7 @@ import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 import { PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION } from "@phoenix/pages/project/constants";
 
 import { getNonNoteAnnotationNames } from "../spanAnnotationUtils";
@@ -98,7 +98,7 @@ function ProjectAnnotationMetricsGridView({
   ...props
 }: ProjectMetricViewProps & {
   annotationNames: ReadonlyArray<string>;
-  annotationLevel: MetricChartTableView;
+  annotationLevel: AnnotationMetricLevel;
 }) {
   if (annotationNames.length === 0) {
     return null;
@@ -201,7 +201,7 @@ function ProjectAnnotationMetricsPanel({
 }
 
 type ProjectAnnotationMetricPanelProps = ProjectMetricViewProps & {
-  annotationLevel: MetricChartTableView;
+  annotationLevel: AnnotationMetricLevel;
   annotationName: string;
   fillHeight?: boolean;
   /**
@@ -346,7 +346,7 @@ function ProjectAnnotationMetricPanelContent({
 export function ProjectAnnotationMetricsGrid({
   annotationLevel,
   ...props
-}: ProjectMetricViewProps & { annotationLevel: MetricChartTableView }) {
+}: ProjectMetricViewProps & { annotationLevel: AnnotationMetricLevel }) {
   return (
     <ErrorBoundary>
       <Suspense fallback={<ProjectAnnotationMetricsGridSkeleton />}>
@@ -450,7 +450,7 @@ export function useSessionAnnotationMetricNames(
 }
 
 type ProjectAnnotationMetricNamesLoaderProps = ProjectMetricViewProps & {
-  annotationLevel: MetricChartTableView;
+  annotationLevel: AnnotationMetricLevel;
   children: (annotationNames: ReadonlyArray<string>) => ReactNode;
 };
 
@@ -564,7 +564,7 @@ type ProjectAnnotationMetricsQueryProps = ProjectMetricViewProps & {
 
 type ProjectAnnotationMetricsSeriesLoaderProps =
   ProjectAnnotationMetricsQueryProps & {
-    annotationLevel: MetricChartTableView;
+    annotationLevel: AnnotationMetricLevel;
     children: (result: ProjectAnnotationMetricsResult) => ReactNode;
   };
 

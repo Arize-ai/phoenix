@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type { ProjectEvaluatorRunStatus } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import {
@@ -134,7 +134,7 @@ export function getDefaultProjectEvaluatorFilterCondition(
  */
 export function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
-): MetricChartTableView {
+): AnnotationMetricLevel {
   switch (evaluationTarget) {
     case "SPAN":
       return "spans";
@@ -367,6 +367,25 @@ export function formatDurationShort(milliseconds: number): string {
     return `${Math.floor(duration / MINUTE_MS)}m`;
   }
   return "<1m";
+}
+
+/** A lag in its two largest units: "42s", "3m 50s", "2h 35m", "1d 4h". */
+export function formatLag(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  const secs = total % 60;
+  if (days > 0) {
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  if (minutes > 0) {
+    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+  }
+  return `${secs}s`;
 }
 
 /** Time elapsed since `since`, in its largest whole unit. */
