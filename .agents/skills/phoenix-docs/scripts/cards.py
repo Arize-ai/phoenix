@@ -54,6 +54,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageFont, ImageStat
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import banner_design as banners  # noqa: E402
 import card_design as design  # noqa: E402
+import dataset_card_design as datasets  # noqa: E402
 
 SKILL = Path(__file__).resolve().parent.parent
 ASSETS = SKILL / "assets" / "cards"
@@ -160,14 +161,15 @@ def load_cards() -> dict[str, Card]:
             sys.exit(f"cards.toml: {path} must be named integrations.{expected} for its art")
         spec = {"id": path, "template": "logo", "logo": logo} | ({"badge": badge} if badge else {})
         cards[path] = Card(path, spec, replaces)
+    motifs = design.MOTIFS | datasets.MOTIFS
     for key, entry in raw.get("topics", {}).items():
         path = f"topics/{key}"
         entry = dict(entry)
         replaces = _replacements(entry.pop("replaces", []), path)
         if entry:
             sys.exit(f"cards.toml: {path} takes only replaces; the key names the motif")
-        if key not in design.MOTIFS:
-            sys.exit(f"cards.toml: {path}: no motif {key!r} (have {', '.join(design.MOTIFS)})")
+        if key not in motifs:
+            sys.exit(f"cards.toml: {path}: no motif {key!r} (have {', '.join(motifs)})")
         cards[path] = Card(path, {"id": path, "template": "topic", "motif": key}, replaces)
     for key, entry in raw.get("banners", {}).items():
         path = f"banners/{key}"
@@ -268,6 +270,8 @@ def design_digest(module: str) -> bytes:
 def fingerprint(card: Card) -> str:
     h = hashlib.sha256()
     h.update(design_digest(design.__file__))
+    if card.spec.get("motif") in datasets.MOTIFS:
+        h.update(design_digest(datasets.__file__))
     if card.spec["template"] == "banner":
         h.update(design_digest(banners.__file__))
         for font in sorted(FONTS.glob("*.ttf")):
@@ -318,7 +322,11 @@ def render(card: Card) -> Path:
         fonts = [str(f) for f in sorted(FONTS.glob("*.ttf"))]
         png = resvg_py.svg_to_bytes(svg_string=svg, skip_system_fonts=True, font_files=fonts)
     else:
-        svg = design.compose(card.spec, marks)
+        svg = (
+            datasets.compose(card.spec)
+            if card.spec.get("motif") in datasets.MOTIFS
+            else design.compose(card.spec, marks)
+        )
         png = resvg_py.svg_to_bytes(svg_string=svg, skip_system_fonts=True)
     img = Image.open(io.BytesIO(bytes(png))).convert("RGB")
     path.parent.mkdir(parents=True, exist_ok=True)

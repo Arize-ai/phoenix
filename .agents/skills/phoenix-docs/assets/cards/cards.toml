@@ -552,9 +552,6 @@ replaces = [
 [integrations.opencode]
 logo = "opencode"
 
-[integrations.openinference]
-logo = "openinference"
-
 [integrations.openlit]
 logo = "openlit"
 
@@ -573,8 +570,8 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
 ]
 
-[integrations.phoenix]
-logo = "phoenix"
+[integrations.pandas]
+logo = "pandas"
 
 [integrations.pipecat]
 logo = "pipecat"
@@ -746,7 +743,11 @@ replaces = [
 
 [topics.cli]
 
-[topics.dataset]
+[topics.dataset-csv]
+
+[topics.dataset-jsonl]
+
+[topics.dataset-synthetic]
 
 [topics.eval]
 replaces = [

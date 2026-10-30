@@ -13,43 +13,43 @@ All LLM evaluation templates are tested against golden datasets and achieve an F
 LLM evaluators use a judge model to assess the quality of outputs. These are useful for subjective or nuanced evaluations where simple rules don't suffice.
 
 <CardGroup cols={2}>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Faithfulness" href="/docs/phoenix/evaluation/pre-built-metrics/faithfulness">
+  <Card title="Faithfulness" icon="check-double" href="/docs/phoenix/evaluation/pre-built-metrics/faithfulness">
     Measures whether a response is faithful to (grounded in) the provided context. Detects hallucinations and unsupported claims.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Hallucination" href="/docs/phoenix/evaluation/pre-built-metrics/hallucination">
+  <Card title="Hallucination" icon="ghost" href="/docs/phoenix/evaluation/pre-built-metrics/hallucination">
     Detects claims in a response that are unsupported by, or contradict, the conversation. The conversation-level counterpart to Faithfulness.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Completeness" href="/docs/phoenix/evaluation/pre-built-metrics/completeness">
+  <Card title="Completeness" icon="list-check" href="/docs/phoenix/evaluation/pre-built-metrics/completeness">
     Checks whether every active user request in a conversation was actually completed, not merely acknowledged.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Conciseness" href="/docs/phoenix/evaluation/pre-built-metrics/conciseness">
+  <Card title="Conciseness" icon="compress" href="/docs/phoenix/evaluation/pre-built-metrics/conciseness">
     Evaluates whether a response is concise and free of unnecessary content like filler, hedging, and meta-commentary.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Correctness" href="/docs/phoenix/evaluation/pre-built-metrics/correctness">
+  <Card title="Correctness" icon="circle-check" href="/docs/phoenix/evaluation/pre-built-metrics/correctness">
     Evaluates the general correctness of an LLM response.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/retrieval.avif" title="Retrieval Relevance" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance">
+  <Card title="Retrieval Relevance" icon="magnifying-glass-arrow-right" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance">
     Assesses whether externally retrieved information is relevant to the request, from any source: RAG, tools, MCP, or web search.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/agent.avif" title="Tool Selection" href="/docs/phoenix/evaluation/pre-built-metrics/tool-selection">
+  <Card title="Tool Selection" icon="toolbox" href="/docs/phoenix/evaluation/pre-built-metrics/tool-selection">
     Determines whether the correct tool was selected for a given context from the available options.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/agent.avif" title="Tool Invocation" href="/docs/phoenix/evaluation/pre-built-metrics/tool-invocation">
+  <Card title="Tool Invocation" icon="wrench" href="/docs/phoenix/evaluation/pre-built-metrics/tool-invocation">
     Checks if a tool was invoked correctly with proper arguments, formatting, and safe content.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/agent.avif" title="Tool Response Handling" href="/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling">
+  <Card title="Tool Response Handling" icon="arrow-turn-down" href="/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling">
     Evaluates whether an agent correctly processed a tool's result, including error handling, data extraction, and safe information disclosure.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Refusal" href="/docs/phoenix/evaluation/pre-built-metrics/refusal">
+  <Card title="Refusal" icon="hand" href="/docs/phoenix/evaluation/pre-built-metrics/refusal">
     Detects when an LLM refuses, declines, or avoids answering a user query.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/agent.avif" title="User Friction" href="/docs/phoenix/evaluation/pre-built-metrics/user-friction">
+  <Card title="User Friction" icon="comments" href="/docs/phoenix/evaluation/pre-built-metrics/user-friction">
     Detects corrections, retries, frustration, and challenges expressed in a user's follow-up message.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="PII Detection" href="/docs/phoenix/evaluation/pre-built-metrics/pii-detection">
+  <Card title="PII Detection" icon="user-shield" href="/docs/phoenix/evaluation/pre-built-metrics/pii-detection">
     Screens a conversation record for personally identifiable information.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/judge.avif" title="Toxicity" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
+  <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
     Detect hateful, demeaning, abusive, or threatening text in model outputs or user inputs.
   </Card>
 </CardGroup>
@@ -59,13 +59,13 @@ LLM evaluators use a judge model to assess the quality of outputs. These are use
 Code evaluators use deterministic logic for evaluation. These are faster, cheaper, and provide consistent results for objective criteria.
 
 <CardGroup cols={2}>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/eval.avif" title="Exact Match" href="/docs/phoenix/evaluation/pre-built-metrics/exact-match">
+  <Card title="Exact Match" icon="equals" href="/docs/phoenix/evaluation/pre-built-metrics/exact-match">
     Checks if the output exactly matches an expected value. Supports optional normalization.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/cli.avif" title="Matches Regex" href="/docs/phoenix/evaluation/pre-built-metrics/matches-regex">
+  <Card title="Matches Regex" icon="code" href="/docs/phoenix/evaluation/pre-built-metrics/matches-regex">
     Validates that output matches a specified regular expression pattern.
   </Card>
-  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/topics/eval.avif" title="Precision / Recall / F-Score" href="/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore">
+  <Card title="Precision / Recall / F-Score" icon="chart-simple" href="/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore">
     Computes precision, recall, and F1 scores for comparing predicted vs actual values.
   </Card>
 </CardGroup>
