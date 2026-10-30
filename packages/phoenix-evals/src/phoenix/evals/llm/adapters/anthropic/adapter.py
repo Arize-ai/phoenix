@@ -118,6 +118,14 @@ def _generated_text(response: Any) -> str:
     return "".join(texts)
 
 
+class _NotJsonError(ValueError):
+    """Raised when a native structured output response isn't JSON.
+
+    Anthropic constrains native output to the schema, so text that isn't JSON means the endpoint
+    ignored `output_config`, as some Anthropic-compatible gateways do.
+    """
+
+
 def _native_output(response: Any) -> Any:
     """Returns the JSON value in a native structured output response.
 
@@ -129,7 +137,7 @@ def _native_output(response: Any) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Anthropic returned output that isn't valid JSON: {text!r}") from e
+        raise _NotJsonError(f"Anthropic returned output that isn't valid JSON: {text!r}") from e
 
 
 def _tool_input(response: Any) -> Any:
@@ -156,12 +164,14 @@ def _allowed_values(prop: Dict[str, Any]) -> Optional[List[Any]]:
     return None
 
 
-def _validate_object(result: Any, schema: Dict[str, Any]) -> Dict[str, Any]:
+def _validate_object(
+    result: Any, schema: Dict[str, Any], check_required: bool = True
+) -> Dict[str, Any]:
     """Returns the result after a partial check against the schema.
 
-    Checks that the result is an object with every required field, and that each top-level field
-    with an `enum` or a choice of `const` values holds one of them. Nested objects and types aren't
-    checked.
+    Checks that the result is an object, that it has every required field when `check_required` is
+    true, and that each top-level field with an `enum` or a choice of `const` values holds one of
+    them. Nested objects and types aren't checked.
 
     Raises:
         ValueError: If the result fails one of these checks.
@@ -169,7 +179,7 @@ def _validate_object(result: Any, schema: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(result, dict):
         raise ValueError(f"Expected a JSON object from Anthropic, got {type(result).__name__}")
     missing = [name for name in schema.get("required", []) if name not in result]
-    if missing:
+    if check_required and missing:
         raise ValueError(f"Anthropic output is missing required fields {missing}: {result}")
     for name, prop in schema.get("properties", {}).items():
         allowed = _allowed_values(prop) if isinstance(prop, dict) else None
@@ -323,12 +333,12 @@ class AnthropicAdapter(BaseLLMAdapter):
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            from anthropic import BadRequestError
+            from anthropic import BadRequestError, UnprocessableEntityError
 
             if self._can_use_native_output(schema):
                 try:
                     return self._generate_with_native_output(prompt, schema, **kwargs)
-                except BadRequestError as error:
+                except (BadRequestError, UnprocessableEntityError, _NotJsonError) as error:
                     self._fall_back_or_raise(error, schema)
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
@@ -356,12 +366,12 @@ class AnthropicAdapter(BaseLLMAdapter):
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
         elif method == ObjectGenerationMethod.AUTO:
-            from anthropic import BadRequestError
+            from anthropic import BadRequestError, UnprocessableEntityError
 
             if self._can_use_native_output(schema):
                 try:
                     return await self._async_generate_with_native_output(prompt, schema, **kwargs)
-                except BadRequestError as error:
+                except (BadRequestError, UnprocessableEntityError, _NotJsonError) as error:
                     self._fall_back_or_raise(error, schema)
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
         else:
@@ -379,9 +389,13 @@ class AnthropicAdapter(BaseLLMAdapter):
         """Re-raises the error unless it means native output can't serve the request.
 
         A rejection of native output as a whole sends every later AUTO call to tool calling. A
-        rejection of one schema sends only later calls with that schema to tool calling.
+        rejection of one schema sends only later calls with that schema to tool calling. A reply
+        that isn't JSON counts as a rejection of native output as a whole.
         """
-        if _SCHEMA_UNSUPPORTED.search(str(error)):
+        if isinstance(error, _NotJsonError):
+            logger.debug(f"{self.model} ignored native structured output, using tool calling")
+            self._native_output_rejected = True
+        elif _SCHEMA_UNSUPPORTED.search(str(error)):
             logger.debug(
                 f"Native structured output rejected the schema, using tool calling: {error}"
             )
@@ -451,7 +465,9 @@ class AnthropicAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         response = self.client.messages.create(**self._tool_calling_params(prompt, schema, kwargs))
-        return _validate_object(_tool_input(response), schema)
+        # Tool calling doesn't enforce the schema, and evaluators accept a missing optional field
+        # such as `explanation`, so only the allowed values are checked.
+        return _validate_object(_tool_input(response), schema, check_required=False)
 
     async def _async_generate_with_tool_calling(
         self,
@@ -462,7 +478,9 @@ class AnthropicAdapter(BaseLLMAdapter):
         response = await self.client.messages.create(
             **self._tool_calling_params(prompt, schema, kwargs)
         )
-        return _validate_object(_tool_input(response), schema)
+        # Tool calling doesn't enforce the schema, and evaluators accept a missing optional field
+        # such as `explanation`, so only the allowed values are checked.
+        return _validate_object(_tool_input(response), schema, check_required=False)
 
     def _tool_calling_params(
         self, prompt: PromptLike, schema: Dict[str, Any], kwargs: Dict[str, Any]

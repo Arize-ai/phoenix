@@ -149,6 +149,43 @@ async def test_async_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
     assert ["output_config" in r for r in requests] == [True, False, False]
 
 
+def test_auto_falls_back_when_an_endpoint_rejects_output_config_with_a_422() -> None:
+    def respond(body: Dict[str, Any]) -> httpx2.Response:
+        if "output_config" in body:
+            return httpx2.Response(
+                422, json={"detail": "output_config: Extra inputs are not permitted"}
+            )
+        return _tool_use({"label": "bad"})
+
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(respond, requests)
+
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False, False]
+
+
+def _ignore_output_config(body: Dict[str, Any]) -> httpx2.Response:
+    return _tool_use({"label": "bad"}) if "tools" in body else _text("The label is bad.")
+
+
+def test_auto_falls_back_when_an_endpoint_ignores_output_config() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(_ignore_output_config, requests)
+
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False, False]
+
+
+async def test_async_auto_falls_back_when_an_endpoint_ignores_output_config() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _async_adapter(_ignore_output_config, requests)
+
+    assert await adapter.async_generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False]
+
+
 def test_auto_remembers_a_rejected_schema_but_not_for_other_schemas() -> None:
     def respond(body: Dict[str, Any]) -> httpx2.Response:
         if "output_config" in body:
@@ -361,8 +398,16 @@ def test_raises_on_output_that_does_not_match_the_schema(
     adapter = _sync_adapter(lambda _: response, requests)
 
     with pytest.raises(ValueError, match=error):
-        adapter.generate_object("q", _SCHEMA)
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.STRUCTURED_OUTPUT)
     assert len(requests) == 1
+
+
+def test_tool_calling_accepts_output_without_a_required_field() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _tool_use({"explanation": "x"}), requests)
+
+    result = adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
+    assert result == {"explanation": "x"}
 
 
 def test_validates_tool_calling_output_against_the_schema() -> None:
