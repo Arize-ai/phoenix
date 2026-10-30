@@ -247,6 +247,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/603c5346-image.jpeg",
 ]
 
+[integrations.gemini]
+logo = "gemini"
+
 [integrations.gemini-evals]
 logo = "gemini"
 badge = "evals"

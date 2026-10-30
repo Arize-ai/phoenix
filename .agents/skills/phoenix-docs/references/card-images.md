@@ -19,7 +19,7 @@ Paths never change. When a card's art changes, its file is replaced in place and
 ## Rules for grids
 
 - Every card in a grid has art. Do not mix image cards and icon-only cards in one grid.
-- On the integrations index, cards show the plain brand mark and every grid is alphabetical by title. `relink` keeps qualifier cards off the index, and `status --check` flags any it finds.
+- On the integrations index, cards show the plain brand mark and every grid is alphabetical by title. `relink` keeps qualifier cards off the index, and `status --check` flags any it finds. If the brand has no plain card yet, add `[integrations.<logo>]` first.
 - Follow [card-design.md](card-design.md) for how each card looks.
 
 ## Reuse before you create

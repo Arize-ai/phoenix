@@ -386,10 +386,11 @@ def cmd_status(args: argparse.Namespace) -> None:
         m = MANAGED.fullmatch(url)
         if m and is_index(file) and m.group(1) in cards:
             card = cards[m.group(1)]
-            if plain(cards, card) is not card:
+            if card.spec.get("badge"):
                 problems += 1
                 print(
                     f"  {file.relative_to(REPO)} uses {card.path}; index pages use the plain mark"
+                    f" integrations/{card.spec['logo']}"
                 )
     for path in sorted(set(used) - set(cards)):
         problems += 1
