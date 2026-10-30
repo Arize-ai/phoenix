@@ -60,6 +60,11 @@ const ProviderQuery = graphql`
           }
           ... on OpenAICustomProviderConfig {
             openaiApiType
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             openaiAuthenticationMethod {
               apiKey
             }
@@ -72,6 +77,11 @@ const ProviderQuery = graphql`
           }
           ... on AzureOpenAICustomProviderConfig {
             openaiApiType
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             azureOpenaiAuthenticationMethod {
               apiKey
               azureAdTokenProvider {
@@ -97,6 +107,11 @@ const ProviderQuery = graphql`
             }
           }
           ... on TypeSafeCustomProviderConfig {
+            decisionModels {
+              decisionSdk
+              baseUrl
+              modelNames
+            }
             typesafeAuthenticationMethod {
               apiKey
             }
@@ -166,6 +181,7 @@ function EditCustomProviderDialogContent({
             description
             sdk
             provider
+            modelTypes
             createdAt
             updatedAt
             user {

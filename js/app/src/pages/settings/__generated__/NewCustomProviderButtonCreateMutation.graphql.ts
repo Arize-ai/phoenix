@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbdd3bc5792b3a62bb59ca25e14d7517>>
+ * @generated SignedSource<<8f55ed727dda616e1d516c781593c54f>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,9 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
+export type ModelType = "DECISION" | "LLM";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateGenerativeModelCustomProviderMutationInput = {
   clientConfig: GenerativeModelCustomerProviderConfigInput;
@@ -60,6 +62,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -73,9 +76,15 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
+export type DecisionModelsConfigInput = {
+  baseUrl?: string | null;
+  decisionSdk: DecisionSDK;
+  modelNames?: ReadonlyArray<string> | null;
+};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -147,6 +156,7 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };
@@ -167,6 +177,7 @@ export type NewCustomProviderButtonCreateMutation$data = {
       readonly createdAt: string;
       readonly description: string | null;
       readonly id: string;
+      readonly modelTypes: ReadonlyArray<ModelType>;
       readonly name: string;
       readonly provider: string;
       readonly sdk: GenerativeModelSDK;
@@ -244,6 +255,13 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "provider",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelTypes",
       "storageKey": null
     },
     {
@@ -366,16 +384,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a18674a60a03adce0656973e249761bb",
+    "cacheID": "45360815d8eab0987748d267e1f1571f",
     "id": null,
     "metadata": {},
     "name": "NewCustomProviderButtonCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation NewCustomProviderButtonCreateMutation(\n  $input: CreateGenerativeModelCustomProviderMutationInput!\n) {\n  createGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n  }\n}\n"
+    "text": "mutation NewCustomProviderButtonCreateMutation(\n  $input: CreateGenerativeModelCustomProviderMutationInput!\n) {\n  createGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b66de5d56b0d8b2241083125c42c7b32";
+(node as any).hash = "ddc80ef51b3c5f5d4c51ab0d22e10e90";
 
 export default node;

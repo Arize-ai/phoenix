@@ -43,6 +43,7 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import { ModelTypeBadges } from "./ModelTypeBadges";
 
 export function GenerativeProvidersCard({
   query,
@@ -81,11 +82,7 @@ export function GenerativeProvidersCard({
             <Flex direction="row" alignItems="center" gap="size-100">
               <GenerativeProviderIcon provider={row.original.key} height={18} />
               {row.original.name}
-              {!row.original.modelTypes.includes("LLM") ? (
-                <Text size="XS" color="text-700">
-                  decision models only
-                </Text>
-              ) : null}
+              <ModelTypeBadges modelTypes={row.original.modelTypes} />
             </Flex>
           );
         },

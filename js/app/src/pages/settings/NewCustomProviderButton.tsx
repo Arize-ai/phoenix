@@ -49,6 +49,7 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
             description
             sdk
             provider
+            modelTypes
             createdAt
             updatedAt
             user {

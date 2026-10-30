@@ -47,6 +47,14 @@ const urlFieldSchema = z
     { message: "Must be a valid URL" }
   );
 
+// Decision model settings shared by the SDKs that can serve decision models
+const decisionModelsSchema = {
+  decision_enabled: z.boolean(),
+  decision_sdk: z.enum(["OPENAI", "TYPESAFE"]),
+  decision_base_url: urlFieldSchema,
+  decision_model_names: z.string().optional(),
+};
+
 // Base schema shared by all providers
 const baseProviderSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -63,6 +71,7 @@ const openAISchema = baseProviderSchema.extend({
   openai_organization: z.string().optional(),
   openai_project: z.string().optional(),
   openai_default_headers: httpHeadersFieldSchema,
+  ...decisionModelsSchema,
 });
 
 // Azure OpenAI schema - endpoint requires URL validation with non-empty check
@@ -96,6 +105,7 @@ const azureOpenAISchema = baseProviderSchema.extend({
   azure_client_secret: z.string().optional(),
   azure_scope: z.string().optional(),
   azure_default_headers: httpHeadersFieldSchema,
+  ...decisionModelsSchema,
 });
 
 // Anthropic schema
@@ -131,6 +141,8 @@ const typeSafeSchema = baseProviderSchema.extend({
   typesafe_api_key: z.string().min(1, "API key is required"),
   typesafe_base_url: urlFieldSchema,
   typesafe_default_headers: httpHeadersFieldSchema,
+  // Always on and System One; the form shows them fixed.
+  ...decisionModelsSchema,
 });
 
 // Discriminated union of all provider schemas
@@ -144,8 +156,22 @@ const baseProviderFormSchema = z.discriminatedUnion("sdk", [
 ]);
 
 // Add conditional validation for auth methods on top of the discriminated union
-export const providerFormSchema = baseProviderFormSchema.superRefine(
-  (data, ctx) => {
+export const providerFormSchema = baseProviderFormSchema
+  .superRefine((data, ctx) => {
+    // Decision models on Azure run with the provider's API key
+    if (
+      data.sdk === "AZURE_OPENAI" &&
+      data.decision_enabled &&
+      data.azure_auth_method !== "api_key"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Decision models need API key authentication",
+        path: ["decision_enabled"],
+      });
+    }
+  })
+  .superRefine((data, ctx) => {
     // Azure OpenAI conditional validation
     if (data.sdk === "AZURE_OPENAI") {
       if (data.azure_auth_method === "api_key") {
@@ -216,5 +242,4 @@ export const providerFormSchema = baseProviderFormSchema.superRefine(
       }
       // No validation needed for "default_credentials" - it has no required fields
     }
-  }
-);
+  });

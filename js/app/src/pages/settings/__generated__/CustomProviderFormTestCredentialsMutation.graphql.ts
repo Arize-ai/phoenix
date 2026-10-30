@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa33fed93a39606110f03d0d72a18567>>
+ * @generated SignedSource<<4299cbeb8d3aae6ce8921c1b73fd4321>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type GenerativeModelCustomerProviderConfigInput = {
   anthropic?: never;
@@ -53,6 +54,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -66,9 +68,15 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
+export type DecisionModelsConfigInput = {
+  baseUrl?: string | null;
+  decisionSdk: DecisionSDK;
+  modelNames?: ReadonlyArray<string> | null;
+};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  decisionModels?: DecisionModelsConfigInput | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -140,6 +148,7 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
+  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };

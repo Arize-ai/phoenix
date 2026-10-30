@@ -27,11 +27,18 @@ import type {
   AnthropicFormData,
   AWSBedrockFormData,
   AzureOpenAIFormData,
+  DecisionModelsFormData,
   GoogleGenAIFormData,
   OpenAIFormData,
   ProviderFormData,
   TypeSafeFormData,
 } from "./CustomProviderForm";
+import {
+  type DecisionSDK,
+  azureChatBaseUrl,
+  guessDecisionBaseUrl,
+  parseDecisionModelNames,
+} from "./decisionEndpoints";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 type CustomProviderNode = Extract<
@@ -55,6 +62,12 @@ export function createDefaultFormData(
     name: "",
     description: "",
   };
+  const noDecisionModels: DecisionModelsFormData = {
+    decision_enabled: false,
+    decision_sdk: "OPENAI",
+    decision_base_url: undefined,
+    decision_model_names: undefined,
+  };
 
   switch (sdk) {
     case "OPENAI":
@@ -68,6 +81,7 @@ export function createDefaultFormData(
         openai_organization: undefined,
         openai_project: undefined,
         openai_default_headers: undefined,
+        ...noDecisionModels,
       } satisfies OpenAIFormData;
 
     case "AZURE_OPENAI":
@@ -84,6 +98,7 @@ export function createDefaultFormData(
         azure_client_secret: undefined,
         azure_scope: undefined,
         azure_default_headers: undefined,
+        ...noDecisionModels,
       } satisfies AzureOpenAIFormData;
 
     case "ANTHROPIC":
@@ -127,6 +142,10 @@ export function createDefaultFormData(
         typesafe_api_key: "",
         typesafe_base_url: undefined,
         typesafe_default_headers: undefined,
+        decision_enabled: true,
+        decision_sdk: "TYPESAFE",
+        decision_base_url: undefined,
+        decision_model_names: undefined,
       } satisfies TypeSafeFormData;
 
     default: {
@@ -179,6 +198,33 @@ export function transformConfigToFormValues(
   }
 }
 
+/**
+ * Decision settings as the form edits them. A provider saved without a
+ * decision base URL shows the guess its runs use.
+ */
+function getDecisionModelsFormValues(
+  decisionModels: ProviderConfig["decisionModels"],
+  chatBaseUrl: string | null | undefined
+): DecisionModelsFormData {
+  if (!decisionModels) {
+    return {
+      decision_enabled: false,
+      decision_sdk: "OPENAI",
+      decision_base_url: undefined,
+      decision_model_names: undefined,
+    };
+  }
+  const decisionSdk: DecisionSDK =
+    decisionModels.decisionSdk === "TYPESAFE" ? "TYPESAFE" : "OPENAI";
+  return {
+    decision_enabled: true,
+    decision_sdk: decisionSdk,
+    decision_base_url:
+      decisionModels.baseUrl ?? guessDecisionBaseUrl(decisionSdk, chatBaseUrl),
+    decision_model_names: decisionModels.modelNames.join(", ") || undefined,
+  };
+}
+
 function getBaseFormValues(provider: CustomProviderNode) {
   return {
     name: provider.name,
@@ -202,6 +248,10 @@ function transformOpenAIConfig(provider: CustomProviderNode): OpenAIFormData {
     openai_default_headers: safelyJSONStringify(
       config?.openaiClientKwargs?.defaultHeaders
     ),
+    ...getDecisionModelsFormValues(
+      config?.decisionModels,
+      config?.openaiClientKwargs?.baseUrl
+    ),
   };
 }
 
@@ -219,6 +269,10 @@ function transformAzureOpenAIConfig(
       config?.azureOpenaiAuthenticationMethod
     ),
     ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
+    ...getDecisionModelsFormValues(
+      config?.decisionModels,
+      azureChatBaseUrl(config?.azureOpenaiClientKwargs?.azureEndpoint)
+    ),
   };
 }
 
@@ -318,12 +372,35 @@ function transformTypeSafeConfig(
     typesafe_default_headers: safelyJSONStringify(
       config?.typesafeClientKwargs?.defaultHeaders
     ),
+    decision_enabled: true,
+    decision_sdk: "TYPESAFE",
+    decision_base_url: undefined,
+    decision_model_names:
+      config?.decisionModels?.modelNames.join(", ") || undefined,
   };
 }
 
 // =============================================================================
 // Form → GraphQL Transformation
 // =============================================================================
+
+/**
+ * The decision settings to send: none when decision models are off, so the
+ * provider stops serving them.
+ */
+function buildDecisionModels(formData: DecisionModelsFormData) {
+  if (!formData.decision_enabled) {
+    return undefined;
+  }
+  const modelNames = parseDecisionModelNames(formData.decision_model_names);
+  return {
+    decisionSdk: formData.decision_sdk,
+    ...(formData.decision_base_url?.trim() && {
+      baseUrl: formData.decision_base_url.trim(),
+    }),
+    ...(modelNames.length > 0 && { modelNames }),
+  };
+}
 
 /**
  * Builds the nested clientConfig structure for GraphQL mutations.
@@ -352,6 +429,7 @@ export function buildClientConfig(
                 ? safelyParseJSONObjectString(formData.openai_default_headers)
                 : undefined,
           }),
+          decisionModels: buildDecisionModels(formData),
         },
       };
     case "AZURE_OPENAI": {
@@ -429,6 +507,7 @@ export function buildClientConfig(
             azureEndpoint: formData.azure_endpoint,
             ...(defaultHeaders !== undefined && { defaultHeaders }),
           },
+          decisionModels: buildDecisionModels(formData),
         },
       };
     }
@@ -537,6 +616,13 @@ export function buildClientConfig(
                 ? safelyParseJSONObjectString(formData.typesafe_default_headers)
                 : undefined,
           }),
+          // Always System One; a TypeSafe provider's own base URL is its endpoint.
+          decisionModels: buildDecisionModels({
+            ...formData,
+            decision_enabled: true,
+            decision_sdk: "TYPESAFE",
+            decision_base_url: undefined,
+          }),
         },
       };
     default: {
@@ -601,6 +687,13 @@ export function transformToPatchInput(
  * Checks if any SDK-specific configuration fields have changed.
  * Returns true if any field in the config section differs from the original.
  */
+const DECISION_FIELDS = [
+  "decision_enabled",
+  "decision_sdk",
+  "decision_base_url",
+  "decision_model_names",
+] as const;
+
 const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
   OPENAI: [
     "openai_api_type",
@@ -609,6 +702,7 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "openai_organization",
     "openai_project",
     "openai_default_headers",
+    ...DECISION_FIELDS,
   ],
   AZURE_OPENAI: [
     "openai_api_type",
@@ -620,6 +714,7 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "azure_client_secret",
     "azure_scope",
     "azure_default_headers",
+    ...DECISION_FIELDS,
   ],
   ANTHROPIC: [
     "anthropic_api_key",
@@ -639,6 +734,7 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "typesafe_api_key",
     "typesafe_base_url",
     "typesafe_default_headers",
+    "decision_model_names",
   ],
 };
 
