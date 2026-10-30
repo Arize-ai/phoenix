@@ -355,15 +355,16 @@ def _stroke_path(d: str, color: str, width: float) -> str:
 
 
 def _cli() -> str:
-    """Terminal: two commands in a window, the cursor waiting on the next."""
-    x0, y0, w, h = 300, CY - 140, 600, 280
+    """Terminal: a window under a header band, its prompt waiting on the cursor."""
+    x0, y0, w, h, band, r = 320, CY - 165, 560, 330, 64, 28
+    size, gap, cursor = 44, 34, 96
+    px, py = CX - (size + gap + cursor) / 2, y0 + band + (h - band) / 2
     return (
-        el("rect", x=x0, y=y0, width=w, height=h, rx=24, fill="none", stroke=GUIDE, stroke_width=6)
-        + _chevron(x0 + 52, CY - 64, 22, INK)
-        + _bar(x0 + 110, CY - 64, 260, SECONDARY)
-        + _bar(x0 + 56, CY, 200, SECONDARY)
-        + _chevron(x0 + 52, CY + 64, 22, INK)
-        + el("rect", x=x0 + 110, y=CY + 44, width=30, height=40, rx=4, fill=FOCAL)
+        el("rect", x=x0, y=y0, width=w, height=band, rx=r, fill=RAISED)
+        + el("rect", x=x0, y=y0 + band / 2, width=w, height=band / 2, fill=RAISED)
+        + el("rect", x=x0, y=y0, width=w, height=h, rx=r, fill="none", stroke=GUIDE, stroke_width=6)
+        + _chevron(px, py, size, INK, 18)
+        + el("rect", x=px + size + gap, y=py + size - 18, width=cursor, height=18, rx=6, fill=FOCAL)
     )
 
 

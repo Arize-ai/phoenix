@@ -78,7 +78,7 @@ One shape in each drawing is cyan. It marks what the reader should look at: the 
 | `experiment` | Three pairs of columns, baseline in gray beside candidate in white | The best candidate |
 | `agent` | A trajectory read left to right: agent step, tool call, a subagent box holding its own step and tool, then the answer | The answer |
 | `retrieval` | A magnifier beside three ranked result bars | The top result |
-| `cli` | A terminal window: two commands and a waiting prompt | The cursor |
+| `cli` | A terminal window under a header band, its prompt waiting: `>_` | The cursor |
 | `judge` | Answer lines pass through a judge model into a score ring | The score arc |
 | `pipeline` | Spans pass through one processing step and come out | One processed span |
 | `sandbox` | Code brackets inside an isolated boundary | The slash in `</>` |
