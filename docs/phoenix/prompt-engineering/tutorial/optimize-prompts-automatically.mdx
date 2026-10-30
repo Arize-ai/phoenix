@@ -1,11 +1,11 @@
 ---
 title: "Optimize Prompts Automatically"
-description: "Automatically Optimize Prompts with Prompt Learning"
+description: "Use Prompt Learning to generate an optimized prompt version from experiment feedback, then measure its accuracy."
 ---
 
-We're able to manually bring the accuracy of our prompts up, by looking at one of our error types. But what about the other 6? That's going to take a lot of manual edits + trial and error to improve our prompt. It's time consuming to manually look at all our data and build new prompt versions. You can imagine that with real world agents, that have seen thousands of queries, manually analyzing thousands of data points is not practical. 
+In Part 3, you fixed one error type by hand. Six other error types remain. To fix each one by hand takes much time.
 
-What if there was a way we could do this automatically? Some algorithm that could look at all the data we've generated, and train a prompt based on it?
+In this part, you use the Prompt Learning SDK to generate a new prompt version from your experiment results. At the end, you have Version 5 of the `support-classifier` prompt and you know its accuracy on the dataset.
 
 <Info>
   **Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb), and go to Part 4: Optimize Prompts Automatically.
@@ -13,9 +13,7 @@ What if there was a way we could do this automatically? Some algorithm that coul
 
 ## What is Prompt Learning?
 
-Prompt learning is an iterative approach to optimizing LLM prompts by using feedback from evaluations to systematically improve prompt performance. Instead of manually tweaking prompts through trial and error, the SDK automates this process.
-
-The prompt learning process follows this workflow:
+Prompt Learning uses the feedback from your evaluations to write a better prompt. An LLM reads the original prompt, the outputs, and the feedback. Then it writes a new prompt.
 
 ```
 Initial Prompt → Generate Outputs → Evaluate Results → Optimize Prompt → Repeat
@@ -25,15 +23,7 @@ Initial Prompt → Generate Outputs → Evaluate Results → Optimize Prompt →
   ![Prompt Learning workflow](https://storage.googleapis.com/arize-phoenix-assets/assets/images/Prompt%20Learning.jpg)
 </Frame>
 
-1. **Initial Prompt**: Start with a baseline prompt that defines your task
-2. **Generate Outputs**: Use the prompt to generate responses on your dataset
-3. **Evaluate Results**: Run evaluators to assess output quality
-4. **Optimize Prompt**: Use feedback to generate an improved prompt
-5. **Iterate**: Repeat until performance meets your criteria
-
-The SDK uses a **meta-prompt approach** where an LLM analyzes the original prompt, evaluation feedback, and examples to generate an optimized version that better aligns with your evaluation criteria.
-
-For a more detailed dive into Prompt Learning, check out the following resources:
+To learn how Prompt Learning works, see these resources:
 
 - [Prompt Learning Blog Post](https://arize.com/blog/prompt-learning-using-english-feedback-to-optimize-llm-systems/)
 - [Prompt Learning Video Overview](https://www.youtube.com/watch?v=Fu9sxS2s-sQ&t=2s)
@@ -41,9 +31,7 @@ For a more detailed dive into Prompt Learning, check out the following resources
 
 ## Install the Prompt Learning SDK
 
-We’re now ready to put this into practice. Using the **Prompt Learning SDK**, we can take the evaluation data we’ve already collected - all those explanations, error types, and fix suggestions - and feed it back into an optimization loop. Instead of manually writing new instructions or tuning parameters, we’ll let the algorithm analyze our experiment results and generate an improved prompt automatically.
-
-Let’s install the SDK and use it to optimize our support query classifier.
+Install the **Prompt Learning SDK**.
 
 ```bash
 git clone https://github.com/Arize-ai/prompt-learning.git
@@ -53,7 +41,9 @@ pip install .
 
 ## Load Experiment for Training
 
-First, head to experiment we ran for version 4 and copy the experiment ID. Our experiment serves as our training data - we'll use the outputs and evals we generated to train our new prompt version.
+The Version 4 experiment is the training data. Prompt Learning uses its outputs and evaluations to write the new prompt.
+
+Open the Version 4 experiment and copy the experiment ID.
 
 <Frame>
   ![Experiment ID location](https://storage.googleapis.com/arize-phoenix-assets/assets/images/Screenshot%202025-12-04%20at%203.13.06%E2%80%AFPM.png)
@@ -84,9 +74,11 @@ First, head to experiment we ran for version 4 and copy the experiment ID. Our e
   </Tab>
 </Tabs>
 
+The `process_experiment` function is in the notebook. Copy it from there.
+
 ## Load Unoptimized Prompt
 
-Let's load our unoptimized prompt from Phoenix so that we can funnel it through Prompt Learning.
+Load the current prompt from Phoenix. Set `PROMPT_VERSION_ID` to the ID of Version 4.
 
 <Tabs>
   <Tab title="Python" icon="python">
@@ -109,7 +101,7 @@ Let's load our unoptimized prompt from Phoenix so that we can funnel it through 
 
 ## Optimize Prompt (Version 5)
 
-Now, let's optimize our prompt and push the optimized version back to Phoenix. 
+Run the optimizer. Then save the optimized prompt to Phoenix as a new version.
 
 <Tabs>
   <Tab title="Python" icon="python">
@@ -167,9 +159,9 @@ Now, let's optimize our prompt and push the optimized version back to Phoenix.
 
 ## Measure New Prompt Version's Performance
 
-Now that we've used Prompt Learning to build a new, optimized Prompt Version, let's see how it actually performs!
+Run an experiment on the support query dataset with the optimized prompt.
 
-Let's run another Phoenix experiment on the support query dataset with our new prompt. 
+This code uses `support_query_dataset` and the evaluators from [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale). It uses `create_task` from [Compare Prompt Versions](/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions).
 
 <Tabs>
   <Tab title="Python" icon="python">
@@ -193,27 +185,24 @@ Let's run another Phoenix experiment on the support query dataset with our new p
   ![Optimized prompt experiment results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/Screenshot%202025-12-07%20at%2011.25.58%E2%80%AFPM.png)
 </Frame>
 
-**Awesome! Our accuracy jumps to 82%!**
+**The accuracy of the optimized prompt is 82%.**
 
 ## Summary
 
-**Congratulations! You’ve completed the Phoenix Prompts walkthrough!**\
-Across these modules, we’ve gone from identifying weak prompts to automatically optimizing them using real evaluation data.
+**You completed the Phoenix Prompts tutorial.**\
+You started with one wrong classification. Now you have an optimized prompt with 82% accuracy, up from 53%.
 
-You’ve learned how to:
+You did these tasks:
 
-- **Identify and edit prompts** directly from traces to correct misclassifications.
-- **Test prompts at scale** across datasets to measure accuracy and uncover systematic failure patterns.
-- **Compare prompt versions** side by side to see which edits, parameters, or models lead to measurable gains.
-- **Automate prompt optimization** with **Prompt Learning**, using English feedback from evaluations to train stronger prompts without manual rewriting.
-- **Improve accuracy by 30%!**
-- **Track every iteration** in Phoenix, from dataset creation and experiment runs to versioned prompts -creating a full feedback loop between your data, your LLM, and your application.
-
-By the end, you’ve built a complete system for **continuous prompt improvement** - turning one-off fixes into a repeatable, data-driven optimization workflow.
+- **Identified and edited a prompt** from a trace to fix a wrong classification.
+- **Tested the prompt on a dataset** to measure accuracy and find the most frequent errors.
+- **Compared prompt versions** to measure the effect of a new instruction, new parameters, and a new model.
+- **Optimized the prompt automatically** with **Prompt Learning**, from the feedback of your evaluations.
+- **Tracked each version** of the prompt and each experiment in Phoenix.
 
 ## Next Steps
 
-If you're interested in more tutorials on Prompts, check out:
+For more prompt tutorials, see:
 
 - [Few-Shot Prompting Tutorial](https://arize.com/docs/phoenix/cookbook/prompt-engineering/few-shot-prompting)
 - [Chain of Thought Prompting Tutorial](https://arize.com/docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting)

@@ -1,17 +1,18 @@
 ---
 title: "Prompts Concepts"
+description: What a Phoenix prompt contains, and how templates, versions, tags, formats, tools, and response formats fit together.
 ---
 
 ## Prompt
 
-Prompts often times refer to the content of how you "prompt" a LLM, e.g. the "text" that you send to a model like OpenAI's gpt-4. Within Phoenix we expand this definition to be everything that's needed to prompt:
+In general use, a prompt is the content you send to an LLM, such as the text you send to OpenAI's gpt-4. Phoenix expands this definition. In Phoenix, a **prompt** is everything that you need to invoke an LLM:
 
 * The **prompt template** of the messages to send to a completion endpoint
 * The **invocation parameters** (temperature, frequency penalty, etc.)
-* The **tools** made accessible to the LLM (e.x. weather API)
-* The **response** **format** (sometimes called the output schema) used for when you have JSON mode enabled.
+* The **tools** that the LLM can use (for example, a weather API)
+* The **response format** (also called the output schema) that you use when JSON mode is on
 
-This expanded definition of a **prompt** lets you more deterministically invoke LLMs with confidence as everything is snapshotted for you to use within your application.
+Phoenix saves a snapshot of all of these parts together. Because of this, your application invokes the LLM with the same configuration each time, and the result is more deterministic.
 
 <Frame caption="A phoenix prompt captures everything needed to invoke an LLM">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix_prompt.png" alt="" />
@@ -19,11 +20,11 @@ This expanded definition of a **prompt** lets you more deterministically invoke 
 
 ## Prompt Templates
 
-Although the terms prompt and prompt template get used interchangeably, it's important to know the difference.
+People often use the terms "prompt" and "prompt template" as if they mean the same thing. They are different.
 
-Prompts refer to the message(s) that are passed into the language model.
+A **prompt** is the message or messages that go to the language model.
 
-Prompt Templates refer a way of formatting information to get the prompt to hold the information you want (such as context and examples) Prompt templates can include placeholders (variables) for things such as examples (e.x. few-shot), outside context (RAG), or any other external data that is needed.
+A **prompt template** is a format that puts the information you want (such as context and examples) into the prompt. A prompt template can contain placeholders (variables). At runtime, the variables are filled with data such as few-shot examples, outside context (RAG), or other external data.
 
 <Frame caption="Prompt templates have placeholders for variables that are dynamically filled at runtime">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt="" />
@@ -31,9 +32,14 @@ Prompt Templates refer a way of formatting information to get the prompt to hold
 
 ## Prompt Version
 
-Every time you save a prompt within Phoenix, a snapshot of the prompt is saved as a **prompt version**. Phoenix does this so that you not only can view the changes to a prompt over time but also so that you can build confidence about a specific **prompt version** before using it within your application. With every **prompt version** phoenix tracks the author of the prompt and the date at which the version was saved.
+Each time you save a prompt in Phoenix, Phoenix saves a snapshot of it as a **prompt version**. Versions have two purposes:
 
-Similar to the way in which you can track changes to your code via git shas, Phoenix tracks each change to your **prompt** with a `prompt_id`.
+* You can see how a prompt changed over time.
+* You can test a specific prompt version and become confident in it before your application uses it.
+
+For each prompt version, Phoenix records the author and the date when the version was saved.
+
+Git tracks changes to code with commit SHAs. In the same way, Phoenix tracks each change to a **prompt** with a `prompt_id`.
 
 <Frame caption="Prompt version tags">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt="" />
@@ -41,53 +47,51 @@ Similar to the way in which you can track changes to your code via git shas, Pho
 
 ## Prompt Version Tag
 
-Imagine you’re working on a AI project, and you want to **label** specific versions of your prompts so you can control when and where they get deployed. This is where prompt version **tags** come in.
+A prompt version **tag** is a label on a specific prompt version. Tags let you control when and where a prompt version is deployed. A tag marks a version as important, and the tagged version does not change. Because of this, you can refer to it later with confidence.
 
-A prompt version tag is like a **sticky note** you put on a specific version of your prompt to mark it as important. Once tagged, that version won’t change, making it easy to reference later.
+Applications often move through different environments before they go live, for example:
 
-When building applications, different environments are often used for different stages of readiness before going live, for example:
+1. **Development**: where you build new features.
+2. **Staging**: where you test.
+3. **Production**: the live system that users interact with.
 
-1. **Development** – Where new features are built.
-2. **Staging** – Where testing happens.
-3. **Production** – The live system that users interact with.
+If you tag prompt versions with environment tags, you can build, test, and deploy prompts in the same way as the rest of the application. Each prompt change then goes through the same systematic testing and deployment.
 
-Tagging prompt versions with environment tags can enable building, testing, and deploying prompts in the same way as an application—ensuring that prompt changes can be systematically tested and deployed.
+You can also use **custom tags**, as teams do with custom Git tags on code (for example, `v0.0.1`). Custom tags can show a deployment stage, feature readiness, or any other status that fits your workflow.
 
-In addition to environment tags, **custom Git tags** allow teams to label code versions in a way that fits their specific workflow (\``` v0.0.1` ``). These tags can be used to signal different stages of deployment, feature readiness, or any other meaningful status.
-
-Prompt version tags work exactly the same way as [git tags](https://git-scm.com/book/en/v2/Git-Basics-Tagging).
+Prompt version tags work in the same way as [git tags](https://git-scm.com/book/en/v2/Git-Basics-Tagging). To create and use tags, see [Tag a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt).
 
 ## Prompt Format
 
-Prompts can be formatted to include any attributes from spans or datasets. These attributes can be added as **F-Strings** or using **Mustache** formatting.
+A prompt template can include any attribute from spans or datasets. You add attributes as variables in one of two formats: **F-String** or **Mustache**.
 
-F-strings should be formatted with single `{`s:
+F-String variables use single `{`s:
 
 ```python
 {question}
 ```
 
 <Info>
-  To escape a `{` when using F-string, add a second `{` in front of it, e.g., \{\{escaped\}\} \{not-escaped\}. Escaping variables will remove them from inputs in the Playground.
+  To escape a `{` in F-String format, add a second `{` in front of it, e.g., \{\{escaped\}\} \{not-escaped\}. Escaped variables are removed from the inputs in the Playground.
 </Info>
 
-Mustache should be formatted with double `{{`s:
+Mustache variables use double `{{`s:
 
 ```python
 {{question}}
 ```
 
 <Info>
-  We recommend using Mustache where possible, since it supports nested attributes, e.g. `attributes.input.value`, more seamlessly
+  We recommend Mustache where possible, because it has better support for nested attributes, e.g. `attributes.input.value`.
 </Info>
 
-Phoenix supports the full Mustache template syntax, including sections and inverted sections, so you can express richer prompt templates when needed.
+Phoenix supports the full Mustache template syntax, including sections and inverted sections. Because of this, you can write more complex prompt templates when necessary.
 
 ## Tools
 
-Tools allow LLMs to interact with the external environment. This can allow LLMs to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
+Tools let an LLM interact with the external environment. With tools, the LLM can interface with your application in more controlled ways. When an LLM gets a prompt and a set of tools, it can use one tool, many tools, or no tools. Many LLM APIs also have a tool choice parameter. This parameter controls how the LLM selects tools and which tools it can select.
 
-Here is an example of what a tool would looke like for the weather API using OpenAI.
+This is an example of a tool for a weather API, in OpenAI format:
 
 ```json
 {
@@ -109,18 +113,18 @@ Here is an example of what a tool would looke like for the weather API using Ope
 }
 ```
 
-Phoenix also supports **provider tools** — vendor-specific built-in tools like Anthropic web search, OpenAI Responses `file_search` and `code_interpreter`, Gemini `google_search` grounding, and Amazon Nova `nova_grounding`. These are passed through to the provider as opaque JSON. See [Use provider tools](/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools) for the JSON shape per provider.
+Phoenix also supports **provider tools**. These are built-in tools that are specific to one vendor, such as Anthropic web search, OpenAI Responses `file_search` and `code_interpreter`, Gemini `google_search` grounding, and Amazon Nova `nova_grounding`. Phoenix sends provider tools to the provider as opaque JSON. For the JSON shape for each provider, see [Use provider tools](/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools).
 
 ## Response Format
 
-Some LLMs support structured responses, known as **response format** or **output schema**, allowing you to specify an exact schema for the model’s output.
+Some LLMs support structured responses. This feature is called **response format** or **output schema**. It lets you specify an exact schema for the output of the model.
 
-**Structured Outputs** ensure the model consistently generates responses that adhere to a defined **JSON Schema**, preventing issues like missing keys or invalid values.
+With **Structured Outputs**, the model always generates responses that match a defined **JSON Schema**. This prevents problems such as missing keys or values that are not valid.
 
 ### **Benefits of Structured Outputs:**
 
-* **Reliable type-safety:** Eliminates the need to validate or retry incorrectly formatted responses.
-* **Explicit refusals:** Enables programmatic detection of safety-based refusals.
-* **Simpler prompting:** Reduces reliance on strongly worded prompts for consistent formatting.
+* **Reliable type-safety:** You do not have to validate responses or retry responses that have an incorrect format.
+* **Explicit refusals:** Your code can detect refusals that the model makes for safety reasons.
+* **Simpler prompting:** You do not need strongly worded prompts to get a consistent format.
 
-For more details, check out this [OpenAI guide.](https://platform.openai.com/docs/guides/structured-outputs)
+For more details, see this [OpenAI guide.](https://platform.openai.com/docs/guides/structured-outputs)

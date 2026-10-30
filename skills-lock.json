@@ -29,8 +29,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "9167e4668a5f98a5d4f5bf821dc33d7bdb5c4b0dffd7ac2338b8be9b65204044",
-      "wellKnownDigest": "sha256:cf52f2852b90beef89e1c34f0f073c08480904c8d2dd59d014082897545e5edc"
+      "computedHash": "c375490e7203ad826c9e13e191161d3bf4e9a01909e9988f4f848fe2d14cd8cb",
+      "wellKnownDigest": "sha256:1aa7da4378b2a4e9a3838b96f7b6590064f2a44958a1bf63dbf2d1cba88112c4"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",

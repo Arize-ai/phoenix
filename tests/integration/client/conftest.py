@@ -10,6 +10,7 @@ from .._helpers import (
     _ExistingProject,
     _ExistingSpan,
     _insert_spans,
+    _is_memory_sqlite,
     _server,
 )
 
@@ -20,14 +21,21 @@ def _env(
     _env_database: Mapping[str, str],
     _env_auth: Mapping[str, str],
     _env_smtp: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> dict[str, str]:
     """Combine all environment variable configurations for testing."""
-    return {
+    env = {
         **_env_ports,
         **_env_database,
         **_env_auth,
         **_env_smtp,
     }
+    # A file-backed database lets tests read the subprocess server's deployment seed.
+    database_url = env.get("PHOENIX_SQL_DATABASE_URL", "")
+    if _is_memory_sqlite(database_url):
+        database = tmp_path_factory.mktemp("client-app") / "phoenix.db"
+        env["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
+    return env
 
 
 @pytest.fixture(scope="package")

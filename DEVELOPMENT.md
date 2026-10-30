@@ -135,18 +135,16 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more.
-
-`tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
+Phoenix uses `uv` to manage the development environment and run linters, formatters, type-checks, and tests. `uv.lock` pins every dependency, so a fresh `uv sync` reproduces the environment CI tests against.
 
 ```bash
-tox list
+uv sync --all-packages
 ```
 
-Commands corresponding to an environment can be executed by running `tox run -e <env-name>`. For example, you can execute unit tests by running
+Unit tests run with `pytest` from the `tests` directory:
 
 ```bash
-tox run -e unit_tests
+cd tests && uv run pytest unit/
 ```
 
 By default, database tests run against `sqlite`. To run them against `postgresql` instead,
@@ -154,13 +152,13 @@ pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or
 `--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests -- --db postgresql
+cd tests && uv run pytest unit/ --db postgresql
 ```
 
 To run unit tests faster using parallel execution:
 
 ```bash
-tox r -e unit_tests -- -n auto
+cd tests && uv run pytest unit/ -n auto
 ```
 
 To run type checking:
@@ -169,7 +167,7 @@ To run type checking:
 make typecheck-python
 ```
 
-Check the output of `tox list` to find commands for linters, formatters, and other tools.
+Run `make help` to find commands for linters, formatters, and other tools.
 
 ## Installing Pre-Commit Hooks
 
@@ -191,8 +189,8 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 To add or modify a Jupyter notebook, the following commands are needed to pass CI.
 
-- `tox run -e ruff`: Runs formatters
-- `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+- `make format-python`: Runs formatters
+- `make clean-notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Contributing Documentation
 
@@ -344,7 +342,7 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.oxlint": "always"
     }
   },
-  "mypy-type-checker.ignorePatterns": [".tox,.venv,js/app"],
+  "mypy-type-checker.ignorePatterns": [".venv,js/app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "oxc.fmt.configPath": ".oxfmtrc.jsonc",

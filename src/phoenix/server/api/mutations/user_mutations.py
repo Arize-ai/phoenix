@@ -31,6 +31,7 @@ from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewe
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User
@@ -42,9 +43,9 @@ logger = logging.getLogger(__name__)
 
 @strawberry.input
 class CreateUserInput:
-    email: str
-    username: str
-    password: Optional[str] = UNSET
+    email: Redacted[str]
+    username: Redacted[str]
+    password: Redacted[Optional[str]] = UNSET
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
     auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
@@ -64,9 +65,9 @@ class CreateUserInput:
 
 @strawberry.input
 class PatchViewerInput:
-    new_username: Optional[str] = UNSET
-    new_password: Optional[str] = UNSET
-    current_password: Optional[str] = UNSET
+    new_username: Redacted[Optional[str]] = UNSET
+    new_password: Redacted[Optional[str]] = UNSET
+    current_password: Redacted[Optional[str]] = UNSET
 
     def __post_init__(self) -> None:
         if not self.new_username and not self.new_password:
@@ -86,8 +87,8 @@ class PatchViewerInput:
 class PatchUserInput:
     user_id: GlobalID
     new_role: Optional[UserRoleInput] = UNSET
-    new_username: Optional[str] = UNSET
-    new_password: Optional[str] = UNSET
+    new_username: Redacted[Optional[str]] = UNSET
+    new_password: Redacted[Optional[str]] = UNSET
 
     def __post_init__(self) -> None:
         if not self.new_role and not self.new_username and not self.new_password:
@@ -166,8 +167,7 @@ class UserMutationMixin:
             try:
                 await info.context.email_sender.send_welcome_email(user.email, user.username)
             except Exception as error:
-                # Log the error but do not raise it
-                logger.error(f"Failed to send welcome email: {error}")
+                logger.error("Failed to send welcome email (%s)", type(error).__name__)
         return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore

@@ -29,7 +29,7 @@ import * as ClaudeAgentSDKModule from "@anthropic-ai/claude-agent-sdk";
 
 // Initialize Phoenix tracing
 export const tracerProvider = register({
-  projectName: "claude-agent-sdk-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "claude-agent-sdk-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
