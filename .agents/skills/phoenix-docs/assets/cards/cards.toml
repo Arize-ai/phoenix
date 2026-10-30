@@ -861,11 +861,36 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/59e9b766-image.jpeg",
 ]
 
+# Sandbox logo URLs are shared by integration and settings pages.
+# Link these banners explicitly so each page keeps its own banner path.
+[banners.integrations-sandboxes-daytona]
+title = "Daytona"
+logo = "daytona"
+
+[banners.integrations-sandboxes-e2b]
+title = "E2B"
+logo = "e2b"
+
+[banners.integrations-sandboxes-modal]
+title = "Modal"
+logo = "modal"
+
+[banners.integrations-sandboxes-vercel]
+title = "Vercel Sandbox"
+logo = "vercel"
+
 [banners.integrations-typescript-mcp]
 title = "MCP"
 logo = "mcp"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/mcp-logo.png",
+]
+
+[banners.pxi]
+title = "PXI"
+motif = "agent"
+replaces = [
+  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/phoenix_intelligence.png",
 ]
 
 [banners.settings-sandboxes]
@@ -874,3 +899,28 @@ marks = ["daytona", "deno", "e2b", "modal", "vercel", "wasm"]
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png",
 ]
+
+[banners.settings-sandboxes-daytona]
+title = "Daytona"
+logo = "daytona"
+
+[banners.settings-sandboxes-deno]
+title = "Deno"
+logo = "deno"
+
+[banners.settings-sandboxes-e2b]
+title = "E2B"
+logo = "e2b"
+
+[banners.settings-sandboxes-modal]
+title = "Modal"
+logo = "modal"
+
+[banners.settings-sandboxes-vercel]
+title = "Vercel Sandbox"
+logo = "vercel"
+
+[banners.settings-sandboxes-wasm]
+# The full name exceeds the fixed banner title width.
+title = "Wasm"
+logo = "wasm"
