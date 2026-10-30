@@ -52,6 +52,8 @@
 
 - [Decide whether a change is ready](https://arize.com/docs/phoenix/learn/ship-decision): Review experiment evidence and coverage gaps, then record a release decision and next action.
 
+- [Add critical checks to CI](https://arize.com/docs/phoenix/learn/ci-checks): Record pytest evaluation tests in Phoenix and choose assertions for code and model requirements.
+
 - [Evaluate new runs and update tests](https://arize.com/docs/phoenix/learn/production-evals): Manually evaluate captured runs, review judgments, and add useful cases to the test set.
 
 ## Tracing
