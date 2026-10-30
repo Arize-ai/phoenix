@@ -32,10 +32,6 @@ import pystache
 from pydantic import BaseModel
 from pystache.parser import (  # type: ignore[import-untyped]
     ParsingError,
-    _EscapeNode,
-    _InvertedNode,
-    _LiteralNode,
-    _SectionNode,
 )
 from typing_extensions import assert_never
 
@@ -49,6 +45,7 @@ from phoenix.db.types.decisions import (
     TextState,
 )
 from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
 
 RenderedState = Union[str, dict[str, Any], list[Any]]
 _Model = TypeVar("_Model", bound=BaseModel)
@@ -164,36 +161,41 @@ def _string_leaves(value: Any) -> Iterator[str]:
 def _template_variables(
     template_format: PromptTemplateFormat, template: str, location: str
 ) -> list[str]:
-    """Root variable names in one template, in order of appearance."""
-    if template_format is PromptTemplateFormat.NONE:
-        return []
-    names: list[str] = []
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        try:
-            parsed = pystache.parse(template, raise_on_mismatch=True)
-        except ParsingError as error:
-            raise ValueError(f"Invalid template in {location}: {error}") from error
-        for node in parsed._parse_tree:
-            if not isinstance(node, (_SectionNode, _InvertedNode, _EscapeNode, _LiteralNode)):
-                continue
-            key = getattr(node, "key", None)
-            if isinstance(key, str) and key and key != ".":
-                names.append(key.split(".")[0])
-        return names
-    if template_format is PromptTemplateFormat.F_STRING:
-        try:
-            fields = [field for _, field, _, _ in Formatter().parse(template) if field]
-        except ValueError as error:
-            raise ValueError(f"Invalid template in {location}: {error}") from error
-        for field in fields:
-            match = re.match(r"^[^.\[]+", field)
-            names.append(match.group(0) if match else field)
-        return names
-    assert_never(template_format)
+    """Root variable names in one template, as prompts read them, in order of appearance."""
+    try:
+        names = get_template_formatter(template_format).parse_with_types(template).names()
+    except (TemplateFormatterError, ValueError) as error:
+        # The F-String formatter reports a malformed template as a ValueError.
+        raise ValueError(f"Invalid template in {location}: {error}") from error
+    # The formatter's names are a set; a name's first tag gives the order.
+    return sorted(names, key=lambda name: _first_tag_position(template_format, template, name))
+
+
+def _first_tag_position(template_format: PromptTemplateFormat, template: str, name: str) -> int:
+    opening = r"\{\{\s*[#^&{]?\s*" if template_format is PromptTemplateFormat.MUSTACHE else r"\{"
+    match = re.search(opening + re.escape(name) + r"(?![\w])", template)
+    return match.start() if match else len(template)
 
 
 _MUSTACHE_WHOLE_TAG = re.compile(r"\{\{\s*([^\s{}#^/!>&=.][^\s{}]*)\s*\}\}")
 _F_STRING_WHOLE_TAG = re.compile(r"\{([^{}!:]+)\}")
+
+
+def whole_tag_path(template_format: PromptTemplateFormat, text: str) -> Optional[str]:
+    """The path a string names when it is exactly one variable tag, or None.
+
+    The playground applies the same rule (``getWholeTagPath`` in
+    ``js/app/src/components/decision/decisionTemplates.ts``); the ``whole_tags`` cases in
+    ``tests/unit/server/decisions/rendering_cases.json`` pin both.
+    """
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        pattern = _MUSTACHE_WHOLE_TAG
+    elif template_format is PromptTemplateFormat.F_STRING:
+        pattern = _F_STRING_WHOLE_TAG
+    else:
+        return None
+    match = pattern.fullmatch(text)
+    return match.group(1) if match else None
 
 
 def _render_json(template_format: PromptTemplateFormat, value: Any, values: dict[str, Any]) -> Any:
@@ -204,13 +206,8 @@ def _render_json(template_format: PromptTemplateFormat, value: Any, values: dict
     if isinstance(value, list):
         return [_render_json(template_format, item, values) for item in value]
     if isinstance(value, str):
-        pattern = (
-            _MUSTACHE_WHOLE_TAG
-            if template_format is PromptTemplateFormat.MUSTACHE
-            else _F_STRING_WHOLE_TAG
-        )
-        if match := pattern.fullmatch(value):
-            return _resolve(template_format, match.group(1), values)
+        if (path := whole_tag_path(template_format, value)) is not None:
+            return _resolve(template_format, path, values)
         return _render_text(template_format, value, values, "the state")
     return value
 

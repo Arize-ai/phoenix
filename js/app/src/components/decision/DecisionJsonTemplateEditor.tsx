@@ -5,6 +5,8 @@ import {
   JSONEditor,
   pierreTemplateVariableColor,
 } from "@phoenix/components/code";
+import { createTemplateAutocomplete } from "@phoenix/components/templateEditor/autocomplete";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useTheme } from "@phoenix/contexts";
 
@@ -19,6 +21,8 @@ type DecisionJsonTemplateEditorProps = Pick<
   templateFormat: TemplateFormat;
   onChange?: (value: string) => void;
   readOnly?: boolean;
+  /** Dataset paths a variable tag can autocomplete, as in the template editor. */
+  availablePaths?: string[];
   "aria-label"?: string;
 };
 
@@ -35,6 +39,7 @@ export function DecisionJsonTemplateEditor({
   templateFormat,
   onChange,
   readOnly = false,
+  availablePaths,
   "aria-label": ariaLabel = "JSON state template",
   ...props
 }: DecisionJsonTemplateEditorProps) {
@@ -46,10 +51,17 @@ export function DecisionJsonTemplateEditor({
     onChangeRef.current = onChange;
   });
   const { theme } = useTheme();
-  const extensions = decisionJsonTemplateExtensions({
-    templateFormat,
-    variableColor: pierreTemplateVariableColor[theme],
-  });
+  const extensions = [
+    ...decisionJsonTemplateExtensions({
+      templateFormat,
+      variableColor: pierreTemplateVariableColor[theme],
+    }),
+    ...(!readOnly &&
+    templateFormat !== TemplateFormats.NONE &&
+    (availablePaths?.length ?? 0) > 0
+      ? [createTemplateAutocomplete(availablePaths ?? [], templateFormat)]
+      : []),
+  ];
   return (
     <JSONEditor
       {...props}

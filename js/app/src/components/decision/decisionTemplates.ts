@@ -39,9 +39,12 @@ const F_STRING_WHOLE_TAG = /^\{([^{}!:]+)\}$/;
 /**
  * The path a string names when it is exactly one variable tag, such as
  * `{{ customer.tier }}` or `{items[0]}`; null for any other string. In a
- * JSON template such a string becomes the value itself, JSON type kept.
+ * JSON template such a string becomes the value itself, JSON type kept. The
+ * server applies the same rule (`whole_tag_path` in
+ * `src/phoenix/server/decisions/rendering.py`); the `whole_tags` cases in
+ * `tests/unit/server/decisions/rendering_cases.json` pin both.
  */
-function getWholeTagPath({
+export function getWholeTagPath({
   templateFormat,
   text,
 }: {

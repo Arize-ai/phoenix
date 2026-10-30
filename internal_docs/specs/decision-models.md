@@ -5,8 +5,8 @@
 Decision models such as TypeSafe System One and OpenAI Decisions take an input
 and a set of named questions, and return one typed answer per question: a
 probability for a predicate, a chosen option for a choice, an expected level for a
-scale. A decision is a typed function. Its inputs are named, and its questions
-are its output schema.
+scale. A decision is a typed function. Its variables are the holes in its state
+and question templates, as a prompt's are, and its questions are its output schema.
 
 Phoenix stores and versions decisions. Apps fetch a tagged version and call the
 provider themselves. Phoenix also runs decisions in the playground and as
@@ -31,12 +31,12 @@ and a proposed behavior does not mean it has been implemented or verified.
 ## 2. A Decision, End to End
 
 The running example is a `triage` decision over a support ticket. Its version
-declares one input, sends it as the state, and asks three questions:
+sends one variable, `ticket`, as the whole state, and asks three questions:
 
 ```jsonc
 {
-  "inputs": [{ "name": "ticket" }],
-  "state": { "type": "input", "name": "ticket" },  // the ticket, unchanged
+  "template_format": "MUSTACHE",
+  "state": { "type": "json", "template": "{{ticket}}" },  // the ticket, unchanged
   "questions": [
     { "name": "urgent", "type": "predicate",
       "instructions": "Does the customer need an answer today?" },
@@ -685,8 +685,9 @@ decision judges; see the current default above.
 - A shared abstraction with LLM structured outputs. It is a different contract,
   and merging the two would weaken both.
 - Compatibility shims with the prompt family.
-- Templated questions. Question instructions and criteria are static. A
-  reference answer is an input, not part of a question's criteria.
+- Templated question identities. Question prose (instructions, criteria,
+  descriptions) is templated, but question names, choice values and level
+  labels are fixed, since answers and annotations are keyed on them.
 - Built-in scoring of decision answers inside the task. Evaluators score runs,
   as they do for prompts.
 
@@ -720,10 +721,9 @@ that don't apply here.
    [Answer Format](#51-answer-format) and
    [Stored Question Format](#52-stored-question-format).
 2. **New types are additive, and old clients fail clearly.** Questions and
-   state variants are JSON discriminated by `type`; inputs are named declarations.
-   Writes are validated strictly. Apps can pin an old `phoenix-client`, so a
-   client that meets a question, input,
-   or state type it doesn't know raises a clear "upgrade phoenix-client"
+   state variants are JSON discriminated by `type`; variables are derived from
+   the templates. Writes are validated strictly. Apps can pin an old
+   `phoenix-client`, so a client that meets a question or state type it doesn't know raises a clear "upgrade phoenix-client"
    error. It never drops the question or sends a partial request. A server that
    meets an unknown type (only after a downgrade) fails the read and never
    rewrites the row. Stored models also reject unknown fields today. Adding a
@@ -757,9 +757,9 @@ decisions
 
 decision_versions                      -- immutable
   id, decision_id → decisions
-  inputs           JSON                -- the signature: [{name, description?, json_schema?}]
-  state            JSON                -- {type: "object"} | {type: "text", template, template_format}
-                                       --   | {type: "input", name}; later {type: "messages"}
+  template_format  MUSTACHE | F_STRING | NONE  -- covers the state and the question prose
+  state            JSON                -- {type: "text", template: str} | {type: "json", template: any JSON};
+                                       --   later {type: "messages"}. JSON, not JSONB, so key order is kept
   questions        JSON                -- ordered list, discriminated by type
   model_provider, model_name (free text)
   custom_provider_id → generative_model_custom_providers  -- see Models
@@ -781,50 +781,53 @@ experiment_decision_tasks              -- ExperimentJob subtype, type = 'DECISIO
   -- the dataset paths, and an optional decision_version_id
 ```
 
-The stored types for inputs, state, and questions are in `db/types/decisions.py`.
+The stored types for the state and questions are in `db/types/decisions.py`.
 The tag on `decision_version_tags` uses a composite foreign key so a tag can
 never point at another decision's version. `PromptVersionTag` doesn't do this
 today; it's cheap to add here. Labels group decisions in the library, and a
 clone records its source decision, so the UI can link back to it.
 
-### 10.1 Inputs and State
+### 10.1 State Templates and Variables
 
-A version declares its inputs by name: `[{name, description?, json_schema?}]`.
-Apps pass them by name, and experiments fill them from each dataset example
-(`inputValuesPath`, see [Experiments](#13-experiments)). A call
-must pass exactly the declared inputs; a missing or undeclared one fails before
-anything reaches the provider. Any JSON value is allowed. `json_schema` only
-describes the value for the playground form and is not enforced on a call.
-There must be at least one input, with nonblank, unique names. An `input` state's
-name must be declared. Input values may be any JSON, but the constructed state
-must be text, an object, or an array: passing a number, boolean, or null directly
-as the whole state is rejected. Rendering those values into text is allowed.
-Empty or whitespace-only text state is rejected.
-
-The state sent to the model is built from those inputs:
+A saved decision is the request it sends, with holes in it, as a saved prompt is.
+There is no declared input list: a version's variables are the root names of the
+variable tags in its state template and in the prose fields of its questions
+(instructions, predicate criteria, choice and level descriptions), in
+first-appearance order, read with the same formatters prompts use. A dotted path
+such as `{{customer.tier}}` names `customer`. Question names, choice values and
+level labels are identifiers the answers are keyed on and are never templated.
+`NONE` has no variables. GraphQL exposes the derived `variables`, and evaluator
+input schemas are built from them.
 
 | State | Meaning | Ships in |
 |---|---|---|
-| `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | [Build step 1](#18-build-order), Runs |
-| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters (rules below). | [Build step 1](#18-build-order), Runs |
-| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | [Build step 1](#18-build-order), Runs |
+| `text` | A string template, rendered with the version's template format. | [Build step 1](#18-build-order), Runs |
+| `json` | Any JSON value whose string leaves are templates. Object keys are literal. | [Build step 1](#18-build-order), Runs |
 | `messages` | A message list, for OpenAI's message-style `input` and for images. | [Build step 5](#18-build-order), with assets and `box` |
 
-A `text` template may only reference declared inputs, checked on write. An
-object, array, boolean, or null renders as JSON when named on its own, nested
-values included; dotted paths (both formats) and Mustache sections still read
-into it. In Mustache, a present input or nested field whose value is `None`
-interpolates as `"null"` while remaining falsy in `{{#name}}` / `{{^name}}`
-sections; a missing key or dotted path resolves to `""` in Mustache (whereas
-F-string raises). Names inside a Mustache section aren't checked on write, since
-they may be the input's own fields.
+Rendering (`render_decision` in `server/decisions/rendering.py`):
 
-The current design has no reusable JSON skeleton with input references:
-reshaping data happens in the app or the dataset. This avoids substituting text
-into JSON source and then reparsing it. Whether Phoenix should instead support
-typed value references inside a structured state is an open authoring question
-in §16. That would be a new construction capability, not Mustache or F-string
-substitution into JSON text.
+1. A variable of the decision missing from the call is an error naming it; extra
+   variables are ignored, as for prompts and dataset examples with more keys.
+2. A text template renders with the template format. A structured value renders
+   as JSON, and Mustache dotted paths and sections read into it. In Mustache, a
+   value that is `None` interpolates as `"null"` while staying falsy in sections;
+   a missing dotted field resolves to `""` (F-string raises).
+3. In a JSON template, a string leaf that is exactly one variable tag
+   (`"{{ path }}"` or `"{path}"`) becomes the value it names with its JSON type
+   kept, and a path that reads a missing field is an error. Any other string leaf
+   renders by rule 2. A JSON state that is one whole tag, `"{{state}}"`, passes a
+   caller's whole state as one value; the playground shows it as a bare
+   `{{state}}`.
+4. `NONE` substitutes nothing.
+5. The state must come out as non-empty text, an object, or an array.
+6. Each templated question field renders by rule 2; instructions cannot render
+   empty.
+
+The cases in `tests/unit/server/decisions/rendering_cases.json` pin these rules,
+and their `whole_tags` cases also pin the playground's whole-tag check. On write,
+a text template must be non-empty and parse, and a JSON template must not be a
+literal number, boolean, null or empty string.
 
 ### 10.2 Questions
 
@@ -1000,17 +1003,19 @@ REST mirrors the prompt routes:
 - `POST /v1/decisions` (create a decision with its first version, or add a
   version)
 
-Each response carries `inputs`, `state`, `questions`, and the model.
+Each response carries `template_format`, `state`, `questions`, the derived
+`variables`, and the model.
 
 `phoenix-client` (Python and TypeScript) adds:
 
 ```python
 decision = client.decisions.get(decision_identifier="triage", tag="production")
-kwargs = decision.format(inputs={"ticket": ticket}, sdk="typesafe")
+kwargs = decision.format(variables={"ticket": ticket}, sdk="typesafe")
 result = await typesafe.system_one(**kwargs)  # or openai.decisions.create(**kwargs)
 ```
 
-`format` validates the inputs against the declared signature, builds the state,
+`format` renders the state and question templates with the variables (by the
+rules in [State Templates and Variables](#101-state-templates-and-variables)),
 and translates the questions for the chosen SDK. It's the same translation the
 server adapters do, held to the same fixtures.
 
@@ -1024,20 +1029,20 @@ it is an [open question](#16-open-questions).
 
 ## 12. Execution in Phoenix
 
-Running and saving share typed input declarations, state construction, and
-questions, but take different API inputs. `DecisionVersionInput` stores the
-definition and model/provider selection. `RunDecisionInput` adds a connection
-and this call's `inputValues`; `RunDecisionVersionInput` takes a saved version ID,
-input values, and optional credentials and `baseUrl`.
+Running and saving share the template format, state template, and questions,
+but take different API inputs. `DecisionVersionInput` stores the definition and
+model/provider selection. `RunDecisionInput` adds a connection and this call's
+`variables`; `RunDecisionVersionInput` takes a saved version ID, variables, and
+optional credentials and `baseUrl`.
 
 Both run mutations use the existing mutation permission checks. Problems found
-while validating the definition, inputs, or connection produce GraphQL errors.
+while validating the definition, variables, or connection produce GraphQL errors.
 Provider failures handled by the decision client return `result: null` and a
 payload `error`, with a recorded span when available. The distinction matters
 for a playground that needs to keep a failed run visible alongside its trace.
 
-1. Take a decision version (saved, or an unsaved draft) and its inputs.
-2. Validate the inputs and build the state.
+1. Take a decision version (saved, or an unsaved draft) and this call's variables.
+2. Render the state and question templates.
 3. **Adapter:** translate and call the provider SDK, rejecting unsupported
    question types.
 4. **Adapter:** validate with the SDK's response models, then check each answer
@@ -1060,22 +1065,22 @@ The decision task mirrors `ExperimentPromptTask` field for field:
 
 | Prompt task | Decision task |
 |---|---|
-| A copy of the prompt version (template, tools, response format, parameters) | A copy of the decision version: `inputs`, `state`, `questions` |
+| A copy of the prompt version (template, tools, response format, parameters) | A copy of the decision version: `template_format`, `state`, `questions` |
 | `prompt_version_id`, optional, `ON DELETE SET NULL` | `decision_version_id`, also optional with `ON DELETE SET NULL` (`decisionVersionId` on the input). Recorded for provenance only: the task runs its copy, not the version |
 | Model and connection, or a custom provider | Model and `connection`, or a custom provider |
-| `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `inputValuesPath` (default `input`): input `ticket` reads `input.ticket` |
+| `templateVariablesPath` (default `input`): `{{query}}` reads `input.query` | `templateVariablesPath` (default `input`): `{{ticket}}` reads `input.ticket` |
 | `appendedMessagesPath`: messages from the example, appended | No equivalent: every example uses the task's fixed questions |
 | `evaluators`: dataset evaluators judge each run | `evaluators`: the same |
 
-Only the declared inputs are read from the object at `inputValuesPath`, so an
-example may carry other fields (a benchmark's questions, say) beside them. There
-is no per-input mapping: input names must match the example's field names, as a
-prompt's template variables must.
+Only the decision's variables are read from the object at
+`templateVariablesPath`, with their JSON types kept, so an example may carry other
+fields (a benchmark's questions, say) beside them. There is no per-variable
+mapping: variable names must match the example's field names, as a prompt's
+template variables must.
 
-Omitting `inputValuesPath` uses `input`. An explicit empty path uses the whole
-example context `{input, reference, metadata}`; declared names then select keys
-from that object. It does not turn an input name into a dotted path or an
-independent mapping expression.
+Omitting `templateVariablesPath` uses `input`. An explicit empty path uses the
+whole example context `{input, reference, metadata}`; variable names then select
+keys from that object.
 
 Decision tasks require at least one fixed question. Per-example question loading
 is not supported: the API, saved decisions, and playground use the same fixed
@@ -1149,13 +1154,14 @@ rather than zero.
 ## 14. Decision Evaluators
 
 A decision evaluator uses a decision model as a judge. It maps the target's
-fields into declared inputs, renders the state, asks fixed questions in one call, and projects the normalized answers into
+fields into its variables, renders the state, asks fixed questions in one call, and projects the normalized answers into
 annotations. It shares provider clients with decision tasks, but the two roles
 remain distinct: a task produces answers to evaluate; a judge produces verdicts.
 Built-in metrics that compare decision predictions with references are separate.
 
-In the running example, `triage-accuracy` is a decision with three inputs,
-`input`, `output`, and `reference`, sent as an `object` state. It asks one
+In the running example, `triage-accuracy` is a decision with three variables,
+`input`, `output`, and `reference`, sent as the JSON state
+`{"input": "{{input}}", "output": "{{output}}", "reference": "{{reference}}"}`. It asks one
 predicate, `accuracy`: given the ticket, would the team the run chose handle it
 as well as the reference team? That takes judgment, since teams overlap and a
 reference can be one acceptable answer among several.
@@ -1198,18 +1204,17 @@ Creating a decision evaluator requires a selected decision version and pins
 `decision_version_id` directly for now, erring on the side of simplicity while
 the tradeoff between direct version pinning and the lightweight tag workflow is
 deliberated under [Evaluator Version Pinning](#58-evaluator-version-pinning).
-Model, provider, inputs, state, and questions come from that version. A
-version's questions are fixed: bindings supply input values, not per-example
-questions or question templates.
+Model, provider, template format, state, and questions come from that version.
+A version's questions are fixed: bindings supply variable values, not
+per-example questions.
 
 ### 14.3 Bindings
 
-Inputs are mapped by the **binding**, never the saved evaluator. A dataset
-binding maps experiment context into declared inputs through existing JSONPath
-and literal mappings. A project binding does the same for its target context.
+Variables are mapped by the **binding**, never the saved evaluator. A dataset
+binding maps experiment context into the decision's variables through existing
+JSONPath and literal mappings. A project binding does the same for its target context.
 One saved judge can serve several datasets or projects with different mappings.
-Preserve structured input types and reuse decision state rendering; descriptive
-input JSON schemas do not become new runtime coercion or validation rules.
+Mapped values keep their JSON types and go through the same decision rendering.
 
 Store a scoring policy on the evaluator for predicate thresholds,
 choice scores, scale-label mode, and optimization direction. Bindings don't
@@ -1229,11 +1234,11 @@ is rejected. The policy's GraphQL shape is under [GraphQL](#15-graphql).
 ### 14.4 Compatible Updates
 
 Validate every evaluator version update and policy change against binding
-inputs, question identities/types, choice values, and scale meanings. A
+variables, question identities/types, choice values, and scale meanings. A
 breaking bound change must fail with the affected binding names and require an
-explicit migration or separate evaluator. Reordering inputs, questions, or choices
+explicit migration or separate evaluator. Reordering variables, questions, or choices
 is compatible; reordering a scale's levels is not, since a level's index is its
-score. Input JSON schemas are descriptive, so changing them is compatible. A
+score. A
 version of another decision can never be pinned. Compatible changes affect future
 execution snapshots.
 
@@ -1846,196 +1851,57 @@ The complete feature includes all three milestones.
 
 ## 20. Appendix: State Construction Walkthroughs
 
-These examples describe the current implementation as material for the
-[state-authoring discussion](#16-open-questions), not a commitment to four editor
-modes. They distinguish the editor's state mode, Phoenix's GraphQL run input,
-and the final state sent through a provider adapter. GraphQL snippets are
-excerpts: model configuration and question definitions are omitted so the state
-construction is visible.
-
-### Current Editor Behavior
-
-- **Text** renders a string template (`text`), or sends literal text when
-  template format is `None` or no variables are referenced. Even a
-  single-variable template such as `{{ticket}}` stays `text` and is rendered
-  to a string.
-- **JSON** supplies a concrete literal JSON value for a one-off playground
-  run: a non-empty object is sent as `object`, an array or `{}` unchanged as
-  `input`, and a JSON string as text. It performs no template substitution
-  under any template format and cannot be saved or run over a dataset. A JSON
-  skeleton with typed input references is a separate deliberation in §16;
-  this mode does not currently interpret references.
-- **Value** names a single declared input (`input`), passes its value through
-  unchanged, and is how a saved `input` state loads under any template format.
-- **Object** lists comma-separated input names (`object`), builds an object
-  from their values in the Inputs panel, and is how a saved `object` state
-  loads under any template format.
-
-In the current UI, state mode and template format control different things.
-**Text, JSON, Value, and Object choose how to construct the state. Mustache,
-F-string, and None choose whether and how to substitute template variables in
-a Text state.** Question instructions and criteria are always literal across
-ad-hoc runs, dataset runs, and saved versions ([Non-Goals](#7-non-goals)).
-
-| State editor mode | Mustache | F-string | None |
-|---|---|---|---|
-| **Text** | Substitutes `{{name}}` in the text template (`text`). | Substitutes `{name}` in the text template (`text`). | Uses the text literally, including any placeholder braces. |
-| **JSON** | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. | Parses the JSON literally without substituting variables. |
-| **Value** | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). | Looks up the single named input and sends its value unchanged (`input`). |
-| **Object** | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). | Looks up each listed input name and builds an object from its value (`object`). |
-
-For example, Text `Reference: {{reference}}` with Mustache and input
-`reference = A` produces the string `Reference: A`. Value `ticket` sends the
-caller's `ticket` value unchanged without wrapping it in an outer object.
-Object `reference, output`, with values `A` and `B`, produces
-`{"reference": "A", "output": "B"}` under all three template settings.
-
-Loading a saved version preserves existing input descriptions, JSON schemas,
-and explicitly declared additional inputs, including section-scoped inputs.
-Value and Object show a compact state preview from manual input values, or a
-symbolic shape such as `<ticket>` / `{ "ticket": <ticket> }` when values are
-unavailable or a dataset supplies them. JSON pasted into the Inputs panel stays
-a string; the preview does not guess its type.
-
-Those declarations and example values still need better authoring controls;
-see the ergonomics discussion in §16.
-
-### 20.1 Object: Preserve a Nested Ticket and Policy
-
-Suppose a decision asks whether a support ticket requires urgent attention under
-the customer's support policy. The question's instructions are fixed:
-
-> Does this ticket require urgent attention under the policy for the customer's
-> plan? Use the reported impact and workaround availability.
-
-First, select **Object** in the state editor and enter:
-
-```text
-ticket, policy
-```
-
-This declares two input names. It does not declare the fields inside either
-value. A dataset example or API caller supplies actual nested objects:
+These examples show how a state template becomes the state a provider receives.
+The playground's **State** card offers **Text** and **JSON**; the playground's
+template format (Mustache, F-String, None) covers the state and the question
+prose. Every example uses Mustache and these variables (from the **Inputs** pane,
+or from a dataset example at `templateVariablesPath`):
 
 ```json
 {
-  "ticket": {
-    "subject": "Production sign-in is down",
-    "customer": {"name": "Acme", "plan": "enterprise"},
-    "impact": {"affected_users": 250, "workaround_available": false}
-  },
-  "policy": {
-    "plans": {
-      "enterprise": {
-        "response_hours": 1,
-        "urgent_when": "Production is blocked and no workaround exists"
-      }
-    }
-  }
+  "ticket": {"subject": "Double charge", "body": "I was billed twice."},
+  "policy": "Refund duplicate charges within 30 days.",
+  "open_tickets": 3
 }
 ```
 
-For a dataset run, these keys are read from the example at `inputValuesPath`.
-For a direct GraphQL `runDecision` call, the relevant wire fields are:
+In the **Inputs** pane, a value that parses as JSON is read as that JSON value
+(its badge says object, array, number, boolean or null) unless **Read as text**
+is on; dataset values keep their JSON types.
+
+### 20.1 JSON: Keep Structured Values Structured
 
 ```json
-{
-  "inputs": [{"name": "ticket"}, {"name": "policy"}],
-  "state": {"object": true},
-  "inputValues": {
-    "ticket": {
-      "subject": "Production sign-in is down",
-      "customer": {"name": "Acme", "plan": "enterprise"},
-      "impact": {"affected_users": 250, "workaround_available": false}
-    },
-    "policy": {
-      "plans": {
-        "enterprise": {
-          "response_hours": 1,
-          "urgent_when": "Production is blocked and no workaround exists"
-        }
-      }
-    }
-  }
-}
+{"ticket": "{{ticket}}", "policy": "{{policy}}", "open": "{{open_tickets}}", "note": "{{open_tickets}} open"}
 ```
 
-Phoenix validates the input names, then builds an object with one field per
-declared input. The final state is exactly the first JSON object above: `ticket`
-and `policy`, including all their nested fields. The number `250` remains a
-number and `false` remains a boolean. Nothing is flattened, and there is no
-template substitution. Choosing Mustache, F-string, or None does not change this
-state.
+Each string that is exactly one tag becomes its value, so the state is
+`{"ticket": {"subject": "Double charge", "body": "I was billed twice."}, "policy":
+"Refund duplicate charges within 30 days.", "open": 3, "note": "3 open"}`. The
+last field holds a tag inside a longer string, so it is filled in as text.
 
-The provider adapter translates that state for the selected provider. TypeSafe
-accepts the structured state; OpenAI receives it serialized as text. The model
-can connect the customer's enterprise plan to its policy and the reported lack
-of a workaround. The expected answer is that the ticket requires urgent
-attention; Phoenix does not extract those nested facts through a template.
+### 20.2 JSON: Pass the Whole State Through
 
-The current playground Inputs panel accepts text values. Pasting the ticket's
-JSON into a panel field supplies a string containing JSON, rather than the
-object shown here. Use structured dataset or API values for this example;
-typing JSON into the panel is not a substitute for that distinction.
+A JSON state of one bare tag, `{{ticket}}` (stored as the string `"{{ticket}}"`),
+sends the variable's value as the whole state: here the ticket object itself. This
+is how the Typed Decisions benchmark sends each example's `state`.
 
-### 20.2 Text: Read Nested Fields into a String
-
-Use the same input values, but select **Text** and **Mustache**, with this state:
+### 20.3 Text: Read Nested Fields into a String
 
 ```text
-Customer plan: {{ticket.customer.plan}}
-Urgent when: {{policy.plans.enterprise.urgent_when}}
+Subject: {{ticket.subject}}
+{{ticket.body}}
+Policy: {{policy}}
 ```
 
-The declared inputs are still `ticket` and `policy`: dotted paths refer to fields
-within those root inputs. The GraphQL state declaration is now:
+The state is one string. A structured value named on its own renders as JSON.
 
-```json
-{
-  "text": {
-    "template": "Customer plan: {{ticket.customer.plan}}\nUrgent when: {{policy.plans.enterprise.urgent_when}}",
-    "templateFormat": "MUSTACHE"
-  }
-}
-```
+### 20.4 Literal Payloads and Replay
 
-With the same `inputValues`, Phoenix constructs this string state:
-
-```text
-Customer plan: enterprise
-Urgent when: Production is blocked and no workaround exists
-```
-
-An F-string template can read the same fields using `{ticket.customer.plan}`
-and `{policy.plans.enterprise.urgent_when}`. With None, the placeholder text
-stays literal instead.
-
-Dotted paths have meaning here because the text formatter interprets them.
-Entering `ticket.customer.plan` in **Object** instead declares one literal input
-name. It requires a separately supplied value under that exact key and produces
-an object such as `{"ticket.customer.plan": "enterprise"}`; it does not traverse
-the `ticket` object.
-
-To pass a single input's value unchanged (for example, the whole `ticket` object
-without wrapping it in `{"ticket": ...}` or rendering it to a string), select
-**Value** and enter `ticket`. That saves as `state: {input: "ticket"}`, whereas
-**Text** `{{ticket}}` saves as a `text` template and renders to a string, and
-**Object** `ticket` produces `{"ticket": <ticket value>}`.
-
-### 20.3 JSON: Supply a Concrete Structured State
-
-For a one-off playground run, select **JSON**, then paste the first
-JSON object from the Object example into the state editor. The playground parses
-it literally and sends its non-empty top-level object using
-`state: {object: true}`, with `ticket` and `policy` as the inputs and the parsed
-objects as their values. The final state is the same nested object as in the
-Object example.
-
-The difference is how those values are supplied and reused. JSON mode supplies
-the literal values written in the editor for that run and performs no template
-substitution under any template format. Value and Object declare names whose
-values come from the panel, dataset rows, or callers. JSON mode cannot be saved
-as a reusable decision or run over a dataset; Value and Object can.
+Pasted JSON with no tags is sent as written. Importing a provider request or
+replaying a decision span opens the exact state that was sent: a string as Text,
+an object or array as JSON, with the template format set to None when the
+content holds something Mustache would read as a tag.
 
 ## 21. References
 

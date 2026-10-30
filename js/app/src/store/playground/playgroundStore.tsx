@@ -1435,7 +1435,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setVariableValues" }
       );
     },
-    setVariableReadAsText: (key: string, isReadAsText: boolean) => {
+    setVariableReadAsText: ({
+      name,
+      isReadAsText,
+    }: {
+      name: string;
+      isReadAsText: boolean;
+    }) => {
       const input = get().input;
       set(
         {
@@ -1443,7 +1449,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...input,
             variablesReadAsText: {
               ...input.variablesReadAsText,
-              [key]: isReadAsText,
+              [name]: isReadAsText,
             },
           },
         },

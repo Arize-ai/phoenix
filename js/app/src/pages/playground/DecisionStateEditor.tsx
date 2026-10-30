@@ -58,6 +58,7 @@ export function DecisionStateEditor({
             defaultValue={state.json}
             placeholder={'{"ticket": "{{ticket}}"}'}
             onChange={(json) => onChange({ ...state, json })}
+            availablePaths={availablePaths}
             readOnly={isDisabled}
           />
         )}

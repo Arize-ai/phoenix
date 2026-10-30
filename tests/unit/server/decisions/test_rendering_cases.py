@@ -13,11 +13,12 @@ from pydantic import TypeAdapter
 
 from phoenix.db.types.decisions import DecisionQuestion, DecisionState, JsonState, TextState
 from phoenix.db.types.prompts import PromptTemplateFormat
-from phoenix.server.decisions.rendering import decision_variables, render_decision
+from phoenix.server.decisions.rendering import decision_variables, render_decision, whole_tag_path
 from phoenix.server.decisions.validation import validate_template
 
 _CASES_PATH = Path(__file__).parent / "rendering_cases.json"
-_CASES: list[dict[str, Any]] = json.loads(_CASES_PATH.read_text())["cases"]
+_FILE: dict[str, Any] = json.loads(_CASES_PATH.read_text())
+_CASES: list[dict[str, Any]] = _FILE["cases"]
 _STATE = TypeAdapter(DecisionState)
 _QUESTIONS = TypeAdapter(list[DecisionQuestion])
 
@@ -95,3 +96,17 @@ class TestValidateTemplate:
         assert validate_template(
             PromptTemplateFormat.MUSTACHE, TextState(type="text", template="{{a}} {{b.c}}"), []
         ) == ["a", "b"]
+
+
+def test_variables_are_named_as_prompts_name_them() -> None:
+    # The playground and prompts read a variable from `{{.}}`, so the server does too.
+    state = TextState(type="text", template="{{.}} and {{#items}}{{name}}{{/items}} for {{a.b}}")
+    assert decision_variables(PromptTemplateFormat.MUSTACHE, state, []) == [".", "items", "a"]
+
+
+@pytest.mark.parametrize(
+    "case", _FILE["whole_tags"], ids=lambda case: f"{case['template_format']} {case['text']}"
+)
+def test_whole_tag_case(case: dict[str, Any]) -> None:
+    template_format = PromptTemplateFormat(case["template_format"])
+    assert whole_tag_path(template_format, case["text"]) == case["path"]

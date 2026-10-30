@@ -103,7 +103,10 @@ export function PlaygroundInput() {
                     text: variablesMap[variableKey],
                     isReadAsText: variablesReadAsText?.[variableKey] ?? false,
                     onReadAsTextChange: (isReadAsText) =>
-                      setVariableReadAsText(variableKey, isReadAsText),
+                      setVariableReadAsText({
+                        name: variableKey,
+                        isReadAsText,
+                      }),
                   })
                 : undefined
             }

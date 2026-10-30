@@ -954,7 +954,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Whether decisions read a variable's value as text even when it parses
    * as JSON; see {@link PlaygroundInput.variablesReadAsText}.
    */
-  setVariableReadAsText: (key: string, isReadAsText: boolean) => void;
+  setVariableReadAsText: (params: {
+    name: string;
+    isReadAsText: boolean;
+  }) => void;
   /**
    * set the streaming mode for the playground
    */
