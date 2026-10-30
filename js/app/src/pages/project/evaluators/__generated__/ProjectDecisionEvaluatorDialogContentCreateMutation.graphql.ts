@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7cb9172ded663f782d2355cf043e450c>>
+ * @generated SignedSource<<97914757d21b375947acbb1d93318bc2>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type CreateProjectDecisionEvaluatorInput = {
   decisionId?: string | null;
   decisionVersion?: DecisionVersionInput | null;
@@ -33,34 +33,19 @@ export type CreateProjectDecisionEvaluatorInput = {
 export type DecisionVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
   metadata?: any | null;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   questions: ReadonlyArray<DecisionQuestionInput>;
   state: DecisionStateInput;
-};
-export type DecisionInputDefinitionInput = {
-  description?: string | null;
-  jsonSchema?: any | null;
-  name: string;
+  templateFormat: PromptTemplateFormat;
 };
 export type DecisionStateInput = {
-  input?: never;
-  object: boolean;
-  text?: never;
+  json?: never;
+  text: string;
 } | {
-  input?: never;
-  object?: never;
-  text: TextStateInput;
-} | {
-  input: string;
-  object?: never;
+  json: any;
   text?: never;
-};
-export type TextStateInput = {
-  template: string;
-  templateFormat: DecisionTemplateFormat;
 };
 export type DecisionQuestionInput = {
   choice?: never;

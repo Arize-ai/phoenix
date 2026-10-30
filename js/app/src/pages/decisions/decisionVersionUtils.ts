@@ -1,6 +1,6 @@
 /** The version fields whose content a definition comparison should show. */
 export type DecisionVersionDefinition = {
-  readonly inputs: ReadonlyArray<unknown>;
+  readonly templateFormat: string;
   readonly state: unknown;
   readonly questions: ReadonlyArray<unknown>;
   readonly modelName: string;
@@ -17,7 +17,7 @@ export function decisionVersionToText(
 ): string {
   return JSON.stringify(
     {
-      inputs: version.inputs,
+      templateFormat: version.templateFormat,
       state: version.state,
       questions: version.questions,
       modelProvider: version.modelProvider,

@@ -1,4 +1,4 @@
-"""GraphQL output types for a decision's definition: its inputs, state, and questions.
+"""GraphQL output types for a decision's definition: its state template and questions.
 
 They mirror the input types in ``DecisionVersionInput`` and are built from the stored types
 in :mod:`phoenix.db.types.decisions`.
@@ -11,36 +11,26 @@ from strawberry.scalars import JSON
 from typing_extensions import assert_never
 
 from phoenix.db.types import decisions as stored
-from phoenix.server.api.input_types.DecisionVersionInput import DecisionTemplateFormat
 
 
-@strawberry.type(description="One named input a decision's state is built from.")
-class DecisionInputDefinition:
-    name: str
-    description: Optional[str]
-    json_schema: Optional[JSON] = strawberry.field(
-        description="Describes the value for the playground form. Not enforced on a run."
-    )
-
-
-@strawberry.type(description="The state is the declared inputs, as a JSON object.")
-class DecisionObjectState:
-    object: bool = True
-
-
-@strawberry.type(description="The state is a text template rendered over the inputs.")
+@strawberry.type(
+    description="The state is text: a template rendered with the decision's template format."
+)
 class DecisionTextState:
-    template: str
-    template_format: DecisionTemplateFormat
+    text: str = strawberry.field(description="The text template.")
 
 
-@strawberry.type(description="The state is one input's value, unchanged.")
-class DecisionInputState:
-    input: str
+@strawberry.type(
+    description="The state is JSON: any JSON value whose string leaves are templates. A string "
+    "that is exactly one variable tag is replaced by the variable's value with its JSON type "
+    "kept; other strings render as text. Object keys are literal."
+)
+class DecisionJsonState:
+    json: JSON = strawberry.field(description="The JSON template.")
 
 
 DecisionState = Annotated[
-    Union[DecisionObjectState, DecisionTextState, DecisionInputState],
+    Union[DecisionTextState, DecisionJsonState],
     strawberry.union(name="DecisionState"),
 ]
 
@@ -90,23 +80,11 @@ DecisionQuestion = Annotated[
 ]
 
 
-def to_gql_decision_input(input: stored.DecisionInput) -> DecisionInputDefinition:
-    return DecisionInputDefinition(
-        name=input.name,
-        description=input.description,
-        json_schema=JSON(input.json_schema) if input.json_schema is not None else None,
-    )
-
-
 def to_gql_decision_state(state: stored.DecisionState) -> DecisionState:
-    if isinstance(state, stored.ObjectState):
-        return DecisionObjectState()
     if isinstance(state, stored.TextState):
-        return DecisionTextState(
-            template=state.template, template_format=DecisionTemplateFormat(state.template_format)
-        )
-    if isinstance(state, stored.InputState):
-        return DecisionInputState(input=state.name)
+        return DecisionTextState(text=state.template)
+    if isinstance(state, stored.JsonState):
+        return DecisionJsonState(json=JSON(state.template))
     assert_never(state)
 
 

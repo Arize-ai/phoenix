@@ -81,7 +81,6 @@ from phoenix.db.types.data_stream_protocol import (
 )
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
 from phoenix.db.types.decisions import (
-    DecisionInput,
     DecisionQuestion,
     DecisionState,
     DecisionTaskConfig,
@@ -270,6 +269,10 @@ JSON_ = (
         "sqlite",
     )
 )
+
+# JSON on every dialect, for columns whose object keys must keep their order: PostgreSQL's
+# JSONB reorders them.
+_OrderedJSON = JSON().with_variant(JSON(), "postgresql")
 
 # Stores Python None as SQL NULL instead of the JSON value null.
 _NullableJSON = (
@@ -706,12 +709,9 @@ class _PydanticJSON(TypeDecorator[_PydanticJSONT]):
         return self._adapter.validate_python(value) if value is not None else None
 
 
-class _DecisionInputs(_PydanticJSON[list[DecisionInput]]):
-    _adapter = TypeAdapter(list[DecisionInput])
-    _label = "Decision inputs"
-
-
 class _DecisionState(_PydanticJSON[DecisionState]):
+    # JSON, not JSONB: a JSON template's object keys keep the order they were written in.
+    impl = _OrderedJSON
     _adapter = TypeAdapter(DecisionState)
     _label = "Decision state"
 
@@ -722,6 +722,8 @@ class _DecisionQuestions(_PydanticJSON[list[DecisionQuestion]]):
 
 
 class _DecisionTaskConfig(_PydanticJSON[DecisionTaskConfig]):
+    # JSON, not JSONB: the copied state template keeps its key order.
+    impl = _OrderedJSON
     _adapter = TypeAdapter(DecisionTaskConfig)
     _label = "Decision task config"
 
@@ -829,7 +831,8 @@ class _EvaluatorDefinition(TypeDecorator[EvaluatorDefinition]):
 
 class _DecisionEvaluatorSnapshots(TypeDecorator[list[DecisionEvaluatorSnapshot]]):
     cache_ok = True
-    impl = JSON_
+    # JSON, not JSONB: the copied state templates keep their key order.
+    impl = JSON
 
     def process_bind_param(
         self, value: Optional[list[DecisionEvaluatorSnapshot]], _: Dialect
@@ -3246,7 +3249,7 @@ class Decision(HasId):
 
 
 class DecisionVersion(HasId):
-    """An immutable version of a decision: its inputs, state, questions, and model."""
+    """An immutable version of a decision: its templates, questions, and model."""
 
     __tablename__ = "decision_versions"
     decision_id: Mapped[int] = mapped_column(
@@ -3260,7 +3263,13 @@ class DecisionVersion(HasId):
         index=True,
         nullable=True,
     )
-    inputs: Mapped[list[DecisionInput]] = mapped_column(_DecisionInputs, nullable=False)
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(
+        _TemplateFormat,
+        CheckConstraint(
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+        ),
+        nullable=False,
+    )
     state: Mapped[DecisionState] = mapped_column(_DecisionState, nullable=False)
     questions: Mapped[list[DecisionQuestion]] = mapped_column(_DecisionQuestions, nullable=False)
     model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)

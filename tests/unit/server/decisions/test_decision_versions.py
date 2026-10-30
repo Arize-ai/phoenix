@@ -6,60 +6,44 @@ import pytest
 from phoenix.db.types.decisions import (
     ChoiceOption,
     ChoiceQuestion,
-    DecisionInput,
     DecisionQuestion,
-    DecisionState,
-    InputState,
-    ObjectState,
+    JsonState,
     PredicateQuestion,
     ScaleLevel,
     ScaleQuestion,
     TextState,
 )
-from phoenix.server.decisions.rendering import render_state
-from phoenix.server.decisions.validation import (
-    validate_inputs,
-    validate_questions,
-)
+from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.decisions.rendering import render_decision
+from phoenix.server.decisions.validation import validate_questions, validate_template
 
 
-def _inputs(*names: str) -> list[DecisionInput]:
-    return [DecisionInput(name=name) for name in names]
+def _render(template: str, values: dict[str, Any], template_format: str = "MUSTACHE") -> Any:
+    return render_decision(
+        PromptTemplateFormat(template_format), TextState(type="text", template=template), [], values
+    ).state
 
 
-def _text(template: str, template_format: Any = "MUSTACHE") -> TextState:
-    return TextState(type="text", template=template, template_format=template_format)
+def test_json_state_sends_variables_with_their_types() -> None:
+    values = {"ticket": {"body": "Refund?", "tags": ["billing"]}, "plan": None, "extra": 1}
+    state = JsonState(type="json", template={"ticket": "{{ticket}}", "plan": "{{plan}}"})
+    rendered = render_decision(PromptTemplateFormat.MUSTACHE, state, [], values)
+    assert rendered.state == {"ticket": values["ticket"], "plan": None}
 
 
-OBJECT = ObjectState(type="object")
+def test_missing_variables_are_named_and_extras_ignored() -> None:
+    with pytest.raises(ValueError, match="Missing variables: plan"):
+        _render("{{ticket}} {{plan}}", {"ticket": "x", "plna": "pro"})
+    assert _render("{{ticket}}", {"ticket": "x", "extra": 1}) == "x"
 
 
-def test_object_state_is_exactly_the_declared_inputs() -> None:
-    values = {"ticket": {"body": "Refund?", "tags": ["billing"]}, "plan": None}
-    assert render_state(_inputs("ticket", "plan"), OBJECT, values) == values
-
-
-@pytest.mark.parametrize(
-    "values,message",
-    [
-        ({"ticket": "x"}, "Missing inputs: plan"),
-        ({"ticket": "x", "plan": "pro", "extra": 1}, "Undeclared inputs: extra"),
-        ({"ticket": "x", "plna": "pro"}, "Missing inputs: plan; Undeclared inputs: plna"),
-    ],
-)
-def test_input_values_must_match_the_declared_inputs(values: dict[str, Any], message: str) -> None:
-    with pytest.raises(ValueError, match=message):
-        render_state(_inputs("ticket", "plan"), OBJECT, values)
-
-
-def test_mustache_renders_structured_inputs_as_json_and_still_reads_into_them() -> None:
+def test_mustache_renders_structured_values_as_json_and_still_reads_into_them() -> None:
     template = (
         "{{ticket}} | {{ticket.body}} | {{#tags}}<{{.}}>{{/tags}} | "
         "{{flag}} {{^flag}}off{{/flag}} | {{missing}}{{^missing}}none{{/missing}}"
     )
-    rendered = render_state(
-        _inputs("ticket", "tags", "flag", "missing"),
-        _text(template),
+    rendered = _render(
+        template,
         {
             "ticket": {"body": "Refund?", "vip": True},
             "tags": ["a", "b"],
@@ -70,11 +54,9 @@ def test_mustache_renders_structured_inputs_as_json_and_still_reads_into_them() 
     assert rendered == '{"body": "Refund?", "vip": true} | Refund? | <a><b> | false off | nullnone'
 
 
-def test_f_string_renders_structured_inputs_as_json() -> None:
-    rendered = render_state(
-        _inputs("ticket", "count"),
-        _text("Ticket: {ticket} ({count})", "F_STRING"),
-        {"ticket": {"body": "Refund?"}, "count": 2},
+def test_f_string_renders_structured_values_as_json() -> None:
+    rendered = _render(
+        "Ticket: {ticket} ({count})", {"ticket": {"body": "Refund?"}, "count": 2}, "F_STRING"
     )
     assert rendered == 'Ticket: {"body": "Refund?"} (2)'
 
@@ -91,15 +73,14 @@ def test_f_string_renders_structured_inputs_as_json() -> None:
         ([{"a": False}, None], '[{"a": false}, null]'),
         ({"s": "é"}, '{"s": "é"}'),
         (True, "true"),
-        (None, "null"),
     ],
 )
-def test_structured_inputs_render_as_valid_json_in_both_formats(
+def test_structured_values_render_as_valid_json_in_both_formats(
     template_format: str, template: str, value: Any, expected: str
 ) -> None:
-    rendered = render_state(_inputs("ticket"), _text(template, template_format), {"ticket": value})
-    assert rendered == expected
-    assert json.loads(rendered) == value
+    rendered = _render("Value: " + template, {"ticket": value}, template_format)
+    assert rendered == "Value: " + expected
+    assert json.loads(rendered.removeprefix("Value: ")) == value
 
 
 @pytest.mark.parametrize(
@@ -111,52 +92,37 @@ def test_structured_inputs_render_as_valid_json_in_both_formats(
 )
 def test_dotted_paths_render_nested_values_as_json(template_format: str, template: str) -> None:
     ticket = {"a": {"b": None}, "n": None, "l": [True, {"x": False}]}
-    rendered = render_state(_inputs("ticket"), _text(template, template_format), {"ticket": ticket})
-    assert rendered == '{"b": null} null null'
+    assert _render(template, {"ticket": ticket}, template_format) == '{"b": null} null null'
 
 
 def test_null_renders_as_json_null_in_mustache() -> None:
-    # Intended: structured inputs render as JSON, so None is `null`, not empty.
-    rendered = render_state(_inputs("a"), _text("[{{a}}]"), {"a": None})
-    assert rendered == "[null]"
-
-
-def test_f_string_dotted_paths_are_validated_by_their_root() -> None:
-    validate_inputs(_inputs("ticket"), _text("{ticket.subject} {ticket[0].x}", "F_STRING"))
-    with pytest.raises(ValueError, match="uses undeclared inputs: other"):
-        validate_inputs(_inputs("ticket"), _text("{ticket.subject} {other.x}", "F_STRING"))
+    # Intended: structured values render as JSON, so None is `null`, not empty.
+    assert _render("[{{a}}]", {"a": None}) == "[null]"
 
 
 @pytest.mark.parametrize(
-    "inputs,state,message",
+    "state,message",
     [
-        ([], OBJECT, "At least one input is required"),
-        (_inputs(" "), OBJECT, "Input names cannot be empty"),
-        (_inputs("a", "a"), OBJECT, "Input names must be unique: 'a' is repeated"),
-        (_inputs("a"), _text("  "), "The state template cannot be empty"),
-        (_inputs("a"), _text("{{a}} {{b}} {{c.d}}"), "uses undeclared inputs: b, c"),
-        (_inputs("a"), _text("{{#a}}"), "The state template is invalid"),
-        (_inputs("a"), InputState(type="input", name="b"), "uses an undeclared input: b"),
+        (TextState(type="text", template="  "), "The state template cannot be empty"),
+        (TextState(type="text", template="{{#a}}"), "Invalid template in the state"),
+        (JsonState(type="json", template=1), "must be an object, a list, or a string"),
     ],
 )
-def test_invalid_inputs_and_state_are_rejected(
-    inputs: list[DecisionInput], state: DecisionState, message: str
-) -> None:
+def test_invalid_state_templates_are_rejected(state: Any, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        validate_inputs(inputs, state)
+        validate_template(PromptTemplateFormat.MUSTACHE, state, [])
 
 
-def test_input_state_is_one_value_unchanged() -> None:
+def test_whole_value_state_is_one_value_unchanged() -> None:
     """Not wrapped in an object and not rendered as text: the value is the state."""
     state = {"agent": {"autonomy": "checkpointed"}, "constraints": ["Spend under $50"]}
-    rendered = render_state(
-        _inputs("state"), InputState(type="input", name="state"), {"state": state}
+    rendered = render_decision(
+        PromptTemplateFormat.MUSTACHE,
+        JsonState(type="json", template="{{state}}"),
+        [],
+        {"state": state},
     )
-    assert rendered == state
-
-
-def test_declared_inputs_need_not_all_appear_in_the_template() -> None:
-    validate_inputs(_inputs("a", "unused"), _text("{{a}}"))
+    assert rendered.state == state
 
 
 def _choice(*values: str, name: str = "q") -> ChoiceQuestion:
@@ -236,10 +202,10 @@ def test_invalid_questions_are_rejected(questions: list[DecisionQuestion], messa
 
 
 def test_f_string_list_indices_render_as_json() -> None:
-    rendered = render_state(
-        _inputs("ticket"),
-        _text("{ticket[0]} {ticket[1].x} {ticket[2]}", "F_STRING"),
+    rendered = _render(
+        "{ticket[0]} {ticket[1].x} {ticket[2]}",
         {"ticket": [True, {"x": False}, None]},
+        "F_STRING",
     )
     assert rendered == "true false null"
 
@@ -255,45 +221,41 @@ def test_f_string_list_indices_render_as_json() -> None:
         pytest.param("{ticket[0]}", {"ticket": 5}, "not subscriptable", id="scalar-index"),
     ],
 )
-def test_f_string_paths_the_inputs_lack_are_value_errors(
+def test_f_string_paths_the_variables_lack_are_value_errors(
     template: str, values: dict[str, Any], detail: str
 ) -> None:
-    with pytest.raises(ValueError, match="can't be rendered from these inputs") as error:
-        render_state(_inputs("ticket"), _text(template, "F_STRING"), values)
+    with pytest.raises(ValueError, match="Can't render the state") as error:
+        _render(template, values, "F_STRING")
     assert detail in str(error.value)
     assert "_JSON" not in str(error.value)
 
 
 def test_f_string_format_specs_apply_to_the_json_text() -> None:
-    state = _text("[{ticket:>10}] [{urgent:>6}]", "F_STRING")
     assert (
-        render_state(_inputs("ticket", "urgent"), state, {"ticket": {"a": 1}, "urgent": True})
+        _render("[{ticket:>10}] [{urgent:>6}]", {"ticket": {"a": 1}, "urgent": True}, "F_STRING")
         == '[  {"a": 1}] [  true]'
     )
 
 
 def test_a_section_over_a_boolean_exposes_no_fields_of_its_own() -> None:
-    """Inside a section over a boolean, an input named value is still that input."""
-    state = _text("{{#urgent}}{{value}}{{/urgent}}")
+    """Inside a section over a boolean, a variable named value is still that variable."""
     values = {"urgent": True, "value": "Refund my order"}
-    assert render_state(_inputs("urgent", "value"), state, values) == "Refund my order"
+    assert _render("{{#urgent}}{{value}}{{/urgent}}", values) == "Refund my order"
 
 
 @pytest.mark.parametrize("value", [None, True, False, "abc", 5, 1.5])
 @pytest.mark.parametrize("path", ["[0]", ".title", ".count", ".upper", ".real"])
 def test_f_string_scalar_paths_do_not_expose_python_values(value: Any, path: str) -> None:
-    with pytest.raises(ValueError, match="can't be rendered from these inputs"):
-        render_state(
-            _inputs("ticket"), _text("{ticket" + path + "}", "F_STRING"), {"ticket": value}
-        )
+    with pytest.raises(ValueError, match="Can't render the state"):
+        _render("x {ticket" + path + "}", {"ticket": value}, "F_STRING")
 
 
 def test_f_string_numeric_object_keys_and_array_indices() -> None:
     assert (
-        render_state(
-            _inputs("ticket"),
-            _text("{ticket[0]} {ticket.items[0].title}", "F_STRING"),
+        _render(
+            "{ticket[0]} {ticket.items[0].title}",
             {"ticket": {"0": "first", "items": [{"title": "Refund"}]}},
+            "F_STRING",
         )
         == "first Refund"
     )
@@ -301,20 +263,14 @@ def test_f_string_numeric_object_keys_and_array_indices() -> None:
 
 def test_f_string_scalars_keep_numeric_formatting_and_plain_text() -> None:
     assert (
-        render_state(
-            _inputs("count", "text"),
-            _text("{count:.2f} {text:>5}", "F_STRING"),
-            {"count": 1.5, "text": "abc"},
-        )
-        == "1.50   abc"
+        _render("{count:.2f} {text:>5}", {"count": 1.5, "text": "abc"}, "F_STRING") == "1.50   abc"
     )
 
 
-def test_boolean_section_does_not_shadow_input_named_unwrap() -> None:
+def test_boolean_section_does_not_shadow_variable_named_unwrap() -> None:
     assert (
-        render_state(
-            _inputs("urgent", "unwrap", "_unwrap"),
-            _text("{{#urgent}}{{unwrap}} {{_unwrap}}{{/urgent}}"),
+        _render(
+            "{{#urgent}}{{unwrap}} {{_unwrap}}{{/urgent}}",
             {"urgent": True, "unwrap": "hello", "_unwrap": "world"},
         )
         == "hello world"
@@ -323,21 +279,16 @@ def test_boolean_section_does_not_shadow_input_named_unwrap() -> None:
 
 def test_mustache_lists_do_not_expose_list_methods() -> None:
     assert (
-        render_state(
-            _inputs("items", "empty", "nested", "pop"),
-            _text("{{items.pop}}{{empty.pop}}{{items}} {{#nested}}{{pop}}{{/nested}}"),
+        _render(
+            "{{items.pop}}{{empty.pop}}{{items}} {{#nested}}{{pop}}{{/nested}}",
             {"items": ["a", "b"], "empty": [], "nested": [["x"]], "pop": "outer"},
         )
         == '["a", "b"] outer'
     )
 
 
-def test_f_string_numeric_input_name_renders() -> None:
+def test_f_string_numeric_variable_name_renders() -> None:
     assert (
-        render_state(
-            _inputs("0"),
-            _text("{0} {0.title}", "F_STRING"),
-            {"0": {"title": "Refund"}},
-        )
+        _render("{0} {0.title}", {"0": {"title": "Refund"}}, "F_STRING")
         == '{"title": "Refund"} Refund'
     )

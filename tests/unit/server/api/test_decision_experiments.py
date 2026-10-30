@@ -9,10 +9,11 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.decisions import ObjectState
+from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -147,8 +148,8 @@ def run_input(target: list[dict[str, Any]], **task: Any) -> dict[str, Any]:
                     "decision": {
                         "connection": {"builtIn": {"providerKey": "OLLAMA"}},
                         "modelName": "tev1:0.8b-mxfp8",
-                        "inputs": [{"name": "state"}],
-                        "state": {"input": "state"},
+                        "templateFormat": "MUSTACHE",
+                        "state": {"json": "{{state}}"},
                         "questions": QUESTIONS,
                         **task,
                     }
@@ -216,9 +217,8 @@ async def test_fixed_questions_run_as_a_decision_experiment(
                 taskConfig {
                   __typename
                   ... on DecisionTaskConfig {
-                    modelProvider modelName inputValuesPath
-                    inputs { name }
-                    state { __typename ... on DecisionInputState { input } }
+                    modelProvider modelName templateVariablesPath templateFormat variables
+                    state { __typename ... on DecisionJsonState { json } }
                     questions { __typename }
                   }
                 }
@@ -233,9 +233,10 @@ async def test_fixed_questions_run_as_a_decision_experiment(
         "__typename": "DecisionTaskConfig",
         "modelProvider": "OLLAMA",
         "modelName": "tev1:0.8b-mxfp8",
-        "inputValuesPath": "input",
-        "inputs": [{"name": "state"}],
-        "state": {"__typename": "DecisionInputState", "input": "state"},
+        "templateVariablesPath": "input",
+        "templateFormat": "MUSTACHE",
+        "variables": ["state"],
+        "state": {"__typename": "DecisionJsonState", "json": "{{state}}"},
         "questions": [
             {"__typename": "DecisionPredicateQuestion"},
             {"__typename": "DecisionChoiceQuestion"},
@@ -247,7 +248,7 @@ async def test_fixed_questions_run_as_a_decision_experiment(
         task = await session.get(models.ExperimentDecisionTask, experiment_id)
         assert task is not None
         assert (task.model_provider.value, task.model_name) == ("OLLAMA", "tev1:0.8b-mxfp8")
-        assert task.config.input_values_path == "input"
+        assert task.config.template_variables_path == "input"
         assert [question.name for question in task.config.questions] == ["decision", "team"]
         db_experiment = await session.get(models.Experiment, experiment_id)
         assert db_experiment is not None
@@ -267,7 +268,7 @@ async def test_examples_that_cannot_be_asked_stop_the_run_before_it_starts(
     benchmark_dataset: list[dict[str, Any]],
 ) -> None:
     # The state is in the input, not the metadata, so no example has it.
-    variables = run_input(benchmark_dataset, inputValuesPath="metadata")
+    variables = run_input(benchmark_dataset, templateVariablesPath="metadata")
     with respx.mock:
         route = respx.post(OLLAMA_SYSTEM_ONE).mock(side_effect=answers_for)
         with pytest.raises(Exception, match="2 of 2 examples can't make a decision request"):
@@ -287,8 +288,8 @@ async def test_a_run_records_the_saved_version_it_was_copied_from(
         decision = models.Decision(name=Identifier("triage"), metadata_={})
         version = models.DecisionVersion(
             decision=decision,
-            inputs=[],
-            state=ObjectState(type="object"),
+            template_format=PromptTemplateFormat.MUSTACHE,
+            state=JsonState(type="json", template={}),
             questions=[],
             model_provider=ModelProvider.OLLAMA,
             model_name="tev1:0.8b-mxfp8",

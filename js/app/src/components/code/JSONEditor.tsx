@@ -1,6 +1,7 @@
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
+import type { Extension } from "@codemirror/state";
 import type { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 import CodeMirror, {
   EditorView,
@@ -26,6 +27,12 @@ export type JSONEditorProps = Omit<
   "theme" | "extensions" | "editable"
 > & {
   /**
+   * Extensions added after the editor's own, such as highlighting for the
+   * strings' contents. Keep the array stable across renders: a new array
+   * reconfigures the editor.
+   */
+  extensions?: Extension[];
+  /**
    * JSON Schema to use for validation, if provided will enable JSON Schema validation with tooltips in the editor
    */
   jsonSchema?: JSONSchema7 | null;
@@ -33,6 +40,11 @@ export type JSONEditorProps = Omit<
    * If true, will not lint the content if it is empty
    */
   optionalLint?: boolean;
+  /**
+   * If false, the editor's own JSON linter is off, for an editor that brings
+   * its own in `extensions`
+   */
+  lint?: boolean;
 };
 
 export function JSONEditor(props: JSONEditorProps) {
@@ -40,17 +52,20 @@ export function JSONEditor(props: JSONEditorProps) {
   const {
     jsonSchema,
     optionalLint,
+    lint = true,
     basicSetup,
     "aria-label": ariaLabel,
+    extensions: extraExtensions,
     ...restProps
   } = props;
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
   // If optionalLint is true, we only lint when there is content to allow for empty json values
-  const shouldLint = !optionalLint || (contentLength && contentLength > 0);
+  const shouldLint =
+    lint && (!optionalLint || (contentLength && contentLength > 0));
   const extensions = useMemo(() => {
-    const baseExtensions = [
+    const baseExtensions: Extension[] = [
       json(),
       EditorView.lineWrapping,
       // The editable element is what assistive tech focuses, so it carries
@@ -78,8 +93,11 @@ export function JSONEditor(props: JSONEditorProps) {
         stateExtensions(jsonSchema)
       );
     }
+    if (extraExtensions) {
+      baseExtensions.push(...extraExtensions);
+    }
     return baseExtensions;
-  }, [ariaLabel, jsonSchema, shouldLint]);
+  }, [ariaLabel, jsonSchema, shouldLint, extraExtensions]);
 
   return (
     <CodeMirror

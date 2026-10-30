@@ -9,10 +9,11 @@ import pytest
 from opentelemetry.context import Context
 
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
-from phoenix.db.types.decisions import DecisionInput, InputState
+from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.helpers.decision_clients import (
     ChoiceAnswer,
     DecisionConnection,
@@ -39,8 +40,8 @@ def definition() -> InlineDecisionEvaluatorDefinition:
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
         name="judge",
-        inputs=[DecisionInput(name="ticket")],
-        state=InputState(type="input", name="ticket"),
+        template_format=PromptTemplateFormat.MUSTACHE,
+        state=JsonState(type="json", template="{{ticket}}"),
         questions=questions(),
         model_provider=ModelProvider.TYPESAFE,
         model_name="jev-latest",

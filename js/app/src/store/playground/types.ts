@@ -138,37 +138,43 @@ export type DecisionQuestionDraft = {
   predicate: { trueDescription: string; falseDescription: string };
 };
 
-export type DecisionInputDeclaration = {
-  name: string;
-  description?: string | null;
-  jsonSchema?: Record<string, unknown> | null;
-};
-
 /**
  * One instance's decision prompt: the state (evidence) and the typed
  * questions asked about it. Each decision instance owns its own, like a
- * prompt, so instances can be compared and mixed with chat instances.
+ * prompt, so instances can be compared and mixed with chat instances. Both
+ * are templates in the playground's template format; their variables are
+ * the decision's variables.
  */
 export type DecisionPromptDraft = {
-  /**
-   * The state as written: a template (`text`), a JSON value (`json`), one
-   * input passed through unchanged (`input`), or the comma-separated names of
-   * the inputs sent together as one object (`inputs`).
-   */
-  state: string;
-  stateEditorMode: "text" | "json" | "input" | "inputs";
+  state: DecisionStateDraft;
   questions: DecisionQuestionDraft[];
+};
+
+/**
+ * The state template, as text or as JSON. Each mode keeps what was written
+ * in it, so switching modes and back loses nothing.
+ */
+export type DecisionStateDraft = {
   /**
-   * Input metadata preserved across loading and saving. Membership in this
-   * list does not make an input required after its state reference is removed.
+   * `text`: the state is a text template. `json`: the state is a JSON value
+   * whose string leaves are templates; a string that is exactly one variable
+   * tag is replaced by the variable's value, JSON type kept.
    */
-  inputs?: ReadonlyArray<DecisionInputDeclaration>;
-  /** Declared inputs not inferred from the loaded state, including section-scoped inputs. */
-  additionalInputNames?: ReadonlyArray<string>;
+  mode: "text" | "json";
+  /** The text template. */
+  text: string;
+  /** The JSON template as written, so it can be edited while invalid. */
+  json: string;
 };
 
 export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
+  /**
+   * Variables a decision reads as text even when their value parses as
+   * JSON. A decision otherwise reads a value that parses as JSON as that
+   * JSON value; prompts always read values as text.
+   */
+  variablesReadAsText?: Record<string, boolean | undefined>;
 };
 
 export type PlaygroundError = {
@@ -944,6 +950,14 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set multiple variable values in the input
    */
   setVariableValues: (values: { key: string; value: string }[]) => void;
+  /**
+   * Whether decisions read a variable's value as text even when it parses
+   * as JSON; see {@link PlaygroundInput.variablesReadAsText}.
+   */
+  setVariableReadAsText: (params: {
+    name: string;
+    isReadAsText: boolean;
+  }) => void;
   /**
    * set the streaming mode for the playground
    */

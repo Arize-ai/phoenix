@@ -1,12 +1,17 @@
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, Token, View } from "@phoenix/components";
+import { DecisionJsonTemplateEditor } from "@phoenix/components/decision/DecisionJsonTemplateEditor";
+import { toJsonTemplateText } from "@phoenix/components/decision/decisionTemplates";
 import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import {
+  isTemplateFormat,
+  type TemplateFormat,
+} from "@phoenix/components/templateEditor/types";
 import { DECISION_QUESTION_TYPES } from "@phoenix/pages/playground/decisionUtils";
 
 import type { DecisionVersionDetails_definition$data } from "./__generated__/DecisionVersionDetails_definition.graphql";
@@ -29,10 +34,11 @@ function getQuestionTypeLabel(typename: string): string | null {
   );
 }
 
-const TEMPLATE_FORMAT_LABELS = {
+const TEMPLATE_FORMAT_LABELS: Record<TemplateFormat, string> = {
   MUSTACHE: "Mustache",
   F_STRING: "F-String",
-} as const;
+  NONE: "None",
+};
 
 const listCSS = css`
   list-style: none;
@@ -75,8 +81,9 @@ function LabeledText({
 }
 
 /**
- * The body of the "Decision Definition" card: the inputs, the state the
- * model is shown, and the questions it answers, styled like the evaluator
+ * The body of the "Decision Definition" card: the template format, the state
+ * template the model is shown (its holes highlighted), the variables the
+ * templates use, and the questions it answers, styled like the evaluator
  * details pages.
  */
 export function DecisionDefinition({
@@ -84,64 +91,66 @@ export function DecisionDefinition({
 }: {
   definition: DecisionVersionDetails_definition$data;
 }) {
-  const { inputs, state, questions } = definition;
+  const { state, questions, variables } = definition;
+  const templateFormat: TemplateFormat = isTemplateFormat(
+    definition.templateFormat
+  )
+    ? definition.templateFormat
+    : "MUSTACHE";
   return (
     <View padding="size-200">
       <Flex direction="column" gap="size-300">
-        <Section title="Inputs">
-          <div css={evaluatorDetailsCardCSS}>
-            <Flex direction="column" gap="size-100">
-              {inputs.length === 0 ? (
-                <Text size="S" color="text-700">
-                  No inputs
-                </Text>
-              ) : (
-                inputs.map((input) => (
-                  <LabeledText key={input.name} label={input.name}>
-                    {input.description}
-                  </LabeledText>
-                ))
-              )}
-            </Flex>
-          </div>
-        </Section>
         <Section title="State">
           <div css={evaluatorDetailsCardCSS}>
-            {state.__typename === "DecisionTextState" ? (
-              <Flex direction="column" gap="size-100">
-                <Flex alignItems="center" gap="size-100">
-                  <Text size="S" weight="heavy">
-                    Template
-                  </Text>
-                  <Token size="S">
-                    {TEMPLATE_FORMAT_LABELS[state.templateFormat] ??
-                      state.templateFormat}
-                  </Token>
-                </Flex>
-                <TemplateEditorWrap readOnly>
+            <Flex direction="column" gap="size-100">
+              <Flex alignItems="center" gap="size-100">
+                <Text size="S" weight="heavy">
+                  {state.__typename === "DecisionJsonState" ? "JSON" : "Text"}
+                </Text>
+                <Token size="S">{TEMPLATE_FORMAT_LABELS[templateFormat]}</Token>
+              </Flex>
+              <TemplateEditorWrap readOnly>
+                {state.__typename === "DecisionJsonState" ? (
+                  <DecisionJsonTemplateEditor
+                    readOnly
+                    aria-label="State template"
+                    defaultValue={toJsonTemplateText({
+                      template: state.json,
+                      templateFormat,
+                    })}
+                    templateFormat={templateFormat}
+                  />
+                ) : (
                   <TemplateEditor
                     readOnly
                     height="100%"
-                    defaultValue={state.template}
-                    templateFormat={
-                      state.templateFormat === "F_STRING"
-                        ? TemplateFormats.FString
-                        : TemplateFormats.Mustache
+                    aria-label="State template"
+                    defaultValue={
+                      state.__typename === "DecisionTextState" ? state.text : ""
                     }
+                    templateFormat={templateFormat}
                   />
-                </TemplateEditorWrap>
-              </Flex>
-            ) : state.__typename === "DecisionInputState" ? (
-              <Flex direction="column" gap="size-50">
-                <LabeledText label="Input">{state.input}</LabeledText>
-                <Text size="S" color="text-700">
-                  The model is shown this input&apos;s value.
-                </Text>
-              </Flex>
-            ) : (
+                )}
+              </TemplateEditorWrap>
+            </Flex>
+          </div>
+        </Section>
+        <Section title="Variables">
+          <div css={evaluatorDetailsCardCSS}>
+            {variables.length === 0 ? (
               <Text size="S" color="text-700">
-                The model is shown the inputs as a JSON object.
+                {templateFormat === "NONE"
+                  ? "None: the template format reads nothing as a variable."
+                  : "None: every call sends the same state and questions."}
               </Text>
+            ) : (
+              <Flex direction="row" gap="size-100" wrap="wrap">
+                {variables.map((name) => (
+                  <Token key={name} size="S">
+                    {name}
+                  </Token>
+                ))}
+              </Flex>
             )}
           </div>
         </Section>

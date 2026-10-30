@@ -1435,6 +1435,28 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setVariableValues" }
       );
     },
+    setVariableReadAsText: ({
+      name,
+      isReadAsText,
+    }: {
+      name: string;
+      isReadAsText: boolean;
+    }) => {
+      const input = get().input;
+      set(
+        {
+          input: {
+            ...input,
+            variablesReadAsText: {
+              ...input.variablesReadAsText,
+              [name]: isReadAsText,
+            },
+          },
+        },
+        false,
+        { type: "setVariableReadAsText" }
+      );
+    },
     setStreaming: (streaming: boolean) => {
       set({ streaming }, false, { type: "setStreaming" });
     },

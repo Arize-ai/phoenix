@@ -105,7 +105,6 @@ export function PlaygroundModelMenu({
           decisionPrompt: selectPlaygroundInstanceDecisionPrompt(
             playgroundInstanceId
           )(store.getState()),
-          templateFormat: store.getState().templateFormat,
         })
       : null;
     if (wasDecision) {

@@ -45,7 +45,7 @@ def capture_decision_evaluator_definition(
         type="inline_decision_evaluator",
         name=name if name is not None else evaluator.name.root,
         description=description if description is not None else evaluator.description,
-        inputs=version.inputs,
+        template_format=version.template_format,
         state=version.state,
         questions=version.questions,
         model_provider=version.model_provider,

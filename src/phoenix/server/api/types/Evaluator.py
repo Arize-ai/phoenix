@@ -62,7 +62,7 @@ from phoenix.server.evaluators.runtime.builtin import (
 )
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.schemas import (
-    decision_input_schema,
+    infer_input_schema_from_decision,
 )
 from phoenix.server.online_eval.queue_health import (
     DEGRADED_QUEUE_WAIT,
@@ -791,7 +791,14 @@ class DecisionEvaluator(Evaluator, Node):
 
     @strawberry.field
     async def input_schema(self, info: Info[Context, None]) -> JSON:
-        return JSON(decision_input_schema((await self._record(info)).selected_version.inputs))
+        version = (await self._record(info)).selected_version
+        return JSON(
+            infer_input_schema_from_decision(
+                template_format=version.template_format,
+                state=version.state,
+                questions=version.questions,
+            )
+        )
 
     @strawberry.field
     async def scoring_policy(self, info: Info[Context, None]) -> DecisionScoringPolicy:

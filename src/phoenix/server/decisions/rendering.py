@@ -1,69 +1,288 @@
-"""Render a decision version's state from a call's input values."""
+"""Render a decision's state and questions from a call's variables.
+
+A saved decision is the request it sends, with holes in it. Its variables are the root
+names of the variable tags in its state template and its templated question fields, in
+first-appearance order, under the version's template format. Rendering fills them:
+
+1. A variable of the decision missing from ``variables`` is an error naming it; extra
+   variables are ignored.
+2. A text template renders with the template format. A structured value renders as JSON,
+   and Mustache dotted paths and sections read into structured values.
+3. A JSON template is walked; object keys are literal. A string leaf that is exactly one
+   variable tag (Mustache ``{{ path }}``, F-String ``{path}``) becomes the value it names,
+   JSON type kept, and reading a missing field is an error. Any other string leaf renders
+   by rule 2. Numbers, booleans and null pass through.
+4. ``NONE`` substitutes nothing.
+5. The state must come out as non-empty text, an object, or a list.
+6. Each templated question field renders by rule 2; instructions cannot render empty.
+
+The vectors in ``tests/unit/server/decisions/rendering_cases.json`` pin them, as data a client
+that renders decisions itself can run too.
+"""
 
 from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from string import Formatter
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Optional, Sequence, TypeVar, Union
 
 import pystache
+from pydantic import BaseModel
+from pystache.parser import (  # type: ignore[import-untyped]
+    ParsingError,
+)
+from typing_extensions import assert_never
 
 from phoenix.db.types.decisions import (
-    DecisionInput,
+    ChoiceQuestion,
+    DecisionQuestion,
     DecisionState,
-    InputState,
-    ObjectState,
+    JsonState,
+    PredicateQuestion,
+    ScaleQuestion,
+    TextState,
 )
 from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
+
+RenderedState = Union[str, dict[str, Any], list[Any]]
+_Model = TypeVar("_Model", bound=BaseModel)
 
 
-def render_state(
-    inputs: Sequence[DecisionInput], state: DecisionState, values: Mapping[str, Any]
-) -> str | dict[str, Any] | list[Any]:
-    """Build the state sent to the model from a call's input values.
+@dataclass(frozen=True)
+class RenderedDecision:
+    """What a call sends: the rendered state and questions, in the questions' order."""
 
-    An ``object`` state is exactly the declared inputs. A ``text`` state renders its
-    template; a structured value renders as JSON when named on its own, while Mustache
-    dotted paths and sections still read into it.
+    state: RenderedState
+    questions: list[DecisionQuestion]
+
+
+def decision_variables(
+    template_format: PromptTemplateFormat,
+    state: DecisionState,
+    questions: Sequence[DecisionQuestion],
+) -> list[str]:
+    """The variables a decision's templates use, by root name, in first-appearance order.
+
+    The state comes first, then each question's fields in order. A dotted path such as
+    ``{{customer.tier}}`` names ``customer``. Names inside a Mustache section are read
+    from the section's value, so only the section's own name is a variable.
 
     Raises:
-        ValueError: A declared input is missing, or an undeclared one is passed, or a
-            template path reads a field or item the input doesn't have.
+        ValueError: A template can't be parsed; the message says which.
     """
-    names = [input.name for input in inputs]
-    # Both are named together, so a misspelled name reads as the typo it is.
-    problems: list[str] = []
-    if missing := [name for name in names if name not in values]:
-        problems.append(f"Missing inputs: {', '.join(missing)}")
-    if undeclared := sorted(set(values) - set(names)):
-        problems.append(f"Undeclared inputs: {', '.join(undeclared)}")
-    if problems:
-        raise ValueError("; ".join(problems))
-    if isinstance(state, ObjectState):
-        result: object = {name: values[name] for name in names}
-    elif isinstance(state, InputState):
-        result = values[state.name]
+    names: dict[str, None] = {}
+    for location, template in _templates(state, questions):
+        for name in _template_variables(template_format, template, location):
+            names.setdefault(name, None)
+    return list(names)
+
+
+def render_decision(
+    template_format: PromptTemplateFormat,
+    state: DecisionState,
+    questions: Sequence[DecisionQuestion],
+    variables: Mapping[str, Any],
+) -> RenderedDecision:
+    """Fill a decision's templates with a call's variables.
+
+    Raises:
+        ValueError: A template is invalid, a variable is missing, a whole-tag path reads a
+            missing field, or the state or an instruction renders to something a provider
+            won't take. The message says which.
+    """
+    names = decision_variables(template_format, state, questions)
+    if missing := [name for name in names if name not in variables]:
+        raise ValueError(f"Missing variables: {', '.join(missing)}")
+    values = dict(variables)
+    rendered_state: Any
+    if isinstance(state, TextState):
+        rendered_state = _render_text(template_format, state.template, values, "the state")
+    elif isinstance(state, JsonState):
+        rendered_state = _render_json(template_format, state.template, values)
     else:
-        template_format = PromptTemplateFormat(state.template_format)
-        bound = {name: values[name] for name in names}
-        try:
-            # A null input renders as `null` under Mustache too: structured inputs are JSON.
-            if template_format is PromptTemplateFormat.F_STRING:
-                result = _F_STRING_FORMATTER.vformat(state.template, (), bound)
-            else:
-                result = str(_MUSTACHE_RENDERER.render(state.template, bound))
-        except (AttributeError, KeyError, IndexError, TypeError) as error:
-            # F-string paths raise these from Formatter.vformat; Mustache renders a miss as empty.
-            detail = error.args[0] if error.args else type(error).__name__
-            raise ValueError(
-                f"The state template can't be rendered from these inputs: {detail}"
-            ) from error
-    if not isinstance(result, (str, dict, list)):
+        assert_never(state)
+    if not isinstance(rendered_state, (str, dict, list)):
         raise ValueError("State must be text, a JSON object, or a list")
-    if isinstance(result, str) and not result.strip():
+    if isinstance(rendered_state, str) and not rendered_state.strip():
         raise ValueError("State cannot be empty")
-    return result
+    return RenderedDecision(
+        state=rendered_state,
+        questions=[_render_question(template_format, question, values) for question in questions],
+    )
+
+
+def _templates(
+    state: DecisionState, questions: Sequence[DecisionQuestion]
+) -> Iterator[tuple[str, str]]:
+    """Every template of a decision, with where it is for error messages."""
+    if isinstance(state, TextState):
+        yield "the state", state.template
+    elif isinstance(state, JsonState):
+        for leaf in _string_leaves(state.template):
+            yield "the state", leaf
+    else:
+        assert_never(state)
+    for question in questions:
+        for location, text in _question_fields(question):
+            if text is not None:
+                yield location, text
+
+
+def _question_fields(question: DecisionQuestion) -> Iterator[tuple[str, Optional[str]]]:
+    yield f"the instructions of {question.name}", question.instructions
+    if isinstance(question, PredicateQuestion):
+        if question.criteria is not None:
+            yield f"the true criterion of {question.name}", question.criteria.true
+            yield f"the false criterion of {question.name}", question.criteria.false
+    elif isinstance(question, ChoiceQuestion):
+        for option in question.choices:
+            yield f"choice {option.value!r} of {question.name}", option.description
+    elif isinstance(question, ScaleQuestion):
+        for level in question.levels:
+            yield f"level {level.label!r} of {question.name}", level.description
+    else:
+        assert_never(question)
+
+
+def _string_leaves(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _string_leaves(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _string_leaves(item)
+
+
+def _template_variables(
+    template_format: PromptTemplateFormat, template: str, location: str
+) -> list[str]:
+    """Root variable names in one template, as prompts read them, in order of appearance."""
+    try:
+        names = get_template_formatter(template_format).parse_with_types(template).names()
+    except (TemplateFormatterError, ValueError) as error:
+        # The F-String formatter reports a malformed template as a ValueError.
+        raise ValueError(f"Invalid template in {location}: {error}") from error
+    # The formatter's names are a set; a name's first tag gives the order.
+    return sorted(names, key=lambda name: _first_tag_position(template_format, template, name))
+
+
+def _first_tag_position(template_format: PromptTemplateFormat, template: str, name: str) -> int:
+    opening = r"\{\{\s*[#^&{]?\s*" if template_format is PromptTemplateFormat.MUSTACHE else r"\{"
+    match = re.search(opening + re.escape(name) + r"(?![\w])", template)
+    return match.start() if match else len(template)
+
+
+_MUSTACHE_WHOLE_TAG = re.compile(r"\{\{\s*([^\s{}#^/!>&=.][^\s{}]*)\s*\}\}")
+_F_STRING_WHOLE_TAG = re.compile(r"\{([^{}!:]+)\}")
+
+
+def whole_tag_path(template_format: PromptTemplateFormat, text: str) -> Optional[str]:
+    """The path a string names when it is exactly one variable tag, or None.
+
+    The playground applies the same rule (``getWholeTagPath`` in
+    ``js/app/src/components/decision/decisionTemplates.ts``); the ``whole_tags`` cases in
+    ``tests/unit/server/decisions/rendering_cases.json`` pin both.
+    """
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        pattern = _MUSTACHE_WHOLE_TAG
+    elif template_format is PromptTemplateFormat.F_STRING:
+        pattern = _F_STRING_WHOLE_TAG
+    else:
+        return None
+    match = pattern.fullmatch(text)
+    return match.group(1) if match else None
+
+
+def _render_json(template_format: PromptTemplateFormat, value: Any, values: dict[str, Any]) -> Any:
+    if template_format is PromptTemplateFormat.NONE:
+        return value
+    if isinstance(value, dict):
+        return {key: _render_json(template_format, item, values) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_render_json(template_format, item, values) for item in value]
+    if isinstance(value, str):
+        if (path := whole_tag_path(template_format, value)) is not None:
+            return _resolve(template_format, path, values)
+        return _render_text(template_format, value, values, "the state")
+    return value
+
+
+def _resolve(template_format: PromptTemplateFormat, path: str, values: dict[str, Any]) -> Any:
+    """The value a whole-tag path names, as it is: object, list, string, number, bool, null."""
+    if template_format is PromptTemplateFormat.F_STRING:
+        try:
+            value, _ = _F_STRING_FORMATTER.get_field(path, (), values)
+        except (AttributeError, KeyError, IndexError, TypeError) as error:
+            raise ValueError(f"The state reads a missing field: {path}") from error
+        return value
+    root, *parts = path.split(".")
+    value = values[root]
+    # Mustache paths walk object fields only, as the text renderer does.
+    for part in parts:
+        if not isinstance(value, dict) or part not in value:
+            raise ValueError(f"The state reads a missing field: {path}")
+        value = value[part]
+    return value
+
+
+def _render_text(
+    template_format: PromptTemplateFormat, template: str, values: dict[str, Any], location: str
+) -> str:
+    if template_format is PromptTemplateFormat.NONE:
+        return template
+    try:
+        # A null value renders as `null` under Mustache too: structured values are JSON.
+        if template_format is PromptTemplateFormat.F_STRING:
+            return _F_STRING_FORMATTER.vformat(template, (), values)
+        return str(_MUSTACHE_RENDERER.render(template, values))
+    except ParsingError as error:
+        raise ValueError(f"Invalid template in {location}: {error}") from error
+    except (AttributeError, KeyError, IndexError, TypeError, ValueError) as error:
+        # F-string paths raise these from Formatter.vformat; Mustache renders a miss as empty.
+        detail = error.args[0] if error.args else type(error).__name__
+        raise ValueError(f"Can't render {location}: {detail}") from error
+
+
+def _render_question(
+    template_format: PromptTemplateFormat, question: DecisionQuestion, values: dict[str, Any]
+) -> DecisionQuestion:
+    def render(model: _Model, field: str, location: str) -> _Model:
+        # Only fields with text are touched, so the copy dumps like the original.
+        text = getattr(model, field)
+        if text is None:
+            return model
+        return model.model_copy(
+            update={field: _render_text(template_format, text, values, location)}
+        )
+
+    rendered = render(question, "instructions", f"the instructions of {question.name}")
+    if not rendered.instructions.strip():
+        raise ValueError(f"Instructions for {question.name} cannot be empty")
+    if isinstance(rendered, PredicateQuestion):
+        if (criteria := rendered.criteria) is not None:
+            criteria = render(criteria, "true", f"the true criterion of {question.name}")
+            criteria = render(criteria, "false", f"the false criterion of {question.name}")
+            rendered = rendered.model_copy(update={"criteria": criteria})
+    elif isinstance(rendered, ChoiceQuestion):
+        choices = [
+            render(option, "description", f"choice {option.value!r} of {question.name}")
+            for option in rendered.choices
+        ]
+        rendered = rendered.model_copy(update={"choices": choices})
+    elif isinstance(rendered, ScaleQuestion):
+        levels = [
+            render(level, "description", f"level {level.label!r} of {question.name}")
+            for level in rendered.levels
+        ]
+        rendered = rendered.model_copy(update={"levels": levels})
+    else:
+        assert_never(rendered)
+    return rendered
 
 
 _FIELD_PART_RE = re.compile(r"\.([^.\[\]]+)|\[([^\[\]]+)\]")

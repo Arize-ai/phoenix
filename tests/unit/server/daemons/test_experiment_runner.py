@@ -27,10 +27,9 @@ from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, resolve_
 from phoenix.db.types.decisions import (
     ChoiceOption,
     ChoiceQuestion,
-    DecisionInput,
     DecisionQuestion,
     DecisionTaskConfig,
-    InputState,
+    JsonState,
     PredicateQuestion,
 )
 from phoenix.db.types.evaluator_definition import (
@@ -1451,8 +1450,8 @@ def _make_decision_work_item(
     decision_task = MagicMock(spec=models.ExperimentDecisionTask)
     decision_task.config = DecisionTaskConfig.model_validate(
         {
-            "inputs": [{"name": "ticket"}],
-            "state": {"type": "input", "name": "ticket"},
+            "template_format": "MUSTACHE",
+            "state": {"type": "json", "template": "{{ticket}}"},
             "questions": [{"type": "predicate", "name": "urgent", "instructions": "Is it urgent?"}],
         }
     )
@@ -2196,8 +2195,8 @@ _TRIAGE_QUESTIONS: list[DecisionQuestion] = [
 
 def _triage_version(questions: list[DecisionQuestion], **fields: Any) -> models.DecisionVersion:
     return models.DecisionVersion(
-        inputs=[DecisionInput(name="ticket")],
-        state=InputState(type="input", name="ticket"),
+        template_format=PromptTemplateFormat.MUSTACHE,
+        state=JsonState(type="json", template="{{ticket}}"),
         questions=questions,
         model_provider=ModelProvider.TYPESAFE,
         model_name="tev1",
@@ -2576,8 +2575,8 @@ class TestLoadDecisionTaskConfig:
         decision_task.custom_provider_id = None
         decision_task.config = DecisionTaskConfig.model_validate(
             {
-                "inputs": [{"name": "ticket"}],
-                "state": {"type": "input", "name": "ticket"},
+                "template_format": "MUSTACHE",
+                "state": {"type": "json", "template": "{{ticket}}"},
                 "questions": [],
                 "custom_provider_name": "Gone provider",
             }

@@ -11,7 +11,10 @@ import {
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { DecisionPromptEditor } from "../DecisionPromptEditor";
-import { createDecisionDraft } from "../decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "../decisionUtils";
 
 vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateEditor: ({ defaultValue }: { defaultValue: string }) => (
@@ -26,7 +29,10 @@ vi.mock("../DecisionQuestionEditor", () => ({
 installTestStorage();
 
 it("reloads an uncontrolled state editor on load, while typing keeps it mounted", async () => {
-  const draft = { ...createDecisionDraft(), state: "First {{ticket}}" };
+  const draft = {
+    ...createDecisionDraft(),
+    state: createDecisionStateDraft({ text: "First {{ticket}}" }),
+  };
   const store = createPlaygroundStore({
     modelConfigByProvider: {},
     instances: [
@@ -60,7 +66,10 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
     await act(async () =>
       store.getState().updateDecisionPrompt({
         instanceId: 1,
-        request: { ...draft, state: "Typed {{ticket}}" },
+        request: {
+          ...draft,
+          state: createDecisionStateDraft({ text: "Typed {{ticket}}" }),
+        },
       })
     );
     expect(container.querySelector('input[aria-label="Decision state"]')).toBe(
@@ -71,7 +80,10 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
         instanceId: 1,
         instance: {
           ...createDecisionTaskInstance(),
-          decisionPrompt: { ...draft, state: "Second {{ticket}}" },
+          decisionPrompt: {
+            ...draft,
+            state: createDecisionStateDraft({ text: "Second {{ticket}}" }),
+          },
         },
       })
     );
@@ -86,24 +98,12 @@ it("reloads an uncontrolled state editor on load, while typing keeps it mounted"
   }
 });
 
-it("shows the wrapping difference between Value and Object and keeps dataset previews symbolic", async () => {
-  const draft = {
-    ...createDecisionDraft(),
-    state: "state",
-    stateEditorMode: "input" as const,
-  };
-  const store = createPlaygroundStore({
-    modelConfigByProvider: {},
-    instances: [
-      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
-    ],
-    input: { variablesValueCache: { state: '{"ticket":"Refund"}' } },
-  });
+function renderEditor(store: ReturnType<typeof createPlaygroundStore>) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  try {
-    await act(async () =>
+  const render = () =>
+    act(async () =>
       root.render(
         <ThemeContext.Provider
           value={{
@@ -119,37 +119,54 @@ it("shows the wrapping difference between Value and Object and keeps dataset pre
         </ThemeContext.Provider>
       )
     );
-    const preview = () =>
-      container.querySelector('[aria-label="Decision state preview"]')
-        ?.textContent;
-    // JSON typed into an Inputs panel field remains a string.
-    expect(preview()).toBe(JSON.stringify('{"ticket":"Refund"}'));
-    expect(container.textContent).toContain("Use this input's value directly.");
-    const objectButton = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Object"]'
-    );
-    expect(objectButton).not.toBeNull();
-    await act(async () => objectButton?.click());
-    expect(
-      selectPlaygroundInstanceDecisionPrompt(store.getState().instances[0].id)(
-        store.getState()
-      )?.stateEditorMode
-    ).toBe("inputs");
-    expect(preview()).toBe(JSON.stringify({ state: '{"ticket":"Refund"}' }));
-    expect(container.textContent).toContain(
-      "Build an object keyed by these comma-separated names."
-    );
-    await act(async () => store.setState({ datasetId: "dataset" }));
-    expect(container.textContent).toContain("State shape");
-    expect(preview()).toBe('{ "state": <state> }');
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Value"]')
-        ?.click()
-    );
-    expect(preview()).toBe("<state>");
-  } finally {
+  const cleanup = async () => {
     await act(async () => root.unmount());
     container.remove();
+  };
+  const button = (label: string) =>
+    Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent === label
+    );
+  return { container, render, cleanup, button };
+}
+
+it("switches between Text and JSON, keeping each and seeding an empty JSON with holes", async () => {
+  const draft = {
+    ...createDecisionDraft(),
+    state: createDecisionStateDraft({ text: "Ticket {{ticket}} from {{who}}" }),
+  };
+  const store = createPlaygroundStore({
+    modelConfigByProvider: {},
+    instances: [
+      { ...createDecisionTaskInstance(), id: 1, decisionPrompt: draft },
+    ],
+  });
+  const readState = () =>
+    selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state;
+  const { container, render, cleanup } = renderEditor(store);
+  const modeButton = (label: string) =>
+    Array.from(
+      container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="State mode"] button'
+      )
+    ).find((candidate) => candidate.textContent === label);
+  try {
+    await render();
+    expect(
+      Array.from(
+        container.querySelectorAll('[aria-label="State mode"] button')
+      ).map((candidate) => candidate.textContent)
+    ).toEqual(["Text", "JSON"]);
+    await act(async () => modeButton("JSON")?.click());
+    expect(readState()).toEqual({
+      mode: "json",
+      text: "Ticket {{ticket}} from {{who}}",
+      json: JSON.stringify({ ticket: "{{ticket}}", who: "{{who}}" }, null, 2),
+    });
+    await act(async () => modeButton("Text")?.click());
+    expect(readState()?.mode).toBe("text");
+    expect(readState()?.text).toBe("Ticket {{ticket}} from {{who}}");
+  } finally {
+    await cleanup();
   }
 });

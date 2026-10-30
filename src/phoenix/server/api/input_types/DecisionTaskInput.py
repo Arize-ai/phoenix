@@ -6,15 +6,15 @@ import strawberry
 from strawberry.relay import GlobalID
 
 from phoenix.db.types.decisions import DecisionTaskConfig
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DecisionConnectionInput import DecisionConnectionInput
 from phoenix.server.api.input_types.DecisionVersionInput import (
-    DecisionInputDefinitionInput,
     DecisionQuestionInput,
     DecisionStateInput,
+    to_decision_definition,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
-from phoenix.server.decisions.validation import validate_inputs, validate_questions
 
 
 @strawberry.input(
@@ -24,19 +24,19 @@ from phoenix.server.decisions.validation import validate_inputs, validate_questi
 class DecisionTaskInput:
     connection: DecisionConnectionInput
     model_name: str
-    inputs: list[DecisionInputDefinitionInput] = strawberry.field(
-        description="The named inputs the state is built from."
+    template_format: PromptTemplateFormat = strawberry.field(
+        description="How variable tags are read in the state and the question fields."
     )
     state: DecisionStateInput
     questions: list[DecisionQuestionInput] = strawberry.field(
         description="The fixed questions asked of every example; at least one is required.",
     )
-    input_values_path: Optional[str] = strawberry.field(
+    template_variables_path: Optional[str] = strawberry.field(
         default="input",
-        description="Dot-notation path to the object holding the input values, by input "
-        "name, as `templateVariablesPath` is for a prompt. Default 'input' means input "
-        "`ticket` resolves to input.ticket. Empty string means the whole context, so "
-        "values are read as `input`, `reference`, or `metadata`.",
+        description="Dot-notation path to the object holding the variables, by name, as for "
+        "a prompt task. Default 'input' means variable `ticket` resolves to input.ticket. "
+        "Empty string means the whole context, so variables are read as `input`, "
+        "`reference`, or `metadata`. Values keep their JSON types; unused fields are ignored.",
     )
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(
         default_factory=list,
@@ -52,19 +52,17 @@ class DecisionTaskInput:
         """The config copied into the experiment.
 
         Raises:
-            BadRequest: The inputs, state, or questions break a rule.
+            BadRequest: The state template or questions break a rule.
         """
         try:
-            inputs = [definition.to_orm() for definition in self.inputs]
-            state = self.state.to_orm()
-            validate_inputs(inputs, state)
-            questions = [question.to_orm() for question in self.questions]
-            validate_questions(questions)
+            state, questions = to_decision_definition(
+                self.template_format, self.state, self.questions
+            )
             return DecisionTaskConfig(
-                inputs=inputs,
+                template_format=self.template_format,
                 state=state,
                 questions=questions,
-                input_values_path=self.input_values_path or "",
+                template_variables_path=self.template_variables_path or "",
             )
         except ValueError as error:
             raise BadRequest(str(error)) from error

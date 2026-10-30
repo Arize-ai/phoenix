@@ -1,8 +1,8 @@
 """Turn dataset examples into decision requests, and answers into experiment run outputs.
 
 A decision experiment copies a :class:`DecisionTaskConfig` and reads each example the way
-a prompt task does: input values come from ``input_values_path``, as template variables
-come from ``template_variables_path``. The task's questions are fixed across examples.
+a prompt task does: the variables come from the object at ``template_variables_path``.
+The task's questions are fixed across examples.
 """
 
 from typing import Any
@@ -11,7 +11,7 @@ from phoenix.db import models
 from phoenix.db.types.decisions import DecisionTaskConfig
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
 from phoenix.server.api.helpers.message_helpers import build_template_variables
-from phoenix.server.decisions.rendering import render_state
+from phoenix.server.decisions.rendering import render_decision
 
 
 def build_example_request(
@@ -23,11 +23,11 @@ def build_example_request(
 ) -> DecisionRequest:
     """The request one dataset example makes.
 
-    Only the declared inputs are read from the object at ``input_values_path``, so an
-    example may carry other fields beside them.
+    The variables are the object at ``template_variables_path``, values keeping their JSON
+    types; fields the templates don't use are ignored.
 
     Raises:
-        ValueError: A path misses, a declared input is missing, or the rendered state is
+        ValueError: A path misses, a variable is missing, or the rendered state is
             invalid. The message says which.
     """
     try:
@@ -35,17 +35,16 @@ def build_example_request(
             input_data=input,
             output_data=output,
             metadata=metadata,
-            template_variables_path=config.input_values_path,
+            template_variables_path=config.template_variables_path,
         )
     except (KeyError, TypeError) as error:
-        raise ValueError(f"Input values: {_reason(error)}") from error
+        raise ValueError(f"Template variables: {_reason(error)}") from error
     if not isinstance(source, dict):
-        raise ValueError(f"Input values at {config.input_values_path!r} are not an object")
-    names = [declared.name for declared in config.inputs]
-    state = render_state(
-        config.inputs, config.state, {name: source[name] for name in names if name in source}
-    )
-    return DecisionRequest(state=state, questions=config.questions)
+        raise ValueError(
+            f"Template variables at {config.template_variables_path!r} are not an object"
+        )
+    rendered = render_decision(config.template_format, config.state, config.questions, source)
+    return DecisionRequest(state=rendered.state, questions=rendered.questions)
 
 
 def _reason(error: Exception) -> str:
