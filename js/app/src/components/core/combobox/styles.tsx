@@ -81,7 +81,10 @@ export const comboBoxItemCSS = css`
   font-size: var(--global-dimension-font-size-100);
   cursor: pointer;
   position: relative;
+  /* Long unbroken values such as JSON paths wrap instead of overflowing the popover */
+  overflow-wrap: anywhere;
   & > .icon-wrap.menu-item__selected-checkmark {
+    flex: none;
     height: var(--global-dimension-size-200);
     width: var(--global-dimension-size-200);
   }
