@@ -151,6 +151,75 @@ class TestSlices:
         assert described["agent_name"] == "claude-code"
         assert described["model_name"] == "anthropic/claude-sonnet-4-5"
 
+    def test_model_params_and_agent_settings_are_json_friendly(self) -> None:
+        (experiment_slice,) = _build_slices(
+            [
+                agent(
+                    kwargs={
+                        "temperature": 0.2,
+                        "max_turns": 30,
+                        "llm_kwargs": {"max_tokens": 4096, "temperature": 0.9},
+                        "llm_call_kwargs": {"seed": 7},
+                        "model_info": {"path": Path("/models/info.json")},
+                    },
+                    env={"OPENAI_BASE_URL": "http://proxy"},
+                    max_timeout_sec=600.0,
+                    resume_trajectory=True,
+                    extra_allowed_hosts=["api.openai.com"],
+                )
+            ]
+        )
+        described = experiment_slice.describe()
+
+        assert json.loads(json.dumps(described)) == described
+        assert described["model_params"] == {"temperature": 0.2, "max_tokens": 4096, "seed": 7}
+        assert described["kwargs"]["max_turns"] == 30
+        assert described["kwargs"]["model_info"] == {"path": "/models/info.json"}
+        assert described["env_keys"] == ["OPENAI_BASE_URL"]
+        assert described["max_timeout_sec"] == 600.0
+        assert described["override_timeout_sec"] is None
+        assert described["resume_trajectory"] is True
+        assert described["extra_allowed_hosts"] == ["api.openai.com"]
+
+    def test_unset_model_params_are_omitted(self) -> None:
+        (experiment_slice,) = _build_slices([agent()])
+        described = experiment_slice.describe()
+        assert described["model_params"] == {}
+        assert described["kwargs"] == {}
+
+    def test_credentials_in_agent_config_never_reach_metadata(self) -> None:
+        credential = "sk-live-credential-value"
+        (experiment_slice,) = _build_slices(
+            [
+                agent(
+                    kwargs={
+                        "api_key": credential,
+                        "apiKey": credential,
+                        "access_token": credential,
+                        "client_secret": credential,
+                        "password": credential,
+                        "api_base": f"https://user:{credential}@proxy.example.com/v1",
+                        "extra_env": {"ANTHROPIC_API_KEY": credential},
+                        "llm_kwargs": {
+                            "max_tokens": 1024,
+                            "extra_headers": {"X-Custom": credential},
+                            "Authorization": f"Bearer {credential}",
+                        },
+                        "tools": [{"name": "search", "auth_token": credential}],
+                    },
+                    env={"OPENAI_API_KEY": credential},
+                    skills=[f"https://{credential}@github.com/org/skills.git"],
+                )
+            ]
+        )
+        described = experiment_slice.describe()
+
+        assert credential not in json.dumps(described)
+        assert described["model_params"] == {"max_tokens": 1024}
+        assert described["kwargs"]["api_base"] == "https://proxy.example.com/v1"
+        assert described["kwargs"]["tools"] == [{"name": "search"}]
+        assert described["env_keys"] == ["OPENAI_API_KEY"]
+
     def test_duplicate_agent_configurations_are_rejected(self) -> None:
         with pytest.raises(HarborPluginError, match="Duplicate agent configuration"):
             _build_slices([agent(), agent()])

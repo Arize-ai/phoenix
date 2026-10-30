@@ -122,6 +122,33 @@ Run output extraction is independent of trace upload. `trace_mode=null` still re
 
 Successful experiment runs are immutable. Runs created by earlier plugin versions keep their legacy Harbor metadata output when a job resumes; the plugin recognizes and reuses them instead of treating the changed output format as a conflict.
 
+### Experiment metadata
+
+Each experiment's metadata describes the Harbor job and the agent configuration, so you can tell apart experiments that differ only in a model parameter or agent setting. The `harbor_agent` object contains these fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `agent_name` | string | The Harbor agent name. |
+| `model_name` | string or null | The model passed to the agent. |
+| `import_path` | string or null | The import path of a custom agent. |
+| `skills` | list of strings | The skill sources given to the agent. |
+| `mcp_servers` | list of strings | The names of the MCP servers given to the agent. |
+| `model_params` | object | The model parameters set in the agent kwargs, such as `temperature` or `max_tokens`. Unset parameters are omitted. |
+| `kwargs` | object | All agent kwargs, with secret-named keys removed. |
+| `env_keys` | list of strings | The names of the agent environment variables. Values are never recorded. |
+| `override_timeout_sec` | number or null | The agent timeout override. |
+| `override_setup_timeout_sec` | number or null | The agent setup timeout override. |
+| `max_timeout_sec` | number or null | The maximum agent timeout. |
+| `resume_trajectory` | boolean | True if multi-step tasks resume the previous step's session. |
+| `load_trajectory` | string or null | The trajectory loaded before the first step. |
+| `extra_allowed_hosts` | list of strings | Extra hosts the agent can reach during its run. |
+
+`model_params` collects these keys: `temperature`, `top_p`, `top_k`, `max_tokens`, `max_output_tokens`, `max_completion_tokens`, `max_thinking_tokens`, `reasoning_effort`, `seed`, `frequency_penalty`, `presence_penalty`, and `stop`. The plugin reads each one from the top-level agent kwargs first, then from `llm_kwargs`, and then from `llm_call_kwargs`. For example, `--agent-kwarg temperature=0.2` is recorded as `harbor_agent.model_params.temperature`.
+
+The plugin never records secrets. It drops any kwarg whose name contains a word such as `key`, `token`, `secret`, `password`, `auth`, `credential`, `cookie`, `header`, or `env`, at any nesting depth. It also strips credentials embedded in URLs. Count fields such as `max_tokens` are kept.
+
+Experiments created by earlier plugin versions keep their original metadata and don't have the newer fields.
+
 ### Optional reference outputs
 
 To display an expected answer beside an experiment result, add this setting to the task's `task.toml`:

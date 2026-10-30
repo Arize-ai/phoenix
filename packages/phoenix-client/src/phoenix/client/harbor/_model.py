@@ -16,6 +16,8 @@ from harbor.models.job.config import JobConfig
 from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TrialConfig
 
+from phoenix.client.harbor._agent_metadata import model_params, redact_secrets
+
 __all__ = [
     "DatasetIdentity",
     "ExperimentSlice",
@@ -129,12 +131,27 @@ class ExperimentSlice:
         return short_digest(self.identity_digest)
 
     def describe(self) -> dict[str, Any]:
+        """Returns the agent configuration recorded as ``harbor_agent`` metadata.
+
+        Secret-named kwargs and environment values are omitted, so the result is
+        safe to store and filter on in Phoenix.
+        """
+        agent = self.agent
         return {
             "agent_name": self.agent_name,
             "model_name": self.model_name,
-            "import_path": self.agent.import_path,
-            "skills": list(self.agent.skills),
-            "mcp_servers": [server.name for server in self.agent.mcp_servers],
+            "import_path": agent.import_path,
+            "skills": redact_secrets(list(agent.skills)),
+            "mcp_servers": [server.name for server in agent.mcp_servers],
+            "model_params": model_params(agent.kwargs),
+            "kwargs": redact_secrets(agent.kwargs),
+            "env_keys": sorted(agent.env),
+            "override_timeout_sec": agent.override_timeout_sec,
+            "override_setup_timeout_sec": agent.override_setup_timeout_sec,
+            "max_timeout_sec": agent.max_timeout_sec,
+            "resume_trajectory": agent.resume_trajectory,
+            "load_trajectory": redact_secrets(agent.load_trajectory),
+            "extra_allowed_hosts": list(agent.extra_allowed_hosts),
         }
 
 
