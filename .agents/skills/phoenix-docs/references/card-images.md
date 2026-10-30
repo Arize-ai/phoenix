@@ -16,6 +16,12 @@ The full URL prefix is `https://storage.googleapis.com/arize-phoenix-assets/asse
 
 Paths never change. When a card's art changes, its file is replaced in place and pages pick up the new art within an hour (`Cache-Control: public, max-age=3600`).
 
+## Rules for grids
+
+- Every card in a grid has art. Do not mix image cards and icon-only cards in one grid.
+- On the integrations index, cards show the plain brand mark and every grid is alphabetical by title. `relink` keeps qualifier cards off the index, and `status --check` flags any it finds.
+- Follow [card-design.md](card-design.md) for how each card looks.
+
 ## Reuse before you create
 
 Most docs changes need no new art.

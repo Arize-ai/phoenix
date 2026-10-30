@@ -44,9 +44,9 @@ When sibling cards share a brand, each adds one qualifier after a divider: brand
 - The space on each side of the divider is equal.
 - The three parts center as one group.
 
-A qualifier is either a **language** (Python, TypeScript, JavaScript, Node.js, Go, Java, .NET) or a **Phoenix capability** (evals, agents). Capability glyphs come from the app's own icon set, `js/app/src/components/core/icon/Icons.tsx`, so docs and product use the same symbol for the same idea. Use at most one qualifier.
+A qualifier is either a **language** (Python, TypeScript, JavaScript, Node.js, Go, Java, .NET) or a **Phoenix capability** (evals). Capability glyphs come from the app's own icon set, `js/app/src/components/core/icon/Icons.tsx`, so docs and product use the same symbol for the same idea. Use at most one qualifier.
 
-Add a qualifier only when it separates sibling cards on a page. A brand's own sub-products keep the plain brand mark. When one qualifier cannot separate every variant, pick the one that names the product area and let the card titles carry the rest.
+Overview pages that list many brands (the integrations index) show only the plain brand mark; a qualifier there reads as noise. On a brand's own pages, add a qualifier only when it separates sibling cards. A brand's own sub-products keep the plain brand mark. When one qualifier cannot separate every variant, pick the one that names the product area and let the card titles carry the rest.
 
 Never replace a brand mark with a generic or capability icon. A card about an AWS, Google or Microsoft product always shows that brand's own mark.
 
@@ -64,6 +64,8 @@ A topic card draws one gesture from the Phoenix surface it teaches. It uses a sm
 | Large rounded box, outlined | A container: a subagent, a table, a search box |
 | Ring | A score |
 | Column | A measured result |
+| Chevron | A command prompt or a processing step |
+| Play triangle | A video |
 
 One shape in each drawing is cyan. It marks what the reader should look at: the selected span, the passing score, the answer.
 
@@ -76,6 +78,12 @@ One shape in each drawing is cyan. It marks what the reader should look at: the 
 | `experiment` | Three pairs of columns, baseline in gray beside candidate in white | The best candidate |
 | `agent` | A trajectory read left to right: agent step, tool call, a subagent box holding its own step and tool, then the answer | The answer |
 | `retrieval` | A magnifier beside three ranked result bars | The top result |
+| `cli` | A terminal window: two commands and a waiting prompt | The cursor |
+| `judge` | Answer lines pass through a judge model into a score ring | The score arc |
+| `pipeline` | Spans pass through one processing step and come out | One processed span |
+| `sandbox` | Code brackets inside an isolated boundary | The slash in `</>` |
+| `annotation` | Three trace lines, each with a label chip | The chip marking a failure |
+| `video` | A player frame with a play button and a progress bar | The progress |
 
 ### Drawing a new motif
 
