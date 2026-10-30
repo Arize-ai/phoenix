@@ -44,6 +44,8 @@
 
 - [Compare prompt changes in Playground](https://arize.com/docs/phoenix/learn/playground-evals): Replay a captured model step and test one prompt change.
 
+- [Run a Phoenix dataset experiment](https://arize.com/docs/phoenix/learn/run-experiment): Compare complete Wonder Toys runs on a fixed dataset version.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

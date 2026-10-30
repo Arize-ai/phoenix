@@ -502,7 +502,8 @@
           {
             "group": "Test a change",
             "pages": [
-              "docs/phoenix/learn/playground-evals"
+              "docs/phoenix/learn/playground-evals",
+              "docs/phoenix/learn/run-experiment"
             ]
           }
         ]
