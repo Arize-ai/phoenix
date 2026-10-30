@@ -508,6 +508,15 @@ class Project(TypedDict):
     description: NotRequired[str]
 
 
+class ProjectCostSummary(TypedDict):
+    token_count_prompt: int
+    token_count_completion: int
+    token_count_total: int
+    cost_usd_prompt: float
+    cost_usd_completion: float
+    cost_usd_total: float
+
+
 class ProjectRetentionPolicyData(TypedDict):
     project_id: str
     policy_id: Optional[str]
@@ -1705,6 +1714,10 @@ class GetProjectAnnotationConfigsResponseBody(TypedDict):
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
     next_cursor: Optional[str]
+
+
+class GetProjectCostSummaryResponseBody(TypedDict):
+    data: ProjectCostSummary
 
 
 class GetProjectResponseBody(TypedDict):
