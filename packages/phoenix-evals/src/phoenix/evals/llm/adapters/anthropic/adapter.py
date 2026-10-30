@@ -96,6 +96,28 @@ def _raise_if_incomplete(response: Any) -> None:
         )
 
 
+def _generated_text(response: Any) -> str:
+    """Returns the text blocks of a response joined, skipping thinking and other blocks.
+
+    Text cut off at max_tokens is returned, as the other adapters return it.
+
+    Raises:
+        ValueError: If the model refused, or the response holds no text block.
+    """
+    if response.stop_reason == "refusal":
+        raise ValueError(
+            f"Anthropic refused the request: {getattr(response, 'stop_details', None)}"
+        )
+    texts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
+    if not texts:
+        if response.stop_reason == "max_tokens":
+            raise ValueError(
+                "Anthropic used all of max_tokens before it wrote any text. Raise max_tokens."
+            )
+        raise ValueError(f"Anthropic returned no text: {response.content}")
+    return "".join(texts)
+
+
 def _native_output(response: Any) -> Any:
     """Returns the JSON value in a native structured output response.
 
@@ -250,12 +272,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.messages.create(model=self.model, messages=messages, **kwargs)
-            if hasattr(response.content[0], "text"):
-                return cast(str, response.content[0].text)
-            else:
-                raise ValueError(
-                    f"Anthropic returned unexpected content format: {response.content}"
-                )
+            return _generated_text(response)
         except Exception as e:
             logger.error(f"Anthropic completion failed: {e}")
             raise
@@ -277,10 +294,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             response = await self.client.messages.create(
                 model=self.model, messages=messages, **kwargs
             )
-            if hasattr(response.content[0], "text"):
-                return cast(str, response.content[0].text)
-            else:
-                raise ValueError("Anthropic returned unexpected content format")
+            return _generated_text(response)
         except Exception as e:
             logger.error(f"Anthropic async completion failed: {e}")
             raise
