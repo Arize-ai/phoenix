@@ -562,10 +562,24 @@ function normalizeBaseUrlCandidate({
     return stripOtlpTracesPath(value);
   }
   if (envKey === ENV_PHOENIX_HOST && !/^https?:\/\//i.test(value)) {
-    const host = value === "0.0.0.0" ? "127.0.0.1" : value;
-    return host.includes(":")
-      ? `http://${host}`
-      : `http://${host}:${port || DEFAULT_PHOENIX_PORT}`;
+    const host =
+      value === "0.0.0.0" || value === "::" || value === "[::]"
+        ? "127.0.0.1"
+        : value;
+    if (host.startsWith("[")) {
+      return host.endsWith("]")
+        ? `http://${host}:${port || DEFAULT_PHOENIX_PORT}`
+        : `http://${host}`;
+    }
+    const firstColon = host.indexOf(":");
+    if (firstColon === -1) {
+      return `http://${host}:${port || DEFAULT_PHOENIX_PORT}`;
+    }
+    // One colon is host:port; two or more is an unbracketed IPv6 literal.
+    if (firstColon === host.lastIndexOf(":")) {
+      return `http://${host}`;
+    }
+    return `http://[${host}]:${port || DEFAULT_PHOENIX_PORT}`;
   }
   return value;
 }

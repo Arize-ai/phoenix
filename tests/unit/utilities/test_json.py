@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import timezone
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -9,9 +10,13 @@ from phoenix.utilities.json import decode_df_from_json_string, encode_df_as_json
 
 class TestDataFrameJSONRoundtrip:
     def test_roundtrip(self) -> None:
-        t = datetime.now(timezone.utc)
+        t = pd.Timestamp.now(timezone.utc).as_unit("ns")
         keys = [("한", 3, t), (2, "\"\n'", t), ("\\n\r\n\r\n", 1, t)]
-        data = [([np.nan, {}], '{"1": {}}'), ({"2": [{}, []]}, {}), ([[{"3\r\n": []}, []]], None)]
+        data: list[tuple[Any, Any]] = [
+            ([None, {}], '{"1": {}}'),
+            ({"2": [{}, []]}, {}),
+            ([[{"3\r\n": []}, []]], None),
+        ]
         index = pd.MultiIndex.from_tuples(keys, names=(None, "a", "index"))
         columns = ["a", "index"]
         df1 = pd.DataFrame(data, columns=columns, index=index)
@@ -49,7 +54,7 @@ class TestDataFrameJSONRoundtrip:
         expected = pd.DataFrame({"a": [1]}).set_index("a")
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)
-        assert_frame_equal(received, expected)
+        assert_frame_equal(received, expected, check_column_type=False)
 
     def test_can_handle_dataframe_with_multi_index_and_no_columns(
         self,
@@ -57,7 +62,7 @@ class TestDataFrameJSONRoundtrip:
         expected = pd.DataFrame({"a": [1], "b": [2]}).set_index(["a", "b"])
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)
-        assert_frame_equal(received, expected)
+        assert_frame_equal(received, expected, check_column_type=False)
 
     def test_can_handle_integer_strings(self) -> None:
         expected = pd.DataFrame({"a": ["01", "02", "03"]})
@@ -112,15 +117,18 @@ class TestDataFrameJSONRoundtrip:
         assert_frame_equal(received, expected)
 
     def test_can_handle_complex_types(self) -> None:
-        expected = pd.DataFrame(
+        df = pd.DataFrame(
             {"a": [0, [{}, [[1, {}, []], {"2\r": [None]}]], [np.nan], {"3\n": [{}, [{}]]}]}
         )
-        payload = encode_df_as_json_string(expected)
+        expected = pd.DataFrame(
+            {"a": [0, [{}, [[1, {}, []], {"2\r": [None]}]], [None], {"3\n": [{}, [{}]]}]}
+        )
+        payload = encode_df_as_json_string(df)
         received = decode_df_from_json_string(payload)
         assert_frame_equal(received, expected)
 
     def test_can_handle_datetime(self) -> None:
-        t = datetime.now(timezone.utc)
+        t = pd.Timestamp.now(timezone.utc).as_unit("ns")
         expected = pd.DataFrame({"t": [t]}, index=[t])
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)

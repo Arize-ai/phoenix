@@ -1,0 +1,73 @@
+---
+title: "Fireworks AI Tracing"
+description: "Phoenix provides auto-instrumentation for Fireworks AI through the OpenAI Python library, since Fireworks AI exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Fireworks AI](https://fireworks.ai/) provides fast model inference through an OpenAI-compatible API. Set the OpenAI client's `base_url` to Fireworks and Phoenix captures each completion through [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai).
+
+<Note>
+This page uses Fireworks' OpenAI-compatible API. There is no separate Fireworks-specific OpenInference instrumentor required.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Fireworks AI API key and the model you want to call, along with your Phoenix connection details, as environment variables:
+
+```bash
+export FIREWORKS_API_KEY="<your-fireworks-api-key>"
+export FIREWORKS_MODEL="<your-fireworks-model-id>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Fireworks AI
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.fireworks.ai/inference/v1",
+    api_key=os.environ["FIREWORKS_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model=os.environ["FIREWORKS_MODEL"],
+    messages=[
+        {
+            "role": "user",
+            "content": "Name two signals an LLM trace should capture.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Fireworks AI will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Fireworks AI spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Fireworks**: Use your Fireworks API key, not your OpenAI key
+* **Model not found**: Confirm `FIREWORKS_MODEL` matches a model identifier from the Fireworks model catalog
+* **Base URL**: Ensure you're using `https://api.fireworks.ai/inference/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Fireworks OpenAI Compatibility" href="https://docs.fireworks.ai/tools-sdks/openai-compatibility" icon="book" horizontal description="Fireworks OpenAI-compatible API docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

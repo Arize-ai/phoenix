@@ -23,8 +23,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
 
 // Initialize Phoenix tracing
-const tracerProvider = register({
-  projectName: "anthropic-app",
+export const provider = register({
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "anthropic-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
@@ -39,17 +39,20 @@ instrumentation.manuallyInstrument(Anthropic);
 console.log("Anthropic instrumentation registered");
 ```
 
+From `@anthropic-ai/sdk` 0.134.0, the Anthropic SDK also records its own traces. With the instrumentation on, every call would appear twice in Phoenix, with tokens and cost counted twice. Pass `openTelemetry: false` when you create the client, as in the example below, or set `ANTHROPIC_OPEN_TELEMETRY=false` in your environment.
+
 ## Run Anthropic
 
 Import the `instrumentation.ts` file first, then use Anthropic as usual.
 
 ```typescript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 // set ANTHROPIC_API_KEY in environment, or pass it in arguments
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  openTelemetry: false, // the instrumentation traces calls; skip the SDK's own spans
 });
 
 async function main() {
@@ -62,7 +65,10 @@ async function main() {
   console.log(message.content);
 }
 
-main();
+await main();
+
+// Flush any pending spans before the process exits.
+await provider.forceFlush();
 ```
 
 ## Observe

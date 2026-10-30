@@ -1,15 +1,9 @@
 import { css } from "@emotion/react";
 import { memo } from "react";
 
-import { JSONBlock } from "@phoenix/components/code";
+import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 import { useContentType } from "@phoenix/hooks/useContentType";
-
-const jsonBlockCSS = css`
-  .cm-editor {
-    background: transparent !important;
-  }
-`;
 
 const textWrapCSS = css`
   font-size: var(--global-font-size-s);
@@ -50,16 +44,7 @@ export const DynamicContent = memo(function DynamicContent(
   }
 
   if (contentType === "json") {
-    return (
-      <JSONBlock
-        value={displayValue}
-        css={jsonBlockCSS}
-        basicSetup={{
-          lineNumbers: false,
-          foldGutter: false,
-        }}
-      />
-    );
+    return <PlainJSONBlock value={displayValue} />;
   }
 
   // Text content with markdown support

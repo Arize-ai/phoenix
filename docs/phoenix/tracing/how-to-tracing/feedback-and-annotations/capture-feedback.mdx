@@ -32,7 +32,7 @@ Phoenix expects feedback to be in the form of an **annotation.** Annotations con
 {
   "span_id": "67f6740bbe1ddc3f",  // the id of the span to annotate
   "name": "correctness",  // the name of your annotation
-  "annotator_kind": "HUMAN",  // HUMAN, LLM, or CODE
+  "annotator_kind": "HUMAN",  // HUMAN, LLM, CODE, DECISION, or AGENT
   "result": {
     "label": "correct",  // A human-readable category for the feedback
     "score": 0.85,  // a numeric score, can be 0 or 1, or a range like 0 to 100
@@ -47,7 +47,7 @@ Phoenix expects feedback to be in the form of an **annotation.** Annotations con
 }
 ```
 
-Note that you can provide a **label**, **score**, or **explanation**. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (**LLM**, **HUMAN**, or **CODE**), and can be attached to the **spans** you have logged to Phoenix.
+Note that you can provide a **label**, **score**, or **explanation**. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (**LLM**, **HUMAN**, **CODE**, **DECISION**, or **AGENT**), and can be attached to the **spans** you have logged to Phoenix. **DECISION** marks annotations produced by a decision model. **AGENT** marks annotations produced by an AI agent.
 
 <Warning>
 Phoenix allows you to log multiple annotations of the same name to the same span. For example, a single span could have 5 different "correctness" annotations. This can be useful when collecting end user feedback.

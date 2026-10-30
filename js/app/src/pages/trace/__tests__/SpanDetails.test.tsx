@@ -128,6 +128,17 @@ describe("SpanDetails", () => {
     expect(container.textContent).toContain("chat completion");
   });
 
+  it("gives the icon-only Add to Dataset action an accessible name", async () => {
+    // jsdom has no layout, so the header starts out condensed (icon-only)
+    await renderSpanDetails();
+
+    const addToDatasetButton = container.querySelector(
+      "[data-testid='span-header-row'] button[aria-label='Add to Dataset']"
+    );
+    expect(addToDatasetButton).not.toBe(null);
+    expect(addToDatasetButton?.textContent).toBe("");
+  });
+
   it("resolves the download project id from the span rather than the route", async () => {
     await renderSpanDetails();
 

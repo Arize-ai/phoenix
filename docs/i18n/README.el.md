@@ -44,6 +44,18 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.el.md" />
 </p>
 
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
 Το Arize Phoenix είναι η πλατφόρμα παρατηρησιμότητας AI ανοιχτού κώδικα της Arize, σχεδιασμένη για πειραματισμό, αξιολόγηση και αντιμετώπιση προβλημάτων. Για διαχειριζόμενες ροές εργασίας παραγωγής, η Arize προσφέρει επίσης το [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-el). Το Phoenix παρέχει:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Παρακολουθήστε την εκτέλεση της εφαρμογής LLM σας μέσω instrumentation βασισμένου στο OpenTelemetry.
@@ -61,7 +73,7 @@
 
 Το Phoenix είναι ανεξάρτητο από προμηθευτές και γλώσσες, με έτοιμη υποστήριξη για δημοφιλή frameworks ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) και παρόχους LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) και άλλους). Για λεπτομέρειες σχετικά με το αυτόματο instrumentation, δείτε το έργο [OpenInference](https://github.com/Arize-ai/openinference).
 
-Το Phoenix εκτελείται σχεδόν οπουδήποτε, όπως στον τοπικό σας υπολογιστή, σε ανάπτυξη με containers ή στο cloud. Δείτε την ενότητα [Περιβάλλοντα](https://arize.com/docs/phoenix/environments) για αναλυτική περιγραφή κάθε επιλογής ή μεταβείτε κατευθείαν στον [Οδηγό γρήγορης εκκίνησης για tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Το Phoenix εκτελείται σχεδόν οπουδήποτε, όπως στον τοπικό σας υπολογιστή, σε ανάπτυξη με containers ή στο cloud. Δείτε την ενότητα [Περιβάλλοντα](https://arize.com/docs/phoenix/self-hosting) για αναλυτική περιγραφή κάθε επιλογής ή μεταβείτε κατευθείαν στον [Οδηγό γρήγορης εκκίνησης για tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Το Phoenix είναι ανοιχτού κώδικα και αυτο-φιλοξενούμενο. Για διαχειριζόμενη πλατφόρμα, η Arize προσφέρει το [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-el) — το ίδιο instrumentation OpenTelemetry/OpenInference λειτουργεί και με τα δύο. Δείτε την [πλήρη σύγκριση](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -314,3 +326,15 @@ Copyright 2025 Arize AI, Inc. Με την επιφύλαξη παντός δικ
 Τμήματα αυτού του κώδικα προστατεύονται από ένα ή περισσότερα διπλώματα ευρεσιτεχνίας των ΗΠΑ. Δείτε το [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Το παρόν λογισμικό διατίθεται βάσει των όρων της Elastic License 2.0 (ELv2). Δείτε το [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

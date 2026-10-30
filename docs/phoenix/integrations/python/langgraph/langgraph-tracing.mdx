@@ -14,7 +14,7 @@ LangGraph is supported by our LangChain instrumentor. If you've already set up i
 ## Install
 
 ```bash
-pip install openinference-instrumentation-langchain
+pip install openinference-instrumentation-langchain langgraph langchain-openai
 ```
 
 Install the OpenInference Langchain library before your application code. Our LangChainInstrumentor works for both standard LangChain applications and for LangGraph agents.
@@ -24,6 +24,21 @@ Install the OpenInference Langchain library before your application code. Our La
 <RegisterTracerPython projectName="my-llm-app" />
 
 ## Run LangGraph
+
+This example runs a small tool-calling agent with OpenAI:
+
+```python expandable
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+
+agent = create_react_agent(
+    ChatOpenAI(model="gpt-4o-mini"),
+    tools=[],
+    prompt="You are a helpful assistant.",
+)
+result = agent.invoke({"messages": [{"role": "user", "content": "Say hello."}]})
+print(result["messages"][-1].content)
+```
 
 By instrumenting LangGraph, spans will be created whenever an agent is invoked and will be sent to the Phoenix server for collection.
 

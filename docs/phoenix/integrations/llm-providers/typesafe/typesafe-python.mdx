@@ -21,13 +21,15 @@ pip install openinference-instrumentation-typesafe typesafe-sdk arize-phoenix-ot
 
 ## Setup
 
-Use the `register` function to connect your application to Phoenix:
+Set `TYPESAFE_API_KEY` in your environment using a key from the TypeSafe console. The SDK reads this variable automatically. Use the `register` function to connect your application to Phoenix:
 
 ```python
+import os
+
 from phoenix.otel import register
 
 tracer_provider = register(
-  project_name="typesafe-app",
+  project_name=os.environ.get("PHOENIX_PROJECT_NAME", "typesafe-app"),
   auto_instrument=True,
 )
 ```

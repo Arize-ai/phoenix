@@ -44,6 +44,18 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.id.md" />
 </p>
 
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
 Arize Phoenix adalah platform observabilitas AI open-source dari Arize yang dirancang untuk eksperimen, evaluasi, dan pemecahan masalah. Untuk alur kerja produksi terkelola, Arize juga menawarkan [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-id). Phoenix menyediakan:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Lacak runtime aplikasi LLM Anda menggunakan instrumentasi berbasis OpenTelemetry.
@@ -61,7 +73,7 @@ Arize Phoenix adalah platform observabilitas AI open-source dari Arize yang dira
 
 Phoenix tidak bergantung pada vendor maupun bahasa, dengan dukungan siap pakai untuk framework populer ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) dan penyedia LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), dan lainnya). Untuk detail tentang auto-instrumentasi, lihat proyek [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix dapat berjalan hampir di mana saja, termasuk di mesin lokal Anda, deployment berbasis container, atau di cloud. Lihat [Lingkungan](https://arize.com/docs/phoenix/environments) untuk panduan setiap opsi, atau langsung menuju [Panduan Cepat Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix dapat berjalan hampir di mana saja, termasuk di mesin lokal Anda, deployment berbasis container, atau di cloud. Lihat [Lingkungan](https://arize.com/docs/phoenix/self-hosting) untuk panduan setiap opsi, atau langsung menuju [Panduan Cepat Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Phoenix bersifat open-source dan self-hosted. Untuk platform terkelola, Arize menawarkan [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-id) — instrumentasi OpenTelemetry/OpenInference yang sama berfungsi untuk keduanya. Lihat [perbandingan lengkapnya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -314,3 +326,15 @@ Hak Cipta 2025 Arize AI, Inc. Hak Cipta Dilindungi Undang-Undang.
 Sebagian kode ini dilindungi oleh satu atau lebih Paten AS. Lihat [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Perangkat lunak ini dilisensikan berdasarkan ketentuan Elastic License 2.0 (ELv2). Lihat [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

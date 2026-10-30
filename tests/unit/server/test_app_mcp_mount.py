@@ -11,7 +11,6 @@ import contextlib
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-import httpx
 import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
@@ -666,8 +665,8 @@ class TestMcpCors:
             yield manager.app
 
     async def test_preflight_allows_any_origin(self, app_with_auth: ASGIApp) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.options(
             MCP_MOUNT_PATH,
@@ -688,8 +687,8 @@ class TestMcpCors:
     async def test_unauthenticated_challenge_is_readable_cross_origin(
         self, app_with_auth: ASGIApp
     ) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.post(
             f"{MCP_MOUNT_PATH}/",

@@ -1,7 +1,7 @@
 [project]
 name = "harbor-verifiers"
 description = "Shared verifiers and reference-solution helpers for the Phoenix Harbor tasks"
-requires-python = ">=3.11, <3.15"
+requires-python = ">=3.11, <3.16"
 version = "0.0.0"
 dependencies = [
   "arize-phoenix",

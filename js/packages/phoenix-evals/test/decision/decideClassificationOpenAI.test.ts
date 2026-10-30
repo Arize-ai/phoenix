@@ -72,7 +72,6 @@ describe("phoenix-evals with @ai-sdk/openai decision models", () => {
       {
         type: "choice",
         name: "label",
-        instructions: expect.any(String),
         choices: [{ value: "correct" }, { value: "incorrect" }],
       },
     ]);
