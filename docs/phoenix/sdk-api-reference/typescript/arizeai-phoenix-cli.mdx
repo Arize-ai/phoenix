@@ -763,6 +763,26 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <user>{{user_input}}</user>
 ```
 
+### `px prompt untag <prompt_version_id> --tag <tag_name>`
+
+Delete a tag from a prompt version. Prints `{deleted: true, prompt_version_id, tag_name}` on success.
+
+```bash
+px prompt untag UHJvbXB0VmVyc2lvbjox --tag production                     # Prompts for confirmation
+px prompt untag UHJvbXB0VmVyc2lvbjox --tag production --yes --format raw  # Non-interactive
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tag <name>` | Name of the tag to delete | required |
+| `-y, --yes` | Skip the confirmation prompt | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` to enable this command.
+
 ### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.

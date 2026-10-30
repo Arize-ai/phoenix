@@ -240,6 +240,17 @@ describe("Phoenix CLI", () => {
     );
   });
 
+  it("should register untag subcommand for prompt", () => {
+    const program = createProgram();
+    const promptCommand = program.commands.find(
+      (command) => command.name() === "prompt"
+    );
+
+    expect(promptCommand?.commands.map((command) => command.name())).toContain(
+      "untag"
+    );
+  });
+
   it("should register delete subcommand for span", () => {
     const program = createProgram();
     const spanCommand = program.commands.find(

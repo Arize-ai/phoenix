@@ -12,6 +12,10 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatPromptOutput, type OutputFormat } from "./formatPrompt";
 import { formatPromptsOutput } from "./formatPrompts";
+import {
+  formatPromptVersionTagDeleteOutput,
+  type OutputFormat as PromptVersionTagDeleteOutputFormat,
+} from "./formatPromptVersionTagDelete";
 import type { CommonOptions, DeleteOptions } from "./options";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
@@ -47,6 +51,20 @@ interface PromptListOptions extends CommonOptions {
    * @example 50
    */
   limit?: number;
+}
+
+/**
+ * Options for `px prompt untag <prompt-version-id> --tag <tag-name>`.
+ */
+interface PromptUntagOptions
+  extends DeleteOptions, CommonOptions<PromptVersionTagDeleteOutputFormat> {
+  /**
+   * `--tag <tag-name>`: Name of the tag to remove from the prompt version.
+   * Required.
+   *
+   * @example "production"
+   */
+  tag: string;
 }
 
 /**
@@ -310,6 +328,80 @@ async function promptDeleteHandler(
   }
 }
 
+/**
+ * Handler for `prompt untag`
+ */
+async function promptUntagHandler(
+  promptVersionId: string,
+  options: PromptUntagOptions
+): Promise<void> {
+  try {
+    assertDeletesEnabled();
+
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+    const tagName = options.tag;
+
+    await confirmOrExit({
+      message: `Delete tag "${tagName}" from prompt version ${promptVersionId}? This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    writeProgress({
+      message: `Deleting tag "${tagName}" from prompt version ${promptVersionId}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE(
+      "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+      {
+        params: {
+          path: {
+            prompt_version_id: promptVersionId,
+            tag_name: tagName,
+          },
+        },
+      }
+    );
+
+    if (response.error) {
+      throw new Error(
+        `Failed to delete tag "${tagName}" from prompt version ${promptVersionId}: ${response.error}`
+      );
+    }
+
+    writeOutput({
+      message: formatPromptVersionTagDeleteOutput({
+        result: {
+          deleted: true,
+          prompt_version_id: promptVersionId,
+          tag_name: tagName,
+        },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting prompt version tag: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
 export function createPromptGetCommand(): Command {
   return new Command("get")
     .description("Show a Phoenix prompt")
@@ -353,6 +445,29 @@ export function createPromptDeleteCommand(): Command {
     .action(promptDeleteHandler);
 }
 
+export function createPromptUntagCommand(): Command {
+  return new Command("untag")
+    .description("Delete a tag from a prompt version")
+    .argument("<prompt-version-id>", "Prompt version ID (GlobalID)")
+    .requiredOption("--tag <tag-name>", "Name of the tag to delete (required)")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag production\n" +
+        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag staging --yes --format raw --no-progress\n"
+    )
+    .action(promptUntagHandler);
+}
+
 /**
  * Create the `prompt` command with subcommands
  */
@@ -362,5 +477,6 @@ export function createPromptCommand(): Command {
   command.addCommand(createPromptListCommand());
   command.addCommand(createPromptGetCommand());
   command.addCommand(createPromptDeleteCommand());
+  command.addCommand(createPromptUntagCommand());
   return command;
 }
