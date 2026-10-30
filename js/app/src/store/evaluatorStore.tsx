@@ -401,6 +401,20 @@ export const DEFAULT_LLM_EVALUATOR_STORE_VALUES = {
 } satisfies EvaluatorStoreProps;
 
 /**
+ * Default values for DECISION evaluators. Their outputs derive from the
+ * decision's questions, so they carry no output configs.
+ */
+export const DEFAULT_DECISION_EVALUATOR_STORE_VALUES = {
+  ...DEFAULT_STORE_VALUES,
+  evaluator: {
+    ...DEFAULT_STORE_VALUES.evaluator,
+    kind: "DECISION",
+    isBuiltin: false,
+  },
+  outputConfigs: [],
+} satisfies EvaluatorStoreProps;
+
+/**
  * Default values for CODE evaluators.
  */
 export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {

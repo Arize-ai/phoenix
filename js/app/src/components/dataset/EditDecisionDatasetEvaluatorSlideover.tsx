@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components/core/overlay";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
-  DEFAULT_STORE_VALUES,
+  DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
 
@@ -159,15 +159,13 @@ const EditDecisionEvaluatorDialog = (
   const initialState = useMemo(
     () =>
       ({
-        ...DEFAULT_STORE_VALUES,
+        ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
         evaluator: {
-          ...DEFAULT_STORE_VALUES.evaluator,
+          ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES.evaluator,
           id: evaluator.id,
           globalName: evaluator.name,
           name: datasetEvaluator.name,
           description: datasetEvaluator.description ?? "",
-          kind: "DECISION",
-          isBuiltin: false,
           inputMapping: {
             literalMapping: {
               ...(datasetEvaluator.inputMapping.literalMapping as Record<
@@ -184,7 +182,6 @@ const EditDecisionEvaluatorDialog = (
           },
         },
         datasetEvaluator: { id: datasetEvaluatorId },
-        outputConfigs: [],
         dataset: {
           readonly: true,
           id: datasetId,

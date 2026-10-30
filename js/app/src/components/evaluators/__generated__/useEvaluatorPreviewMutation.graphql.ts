@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fab6a32d6ef8d1adf3dd64abdaeea9f7>>
+ * @generated SignedSource<<a896936d2168f2f88beccc4715417d61>>
  * @lightSyntaxTransform
  */
 
@@ -417,10 +417,10 @@ export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
 };
-export type DecisionDatasetEvaluatorForm_previewMutation$variables = {
+export type useEvaluatorPreviewMutation$variables = {
   input: EvaluatorPreviewsInput;
 };
-export type DecisionDatasetEvaluatorForm_previewMutation$data = {
+export type useEvaluatorPreviewMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
       readonly annotation: {
@@ -477,9 +477,9 @@ export type DecisionDatasetEvaluatorForm_previewMutation$data = {
     }>;
   };
 };
-export type DecisionDatasetEvaluatorForm_previewMutation = {
-  response: DecisionDatasetEvaluatorForm_previewMutation$data;
-  variables: DecisionDatasetEvaluatorForm_previewMutation$variables;
+export type useEvaluatorPreviewMutation = {
+  response: useEvaluatorPreviewMutation$data;
+  variables: useEvaluatorPreviewMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -560,13 +560,6 @@ v7 = [
             "args": null,
             "kind": "ScalarField",
             "name": "evaluatorName",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "error",
             "storageKey": null
           },
           {
@@ -753,10 +746,9 @@ v7 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "id",
+                "name": "explanation",
                 "storageKey": null
               },
-              (v1/*:: as any*/),
               (v4/*:: as any*/),
               {
                 "alias": null,
@@ -765,14 +757,22 @@ v7 = [
                 "name": "score",
                 "storageKey": null
               },
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "explanation",
+                "name": "id",
                 "storageKey": null
               }
             ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "error",
             "storageKey": null
           }
         ],
@@ -787,7 +787,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DecisionDatasetEvaluatorForm_previewMutation",
+    "name": "useEvaluatorPreviewMutation",
     "selections": (v7/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -796,20 +796,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "DecisionDatasetEvaluatorForm_previewMutation",
+    "name": "useEvaluatorPreviewMutation",
     "selections": (v7/*:: as any*/)
   },
   "params": {
-    "cacheID": "cf56696890a3a742bb1f3d3f7033d14b",
+    "cacheID": "8aa807c3493550bfbda3595b475437ff",
     "id": null,
     "metadata": {},
-    "name": "DecisionDatasetEvaluatorForm_previewMutation",
+    "name": "useEvaluatorPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionDatasetEvaluatorForm_previewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      error\n      annotation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        id\n        name\n        label\n        score\n        explanation\n      }\n    }\n  }\n}\n"
+    "text": "mutation useEvaluatorPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        decision {\n          status\n          question {\n            name\n            type\n            choices {\n              value\n              description\n            }\n            levels {\n              label\n              description\n            }\n          }\n          answer {\n            __typename\n            ... on PredicateAnswer {\n              probability\n            }\n            ... on ChoiceAnswer {\n              choice\n              confidence\n              choiceProbabilities: probabilities {\n                value\n                probability\n              }\n            }\n            ... on ScaleAnswer {\n              expectedLevel\n              confidence\n              levelProbabilities: probabilities {\n                level\n                probability\n              }\n            }\n          }\n          requestedModel\n          resolvedModel\n          modelProvider\n        }\n        explanation\n        label\n        score\n        name\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "33448acb842411843921e8674d252cd4";
+(node as any).hash = "a389c2f6a06e3585653385a38ea8047a";
 
 export default node;

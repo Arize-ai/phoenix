@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { useEffect, useMemo } from "react";
 import invariant from "tiny-invariant";
 
 import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -25,169 +24,97 @@ import {
 import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
-import type {
-  EvaluatorOutputPreviewMutation,
-  InlineLLMEvaluatorInput,
-} from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import {
+  type EvaluatorPreview,
+  type EvaluatorPreviewRequest,
+  useEvaluatorPreview,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import {
   createLLMEvaluatorPayload,
   getOutputConfigOptimizationValue,
 } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import type { EvaluatorKind } from "@phoenix/types";
 
-type EvaluationPreviewResult =
-  | { kind: "success"; annotation: Annotation }
-  | { kind: "error"; evaluatorName: string; message: string };
+const CODE_PREVIEW_HELP_TEXT =
+  "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.";
 
-type EvaluatorPreviewsOutput =
-  EvaluatorOutputPreviewMutation["response"]["evaluatorPreviews"];
+const HELP_TEXT_BY_EVALUATOR_KIND: Partial<Record<EvaluatorKind, string>> = {
+  LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
+  CODE: CODE_PREVIEW_HELP_TEXT,
+  DECISION:
+    "Test your evaluator using an example from your dataset. Use the selected example to map variables in the decision's state to the inputs, outputs, and reference outputs of your dataset and task output. Unsaved changes are included.",
+};
 
+export function getEvaluatorPreviewHelpText(kind: EvaluatorKind): string {
+  return HELP_TEXT_BY_EVALUATOR_KIND[kind] ?? CODE_PREVIEW_HELP_TEXT;
+}
+
+/**
+ * The preview request for an evaluator the stores describe in full: a
+ * built-in evaluator by id, or an LLM evaluator from its judge prompt.
+ */
+function buildStoreEvaluatorPreviewRequest({
+  evaluatorStore,
+  playgroundStore,
+}: {
+  evaluatorStore: ReturnType<typeof useEvaluatorStoreInstance>;
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+}): EvaluatorPreviewRequest {
+  const state = evaluatorStore.getState();
+  const inputMapping = state.evaluator.inputMapping;
+  if (state.evaluator.isBuiltin) {
+    invariant(state.evaluator.id, "evaluator id is required");
+    return {
+      evaluator: { builtInEvaluatorId: state.evaluator.id },
+      inputMapping,
+    };
+  }
+  const instanceId = playgroundStore.getState().instances[0].id;
+  invariant(instanceId != null, "instanceId is required");
+  invariant(
+    state.outputConfigs.length > 0,
+    "at least one output config is required"
+  );
+  const payload = createLLMEvaluatorPayload({
+    playgroundStore,
+    description: state.evaluator.description,
+    name: state.evaluator.name || state.evaluator.globalName,
+    includeExplanation: state.evaluator.includeExplanation,
+    inputMapping,
+    outputConfigs: state.outputConfigs,
+    instanceId,
+    datasetId: state.dataset?.id ?? "",
+  });
+  return {
+    evaluator: {
+      inlineLlmEvaluator: {
+        name: payload.name,
+        description: payload.description,
+        outputConfigs: payload.outputConfigs,
+        promptVersion: payload.promptVersion,
+      },
+    },
+    inputMapping,
+  };
+}
+
+/**
+ * The dataset test section for an LLM or built-in evaluator. An LLM draft
+ * also offers its test to the agent.
+ */
 export const EvaluatorOutputPreview = () => {
-  const [error, setError] = useState<string | null>(null);
-  const [previewResults, setPreviewResults] = useState<
-    EvaluationPreviewResult[]
-  >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const playgroundStore = usePlaygroundStore();
-  const credentials = useCredentialsContext((state) => state);
-  const [previewEvaluator, isLoadingEvaluatorPreview] =
-    useMutation<EvaluatorOutputPreviewMutation>(graphql`
-      mutation EvaluatorOutputPreviewMutation($input: EvaluatorPreviewsInput!) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              ...decisionAnnotation_annotation @relay(mask: false)
-              explanation
-              label
-              score
-              name
-              id
-            }
-            error
-          }
-        }
-      }
-    `);
-  const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
-  > => {
-    setError(null);
-    setPreviewResults([]);
-    const { instances } = playgroundStore.getState();
-    const instanceId = instances[0].id;
-    invariant(instanceId != null, "instanceId is required");
-    const state = evaluatorStore.getState();
-
-    let params:
-      | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
-      | { builtInEvaluatorId: string };
-    if (state.evaluator.isBuiltin) {
-      invariant(state.evaluator.id, "evaluator id is required");
-      params = {
-        builtInEvaluatorId: state.evaluator.id,
-      };
-    } else {
-      invariant(
-        state.outputConfigs.length > 0,
-        "at least one output config is required"
-      );
-      const payload = createLLMEvaluatorPayload({
-        playgroundStore,
-        description: state.evaluator.description,
-        name: state.evaluator.name || state.evaluator.globalName,
-        includeExplanation: state.evaluator.includeExplanation,
-        inputMapping: state.evaluator.inputMapping,
-        outputConfigs: state.outputConfigs,
-        instanceId,
-        datasetId: state.dataset?.id ?? "",
-      });
-      params = {
-        inlineLlmEvaluator: {
-          name: payload.name,
-          description: payload.description,
-          outputConfigs: payload.outputConfigs,
-          promptVersion: payload.promptVersion,
-        },
-      };
-    }
-
-    return new Promise((resolve) => {
-      previewEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: state.evaluatorMappingSource.source,
-                evaluator: params,
-                inputMapping: state.evaluator.inputMapping,
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
-          },
-        },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
-            const errorMessage =
-              errorMessages?.join("\n") ??
-              errors[0]?.message ??
-              "An unknown error occurred";
-            setError(errorMessage);
-            resolve({ ok: false, error: errorMessage });
-          } else {
-            const results: EvaluationPreviewResult[] =
-              response.evaluatorPreviews.results.map((result) => {
-                if (result.error != null) {
-                  return {
-                    kind: "error" as const,
-                    evaluatorName: result.evaluatorName,
-                    message: result.error,
-                  };
-                } else if (result.annotation != null) {
-                  return {
-                    kind: "success" as const,
-                    annotation: {
-                      id: result.annotation.id,
-                      name: result.annotation.name,
-                      label: result.annotation.label,
-                      score: result.annotation.score,
-                      explanation: result.annotation.explanation,
-                    },
-                  };
-                } else {
-                  throw new Error(
-                    "Unknown error: no annotation or error returned"
-                  );
-                }
-              });
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
-      });
-    });
-  }, [credentials, evaluatorStore, playgroundStore, previewEvaluator]);
+  const preview = useEvaluatorPreview();
+  const { run } = preview;
 
   const agentStore = useAgentStore();
   const isLlmEvaluator = evaluatorKind === "LLM";
@@ -202,24 +129,49 @@ export const EvaluatorOutputPreview = () => {
           descriptor: testLlmEvaluatorDraftOperation,
           handler: createTestLlmEvaluatorDraftClientAction({
             isDraftMounted: () => true,
-            runEvaluatorPreview,
+            runEvaluatorPreview: () =>
+              run(() =>
+                buildStoreEvaluatorPreviewRequest({
+                  evaluatorStore,
+                  playgroundStore,
+                })
+              ),
           }),
         },
       ],
     });
-  }, [agentStore, isLlmEvaluator, runEvaluatorPreview]);
+  }, [agentStore, isLlmEvaluator, run, evaluatorStore, playgroundStore]);
 
-  const onTestEvaluator = () => {
-    void runEvaluatorPreview();
-  };
-  const isShowingPreview =
-    isLoadingEvaluatorPreview || previewResults.length > 0 || error != null;
-  const helpTextByEvaluatorKind: Record<string, string> = {
-    LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
-    CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
-  };
-  const helpText =
-    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.CODE;
+  return (
+    <EvaluatorPreviewSection
+      preview={preview}
+      onTest={() =>
+        void run(() =>
+          buildStoreEvaluatorPreviewRequest({ evaluatorStore, playgroundStore })
+        )
+      }
+      helpText={getEvaluatorPreviewHelpText(evaluatorKind)}
+    />
+  );
+};
+
+/**
+ * "Test with an Example": the test button, its help text, and the results of
+ * the last run of {@link useEvaluatorPreview}, for any evaluator kind.
+ */
+export function EvaluatorPreviewSection({
+  preview,
+  onTest,
+  helpText,
+  isDisabled = false,
+}: {
+  preview: EvaluatorPreview;
+  onTest: () => void;
+  helpText: string;
+  isDisabled?: boolean;
+}) {
+  const { isRunning, results, error, clearResults, clearError } = preview;
+  const isShowingPreview = isRunning || results.length > 0 || error != null;
   return (
     <>
       {isShowingPreview && (
@@ -230,8 +182,8 @@ export const EvaluatorOutputPreview = () => {
             width="100%"
             marginBottom="size-100"
           >
-            {isLoadingEvaluatorPreview && <AnnotationPreviewSkeletonCard />}
-            {previewResults.map((result, i) => (
+            {isRunning && <AnnotationPreviewSkeletonCard />}
+            {results.map((result, i) => (
               <Flex direction="column" gap="size-100" key={i} width="100%">
                 {result.kind === "success" ? (
                   <AnnotationPreviewCard
@@ -239,7 +191,8 @@ export const EvaluatorOutputPreview = () => {
                     extra={
                       <IconButton
                         size="S"
-                        onPress={() => setPreviewResults([])}
+                        aria-label="Clear test results"
+                        onPress={clearResults}
                       >
                         <Icon svg={<Icons.Close />} />
                       </IconButton>
@@ -256,13 +209,12 @@ export const EvaluatorOutputPreview = () => {
               </Flex>
             ))}
           </Flex>
-
           {error && (
             <Alert
               variant="danger"
               title="Error"
               dismissable
-              onDismissClick={() => setError(null)}
+              onDismissClick={clearError}
             >
               {error}
             </Alert>
@@ -276,29 +228,25 @@ export const EvaluatorOutputPreview = () => {
           </Heading>
           <Button
             size="S"
-            onPress={onTestEvaluator}
-            isPending={isLoadingEvaluatorPreview}
+            onPress={onTest}
+            isPending={isRunning}
+            isDisabled={isDisabled}
             variant="primary"
+            data-testid="evaluator-preview-button"
             leadingVisual={
               <Icon
-                svg={
-                  isLoadingEvaluatorPreview ? (
-                    <Icons.Loading />
-                  ) : (
-                    <Icons.PlayCircle />
-                  )
-                }
+                svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />}
               />
             }
           >
-            {isLoadingEvaluatorPreview ? "Testing..." : "Test"}
+            {isRunning ? "Testing..." : "Test"}
           </Button>
         </Flex>
         <Text color="text-500">{helpText}</Text>
       </Flex>
     </>
   );
-};
+}
 
 /**
  * The annotation chip that opens the annotation's details in a popover, with
