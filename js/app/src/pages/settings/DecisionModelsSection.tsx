@@ -5,7 +5,7 @@ import type {
   UseFormGetValues,
   UseFormSetValue,
 } from "react-hook-form";
-import { Controller, useWatch } from "react-hook-form";
+import { Controller, useFormState, useWatch } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -25,7 +25,6 @@ import {
   Switch,
   Text,
   TextField,
-  View,
 } from "@phoenix/components";
 import type { GenerativeModelSDK } from "@phoenix/constants/generativeConstants";
 
@@ -39,6 +38,7 @@ import {
   decisionEndpointUrl,
   guessDecisionBaseUrl,
 } from "./decisionEndpoints";
+import { ProviderFormSection } from "./ProviderFormSection";
 
 const testDecisionEndpointMutation = graphql`
   mutation DecisionModelsSectionTestMutation(
@@ -49,6 +49,16 @@ const testDecisionEndpointMutation = graphql`
       url
     }
   }
+`;
+
+const decisionClientCSS = css`
+  flex: none;
+  width: 180px;
+`;
+
+const decisionBaseUrlCSS = css`
+  flex: 1 1 auto;
+  min-width: 0;
 `;
 
 const endpointPreviewCSS = css`
@@ -129,150 +139,161 @@ export function DecisionModelsSection({
     [chatBaseUrl, getValues, setValue]
   );
 
+  const enabledError = (
+    useFormState({ control, name: "decision_enabled" }).errors as {
+      decision_enabled?: { message?: string };
+    }
+  ).decision_enabled;
+  const isOn = isTypeSafe || Boolean(isEnabled);
+
   return (
-    <View
-      borderColor="gray-200"
-      borderWidth="thin"
-      borderRadius="medium"
-      padding="size-200"
-    >
-      <Flex direction="column" gap="size-100">
+    <ProviderFormSection
+      title="Decision models"
+      subtitle={
+        isTypeSafe
+          ? "Always on: System One at this provider's base URL"
+          : "Uses this provider's API key and headers"
+      }
+      extra={
         <Controller
           name="decision_enabled"
           control={control}
-          render={({ field, fieldState: { error } }) => (
-            <Flex direction="column" gap="size-50">
-              <Switch
-                isSelected={isTypeSafe || Boolean(field.value)}
-                isDisabled={isTypeSafe || isSubmitting}
-                onChange={(next) => {
-                  field.onChange(next);
-                  if (next) {
-                    prefillBaseUrl(client, null);
-                  }
-                }}
-              >
-                <Text weight="heavy">Decision models</Text>
-              </Switch>
-              <Text size="S" color="text-700">
-                {isTypeSafe
-                  ? "A TypeSafe provider serves decision models through System One at its base URL."
-                  : "Serve decision models too. They use this provider's API key and headers."}
-              </Text>
-              {error ? (
-                <Text size="S" color="danger">
-                  {error.message}
-                </Text>
-              ) : null}
-            </Flex>
+          render={({ field }) => (
+            <Switch
+              aria-label="Serve decision models"
+              isSelected={isOn}
+              isDisabled={isTypeSafe || isSubmitting}
+              onChange={(next) => {
+                field.onChange(next);
+                if (next) {
+                  prefillBaseUrl(client, null);
+                }
+              }}
+            >
+              {isOn ? "On" : "Off"}
+            </Switch>
           )}
         />
-        {isTypeSafe || isEnabled ? (
-          <>
-            {!isTypeSafe ? (
-              <>
-                <Controller
-                  name="decision_sdk"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onChange={(key) => {
-                        if (key == null || key === field.value) return;
-                        const previousGuess = guessDecisionBaseUrl(
-                          field.value,
-                          chatBaseUrl
-                        );
-                        field.onChange(key);
-                        prefillBaseUrl(key as DecisionSDK, previousGuess);
-                      }}
-                      isDisabled={isSubmitting}
-                    >
-                      <Label>Decision client</Label>
-                      <Button>
-                        <SelectValue />
-                        <SelectChevronUpDownIcon />
-                      </Button>
-                      <Popover>
-                        <ListBox>
-                          {DECISION_SDK_OPTIONS.map((option) => (
-                            <SelectItem
-                              key={option.id}
-                              id={option.id}
-                              textValue={option.label}
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </ListBox>
-                      </Popover>
-                    </Select>
-                  )}
-                />
-                <Controller
-                  name="decision_base_url"
-                  control={control}
-                  render={({ field, fieldState: { invalid, error } }) => (
-                    <TextField
-                      isInvalid={invalid}
-                      {...field}
-                      value={field.value ?? ""}
-                      isDisabled={isSubmitting}
-                    >
-                      <Label>Decision base URL</Label>
-                      <Input placeholder={guess} />
-                      {error ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">
-                          Pre-filled from the base URL above; edit it if
-                          decisions are served elsewhere.
-                        </Text>
-                      )}
-                    </TextField>
-                  )}
-                />
-              </>
-            ) : null}
+      }
+    >
+      {enabledError?.message ? (
+        <Text size="S" color="danger">
+          {enabledError.message}
+        </Text>
+      ) : null}
+      {isOn ? (
+        <>
+          {isTypeSafe ? (
             <Text size="S" color="text-700">
-              Decision requests are sent to{" "}
-              <span css={endpointPreviewCSS} data-testid="decision-endpoint">
-                POST {endpointUrl}
-              </span>
+              <EndpointPreview url={endpointUrl} />
             </Text>
-            <Controller
-              name="decision_model_names"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  value={field.value ?? ""}
-                  isDisabled={isSubmitting}
-                >
-                  <Label>Suggested model names</Label>
-                  <Input
-                    placeholder={
-                      client === "TYPESAFE"
-                        ? "jev-latest, jev-1.14.0"
-                        : "gpt-6-luna"
-                    }
-                  />
-                  <Text slot="description">
-                    Optional, comma separated. Listed in the model menu; any
-                    model the endpoint accepts can be used.
-                  </Text>
-                </TextField>
-              )}
-            />
-            <TestDecisionEndpoint
-              control={control}
-              getValues={getValues}
-              sdk={sdk}
-            />
-          </>
-        ) : null}
-      </Flex>
-    </View>
+          ) : (
+            <Flex direction="row" gap="size-100" alignItems="start">
+              <Controller
+                name="decision_sdk"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onChange={(key) => {
+                      if (key == null || key === field.value) return;
+                      const previousGuess = guessDecisionBaseUrl(
+                        field.value,
+                        chatBaseUrl
+                      );
+                      field.onChange(key);
+                      prefillBaseUrl(key as DecisionSDK, previousGuess);
+                    }}
+                    isDisabled={isSubmitting}
+                    css={decisionClientCSS}
+                  >
+                    <Label>Decision client</Label>
+                    <Button>
+                      <SelectValue />
+                      <SelectChevronUpDownIcon />
+                    </Button>
+                    <Popover>
+                      <ListBox>
+                        {DECISION_SDK_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.id}
+                            id={option.id}
+                            textValue={option.label}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </ListBox>
+                    </Popover>
+                  </Select>
+                )}
+              />
+              <Controller
+                name="decision_base_url"
+                control={control}
+                render={({ field, fieldState: { invalid, error } }) => (
+                  <TextField
+                    isInvalid={invalid}
+                    {...field}
+                    value={field.value ?? ""}
+                    isDisabled={isSubmitting}
+                    css={decisionBaseUrlCSS}
+                  >
+                    <Label>Decision base URL</Label>
+                    <Input placeholder={guess} />
+                    {error ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        <EndpointPreview url={endpointUrl} />
+                      </Text>
+                    )}
+                  </TextField>
+                )}
+              />
+            </Flex>
+          )}
+          <Controller
+            name="decision_model_names"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                value={field.value ?? ""}
+                isDisabled={isSubmitting}
+              >
+                <Label>Suggested model names</Label>
+                <Input
+                  placeholder={
+                    client === "TYPESAFE"
+                      ? "jev-latest, jev-1.14.0"
+                      : "gpt-6-luna"
+                  }
+                />
+                <Text slot="description">
+                  Optional, comma separated. Listed in the model menu; any model
+                  the endpoint accepts can be used.
+                </Text>
+              </TextField>
+            )}
+          />
+          <TestDecisionEndpoint
+            control={control}
+            getValues={getValues}
+            sdk={sdk}
+          />
+        </>
+      ) : null}
+    </ProviderFormSection>
+  );
+}
+
+/** The exact URL a decision run posts to. */
+function EndpointPreview({ url }: { url: string }) {
+  return (
+    <span css={endpointPreviewCSS} data-testid="decision-endpoint">
+      POST {url}
+    </span>
   );
 }
 

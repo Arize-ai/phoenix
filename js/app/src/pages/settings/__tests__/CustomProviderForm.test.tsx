@@ -153,7 +153,7 @@ describe("CustomProviderForm decision models", () => {
     expect(decisionSwitch().disabled).toBe(true);
     expect(preview()).toBe("POST https://system-one.example/v1/systemone");
     // Its credential test is its decision endpoint test.
-    expect(container.textContent).not.toContain("Test Credentials");
+    expect(container.textContent).not.toContain("Test credentials");
   });
 
   it("offers no decision section on SDKs that cannot serve decisions", () => {
@@ -162,7 +162,7 @@ describe("CustomProviderForm decision models", () => {
       name: "anthropic",
     });
     expect(container.querySelector('input[role="switch"]')).toBeNull();
-    expect(container.textContent).toContain("Test Credentials");
+    expect(container.textContent).toContain("Test credentials");
   });
 
   it("offers suggested LLM model names on chat SDKs", () => {
@@ -174,7 +174,38 @@ describe("CustomProviderForm decision models", () => {
     expect(input("qwen3-coder, llama-5-70b").value).toBe(
       "claude-gateway-sonnet"
     );
-    expect(container.textContent).toContain("built-in Anthropic models");
+    expect(container.textContent).toContain("built-in Anthropic list");
+  });
+
+  it("folds optional fields away unless they have a value", () => {
+    render();
+    // A collapsed panel stays mounted but hidden.
+    const organization = container.querySelector(
+      'input[name="openai_organization"]'
+    );
+    expect(organization?.closest("[hidden]")).not.toBeNull();
+    expect(container.textContent).toContain(
+      "Organization, project and default headers"
+    );
+  });
+
+  it("opens the optional fields when one has a value", () => {
+    render({
+      ...(createDefaultFormData("OPENAI") as ProviderFormData),
+      name: "proxy",
+      openai_api_key: "sk-test",
+      openai_organization: "org-123",
+    } as ProviderFormData);
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[name="openai_organization"]'
+      )?.value
+    ).toBe("org-123");
+    expect(
+      container
+        .querySelector('input[name="openai_organization"]')
+        ?.closest("[hidden]")
+    ).toBeNull();
   });
 
   it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
