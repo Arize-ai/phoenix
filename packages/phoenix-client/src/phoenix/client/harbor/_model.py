@@ -131,11 +131,7 @@ class ExperimentSlice:
         return short_digest(self.identity_digest)
 
     def describe(self) -> dict[str, Any]:
-        """Returns the agent configuration recorded as ``harbor_agent`` metadata.
-
-        Secret-named kwargs and environment values are omitted, so the result is
-        safe to store and filter on in Phoenix.
-        """
+        """Returns the agent configuration without secret-named kwargs or environment values."""
         agent = self.agent
         return {
             "agent_name": self.agent_name,

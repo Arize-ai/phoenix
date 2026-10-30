@@ -195,6 +195,8 @@ class TestSlices:
                     kwargs={
                         "api_key": credential,
                         "apiKey": credential,
+                        "OpenAIKey": credential,
+                        "proxy_url": f"https://proxy.example.com/v1?region=us&api_key={credential}",
                         "access_token": credential,
                         "client_secret": credential,
                         "password": credential,
@@ -217,6 +219,10 @@ class TestSlices:
         assert credential not in json.dumps(described)
         assert described["model_params"] == {"max_tokens": 1024}
         assert described["kwargs"]["api_base"] == "https://proxy.example.com/v1"
+        assert (
+            described["kwargs"]["proxy_url"]
+            == "https://proxy.example.com/v1?region=us&api_key=REDACTED"
+        )
         assert described["kwargs"]["tools"] == [{"name": "search"}]
         assert described["env_keys"] == ["OPENAI_API_KEY"]
 

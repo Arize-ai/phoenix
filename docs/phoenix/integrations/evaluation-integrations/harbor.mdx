@@ -145,7 +145,11 @@ Each experiment's metadata describes the Harbor job and the agent configuration,
 
 `model_params` collects these keys: `temperature`, `top_p`, `top_k`, `max_tokens`, `max_output_tokens`, `max_completion_tokens`, `max_thinking_tokens`, `reasoning_effort`, `seed`, `frequency_penalty`, `presence_penalty`, and `stop`. The plugin reads each one from the top-level agent kwargs first, then from `llm_kwargs`, and then from `llm_call_kwargs`. For example, `--agent-kwarg temperature=0.2` is recorded as `harbor_agent.model_params.temperature`.
 
-The plugin never records secrets. It drops any kwarg whose name contains a word such as `key`, `token`, `secret`, `password`, `auth`, `credential`, `cookie`, `header`, or `env`, at any nesting depth. It also strips credentials embedded in URLs. Count fields such as `max_tokens` are kept.
+The plugin drops any kwarg whose name contains a word such as `key`, `token`, `secret`, `password`, `auth`, `credential`, `cookie`, `header`, or `env`, at any nesting depth. It also strips credentials embedded in URLs and replaces the values of secret-named URL query parameters with `REDACTED`. Count fields such as `max_tokens` are kept.
+
+<Warning>
+The plugin matches secrets by name. A credential stored under a neutral name, such as an `extra_body` field that holds a bearer token, is recorded. Pass credentials through the agent environment instead of agent kwargs.
+</Warning>
 
 Experiments created by earlier plugin versions keep their original metadata and don't have the newer fields.
 

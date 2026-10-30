@@ -51,9 +51,12 @@ _SECRET_SEGMENTS = frozenset(
         "token",
     }
 )
-_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+# The second branch splits an acronym from the word after it: ``OpenAIKey``.
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _SEGMENT_SEPARATOR = re.compile(r"[^a-z0-9]+")
 _URL_USERINFO = re.compile(r"(?<=://)[^/@\s]+@")
+_QUERY_PARAM = re.compile(r"(?<=[?&])([^=&#\s]+)=[^&#\s]*")
+_REDACTED = "REDACTED"
 
 
 def is_secret_key(key: str) -> bool:
@@ -66,12 +69,14 @@ def redact_secrets(value: Any) -> Any:
     """Returns a JSON-friendly copy of ``value`` without secret-named keys.
 
     Mapping keys become strings. Strings lose any user information embedded in
-    URLs. Values that aren't JSON scalars, mappings, or sequences become strings.
+    URLs, and secret-named query parameters keep their names but not their
+    values. Values that aren't JSON scalars, mappings, or sequences become
+    strings.
     """
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
-        return _URL_USERINFO.sub("", value)
+        return _QUERY_PARAM.sub(_redact_query_param, _URL_USERINFO.sub("", value))
     if isinstance(value, Mapping):
         return {
             str(key): redact_secrets(item)
@@ -81,6 +86,11 @@ def redact_secrets(value: Any) -> Any:
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
         return [redact_secrets(item) for item in value]
     return redact_secrets(str(value))
+
+
+def _redact_query_param(match: re.Match[str]) -> str:
+    name = match.group(1)
+    return f"{name}={_REDACTED}" if is_secret_key(name) else match.group(0)
 
 
 def model_params(kwargs: Mapping[str, Any]) -> dict[str, Any]:
