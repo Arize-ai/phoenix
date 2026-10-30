@@ -152,7 +152,7 @@ async def test_async_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
 def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
     def respond(body: Dict[str, Any]) -> httpx2.Response:
         if "output_config" in body:
-            return _bad_request("output_config.format.schema: this schema is too complex")
+            return _bad_request("output_config.format.schema: Schema type 'oneOf' is not supported")
         return _tool_use({"label": "bad"})
 
     requests: List[Dict[str, Any]] = []
@@ -166,7 +166,7 @@ def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
 def test_auto_raises_an_error_about_another_output_config_field() -> None:
     requests: List[Dict[str, Any]] = []
     adapter = _sync_adapter(
-        lambda _: _bad_request("output_config.effort: 'xhigh' is not supported for this model"),
+        lambda _: _bad_request("This model does not support the effort parameter."),
         requests,
     )
 

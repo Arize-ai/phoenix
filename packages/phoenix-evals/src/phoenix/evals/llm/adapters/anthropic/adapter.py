@@ -36,14 +36,12 @@ _NATIVE_OUTPUT_UNSUPPORTED = re.compile(
 # A 400 error about `output_config.format.schema` means native output can't take this schema, but
 # can still take others.
 _SCHEMA_UNSUPPORTED = re.compile(r"output_config\.format\.schema", re.IGNORECASE)
-# Keywords that native structured output rejects.
+# Number constraints, which native structured output rejects.
 _UNSUPPORTED_KEYWORDS = frozenset(
     {
         "exclusiveMaximum",
         "exclusiveMinimum",
-        "maxLength",
         "maximum",
-        "minLength",
         "minimum",
         "multipleOf",
     }
@@ -55,7 +53,7 @@ def _native_output_schema(schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     Adds `additionalProperties: false` to every object and turns a `oneOf` of `const` values, which
     `generate_classification` builds for labels with descriptions, into the equivalent `anyOf`.
-    Returns None for numeric and string-length constraints, any other `oneOf`, and
+    Returns None for number constraints such as `minimum`, any other `oneOf`, and
     `additionalProperties` set to anything but false.
     """
     native = close_objects(schema)
