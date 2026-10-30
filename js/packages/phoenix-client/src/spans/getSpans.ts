@@ -15,6 +15,8 @@ import { ensureServerCapability } from "../utils/serverVersionUtils";
 export type SpanAttributeValue = string | number | boolean;
 export type SpanAttributes = Record<string, SpanAttributeValue>;
 
+const PYTHON_JSON_CONSTANTS = new Set(["NaN", "Infinity", "-Infinity"]);
+
 function serializeAttributeValue(value: SpanAttributeValue): string {
   if (typeof value === "boolean") {
     return JSON.stringify(value);
@@ -27,15 +29,17 @@ function serializeAttributeValue(value: SpanAttributeValue): string {
     }
     return String(value);
   }
-  if (value === "") {
+  // The server reads the value with Python's json.loads, which also accepts
+  // these constants. Quoting any value it would decode keeps the string intact.
+  if (value === "" || PYTHON_JSON_CONSTANTS.has(value.trim())) {
     return JSON.stringify(value);
   }
   try {
-    const parsed = JSON.parse(value);
-    return typeof parsed === "string" ? value : JSON.stringify(value);
+    JSON.parse(value);
   } catch {
     return value;
   }
+  return JSON.stringify(value);
 }
 
 function serializeAttributes(attributes: SpanAttributes): string[] {
