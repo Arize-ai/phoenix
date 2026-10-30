@@ -3,7 +3,10 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
@@ -119,13 +122,16 @@ describe("normalized decision prompts", () => {
 
     store.getState().updateDecisionPrompt({
       instanceId: 1,
-      request: { ...draft, state: "Typed {{ticket}}" },
+      request: {
+        ...draft,
+        state: createDecisionStateDraft({ text: "Typed {{ticket}}" }),
+      },
     });
     const after = store.getState();
 
     expect(after.instances).toBe(before.instances);
     expect(after.instances[0]).toBe(before.instances[0]);
-    expect(selectPlaygroundInstanceDecisionPrompt(1)(after)?.state).toBe(
+    expect(selectPlaygroundInstanceDecisionPrompt(1)(after)?.state.text).toBe(
       "Typed {{ticket}}"
     );
     expect(Object.keys(after.allInstanceDecisionPrompts)).toEqual(
@@ -163,7 +169,10 @@ describe("normalized decision prompts", () => {
 
     store.getState().updateDecisionPrompt({
       instanceId: copyId,
-      request: { ...draft, state: "Only the copy" },
+      request: {
+        ...draft,
+        state: createDecisionStateDraft({ text: "Only the copy" }),
+      },
     });
     expect(
       selectPlaygroundInstanceDecisionPrompt(1)(store.getState())?.state
@@ -175,7 +184,10 @@ describe("normalized decision prompts", () => {
     store.getState().runPlaygroundInstances();
     store.getState().updateDecisionPrompt({
       instanceId: 1,
-      request: { ...draft, state: "Edited after the run" },
+      request: {
+        ...draft,
+        state: createDecisionStateDraft({ text: "Edited after the run" }),
+      },
     });
 
     expect(store.getState().instances[0].decisionRunRequest).toEqual(draft);
@@ -185,10 +197,16 @@ describe("normalized decision prompts", () => {
     const { store, draft } = createDecisionStore();
     store.getState().updateDecisionPrompt({
       instanceId: 1,
-      request: { ...draft, state: "Unsaved" },
+      request: {
+        ...draft,
+        state: createDecisionStateDraft({ text: "Unsaved" }),
+      },
     });
     const previousId = store.getState().instances[0].decisionPromptId;
-    const loaded = { ...draft, state: "Saved {{ticket}}" };
+    const loaded = {
+      ...draft,
+      state: createDecisionStateDraft({ text: "Saved {{ticket}}" }),
+    };
 
     store.getState().loadInstance({
       instanceId: 1,

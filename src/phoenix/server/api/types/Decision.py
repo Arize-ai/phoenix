@@ -16,18 +16,18 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DecisionDefinition import (
-    DecisionInputDefinition,
     DecisionQuestion,
     DecisionState,
-    to_gql_decision_input,
     to_gql_decision_question,
     to_gql_decision_state,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.decisions.rendering import decision_variables
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
@@ -146,8 +146,8 @@ class DecisionVersionTag(Node):
 
 
 @strawberry.type(
-    description="An immutable version of a decision: its inputs, how the state is built from "
-    "them, its questions, and the model that answers."
+    description="An immutable version of a decision: its state template, questions, and the "
+    "model that answers. Its variables are derived from the templates."
 )
 class DecisionVersion(Node):
     id: NodeID[int]
@@ -166,9 +166,11 @@ class DecisionVersion(Node):
     def description(self) -> Optional[str]:
         return self.db_record.description
 
-    @strawberry.field
-    def inputs(self) -> list[DecisionInputDefinition]:
-        return [to_gql_decision_input(input) for input in self.db_record.inputs]
+    @strawberry.field(
+        description="How variable tags are read in the state and the question fields."
+    )  # type: ignore[untyped-decorator]
+    def template_format(self) -> PromptTemplateFormat:
+        return self.db_record.template_format
 
     @strawberry.field
     def state(self) -> DecisionState:
@@ -177,6 +179,14 @@ class DecisionVersion(Node):
     @strawberry.field
     def questions(self) -> list[DecisionQuestion]:
         return [to_gql_decision_question(question) for question in self.db_record.questions]
+
+    @strawberry.field(
+        description="The variables the state and questions use, by root name, in "
+        "first-appearance order. A call must supply each of them."
+    )  # type: ignore[untyped-decorator]
+    def variables(self) -> list[str]:
+        record = self.db_record
+        return decision_variables(record.template_format, record.state, record.questions)
 
     @strawberry.field
     def model_provider(self) -> GenerativeProviderKey:

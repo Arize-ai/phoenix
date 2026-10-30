@@ -6,7 +6,6 @@ from .base_model import BaseModel
 from .enums import (
     AnthropicOutputConfigEffort,
     AnthropicThinkingDisplay,
-    DecisionTemplateFormat,
     GenerativeProviderKey,
     GoogleThinkingLevel,
     Language,
@@ -115,15 +114,6 @@ class DecisionChoiceScoringInput(BaseModel):
     )
 
 
-class DecisionInputDefinitionInput(BaseModel):
-    """One named input a caller passes."""
-
-    name: str
-    description: Optional[str] = None
-    json_schema: Optional[Any] = Field(alias="jsonSchema", default=None)
-    "Describes the value for the playground form. Not enforced on a run."
-
-
 class DecisionPredicateScoringInput(BaseModel):
     """Scoring for a predicate question."""
 
@@ -169,18 +159,17 @@ class DecisionScoringPolicyInput(BaseModel):
 
 
 class DecisionStateInput(BaseModel):
-    """How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged."""
+    """The state template. Exactly one must be set: `text` is a text template; `json` is any JSON value whose string leaves are templates, where a string that is exactly one variable tag becomes the variable's value with its JSON type kept."""
 
-    object_: Optional[bool] = Field(alias="object", default=None)
-    text: Optional["TextStateInput"] = None
-    input: Optional[str] = None
-    "The name of the input whose value is the state."
+    text: Optional[str] = None
+    json_: Optional[Any] = Field(alias="json", default=None)
 
 
 class DecisionVersionInput(BaseModel):
-    """A decision version to save: its inputs, state, questions, and the model that answers. Saved versions are immutable; saving again adds a version."""
+    """A decision version to save: its template format, state template, questions, and the model that answers. Saved versions are immutable; saving again adds a version."""
 
-    inputs: list["DecisionInputDefinitionInput"]
+    template_format: PromptTemplateFormat = Field(alias="templateFormat")
+    "How variable tags are read in the state and the question fields."
     state: "DecisionStateInput"
     questions: list["DecisionQuestionInput"]
     model_provider: GenerativeProviderKey = Field(alias="modelProvider")
@@ -442,13 +431,6 @@ class TextContentValueInput(BaseModel):
     text: str
 
 
-class TextStateInput(BaseModel):
-    """Render a text template over the inputs."""
-
-    template: str
-    template_format: DecisionTemplateFormat = Field(alias="templateFormat")
-
-
 class ToolCallContentValueInput(BaseModel):
     tool_call_id: str = Field(alias="toolCallId")
     tool_call: "ToolCallFunctionInput" = Field(alias="toolCall")
@@ -474,7 +456,6 @@ DecisionChoiceScoringInput.model_rebuild()
 DecisionQuestionInput.model_rebuild()
 DecisionQuestionScoringInput.model_rebuild()
 DecisionScoringPolicyInput.model_rebuild()
-DecisionStateInput.model_rebuild()
 DecisionVersionInput.model_rebuild()
 EvaluatorDefinitionInput.model_rebuild()
 EvaluatorPreviewItemInput.model_rebuild()

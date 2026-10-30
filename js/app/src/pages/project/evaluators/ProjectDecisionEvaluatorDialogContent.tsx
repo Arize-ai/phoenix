@@ -22,7 +22,10 @@ import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/Evalu
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import { createDecisionQuestion } from "@phoenix/pages/playground/decisionUtils";
+import {
+  createDecisionQuestion,
+  createDecisionStateDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
 import type { ProjectDecisionEvaluatorDialogContentUpdateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentUpdateMutation.graphql";
 import {
@@ -64,8 +67,9 @@ type DialogProps = ScopeProps & {
 
 function createProjectDecisionDraft(): DecisionPromptDraft {
   return {
-    state: "Request:\n{{input}}\n\nResponse:\n{{output}}",
-    stateEditorMode: "text",
+    state: createDecisionStateDraft({
+      text: "Request:\n{{input}}\n\nResponse:\n{{output}}",
+    }),
     questions: [
       createDecisionQuestion({
         type: "predicate",

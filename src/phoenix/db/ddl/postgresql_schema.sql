@@ -958,7 +958,7 @@ CREATE TABLE public.experiment_jobs (
     cooldown_until TIMESTAMP WITH TIME ZONE,
     max_concurrency INTEGER NOT NULL DEFAULT 10,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    decision_evaluator_snapshots JSONB NOT NULL DEFAULT '[]'::jsonb,
+    decision_evaluator_snapshots JSON NOT NULL DEFAULT '[]'::json,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),
@@ -1370,8 +1370,8 @@ CREATE TABLE public.decision_versions (
     decision_id BIGINT NOT NULL,
     description VARCHAR,
     user_id BIGINT,
-    inputs JSONB NOT NULL,
-    state JSONB NOT NULL,
+    template_format VARCHAR NOT NULL,
+    state JSON NOT NULL,
     questions JSONB NOT NULL,
     model_provider VARCHAR NOT NULL,
     model_name VARCHAR NOT NULL,
@@ -1381,6 +1381,12 @@ CREATE TABLE public.decision_versions (
     CONSTRAINT pk_decision_versions PRIMARY KEY (id),
     CONSTRAINT uq_decision_versions_decision_id_id
         UNIQUE (decision_id, id),
+    CONSTRAINT "ck_decision_versions_`template_format`"
+        CHECK (((template_format)::text = ANY ((ARRAY[
+            'F_STRING'::character varying,
+            'MUSTACHE'::character varying,
+            'NONE'::character varying
+        ])::text[]))),
     CONSTRAINT fk_decision_versions_custom_provider_id_generative_mode_905d
         FOREIGN KEY (custom_provider_id)
         REFERENCES public.generative_model_custom_providers (id)
@@ -1477,7 +1483,7 @@ CREATE TABLE public.experiment_decision_tasks (
     model_name VARCHAR NOT NULL,
     custom_provider_id BIGINT,
     base_url VARCHAR,
-    config JSONB NOT NULL,
+    config JSON NOT NULL,
     decision_version_id BIGINT,
     CONSTRAINT pk_experiment_decision_tasks PRIMARY KEY (id),
     CONSTRAINT "ck_experiment_decision_tasks_`custom_provider_or_base_url`" CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (base_url IS NOT NULL)))),

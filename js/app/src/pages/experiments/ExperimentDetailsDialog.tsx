@@ -452,21 +452,15 @@ function ExperimentDetailsDialogContent({
                     id
                     name
                   }
-                  inputValuesPath
-                  inputs {
-                    name
-                  }
+                  templateVariablesPath
+                  templateFormat
                   state {
                     __typename
-                    ... on DecisionObjectState {
-                      object
-                    }
-                    ... on DecisionInputState {
-                      input
-                    }
                     ... on DecisionTextState {
-                      template
-                      templateFormat
+                      text
+                    }
+                    ... on DecisionJsonState {
+                      json
                     }
                   }
                   questions {
@@ -765,8 +759,8 @@ function ExperimentDetailsDialogContent({
                       {decisionTaskConfig.baseUrl}
                     </DetailRow>
                   ) : null}
-                  <DetailRow label="Input Values Path">
-                    {decisionTaskConfig.inputValuesPath}
+                  <DetailRow label="Template Variables Path">
+                    {decisionTaskConfig.templateVariablesPath}
                   </DetailRow>
                   {job?.maxConcurrency != null ? (
                     <DetailRow label="Max Concurrency">

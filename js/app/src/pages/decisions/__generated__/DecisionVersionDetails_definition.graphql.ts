@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9fa7f3c1ee8eada2f8d8052f4e5eeb9>>
+ * @generated SignedSource<<a3bb7ad50352a9f7a1d3d6e1280ba567>>
  * @lightSyntaxTransform
  */
 
@@ -8,18 +8,14 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type DecisionVersionDetails_definition$data = {
   readonly customProvider: {
     readonly id: string;
     readonly name: string;
   } | null;
-  readonly inputs: ReadonlyArray<{
-    readonly description: string | null;
-    readonly name: string;
-  }>;
   readonly modelName: string;
   readonly modelProvider: GenerativeProviderKey;
   readonly questions: ReadonlyArray<{
@@ -52,20 +48,18 @@ export type DecisionVersionDetails_definition$data = {
     readonly __typename: "%other";
   }>;
   readonly state: {
-    readonly __typename: "DecisionInputState";
-    readonly input: string;
-  } | {
-    readonly __typename: "DecisionObjectState";
-    readonly object: boolean;
+    readonly __typename: "DecisionJsonState";
+    readonly json: any;
   } | {
     readonly __typename: "DecisionTextState";
-    readonly template: string;
-    readonly templateFormat: DecisionTemplateFormat;
+    readonly text: string;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
+  readonly templateFormat: PromptTemplateFormat;
+  readonly variables: ReadonlyArray<string>;
   readonly " $fragmentType": "DecisionVersionDetails_definition";
 };
 export type DecisionVersionDetails_definition$key = {
@@ -78,28 +72,28 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "__typename",
   "storageKey": null
 },
 v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "name",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "instructions",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "instructions",
+  "name": "description",
   "storageKey": null
 };
 return {
@@ -111,14 +105,15 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "DecisionInputDefinition",
-      "kind": "LinkedField",
-      "name": "inputs",
-      "plural": true,
-      "selections": [
-        (v0/*:: as any*/),
-        (v1/*:: as any*/)
-      ],
+      "kind": "ScalarField",
+      "name": "templateFormat",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "variables",
       "storageKey": null
     },
     {
@@ -129,7 +124,7 @@ return {
       "name": "state",
       "plural": false,
       "selections": [
-        (v2/*:: as any*/),
+        (v0/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -137,28 +132,7 @@ return {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "object",
-              "storageKey": null
-            }
-          ],
-          "type": "DecisionObjectState",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "template",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "templateFormat",
+              "name": "text",
               "storageKey": null
             }
           ],
@@ -172,11 +146,11 @@ return {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "input",
+              "name": "json",
               "storageKey": null
             }
           ],
-          "type": "DecisionInputState",
+          "type": "DecisionJsonState",
           "abstractKey": null
         }
       ],
@@ -190,12 +164,12 @@ return {
       "name": "questions",
       "plural": true,
       "selections": [
-        (v2/*:: as any*/),
+        (v0/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*:: as any*/),
-            (v3/*:: as any*/),
+            (v1/*:: as any*/),
+            (v2/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -228,8 +202,8 @@ return {
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*:: as any*/),
-            (v3/*:: as any*/),
+            (v1/*:: as any*/),
+            (v2/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -245,7 +219,7 @@ return {
                   "name": "value",
                   "storageKey": null
                 },
-                (v1/*:: as any*/)
+                (v3/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -256,8 +230,8 @@ return {
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*:: as any*/),
-            (v3/*:: as any*/),
+            (v1/*:: as any*/),
+            (v2/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -273,7 +247,7 @@ return {
                   "name": "label",
                   "storageKey": null
                 },
-                (v1/*:: as any*/)
+                (v3/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -313,7 +287,7 @@ return {
           "name": "id",
           "storageKey": null
         },
-        (v0/*:: as any*/)
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -323,6 +297,6 @@ return {
 };
 })();
 
-(node as any).hash = "14fa85e1f6cc0b614b255f3c370b8ebe";
+(node as any).hash = "d6f08a76cc0d87c8af7e55d27f1c4ea4";
 
 export default node;

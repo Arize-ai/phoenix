@@ -14,14 +14,17 @@ vi.mock("@phoenix/components/templateEditor", () => ({
   TemplateInput: ({
     "aria-label": ariaLabel,
     defaultValue,
+    templateFormat,
     onChange,
   }: {
     "aria-label": string;
     defaultValue?: string;
+    templateFormat: string;
     onChange: (value: string) => void;
   }) => (
     <input
       aria-label={ariaLabel}
+      data-template-format={templateFormat}
       defaultValue={defaultValue}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -66,11 +69,11 @@ describe("DecisionQuestionEditor scale levels", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <DecisionQuestionEditor
             question={question}
+            templateFormat="MUSTACHE"
             index={0}
             errors={undefined}
             isDisabled={false}
             canRemove
-            templateFormat={TemplateFormats.Mustache}
             onTouch={vi.fn()}
             onChange={onChange}
             onRemove={vi.fn()}
@@ -86,6 +89,16 @@ describe("DecisionQuestionEditor scale levels", () => {
     expect(field("Level 0 label").value).toBe("low");
     expect(field("Level 0 description").value).toBe("Cosmetic");
     expect(field("Level 1 description").value).toBe("Blocks the user");
+  });
+
+  it("edits criteria as templates in the playground's format", () => {
+    render(vi.fn());
+    expect(field("Level 0 description").dataset.templateFormat).toBe(
+      TemplateFormats.Mustache
+    );
+    expect(field("Level 1 description").dataset.templateFormat).toBe(
+      TemplateFormats.Mustache
+    );
   });
 
   it("edits a label without touching the rubric, and the reverse", async () => {

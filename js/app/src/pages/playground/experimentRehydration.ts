@@ -7,7 +7,6 @@
 
 import { fetchQuery, graphql } from "relay-runtime";
 
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
   createDecisionTaskInstance,
@@ -67,7 +66,7 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                 id
                 name
               }
-              inputValuesPath
+              templateVariablesPath
               decisionVersion {
                 id
                 decision {
@@ -75,22 +74,14 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                   name
                 }
               }
-              inputs {
-                name
-                description
-                jsonSchema
-              }
+              templateFormat
               state {
                 __typename
-                ... on DecisionObjectState {
-                  object
-                }
-                ... on DecisionInputState {
-                  input
-                }
                 ... on DecisionTextState {
-                  template
-                  templateFormat
+                  text
+                }
+                ... on DecisionJsonState {
+                  json
                 }
               }
               questions {
@@ -420,10 +411,7 @@ export function decisionTaskConfigToPlaygroundProps({
     throw new Error(`Unknown decision provider: ${taskConfig.modelProvider}`);
   }
   const version = toSavedDecisionVersion(taskConfig);
-  const templateFormat =
-    version.state.kind === "text" && version.state.templateFormat === "F_STRING"
-      ? TemplateFormats.FString
-      : TemplateFormats.Mustache;
+  const { templateFormat } = version;
   const defaults = createDecisionTaskInstance();
   const savedVersion = taskConfig.decisionVersion;
   const instance: PlaygroundInstance = {
@@ -455,7 +443,7 @@ export function decisionTaskConfigToPlaygroundProps({
           [datasetId]: {
             templateVariablesPathByMode: {
               ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
-              task: taskConfig.inputValuesPath,
+              task: taskConfig.templateVariablesPath,
             },
             appendedMessagesPath: null,
             maxConcurrency,

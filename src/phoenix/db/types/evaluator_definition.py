@@ -19,7 +19,7 @@ from phoenix.db.types.decision_evaluators import (
     DecisionScoringPolicy,
     derive_decision_output_configs,
 )
-from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, DecisionState
+from phoenix.db.types.decisions import DecisionQuestion, DecisionState
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -119,7 +119,7 @@ class InlineDecisionEvaluatorDefinition(_FrozenDBModel):
     type: Literal["inline_decision_evaluator"]
     name: str
     description: str | None = None
-    inputs: list[DecisionInput]
+    template_format: PromptTemplateFormat
     state: DecisionState
     questions: list[DecisionQuestion]
     model_provider: ModelProvider

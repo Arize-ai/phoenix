@@ -11,21 +11,21 @@ from typing import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.decisions import (
     ChoiceQuestion,
-    DecisionInput,
     DecisionQuestion,
     DecisionState,
-    InputState,
-    ObjectState,
+    JsonState,
     ScaleQuestion,
+    TextState,
 )
 from phoenix.db.types.model_provider import model_provider_from_sdk, sdk_offers_decisions
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
+from phoenix.server.decisions.rendering import decision_variables
 
 # Both providers document 2 to 255 choices (TypeSafe at https://docs.typesafe.ai/api,
 # OpenAI in its SDK's request types). The 2 to 10 levels are TypeSafe's; OpenAI documents
@@ -69,41 +69,36 @@ def validate_questions(questions: Sequence[DecisionQuestion]) -> None:
                 raise ValueError(f"Level labels for {name} cannot be empty")
 
 
-def validate_inputs(inputs: Sequence[DecisionInput], state: DecisionState) -> None:
-    """Check a version's inputs, and that its state only uses inputs it declares.
+def validate_template(
+    template_format: PromptTemplateFormat,
+    state: DecisionState,
+    questions: Sequence[DecisionQuestion],
+) -> list[str]:
+    """Check a version's state template and the templates in its questions.
+
+    Variables are derived from the templates, so there is no list of inputs to check them
+    against; a call that leaves one out fails when it renders.
+
+    Returns:
+        The decision's variables, in first-appearance order.
 
     Raises:
-        ValueError: An input name is empty or repeated, or a text template is empty,
-            invalid, or uses an undeclared input.
+        ValueError: A text template is empty, a JSON template is a literal number, boolean
+            or null or an empty string, or a template can't be parsed.
     """
-    if not inputs:
-        raise ValueError("At least one input is required")
-    names: set[str] = set()
-    for input in inputs:
-        if not input.name.strip():
-            raise ValueError("Input names cannot be empty")
-        if input.name in names:
-            raise ValueError(f"Input names must be unique: {input.name!r} is repeated")
-        names.add(input.name)
-    if isinstance(state, ObjectState):
-        return
-    if isinstance(state, InputState):
-        if state.name not in names:
-            raise ValueError(f"The state uses an undeclared input: {state.name}")
-        return
-    if not state.template.strip():
-        raise ValueError("The state template cannot be empty")
-    formatter = get_template_formatter(PromptTemplateFormat(state.template_format))
-    try:
-        # Root names only: a dotted path such as {ticket.subject} names the input ticket.
-        variables = formatter.parse_with_types(state.template).names()
-    except TemplateFormatterError as error:
-        raise ValueError(f"The state template is invalid: {error}") from error
-    # TODO: Names inside a Mustache section (e.g. {{#ticket}}{{other}}{{/ticket}}) can
-    # resolve against the section's own fields, so they are not checked here. They could
-    # be once an input declares a json_schema.
-    if undeclared := sorted(variables - names):
-        raise ValueError(f"The state template uses undeclared inputs: {', '.join(undeclared)}")
+    if isinstance(state, TextState):
+        if not state.template.strip():
+            raise ValueError("The state template cannot be empty")
+    elif isinstance(state, JsonState):
+        template = state.template
+        if isinstance(template, str):
+            if not template.strip():
+                raise ValueError("The state template cannot be empty")
+        elif not isinstance(template, (dict, list)):
+            raise ValueError("A JSON state template must be an object, a list, or a string")
+    else:
+        assert_never(state)
+    return decision_variables(template_format, state, questions)
 
 
 async def validate_decision_custom_provider(

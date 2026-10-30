@@ -1,5 +1,4 @@
-from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import strawberry
 from strawberry import UNSET
@@ -9,17 +8,16 @@ from strawberry.scalars import JSON
 from phoenix.db.types.decisions import (
     ChoiceOption,
     ChoiceQuestion,
-    DecisionInput,
     DecisionQuestion,
     DecisionState,
-    InputState,
-    ObjectState,
+    JsonState,
     PredicateCriteria,
     PredicateQuestion,
     ScaleLevel,
     ScaleQuestion,
     TextState,
 )
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
@@ -117,73 +115,53 @@ class DecisionQuestionInput:
         raise ValueError("DecisionQuestionInput: no field is set")
 
 
-@strawberry.input(description="One named input a caller passes.")
-class DecisionInputDefinitionInput:
-    name: str
-    description: Optional[str] = None
-    json_schema: Optional[JSON] = strawberry.field(
-        default=None,
-        description="Describes the value for the playground form. Not enforced on a run.",
-    )
-
-    def to_orm(self) -> DecisionInput:
-        if self.json_schema is not None and not isinstance(self.json_schema, dict):
-            raise BadRequest(f"jsonSchema for input {self.name!r} must be an object")
-        return DecisionInput(
-            name=self.name, description=self.description, json_schema=self.json_schema
-        )
-
-
-@strawberry.enum
-class DecisionTemplateFormat(Enum):
-    MUSTACHE = "MUSTACHE"
-    F_STRING = "F_STRING"
-
-
-@strawberry.input(description="Render a text template over the inputs.")
-class TextStateInput:
-    template: str
-    template_format: DecisionTemplateFormat
-
-    def to_orm(self) -> TextState:
-        return TextState(
-            type="text", template=self.template, template_format=self.template_format.value
-        )
-
-
 @strawberry.input(
     one_of=True,
     description=(
-        "How the state sent to the model is built from the inputs. Exactly one must be set: "
-        "`object: true` sends the inputs object itself, `text` renders a template, and "
-        "`input` sends one input's value unchanged."
+        "The state template. Exactly one must be set: `text` is a text template; `json` is "
+        "any JSON value whose string leaves are templates, where a string that is exactly one "
+        "variable tag becomes the variable's value with its JSON type kept."
     ),
 )
 class DecisionStateInput:
-    object: Optional[bool] = UNSET
-    text: Optional[TextStateInput] = UNSET
-    input: Optional[str] = strawberry.field(
-        default=UNSET, description="The name of the input whose value is the state."
-    )
+    text: Optional[str] = UNSET
+    json: Optional[JSON] = UNSET
 
     def to_orm(self) -> DecisionState:
-        if self.object is not UNSET:
-            if self.object is not True:
-                raise ValueError("DecisionStateInput: object must be true")
-            return ObjectState(type="object")
-        if self.text:
-            return self.text.to_orm()
-        if self.input is not UNSET and self.input is not None:
-            return InputState(type="input", name=self.input)
+        if self.text is not UNSET and self.text is not None:
+            return TextState(type="text", template=self.text)
+        if self.json is not UNSET:
+            return JsonState(type="json", template=self.json)
         raise ValueError("DecisionStateInput: no field is set")
 
 
+def to_decision_definition(
+    template_format: PromptTemplateFormat,
+    state: DecisionStateInput,
+    questions: Sequence[DecisionQuestionInput],
+) -> tuple[DecisionState, list[DecisionQuestion]]:
+    """The stored state and questions, checked against the write-time rules.
+
+    Raises:
+        ValueError: The state template or the questions break a rule.
+    """
+    from phoenix.server.decisions.validation import validate_questions, validate_template
+
+    stored_state = state.to_orm()
+    stored_questions = [question.to_orm() for question in questions]
+    validate_template(template_format, stored_state, stored_questions)
+    validate_questions(stored_questions)
+    return stored_state, stored_questions
+
+
 @strawberry.input(
-    description="A decision version to save: its inputs, state, questions, and the model that "
-    "answers. Saved versions are immutable; saving again adds a version."
+    description="A decision version to save: its template format, state template, questions, "
+    "and the model that answers. Saved versions are immutable; saving again adds a version."
 )
 class DecisionVersionInput:
-    inputs: list[DecisionInputDefinitionInput]
+    template_format: PromptTemplateFormat = strawberry.field(
+        description="How variable tags are read in the state and the question fields."
+    )
     state: DecisionStateInput
     questions: list[DecisionQuestionInput]
     model_provider: GenerativeProviderKey = strawberry.field(
@@ -204,7 +182,7 @@ class DecisionVersionInput:
         The caller assigns the decision and checks the custom provider in its transaction.
 
         Raises:
-            BadRequest: The inputs, state, or questions break a rule, the model name is
+            BadRequest: The state template or questions break a rule, the model name is
                 empty, or the provider offers no decision models.
         """
         from phoenix.db import models
@@ -213,10 +191,6 @@ class DecisionVersionInput:
             GenerativeModelCustomProvider,
         )
         from phoenix.server.api.types.node import from_global_id_with_expected_type
-        from phoenix.server.decisions.validation import (
-            validate_inputs,
-            validate_questions,
-        )
 
         if self.model_provider not in DECISION_CLIENTS:
             raise BadRequest(f"{self.model_provider.value} does not offer decision models.")
@@ -225,11 +199,9 @@ class DecisionVersionInput:
         if self.metadata is not None and not isinstance(self.metadata, dict):
             raise BadRequest("metadata must be an object")
         try:
-            inputs = [definition.to_orm() for definition in self.inputs]
-            state = self.state.to_orm()
-            questions = [question.to_orm() for question in self.questions]
-            validate_inputs(inputs, state)
-            validate_questions(questions)
+            state, questions = to_decision_definition(
+                self.template_format, self.state, self.questions
+            )
             custom_provider_id = (
                 from_global_id_with_expected_type(
                     self.custom_provider_id, GenerativeModelCustomProvider.__name__
@@ -242,7 +214,7 @@ class DecisionVersionInput:
         return models.DecisionVersion(
             description=self.description,
             user_id=user_id,
-            inputs=inputs,
+            template_format=self.template_format,
             state=state,
             questions=questions,
             model_provider=self.model_provider.to_model_provider(),

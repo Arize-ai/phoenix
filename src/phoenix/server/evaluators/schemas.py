@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from typing_extensions import assert_never
 
-from phoenix.db.types.decisions import DecisionInput
+from phoenix.db.types.decisions import DecisionQuestion, DecisionState
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptStringTemplate,
@@ -17,6 +17,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     TextContentPart,
 )
+from phoenix.server.decisions.rendering import decision_variables
 from phoenix.utilities.template_formatters import ParsedVariables, get_template_formatter
 
 if TYPE_CHECKING:
@@ -227,11 +228,22 @@ def infer_typescript_evaluate_input_schema(
     return (_make_object_input_schema(parameter_names, required_names), None)
 
 
-def decision_input_schema(inputs: Sequence[DecisionInput]) -> dict[str, Any]:
-    """Describe inputs for mapping without enforcing their descriptive JSON schemas."""
+def infer_input_schema_from_decision(
+    *,
+    template_format: PromptTemplateFormat,
+    state: DecisionState,
+    questions: Sequence[DecisionQuestion],
+) -> dict[str, Any]:
+    """Infer an evaluator input schema from a decision's templates, as for a prompt's.
+
+    Every variable accepts any JSON value: a decision keeps a value's type where a whole
+    tag names it and renders it as JSON inside text, so nothing is serialized up front.
+    Properties are in the variables' first-appearance order.
+    """
+    variables = decision_variables(template_format, state, questions)
     return {
         "type": "object",
-        "properties": {input.name: input.json_schema or {} for input in inputs},
-        "required": [input.name for input in inputs],
+        "properties": {name: {} for name in variables},
+        "required": variables,
         "additionalProperties": False,
     }

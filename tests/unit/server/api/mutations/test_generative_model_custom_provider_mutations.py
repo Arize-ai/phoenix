@@ -8,8 +8,9 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
-from phoenix.db.types.decisions import DecisionInput, InputState
+from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.identifier import Identifier as mp_identifier
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     _redact_provider_error,
 )
@@ -1121,8 +1122,8 @@ async def test_sdk_cannot_change_to_one_without_decisions_while_decision_version
                 decision_id=decision.id,
                 description=None,
                 user_id=None,
-                inputs=[DecisionInput(name="ticket")],
-                state=InputState(type="input", name="ticket"),
+                template_format=PromptTemplateFormat.MUSTACHE,
+                state=JsonState(type="json", template="{{ticket}}"),
                 questions=[],
                 model_provider="OPENAI",
                 model_name="gpt-4o",

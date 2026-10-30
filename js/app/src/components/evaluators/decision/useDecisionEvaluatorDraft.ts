@@ -196,7 +196,7 @@ export function useDecisionEvaluatorDraft({
         decisionName: initialEvaluator.decisionVersion.decision.name,
         versionId,
         tagName: null,
-        inputs: [],
+        variables: [],
         questions: [],
       });
     },

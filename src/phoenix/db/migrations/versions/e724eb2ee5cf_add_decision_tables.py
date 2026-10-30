@@ -107,8 +107,17 @@ def upgrade() -> None:
         ),
         sa.Column("description", sa.String, nullable=True),
         _user_id(),
-        sa.Column("inputs", JSON_, nullable=False),
-        sa.Column("state", JSON_, nullable=False),
+        sa.Column(
+            "template_format",
+            sa.String,
+            sa.CheckConstraint(
+                "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+            ),
+            nullable=False,
+        ),
+        # JSON rather than JSONB: a JSON state template's object keys keep the order
+        # they were written in, as for prompt tools.
+        sa.Column("state", JSON, nullable=False),
         sa.Column("questions", JSON_, nullable=False),
         sa.Column("model_provider", sa.String, nullable=False),
         sa.Column("model_name", sa.String, nullable=False),
@@ -218,8 +227,9 @@ def upgrade() -> None:
             "NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)",
             name="custom_provider_or_base_url",
         ),
-        # Inputs, state, question source, references, and scoring settings
-        sa.Column("config", JSON_, nullable=False),
+        # Template format, state, questions, and where the variables come from. JSON
+        # rather than JSONB, so a JSON state template's object keys keep their order.
+        sa.Column("config", JSON, nullable=False),
         sa.Column(
             "decision_version_id",
             _Integer,
@@ -268,7 +278,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "experiment_jobs",
-        sa.Column("decision_evaluator_snapshots", JSON_, nullable=False, server_default="[]"),
+        sa.Column("decision_evaluator_snapshots", JSON, nullable=False, server_default="[]"),
     )
 
 
@@ -281,7 +291,11 @@ def downgrade() -> None:
         if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE {column} = 'DECISION'")):
             raise ValueError("Cannot downgrade while decision evaluators exist")
     if connection.scalar(
-        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE decision_evaluator_snapshots != '[]'")
+        sa.text(
+            # PostgreSQL's json type has no equality operator, so compare its text.
+            "SELECT COUNT(*) FROM experiment_jobs "
+            "WHERE CAST(decision_evaluator_snapshots AS TEXT) != '[]'"
+        )
     ):
         raise ValueError("Cannot downgrade while decision evaluator snapshots exist")
     op.drop_column("experiment_jobs", "decision_evaluator_snapshots")
