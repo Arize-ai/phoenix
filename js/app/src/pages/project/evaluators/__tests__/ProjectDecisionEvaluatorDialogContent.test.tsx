@@ -52,8 +52,8 @@ vi.mock("@phoenix/pages/project/evaluators/refetchProjectEvaluators", () => ({
 vi.mock("@phoenix/contexts/NotificationContext", () => ({
   useNotifySuccess: () => vi.fn(),
 }));
-vi.mock("@phoenix/components/generative", () => ({
-  ModelMenu: () => null,
+vi.mock("@phoenix/pages/playground/PlaygroundInstanceControls", () => ({
+  PlaygroundInstanceModelControls: () => null,
 }));
 vi.mock(
   "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields",

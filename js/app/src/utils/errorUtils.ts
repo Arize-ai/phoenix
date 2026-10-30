@@ -68,6 +68,14 @@ export const getErrorMessagesFromRelayMutationError = (
   return messages.length > 0 ? messages : null;
 };
 
+/** The message of a failed mutation, from a network error or GraphQL errors. */
+export function getMutationErrorMessage(error: unknown): string {
+  return (
+    getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+    (error instanceof Error ? error.message : "An unknown error occurred")
+  );
+}
+
 /**
  * The GraphQL errors array at the end of a Relay network error message.
  *
