@@ -301,10 +301,7 @@ export function ModelMenu({
             <ModelTypeTabs
               modelType={modelType}
               notice={decisionTabNotice}
-              onChange={(nextModelType) => {
-                setModelType(nextModelType);
-                setSearchValue("");
-              }}
+              onChange={setModelType}
             />
           ) : null}
           {isSearching ? (

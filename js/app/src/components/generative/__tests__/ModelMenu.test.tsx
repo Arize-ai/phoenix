@@ -333,6 +333,24 @@ describe("ModelMenu", () => {
   });
 
   describe("in the Decision tab", () => {
+    it("keeps the search when switching tabs", async () => {
+      renderMenu();
+      const user = await openAndSearch("typesafe");
+      const decisionTab = [
+        ...document.body.querySelectorAll<HTMLElement>('[role="tab"]'),
+      ].find((candidate) => candidate.textContent === "Decision");
+      if (!decisionTab) throw new Error("no Decision tab");
+
+      await act(() => user.click(decisionTab));
+
+      expect(
+        document.body.querySelector<HTMLInputElement>(
+          'input[aria-label="Search models"]'
+        )?.value
+      ).toBe("typesafe");
+      expect(getSectionTitles()).toEqual(["TypeSafe"]);
+    });
+
     it("offers only the providers that serve decision models", async () => {
       renderMenu();
       await openCustomModelSubmenu("my-decision-v3", { tab: "Decision" });
