@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.5.0"
+  version: "3.6.0"
 ---
 
 # Phoenix CLI
@@ -54,6 +54,7 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px model-provider list
 px auth login
 px auth logout
 px auth status
@@ -412,6 +413,14 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
 Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+
+## Model Providers
+
+```bash
+px model-provider list --format raw --no-progress | jq -r '.[].provider'  # provider keys allowed by this deployment
+```
+
+Each record is `{provider, name}` (e.g. `{"provider":"OPENAI","name":"OpenAI"}`). The list reflects the server's `PHOENIX_ALLOWED_PROVIDERS` allow-list.
 
 ## GraphQL
 
