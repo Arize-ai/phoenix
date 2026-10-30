@@ -1,0 +1,171 @@
+---
+title: "Decision Models"
+sidebarTitle: "Decision Models"
+description: "Run classification evaluators on a decision model, such as OpenAI's gpt-6-luna or TypeSafe AI's Jev, for one label and a probability per label without generated text."
+---
+
+Any classification evaluator, including every built-in, can run on a **decision model** instead of a language model. A decision model picks one of the labels directly and returns a probability for each label. It doesn't generate text.
+
+Decision models are available from OpenAI through the [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) and from TypeSafe AI (Jev). TypeScript takes either through the AI SDK. Python supports TypeSafe AI's Jev only for now.
+
+## When to use one
+
+- **Faster and cheaper than a language-model judge.** Nothing is generated: a call is one choice question and one answer.
+- **A probability for every label.** Use it to route low-confidence labels to human review.
+- **No explanation.** You get a label, the score mapped from your choices, and metadata.
+
+<Warning>
+Decision models can't work through a problem step by step. They do well on judgments you can read off the text, such as relevance, faithfulness, tool selection, and toxicity. They're unreliable for checks that need a calculation or multi-step reasoning, such as unit conversions or arithmetic, and their probabilities can be confidently wrong on those. Use a language model for those evaluations.
+</Warning>
+
+## Using a decision model
+
+<Tabs>
+  <Tab title="Python" icon="python">
+
+<Note>
+Python support is in review in [#16953](https://github.com/Arize-ai/phoenix/pull/16953). The Python details on this page follow that pull request and may change before it merges, including the class name, how the prompt is sent, the result metadata, and tracing.
+</Note>
+
+Install the TypeSafe AI SDK and set `TYPESAFE_API_KEY`:
+
+```bash
+pip install typesafe-sdk
+export TYPESAFE_API_KEY=...
+```
+
+Pass the decision model as `llm=` to `ClassificationEvaluator`, `create_classifier`, or any built-in metric:
+
+```python
+from phoenix.evals import Decision, create_classifier
+from phoenix.evals.metrics import HallucinationEvaluator
+
+jev = Decision(model="jev-latest")
+
+# A built-in metric
+hallucination = HallucinationEvaluator(llm=jev)
+
+# A custom classifier
+sentiment = create_classifier(
+    name="sentiment",
+    prompt_template="Classify the sentiment of this review: {text}",
+    llm=jev,
+    choices={"positive": 1, "negative": 0, "neutral": 0.5},
+)
+
+[score] = sentiment.evaluate({"text": "The battery died in a day."})
+score.label        # "negative"
+score.score        # 0
+score.explanation  # None
+score.metadata     # {"model": "jev-latest", "probabilities": {"negative": 0.95, ...}, "model_id": "..."}
+```
+
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+
+Pass an AI SDK decision model as `model`. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later and set `OPENAI_API_KEY`. With TypeSafe AI, use `@ai-sdk/typesafe-ai` and set `TYPESAFE_AI_API_KEY`.
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { typeSafeAi } from "@ai-sdk/typesafe-ai";
+import {
+  createClassificationEvaluator,
+  createCorrectnessEvaluator,
+} from "@arizeai/phoenix-evals";
+
+const model = openai.decisionModel("gpt-6-luna");
+// Or TypeSafe AI's Jev:
+// const model = typeSafeAi.decisionModel("jev-latest");
+
+// A built-in evaluator
+const correctness = createCorrectnessEvaluator({ model });
+
+const result = await correctness.evaluate({
+  input: "What is the capital of Australia?",
+  output: "Sydney.",
+});
+// {
+//   label: "incorrect",
+//   score: 0,
+//   metadata: {
+//     probabilities: { correct: 0.02, incorrect: 0.98 },
+//     confidence: 0.96,
+//     modelId: "gpt-6-luna",
+//   },
+// }
+
+// A custom classifier
+const sentiment = createClassificationEvaluator({
+  name: "sentiment",
+  model,
+  choices: { positive: 1, negative: 0, neutral: 0.5 },
+  promptTemplate: "Classify the sentiment of this review: {{text}}",
+});
+```
+
+A plain string model ID is always treated as a language model. Pass the provider's model object instead, such as `openai.decisionModel("gpt-6-luna")`.
+
+  </Tab>
+</Tabs>
+
+## How the call is made
+
+- The evaluator asks one choice question through the provider's decision API. A fixed instruction tells the model to answer the prompt by selecting exactly one of the labels.
+- No tool calling and no structured output are involved, so the options that configure those paths don't apply: `ObjectGenerationMethod` and `include_explanation` in Python; `schemaName` and `schemaDescription` in TypeScript.
+- Because nothing is generated, the result has no explanation.
+
+## Prompting quirks
+
+- The template renders exactly as it does for a language model. In TypeScript, the rendered prompt then goes out as one plain-text state, the input the decision model reads: message roles are dropped, only text content is sent, and image and file parts aren't forwarded.
+- In Python, #16953 as it stands sends the rendered message list itself as the state, roles included. A string template renders as a single user message, so it goes out as a one-message list.
+- The labels become the choices. TypeScript choices carry no descriptions, so only the labels are sent. In Python, whether the descriptions in the `{label: (score, description)}` form are sent as choice criteria is still being decided in #16953.
+- Providers limit the size of the state and the number of choices. A classification outside those limits fails with the provider's error.
+- A decision model may refuse to classify, for example when asked to infer a sensitive attribute. In TypeScript the evaluator throws the AI SDK's `Experimental_DecisionRefusalError`; in `runExperiment`, it's recorded as that evaluation's error. Python doesn't handle refusals yet.
+
+## Results and metadata
+
+| Field | Python | TypeScript |
+|---|---|---|
+| Probability per label | `score.metadata["probabilities"]` | `result.metadata.probabilities` |
+| Resolved model ID | `score.metadata["model_id"]` | `result.metadata.modelId` |
+| Confidence, only when the provider reports one (OpenAI and TypeSafe AI do) | Not returned yet (requested in #16953) | `result.metadata.confidence` |
+| Explanation | `None` | `undefined` |
+
+This example sends a result to a review queue when the probability of its label is under 0.7:
+
+<Tabs>
+  <Tab title="Python" icon="python">
+
+```python
+[score] = hallucination.evaluate({"input": conversation, "output": answer})
+if score.metadata["probabilities"][score.label] < 0.7:
+    review_queue.append((conversation, answer, score))
+```
+
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+
+```typescript
+const result = await correctness.evaluate({ input, output });
+const probabilities = result.metadata?.probabilities as
+  | Record<string, number>
+  | undefined;
+const probability = result.label ? probabilities?.[result.label] : undefined;
+if (probability !== undefined && probability < 0.7) {
+  reviewQueue.push({ input, output, result });
+}
+```
+
+  </Tab>
+</Tabs>
+
+## Tracing
+
+- In TypeScript, decision calls appear in Phoenix as [DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) with `decision.*` attributes, not as LLM spans. Token usage is recorded on the span, not in the result metadata.
+- The TypeScript span comes from the AI SDK's telemetry. Tracing is on by default; pass `telemetry: { isEnabled: false }` to the evaluator to turn it off.
+- In Python, #16953 as it stands doesn't record a span of its own: a traced run shows only the evaluator span, and token usage isn't recorded. If the OpenInference TypeSafe AI instrumentor is installed, each `system_one` call is captured as a DECISION span by that instrumentor; see [TypeSafe AI tracing](/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python).
+
+## See also
+
+- [Classification evaluators in the TypeScript SDK reference](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification), including the lower-level `generateClassification` API.
+- [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm) for language-model judges.
